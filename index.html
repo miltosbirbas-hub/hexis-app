@@ -30,8 +30,11 @@
   --ok:#3DDC97;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{background:var(--ink);color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden;font-feature-settings:"ss01" 1}
+html{scroll-behavior:smooth;background:var(--ink)}
+body{background:transparent;color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden;font-feature-settings:"ss01" 1}
+body::after{content:'';position:fixed;inset:-35%;z-index:-1;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,0.042) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.042) 1px,transparent 1px);
+  background-size:76px 76px;transform:rotate(-15deg)}
 body::before{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0.5;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.05'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 a{color:inherit;text-decoration:none}
 ::selection{background:var(--brick);color:#081427}
@@ -267,6 +270,7 @@ footer{padding:72px 0 36px}
       <a href="#pricing">Τιμές</a>
       <a href="login.html">Σύνδεση</a>
     </div>
+    <button id="lang-btn" onclick="setLang(window._LANG==='en'?'el':'en')" style="background:none;border:1px solid var(--line);color:var(--mute);border-radius:8px;padding:8px 13px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:'IBM Plex Mono',monospace">EN</button>
     <a class="btn btn-brick nav-cta" href="login.html?mode=signup">Δωρεάν δοκιμή</a>
   </div>
 </nav>
@@ -619,6 +623,88 @@ document.querySelectorAll('.phone').forEach(p => gio.observe(p));
 }
 
 
+// ── ΔΙΓΛΩΣΣΗ ΣΕΛΙΔΑ (EL/EN) ──
+const EN_MAP = {
+  '.nav-links a': ['In action','Features','How it works','Pricing','Sign in'],
+  '.nav-cta': ['Free trial'],
+  'h1': ['Your construction sites,<br>under <span class="accent">control</span>.'],
+  '.hero-sub': ['A daily log of everything happening on site. Shortages, orders and instructions from you and your team, documented with <b>photos and video</b> in real time. Generate <b>reports</b> at the press of a button. A digital assistant <b>built by engineers, for engineers</b>.'],
+  '.hero-ctas .btn-brick': ['Start free →'],
+  '.hero-ctas a.btn-line': ['See the features'],
+  '#install-btn': ['📲 Install app'],
+  '.hero-note': ['<span class="ok">●</span> 14-day free trial &nbsp;·&nbsp; No card required &nbsp;·&nbsp; Cancel anytime'],
+  '.hero-note + div span': ['EU HOSTING','WORKS OFFLINE','ENCRYPTED DATA'],
+  '.strip-in span': ['<b>01</b>PHOTOS &amp; VIDEO 20″','<b>02</b>GANTT','<b>03</b>BOQ','<b>04</b>PDF REPORTS','<b>05</b>WHATSAPP','<b>06</b>FILES &amp; DRAWINGS','<b>07</b>UP TO 4 COLLABORATORS'],
+  '.sheet-no': ['SHEET 00','IN ACTION','SHEET 01','FEATURES','SHEET 02','HOW IT WORKS','SHEET 03','PRICING','SHEET 04','FROM USERS'],
+  '.scene-cap': ['Log entries in <span class="accent">seconds</span>.','Photos &amp; video, <span class="accent">on the spot</span>.','Progress, <span class="accent">measured</span>.','Client report, <span class="accent">one tap away</span>.'],
+  '.dc-title': ['Material order','Slab concrete pour'],
+  '.dc-badge': ['TODAY','EVIDENCE'],
+  '.dg-name span': ['Excavation','Structure','Masonry'],
+  '.demo-sent': ['<span class="tick">✓</span> Sent via WhatsApp &amp; Email'],
+  '.scr-tab': ['Entries','Gantt','BOQ','Map'],
+  '.scr-t': ['C25/30 order','Ground floor formwork'],
+  '.scr-d': ['TODAY','OK'],
+  '.gantt-label': ['GANTT — PHASES'],
+  '.gname span': ['Excavation','Structure','Masonry'],
+  '.toast': ['<span class="tick">✓</span> Report sent'],
+  'h2': ['Everything an engineer needs.','From the site to the report, in three steps.','Simple, transparent pricing.','Used across Greece.','Your next project starts organised.'],
+  '.sec-sub': ['No installs, no training. Works in the browser and on your phone — even offline.','14 days free on every plan. No card required to start.','By engineers, contractors and architects on active sites.'],
+  '.feat h3': ['Site log entries','Photos &amp; 20″ video','Gantt schedule','BOQ &amp; Budget','PDF &amp; WhatsApp reports','Team &amp; Collaborators','Files &amp; Drawings','Site map'],
+  '.feat p': [
+    'Instructions, orders, snag lists — with <b>voice input</b>, deadlines, status and assignee.',
+    'Capture <b>right inside the app</b>, annotate on the photo, automatic compression and sync.',
+    'Phases with progress percentages, a “today” marker and deadline export to <b>your calendar</b> (.ics).',
+    'Import from Excel, executed quantities and remainder <b>per section</b> — your budget always in view.',
+    'Project reports with numbered photos, <b>in Greek or English</b>, one tap to email or WhatsApp.',
+    'Grant access to <b>up to 4 collaborators per project</b> — each sees only the projects that concern them.',
+    'Upload <b>floor plans, drawings and documents</b> per project — always available on site, from your phone.',
+    'Google satellite map with the project pin. <b>Share the location</b> with anyone who asks, in one tap.'],
+  '.step h3': ['Create an account','Log from your phone','Send the report'],
+  '.step p': ['Sign up in a minute. Set up your projects with name, client and map location.','On site: photos, video, voice entries. Everything syncs automatically — even if the signal drops.','The weekly PDF report builds itself. You just forward it to the client.'],
+  '.plan h3': ['Starter','Pro','Studio'],
+  '.plan-tag': ['RECOMMENDED'],
+  '.plan-for': ['For independent engineers','For small engineering firms','For larger firms &amp; companies'],
+  '.price small': ['/month','/month','/month'],
+  '.price-once': ['or €150 once / year <span style="font-size:10px;opacity:0.75">plus 24% VAT</span>','or €250 once / year <span style="font-size:10px;opacity:0.75">plus 24% VAT</span>','or €450 once / year <span style="font-size:10px;opacity:0.75">plus 24% VAT</span>'],
+  '.plan li': ['1 user','Up to 10 projects','All features','5GB storage','Email support','Up to 5 users','Unlimited projects','Everything + BOQ','20GB storage','Priority support','Unlimited users','Unlimited projects','Everything + custom branding','100GB storage','Dedicated support'],
+  '.plan .btn': ['Start free','Start free','Start free'],
+  '.quote p': ['I replaced three different tools with HEXIS. Everything in one place.','The Gantt + BOQ combination is exactly what I needed for my clients.','Voice logging saves me 30 minutes a day.'],
+  '.q-role': ['CIVIL ENGINEER · LEFKADA','CONTRACTOR · ATHENS','ARCHITECT · THESSALONIKI'],
+  '.cta-band p': ['Try HEXIS free for 14 days — no card, no commitments.'],
+  '.cta-band .btn': ['Start free →'],
+  '.tb-k': ['PROJECT','DESIGN / DEVELOPMENT','YEAR','SHEET','CONTACT','BASE','SCALE','REV.'],
+  '.foot-links a': ['Features','Pricing','Sign in','Contact'],
+};
+const EN_TBV = { 'Λευκάδα, Ελλάδα': 'Lefkada, Greece' };
+window._LANG = 'el';
+function setLang(l) {
+  window._LANG = l;
+  document.documentElement.lang = (l === 'en') ? 'en' : 'el';
+  Object.entries(EN_MAP).forEach(([sel, arr]) => {
+    document.querySelectorAll(sel).forEach((el, i) => {
+      if (arr[i] == null) return;
+      if (l === 'en') {
+        if (el.dataset.el == null) el.dataset.el = el.innerHTML;
+        el.innerHTML = arr[i];
+      } else if (el.dataset.el != null) {
+        el.innerHTML = el.dataset.el;
+      }
+    });
+  });
+  document.querySelectorAll('.tb-v').forEach(el => {
+    const t = el.textContent.trim();
+    if (l === 'en' && EN_TBV[t]) { el.dataset.el = el.innerHTML; el.innerHTML = EN_TBV[t]; }
+    else if (l === 'el' && el.dataset.el != null) { el.innerHTML = el.dataset.el; }
+  });
+  document.title = (l === 'en') ? 'HEXIS — Site Management' : 'HEXIS — Διαχείριση Εργοταξίου';
+  const lb = document.getElementById('lang-btn'); if (lb) lb.textContent = (l === 'en') ? 'ΕΛ' : 'EN';
+  // Φρέσκαρε τη γραμμή του typewriter αν τρέχει η σκηνή 0
+  const tl = document.getElementById('type-line'); if (tl) tl.textContent = '';
+  try { localStorage.setItem('hexis_lang', l); } catch (e) {}
+}
+try { if (localStorage.getItem('hexis_lang') === 'en') setLang('en'); } catch (e) {}
+
+
 // ── ΕΠΙΔΕΙΞΗ «ΣΕ ΔΡΑΣΗ» — μηχανή σκηνών ──
 (function(){
   const stage = document.getElementById('demo-stage');
@@ -627,7 +713,7 @@ document.querySelectorAll('.phone').forEach(p => gio.observe(p));
   const dots = stage.querySelectorAll('.demo-dot');
   const SCENE_MS = 4200;
   let cur = -1, timer = null, playing = false;
-  const typeText = 'Τσιμέντο C25/30 — 12m³ για αύριο 07:00, ενημέρωση Βαγγέλη…';
+  const typeTextOf = () => (window._LANG === 'en' ? 'C25/30 concrete — 12 m³ for tomorrow 07:00, notify the foreman…' : 'Τσιμέντο C25/30 — 12m³ για αύριο 07:00, ενημέρωση συνεργείου…');
 
   function resetScene(sc) {
     sc.querySelectorAll('.demo-thumb').forEach(t => t.classList.remove('pop'));
@@ -641,6 +727,7 @@ document.querySelectorAll('.phone').forEach(p => gio.observe(p));
     const sc = scenes[i];
     if (i === 0) {
       const tl = sc.querySelector('#type-line');
+      const typeText = typeTextOf();
       let p = 0;
       const iv = setInterval(() => {
         if (!sc.classList.contains('on')) { clearInterval(iv); return; }
@@ -671,7 +758,8 @@ document.querySelectorAll('.phone').forEach(p => gio.observe(p));
     dots.forEach((d, k) => {
       d.classList.remove('run'); d.querySelector('i').style.width = k < i ? '100%' : '0';
     });
-    requestAnimationFrame(() => requestAnimationFrame(() => { dots[i].classList.add('run'); }));
+    const raf = window.requestAnimationFrame ? window.requestAnimationFrame.bind(window) : (cb => setTimeout(cb, 16));
+    raf(() => raf(() => { dots[i].classList.add('run'); }));
     playScene(i);
     clearTimeout(timer);
     timer = setTimeout(() => go((i + 1) % scenes.length), SCENE_MS);
@@ -687,9 +775,10 @@ document.querySelectorAll('.phone').forEach(p => gio.observe(p));
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     clearTimeout(timer);
     scenes.forEach((sc, k) => sc.classList.toggle('on', k === 0));
-    const tl = stage.querySelector('#type-line'); if (tl) tl.textContent = typeText;
+    const tl = stage.querySelector('#type-line'); if (tl) tl.textContent = typeTextOf();
   }
 })();
+
 
 // PWA install
 let deferredPrompt;
