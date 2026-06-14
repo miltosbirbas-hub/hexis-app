@@ -115,6 +115,12 @@ input:focus{border-color:var(--accent)}
       <label>Κωδικός (min 8 χαρακτήρες)</label>
       <input type="password" id="signup-pass" placeholder="••••••••" autocomplete="new-password">
     </div>
+    <div class="form-group" style="display:flex;align-items:flex-start;gap:9px;margin-top:4px">
+      <input type="checkbox" id="signup-consent" style="margin-top:3px;width:17px;height:17px;flex:none;cursor:pointer">
+      <label for="signup-consent" style="font-size:12.5px;line-height:1.5;color:var(--text2);cursor:pointer">
+        Αποδέχομαι τους <a href="terms.html" target="_blank" style="color:var(--accent)">Όρους Χρήσης</a> και την <a href="privacy.html" target="_blank" style="color:var(--accent)">Πολιτική Απορρήτου</a>, και συναινώ στην επεξεργασία των δεδομένων μου σύμφωνα με τον GDPR.
+      </label>
+    </div>
     <button class="btn-submit" id="signup-btn" onclick="doSignup()">Δημιουργία λογαριασμού →</button>
   </div>
 
@@ -234,6 +240,8 @@ async function doSignup() {
   const pass = document.getElementById('signup-pass').value;
   if (!fname || !email || !pass) { showMsg('Συμπλήρωσε όλα τα υποχρεωτικά πεδία.'); return; }
   if (pass.length < 8) { showMsg('Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες.'); return; }
+  const consent = document.getElementById('signup-consent');
+  if (!consent || !consent.checked) { showMsg('Πρέπει να αποδεχτείς τους Όρους και την Πολιτική Απορρήτου.'); return; }
   const btn = document.getElementById('signup-btn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Δημιουργία...';
   const {data, error} = await sb.auth.signUp({
