@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0e1f2e">
+<title>Κτηματολόγιο — ΚΑΕΚ & Όρια</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.11.0/proj4.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4leaflet/1.0.2/proj4leaflet.min.js"></script>
+
+<style>
+  :root{
+    --navy:#0e1f2e; --navy2:#16304a; --line:#23425e;
+    --olive:#8a9a4e; --olive-bright:#b3c46a;
+    --sea:#3fa3c4; --sand:#e7d9b8;
+    --bg:#0a1620; --panel:#102232; --panel2:#16304a;
+    --text:#eaf1f6; --muted:#90a8bc; --good:#46b97a; --warn:#d6953a; --bad:#d35858;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg)}
+  body{
+    color:var(--text);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+    display:flex;flex-direction:column;height:100dvh;
+    padding-top:env(safe-area-inset-top);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+
+  /* ---- Header ---- */
+  header{
+    background:linear-gradient(180deg,var(--navy) 0%,var(--navy2) 100%);
+    border-bottom:1px solid var(--olive);
+    padding:12px 16px;display:flex;align-items:center;gap:12px;flex:none;
+  }
+  .glyph{
+    width:34px;height:34px;flex:none;border-radius:8px;
+    background:var(--olive);display:grid;place-items:center;
+    font-weight:800;color:var(--navy);font-size:15px;letter-spacing:-1px;
+  }
+  header h1{margin:0;font-size:16px;font-weight:700;letter-spacing:.3px}
+  header .tag{font-size:11px;color:var(--muted);margin-top:1px;letter-spacing:2px;text-transform:uppercase}
+
+  /* ---- Map ---- */
+  #map{flex:1 1 auto;width:100%;background:#0a1620;z-index:1}
+  .leaflet-container{background:#0a1620;font-family:inherit}
+
+  /* crosshair στο κέντρο */
+  .crosshair{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    z-index:500;pointer-events:none;
+  }
+  .crosshair::before,.crosshair::after{
+    content:"";position:absolute;background:var(--olive-bright);
+    box-shadow:0 0 0 1px rgba(0,0,0,.5);
+  }
+  .crosshair::before{width:22px;height:2px;left:-11px;top:-1px}
+  .crosshair::after{height:22px;width:2px;top:-11px;left:-1px}
+  .crosshair .dot{
+    position:absolute;width:6px;height:6px;border-radius:50%;
+    border:2px solid var(--olive-bright);left:-3px;top:-3px;
+    box-shadow:0 0 0 1px rgba(0,0,0,.5);
+  }
+
+  /* ---- Bottom sheet ---- */
+  .sheet{
+    flex:none;background:var(--panel);
+    border-top:1px solid var(--line);
+    border-radius:18px 18px 0 0;margin-top:-18px;position:relative;z-index:600;
+    padding:14px 16px 16px;
+    box-shadow:0 -8px 24px rgba(0,0,0,.4);
+  }
+  .grip{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 12px}
+
+  .kaek-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .kaek-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:2px}
+  .kaek-value{
+    font-size:24px;font-weight:800;letter-spacing:1px;color:var(--olive-bright);
+    font-variant-numeric:tabular-nums;word-break:break-all;line-height:1.15;margin-top:2px;
+  }
+  .kaek-value.empty{color:var(--muted);font-weight:500;font-size:15px;letter-spacing:0}
+
+  .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px}
+  .stat{background:var(--panel2);border-radius:10px;padding:9px 10px;text-align:center}
+  .stat .s-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+  .stat .s-val{font-size:15px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
+
+  .coords{display:flex;gap:8px;margin-top:10px;font-size:12px;color:var(--muted)}
+  .coords b{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
+
+  .actions{display:flex;gap:8px;margin-top:14px}
+  button{
+    border:0;border-radius:11px;padding:13px 10px;font-size:14px;font-weight:700;
+    color:#fff;cursor:pointer;flex:1;transition:transform .05s,filter .15s;
+    display:flex;align-items:center;justify-content:center;gap:6px;
+  }
+  button:active{transform:scale(.97)}
+  button:disabled{opacity:.4}
+  .b-find{background:var(--olive)}
+  .b-find:hover{filter:brightness(1.08)}
+  .b-gps{background:var(--navy2);flex:none;width:48px}
+  .b-ext{background:var(--panel2);flex:none;width:48px;font-size:18px}
+
+  .hint{font-size:12px;color:var(--muted);margin-top:10px;min-height:16px;text-align:center}
+  .hint.err{color:var(--bad)}
+  .hint.ok{color:var(--good)}
+
+  /* settings drawer */
+  .gear{
+    position:absolute;right:14px;top:14px;z-index:700;
+    width:36px;height:36px;border-radius:50%;background:rgba(14,31,46,.85);
+    border:1px solid var(--line);display:grid;place-items:center;cursor:pointer;
+    color:var(--muted);font-size:17px;backdrop-filter:blur(6px);
+  }
+  .drawer{
+    position:fixed;inset:0;background:rgba(5,12,18,.6);z-index:1000;
+    display:none;align-items:flex-end;backdrop-filter:blur(2px);
+  }
+  .drawer.open{display:flex}
+  .drawer-card{
+    background:var(--panel);width:100%;border-radius:18px 18px 0 0;
+    padding:18px 16px calc(18px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--olive);
+  }
+  .drawer-card h3{margin:0 0 4px;font-size:15px}
+  .drawer-card p{margin:0 0 14px;font-size:12px;color:var(--muted)}
+  .field{margin-bottom:10px}
+  .field label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;letter-spacing:.5px}
+  .field input{
+    width:100%;background:var(--panel2);border:1px solid var(--line);
+    border-radius:9px;padding:11px;color:var(--text);font-size:13px;
+  }
+  .field input:focus{outline:none;border-color:var(--olive)}
+  .drawer-card .close{background:var(--olive);margin-top:6px}
+
+  /* loading shimmer στο ΚΑΕΚ */
+  @keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+  .loading{animation:pulse 1.1s ease-in-out infinite}
+
+  /* leaflet popup */
+  .leaflet-popup-content-wrapper{background:var(--navy2);color:var(--text);border-radius:10px}
+  .leaflet-popup-tip{background:var(--navy2)}
+  .leaflet-popup-content{margin:10px 12px;font-size:13px}
+  .leaflet-popup-content b{color:var(--olive-bright)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="glyph">ΚΤ</div>
+  <div>
+    <h1>Κτηματολόγιο</h1>
+    <div class="tag">ΚΑΕΚ &amp; όρια γεωτεμαχίου</div>
+  </div>
+</header>
+
+<div style="position:relative;flex:1;display:flex">
+  <div id="map"></div>
+  <div class="crosshair"><div class="dot"></div></div>
+  <div class="gear" id="gear">⚙</div>
+</div>
+
+<div class="sheet">
+  <div class="grip"></div>
+  <div class="kaek-head">
+    <div style="flex:1">
+      <div class="kaek-label">ΚΑΕΚ</div>
+      <div class="kaek-value empty" id="kaek">Στόχευσε ένα οικόπεδο και πάτα «Βρες»</div>
+    </div>
+  </div>
+
+  <div class="stats" id="stats" style="display:none">
+    <div class="stat"><div class="s-lbl">Εμβαδόν</div><div class="s-val" id="area">—</div></div>
+    <div class="stat"><div class="s-lbl">Περίμετρος</div><div class="s-val" id="perim">—</div></div>
+    <div class="stat"><div class="s-lbl">Κορυφές</div><div class="s-val" id="verts">—</div></div>
+  </div>
+
+  <div class="coords">
+    <span>Χ <b id="cx">—</b></span>
+    <span>Υ <b id="cy">—</b></span>
+    <span id="accWrap" style="display:none">±<b id="acc">—</b>μ</span>
+  </div>
+
+  <div class="actions">
+    <button class="b-gps" id="gpsBtn" title="Κέντραρε στη θέση μου">📍</button>
+    <button class="b-find" id="findBtn">🔍 Βρες ΚΑΕΚ εδώ</button>
+    <button class="b-ext" id="extBtn" title="Άνοιγμα στο maps.gov.gr">🗺️</button>
+  </div>
+  <div class="hint" id="hint">Σύρε τον χάρτη ώστε ο στόχος να πέσει πάνω στο οικόπεδο.</div>
+</div>
+
+<!-- Settings -->
+<div class="drawer" id="drawer">
+  <div class="drawer-card">
+    <h3>Ρυθμίσεις</h3>
+    <p>Στόχευσε με το σταυρόνημα πάνω στο οικόπεδο και πάτα «Εύρεση ΚΑΕΚ».</p>
+    <input id="fnUrl" type="hidden">
+    <input id="anonKey" type="hidden">
+    <div class="field">
+      <label>Ακτίνα αναζήτησης (μέτρα)</label>
+      <input id="buffer" type="number" value="6" min="1" max="50">
+    </div>
+    <button class="close" id="closeDrawer">Κλείσιμο</button>
+  </div>
+</div>
+
+<script>
+// ───────── ΕΓΣΑ'87 / GGRS87 (EPSG:2100) ─────────
+proj4.defs("EPSG:2100",
+  "+proj=tmerc +lat_0=0 +lon_0=24 +k=0.9996 +x_0=500000 +y_0=0 "
+  + "+ellps=GRS80 +towgs84=-199.87,74.79,246.62,0,0,0,0 +units=m +no_defs");
+
+const $ = id => document.getElementById(id);
+
+// ───────── Map με ESRI δορυφόρο ─────────
+// Διάβασε lat/lon από το URL (αν ανοίξει από έργο του hexis)
+const _qp = new URLSearchParams(location.search);
+const _lat = parseFloat(_qp.get('lat')) || 38.715;
+const _lon = parseFloat(_qp.get('lon')) || 20.640;
+const map = L.map('map', { zoomControl:false, attributionControl:false })
+  .setView([_lat, _lon], 18); // κέντρο: σημείο έργου ή Λευκάδα default
+
+L.control.zoom({ position:'bottomright' }).addTo(map);
+
+const esriSat = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  { maxZoom:21, maxNativeZoom:19 }
+).addTo(map);
+
+// labels overlay (δρόμοι/ονόματα πάνω από δορυφόρο)
+L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+  { maxZoom:21, maxNativeZoom:19, opacity:.9 }
+).addTo(map);
+
+let parcelLayer = null;   // το πολύγωνο που σχεδιάζουμε
+let liveMarker = null;    // δείκτης θέσης GPS
+let watchId = null;
+
+// ───────── helpers ─────────
+function centerEGSA(){
+  const c = map.getCenter();
+  const [e,n] = proj4("EPSG:4326","EPSG:2100",[c.lng, c.lat]);
+  return { e, n, lat:c.lat, lng:c.lng };
+}
+
+function updateCenterReadout(){
+  const {e,n} = centerEGSA();
+  $("cx").textContent = e.toFixed(1);
+  $("cy").textContent = n.toFixed(1);
+}
+map.on('move', updateCenterReadout);
+updateCenterReadout();
+
+// υπολογισμός εμβαδού/περιμέτρου από ΕΓΣΑ'87 ring (μέτρα → m², m)
+function ringMetrics(ringXY){
+  let area=0, perim=0;
+  for(let i=0;i<ringXY.length;i++){
+    const [x1,y1]=ringXY[i];
+    const [x2,y2]=ringXY[(i+1)%ringXY.length];
+    area += (x1*y2 - x2*y1);
+    perim += Math.hypot(x2-x1, y2-y1);
+  }
+  return { area: Math.abs(area)/2, perim };
+}
+
+// ───────── ΚΑΕΚ lookup ─────────
+async function findKaek(){
+  const url = "https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/kaek-lookup";
+  const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8";
+  const buffer = parseFloat($("buffer").value) || 6;
+  if(!url){
+    setHint("Βάλε πρώτα το Edge Function URL στις ρυθμίσεις (⚙).", "err");
+    $("drawer").classList.add("open");
+    return;
+  }
+  const {e,n} = centerEGSA();
+  $("kaek").textContent = "Αναζήτηση…";
+  $("kaek").className = "kaek-value loading";
+  setHint("Ρωτάω το Κτηματολόγιο…");
+
+  const headers = {"Content-Type":"application/json"};
+  if(key){ headers["Authorization"]="Bearer "+key; headers["apikey"]=key; }
+
+  try{
+    const r = await fetch(url, {
+      method:"POST", headers,
+      body: JSON.stringify({ x:e, y:n, buffer })
+    });
+    const data = await r.json();
+    if(data.error){ return fail(data.error); }
+    const parcels = data.parcels || [];
+    if(!parcels.length){
+      $("kaek").textContent = "Δεν βρέθηκε γεωτεμάχιο εδώ";
+      $("kaek").className = "kaek-value empty";
+      $("stats").style.display = "none";
+      clearParcel();
+      return setHint("Ίσως εκτός κτηματογραφημένης ζώνης ή λάθος στόχευση.", "err");
+    }
+    drawParcel(parcels[0]);
+    const extra = parcels.length>1 ? `  (+${parcels.length-1} κοντινά)` : "";
+    setHint("Βρέθηκε γεωτεμάχιο." + extra, "ok");
+  }catch(err){
+    fail("Σφάλμα δικτύου: "+err.message);
+  }
+}
+
+function fail(msg){
+  $("kaek").textContent = "Σφάλμα";
+  $("kaek").className = "kaek-value empty";
+  setHint(msg, "err");
+}
+
+function setHint(t, cls=""){ const h=$("hint"); h.textContent=t; h.className="hint "+cls; }
+
+function clearParcel(){
+  if(parcelLayer){ map.removeLayer(parcelLayer); parcelLayer=null; }
+}
+
+function drawParcel(parcel){
+  clearParcel();
+  $("kaek").textContent = parcel.kaek || "(χωρίς πεδίο ΚΑΕΚ)";
+  $("kaek").className = "kaek-value";
+
+  const geom = parcel.geometry;
+  if(!geom){ $("stats").style.display="none"; return; }
+
+  // Το geometry έρχεται σε ΕΓΣΑ'87 (EPSG:2100) ως GeoJSON Polygon.
+  // Μετατρέπουμε κάθε κορυφή σε WGS84 για το Leaflet, και κρατάμε τα XY για metrics.
+  const rings = geom.type === "Polygon" ? geom.coordinates
+              : geom.type === "MultiPolygon" ? geom.coordinates.flat()
+              : [];
+  if(!rings.length){ $("stats").style.display="none"; return; }
+
+  const latlngs = [];
+  let totalArea=0, totalPerim=0, vertCount=0;
+  for(const ring of rings){
+    const ll = ring.map(([x,y]) => {
+      const [lng,lat] = proj4("EPSG:2100","EPSG:4326",[x,y]);
+      return [lat,lng];
+    });
+    latlngs.push(ll);
+    const m = ringMetrics(ring);
+    totalArea += m.area; totalPerim += m.perim; vertCount += ring.length;
+  }
+
+  parcelLayer = L.polygon(latlngs, {
+    color:"#b3c46a", weight:2.5, opacity:1,
+    fillColor:"#8a9a4e", fillOpacity:.22
+  }).addTo(map);
+
+  parcelLayer.bindPopup(`<b>${parcel.kaek||"ΚΑΕΚ ;"}</b><br>${totalArea.toFixed(1)} m²`);
+  map.fitBounds(parcelLayer.getBounds(), { padding:[40,40], maxZoom:19 });
+
+  $("area").textContent  = totalArea>=10000
+      ? (totalArea/10000).toFixed(3)+" ha" : Math.round(totalArea)+" m²";
+  $("perim").textContent = Math.round(totalPerim)+" m";
+  $("verts").textContent = vertCount;
+  $("stats").style.display = "grid";
+}
+
+// ───────── GPS ─────────
+$("gpsBtn").onclick = () => {
+  if(!navigator.geolocation){ return setHint("Δεν υποστηρίζεται GPS.", "err"); }
+  setHint("Εντοπισμός θέσης…");
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const {latitude,longitude,accuracy} = pos.coords;
+    map.setView([latitude,longitude], 19);
+    if(liveMarker) map.removeLayer(liveMarker);
+    liveMarker = L.circleMarker([latitude,longitude], {
+      radius:7, color:"#3fa3c4", fillColor:"#3fa3c4", fillOpacity:.9, weight:2
+    }).addTo(map);
+    $("accWrap").style.display="inline";
+    $("acc").textContent = accuracy.toFixed(0);
+    setHint("Στη θέση σου. Διόρθωσε τον στόχο αν χρειάζεται.", accuracy<=10?"ok":"");
+  }, err=>{
+    setHint("Σφάλμα GPS: "+err.message, "err");
+  }, { enableHighAccuracy:true, timeout:15000, maximumAge:0 });
+};
+
+// ───────── εξωτερικό maps.gov.gr ─────────
+$("extBtn").onclick = () => {
+  const c = map.getCenter();
+  window.open(`https://www.ktimatologio.gr/maps?lat=${c.lat}&lon=${c.lng}&z=18`, "_blank");
+};
+
+$("findBtn").onclick = findKaek;
+
+// ───────── settings drawer ─────────
+$("gear").onclick = ()=> $("drawer").classList.add("open");
+$("closeDrawer").onclick = ()=> $("drawer").classList.remove("open");
+$("drawer").onclick = (e)=>{ if(e.target.id==="drawer") $("drawer").classList.remove("open"); };
+</script>
+</body>
+</html>
