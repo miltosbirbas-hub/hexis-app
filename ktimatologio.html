@@ -172,6 +172,8 @@
   <div id="map"></div>
   <div class="crosshair"><div class="dot"></div></div>
   <div class="gear" id="gear">⚙</div>
+  <div class="gear" id="measureBtn" style="top:60px;font-size:18px" title="Μέτρηση απόστασης">📏</div>
+  <div id="measureInfo" style="position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:600;background:var(--panel);border:1px solid var(--neon);border-radius:10px;padding:8px 14px;font-size:14px;font-weight:700;color:var(--neon);box-shadow:0 0 12px var(--neon-glow);display:none">📏 Μέτρηση: πάτα σημεία</div>
 </div>
 
 <div class="sheet">
@@ -238,20 +240,20 @@ const $ = id => document.getElementById(id);
 const _qp = new URLSearchParams(location.search);
 const _lat = parseFloat(_qp.get('lat')) || 38.715;
 const _lon = parseFloat(_qp.get('lon')) || 20.640;
-const map = L.map('map', { zoomControl:false, attributionControl:false })
-  .setView([_lat, _lon], 18); // κέντρο: σημείο έργου ή Λευκάδα default
+const map = L.map('map', { zoomControl:false, attributionControl:false, maxZoom:22, doubleClickZoom:false })
+  .setView([_lat, _lon], 19); // κέντρο: σημείο έργου ή Λευκάδα default
 
 L.control.zoom({ position:'bottomright' }).addTo(map);
 
 const esriSat = L.tileLayer(
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  { maxZoom:21, maxNativeZoom:19 }
+  { maxZoom:22, maxNativeZoom:19 }
 ).addTo(map);
 
 // labels overlay (δρόμοι/ονόματα πάνω από δορυφόρο)
 L.tileLayer(
   'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-  { maxZoom:21, maxNativeZoom:19, opacity:.9 }
+  { maxZoom:22, maxNativeZoom:19, opacity:.9 }
 ).addTo(map);
 
 let parcelLayer = null;   // το πολύγωνο που σχεδιάζουμε
@@ -453,6 +455,83 @@ $("extBtn").onclick = () => {
 
 $("findBtn").onclick = findKaek;
 
+// ───────── Μέτρηση απόστασης (ΕΓΣΑ'87) ─────────
+let measuring = false;
+let measurePts = [];      // [lat,lng]
+let measureLine = null;
+let measureMarkers = [];
+let measureLabels = [];
+
+function toEGSA(lat, lng){
+  const [E, N] = proj4("EPSG:4326", "EPSG:2100", [lng, lat]);
+  return [E, N];
+}
+function clearMeasure(){
+  if(measureLine){ map.removeLayer(measureLine); measureLine=null; }
+  measureMarkers.forEach(m=>map.removeLayer(m)); measureMarkers=[];
+  measureLabels.forEach(m=>map.removeLayer(m)); measureLabels=[];
+  measurePts = [];
+}
+function toggleMeasure(){
+  measuring = !measuring;
+  const btn = $("measureBtn"), info = $("measureInfo");
+  if(measuring){
+    btn.style.background = "var(--neon)";
+    btn.style.color = "#04101f";
+    info.style.display = "block";
+    info.textContent = "📏 Πάτα σημεία στον χάρτη";
+    map.getContainer().style.cursor = "crosshair";
+  } else {
+    btn.style.background = "";
+    btn.style.color = "";
+    info.style.display = "none";
+    map.getContainer().style.cursor = "";
+    clearMeasure();
+  }
+}
+$("measureBtn").onclick = toggleMeasure;
+// διπλό κλικ καθαρίζει τα σημεία (αλλά μένει σε λειτουργία μέτρησης)
+map.on("dblclick", (e) => { if(measuring){ clearMeasure(); $("measureInfo").textContent = "📏 Πάτα σημεία στον χάρτη"; } });
+
+map.on("click", (e) => {
+  if(!measuring) return;
+  const ll = [e.latlng.lat, e.latlng.lng];
+  measurePts.push(ll);
+
+  // marker στο σημείο
+  const mk = L.circleMarker(ll, { radius:5, color:"#ff3b3b", fillColor:"#ff3b3b", fillOpacity:1, weight:2 }).addTo(map);
+  measureMarkers.push(mk);
+
+  // γραμμή
+  if(measureLine) map.removeLayer(measureLine);
+  measureLine = L.polyline(measurePts, { color:"#22d3ee", weight:3, opacity:.9, dashArray:"6,4" }).addTo(map);
+
+  // υπολογισμός συνολικής + τελευταίου τμήματος σε ΕΓΣΑ'87 μέτρα
+  let total = 0, lastSeg = 0;
+  for(let i=1;i<measurePts.length;i++){
+    const [e1,n1] = toEGSA(measurePts[i-1][0], measurePts[i-1][1]);
+    const [e2,n2] = toEGSA(measurePts[i][0], measurePts[i][1]);
+    const d = Math.hypot(e2-e1, n2-n1);
+    total += d;
+    if(i === measurePts.length-1) lastSeg = d;
+  }
+
+  if(measurePts.length >= 2){
+    const fmt = m => m >= 1000 ? (m/1000).toFixed(3)+" km" : m.toFixed(2)+" m";
+    $("measureInfo").innerHTML = "📏 Σύνολο: <b>" + fmt(total) + "</b>" +
+      (measurePts.length>2 ? "  ·  τμήμα: " + fmt(lastSeg) : "");
+    // ετικέτα στο μέσο του τελευταίου τμήματος
+    const a = measurePts[measurePts.length-2], b = measurePts[measurePts.length-1];
+    const mid = [(a[0]+b[0])/2, (a[1]+b[1])/2];
+    const lbl = L.marker(mid, { icon: L.divIcon({
+      className:"", html:'<div style="background:#04101f;border:1px solid #22d3ee;border-radius:6px;padding:2px 7px;color:#67e8f9;font-size:12px;font-weight:700;white-space:nowrap">'+fmt(lastSeg)+'</div>',
+      iconSize:[1,1]
+    })}).addTo(map);
+    measureLabels.push(lbl);
+  }
+});
+
+// settings drawer
 // ───────── settings drawer ─────────
 $("gear").onclick = ()=> $("drawer").classList.add("open");
 $("closeDrawer").onclick = ()=> $("drawer").classList.remove("open");
