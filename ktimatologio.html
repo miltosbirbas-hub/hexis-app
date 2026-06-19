@@ -309,7 +309,11 @@ async function findKaek(){
       body: JSON.stringify({ x:e, y:n, buffer })
     });
     const data = await r.json();
-    if(data.error){ return fail(data.error); }
+    console.log("[ΚΑΕΚ] απάντηση:", data);
+    if(data.error){
+      if(data.tried) console.table(data.tried);
+      return fail(data.error);
+    }
     const parcels = data.parcels || [];
     if(!parcels.length){
       $("kaek").textContent = "Δεν βρέθηκε γεωτεμάχιο εδώ";
