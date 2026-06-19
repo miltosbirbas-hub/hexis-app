@@ -369,7 +369,13 @@ function openKtimatologio(){
   // Μετατροπή WGS84 → Web Mercator (EPSG:3857) για το maps.ktimatologio.gr
   const [mx, my] = proj4("EPSG:4326", "EPSG:3857", [c.lng, c.lat]);
   const url = "https://maps.ktimatologio.gr/?locale=el#widget_6=active_datasource_id:dataSource_1,center:"
-    + mx.toFixed(4) + "%2C" + my.toFixed(4) + "%2C102100,level:18";
+    + mx.toFixed(4) + "%2C" + my.toFixed(4) + "%2C102100,level:19";
+  // Αντίγραψε αυτόματα Lon/Lat (χωρισμένα με tab) για εύκολη επικόλληση στο widget «Μετάβαση»
+  const lonlat = c.lng.toFixed(6) + "\t" + c.lat.toFixed(6);
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(lonlat).catch(()=>{});
+  }
+  setHint("Άνοιξε το Κτηματολόγιο. Στο widget «Μετάβαση» επικόλλησε Lon/Lat για δείκτη στο σημείο.", "ok");
   window.open(url, "_blank");
 }
 map.on('move', updateCenterReadout);
