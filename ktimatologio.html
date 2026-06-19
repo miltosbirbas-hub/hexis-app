@@ -173,6 +173,7 @@
   <div class="crosshair"><div class="dot"></div></div>
   <div class="gear" id="gear">⚙</div>
   <div class="gear" id="measureBtn" style="top:60px;font-size:18px" title="Μέτρηση απόστασης">📏</div>
+  <div class="gear" id="polyBtn" style="top:110px;font-size:18px" title="Σχεδίαση πολυγώνου / εμβαδόν">✏️</div>
   <div id="measureInfo" style="position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:600;background:var(--panel);border:1px solid var(--neon);border-radius:10px;padding:8px 14px;font-size:14px;font-weight:700;color:var(--neon);box-shadow:0 0 12px var(--neon-glow);display:none">📏 Μέτρηση: πάτα σημεία</div>
 </div>
 
@@ -240,20 +241,20 @@ const $ = id => document.getElementById(id);
 const _qp = new URLSearchParams(location.search);
 const _lat = parseFloat(_qp.get('lat')) || 38.715;
 const _lon = parseFloat(_qp.get('lon')) || 20.640;
-const map = L.map('map', { zoomControl:false, attributionControl:false, maxZoom:22, doubleClickZoom:false })
-  .setView([_lat, _lon], 19); // κέντρο: σημείο έργου ή Λευκάδα default
+const map = L.map('map', { zoomControl:false, attributionControl:false, maxZoom:20, doubleClickZoom:false })
+  .setView([_lat, _lon], 18); // κέντρο: σημείο έργου ή Λευκάδα default
 
 L.control.zoom({ position:'bottomright' }).addTo(map);
 
 const esriSat = L.tileLayer(
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  { maxZoom:22, maxNativeZoom:19 }
+  { maxZoom:20, maxNativeZoom:19 }
 ).addTo(map);
 
 // labels overlay (δρόμοι/ονόματα πάνω από δορυφόρο)
 L.tileLayer(
   'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-  { maxZoom:22, maxNativeZoom:19, opacity:.9 }
+  { maxZoom:20, maxNativeZoom:19, opacity:.9 }
 ).addTo(map);
 
 let parcelLayer = null;   // το πολύγωνο που σχεδιάζουμε
@@ -531,7 +532,90 @@ map.on("click", (e) => {
   }
 });
 
-// settings drawer
+// ───────── Σχεδίαση πολυγώνου + εμβαδόν (ΕΓΣΑ'87) ─────────
+let drawing = false;
+let polyPts = [];         // [lat,lng]
+let polyLine = null;      // ανοιχτή γραμμή κατά τη σχεδίαση
+let polyShape = null;     // κλειστό πολύγωνο
+let polyMarkers = [];
+
+function clearPoly(){
+  if(polyLine){ map.removeLayer(polyLine); polyLine=null; }
+  if(polyShape){ map.removeLayer(polyShape); polyShape=null; }
+  polyMarkers.forEach(m=>map.removeLayer(m)); polyMarkers=[];
+  polyPts = [];
+}
+function togglePoly(){
+  drawing = !drawing;
+  const btn = $("polyBtn"), info = $("measureInfo");
+  if(drawing){
+    // βγάλε τη μέτρηση αν είναι ανοιχτή
+    if(measuring) toggleMeasure();
+    btn.style.background = "var(--neon)";
+    btn.style.color = "#04101f";
+    info.style.display = "block";
+    info.textContent = "✏️ Πάτα κορυφές · 2 κλικ στην αρχή = κλείσιμο";
+    map.getContainer().style.cursor = "crosshair";
+  } else {
+    btn.style.background = "";
+    btn.style.color = "";
+    info.style.display = "none";
+    map.getContainer().style.cursor = "";
+    clearPoly();
+  }
+}
+$("polyBtn").onclick = togglePoly;
+
+function polyArea(pts){
+  // Εμβαδόν + περίμετρος σε ΕΓΣΑ'87 (Shoelace)
+  const xy = pts.map(([lat,lng]) => proj4("EPSG:4326","EPSG:2100",[lng,lat]));
+  let area=0, perim=0;
+  for(let i=0;i<xy.length;i++){
+    const [x1,y1]=xy[i], [x2,y2]=xy[(i+1)%xy.length];
+    area += (x1*y2 - x2*y1);
+    perim += Math.hypot(x2-x1, y2-y1);
+  }
+  return { area: Math.abs(area)/2, perim };
+}
+
+map.on("click", (e) => {
+  if(!drawing) return;
+  const ll = [e.latlng.lat, e.latlng.lng];
+
+  // Αν πατήσει κοντά στο πρώτο σημείο (& έχει ≥3) → κλείσε το πολύγωνο
+  if(polyPts.length >= 3){
+    const first = polyPts[0];
+    const p1 = map.latLngToContainerPoint(first);
+    const p2 = map.latLngToContainerPoint(ll);
+    if(Math.hypot(p1.x-p2.x, p1.y-p2.y) < 18){
+      // κλείσιμο
+      if(polyLine){ map.removeLayer(polyLine); polyLine=null; }
+      if(polyShape) map.removeLayer(polyShape);
+      polyShape = L.polygon(polyPts, { color:"#22d3ee", weight:3, fillColor:"#22d3ee", fillOpacity:.2 }).addTo(map);
+      const { area, perim } = polyArea(polyPts);
+      const fmtA = area>=10000 ? (area/10000).toFixed(3)+" ha" : Math.round(area)+" m²";
+      $("measureInfo").innerHTML = "✏️ Εμβαδόν: <b>"+fmtA+"</b>  ·  Περίμετρος: "+Math.round(perim)+" m  ·  Κορυφές: "+polyPts.length;
+      polyShape.bindPopup("Εμβαδόν: "+fmtA+"<br>Περίμετρος: "+Math.round(perim)+" m").openPopup();
+      return;
+    }
+  }
+
+  polyPts.push(ll);
+  const mk = L.circleMarker(ll, { radius:5, color:"#ff3b3b", fillColor:"#ff3b3b", fillOpacity:1, weight:2 }).addTo(map);
+  polyMarkers.push(mk);
+  if(polyLine) map.removeLayer(polyLine);
+  polyLine = L.polyline(polyPts, { color:"#22d3ee", weight:2.5, opacity:.9, dashArray:"6,4" }).addTo(map);
+
+  if(polyPts.length >= 3){
+    const { area } = polyArea(polyPts);
+    const fmtA = area>=10000 ? (area/10000).toFixed(3)+" ha" : Math.round(area)+" m²";
+    $("measureInfo").innerHTML = "✏️ Τρέχον εμβαδόν: <b>"+fmtA+"</b>  ·  πάτα στην αρχή για κλείσιμο";
+  }
+});
+map.on("dblclick", (e) => {
+  if(drawing){ clearPoly(); $("measureInfo").textContent = "✏️ Πάτα κορυφές · 2 κλικ στην αρχή = κλείσιμο"; }
+});
+
 // ───────── settings drawer ─────────
 $("gear").onclick = ()=> $("drawer").classList.add("open");
 $("closeDrawer").onclick = ()=> $("drawer").classList.remove("open");
