@@ -13,11 +13,12 @@
 
 <style>
   :root{
-    --navy:#0e1f2e; --navy2:#16304a; --line:#23425e;
-    --olive:#8a9a4e; --olive-bright:#b3c46a;
-    --sea:#3fa3c4; --sand:#e7d9b8;
-    --bg:#0a1620; --panel:#102232; --panel2:#16304a;
-    --text:#eaf1f6; --muted:#90a8bc; --good:#46b97a; --warn:#d6953a; --bad:#d35858;
+    --navy:#061226; --navy2:#0c2747; --line:#1d4a7a;
+    --olive:#22d3ee; --olive-bright:#67e8f9;
+    --sea:#3b82f6; --sand:#bae6fd;
+    --bg:#04101f; --panel:#0a1d33; --panel2:#0c2747;
+    --text:#f0f9ff; --muted:#7ea8cc; --good:#22d3ee; --warn:#38bdf8; --bad:#f87171;
+    --neon:#22d3ee; --neon-glow:rgba(34,211,238,0.55);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%;background:var(--bg)}
@@ -32,15 +33,18 @@
   /* ---- Header ---- */
   header{
     background:linear-gradient(180deg,var(--navy) 0%,var(--navy2) 100%);
-    border-bottom:1px solid var(--olive);
+    border-bottom:1px solid var(--neon);box-shadow:0 2px 12px rgba(34,211,238,0.15);
     padding:12px 16px;display:flex;align-items:center;gap:12px;flex:none;
   }
   .glyph{
-    width:34px;height:34px;flex:none;border-radius:8px;
-    background:var(--olive);display:grid;place-items:center;
-    font-weight:800;color:var(--navy);font-size:15px;letter-spacing:-1px;
+    width:38px;height:38px;flex:none;border-radius:9px;
+    background:linear-gradient(135deg,#0c2747,#061226);
+    border:1px solid var(--neon);
+    display:grid;place-items:center;
+    box-shadow:0 0 12px var(--neon-glow), inset 0 0 8px rgba(34,211,238,0.15);
   }
-  header h1{margin:0;font-size:16px;font-weight:700;letter-spacing:.3px}
+  .glyph svg{ display:block; }
+  header h1{margin:0;font-size:16px;font-weight:700;letter-spacing:.3px;color:var(--text);text-shadow:0 0 8px rgba(34,211,238,0.3)}
   header .tag{font-size:11px;color:var(--muted);margin-top:1px;letter-spacing:2px;text-transform:uppercase}
 
   /* ---- Map ---- */
@@ -61,7 +65,7 @@
   .crosshair .dot{
     position:absolute;width:6px;height:6px;border-radius:50%;
     border:2px solid var(--olive-bright);left:-3px;top:-3px;
-    box-shadow:0 0 0 1px rgba(0,0,0,.5);
+    box-shadow:0 0 8px var(--neon-glow), 0 0 0 1px rgba(0,0,0,.5);
   }
 
   /* ---- Bottom sheet ---- */
@@ -79,6 +83,7 @@
   .kaek-value{
     font-size:24px;font-weight:800;letter-spacing:1px;color:var(--olive-bright);
     font-variant-numeric:tabular-nums;word-break:break-all;line-height:1.15;margin-top:2px;
+    text-shadow:0 0 10px var(--neon-glow);
   }
   .kaek-value.empty{color:var(--muted);font-weight:500;font-size:15px;letter-spacing:0}
 
@@ -149,7 +154,14 @@
 <body>
 
 <header>
-  <div class="glyph">ΚΤ</div>
+  <div class="glyph"><svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+    <rect x="1.5" y="1.5" width="19" height="19" rx="2" stroke="#22d3ee" stroke-width="1.3"/>
+    <line x1="7.8" y1="1.5" x2="7.8" y2="20.5" stroke="#22d3ee" stroke-width="0.9" opacity="0.75"/>
+    <line x1="14.2" y1="1.5" x2="14.2" y2="20.5" stroke="#22d3ee" stroke-width="0.9" opacity="0.75"/>
+    <line x1="1.5" y1="7.8" x2="20.5" y2="7.8" stroke="#22d3ee" stroke-width="0.9" opacity="0.75"/>
+    <line x1="1.5" y1="14.2" x2="20.5" y2="14.2" stroke="#22d3ee" stroke-width="0.9" opacity="0.75"/>
+    <circle cx="11" cy="11" r="2" fill="#67e8f9"/>
+  </svg></div>
   <div>
     <h1>Κτηματολόγιο</h1>
     <div class="tag">ΚΑΕΚ &amp; όρια γεωτεμαχίου</div>
@@ -188,7 +200,13 @@
     <button class="b-find" id="findBtn">🔍 Βρες ΚΑΕΚ εδώ</button>
     <button class="b-ext" id="extBtn" title="Άνοιγμα στο maps.gov.gr">🗺️</button>
   </div>
-  <div class="hint" id="hint">Σύρε τον χάρτη ώστε ο στόχος να πέσει πάνω στο οικόπεδο.</div>
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <input id="kaekInput" placeholder="Ξέρεις το ΚΑΕΚ; π.χ. 340150401102"
+      style="flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;color:var(--text);font-size:14px;letter-spacing:.5px"
+      inputmode="numeric">
+    <button class="b-ext" id="gotoKaekBtn" title="Πήγαινέ με στο ΚΑΕΚ" style="white-space:nowrap;padding:0 14px">📌 Πήγαινε</button>
+  </div>
+  <div class="hint" id="hint">Σύρε τον χάρτη ώστε ο στόχος να πέσει πάνω στο οικόπεδο, ή βάλε ΚΑΕΚ παραπάνω.</div>
 </div>
 
 <!-- Settings -->
@@ -347,8 +365,8 @@ function drawParcel(parcel){
   }
 
   parcelLayer = L.polygon(latlngs, {
-    color:"#b3c46a", weight:2.5, opacity:1,
-    fillColor:"#8a9a4e", fillOpacity:.22
+    color:"#22d3ee", weight:2.5, opacity:1,
+    fillColor:"#22d3ee", fillOpacity:.18
   }).addTo(map);
 
   parcelLayer.bindPopup(`<b>${parcel.kaek||"ΚΑΕΚ ;"}</b><br>${totalArea.toFixed(1)} m²`);
@@ -360,6 +378,42 @@ function drawParcel(parcel){
   $("verts").textContent = vertCount;
   $("stats").style.display = "grid";
 }
+
+// ───────── Πήγαινε σε ΚΑΕΚ ─────────
+async function gotoKaek(){
+  const k = ($("kaekInput").value || "").trim();
+  if(!k){ setHint("Βάλε ένα ΚΑΕΚ.", "err"); return; }
+  const url = "https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/kaek-lookup";
+  const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8";
+  $("kaek").textContent = "Αναζήτηση…";
+  $("kaek").className = "kaek-value loading";
+  setHint("Ψάχνω το ΚΑΕΚ " + k + "…");
+  try{
+    const r = await fetch(url, {
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+key,"apikey":key},
+      body: JSON.stringify({ kaek:k })
+    });
+    const data = await r.json();
+    if(data.error){ return fail(data.error); }
+    const parcels = data.parcels || [];
+    if(!parcels.length){
+      $("kaek").textContent = "Δεν βρέθηκε το ΚΑΕΚ";
+      $("kaek").className = "kaek-value empty";
+      return setHint("Έλεγξε τον αριθμό ΚΑΕΚ.", "err");
+    }
+    // Σχεδίασε το τεμάχιο και κεντράρισε τον χάρτη πάνω του
+    drawParcel(parcels[0]);
+    try {
+      if (parcelLayer && parcelLayer.getBounds) {
+        map.fitBounds(parcelLayer.getBounds(), { padding:[40,40], maxZoom:19 });
+      }
+    } catch(e) {}
+    setHint("Βρέθηκε! Η πινέζα είναι στο τεμάχιο.", "ok");
+  }catch(err){ fail(String(err.message||err)); }
+}
+$("gotoKaekBtn").onclick = gotoKaek;
+$("kaekInput").addEventListener("keydown", e => { if(e.key==="Enter") gotoKaek(); });
 
 // ───────── GPS ─────────
 $("gpsBtn").onclick = () => {
