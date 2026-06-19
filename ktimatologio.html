@@ -164,7 +164,7 @@
   </svg></div>
   <div>
     <h1>Hexis-app Cadastral</h1>
-    <div class="tag">ΚΑΕΚ &amp; όρια γεωτεμαχίου</div>
+    <div class="tag">ΕΓΣΑ'87 · ΜΕΤΡΗΣΕΙΣ</div>
   </div>
 </header>
 
@@ -179,18 +179,13 @@
 
 <div class="sheet">
   <div class="grip"></div>
+
   <div class="kaek-head">
     <div style="flex:1">
-      <div class="kaek-label">ΚΑΕΚ</div>
-      <div class="kaek-value empty" id="kaek">Στόχευσε ένα οικόπεδο και πάτα «Βρες»</div>
+      <div class="kaek-label">ΣΥΝΤΕΤΑΓΜΕΝΕΣ ΕΓΣΑ'87 (στόχος)</div>
+      <div id="egsaBig" class="kaek-value" style="font-size:20px;cursor:pointer" onclick="copyCoords()" title="Πάτα για αντιγραφή">Χ —  ·  Υ —</div>
     </div>
-  </div>
-
-  <div style="display:flex;gap:8px;margin-top:10px">
-    <input id="kaekInput" placeholder="🔎 Βάλε ΚΑΕΚ που ξέρεις…"
-      style="flex:1;min-width:0;background:var(--panel2);border:1px solid var(--neon);border-radius:9px;padding:11px 12px;color:var(--text);font-size:15px;letter-spacing:.5px;box-shadow:0 0 8px rgba(34,211,238,0.2)"
-      inputmode="numeric">
-    <button id="gotoKaekBtn" title="Πήγαινέ με στο ΚΑΕΚ" style="white-space:nowrap;padding:0 16px;background:var(--neon);color:#04101f;border:none;border-radius:9px;font-weight:700;font-size:14px;cursor:pointer">📌 Πήγαινε</button>
+    <button id="copyBtn" onclick="copyCoords()" title="Αντιγραφή συντεταγμένων" style="flex:none;padding:0 14px;height:42px;background:var(--neon);color:#04101f;border:none;border-radius:9px;font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap">📋 Αντιγραφή</button>
   </div>
 
   <div class="stats" id="stats" style="display:none">
@@ -206,11 +201,10 @@
   </div>
 
   <div class="actions">
-    <button class="b-gps" id="gpsBtn" title="Κέντραρε στη θέση μου">📍</button>
-    <button class="b-find" id="findBtn">🔍 Βρες ΚΑΕΚ εδώ</button>
-    <button class="b-ext" id="extBtn" title="Άνοιγμα στο maps.gov.gr">🗺️</button>
+    <button class="b-gps" id="gpsBtn" title="Κέντραρε στη θέση μου">📍 Θέση μου</button>
+    <button class="b-find" id="ktimBtn" onclick="openKtimatologio()">🗺️ Άνοιγμα Κτηματολογίου</button>
   </div>
-  <div class="hint" id="hint">Σύρε τον χάρτη ώστε ο στόχος να πέσει πάνω στο οικόπεδο, ή βάλε ΚΑΕΚ παραπάνω.</div>
+  <div class="hint" id="hint">Σύρε τον χάρτη ώστε ο κόκκινος στόχος να πέσει στο σημείο. Πάτα 📋 για αντιγραφή των ΕΓΣΑ'87 συντεταγμένων.</div>
 </div>
 
 <!-- Settings -->
@@ -268,10 +262,41 @@ function centerEGSA(){
   return { e, n, lat:c.lat, lng:c.lng };
 }
 
+let _curE = 0, _curN = 0;
 function updateCenterReadout(){
   const {e,n} = centerEGSA();
+  _curE = e; _curN = n;
   $("cx").textContent = e.toFixed(1);
   $("cy").textContent = n.toFixed(1);
+  const big = $("egsaBig");
+  if(big) big.textContent = "Χ " + e.toFixed(2) + "  ·  Υ " + n.toFixed(2);
+}
+// Αντιγραφή συντεταγμένων ΕΓΣΑ'87 στο clipboard
+function copyCoords(){
+  const txt = _curE.toFixed(2) + " " + _curN.toFixed(2);
+  const done = () => {
+    const b = $("copyBtn"); if(!b) return;
+    const old = b.textContent; b.textContent = "✓ Αντιγράφηκε";
+    setHint("Αντιγράφηκαν: " + txt, "ok");
+    setTimeout(()=>{ b.textContent = old; }, 1500);
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done).catch(()=>{
+      // fallback
+      const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand("copy"); done(); }catch(e){ setHint("Αποτυχία αντιγραφής","err"); }
+      document.body.removeChild(ta);
+    });
+  } else {
+    const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); done(); }catch(e){ setHint("Αποτυχία αντιγραφής","err"); }
+    document.body.removeChild(ta);
+  }
+}
+// Άνοιγμα επίσημου κτηματολογίου στο σημείο
+function openKtimatologio(){
+  const c = map.getCenter();
+  window.open("https://gis.ktimanet.gr/gis/map/?lon=" + c.lng + "&lat=" + c.lat + "&z=18", "_blank");
 }
 map.on('move', updateCenterReadout);
 updateCenterReadout();
@@ -426,8 +451,8 @@ async function gotoKaek(){
     setHint("Βρέθηκε! Η πινέζα είναι στο τεμάχιο.", "ok");
   }catch(err){ fail(String(err.message||err)); }
 }
-$("gotoKaekBtn").onclick = gotoKaek;
-$("kaekInput").addEventListener("keydown", e => { if(e.key==="Enter") gotoKaek(); });
+if($("gotoKaekBtn")) $("gotoKaekBtn").onclick = gotoKaek;
+if($("kaekInput")) $("kaekInput").addEventListener("keydown", e => { if(e.key==="Enter") gotoKaek(); });
 
 // ───────── GPS ─────────
 $("gpsBtn").onclick = () => {
@@ -449,12 +474,9 @@ $("gpsBtn").onclick = () => {
 };
 
 // ───────── εξωτερικό maps.gov.gr ─────────
-$("extBtn").onclick = () => {
-  const c = map.getCenter();
-  window.open(`https://www.ktimatologio.gr/maps?lat=${c.lat}&lon=${c.lng}&z=18`, "_blank");
-};
+// (extBtn αφαιρέθηκε — χρησιμοποιείται openKtimatologio)
 
-$("findBtn").onclick = findKaek;
+if($("findBtn")) $("findBtn").onclick = findKaek;
 
 // ───────── Μέτρηση απόστασης (ΕΓΣΑ'87) ─────────
 let measuring = false;
