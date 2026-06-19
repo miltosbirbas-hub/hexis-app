@@ -187,10 +187,15 @@
       <div id="egsaBig" class="kaek-value" style="font-size:20px">Χ —  ·  Υ —</div>
     </div>
   </div>
-  <div style="display:flex;gap:8px;margin-top:10px">
-    <button id="copyXBtn" onclick="copyOne('x')" title="Αντιγραφή Χ (τετμημένη)" style="flex:1;padding:11px 0;background:var(--panel2);border:1px solid var(--neon);color:var(--neon);border-radius:9px;font-weight:800;font-size:15px;cursor:pointer">📋 Χ <span id="copyXval" style="opacity:.7;font-weight:600">—</span></button>
-    <button id="copyYBtn" onclick="copyOne('y')" title="Αντιγραφή Υ (τεταγμένη)" style="flex:1;padding:11px 0;background:var(--panel2);border:1px solid var(--neon);color:var(--neon);border-radius:9px;font-weight:800;font-size:15px;cursor:pointer">📋 Υ <span id="copyYval" style="opacity:.7;font-weight:600">—</span></button>
-    <button id="copyBtn" onclick="copyCoords()" title="Αντιγραφή Χ Υ μαζί" style="flex:none;padding:11px 14px;background:var(--neon);color:#04101f;border:none;border-radius:9px;font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap">Χ&nbsp;Υ</button>
+  <div style="font-size:11px;color:var(--muted);margin-top:10px;margin-bottom:4px">ΕΓΣΑ'87 (για τοπογραφικά)</div>
+  <div style="display:flex;gap:8px">
+    <button id="copyXBtn" onclick="copyOne('x')" title="Αντιγραφή Χ" style="flex:1;padding:10px 0;background:var(--panel2);border:1px solid var(--neon);color:var(--neon);border-radius:9px;font-weight:800;font-size:14px;cursor:pointer">📋 Χ <span id="copyXval" style="opacity:.7;font-weight:600">—</span></button>
+    <button id="copyYBtn" onclick="copyOne('y')" title="Αντιγραφή Υ" style="flex:1;padding:10px 0;background:var(--panel2);border:1px solid var(--neon);color:var(--neon);border-radius:9px;font-weight:800;font-size:14px;cursor:pointer">📋 Υ <span id="copyYval" style="opacity:.7;font-weight:600">—</span></button>
+  </div>
+  <div style="font-size:11px;color:var(--muted);margin-top:8px;margin-bottom:4px">Lon / Lat (για maps.ktimatologio.gr)</div>
+  <div style="display:flex;gap:8px">
+    <button id="copyLonBtn" onclick="copyOne('lon')" title="Αντιγραφή X (Lon)" style="flex:1;padding:10px 0;background:var(--panel2);border:1px solid #f5a623;color:#f5a623;border-radius:9px;font-weight:800;font-size:14px;cursor:pointer">📋 X(Lon) <span id="copyLonval" style="opacity:.7;font-weight:600">—</span></button>
+    <button id="copyLatBtn" onclick="copyOne('lat')" title="Αντιγραφή Y (Lat)" style="flex:1;padding:10px 0;background:var(--panel2);border:1px solid #f5a623;color:#f5a623;border-radius:9px;font-weight:800;font-size:14px;cursor:pointer">📋 Y(Lat) <span id="copyLatval" style="opacity:.7;font-weight:600">—</span></button>
   </div>
 
   <div class="stats" id="stats" style="display:none">
@@ -296,8 +301,10 @@ function centerEGSA(){
   return { e, n, lat:c.lat, lng:c.lng };
 }
 
-let _curE = 0, _curN = 0;
+let _curE = 0, _curN = 0, _curLon = 0, _curLat = 0;
 function updateCenterReadout(){
+  const c = map.getCenter();
+  _curLon = c.lng; _curLat = c.lat;
   const {e,n} = centerEGSA();
   _curE = e; _curN = n;
   $("cx").textContent = e.toFixed(1);
@@ -305,14 +312,19 @@ function updateCenterReadout(){
   const big = $("egsaBig");
   if(big) big.textContent = "Χ " + e.toFixed(2) + "  ·  Υ " + n.toFixed(2);
   const xv = $("copyXval"), yv = $("copyYval");
-  if(xv) xv.textContent = e.toFixed(2);
-  if(yv) yv.textContent = n.toFixed(2);
+  if(xv) xv.textContent = e.toFixed(1);
+  if(yv) yv.textContent = n.toFixed(1);
+  const lonv = $("copyLonval"), latv = $("copyLatval");
+  if(lonv) lonv.textContent = c.lng.toFixed(5);
+  if(latv) latv.textContent = c.lat.toFixed(5);
 }
 // Αντιγραφή ΜΟΝΟ Χ ή ΜΟΝΟ Υ (το κτηματολόγιο έχει χωριστά κελιά)
 function copyOne(which){
-  const val = (which === 'x') ? _curE.toFixed(2) : _curN.toFixed(2);
-  const btnId = (which === 'x') ? 'copyXBtn' : 'copyYBtn';
-  const label = (which === 'x') ? 'Χ' : 'Υ';
+  let val, btnId, label;
+  if(which === 'x'){ val = _curE.toFixed(2); btnId = 'copyXBtn'; label = 'Χ'; }
+  else if(which === 'y'){ val = _curN.toFixed(2); btnId = 'copyYBtn'; label = 'Υ'; }
+  else if(which === 'lon'){ val = _curLon.toFixed(6); btnId = 'copyLonBtn'; label = 'X(Lon)'; }
+  else { val = _curLat.toFixed(6); btnId = 'copyLatBtn'; label = 'Y(Lat)'; }
   const done = () => {
     const b = document.getElementById(btnId); if(!b) return;
     const html = b.innerHTML;
