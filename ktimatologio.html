@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0e1f2e">
-<title>Κτηματολόγιο — ΚΑΕΚ & Όρια</title>
+<title>Hexis-app Cadastral — ΚΑΕΚ & Όρια</title>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -163,7 +163,7 @@
     <circle cx="11" cy="11" r="2" fill="#67e8f9"/>
   </svg></div>
   <div>
-    <h1>Κτηματολόγιο</h1>
+    <h1>Hexis-app Cadastral</h1>
     <div class="tag">ΚΑΕΚ &amp; όρια γεωτεμαχίου</div>
   </div>
 </header>
@@ -318,8 +318,9 @@ async function findKaek(){
       clearParcel();
       return setHint("Ίσως εκτός κτηματογραφημένης ζώνης ή λάθος στόχευση.", "err");
     }
-    drawParcel(parcels[0]);
-    const extra = parcels.length>1 ? `  (+${parcels.length-1} κοντινά)` : "";
+    drawAllParcels(parcels);
+    try { if(parcelLayer) map.fitBounds(parcelLayer.getBounds(), { padding:[60,60], maxZoom:19 }); } catch(e){}
+    const extra = parcels.length>1 ? `  (+${parcels.length-1} όμορα)` : "";
     setHint("Βρέθηκε γεωτεμάχιο." + extra, "ok");
   }catch(err){
     fail("Σφάλμα δικτύου: "+err.message);
@@ -335,49 +336,53 @@ function fail(msg){
 
 function setHint(t, cls=""){ const h=$("hint"); h.textContent=t; h.className="hint "+cls; }
 
+let parcelLayers = [];
 function clearParcel(){
   if(parcelLayer){ map.removeLayer(parcelLayer); parcelLayer=null; }
+  parcelLayers.forEach(l => { try{ map.removeLayer(l); }catch(e){} });
+  parcelLayers = [];
 }
-
-function drawParcel(parcel){
+// Μετατροπή ΕΓΣΑ'87 geometry → latlngs + metrics
+function geomToLatLngs(geom){
+  const rings = geom.type === "Polygon" ? geom.coordinates
+              : geom.type === "MultiPolygon" ? geom.coordinates.flat() : [];
+  const latlngs = []; let area=0, perim=0, verts=0;
+  for(const ring of rings){
+    latlngs.push(ring.map(([x,y]) => { const [lng,lat]=proj4("EPSG:2100","EPSG:4326",[x,y]); return [lat,lng]; }));
+    const m = ringMetrics(ring); area+=m.area; perim+=m.perim; verts+=ring.length;
+  }
+  return { latlngs, area, perim, verts };
+}
+// Σχεδίασε ΟΛΑ τα τεμάχια: πρώτο = κύριο (έντονο), υπόλοιπα = όμορα (διακριτικά)
+function drawAllParcels(parcels){
   clearParcel();
+  if(!parcels.length) return;
+  // Όμορα πρώτα (από κάτω)
+  for(let i=1;i<parcels.length;i++){
+    if(!parcels[i].geometry) continue;
+    const g = geomToLatLngs(parcels[i].geometry);
+    if(!g.latlngs.length) continue;
+    const lyr = L.polygon(g.latlngs, { color:"#67e8f9", weight:1.5, opacity:.7, fillColor:"#67e8f9", fillOpacity:.06, dashArray:"4,4" }).addTo(map);
+    lyr.bindPopup(`<b>${parcels[i].kaek||"ΚΑΕΚ"}</b><br>${Math.round(g.area)} m² <span style="opacity:.6">(όμορο)</span>`);
+    parcelLayers.push(lyr);
+  }
+  // Κύριο (στην πινέζα) — έντονο νέον
+  drawParcel(parcels[0]);
+}
+function drawParcel(parcel){
   $("kaek").textContent = parcel.kaek || "(χωρίς πεδίο ΚΑΕΚ)";
   $("kaek").className = "kaek-value";
-
   const geom = parcel.geometry;
   if(!geom){ $("stats").style.display="none"; return; }
-
-  // Το geometry έρχεται σε ΕΓΣΑ'87 (EPSG:2100) ως GeoJSON Polygon.
-  // Μετατρέπουμε κάθε κορυφή σε WGS84 για το Leaflet, και κρατάμε τα XY για metrics.
-  const rings = geom.type === "Polygon" ? geom.coordinates
-              : geom.type === "MultiPolygon" ? geom.coordinates.flat()
-              : [];
-  if(!rings.length){ $("stats").style.display="none"; return; }
-
-  const latlngs = [];
-  let totalArea=0, totalPerim=0, vertCount=0;
-  for(const ring of rings){
-    const ll = ring.map(([x,y]) => {
-      const [lng,lat] = proj4("EPSG:2100","EPSG:4326",[x,y]);
-      return [lat,lng];
-    });
-    latlngs.push(ll);
-    const m = ringMetrics(ring);
-    totalArea += m.area; totalPerim += m.perim; vertCount += ring.length;
-  }
-
-  parcelLayer = L.polygon(latlngs, {
-    color:"#22d3ee", weight:2.5, opacity:1,
-    fillColor:"#22d3ee", fillOpacity:.18
+  const g = geomToLatLngs(geom);
+  if(!g.latlngs.length){ $("stats").style.display="none"; return; }
+  parcelLayer = L.polygon(g.latlngs, {
+    color:"#22d3ee", weight:3, opacity:1, fillColor:"#22d3ee", fillOpacity:.2
   }).addTo(map);
-
-  parcelLayer.bindPopup(`<b>${parcel.kaek||"ΚΑΕΚ ;"}</b><br>${totalArea.toFixed(1)} m²`);
-  map.fitBounds(parcelLayer.getBounds(), { padding:[40,40], maxZoom:19 });
-
-  $("area").textContent  = totalArea>=10000
-      ? (totalArea/10000).toFixed(3)+" ha" : Math.round(totalArea)+" m²";
-  $("perim").textContent = Math.round(totalPerim)+" m";
-  $("verts").textContent = vertCount;
+  parcelLayer.bindPopup(`<b>${parcel.kaek||"ΚΑΕΚ ;"}</b><br>${g.area.toFixed(1)} m²`);
+  $("area").textContent  = g.area>=10000 ? (g.area/10000).toFixed(3)+" ha" : Math.round(g.area)+" m²";
+  $("perim").textContent = Math.round(g.perim)+" m";
+  $("verts").textContent = g.verts;
   $("stats").style.display = "grid";
 }
 
