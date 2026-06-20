@@ -1154,9 +1154,9 @@ function renderOverview(proj, entries, phases) {
     html += '<div style="margin-bottom:20px"><div class="section-hdr"><div class="section-title"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 22v-4h6v4"/><line x1="8.5" y1="7" x2="9.5" y2="7"/><line x1="14.5" y1="7" x2="15.5" y2="7"/><line x1="8.5" y1="11" x2="9.5" y2="11"/><line x1="14.5" y1="11" x2="15.5" y2="11"/></svg> Κτίρια</div></div>'
       + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">';
     buildings.forEach(b => {
-      const bCount = entries.filter(e => (e.building||'') === b.name).length;
-      const isActive = state.buildingFilter === b.name;
-      html += '<div onclick="filterByBuilding(&quot;' + b.name.replace(/"/g,'&quot;') + '&quot;)" style="background:' + (isActive ? 'rgba(232,119,46,0.12)' : 'var(--surface)') + ';border:' + (isActive ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:10px;padding:12px;position:relative;cursor:pointer">'
+      const bCount = entries.filter(e => (e.building||'') === b.id).length;
+      const isActive = state.buildingFilter === b.id;
+      html += '<div onclick="filterByBuilding(&quot;' + b.id + '&quot;)" style="background:' + (isActive ? 'rgba(232,119,46,0.12)' : 'var(--surface)') + ';border:' + (isActive ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:10px;padding:12px;position:relative;cursor:pointer">'
         + '<div style="font-size:18px;margin-bottom:6px">' + (b.type==='villa'?'🏠':b.type==='pool'?'🏊':'🏢') + '</div>'
         + '<div style="font-size:13px;font-weight:600">' + b.name + '</div>'
         + (b.floors ? '<div style="font-size:11px;color:var(--text2)">' + b.floors + '</div>' : '')
@@ -1193,8 +1193,9 @@ function renderOverview(proj, entries, phases) {
     html += '</div>';
   }
 
-  html += '<div><div class="section-hdr"><div class="section-title"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg> Πρόσφατες Καταγραφές' + (state.buildingFilter ? ' <span style="color:var(--accent)">· ' + state.buildingFilter + '</span>' : '') + '</div>'
-    + (state.buildingFilter ? '<button onclick="filterByBuilding(&quot;' + (state.buildingFilter||'').replace(/"/g,'&quot;') + '&quot;)" class="btn btn-ghost btn-sm">✕ Όλες</button>' : '') + '</div>';
+  const _bfName = state.buildingFilter ? ((buildings.find(b => b.id === state.buildingFilter)||{}).name || state.buildingFilter) : '';
+  html += '<div><div class="section-hdr"><div class="section-title"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg> Πρόσφατες Καταγραφές' + (state.buildingFilter ? ' <span style="color:var(--accent)">· ' + _bfName + '</span>' : '') + '</div>'
+    + (state.buildingFilter ? '<button onclick="filterByBuilding(&quot;' + state.buildingFilter + '&quot;)" class="btn btn-ghost btn-sm">✕ Όλες</button>' : '') + '</div>';
   html += '<div id="overview-entries">';
   if (!recent.length) {
     html += '<div class="empty"><div class="empty-icon" style="opacity:.65"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><p>Δεν υπάρχουν καταγραφές ακόμα.<br>Πάτα "+ Καταγραφή" για να ξεκινήσεις.</p></div>';
@@ -2928,7 +2929,8 @@ function buildReportHTML(period, lang, trMap) {
       + (b.type==='villa'?'🏠':b.type==='pool'?'🏊':'🏢') + ' ' + T(b.name) + '</h2>'
       + renderEntries(list) + '</div>';
   });
-  const general = allE.filter(e => !e.building);
+  const bIds = new Set(buildings.map(b => b.id));
+  const general = allE.filter(e => !e.building || !bIds.has(e.building));
   if (general.length) {
     body += '<div style="margin-bottom:24px"><h2 style="background:#E8772E;color:#fff;padding:10px 14px;border-radius:6px;font-size:16px;margin-bottom:12px">' + (L('📋 Γενικά (όλο το οικόπεδο)','📋 General (entire site)','📋 Të përgjithshme (i gjithë kantieri)')) + '</h2>' + renderEntries(general) + '</div>';
   }
@@ -3049,7 +3051,8 @@ async function generateReport(period, action) {
       list.forEach(e => { txt += '  ' + tl(e.type) + ' ' + T(e.desc) + (e.status==='done'?' ✅':'') + '\n' + photoLines(e); });
       txt += '\n';
     });
-    const general = allE.filter(e => !e.building);
+    const bIds2 = new Set(buildings.map(b => b.id));
+    const general = allE.filter(e => !e.building || !bIds2.has(e.building));
     if (general.length) { txt += '📋 ' + (L('Γενικά:','General:','Të përgjithshme:')) + '\n'; general.forEach(e => { txt += '  ' + tl(e.type) + ' ' + T(e.desc) + '\n' + photoLines(e); }); }
     const url = action === 'email'
       ? 'https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(proj.name + (L(' - Αναφορά',' - Site Report',' - Raport Kantieri'))) + '&body=' + encodeURIComponent(txt)
