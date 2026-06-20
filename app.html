@@ -102,6 +102,8 @@ body.light .alert-banner { box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
 .ver-mobile { display: none; font-size: 9px; font-weight: 400; color: var(--text3); margin-left: 5px; vertical-align: 2px; }
 .topbar-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .eng-btn { background: rgba(140,123,110,0.15); border: 1px solid rgba(140,123,110,0.3); color: var(--accent-light); border-radius: 20px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.plan-badge { display: inline-flex; align-items: center; gap: 4px; font-family: 'Syne', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 9px; border-radius: 20px; margin-left: 2px; vertical-align: 1px; border: 1px solid rgba(255,176,46,0.45); background: rgba(255,176,46,0.12); color: var(--accent-light); white-space: nowrap; }
+.plan-badge.studio { border-color: rgba(77,141,255,0.5); background: rgba(77,141,255,0.12); color: #4D8DFF; }
 .btn { padding: 6px 12px; border-radius: 7px; font-size: 12px; font-weight: 500; cursor: pointer; border: none; font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
 .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
 .btn-ghost:hover { border-color: var(--accent); color: var(--accent-light); }
@@ -3690,6 +3692,20 @@ function showUserMenu() {
   if (confirm('Αποσύνδεση από το HEXIS;')) { sb.auth.signOut().then(() => window.location.href = 'login.html'); }
 }
 
+function renderPlanBadge() {
+  const labels = { starter: 'Starter', pro: 'Pro', studio: 'Studio' };
+  const name = labels[currentPlan] || 'Starter';
+  const old = document.getElementById('plan-badge'); if (old) old.remove();
+  const eng = document.getElementById('eng-btn');
+  if (!eng) return;
+  const b = document.createElement('span');
+  b.id = 'plan-badge';
+  b.className = 'plan-badge' + (currentPlan === 'studio' ? ' studio' : '');
+  b.textContent = name;
+  b.title = 'Πλάνο: ' + name;
+  eng.insertAdjacentElement('afterend', b);
+}
+
 function toggleHelpLang() {
   const el = document.getElementById('help-collab-el');
   const en = document.getElementById('help-collab-en');
@@ -3984,6 +4000,7 @@ async function init() {
   const engBtn = document.getElementById('eng-btn');
   if (currentEngineer) { engBtn.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ' + currentEngineer; }
   else { engBtn.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Επίλεξε ποιος είσαι'; engBtn.style.animation = 'pulse 1.5s infinite'; }
+  renderPlanBadge();
   applyTheme(state.proj);
   renderSidebar();
   render();
