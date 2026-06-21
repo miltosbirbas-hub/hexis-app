@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#071428">
+<title>HEXIS — Σκυρόδεμα &amp; Τοιχοποιία</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  :root{
+    --bg:#11161f;
+    --panel:#1a222f;
+    --panel-2:#212b3a;
+    --line:#2c3849;
+    --ink:#e8edf4;
+    --muted:#8a98ab;
+    --accent:#e0a82e;       /* aggregate amber */
+    --accent-2:#5fb3a3;     /* mortar teal */
+    --steel:#7c8aa0;
+    --danger:#d96a5b;
+    --radius:14px;
+    --safe-t:env(safe-area-inset-top);
+    --safe-b:env(safe-area-inset-bottom);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(224,168,46,.06), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5;
+    padding-bottom:calc(24px + var(--safe-b));
+  }
+  .wrap{max-width:680px;margin:0 auto;padding:0 16px}
+
+  header{
+    padding:calc(16px + var(--safe-t)) 16px 14px;
+    background:#071428;
+    border-bottom:1px solid #122742;
+    position:relative;overflow:hidden;
+  }
+  header::before{
+    content:"";position:absolute;inset:0;
+    background-image:repeating-linear-gradient(45deg,transparent,transparent 22px,rgba(124,138,160,.04) 22px,rgba(124,138,160,.04) 24px);
+    pointer-events:none;
+  }
+  .brand{display:flex;align-items:center;gap:11px;position:relative;flex-wrap:wrap;padding-left:38px}
+  .back-btn{
+    position:absolute;left:14px;top:calc(16px + var(--safe-t));
+    width:30px;height:30px;border-radius:8px;display:grid;place-items:center;
+    background:rgba(255,255,255,.06);border:1px solid #1d3654;color:#cfe0f2;
+    text-decoration:none;font-size:18px;line-height:1;z-index:2;
+  }
+  .back-btn:active{background:rgba(255,255,255,.12)}
+  .logo-hexis{flex:0 0 auto;filter:drop-shadow(0 2px 6px rgba(233,168,38,.25))}
+  .wordmark{
+    font-weight:800;font-size:22px;letter-spacing:5px;color:#eef2f8;
+    font-family:"Segoe UI",system-ui,sans-serif;
+  }
+  .subtitle{
+    flex-basis:100%;font-size:12px;color:var(--muted);letter-spacing:.5px;
+    margin-top:2px;padding-left:45px;
+  }
+
+  .tabs{display:flex;gap:8px;padding:14px 16px 0;max-width:680px;margin:0 auto}
+  .tab{
+    flex:1;padding:12px 10px;border:1px solid var(--line);background:var(--panel);
+    color:var(--muted);border-radius:12px 12px 0 0;border-bottom:none;
+    font-size:14px;font-weight:600;cursor:pointer;text-align:center;
+    transition:.15s;display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .tab svg{width:18px;height:18px}
+  .tab.active{color:var(--ink);background:var(--panel-2)}
+  .tab[data-tab="concrete"].active{border-top:2px solid var(--accent)}
+  .tab[data-tab="masonry"].active{border-top:2px solid var(--accent-2)}
+
+  .view{display:none;animation:fade .25s ease}
+  .view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  .card{
+    background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;margin-top:14px;
+  }
+  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 14px;font-weight:700}
+
+  label{display:block;font-size:13px;color:var(--muted);margin:0 0 6px;font-weight:600}
+  .field{margin-bottom:14px}
+  input[type=number],select{
+    width:100%;padding:12px 14px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;color:var(--ink);font-size:16px;outline:none;transition:.15s;
+    -moz-appearance:textfield;
+  }
+  input[type=number]:focus,select:focus{border-color:var(--accent)}
+  .masonry input:focus,.masonry select:focus{border-color:var(--accent-2)}
+  select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%238a98ab' d='M6 8 0 0h12z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
+
+  .seg{display:flex;gap:6px;background:var(--panel);padding:5px;border-radius:11px;border:1px solid var(--line)}
+  .seg button{
+    flex:1;padding:10px 6px;border:none;background:transparent;color:var(--muted);
+    border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;line-height:1.25
+  }
+  .seg button small{display:block;font-size:10px;opacity:.7;font-weight:500}
+  .seg button.on{background:var(--accent);color:#11161f}
+  .masonry .seg button.on{background:var(--accent-2);color:#0d1916}
+
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .hint{font-size:11px;color:var(--muted);margin-top:-8px;margin-bottom:14px}
+
+  .result{
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-top:14px;
+  }
+  .result.amber{border-left:3px solid var(--accent)}
+  .result.teal{border-left:3px solid var(--accent-2)}
+  .res-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+  .res-head .vol{font-size:12px;color:var(--muted)}
+  .res-head .vol b{color:var(--ink);font-size:15px}
+
+  .mat{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)}
+  .mat:last-child{border-bottom:none}
+  .mat .nm{display:flex;align-items:center;gap:10px}
+  .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+  .mat .nm span{font-size:14px}
+  .mat .nm em{display:block;font-size:11px;color:var(--muted);font-style:normal}
+  .mat .qty{font-size:18px;font-weight:700;text-align:right}
+  .mat .qty small{font-size:12px;color:var(--muted);font-weight:500;margin-left:3px}
+
+  .total-strip{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .chip{flex:1;min-width:130px;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px}
+  .chip b{display:block;font-size:22px;font-weight:800}
+  .chip span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+
+  .note{font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6}
+  .placeholder{text-align:center;color:var(--muted);padding:30px 16px;font-size:14px}
+
+  footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 16px 0}
+  .bq{color:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <a href="app.html" class="back-btn" aria-label="Πίσω στο HEXIS">←</a>
+  <div class="brand">
+    <svg class="logo-hexis" viewBox="0 0 40 40" width="34" height="34" aria-hidden="true">
+      <polygon points="20,3 33.9,11 33.9,29 20,37 6.1,29 6.1,11" fill="none" stroke="#e9a826" stroke-width="2.6"/>
+      <circle cx="20" cy="20" r="6.2" fill="none" stroke="#e9a826" stroke-width="2.6"/>
+    </svg>
+    <div class="wordmark">HEXIS</div>
+    <div class="subtitle">Σκυρόδεμα &amp; Τοιχοποιία</div>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="concrete" onclick="switchTab('concrete')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v6l9 4 9-4V7"/></svg>
+    Σκυρόδεμα
+  </div>
+  <div class="tab" data-tab="masonry" onclick="switchTab('masonry')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="4"/><rect x="3" y="10" width="18" height="4"/><rect x="3" y="16" width="18" height="4"/></svg>
+    Τοιχοποιία
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- ================= CONCRETE ================= -->
+<section id="concrete" class="view active">
+  <div class="card">
+    <h2>Παράμετροι ανάμιξης</h2>
+
+    <div class="field">
+      <label>Μέθοδος δοσομέτρησης</label>
+      <div class="seg" id="methodSeg">
+        <button class="on" data-m="practical" onclick="setMethod('practical')">Πρακτική<small>σακιά/m³</small></button>
+        <button data-m="kts" onclick="setMethod('kts')">ΚΤΣ-2016<small>κατά βάρος</small></button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Ποιότητα σκυροδέματος</label>
+      <select id="grade" onchange="calcConcrete()">
+        <option value="C12/15">C12/15 — καθαριότητας / γόμωση</option>
+        <option value="C16/20" selected>C16/20 — γενικής χρήσης</option>
+        <option value="C20/25">C20/25 — οπλισμένο, στοιχεία</option>
+        <option value="C25/30">C25/30 — δομικά στοιχεία</option>
+        <option value="C30/37">C30/37 — υψηλές απαιτήσεις</option>
+        <option value="C35/45">C35/45 — ειδικά έργα</option>
+        <option value="C40/50">C40/50 — υψηλή αντοχή</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Τρόπος υπολογισμού</label>
+      <div class="seg" id="modeSeg">
+        <button class="on" data-mode="batches" onclick="setCalcMode('batches')">Ανά αναμίξεις<small>ξέρω τα καζάνια</small></button>
+        <button data-mode="target" onclick="setCalcMode('target')">Ανά κυβικά<small>ξέρω τα m³</small></button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Όγκος κάδου ανάμιξης</label>
+      <select id="drum" onchange="syncDrum()">
+        <option value="0.063">63 lt — μικρή ηλεκτρική</option>
+        <option value="0.090">90 lt</option>
+        <option value="0.120">120 lt</option>
+        <option value="0.125">1/8 m³ (125 lt) — μπετονιέρα</option>
+        <option value="0.140" selected>140 lt — τυπική</option>
+        <option value="0.160">160 lt</option>
+        <option value="0.180">180 lt</option>
+        <option value="0.200">200 lt</option>
+        <option value="0.250">250 lt</option>
+        <option value="0.260">260 lt</option>
+        <option value="0.350">0.35 m³ — mixer / κάδος Bobcat</option>
+        <option value="0.500">0.50 m³ — μεγάλος κάδος</option>
+        <option value="custom">Άλλο (πληκτρολόγηση)…</option>
+      </select>
+    </div>
+
+    <div class="field" id="customDrumWrap" style="display:none">
+      <label>Ωφέλιμη χωρητικότητα κάδου (λίτρα)</label>
+      <input type="number" id="drumCustom" value="140" min="1" step="1" oninput="calcConcrete()">
+      <div class="hint">Συνήθης απόδοση: ~60% του ονομαστικού όγκου τυμπάνου ανά αναμίξη.</div>
+    </div>
+
+    <div class="field" id="batchesWrap">
+      <label>Πλήθος αναμίξεων (καζάνια)</label>
+      <input type="number" id="batches" value="1" min="1" step="1" oninput="calcConcrete()">
+    </div>
+
+    <div class="field" id="targetWrap" style="display:none">
+      <label>Κυβικά που θέλω να ρίξω (m³)</label>
+      <input type="number" id="targetV" value="1" min="0.01" step="0.05" oninput="calcConcrete()">
+      <div class="hint">Θα υπολογιστεί αυτόματα πόσες αναμίξεις του κάδου χρειάζονται.</div>
+    </div>
+  </div>
+
+  <div class="result amber" id="concreteResult"></div>
+
+  <div class="card">
+    <p class="note">
+      <b style="color:var(--ink)">Σημείωση.</b> Η «πρακτική» μέθοδος βασίζεται στις κοινές αναλογίες εργοταξίου
+      (σακιά τσιμέντου 25&nbsp;kg ανά m³ τελικού σκυροδέματος). Η «ΚΤΣ-2016» δίνει ενδεικτική σύνθεση
+      κατά βάρος για αδρανή ξηρά. Αδρανή = άμμος + γαρμπίλι/χαλίκι (αμμοχάλικο 0/16 ή 0/32).
+      Το νερό προσαρμόζεται στην υγρασία των αδρανών — πάντα προσθήκη σταδιακά μέχρι την επιθυμητή εργασιμότητα.
+      Δεν υποκαθιστά μελέτη σύνθεσης για κρίσιμα στοιχεία.
+    </p>
+  </div>
+</section>
+
+<!-- ================= MASONRY ================= -->
+<section id="masonry" class="view masonry">
+  <div class="card">
+    <h2>Διαστάσεις τοίχου</h2>
+    <div class="row2">
+      <div class="field">
+        <label>Μήκος τοίχου (m)</label>
+        <input type="number" id="wallL" value="4" min="0" step="0.1" oninput="calcMasonry()">
+      </div>
+      <div class="field">
+        <label>Ύψος τοίχου (m)</label>
+        <input type="number" id="wallH" value="3" min="0" step="0.1" oninput="calcMasonry()">
+      </div>
+    </div>
+    <div class="field">
+      <label>Αφαίρεση ανοιγμάτων — πόρτες/παράθυρα (m²)</label>
+      <input type="number" id="openings" value="0" min="0" step="0.1" oninput="calcMasonry()">
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Τύπος τοίχου</h2>
+    <div class="seg" id="wallTypeSeg">
+      <button class="on" data-w="dromikos" onclick="setWallType('dromikos')">Δρομικός<small>1 σειρά</small></button>
+      <button data-w="dipla" onclick="setWallType('dipla')">Διπλά δρομικός<small>2 σειρές</small></button>
+      <button data-w="batikos" onclick="setWallType('batikos')">Μπατικός<small>πλήρες πάχος</small></button>
+    </div>
+    <div class="hint" id="wallTypeHint" style="margin-top:10px">Ο τύπος καθορίζει πόσα τούβλα ανά m² (πάχος τοιχοποιίας).</div>
+  </div>
+
+  <div class="card">
+    <h2>Τούβλο</h2>
+    <div class="field">
+      <label>Τύπος / διάσταση εμπορίου</label>
+      <select id="brick" onchange="calcMasonry()"></select>
+    </div>
+    <div class="field">
+      <label>Πάχος αρμού κονιάματος (cm)</label>
+      <input type="number" id="joint" value="1.5" min="0.5" max="3" step="0.5" oninput="calcMasonry()">
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Σενάζ (οριζόντια διαζώματα)</h2>
+    <div class="row2">
+      <div class="field">
+        <label>Πλήθος σενάζ στον τοίχο</label>
+        <input type="number" id="senazCount" value="3" min="0" step="1" oninput="calcMasonry()">
+      </div>
+      <div class="field">
+        <label>Ύψος σενάζ (cm)</label>
+        <input type="number" id="senazH" value="10" min="0" step="1" oninput="calcMasonry()">
+      </div>
+    </div>
+    <div class="hint">Το ύψος των σενάζ αφαιρείται από την επιφάνεια τοιχοποιίας (γεμίζει με σκυρόδεμα, όχι τούβλα).</div>
+  </div>
+
+  <div class="result teal" id="masonryResult"></div>
+
+  <div class="card">
+    <p class="note">
+      <b style="color:var(--ink)">Σημείωση.</b> Το πλήθος τεμαχίων προκύπτει από την καθαρή επιφάνεια
+      (τοίχος − ανοίγματα − σενάζ) και το «ωφέλιμο» μέγεθος τούβλου (διάσταση + αρμός).
+      Ο μπατικός μετρά διπλάσιο πάχος, ο διπλά δρομικός δύο παράλληλες σειρές.
+      Προτείνεται προσαύξηση φύρας ~5–7%.
+    </p>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  HEXIS · BRB Development — Υπολογισμός ενδεικτικός για χρήση επί τόπου του έργου
+</footer>
+
+<script>
+/* ---------- ΔΕΔΟΜΕΝΑ ΣΚΥΡΟΔΕΜΑΤΟΣ ---------- */
+/* cementKg: kg τσιμέντου ανά m³ τελικού σκυροδέματος (πρακτική)
+   wcRatio : λόγος νερό/τσιμέντο
+   plast   : % ρευστοποιητή επί βάρους τσιμέντου (lt ≈ kg, sg~1.05)
+   sand/gravel: αναλογία όγκου αδρανών (ξηρά, m³ ανά m³ μπετόν) */
+const CONCRETE = {
+  "C12/15":{cementKg:230, wc:0.65, plast:0.6, sand:0.46, gravel:0.69},
+  "C16/20":{cementKg:280, wc:0.60, plast:0.7, sand:0.45, gravel:0.68},
+  "C20/25":{cementKg:320, wc:0.55, plast:0.8, sand:0.44, gravel:0.66},
+  "C25/30":{cementKg:350, wc:0.52, plast:0.9, sand:0.43, gravel:0.65},
+  "C30/37":{cementKg:380, wc:0.48, plast:1.0, sand:0.42, gravel:0.63},
+  "C35/45":{cementKg:410, wc:0.45, plast:1.2, sand:0.41, gravel:0.62},
+  "C40/50":{cementKg:440, wc:0.42, plast:1.3, sand:0.40, gravel:0.60}
+};
+const BAG_KG = 25;          // σακί τσιμέντου
+const SAND_DENSITY = 1500;  // kg/m³ άμμος
+const GRAVEL_DENSITY = 1550;// kg/m³ χαλίκι
+const AGG_DENSITY = 1525;   // kg/m³ αμμοχάλικο μέσο
+
+let method = 'practical';
+let calcMode = 'batches';
+
+function setCalcMode(m){
+  calcMode=m;
+  document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
+  document.getElementById('batchesWrap').style.display = m==='batches'?'block':'none';
+  document.getElementById('targetWrap').style.display  = m==='target'?'block':'none';
+  calcConcrete();
+}
+
+function setMethod(m){
+  method=m;
+  document.querySelectorAll('#methodSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
+  calcConcrete();
+}
+function syncDrum(){
+  const sel=document.getElementById('drum');
+  document.getElementById('customDrumWrap').style.display = sel.value==='custom'?'block':'none';
+  calcConcrete();
+}
+function drumVolume(){
+  const sel=document.getElementById('drum').value;
+  if(sel==='custom') return (parseFloat(document.getElementById('drumCustom').value)||0)/1000;
+  return parseFloat(sel);
+}
+function fmt(n,d=1){
+  if(!isFinite(n)) return '0';
+  return n.toLocaleString('el-GR',{minimumFractionDigits:d,maximumFractionDigits:d});
+}
+
+function calcConcrete(){
+  const grade=document.getElementById('grade').value;
+  const c=CONCRETE[grade];
+  const vPer=drumVolume();
+
+  let V, batches, exactBatches, targetMode=(calcMode==='target');
+  if(targetMode){
+    V=parseFloat(document.getElementById('targetV').value)||0;
+    exactBatches = vPer>0 ? V/vPer : 0;
+    batches = Math.ceil(exactBatches);
+  } else {
+    batches=parseInt(document.getElementById('batches').value)||1;
+    V=vPer*batches;
+    exactBatches=batches;
+  }
+
+  const cementKg = c.cementKg*V;
+  const bags = cementKg/BAG_KG;
+  const waterL = cementKg*c.wc;
+  const plastL = cementKg*c.plast/100;
+
+  // αδρανή
+  const sandM3 = c.sand*V;
+  const gravelM3 = c.gravel*V;
+  const aggM3 = sandM3+gravelM3;
+  const aggKg = sandM3*SAND_DENSITY + gravelM3*GRAVEL_DENSITY;
+
+  const litPerBatch = vPer*1000;
+
+  // ---- δόση ανά γέμισμα κάδου ----
+  const denom = Math.max(exactBatches,0.0001);
+  const aggPerBatchM3 = aggM3/denom;
+  const shovelsPerBatch = aggPerBatchM3*1000/12; // 1 φτυάρι ≈ 12 lt
+  const bagsPerBatch = bags/denom;
+  const waterPerBatch = waterL/denom;
+  const plastPerBatch = plastL/denom; // lt
+
+  // απλή πρακτική αναλογία όταν το σακί δεν είναι ακέραιο (π.χ. μικρή μπετονιέρα)
+  // αναλογία αδρανή:τσιμέντο κατ' όγκο ανά μισό σακί
+  const aggPerHalfBag = (aggPerBatchM3/Math.max(bagsPerBatch,0.0001))*0.5*1000/12; // φτυάρια ανά μισό σακί
+  const simpleRatio = `${fmt(aggPerHalfBag,0)} φτυάρια αμμοχάλικο + ½ σακί τσιμέντο + ~${fmt(waterPerBatch/Math.max(bagsPerBatch*2,0.0001),1)} lt νερό`;
+
+  let batchLine;
+  if(targetMode){
+    batchLine = `${fmt(exactBatches,1)} αναμίξεις × ${fmt(litPerBatch,0)} lt &nbsp;→&nbsp; <b style="color:var(--accent)">${batches} γεμίσματα</b>`;
+  } else {
+    batchLine = `${batches}× ${fmt(litPerBatch,0)} lt`;
+  }
+
+  let html = `
+    <div class="res-head">
+      <div><b style="font-size:17px">${grade}</b></div>
+      <div class="vol">${targetMode?'Στόχος':'Συνολικός όγκος'}<br><b>${fmt(V,3)} m³</b> &nbsp;·&nbsp; ${batchLine}</div>
+    </div>
+
+    <div class="mat">
+      <div class="nm"><span class="dot" style="background:#9c7a4a"></span><div><span>Αμμοχάλικο (αδρανή)</span><em>άμμος + χαλίκι/γαρμπίλι</em></div></div>
+      <div class="qty">${fmt(aggM3,3)}<small>m³</small></div>
+    </div>
+    <div class="mat" style="padding-left:19px;border-bottom:1px solid var(--line)">
+      <div class="nm"><span style="font-size:12px;color:var(--muted)">↳ άμμος ${fmt(sandM3,3)} m³ &nbsp;·&nbsp; χαλίκι ${fmt(gravelM3,3)} m³</span></div>
+      <div class="qty"><small>≈ ${fmt(aggKg,0)} kg</small></div>
+    </div>
+
+    <div class="mat">
+      <div class="nm"><span class="dot" style="background:var(--accent)"></span><div><span>Τσιμέντο 25 kg</span><em>${fmt(cementKg,0)} kg συνολικά</em></div></div>
+      <div class="qty">${fmt(bags,1)}<small>σακιά</small></div>
+    </div>
+
+    <div class="mat">
+      <div class="nm"><span class="dot" style="background:#5fa9d1"></span><div><span>Νερό</span><em>λόγος Ν/Τ = ${c.wc}</em></div></div>
+      <div class="qty">${fmt(waterL,0)}<small>lt</small></div>
+    </div>
+
+    <div class="mat">
+      <div class="nm"><span class="dot" style="background:var(--accent-2)"></span><div><span>Ρευστοποιητής</span><em>${c.plast}% β. τσιμέντου</em></div></div>
+      <div class="qty">${fmt(plastL,2)}<small>lt</small></div>
+    </div>
+
+    <div style="margin:14px 0 4px;padding-top:14px;border-top:1px dashed var(--line)">
+      <div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--accent);font-weight:700;margin-bottom:10px">
+        Δόση ανά γέμισμα κάδου <span style="color:var(--muted);font-weight:500;text-transform:none;letter-spacing:0">(${fmt(litPerBatch,0)} lt)</span>
+      </div>
+      <div class="mat">
+        <div class="nm"><span class="dot" style="background:#9c7a4a"></span><div><span>Αμμοχάλικο</span><em>≈ ${fmt((aggM3/Math.max(exactBatches,0.0001)),3)} m³ · ${fmt((aggKg/Math.max(exactBatches,0.0001)),0)} kg</em></div></div>
+        <div class="qty">${fmt(shovelsPerBatch,0)}<small>φτυάρια*</small></div>
+      </div>
+      <div class="mat">
+        <div class="nm"><span class="dot" style="background:var(--accent)"></span><div><span>Τσιμέντο 25 kg</span><em>${fmt(cementKg/Math.max(exactBatches,0.0001),1)} kg</em></div></div>
+        <div class="qty">${fmt(bagsPerBatch,2)}<small>σακί</small></div>
+      </div>
+      <div class="mat">
+        <div class="nm"><span class="dot" style="background:#5fa9d1"></span><div><span>Νερό</span></div></div>
+        <div class="qty">${fmt(waterPerBatch,1)}<small>lt</small></div>
+      </div>
+      <div class="mat">
+        <div class="nm"><span class="dot" style="background:var(--accent-2)"></span><div><span>Ρευστοποιητής</span></div></div>
+        <div class="qty">${fmt(plastPerBatch*1000,0)}<small>ml</small></div>
+      </div>
+      <p class="note" style="margin-top:8px">*Φτυάρι ≈ 12 lt αδρανών. ${bagsPerBatch<1?`Πρακτικά: ${simpleRatio}.`:''}</p>
+    </div>
+
+    <div class="total-strip">
+      <div class="chip"><b style="color:var(--accent)">${Math.ceil(bags)}</b><span>σακιά (στρογγ.)</span></div>
+      <div class="chip"><b>${fmt(aggM3,2)}</b><span>m³ αδρανή</span></div>
+      ${targetMode
+        ? `<div class="chip"><b style="color:var(--accent-2)">${batches}</b><span>γεμίσματα κάδου</span></div>`
+        : `<div class="chip"><b style="color:#5fa9d1">${fmt(waterL,0)}</b><span>lt νερό</span></div>`}
+    </div>
+  `;
+  document.getElementById('concreteResult').innerHTML=html;
+}
+
+/* ---------- ΔΕΔΟΜΕΝΑ ΤΟΥΒΛΩΝ ---------- */
+/* l,h = όψη τοίχου (cm), t = πάχος (cm για μπατικό υπολογισμό) */
+const BRICKS = [
+  {id:'6op',  name:'Διάτρητο 6 οπών',      l:19, h:9,  t:9},
+  {id:'9op',  name:'Διάτρητο 9 οπών',      l:19, h:12, t:9},
+  {id:'12op', name:'Διάτρητο 12 οπών',     l:24, h:12, t:9},
+  {id:'orth', name:'Ορθομπλόκ 19×19×9',    l:19, h:19, t:9},
+  {id:'orth12',name:'Ορθομπλόκ 24×19×9',   l:24, h:19, t:9},
+  {id:'tav', name:'Διάτρητο Ταβανιού 33×17',l:33, h:17, t:9},
+  {id:'kss', name:'Συμπαγές 23×11×6',      l:23, h:6,  t:11},
+  {id:'yt10',name:'Ytong 60×25×10',        l:60, h:25, t:10},
+  {id:'yt15',name:'Ytong 60×25×15',        l:60, h:25, t:15},
+  {id:'yt20',name:'Ytong 60×25×20',        l:60, h:25, t:20},
+  {id:'yt25',name:'Ytong 60×25×25',        l:60, h:25, t:25}
+];
+
+let wallType='dromikos';
+const WALL_HINTS={
+  dromikos:'Δρομικός: τα τούβλα τοποθετούνται κατά μήκος — μία σειρά πάχους.',
+  dipla:'Διπλά δρομικός: δύο παράλληλες δρομικές σειρές — διπλάσιο πλήθος.',
+  batikos:'Μπατικός: τα τούβλα κατά πλάτος — πλήρες πάχος, μεγαλύτερο πλήθος ανά m².'
+};
+
+function initBricks(){
+  const sel=document.getElementById('brick');
+  BRICKS.forEach(b=>{
+    const o=document.createElement('option');
+    o.value=b.id;o.textContent=`${b.name} (${b.l}×${b.h} cm)`;
+    if(b.id==='9op') o.selected=true;
+    sel.appendChild(o);
+  });
+}
+function setWallType(w){
+  wallType=w;
+  document.querySelectorAll('#wallTypeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.w===w));
+  document.getElementById('wallTypeHint').textContent=WALL_HINTS[w];
+  calcMasonry();
+}
+
+function calcMasonry(){
+  const L=parseFloat(document.getElementById('wallL').value)||0;
+  const H=parseFloat(document.getElementById('wallH').value)||0;
+  const openings=parseFloat(document.getElementById('openings').value)||0;
+  const joint=parseFloat(document.getElementById('joint').value)||0;
+  const senazN=parseInt(document.getElementById('senazCount').value)||0;
+  const senazH=(parseFloat(document.getElementById('senazH').value)||0)/100; // m
+
+  const brick=BRICKS.find(b=>b.id===document.getElementById('brick').value)||BRICKS[1];
+
+  const grossArea=L*H;
+  const senazArea=senazN*senazH*L;
+  let netArea=grossArea-openings-senazArea;
+  if(netArea<0) netArea=0;
+
+  // ωφέλιμη όψη τούβλου με αρμό (m)
+  const ulen=(brick.l+joint)/100;
+  const uh  =(brick.h+joint)/100;
+  const perM2 = 1/(ulen*uh); // τεμ/m² για μία σειρά (δρομικός)
+
+  let factor=1;
+  if(wallType==='dipla') factor=2;
+  if(wallType==='batikos') factor=1; // μπατικός: τούβλα κατά πλάτος, αλλά για διάτρητα τυπικά ≈ διπλάσια ανά m² λόγω προσανατολισμού
+
+  // Για μπατικό, το τούβλο μπαίνει κατά πλάτος => όψη = h × t, πλήθος αυξάνεται
+  let bricksPerM2;
+  if(wallType==='batikos'){
+    // δύο όψεις τούβλου ανά πάχος μπατικού => προσέγγιση: 2 × δρομικός για διάτρητα τυπικού πάχους
+    bricksPerM2 = perM2 * 2;
+  } else {
+    bricksPerM2 = perM2 * factor;
+  }
+
+  const bricks = netArea*bricksPerM2;
+  const bricksWaste = bricks*1.06;
+
+  // κονίαμα δόμησης (ενδεικτικό): ~0.02 m³/m² ανά σειρά
+  const mortarPerM2 = wallType==='dromikos'?0.018 : wallType==='dipla'?0.036 : 0.045;
+  const mortarM3 = netArea*mortarPerM2;
+  const mortarCementBags = mortarM3*6.5/1; // ~6.5 σακιά/m3 ασβεστοκονίαμα 1:3 ισοδύναμο (ενδεικτικό)
+
+  // σκυρόδεμα σενάζ (πλάτος τοίχου ~ πάχος τούβλου)
+  let wallThk=brick.t/100;
+  if(wallType==='dipla') wallThk=(brick.t*2+joint)/100;
+  if(wallType==='batikos') wallThk=(brick.l)/100;
+  const senazConcrete=senazN*senazH*L*wallThk;
+
+  let html=`
+    <div class="res-head">
+      <div><b style="font-size:17px">${brick.name}</b></div>
+      <div class="vol">Καθαρή επιφάνεια<br><b>${fmt(netArea,2)} m²</b></div>
+    </div>
+
+    <div class="mat">
+      <div class="nm"><span class="dot" style="background:var(--accent-2)"></span><div><span>Τούβλα</span><em>${fmt(bricksPerM2,1)} τεμ/m² · ${wallType==='dromikos'?'δρομικός':wallType==='dipla'?'διπλά δρομικός':'μπατικός'}</em></div></div>
+      <div class="qty">${Math.ceil(bricks)}<small>τεμ</small></div>
+    </div>
+    <div class="mat">
+      <div class="nm"><span style="font-size:12px;color:var(--muted)">↳ με φύρα +6%</span></div>
+      <div class="qty"><b style="color:var(--accent-2)">${Math.ceil(bricksWaste)}</b><small>τεμ</small></div>
+    </div>
+
+    <div class="mat">
+      <div class="nm"><span class="dot" style="background:#9c7a4a"></span><div><span>Κονίαμα δόμησης</span><em>ενδεικτικό</em></div></div>
+      <div class="qty">${fmt(mortarM3,3)}<small>m³</small></div>
+    </div>
+
+    <div class="mat">
+      <div class="nm"><span class="dot" style="background:var(--accent)"></span><div><span>Σκυρόδεμα σενάζ</span><em>${senazN} σενάζ × ${fmt(senazH*100,0)} cm</em></div></div>
+      <div class="qty">${fmt(senazConcrete,3)}<small>m³</small></div>
+    </div>
+
+    <div class="total-strip">
+      <div class="chip"><b style="color:var(--accent-2)">${Math.ceil(bricksWaste)}</b><span>τεμ. τούβλα</span></div>
+      <div class="chip"><b>${fmt(netArea,1)}</b><span>m² καθαρά</span></div>
+      <div class="chip"><b style="color:var(--accent)">${fmt(senazConcrete,2)}</b><span>m³ σενάζ</span></div>
+    </div>
+  `;
+
+  if(senazConcrete>0){
+    html+=`<p class="note" style="margin-top:12px">💡 Για το μπετόν των σενάζ (${fmt(senazConcrete,3)} m³) δες την καρτέλα <b style="color:var(--accent)">Σκυρόδεμα</b> — τυπικά C16/20.</p>`;
+  }
+
+  document.getElementById('masonryResult').innerHTML=html;
+}
+
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===t));
+}
+
+/* init */
+initBricks();
+calcConcrete();
+calcMasonry();
+
+/* PWA service worker (κοινό με hexis-app) */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+
+</script>
+</body>
+</html>
