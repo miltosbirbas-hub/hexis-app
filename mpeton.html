@@ -129,6 +129,23 @@
   .mat .qty small{font-size:12px;color:var(--muted);font-weight:500;margin-left:3px}
 
   .total-strip{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+
+  .timer-box{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:4px}
+  .timer-display{
+    font-variant-numeric:tabular-nums;font-weight:800;font-size:40px;letter-spacing:1px;
+    color:var(--ink);min-width:130px;text-align:center;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;
+    transition:color .2s,border-color .2s;
+  }
+  .timer-display.running{color:var(--accent);border-color:var(--accent)}
+  .timer-display.done{color:var(--accent-2);border-color:var(--accent-2);animation:flash .6s ease 6}
+  @keyframes flash{0%,100%{opacity:1}50%{opacity:.35}}
+  .timer-actions{display:flex;gap:8px;flex:1;min-width:160px}
+  .tbtn{flex:1;padding:14px 10px;border:none;border-radius:11px;font-size:15px;font-weight:700;cursor:pointer;transition:.15s}
+  .tbtn.make{background:var(--accent);color:#11161f}
+  .tbtn.make:active{transform:scale(.97)}
+  .tbtn.make.pause{background:var(--accent-2);color:#0d1916}
+  .tbtn.reset{background:var(--panel);color:var(--muted);border:1px solid var(--line);flex:0 0 auto;padding:14px 16px}
   .chip{flex:1;min-width:130px;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px}
   .chip b{display:block;font-size:22px;font-weight:800}
   .chip span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
@@ -238,6 +255,35 @@
   </div>
 
   <div class="result amber" id="concreteResult"></div>
+
+  <div class="card">
+    <h2>Χρόνος ανάμιξης</h2>
+    <div class="field">
+      <label>Είδος μίγματος</label>
+      <select id="mixType" onchange="updateMixTime()">
+        <option value="concrete" data-sec="90">Σκυρόδεμα (αδρανή) — 90″</option>
+        <option value="mortar" data-sec="180">Κονίαμα δόμησης / σοβάς — 3′</option>
+        <option value="resin" data-sec="120">Επιχρίσματα / κόλλες (ρητινούχα) — 2′</option>
+      </select>
+      <div class="hint" id="mixHint">Συνιστώμενος χρόνος μέχρι ομογενοποίηση. Η αντίστροφη μέτρηση ξεκινά όταν πατήσεις «Φτιάξε».</div>
+    </div>
+
+    <div class="timer-box">
+      <div class="timer-display" id="timerDisplay">01:30</div>
+      <div class="timer-actions">
+        <button class="tbtn make" id="makeBtn" onclick="startMix()">▶ Φτιάξε</button>
+        <button class="tbtn reset" id="resetBtn" onclick="resetMix()">↺ Μηδέν</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="note">
+      <b style="color:var(--ink)">Σημείωση χρόνου.</b> Οι χρόνοι είναι ενδεικτικοί για σωστή ομογενοποίηση:
+      σκυρόδεμα ~90″ μετά την προσθήκη όλων των υλικών, κονιάματα ~3′, ρητινούχα ~2′ (και τήρησε τον χρόνο
+      ωρίμανσης του παρασκευαστή πριν τη χρήση). Υπερβολική ανάμιξη ρητινούχων εγκλωβίζει αέρα.
+    </p>
+  </div>
 
   <div class="card">
     <p class="note">
@@ -619,10 +665,84 @@ function switchTab(t){
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===t));
 }
 
+/* ---------- TIMER ΑΝΑΜΙΞΗΣ ---------- */
+let mixTotal=90, mixLeft=90, mixTimer=null, mixRunning=false;
+
+function fmtClock(s){
+  s=Math.max(0,Math.round(s));
+  const m=Math.floor(s/60), ss=s%60;
+  return String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');
+}
+function renderTimer(){
+  document.getElementById('timerDisplay').textContent=fmtClock(mixLeft);
+}
+function updateMixTime(){
+  const opt=document.getElementById('mixType').selectedOptions[0];
+  mixTotal=parseInt(opt.dataset.sec)||90;
+  if(!mixRunning){ mixLeft=mixTotal; }
+  resetVisualState();
+  renderTimer();
+}
+function resetVisualState(){
+  const d=document.getElementById('timerDisplay');
+  d.classList.remove('running','done');
+}
+function startMix(){
+  const btn=document.getElementById('makeBtn');
+  const d=document.getElementById('timerDisplay');
+  if(mixRunning){
+    // pause
+    clearInterval(mixTimer); mixRunning=false;
+    btn.textContent='▶ Συνέχεια'; btn.classList.remove('pause');
+    d.classList.remove('running');
+    return;
+  }
+  if(mixLeft<=0) mixLeft=mixTotal;
+  mixRunning=true;
+  btn.textContent='⏸ Παύση'; btn.classList.add('pause');
+  d.classList.add('running'); d.classList.remove('done');
+  const t0=Date.now(), start=mixLeft;
+  mixTimer=setInterval(()=>{
+    mixLeft=start-(Date.now()-t0)/1000;
+    if(mixLeft<=0){
+      mixLeft=0; renderTimer();
+      clearInterval(mixTimer); mixRunning=false;
+      d.classList.remove('running'); d.classList.add('done');
+      btn.textContent='▶ Φτιάξε'; btn.classList.remove('pause');
+      beep();
+      if(navigator.vibrate) navigator.vibrate([300,150,300,150,300]);
+      return;
+    }
+    renderTimer();
+  },200);
+}
+function resetMix(){
+  clearInterval(mixTimer); mixRunning=false;
+  mixLeft=mixTotal;
+  const btn=document.getElementById('makeBtn');
+  btn.textContent='▶ Φτιάξε'; btn.classList.remove('pause');
+  resetVisualState(); renderTimer();
+}
+function beep(){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    [0,0.25,0.5].forEach(t=>{
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.frequency.value=880; o.type='sine';
+      o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.001,ctx.currentTime+t);
+      g.gain.exponentialRampToValueAtTime(0.4,ctx.currentTime+t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+0.18);
+      o.start(ctx.currentTime+t); o.stop(ctx.currentTime+t+0.2);
+    });
+  }catch(e){}
+}
+
 /* init */
 initBricks();
 calcConcrete();
 calcMasonry();
+updateMixTime();
 
 /* PWA service worker (κοινό με hexis-app) */
 if('serviceWorker' in navigator){
