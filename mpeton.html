@@ -63,9 +63,11 @@
   .lang-btn:active{filter:brightness(.92)}
   .logo-hexis{flex:0 0 auto;filter:drop-shadow(0 2px 6px rgba(233,168,38,.25))}
   .wordmark{
-    font-weight:800;font-size:22px;letter-spacing:5px;color:#eef2f8;
-    font-family:"Segoe UI",system-ui,sans-serif;
+    font-weight:800;font-size:21px;letter-spacing:1px;color:#eef2f8;
+    font-family:"Segoe UI",system-ui,sans-serif;line-height:1.05;
   }
+  .wordmark-wrap{display:flex;flex-direction:column;gap:1px}
+  .byline{font-size:10px;letter-spacing:1.5px;color:#e9a826;text-transform:uppercase;font-weight:600}
   .subtitle{
     flex-basis:100%;font-size:12px;color:var(--muted);letter-spacing:.5px;
     margin-top:2px;padding-left:45px;
@@ -158,6 +160,19 @@
   .chip span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
 
   .note{font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6}
+  .qc-card{border-left:3px solid var(--danger)}
+  .qc-test{margin-top:10px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}
+  .qc-test summary{
+    list-style:none;cursor:pointer;padding:12px 14px;font-size:13px;font-weight:600;color:var(--ink);
+    display:flex;align-items:center;justify-content:space-between;gap:8px;user-select:none;
+  }
+  .qc-test summary::-webkit-details-marker{display:none}
+  .qc-test summary::after{content:"▾";color:var(--muted);transition:transform .2s;font-size:12px}
+  .qc-test[open] summary::after{transform:rotate(180deg)}
+  .qc-test summary:active{background:var(--panel-2)}
+  .qc-body{padding:0 14px 14px;font-size:12px;color:var(--muted);line-height:1.65}
+  .qc-body p{margin:8px 0}
+  .qc-body b{color:var(--ink)}
   .placeholder{text-align:center;color:var(--muted);padding:30px 16px;font-size:14px}
 
   footer{text-align:center;color:var(--muted);font-size:11px;padding:24px 16px 0}
@@ -246,7 +261,7 @@
 
     <div class="field" id="customDrumWrap" style="display:none">
       <label data-i18n="drumcustom">Ωφέλιμη χωρητικότητα κάδου (λίτρα)</label>
-      <input type="number" id="drumCustom" value="140" min="1" step="1" oninput="calcConcrete()">
+      <input type="number" id="drumCustom" value="140" min="1" step="1" oninput="calcConcrete();updateMixTime()">
       <div class="hint">Συνήθης απόδοση: ~60% του ονομαστικού όγκου τυμπάνου ανά αναμίξη.</div>
     </div>
 
@@ -269,11 +284,21 @@
     <div class="field">
       <label data-i18n="mixtype">Είδος μίγματος</label>
       <select id="mixType" onchange="updateMixTime()">
-        <option value="concrete" data-sec="90">Σκυρόδεμα (αδρανή) — 90″</option>
+        <option value="concrete" data-sec="90">Σκυρόδεμα (αδρανή)</option>
         <option value="mortar" data-sec="180">Κονίαμα δόμησης / σοβάς — 3′</option>
         <option value="resin" data-sec="120">Επιχρίσματα / κόλλες (ρητινούχα) — 2′</option>
       </select>
       <div class="hint" id="mixHint">Συνιστώμενος χρόνος μέχρι ομογενοποίηση. Η αντίστροφη μέτρηση ξεκινά όταν πατήσεις «Φτιάξε».</div>
+    </div>
+
+    <div class="field" id="mixerWrap">
+      <label data-i18n="mixer">Τύπος αναμικτήρα</label>
+      <select id="mixerType" onchange="updateMixTime()">
+        <option value="forced" data-base="30">Αναγκαστικός (twin-shaft / planetary)</option>
+        <option value="drum" data-base="60" selected>Περιστροφικός κάδος (μπετονιέρα)</option>
+        <option value="small" data-base="75">Μικρός ηλεκτρικός εργοταξίου</option>
+      </select>
+      <div class="hint" id="autoTimeHint"></div>
     </div>
 
     <div class="timer-box">
@@ -287,9 +312,10 @@
 
   <div class="card">
     <p class="note">
-      <b style="color:var(--ink)">Σημείωση χρόνου.</b> Οι χρόνοι είναι ενδεικτικοί για σωστή ομογενοποίηση:
-      σκυρόδεμα ~90″ μετά την προσθήκη όλων των υλικών, κονιάματα ~3′, ρητινούχα ~2′ (και τήρησε τον χρόνο
-      ωρίμανσης του παρασκευαστή πριν τη χρήση). Υπερβολική ανάμιξη ρητινούχων εγκλωβίζει αέρα.
+      <b style="color:var(--ink)">Σημείωση χρόνου.</b> Για σκυρόδεμα ο χρόνος υπολογίζεται αυτόματα
+      ανά τύπο αναμικτήρα (αναγκαστικός ~30″, περιστροφικός ~60″, μικρός ~75″) συν ~15″/m³ φορτίου,
+      μετά την προσθήκη όλων των υλικών. Κονιάματα ~3′, ρητινούχα ~2′ (και τήρησε τον χρόνο ωρίμανσης
+      του παρασκευαστή). Υπερβολική ανάμιξη χάνει κάθιση και εγκλωβίζει αέρα.
     </p>
   </div>
 
@@ -301,6 +327,41 @@
       Το νερό προσαρμόζεται στην υγρασία των αδρανών — πάντα προσθήκη σταδιακά μέχρι την επιθυμητή εργασιμότητα.
       Δεν υποκαθιστά μελέτη σύνθεσης για κρίσιμα στοιχεία.
     </p>
+  </div>
+
+  <div class="card qc-card">
+    <h2 data-i18n="qc_title">Ποιοτικός έλεγχος &amp; αντοχή (MPa)</h2>
+    <p class="note" data-i18n-html="qc_disclaimer" style="margin-top:0">
+      <b style="color:var(--danger)">Προσοχή.</b> Οι αναλογίες είναι ενδεικτικές. Η επίτευξη της κατηγορίας
+      (π.χ. C25/30 = 25 MPa κύλινδρος / 30 MPa κύβος στις 28 ημέρες) εξαρτάται κυρίως από τον λόγο
+      Νερό/Τσιμέντο, την υγρασία των αδρανών, τη συμπύκνωση (δονητή) και τη συντήρηση (curing).
+      Πιστοποιείται <b>μόνο</b> με δοκίμια που θραύονται σε εργαστήριο στις 28 ημέρες. Για φέροντα στοιχεία
+      και C25/30 και άνω, ο κανονισμός πρακτικά απαιτεί έτοιμο σκυρόδεμα από πιστοποιημένη μονάδα.
+    </p>
+
+    <details class="qc-test">
+      <summary data-i18n="qc_slump_sum">🧪 Slump test — Κάθιση κώνου Abrams (επιτόπου)</summary>
+      <div class="qc-body">
+        <p data-i18n-html="qc_slump_what"><b>Τι μετρά:</b> την εργασιμότητα/κάθιση του νωπού σκυροδέματος — έμμεση ένδειξη της σταθερότητας του W/C από φορτίο σε φορτίο. <b>Δεν</b> μετρά αντοχή, αλλά απότομη αύξηση της κάθισης = παραπάνω νερό = κίνδυνος χαμηλότερων MPa.</p>
+        <p data-i18n-html="qc_slump_gear"><b>Διάταξη:</b> κώνος Abrams (κορυφή Ø10 cm, βάση Ø20 cm, ύψος 30 cm), μεταλλική πλάκα βάσης, ράβδος συμπύκνωσης Ø16 mm/60 cm, μυστρί, μέτρο.</p>
+        <p data-i18n-html="qc_slump_steps"><b>Βήματα:</b> 1) Βρέξε & σταθεροποίησε τον κώνο στην πλάκα (πάτα τα πτερύγια). 2) Γέμισμα σε <b>3 στρώσεις</b>, καθεμία ~⅓ του ύψους. 3) Κάθε στρώση: <b>25 κτυπήματα</b> με τη ράβδο, ομοιόμορφα. 4) Ισοπέδωσε την κορυφή. 5) Σήκωσε τον κώνο <b>κατακόρυφα σε 5–10″</b>. 6) Αναποδογύρισε τον κώνο δίπλα και μέτρα τη <b>διαφορά ύψους</b> κορυφής κώνου − σκυροδέματος = κάθιση (cm).</p>
+        <p data-i18n-html="qc_slump_read"><b>Ενδεικτικά (S-classes EN 206):</b> S1 = 1–4 cm (στεγνό), S2 = 5–9 cm (πλαστικό), S3 = 10–15 cm (μαλακό, συνηθέστερο), S4 = 16–21 cm (ρευστό). Κράτα την κάθιση <b>σταθερή</b> μεταξύ φορτίων — αυτό δείχνει σταθερό W/C.</p>
+      </div>
+    </details>
+
+    <details class="qc-test">
+      <summary data-i18n="qc_cube_sum">🧱 Δοκίμια αντοχής (κύβοι/κύλινδροι)</summary>
+      <div class="qc-body">
+        <p data-i18n-html="qc_cube_body"><b>Ο μόνος αξιόπιστος έλεγχος MPa.</b> Λήψη κύβων 15×15×15 cm (ή κυλίνδρων Ø15×30 cm) από το φορτίο, συμπύκνωση σε 2–3 στρώσεις, σήμανση. Συντήρηση σε νερό ~20°C. Θραύση συνήθως στις 7 & 28 ημέρες σε διαπιστευμένο εργαστήριο. Στατιστικά: μετρά η <b>χαρακτηριστική</b> αντοχή (μόνο 5% κάτω από το όριο), γι' αυτό η μονάδα στοχεύει +8–12 MPa πάνω από την κατηγορία.</p>
+      </div>
+    </details>
+
+    <details class="qc-test">
+      <summary data-i18n="qc_wc_sum">💧 Πρακτικοί έλεγχοι W/C επιτόπου</summary>
+      <div class="qc-body">
+        <p data-i18n-html="qc_wc_body"><b>Υγρασία άμμου (πρόχειρα):</b> σφίξε άμμο στη χούφτα — αν στάζει νερό, είναι πολύ υγρή (αφαίρεσε νερό από το μίγμα). <b>Σταθερότητα:</b> κράτα ίδιο νερό ανά καζάνι· μην «διορθώνεις» με παραπάνω νερό για ευκολία — ρίξε ρευστοποιητή. <b>Σφυρί Schmidt</b> (μετά τη σκλήρυνση): γρήγορη μη-καταστροφική εκτίμηση επιφανειακής αντοχής, ενδεικτική μόνο.</p>
+      </div>
+    </details>
   </div>
 </section>
 
@@ -384,6 +445,8 @@
 let LANG = 'el';
 const I18N = {
   subtitle:        {el:'Σκυρόδεμα & Τοιχοποιία', sq:'Beton & Murature'},
+  wordmark:        {el:'HEXIS', sq:'HEXIS'},
+  footer:          {el:'HEXIS · BRB Development', sq:'HEXIS · BRB Development'},
   tab_concrete:    {el:'Σκυρόδεμα', sq:'Beton'},
   tab_masonry:     {el:'Τοιχοποιία', sq:'Murature'},
   params:          {el:'Παράμετροι ανάμιξης', sq:'Parametrat e përzierjes'},
@@ -425,9 +488,46 @@ const I18N = {
   /* δυναμικά (αποτελέσματα/timer) */
   pause:           {el:'⏸ Παύση', sq:'⏸ Ndalo'},
   resume:          {el:'▶ Συνέχεια', sq:'▶ Vazhdo'},
-  mix_concrete:    {el:'Σκυρόδεμα (αδρανή) — 90″', sq:'Beton (inerte) — 90″'},
+  mix_concrete:    {el:'Σκυρόδεμα (αδρανή)', sq:'Beton (inerte)'},
   mix_mortar:      {el:'Κονίαμα δόμησης / σοβάς — 3′', sq:'Llaç murature / suvatim — 3′'},
   mix_resin:       {el:'Επιχρίσματα / κόλλες (ρητινούχα) — 2′', sq:'Suvatime / ngjitëse (rrëshirë) — 2′'},
+  mixer:           {el:'Τύπος αναμικτήρα', sq:'Lloji i përzierësit'},
+  mixer_forced:    {el:'Αναγκαστικός (twin-shaft / planetary)', sq:'I detyruar (twin-shaft / planetary)'},
+  mixer_drum:      {el:'Περιστροφικός κάδος (μπετονιέρα)', sq:'Kovë rrotulluese (betoniere)'},
+  mixer_small:     {el:'Μικρός ηλεκτρικός εργοταξίου', sq:'I vogël elektrik kantieri'},
+  autotime_pre:    {el:'Αυτόματα:', sq:'Automatik:'},
+  qc_title:        {el:'Ποιοτικός έλεγχος & αντοχή (MPa)', sq:'Kontrolli i cilësisë & rezistenca (MPa)'},
+  qc_disclaimer:   {
+    el:'<b style="color:var(--danger)">Προσοχή.</b> Οι αναλογίες είναι ενδεικτικές. Η επίτευξη της κατηγορίας (π.χ. C25/30 = 25 MPa κύλινδρος / 30 MPa κύβος στις 28 ημέρες) εξαρτάται κυρίως από τον λόγο Νερό/Τσιμέντο, την υγρασία των αδρανών, τη συμπύκνωση (δονητή) και τη συντήρηση (curing). Πιστοποιείται <b>μόνο</b> με δοκίμια που θραύονται σε εργαστήριο στις 28 ημέρες. Για φέροντα στοιχεία και C25/30 και άνω, ο κανονισμός πρακτικά απαιτεί έτοιμο σκυρόδεμα από πιστοποιημένη μονάδα.',
+    sq:'<b style="color:var(--danger)">Kujdes.</b> Përpjesëtimet janë treguese. Arritja e klasës (p.sh. C25/30 = 25 MPa cilindër / 30 MPa kub në 28 ditë) varet kryesisht nga raporti Ujë/Çimento, lagështia e inerteve, ngjeshja (vibratori) dhe kurimi. Çertifikohet <b>vetëm</b> me prova që thyhen në laborator në 28 ditë. Për elemente mbajtëse dhe C25/30 e lart, rregullorja praktikisht kërkon beton të gatshëm nga njësi e çertifikuar.'
+  },
+  qc_slump_sum:    {el:'🧪 Slump test — Κάθιση κώνου Abrams (επιτόπου)', sq:'🧪 Slump test — Ulja e konit Abrams (në kantier)'},
+  qc_slump_what:   {
+    el:'<b>Τι μετρά:</b> την εργασιμότητα/κάθιση του νωπού σκυροδέματος — έμμεση ένδειξη της σταθερότητας του W/C από φορτίο σε φορτίο. <b>Δεν</b> μετρά αντοχή, αλλά απότομη αύξηση της κάθισης = παραπάνω νερό = κίνδυνος χαμηλότερων MPa.',
+    sq:'<b>Çfarë mat:</b> punueshmërinë/uljen e betonit të freskët — tregues i tërthortë i qëndrueshmërisë së U/Ç nga ngarkesa në ngarkesë. <b>Nuk</b> mat rezistencën, por rritje e papritur e uljes = më shumë ujë = rrezik MPa më të ulëta.'
+  },
+  qc_slump_gear:   {
+    el:'<b>Διάταξη:</b> κώνος Abrams (κορυφή Ø10 cm, βάση Ø20 cm, ύψος 30 cm), μεταλλική πλάκα βάσης, ράβδος συμπύκνωσης Ø16 mm/60 cm, μυστρί, μέτρο.',
+    sq:'<b>Pajisja:</b> koni Abrams (maja Ø10 cm, baza Ø20 cm, lartësia 30 cm), pllakë metalike baze, shufër ngjeshjeje Ø16 mm/60 cm, mistri, metër.'
+  },
+  qc_slump_steps:  {
+    el:'<b>Βήματα:</b> 1) Βρέξε & σταθεροποίησε τον κώνο στην πλάκα (πάτα τα πτερύγια). 2) Γέμισμα σε <b>3 στρώσεις</b>, καθεμία ~⅓ του ύψους. 3) Κάθε στρώση: <b>25 κτυπήματα</b> με τη ράβδο, ομοιόμορφα. 4) Ισοπέδωσε την κορυφή. 5) Σήκωσε τον κώνο <b>κατακόρυφα σε 5–10″</b>. 6) Αναποδογύρισε τον κώνο δίπλα και μέτρα τη <b>διαφορά ύψους</b> κορυφής κώνου − σκυροδέματος = κάθιση (cm).',
+    sq:'<b>Hapat:</b> 1) Lag & stabilizo konin mbi pllakë (shtyp pedalet). 2) Mbushje në <b>3 shtresa</b>, secila ~⅓ e lartësisë. 3) Çdo shtresë: <b>25 goditje</b> me shufër, në mënyrë të barabartë. 4) Rrafsho majën. 5) Ngri konin <b>vertikalisht në 5–10″</b>. 6) Përmbys konin pranë dhe mat <b>diferencën e lartësisë</b> maja e konit − betoni = ulja (cm).'
+  },
+  qc_slump_read:   {
+    el:'<b>Ενδεικτικά (S-classes EN 206):</b> S1 = 1–4 cm (στεγνό), S2 = 5–9 cm (πλαστικό), S3 = 10–15 cm (μαλακό, συνηθέστερο), S4 = 16–21 cm (ρευστό). Κράτα την κάθιση <b>σταθερή</b> μεταξύ φορτίων — αυτό δείχνει σταθερό W/C.',
+    sq:'<b>Tregues (S-classes EN 206):</b> S1 = 1–4 cm (i thatë), S2 = 5–9 cm (plastik), S3 = 10–15 cm (i butë, më i zakonshmi), S4 = 16–21 cm (i lëngshëm). Mbaje uljen <b>të qëndrueshme</b> midis ngarkesave — kjo tregon U/Ç të qëndrueshëm.'
+  },
+  qc_cube_sum:     {el:'🧱 Δοκίμια αντοχής (κύβοι/κύλινδροι)', sq:'🧱 Provat e rezistencës (kube/cilindra)'},
+  qc_cube_body:    {
+    el:'<b>Ο μόνος αξιόπιστος έλεγχος MPa.</b> Λήψη κύβων 15×15×15 cm (ή κυλίνδρων Ø15×30 cm) από το φορτίο, συμπύκνωση σε 2–3 στρώσεις, σήμανση. Συντήρηση σε νερό ~20°C. Θραύση συνήθως στις 7 & 28 ημέρες σε διαπιστευμένο εργαστήριο. Στατιστικά: μετρά η <b>χαρακτηριστική</b> αντοχή (μόνο 5% κάτω από το όριο), γι\' αυτό η μονάδα στοχεύει +8–12 MPa πάνω από την κατηγορία.',
+    sq:'<b>I vetmi kontroll i besueshëm i MPa.</b> Merr kube 15×15×15 cm (ose cilindra Ø15×30 cm) nga ngarkesa, ngjesh në 2–3 shtresa, shëno. Kurim në ujë ~20°C. Thyerja zakonisht në 7 & 28 ditë në laborator të akredituar. Statistikisht: llogaritet rezistenca <b>karakteristike</b> (vetëm 5% nën kufirin), prandaj njësia synon +8–12 MPa mbi klasën.'
+  },
+  qc_wc_sum:       {el:'💧 Πρακτικοί έλεγχοι W/C επιτόπου', sq:'💧 Kontrolle praktike U/Ç në kantier'},
+  qc_wc_body:      {
+    el:'<b>Υγρασία άμμου (πρόχειρα):</b> σφίξε άμμο στη χούφτα — αν στάζει νερό, είναι πολύ υγρή (αφαίρεσε νερό από το μίγμα). <b>Σταθερότητα:</b> κράτα ίδιο νερό ανά καζάνι· μην «διορθώνεις» με παραπάνω νερό για ευκολία — ρίξε ρευστοποιητή. <b>Σφυρί Schmidt</b> (μετά τη σκλήρυνση): γρήγορη μη-καταστροφική εκτίμηση επιφανειακής αντοχής, ενδεικτική μόνο.',
+    sq:'<b>Lagështia e rërës (afërsisht):</b> shtrëngo rërën në grusht — nëse pikon ujë, është shumë e lagësht (hiq ujë nga përzierja). <b>Qëndrueshmëria:</b> mbaj të njëjtin ujë për kazan; mos «korrigjo» me më shumë ujë për lehtësi — shto superplastifikues. <b>Çekiçi Schmidt</b> (pas ngurtësimit): vlerësim i shpejtë jo-shkatërrues i rezistencës sipërfaqësore, vetëm tregues.'
+  },
   /* αποτελέσματα σκυροδέματος */
   r_total:         {el:'Συνολικός όγκος', sq:'Vëllimi total'},
   r_target:        {el:'Στόχος', sq:'Synimi'},
@@ -486,6 +586,9 @@ function applyLang(){
   document.querySelectorAll('[data-i18n]').forEach(el=>{
     el.textContent = t(el.dataset.i18n);
   });
+  document.querySelectorAll('[data-i18n-html]').forEach(el=>{
+    el.innerHTML = t(el.dataset.i18nHtml);
+  });
   // options χρόνου
   const mt=document.getElementById('mixType');
   if(mt){
@@ -493,10 +596,17 @@ function applyLang(){
     mt.options[1].textContent=t('mix_mortar');
     mt.options[2].textContent=t('mix_resin');
   }
+  const mxt=document.getElementById('mixerType');
+  if(mxt){
+    mxt.options[0].textContent=t('mixer_forced');
+    mxt.options[1].textContent=t('mixer_drum');
+    mxt.options[2].textContent=t('mixer_small');
+  }
   document.getElementById('langBtn').textContent = (LANG==='el')?'SQ':'ΕΛ';
   // ανανέωση δυναμικών αποτελεσμάτων
   if(typeof calcConcrete==='function') calcConcrete();
   if(typeof calcMasonry==='function') calcMasonry();
+  if(typeof updateMixTime==='function') updateMixTime();
   // ενημέρωση timer button label αν δεν τρέχει
   if(typeof mixRunning!=='undefined' && !mixRunning && typeof setMakeBtn==='function'){
     setMakeBtn('make');
@@ -546,6 +656,7 @@ function syncDrum(){
   const sel=document.getElementById('drum');
   document.getElementById('customDrumWrap').style.display = sel.value==='custom'?'block':'none';
   calcConcrete();
+  if(typeof updateMixTime==='function') updateMixTime();
 }
 function drumVolume(){
   const sel=document.getElementById('drum').value;
@@ -812,8 +923,26 @@ function renderTimer(){
   document.getElementById('timerDisplay').textContent=fmtClock(mixLeft);
 }
 function updateMixTime(){
-  const opt=document.getElementById('mixType').selectedOptions[0];
-  mixTotal=parseInt(opt.dataset.sec)||90;
+  const mix=document.getElementById('mixType').value;
+  const mixerWrap=document.getElementById('mixerWrap');
+  const autoHint=document.getElementById('autoTimeHint');
+
+  if(mix==='concrete'){
+    // αυτόματος χρόνος: βάση αναμικτήρα + 15″ ανά m³ (ανά καζάνι)
+    mixerWrap.style.display='block';
+    const base=parseInt(document.getElementById('mixerType').selectedOptions[0].dataset.base)||60;
+    const perBatchM3=(typeof drumVolume==='function')?drumVolume():0.14;
+    let sec=Math.round(base + 15*perBatchM3);
+    // λογικά όρια: 30″–180″
+    sec=Math.max(30,Math.min(180,sec));
+    mixTotal=sec;
+    autoHint.textContent = t('autotime_pre')+` ${base}″ + 15″/m³ × ${fmt(perBatchM3,3)} m³ ≈ ${sec}″`;
+  } else {
+    mixerWrap.style.display='none';
+    const opt=document.getElementById('mixType').selectedOptions[0];
+    mixTotal=parseInt(opt.dataset.sec)||90;
+    autoHint.textContent='';
+  }
   if(!mixRunning){ mixLeft=mixTotal; }
   resetVisualState();
   renderTimer();
