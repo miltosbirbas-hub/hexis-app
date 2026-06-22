@@ -796,6 +796,50 @@ const getProj = id => PROJECTS.find(p => p.id === id);
 const getGroups = () => [...new Set(PROJECTS.map(p => p.group))];
 
 // ── SUPABASE ──────────────────────────────────────────
+let BUILDINGS = [];   // κτίρια από Supabase (κοινά ανά έργο)
+async function loadBuildings() {
+  try {
+    const { data, error } = await sb.from('buildings').select('*');
+    if (error) { console.warn('[buildings] load:', error.message); return; }
+    BUILDINGS = data || [];
+  } catch(e) { console.warn('[buildings] load ex:', e.message); }
+}
+function buildingsFor(projId) {
+  return BUILDINGS.filter(b => b.project_id === projId);
+}
+async function migrateBuildings() {
+  const statusEl = document.getElementById('migrate-status');
+  const setStatus = (msg) => { if (statusEl) statusEl.textContent = msg; };
+  // Μάζεψε όλα τα τοπικά κτίρια από το localStorage
+  const local = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || k.indexOf('hexis_buildings_') !== 0) continue;
+    const projId = k.replace('hexis_buildings_', '');
+    let arr = [];
+    try { arr = JSON.parse(localStorage.getItem(k) || '[]'); } catch(e) {}
+    arr.forEach(b => local.push({
+      id: b.id || (crypto.randomUUID ? crypto.randomUUID() : 'b'+Date.now()+Math.random().toString(16).slice(2)),
+      project_id: projId,
+      name: b.name || 'Κτίριο',
+      floors: b.floors || '',
+      type: b.type || 'villa'
+    }));
+  }
+  if (!local.length) { setStatus('Δεν βρέθηκαν τοπικά κτίρια σε αυτή τη συσκευή.'); return; }
+  if (!confirm('Βρέθηκαν ' + local.length + ' κτίρια. Να ανέβουν στη βάση;')) return;
+  setStatus('Ανέβασμα ' + local.length + ' κτιρίων…');
+  let ok = 0, fail = 0;
+  for (const row of local) {
+    try {
+      const { error } = await sb.from('buildings').upsert(row);
+      if (error) { fail++; console.error('[migrate]', row.name, error.message); }
+      else { ok++; if (!BUILDINGS.find(x => x.id === row.id)) BUILDINGS.push(row); }
+    } catch(e) { fail++; console.error('[migrate ex]', e.message); }
+  }
+  setStatus('✓ Ανέβηκαν ' + ok + ' κτίρια' + (fail ? ' · ' + fail + ' αποτυχίες (δες console)' : ''));
+  render();
+}
 async function loadFromDB() {
   try {
     const [er, pr, pjr, dlr] = await Promise.all([
@@ -804,6 +848,7 @@ async function loadFromDB() {
       sb.from('projects').select('*').order('created_at'),
       sb.from('deleted_projects_v2').select('id').eq('user_id', getUserId()),
     ]);
+    await loadBuildings();
     const deletedEntries = JSON.parse(localStorage.getItem('hexis_deleted_entries') || '[]');
     if (er.data) appData.entries = er.data.filter(e => !deletedEntries.includes(e.id)).map(e => ({
       id:e.id, type:e.type, project:e.project_id, sub:e.sub,
@@ -1145,7 +1190,7 @@ function renderOverview(proj, entries, phases) {
   if (state.buildingFilter) recentSrc = entries.filter(e => (e.building||'') === state.buildingFilter);
   const recent = [...recentSrc].sort((a,b) => new Date(b.date)-new Date(a.date));
 
-  const buildings = JSON.parse(localStorage.getItem('hexis_buildings_'+proj.id)||'[]');
+  const buildings = buildingsFor(proj.id);
 
   let html = '<div class="stats">'
     + '<div class="stat accent"><div class="stat-n">' + phases.length + '</div><div class="stat-l">Φάσεις Gantt</div></div>'
@@ -1770,7 +1815,7 @@ function showAddEntry(projId) {
   // Populate buildings for the selected project
   const bsel = document.getElementById('entry-building');
   const projForBuilding = projId || state.proj;
-  const blds = JSON.parse(localStorage.getItem('hexis_buildings_'+projForBuilding)||'[]');
+  const blds = buildingsFor(projForBuilding);
   bsel.innerHTML = '<option value="">— Όλο το έργο —</option>' + blds.map(b => '<option value="' + b.id + '">' + b.name + '</option>').join('');
   document.getElementById('modal-entry').classList.remove('hidden');
 }
@@ -1789,7 +1834,7 @@ function editEntry(id) {
   const sel = document.getElementById('entry-proj');
   sel.innerHTML = PROJECTS.map(p => '<option value="' + p.id + '"' + (p.id===e.project?' selected':'') + '>' + p.group + ' — ' + p.name + '</option>').join('');
   const bsel = document.getElementById('entry-building');
-  const blds = JSON.parse(localStorage.getItem('hexis_buildings_' + e.project) || '[]');
+  const blds = buildingsFor(e.project);
   bsel.innerHTML = '<option value="">— Όλο το έργο —</option>' + blds.map(b => '<option value="' + b.id + '"' + (b.id===(e.building||'')?' selected':'') + '>' + b.name + '</option>').join('');
   const grid = document.getElementById('photo-preview');
   grid.innerHTML = (e.photos && e.photos.length)
@@ -2268,19 +2313,21 @@ function deleteProject(projId) {
 }
 
 // ── BUILDINGS ─────────────────────────────────────────
-function showNewBuilding() {
+async function showNewBuilding() {
   const name = prompt('Όνομα κτιρίου:'); if (!name) return;
   const floors = prompt('Όροφοι (π.χ. Υ+Ι+Α):') || '';
   const type = prompt('Τύπος (villa/apartment/pool/commercial/other):') || 'villa';
-  const buildings = JSON.parse(localStorage.getItem('hexis_buildings_'+state.proj)||'[]');
-  buildings.push({id:uid(), name, floors, type});
-  localStorage.setItem('hexis_buildings_'+state.proj, JSON.stringify(buildings));
+  const row = { id: uid(), project_id: state.proj, name, floors, type };
+  const { error } = await sb.from('buildings').insert(row);
+  if (error) { alert('Σφάλμα αποθήκευσης κτιρίου: ' + error.message); return; }
+  BUILDINGS.push(row);
   render();
 }
-function delBuilding(projId, id) {
+async function delBuilding(projId, id) {
   if (!confirm('Διαγραφή;')) return;
-  const b = JSON.parse(localStorage.getItem('hexis_buildings_'+projId)||'[]').filter(x=>x.id!==id);
-  localStorage.setItem('hexis_buildings_'+projId, JSON.stringify(b));
+  const { error } = await sb.from('buildings').delete().eq('id', id);
+  if (error) { alert('Σφάλμα διαγραφής: ' + error.message); return; }
+  BUILDINGS = BUILDINGS.filter(x => x.id !== id);
   render();
 }
 
@@ -2916,7 +2963,7 @@ function buildReportHTML(period, lang, trMap) {
     periodLabel = L('Συνολική (όλες οι καταγραφές)','Cumulative Report (all records to date)','Raport Përmbledhës (të gjitha regjistrimet)');
   }
 
-  const buildings = JSON.parse(localStorage.getItem('hexis_buildings_'+state.proj)||'[]');
+  const buildings = buildingsFor(state.proj);
   const phases = JSON.parse(localStorage.getItem('hexis_phases_'+state.proj)||'[]');
   const tl = t => AL
     ? (t==='order'?'🔧 Urdhër pune':t==='purchase'?'🛒 Porosi':'⚠️ Mungesë / Defekt')
@@ -3060,7 +3107,7 @@ async function generateReport(period, action) {
   if (TRANS) {
     try {
       const scope = getReportEntries(period);
-      const blds = JSON.parse(localStorage.getItem('hexis_buildings_' + state.proj) || '[]');
+      const blds = buildingsFor(state.proj);
       // Συνολικό όριο 12 δευτ. για ΟΛΗ τη μετάφραση — αν αργήσει, βγάζει την αναφορά χωρίς μετάφραση
       trMap = await Promise.race([
         buildTranslationMap(scope, blds, tlCode),
@@ -3080,7 +3127,7 @@ async function generateReport(period, action) {
     setTimeout(() => win.print(), 600);
   } else {
     const allE = getReportEntries(period);
-    const buildings = JSON.parse(localStorage.getItem('hexis_buildings_' + state.proj) || '[]');
+    const buildings = buildingsFor(state.proj);
     const tl = t => t==='order'?'🔧':t==='purchase'?'🛒':'⚠️';
     let pn = 0;
     const photoLines = e => {
@@ -4138,6 +4185,10 @@ window.addEventListener('beforeinstallprompt', (e) => {
       <span class="qt-tool-ico">&#129521;</span>
       <span><b>Σκυρόδεμα &amp; Τοιχοποιία</b><br><small>Αναλογίες μπετόν C12/15–C40 · τούβλα · σενάζ</small></span>
     </a>
+    <div class="qt-tool-card" onclick="migrateBuildings()" style="cursor:pointer">
+      <span class="qt-tool-ico">&#11014;&#65039;</span>
+      <span><b>Μεταφορά κτιρίων στη βάση</b><br><small id="migrate-status">Ανέβασε τα τοπικά κτίρια ώστε να τα δουν οι συνεργάτες</small></span>
+    </div>
   </div>
 </div>
 <script>
