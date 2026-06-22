@@ -4074,6 +4074,15 @@ async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = 'login.html'; return; }
   currentUser = session.user;
+  // Κουμπί μεταφοράς κτιρίων: ορατό μόνο στον ιδιοκτήτη (εσένα)
+  try {
+    const OWNER_EMAILS = ['miltos.birbas@gmail.com'];
+    const myEmail = (currentUser.email || '').toLowerCase();
+    if (OWNER_EMAILS.includes(myEmail)) {
+      const mc = document.getElementById('migrate-card');
+      if (mc) mc.style.display = 'flex';
+    }
+  } catch(e) {}
   currentPlan = currentUser.user_metadata?.plan || 'starter';
   currentRole = currentUser.user_metadata?.role || 'engineer';
   // Έλεγχος αν ο χρήστης είναι ορισμένος ως owner σε κάποιο έργο (βάσει email)
@@ -4185,7 +4194,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
       <span class="qt-tool-ico">&#129521;</span>
       <span><b>Σκυρόδεμα &amp; Τοιχοποιία</b><br><small>Αναλογίες μπετόν C12/15–C40 · τούβλα · σενάζ</small></span>
     </a>
-    <div class="qt-tool-card" onclick="migrateBuildings()" style="cursor:pointer">
+    <div class="qt-tool-card" id="migrate-card" onclick="migrateBuildings()" style="cursor:pointer;display:none">
       <span class="qt-tool-ico">&#11014;&#65039;</span>
       <span><b>Μεταφορά κτιρίων στη βάση</b><br><small id="migrate-status">Ανέβασε τα τοπικά κτίρια ώστε να τα δουν οι συνεργάτες</small></span>
     </div>
