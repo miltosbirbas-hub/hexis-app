@@ -142,7 +142,7 @@
     </div>
     <div class="steps">
       <div class="step"><span class="n">01</span><div>Στρέψε αργά την κάμερα στο <b>πάτωμα</b> μέχρι να βρεθεί επιφάνεια.<br><small>Καλός φωτισμός = καλύτερη ακρίβεια.</small></div></div>
-      <div class="step"><span class="n">02</span><div>Σημάδεψε κάθε <b>γωνία</b> με το στόχαστρο και πάτα «Σημείο».</div></div>
+      <div class="step"><span class="n">02</span><div><b>Σύρε το δάχτυλο</b> στην οθόνη για να βάλεις τον δείκτη στη γωνία, μετά πάτα «Σημείο».</div></div>
       <div class="step"><span class="n">03</span><div>Κλείσε το σχήμα — διάβασε εμβαδόν & περίμετρο.</div></div>
     </div>
     <button id="startBtn" disabled>Έλεγχος συσκευής…</button>
@@ -155,7 +155,7 @@
     <button id="exitBtn">✕</button>
     <div id="status"><span class="pulse"></span><span id="statusText">Εντοπισμός επιφάνειας…</span></div>
     <div id="scaleBadge" style="position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(10,23,48,.82);border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:20px;z-index:6;display:none">scale ×1.000</div>
-    <div id="reticle-hint">Κούνα αργά το κινητό<br>για να βρεθεί το πάτωμα</div>
+    <div id="reticle-hint">Σύρε το δάχτυλο στην οθόνη<br>για να τοποθετήσεις τον δείκτη</div>
 
     <div id="readout">
       <div class="big" id="roLast">—</div>
@@ -289,6 +289,14 @@ let calibMode = false;          // βρισκόμαστε σε λήψη βαθμ
 let collecting = false;         // μαζεύουμε δείγματα τώρα;
 let reticleMat = null;          // υλικό reticle (αλλάζει χρώμα ανά ποιότητα)
 const RET = {ok:0x3ddc97, mid:0xE8772E, bad:0xff5252};
+
+// ---------- finger-driven pointer ----------
+let touchActive=false;          // αγγίζει ο χρήστης την οθόνη;
+let touchNDC={x:0,y:0};         // θέση δαχτύλου σε normalized device coords (-1..1)
+let floorY=null;                // ύψος επιπέδου πατώματος (από hit-test)
+let floorReady=false;           // βρέθηκε το πάτωμα τουλάχιστον μία φορά;
+let frozenPos=null;             // παγωμένη θέση δείκτη αφού σηκωθεί το δάχτυλο
+let raycaster=null;
 const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('show');
   clearTimeout(t._);t._=setTimeout(()=>t.classList.remove('show'),1600);};
 
@@ -343,8 +351,49 @@ async function startAR(){
   hitTestSource=await session.requestHitTestSource({space:viewerSpace});
 
   session.addEventListener('end',onEnd);
+  raycaster=new THREE.Raycaster();
+  setupTouch();
   resetPoints();
   renderer.setAnimationLoop(onFrame);
+}
+
+// ---------- finger drag on the camera overlay ----------
+function setupTouch(){
+  // NOTE: #overlay is pointer-events:none (passthrough), so we listen on window
+  // and ignore touches that land on the actual controls.
+  const upd=(clientX,clientY)=>{
+    const w=window.innerWidth,h=window.innerHeight;
+    touchNDC.x=(clientX/w)*2-1;
+    touchNDC.y=-(clientY/h)*2+1;
+  };
+  const onCtl=t=> t.closest && (t.closest('#controls')||t.closest('#exitBtn')||
+       t.closest('#status')||t.closest('#scaleBadge')||t.closest('#sheet'));
+  const start=e=>{
+    const tgt=e.target;
+    if(onCtl(tgt)) return;
+    if(overlayEl.style.display==='none') return; // only while AR overlay active
+    const t=e.touches?e.touches[0]:e;
+    touchActive=true; frozenPos=null; upd(t.clientX,t.clientY);
+    e.preventDefault();
+  };
+  const move=e=>{
+    if(!touchActive) return;
+    const t=e.touches?e.touches[0]:e;
+    upd(t.clientX,t.clientY);
+    e.preventDefault();
+  };
+  const end=e=>{
+    if(!touchActive) return;
+    touchActive=false;
+    if(reticle.visible) frozenPos=reticle.position.clone();
+  };
+  window.addEventListener('touchstart',start,{passive:false});
+  window.addEventListener('touchmove',move,{passive:false});
+  window.addEventListener('touchend',end);
+  // mouse fallback for desktop testing
+  window.addEventListener('mousedown',start);
+  window.addEventListener('mousemove',move);
+  window.addEventListener('mouseup',end);
 }
 
 $('#tapBtn').onclick=addPoint;
@@ -354,14 +403,45 @@ $('#doneBtn').onclick=finish;
 function onFrame(t,frame){
   if(!frame) return;
   const results=hitTestSource?frame.getHitTestResults(hitTestSource):[];
+
+  // 1) keep the floor plane updated from the centre hit-test
   if(results.length){
     const pose=results[0].getPose(refSpace);
-    reticle.visible=true;
-    reticle.matrix.fromArray(pose.transform.matrix);
+    floorY=pose.transform.position.y;
+    floorReady=true;
+  }
 
-    // push current reticle position into rolling window (last ~30 frames)
-    const cp=new THREE.Vector3().setFromMatrixPosition(reticle.matrix);
-    recentPoses.push({x:cp.x,y:cp.y,z:cp.z,t:performance.now()});
+  // 2) decide pointer position
+  let target=null;
+  if(mode==='height' && results.length){
+    // height needs vertical picks (floor & ceiling) → use centre hit-test as before
+    const pose=results[0].getPose(refSpace);
+    target=new THREE.Vector3(pose.transform.position.x,pose.transform.position.y,pose.transform.position.z);
+  }else if(touchActive && floorReady && camera){
+    // ray from camera through the finger's screen point, intersect floor plane y=floorY
+    raycaster.setFromCamera(touchNDC,camera);
+    const o=raycaster.ray.origin, d=raycaster.ray.direction;
+    if(Math.abs(d.y)>1e-5){
+      const dist=(floorY-o.y)/d.y;
+      if(dist>0){
+        target=new THREE.Vector3(o.x+d.x*dist, floorY, o.z+d.z*dist);
+      }
+    }
+  }else if(frozenPos){
+    // finger lifted → hold the pointer where it was left, so «Σημείο» locks it
+    target=frozenPos.clone();
+  }else if(results.length){
+    // nothing touched yet → fall back to centre hit-test position
+    const pose=results[0].getPose(refSpace);
+    target=new THREE.Vector3(pose.transform.position.x,pose.transform.position.y,pose.transform.position.z);
+  }
+
+  if(target){
+    reticle.visible=true;
+    reticle.position.copy(target);
+    reticle.updateMatrix();
+
+    recentPoses.push({x:target.x,y:target.y,z:target.z,t:performance.now()});
     if(recentPoses.length>30) recentPoses.shift();
 
     const spread=poseSpread();
@@ -369,15 +449,16 @@ function onFrame(t,frame){
       reticleMat.color.setHex(spread<STABLE_TOL?RET.ok:(spread<STABLE_TOL*2.5?RET.mid:RET.bad));
     }
     if(!collecting){
-      setStatus(spread<STABLE_TOL? 'Σταθερό — σημάδεψε' : 'Κράτα σταθερά τη συσκευή…');
+      if(touchActive) setStatus(spread<STABLE_TOL?'Σταθερό — άσε & πάτα «Σημείο»':'Κράτα ακίνητο το δάχτυλο…');
+      else setStatus(floorReady?'Σύρε το δάχτυλο στο σημείο':'Σύρε στο σημείο που θες');
     }
     $('#reticle-hint').style.opacity='0';
   }else{
     reticle.visible=false;
     recentPoses.length=0;
     if(reticleMat) reticleMat.color.setHex(RET.bad);
-    setStatus('Εντοπισμός επιφάνειας…');
-    $('#reticle-hint').style.opacity = points.length? '0':'1';
+    setStatus(floorReady?'Σύρε το δάχτυλο στο σημείο':'Εντοπισμός επιφάνειας…');
+    $('#reticle-hint').style.opacity = (points.length||floorReady)? '0':'1';
   }
   renderer.render(scene,camera);
 }
@@ -429,18 +510,32 @@ function sampleReticle(){
 }
 
 async function addPoint(){
-  if(!reticle.visible){ toast('Δεν βρέθηκε σημείο'); return; }
+  if(!reticle.visible){ toast('Σύρε το δάχτυλο στο σημείο πρώτα'); return; }
   if(collecting) return;
-  if(poseSpread()>STABLE_TOL*2.5){ toast('Κράτα πιο σταθερά — δοκίμασε ξανά'); }
 
-  const tapBtn=$('#tapBtn');
-  tapBtn.disabled=true;
-  const p=await sampleReticle();
-  tapBtn.disabled=false;
-  if(!p){ toast('Ασταθές σημείο — ξαναδοκίμασε'); setStatus('Σταθερό — σημάδεψε'); return; }
+  let p;
+  if(frozenPos){
+    // finger already positioned the pointer and lifted → use that exact spot
+    p=frozenPos.clone();
+  }else if(touchActive){
+    // finger still down → sample briefly to average jitter, then use it
+    if(poseSpread()>STABLE_TOL*2.5){ toast('Κράτα πιο σταθερό το δάχτυλο'); }
+    const tapBtn=$('#tapBtn');
+    tapBtn.disabled=true;
+    p=await sampleReticle();
+    tapBtn.disabled=false;
+    if(!p){ toast('Ασταθές — ξαναδοκίμασε'); return; }
+  }else{
+    // no finger interaction → use centre pointer with sampling
+    const tapBtn=$('#tapBtn');
+    tapBtn.disabled=true;
+    p=await sampleReticle();
+    tapBtn.disabled=false;
+    if(!p){ toast('Σύρε το δάχτυλο στο σημείο'); return; }
+  }
 
   // calibration capture path
-  if(calibMode){ onCalibPick(p); return; }
+  if(calibMode){ onCalibPick(p); frozenPos=null; return; }
 
   if(mode==='height'){
     points.push(p.clone());
@@ -464,6 +559,7 @@ async function addPoint(){
     if(points.length>1) drawLine(points[points.length-2],points[points.length-1]);
     refreshFill();
   }
+  frozenPos=null;        // release so the next finger drag starts fresh
   vibrate();
   updateReadout();
   $('#readout').style.display='block';
