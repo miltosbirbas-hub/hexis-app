@@ -155,7 +155,7 @@
     <button id="exitBtn">✕</button>
     <div id="status"><span class="pulse"></span><span id="statusText">Εντοπισμός επιφάνειας…</span></div>
     <div id="scaleBadge" style="position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(10,23,48,.82);border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:20px;z-index:6;display:none">scale ×1.000</div>
-    <div id="reticle-hint">Σύρε το δάχτυλο στην οθόνη<br>για να τοποθετήσεις τον δείκτη</div>
+    <div id="reticle-hint">Σύρε το δάχτυλο στην οθόνη<br>βάλε την <b>αιχμή του βέλους</b> στο σημείο</div>
 
     <div id="readout">
       <div class="big" id="roLast">—</div>
@@ -296,6 +296,7 @@ let recentPoses = [];           // κυλιόμενο παράθυρο πρόσ�
 let calibMode = false;          // βρισκόμαστε σε λήψη βαθμονόμησης;
 let collecting = false;         // μαζεύουμε δείγματα τώρα;
 let reticleMat = null;          // υλικό reticle (αλλάζει χρώμα ανά ποιότητα)
+let aimMat = null;              // υλικό δαχτυλιδιού στόχευσης (sync χρώμα)
 const RET = {ok:0x3ddc97, mid:0xE8772E, bad:0xff5252};
 
 // ---------- finger-driven pointer ----------
@@ -322,13 +323,33 @@ async function startAR(){
 
   scene.add(new THREE.HemisphereLight(0xffffff,0x445566,1.1));
 
-  // reticle
-  const ring=new THREE.RingGeometry(0.07,0.085,40).rotateX(-Math.PI/2);
-  const dot=new THREE.CircleGeometry(0.012,20).rotateX(-Math.PI/2);
+  // reticle: a vertical arrow whose TIP sits exactly on the measured point
+  // (origin of the group = the tip, so reticle.position is the exact spot)
   reticle=new THREE.Group();
   reticleMat=new THREE.MeshBasicMaterial({color:RET.mid});
-  reticle.add(new THREE.Mesh(ring,reticleMat));
-  reticle.add(new THREE.Mesh(dot,reticleMat));
+  const SH=0.16;          // ύψος στελέχους (m)
+  const HEAD=0.05;        // ύψος κεφαλής βέλους (m)
+  const RAD=0.022;        // ακτίνα κεφαλής (m)
+  // cone (arrowhead) pointing DOWN: tip at y=0, base at y=HEAD
+  const cone=new THREE.ConeGeometry(RAD,HEAD,24);
+  cone.translate(0,HEAD/2,0);          // base of cone now sits y=0..HEAD
+  cone.rotateX(Math.PI);               // flip so tip points down to y=0
+  cone.translate(0,HEAD,0);            // tip at y=0, head occupies y=0..HEAD
+  const head=new THREE.Mesh(cone,reticleMat);
+  // shaft (thin cylinder) above the head
+  const shaftG=new THREE.CylinderGeometry(0.006,0.006,SH,12);
+  shaftG.translate(0,HEAD+SH/2,0);
+  const shaft=new THREE.Mesh(shaftG,reticleMat);
+  // tiny ground dot exactly at the tip, for precise visual landing
+  const tipDot=new THREE.Mesh(
+    new THREE.CircleGeometry(0.006,16).rotateX(-Math.PI/2),
+    new THREE.MeshBasicMaterial({color:0xffffff}));
+  // faint ring on the floor to show the landing spot without hiding it
+  aimMat=new THREE.MeshBasicMaterial({color:RET.mid,transparent:true,opacity:0.5});
+  const aim=new THREE.Mesh(
+    new THREE.RingGeometry(0.03,0.038,32).rotateX(-Math.PI/2),
+    aimMat);
+  reticle.add(head); reticle.add(shaft); reticle.add(tipDot); reticle.add(aim);
   reticle.matrixAutoUpdate=false; reticle.visible=false;
   scene.add(reticle);
 
@@ -455,7 +476,9 @@ function onFrame(t,frame){
 
     const spread=poseSpread();
     if(reticleMat){
-      reticleMat.color.setHex(spread<STABLE_TOL?RET.ok:(spread<STABLE_TOL*2.5?RET.mid:RET.bad));
+      const c=spread<STABLE_TOL?RET.ok:(spread<STABLE_TOL*2.5?RET.mid:RET.bad);
+      reticleMat.color.setHex(c);
+      if(aimMat) aimMat.color.setHex(c);
     }
     if(!collecting){
       if(touchActive) setStatus(spread<STABLE_TOL?'Σταθερό — άσε & πάτα «Σημείο»':'Κράτα ακίνητο το δάχτυλο…');
