@@ -154,6 +154,7 @@
   <section id="overlay">
     <button id="exitBtn">✕</button>
     <div id="status"><span class="pulse"></span><span id="statusText">Εντοπισμός επιφάνειας…</span></div>
+    <div id="verBadge" style="position:absolute;bottom:max(150px,calc(env(safe-area-inset-bottom) + 150px));right:14px;background:rgba(10,23,48,.7);color:#3ddc97;font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:12px;z-index:6;pointer-events:none">βέλος v2</div>
     <div id="scaleBadge" style="position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(10,23,48,.82);border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:20px;z-index:6;display:none">scale ×1.000</div>
     <div id="reticle-hint">Σύρε το δάχτυλο στην οθόνη<br>βάλε την <b>αιχμή του βέλους</b> στο σημείο</div>
 
@@ -326,29 +327,32 @@ async function startAR(){
   // reticle: a vertical arrow whose TIP sits exactly on the measured point
   // (origin of the group = the tip, so reticle.position is the exact spot)
   reticle=new THREE.Group();
-  reticleMat=new THREE.MeshBasicMaterial({color:RET.mid});
-  const SH=0.16;          // ύψος στελέχους (m)
-  const HEAD=0.05;        // ύψος κεφαλής βέλους (m)
-  const RAD=0.022;        // ακτίνα κεφαλής (m)
+  reticleMat=new THREE.MeshBasicMaterial({color:RET.mid,depthTest:false});
+  const SH=0.22;          // ύψος στελέχους (m)
+  const HEAD=0.08;        // ύψος κεφαλής βέλους (m)
+  const RAD=0.035;        // ακτίνα κεφαλής (m)
   // cone (arrowhead) pointing DOWN: tip at y=0, base at y=HEAD
-  const cone=new THREE.ConeGeometry(RAD,HEAD,24);
-  cone.translate(0,HEAD/2,0);          // base of cone now sits y=0..HEAD
-  cone.rotateX(Math.PI);               // flip so tip points down to y=0
-  cone.translate(0,HEAD,0);            // tip at y=0, head occupies y=0..HEAD
+  const cone=new THREE.ConeGeometry(RAD,HEAD,28);
+  cone.rotateX(Math.PI);               // tip points down
+  cone.translate(0,HEAD/2,0);          // tip at y=0, base at y=HEAD
   const head=new THREE.Mesh(cone,reticleMat);
+  head.renderOrder=999;
   // shaft (thin cylinder) above the head
-  const shaftG=new THREE.CylinderGeometry(0.006,0.006,SH,12);
+  const shaftG=new THREE.CylinderGeometry(0.008,0.008,SH,12);
   shaftG.translate(0,HEAD+SH/2,0);
   const shaft=new THREE.Mesh(shaftG,reticleMat);
-  // tiny ground dot exactly at the tip, for precise visual landing
+  shaft.renderOrder=999;
+  // tiny white dot exactly at the tip, for precise visual landing
   const tipDot=new THREE.Mesh(
-    new THREE.CircleGeometry(0.006,16).rotateX(-Math.PI/2),
-    new THREE.MeshBasicMaterial({color:0xffffff}));
+    new THREE.SphereGeometry(0.008,16,16),
+    new THREE.MeshBasicMaterial({color:0xffffff,depthTest:false}));
+  tipDot.renderOrder=1000;
   // faint ring on the floor to show the landing spot without hiding it
-  aimMat=new THREE.MeshBasicMaterial({color:RET.mid,transparent:true,opacity:0.5});
+  aimMat=new THREE.MeshBasicMaterial({color:RET.mid,transparent:true,opacity:0.6,depthTest:false});
   const aim=new THREE.Mesh(
-    new THREE.RingGeometry(0.03,0.038,32).rotateX(-Math.PI/2),
+    new THREE.RingGeometry(0.04,0.05,32).rotateX(-Math.PI/2),
     aimMat);
+  aim.renderOrder=998;
   reticle.add(head); reticle.add(shaft); reticle.add(tipDot); reticle.add(aim);
   reticle.matrixAutoUpdate=false; reticle.visible=false;
   scene.add(reticle);
