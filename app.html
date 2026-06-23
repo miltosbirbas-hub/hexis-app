@@ -1626,10 +1626,13 @@ function renderFiles(projId) {
   } else {
     files.forEach(f => {
       const icon = f.name.match(/\.pdf$/i)?'📄':f.name.match(/\.dxf|\.dwg/i)?'📐':f.name.match(/\.xlsx/i)?'📊':f.type==='link'?(f.source==='drive'?'🟢':'🔵'):'📎';
+      const fpBadge = f.is_floorplan ? '<span style="display:inline-block;background:#E8772E;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px">📐 ' + [f.building?((buildingsFor(projId).find(b=>b.id===f.building)||{}).name||''):'', f.floor, f.plan_type].filter(Boolean).join(' · ') + '</span>' : '';
+      const canClassify = !f.type;
       html += '<div class="file-row">'
         + '<div style="font-size:22px">' + icon + '</div>'
-        + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + f.name + '</div>'
+        + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + f.name + fpBadge + '</div>'
         + '<div style="font-size:11px;color:var(--text2)">' + (f.size||'') + ' · ' + (f.uploaded||'') + ' · ' + (f.engineer||'') + '</div></div>'
+        + (canClassify ? '<button class="btn btn-ghost btn-sm" title="Χαρακτηρισμός ως κάτοψη" onclick="classifyExisting(&quot;' + projId + '&quot;,&quot;' + f.id + '&quot;)">📐</button>' : '')
         + '<a href="' + f.url + '" target="_blank" class="btn btn-ghost btn-sm">👁️</a>'
         + (!f.type ? '<a href="' + f.url + '" download="' + f.name + '" class="btn btn-ghost btn-sm">⬇️</a>' : '')
         + '<button class="btn btn-danger btn-sm" onclick="delFile(&quot;' + projId + '&quot;,&quot;' + f.id + '&quot;)"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>'
@@ -4535,6 +4538,26 @@ async function aiSend() {
 /* ════════════════════════════════════════════════════════
    ΚΑΤΟΨΕΙΣ & ΠΙΝΕΖΕΣ — σύνδεση παρατήρησης με σημείο σε σχέδιο
    ════════════════════════════════════════════════════════ */
+
+// Χαρακτηρισμός ΥΠΑΡΧΟΝΤΟΣ αρχείου (που ανέβηκε πριν το feature)
+function classifyExisting(projId, fileId) {
+  let arr = [];
+  try { arr = JSON.parse(localStorage.getItem('hexis_files_'+projId) || '[]'); } catch(e) {}
+  const f = arr.find(x => x.id === fileId);
+  if (!f) { alert('Δεν βρέθηκε το αρχείο.'); return; }
+  _classifyCtx = { file: f, projId };
+  document.getElementById('classify-fname').textContent = f.name;
+  // προ-συμπλήρωση αν είναι ήδη κάτοψη
+  document.getElementById('classify-isfp').value = f.is_floorplan ? '1' : '0';
+  document.getElementById('classify-fp-fields').style.display = f.is_floorplan ? 'block' : 'none';
+  const bsel = document.getElementById('classify-building');
+  const blds = buildingsFor(projId);
+  bsel.innerHTML = '<option value="">— Όλο το έργο —</option>' +
+    blds.map(b => '<option value="'+b.id+'"'+(b.id===f.building?' selected':'')+'>'+b.name+'</option>').join('');
+  if (f.plan_type) document.getElementById('classify-type').value = f.plan_type;
+  if (f.floor) document.getElementById('classify-floor').value = f.floor;
+  document.getElementById('modal-classify').classList.remove('hidden');
+}
 
 // Κατάσταση τρέχουσας πινέζας (στη φόρμα καταγραφής)
 let fpPick = { fileId:null, x:null, y:null, no:null };
