@@ -147,6 +147,7 @@
     </div>
     <button id="startBtn" disabled>Έλεγχος συσκευής…</button>
     <div id="unsupported"></div>
+    <div id="dbg" style="margin-top:12px;font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.5;word-break:break-word"></div>
   </section>
 
   <!-- AR OVERLAY (DOM overlay shown over camera) -->
@@ -199,24 +200,61 @@
   <div class="toast" id="toast"></div>
 </div>
 
+<script>
+// Show any uncaught error on-screen instead of a blank page
+window.addEventListener('error', e=>{
+  var d=document.getElementById('dbg'); if(d) d.innerHTML='⚠ '+(e.message||e.error||'σφάλμα')+'<br>'+(e.filename||'');
+});
+window.addEventListener('unhandledrejection', e=>{
+  var d=document.getElementById('dbg'); if(d) d.innerHTML='⚠ promise: '+((e.reason&&e.reason.message)||e.reason||'');
+});
+</script>
 <script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+let THREE;
+const CDNS=[
+  'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js',
+  'https://unpkg.com/three@0.160.0/build/three.module.js',
+  'https://esm.sh/three@0.160.0'
+];
+(async()=>{
+  for(const url of CDNS){
+    try{ THREE=await import(url); break; }
+    catch(e){ /* try next */ }
+  }
+  if(!THREE){
+    const d=document.getElementById('dbg');
+    if(d) d.innerHTML='⚠ Δεν φόρτωσε το three.js (CDN μπλοκαρισμένο ή χωρίς ίντερνετ). Έλεγξε σύνδεση ή hard-refresh.';
+    const b=document.getElementById('startBtn'); if(b) b.textContent='Σφάλμα φόρτωσης';
+    return;
+  }
+  boot();
+})();
 
+function boot(){
 const $ = s => document.querySelector(s);
 const startEl=$('#start'), overlayEl=$('#overlay'), sheetEl=$('#sheet');
 let mode='area';
 
 // ---------- support check ----------
 (async()=>{
-  const btn=$('#startBtn'), un=$('#unsupported');
+  const btn=$('#startBtn'), un=$('#unsupported'), dbg=$('#dbg');
+  const secure = window.isSecureContext;
+  let diag='https: '+(secure?'✓':'✗ (χρειάζεται https!)')+' · xr: '+(('xr' in navigator)?'✓':'✗');
+  if(dbg) dbg.textContent=diag;
+  if(!secure){
+    fail('Η σελίδα δεν τρέχει σε <b>https</b>. Το WebXR απαιτεί ασφαλή σύνδεση — άνοιξέ το από <b>hexis-app.gr</b> (όχι τοπικά/preview).');
+    return;
+  }
   if(!('xr' in navigator)){
-    fail('Ο browser δεν υποστηρίζει WebXR. Άνοιξέ το με <b>Chrome σε Android</b> με εγκατεστημένο το Google Play Services for AR (ARCore).');
+    fail('Ο browser δεν υποστηρίζει WebXR. Άνοιξέ το με <b>Chrome σε Android</b> με εγκατεστημένο το Google Play Services for AR (ARCore). Δεν δουλεύει σε Samsung Internet ούτε σε in-app browser.');
     return;
   }
   let ok=false;
-  try{ ok=await navigator.xr.isSessionSupported('immersive-ar'); }catch(e){}
+  try{ ok=await navigator.xr.isSessionSupported('immersive-ar'); }
+  catch(e){ if(dbg) dbg.textContent=diag+' · check: '+(e.name||e.message); }
+  if(dbg) dbg.textContent=diag+' · immersive-ar: '+(ok?'✓':'✗');
   if(ok){ btn.disabled=false; btn.textContent='Έναρξη σάρωσης'; }
-  else fail('Δεν βρέθηκε AR στη συσκευή. Χρειάζεται <b>Android + ARCore</b> και πρόσβαση μέσω <b>https</b>. Σε desktop ή iPhone το AR δεν είναι διαθέσιμο.');
+  else fail('Δεν βρέθηκε AR στη συσκευή. Χρειάζεται <b>Android + ARCore</b> (Google Play Services for AR από το Play Store) και <b>Chrome</b>. Σε desktop ή iPhone το AR δεν είναι διαθέσιμο.');
   function fail(m){ un.innerHTML=m; un.style.display='block'; btn.textContent='AR μη διαθέσιμο'; }
 })();
 
@@ -264,20 +302,28 @@ async function startAR(){
 
   try{
     session=await navigator.xr.requestSession('immersive-ar',{
-      requiredFeatures:['hit-test','local-floor'],
-      optionalFeatures:['dom-overlay'],
+      requiredFeatures:['hit-test'],
+      optionalFeatures:['local-floor','dom-overlay'],
       domOverlay:{root:$('#app')}
     });
-  }catch(e){ toast('Δεν ξεκίνησε το AR'); return; }
+  }catch(e){
+    const d=$('#dbg');
+    if(d) d.innerHTML='⚠ requestSession: '+(e.name||'')+' — '+(e.message||e);
+    toast('Δεν ξεκίνησε το AR');
+    if(renderer.domElement.parentNode) renderer.domElement.remove();
+    return;
+  }
 
   startEl.style.display='none';
   overlayEl.style.display='block';
   sheetEl.style.display='none';
 
-  renderer.xr.setReferenceSpaceType('local-floor');
   await renderer.xr.setSession(session);
 
-  refSpace=await session.requestReferenceSpace('local-floor').catch(()=>session.requestReferenceSpace('local'));
+  // prefer local-floor, fall back to local if not granted
+  refSpace=await session.requestReferenceSpace('local-floor')
+    .catch(()=>session.requestReferenceSpace('local'));
+  try{ renderer.xr.setReferenceSpaceType('local-floor'); }catch(_){ }
   viewerSpace=await session.requestReferenceSpace('viewer');
   hitTestSource=await session.requestHitTestSource({space:viewerSpace});
 
@@ -609,6 +655,7 @@ function onEnd(){
   if(result) sheetEl.style.display='flex';
   else startEl.style.display='flex';
 }
+} // end boot()
 </script>
 </body>
 </html>
