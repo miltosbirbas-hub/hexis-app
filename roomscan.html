@@ -49,6 +49,14 @@
     color:var(--muted);font-size:13px;text-align:center;pointer-events:none;
     text-shadow:0 1px 6px rgba(0,0,0,.6);transition:opacity .3s}
 
+  /* 2D cursor arrow — positioned so its TIP (bottom point) sits on the target.
+     Anchor at bottom-centre: left/top point to the tip, translate up by full height. */
+  #cursor{position:absolute;left:50%;top:50%;
+    transform:translate(-50%,-100%);
+    z-index:7;pointer-events:none;
+    filter:drop-shadow(0 2px 5px rgba(0,0,0,.5));
+    transition:opacity .15s}
+
   /* top status */
   #status{position:absolute;top:max(14px,env(safe-area-inset-top));left:50%;
     transform:translateX(-50%);background:rgba(13,27,42,.78);backdrop-filter:blur(8px);
@@ -154,8 +162,17 @@
   <section id="overlay">
     <button id="exitBtn">✕</button>
     <div id="status"><span class="pulse"></span><span id="statusText">Εντοπισμός επιφάνειας…</span></div>
-    <div id="verBadge" style="position:absolute;bottom:max(150px,calc(env(safe-area-inset-bottom) + 150px));right:14px;background:rgba(10,23,48,.7);color:#3ddc97;font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:12px;z-index:6;pointer-events:none">βέλος v2</div>
     <div id="scaleBadge" style="position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(10,23,48,.82);border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:20px;z-index:6;display:none">scale ×1.000</div>
+
+    <!-- 2D cursor arrow: its TIP (bottom point) marks the exact spot -->
+    <svg id="cursor" width="46" height="58" viewBox="0 0 46 58" xmlns="http://www.w3.org/2000/svg">
+      <!-- arrow body -->
+      <path id="cursorPath" d="M23 56 L9 30 L18 30 L18 6 L28 6 L28 30 L37 30 Z"
+            fill="#E8772E" stroke="#0A1730" stroke-width="2" stroke-linejoin="round"/>
+      <!-- precise tip dot -->
+      <circle id="cursorTip" cx="23" cy="56" r="2.4" fill="#ffffff"/>
+    </svg>
+
     <div id="reticle-hint">Σύρε το δάχτυλο στην οθόνη<br>βάλε την <b>αιχμή του βέλους</b> στο σημείο</div>
 
     <div id="readout">
@@ -324,36 +341,9 @@ async function startAR(){
 
   scene.add(new THREE.HemisphereLight(0xffffff,0x445566,1.1));
 
-  // reticle: a vertical arrow whose TIP sits exactly on the measured point
-  // (origin of the group = the tip, so reticle.position is the exact spot)
+  // reticle is now just an invisible anchor that holds the 3D position of the
+  // measured point. The visible cursor is a 2D SVG arrow on screen (see #cursor).
   reticle=new THREE.Group();
-  reticleMat=new THREE.MeshBasicMaterial({color:RET.mid,depthTest:false});
-  const SH=0.22;          // ύψος στελέχους (m)
-  const HEAD=0.08;        // ύψος κεφαλής βέλους (m)
-  const RAD=0.035;        // ακτίνα κεφαλής (m)
-  // cone (arrowhead) pointing DOWN: tip at y=0, base at y=HEAD
-  const cone=new THREE.ConeGeometry(RAD,HEAD,28);
-  cone.rotateX(Math.PI);               // tip points down
-  cone.translate(0,HEAD/2,0);          // tip at y=0, base at y=HEAD
-  const head=new THREE.Mesh(cone,reticleMat);
-  head.renderOrder=999;
-  // shaft (thin cylinder) above the head
-  const shaftG=new THREE.CylinderGeometry(0.008,0.008,SH,12);
-  shaftG.translate(0,HEAD+SH/2,0);
-  const shaft=new THREE.Mesh(shaftG,reticleMat);
-  shaft.renderOrder=999;
-  // tiny white dot exactly at the tip, for precise visual landing
-  const tipDot=new THREE.Mesh(
-    new THREE.SphereGeometry(0.008,16,16),
-    new THREE.MeshBasicMaterial({color:0xffffff,depthTest:false}));
-  tipDot.renderOrder=1000;
-  // faint ring on the floor to show the landing spot without hiding it
-  aimMat=new THREE.MeshBasicMaterial({color:RET.mid,transparent:true,opacity:0.6,depthTest:false});
-  const aim=new THREE.Mesh(
-    new THREE.RingGeometry(0.04,0.05,32).rotateX(-Math.PI/2),
-    aimMat);
-  aim.renderOrder=998;
-  reticle.add(head); reticle.add(shaft); reticle.add(tipDot); reticle.add(aim);
   reticle.matrixAutoUpdate=false; reticle.visible=false;
   scene.add(reticle);
 
@@ -395,10 +385,17 @@ async function startAR(){
 function setupTouch(){
   // NOTE: #overlay is pointer-events:none (passthrough), so we listen on window
   // and ignore touches that land on the actual controls.
+  const cursorEl=$('#cursor');
+  const moveCursor=(x,y)=>{
+    if(!cursorEl) return;
+    cursorEl.style.left=x+'px';
+    cursorEl.style.top=y+'px';
+  };
   const upd=(clientX,clientY)=>{
     const w=window.innerWidth,h=window.innerHeight;
     touchNDC.x=(clientX/w)*2-1;
     touchNDC.y=-(clientY/h)*2+1;
+    moveCursor(clientX,clientY);
   };
   const onCtl=t=> t.closest && (t.closest('#controls')||t.closest('#exitBtn')||
        t.closest('#status')||t.closest('#scaleBadge')||t.closest('#sheet'));
@@ -470,6 +467,9 @@ function onFrame(t,frame){
     target=new THREE.Vector3(pose.transform.position.x,pose.transform.position.y,pose.transform.position.z);
   }
 
+  const cursorEl=$('#cursor'), cursorPath=$('#cursorPath');
+  const hexColor=h=>'#'+h.toString(16).padStart(6,'0');
+
   if(target){
     reticle.visible=true;
     reticle.position.copy(target);
@@ -479,11 +479,15 @@ function onFrame(t,frame){
     if(recentPoses.length>30) recentPoses.shift();
 
     const spread=poseSpread();
-    if(reticleMat){
-      const c=spread<STABLE_TOL?RET.ok:(spread<STABLE_TOL*2.5?RET.mid:RET.bad);
-      reticleMat.color.setHex(c);
-      if(aimMat) aimMat.color.setHex(c);
+    const c=spread<STABLE_TOL?RET.ok:(spread<STABLE_TOL*2.5?RET.mid:RET.bad);
+    if(cursorPath) cursorPath.setAttribute('fill',hexColor(c));
+    if(cursorEl) cursorEl.style.opacity='1';
+
+    // when no finger is down, park the cursor at screen centre (centre hit-test)
+    if(!touchActive && !frozenPos && cursorEl){
+      cursorEl.style.left='50%'; cursorEl.style.top='50%';
     }
+
     if(!collecting){
       if(touchActive) setStatus(spread<STABLE_TOL?'Σταθερό — άσε & πάτα «Σημείο»':'Κράτα ακίνητο το δάχτυλο…');
       else setStatus(floorReady?'Σύρε το δάχτυλο στο σημείο':'Σύρε στο σημείο που θες');
@@ -492,7 +496,8 @@ function onFrame(t,frame){
   }else{
     reticle.visible=false;
     recentPoses.length=0;
-    if(reticleMat) reticleMat.color.setHex(RET.bad);
+    if(cursorEl) cursorEl.style.opacity='0.35';
+    if(cursorPath) cursorPath.setAttribute('fill',hexColor(RET.bad));
     setStatus(floorReady?'Σύρε το δάχτυλο στο σημείο':'Εντοπισμός επιφάνειας…');
     $('#reticle-hint').style.opacity = (points.length||floorReady)? '0':'1';
   }
