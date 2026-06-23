@@ -861,7 +861,9 @@ async function loadFromDB() {
       id:e.id, type:e.type, project:e.project_id, sub:e.sub,
       desc:e.description, person:e.person, deadline:e.deadline,
       status:e.status||'pending', engineer:e.engineer||'',
-      photos:e.photos||[], comments:e.comments||[], commentsOff:!!e.comments_off, building:e.building||'', date:e.created_at
+      photos:e.photos||[], comments:e.comments||[], commentsOff:!!e.comments_off, building:e.building||'',
+      floorplan_id:e.floorplan_id||null, pin_x:e.pin_x, pin_y:e.pin_y, pin_no:e.pin_no,
+      date:e.created_at
     }));
     const deletedPhases = JSON.parse(localStorage.getItem('hexis_deleted_phases') || '[]');
     if (pr.data) appData.phases = pr.data.filter(p => !deletedPhases.includes(p.id)).map(p => ({
@@ -1604,7 +1606,8 @@ function renderFiles(projId) {
         const ids = new Set(local.map(f=>f.id));
         data.forEach(d => {
           if (!ids.has(d.id)) {
-            local.push({id:d.id, name:d.name, size:d.size, url:d.url, path:d.path, isLink:d.is_link, engineer:d.engineer, uploaded:d.uploaded, _synced:true});
+            local.push({id:d.id, name:d.name, size:d.size, url:d.url, path:d.path, isLink:d.is_link, engineer:d.engineer, uploaded:d.uploaded,
+              is_floorplan:!!d.is_floorplan, building:d.building||'', plan_type:d.plan_type||'', floor:d.floor||'', _synced:true});
           }
         });
         localStorage.setItem('hexis_files_'+projId, JSON.stringify(local));
@@ -3938,6 +3941,46 @@ function showHelpModal() {
             <li>Επιβεβαίωσε — το εικονίδιο μπαίνει στην αρχική οθόνη</li>
           </ol>
         </div>
+      </div>
+
+      <div class="help-card">
+        <h3><span class="help-ico">📐</span> Κατόψεις & Πινέζες (roadmap)</h3>
+        <p>Μπορείς να συνδέσεις κάθε καταγραφή με ένα <b>ακριβές σημείο πάνω στην κάτοψη</b> του κτιρίου — σαν πινέζα σε χάρτη.</p>
+        <p style="margin-top:10px;font-weight:600;color:var(--text)">Βήμα 1 — Ανέβασε & χαρακτήρισε την κάτοψη:</p>
+        <ol class="help-steps">
+          <li>Μέσα στο έργο, πάτα <b>Αρχεία</b> και ανέβασε την κάτοψη (εικόνα JPG/PNG ή PDF)</li>
+          <li>Μόλις ανέβει, εμφανίζεται popup <b>«Χαρακτηρισμός αρχείου»</b></li>
+          <li>Διάλεξε <b>«Ναι, είναι κάτοψη»</b> και όρισε <b>Κτίριο</b>, <b>Τύπο</b> (Αρχιτεκτονικά / Υδραυλικά / Ηλεκτρολογικά) και <b>Όροφο</b></li>
+          <li>Πάτα <b>Αποθήκευση</b> — η κάτοψη συνδέεται πλέον με το κτίριο</li>
+        </ol>
+        <p style="margin-top:12px;font-weight:600;color:var(--text)">Βήμα 2 — Βάλε πινέζα στην καταγραφή:</p>
+        <ol class="help-steps">
+          <li>Στη <b>Νέα Καταγραφή</b>, διάλεξε <b>Κτίριο</b> — εμφανίζεται το πεδίο <b>📐 Κάτοψη</b> (μόνο αν το κτίριο έχει κατόψεις)</li>
+          <li>Διάλεξε την κάτοψη — ανοίγει σε πλήρη προβολή</li>
+          <li><b>Πάτα πάνω στο σχέδιο</b> εκεί που αφορά η παρατήρηση — μπαίνει πινέζα με <b>αυτόματο αριθμό</b></li>
+          <li>Πάτα <b>Επιβεβαίωση πινέζας</b> και συνέχισε κανονικά με κείμενο + φωτογραφίες</li>
+        </ol>
+        <p style="margin-top:12px"><b>Στην αναφορά:</b> στο <b>τέλος</b> μπαίνει αυτόματα ενότητα <b>«🗺️ Συγκεντρωτικές Κατόψεις»</b> — κάθε κάτοψη μία φορά, με <u>όλες</u> τις πινέζες αριθμημένες σαν roadmap, και υπόμνημα (αρ. → παρατήρηση). Ο ίδιος αριθμός εμφανίζεται και πάνω στην κάθε καταγραφή.</p>
+      </div>
+
+      <div class="help-card">
+        <h3><span class="help-ico">📐</span> Floorplans & Pins (roadmap) — English</h3>
+        <p>You can link each record to an <b>exact point on the building's floorplan</b> — like a pin on a map.</p>
+        <p style="margin-top:10px;font-weight:600;color:var(--text)">Step 1 — Upload & classify the floorplan:</p>
+        <ol class="help-steps">
+          <li>Inside the project, press <b>Files</b> and upload the floorplan (JPG/PNG image or PDF)</li>
+          <li>After upload, a <b>"Classify file"</b> popup appears</li>
+          <li>Choose <b>"Yes, it's a floorplan"</b> and set <b>Building</b>, <b>Type</b> (Architectural / Plumbing / Electrical) and <b>Floor</b></li>
+          <li>Press <b>Save</b> — the floorplan is now linked to that building</li>
+        </ol>
+        <p style="margin-top:12px;font-weight:600;color:var(--text)">Step 2 — Drop a pin on the record:</p>
+        <ol class="help-steps">
+          <li>In <b>New Record</b>, pick a <b>Building</b> — the <b>📐 Floorplan</b> field appears (only if the building has floorplans)</li>
+          <li>Select the floorplan — it opens in full view</li>
+          <li><b>Tap on the drawing</b> where the observation is — a pin with an <b>automatic number</b> is placed</li>
+          <li>Press <b>Confirm pin</b> and continue normally with text + photos</li>
+        </ol>
+        <p style="margin-top:12px"><b>In the report:</b> a <b>"🗺️ Consolidated Floorplans"</b> section is added at the <b>end</b> — each floorplan once, with <u>all</u> pins numbered as a roadmap, plus a legend (no. → observation). The same number also appears on each individual record.</p>
       </div>
 
       <div class="help-card">
