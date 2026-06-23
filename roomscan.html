@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0A1730">
+<title>Σάρωση Χώρου — hexis</title>
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22hexis%20Room%20Scanner%22%2C%22short_name%22%3A%22RoomScan%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230A1730%22%2C%22theme_color%22%3A%22%230A1730%22%7D">
+<style>
+  :root{
+    --bg:#0A1730; --panel:#102348; --line:#22386b;
+    --ink:#eaf1f8; --muted:#8fa4c4; --accent:#E8772E; --accent2:#3ddc97;
+    --danger:#e0573d;
+    --mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+    font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+  #app{position:fixed;inset:0;display:flex;flex-direction:column}
+
+  /* ---------- Splash / start ---------- */
+  #start{position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;
+    padding:28px 24px;background:radial-gradient(120% 80% at 50% 0%,#16314c 0%,var(--bg) 60%)}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:auto}
+  .brand .dot{width:11px;height:11px;border-radius:50%;background:var(--accent);
+    box-shadow:0 0 14px var(--accent)}
+  .brand b{font-weight:700;letter-spacing:.04em;font-size:14px}
+  .brand span{color:var(--muted);font-size:12px;letter-spacing:.18em;text-transform:uppercase}
+  .hero h1{font-size:34px;line-height:1.1;font-weight:800;letter-spacing:-.02em}
+  .hero h1 em{font-style:normal;color:var(--accent)}
+  .hero p{margin-top:14px;color:var(--muted);font-size:15px;line-height:1.5;max-width:30ch}
+  .steps{margin:22px 0;display:flex;flex-direction:column;gap:10px}
+  .step{display:flex;gap:12px;align-items:flex-start}
+  .step .n{font-family:var(--mono);color:var(--accent);font-size:13px;
+    min-width:22px;padding-top:2px}
+  .step div{font-size:13.5px;color:var(--ink);line-height:1.45}
+  .step small{color:var(--muted)}
+  #startBtn{margin-top:8px;background:var(--accent);color:#1a1206;border:none;
+    padding:18px;border-radius:16px;font-size:16px;font-weight:700;letter-spacing:.01em}
+  #startBtn:disabled{opacity:.4}
+  #unsupported{margin-top:14px;padding:14px;border:1px solid var(--line);
+    border-radius:12px;background:var(--panel);font-size:13px;color:var(--muted);
+    line-height:1.5;display:none}
+  #unsupported b{color:var(--ink)}
+
+  /* ---------- AR overlay ---------- */
+  #overlay{position:absolute;inset:0;z-index:10;display:none;pointer-events:none}
+  #reticle-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    color:var(--muted);font-size:13px;text-align:center;pointer-events:none;
+    text-shadow:0 1px 6px rgba(0,0,0,.6);transition:opacity .3s}
+
+  /* top status */
+  #status{position:absolute;top:max(14px,env(safe-area-inset-top));left:50%;
+    transform:translateX(-50%);background:rgba(13,27,42,.78);backdrop-filter:blur(8px);
+    border:1px solid var(--line);border-radius:999px;padding:8px 16px;font-size:13px;
+    font-weight:600;display:flex;align-items:center;gap:8px;white-space:nowrap}
+  #status .pulse{width:8px;height:8px;border-radius:50%;background:var(--accent2);
+    animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+
+  /* live measurement readout */
+  #readout{position:absolute;top:calc(max(14px,env(safe-area-inset-top)) + 50px);
+    left:50%;transform:translateX(-50%);background:rgba(13,27,42,.82);
+    backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:14px;
+    padding:12px 18px;text-align:center;min-width:180px;display:none}
+  #readout .big{font-family:var(--mono);font-size:26px;font-weight:700;color:var(--accent);
+    line-height:1}
+  #readout .lbl{font-size:11px;color:var(--muted);letter-spacing:.14em;
+    text-transform:uppercase;margin-top:5px}
+  #readout .row{display:flex;gap:18px;justify-content:center;margin-top:8px;
+    padding-top:8px;border-top:1px solid var(--line)}
+  #readout .row div{font-size:12px;color:var(--muted)}
+  #readout .row b{display:block;font-family:var(--mono);color:var(--ink);font-size:15px}
+
+  /* bottom controls */
+  #controls{position:absolute;left:0;right:0;
+    bottom:max(20px,env(safe-area-inset-bottom));
+    padding:0 20px;display:flex;flex-direction:column;gap:12px;pointer-events:auto}
+  .modebar{display:flex;background:rgba(13,27,42,.78);backdrop-filter:blur(8px);
+    border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px}
+  .modebar button{flex:1;background:none;border:none;color:var(--muted);
+    padding:10px 6px;border-radius:10px;font-size:12.5px;font-weight:600}
+  .modebar button.on{background:var(--accent);color:#1a1206}
+  .actions{display:flex;gap:12px;align-items:center}
+  .actions button{border:none;border-radius:16px;font-weight:700;font-size:15px}
+  #tapBtn{flex:1;background:var(--accent);color:#1a1206;padding:18px}
+  #tapBtn:active{transform:scale(.97)}
+  .iconbtn{width:56px;height:56px;background:rgba(13,27,42,.8);
+    border:1px solid var(--line)!important;color:var(--ink);font-size:20px;
+    display:flex;align-items:center;justify-content:center}
+  .iconbtn:active{background:var(--panel)}
+  #exitBtn{position:absolute;top:max(14px,env(safe-area-inset-top));
+    left:16px;width:40px;height:40px;border-radius:50%;
+    background:rgba(13,27,42,.78);border:1px solid var(--line);color:var(--ink);
+    font-size:18px;pointer-events:auto;display:flex;align-items:center;justify-content:center}
+
+  /* result sheet */
+  #sheet{position:absolute;inset:0;z-index:40;background:var(--bg);
+    display:none;flex-direction:column;padding:24px;overflow-y:auto}
+  #sheet h2{font-size:22px;font-weight:800;margin-bottom:4px}
+  #sheet .sub{color:var(--muted);font-size:13px;margin-bottom:20px}
+  .metric{display:flex;justify-content:space-between;align-items:baseline;
+    padding:16px 0;border-bottom:1px solid var(--line)}
+  .metric .k{color:var(--muted);font-size:14px}
+  .metric .v{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--accent)}
+  .metric .v small{font-size:13px;color:var(--muted);font-weight:400}
+  #segList{margin-top:8px}
+  #segList .seg{display:flex;justify-content:space-between;padding:8px 0;
+    font-size:13px;color:var(--muted);border-bottom:1px dashed var(--line)}
+  #segList .seg b{font-family:var(--mono);color:var(--ink)}
+  .sheetbtns{margin-top:auto;padding-top:24px;display:flex;flex-direction:column;gap:10px}
+  .sheetbtns button{padding:16px;border-radius:14px;border:none;font-size:15px;font-weight:700}
+  #copyBtn{background:var(--accent2);color:#06241a}
+  #againBtn{background:var(--panel);color:var(--ink);border:1px solid var(--line)!important}
+  .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--accent2);color:#06241a;padding:12px 22px;border-radius:999px;
+    font-weight:700;font-size:14px;opacity:0;transition:.3s;z-index:50;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* hexis back button (matches elegxos/mpeton) */
+  #backHexis{position:absolute;top:max(16px,env(safe-area-inset-top));right:20px;
+    z-index:35;background:rgba(232,119,46,.12);border:1px solid var(--accent);
+    color:var(--accent);padding:9px 16px;border-radius:999px;font-size:13px;
+    font-weight:700;letter-spacing:.02em;text-decoration:none;display:inline-flex;
+    align-items:center;gap:6px}
+  #backHexis:active{background:rgba(232,119,46,.22)}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- START -->
+  <section id="start">
+    <a id="backHexis" href="app.html">← HEXIS</a>
+    <div class="brand">
+      <div class="dot"></div>
+      <b>hexis</b><span>Σάρωση Χώρου</span>
+    </div>
+    <div class="hero">
+      <h1>Μέτρησε ένα δωμάτιο<br><em>με την κάμερα.</em></h1>
+      <p>Επισκόπηση χώρου με AR. Βάλε σημεία στις γωνίες και πάρε διαστάσεις, εμβαδόν και περίμετρο επί τόπου.</p>
+    </div>
+    <div class="steps">
+      <div class="step"><span class="n">01</span><div>Στρέψε αργά την κάμερα στο <b>πάτωμα</b> μέχρι να βρεθεί επιφάνεια.<br><small>Καλός φωτισμός = καλύτερη ακρίβεια.</small></div></div>
+      <div class="step"><span class="n">02</span><div>Σημάδεψε κάθε <b>γωνία</b> με το στόχαστρο και πάτα «Σημείο».</div></div>
+      <div class="step"><span class="n">03</span><div>Κλείσε το σχήμα — διάβασε εμβαδόν & περίμετρο.</div></div>
+    </div>
+    <button id="startBtn" disabled>Έλεγχος συσκευής…</button>
+    <div id="unsupported"></div>
+  </section>
+
+  <!-- AR OVERLAY (DOM overlay shown over camera) -->
+  <section id="overlay">
+    <button id="exitBtn">✕</button>
+    <div id="status"><span class="pulse"></span><span id="statusText">Εντοπισμός επιφάνειας…</span></div>
+    <div id="reticle-hint">Κούνα αργά το κινητό<br>για να βρεθεί το πάτωμα</div>
+
+    <div id="readout">
+      <div class="big" id="roLast">—</div>
+      <div class="lbl">τελευταία πλευρά</div>
+      <div class="row">
+        <div>Εμβαδόν<b id="roArea">—</b></div>
+        <div>Περίμετρος<b id="roPerim">—</b></div>
+        <div>Σημεία<b id="roCount">0</b></div>
+      </div>
+    </div>
+
+    <div id="controls">
+      <div class="modebar">
+        <button data-mode="area" class="on">Εμβαδόν δωματίου</button>
+        <button data-mode="dist">Απόσταση 2 σημείων</button>
+        <button data-mode="height">Ύψος</button>
+      </div>
+      <div class="actions">
+        <button class="iconbtn" id="undoBtn">↶</button>
+        <button id="tapBtn">＋ Σημείο</button>
+        <button class="iconbtn" id="doneBtn">✓</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="sheet">
+    <h2 id="sheetTitle">Αποτελέσματα</h2>
+    <div class="sub" id="sheetSub"></div>
+    <div id="metrics"></div>
+    <div id="planWrap" style="display:none;margin-top:20px">
+      <div style="font-size:12px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">Κάτοψη (τοπικό σύστημα · μέτρα)</div>
+      <div id="planBox" style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px"></div>
+    </div>
+    <div id="segList"></div>
+    <div class="sheetbtns">
+      <button id="dxfBtn" style="display:none;background:var(--accent);color:#1a1206">Εξαγωγή DXF (κάτοψη)</button>
+      <button id="copyBtn">Αντιγραφή report</button>
+      <button id="againBtn">Νέα μέτρηση</button>
+    </div>
+  </section>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+const $ = s => document.querySelector(s);
+const startEl=$('#start'), overlayEl=$('#overlay'), sheetEl=$('#sheet');
+let mode='area';
+
+// ---------- support check ----------
+(async()=>{
+  const btn=$('#startBtn'), un=$('#unsupported');
+  if(!('xr' in navigator)){
+    fail('Ο browser δεν υποστηρίζει WebXR. Άνοιξέ το με <b>Chrome σε Android</b> με εγκατεστημένο το Google Play Services for AR (ARCore).');
+    return;
+  }
+  let ok=false;
+  try{ ok=await navigator.xr.isSessionSupported('immersive-ar'); }catch(e){}
+  if(ok){ btn.disabled=false; btn.textContent='Έναρξη σάρωσης'; }
+  else fail('Δεν βρέθηκε AR στη συσκευή. Χρειάζεται <b>Android + ARCore</b> και πρόσβαση μέσω <b>https</b>. Σε desktop ή iPhone το AR δεν είναι διαθέσιμο.');
+  function fail(m){ un.innerHTML=m; un.style.display='block'; btn.textContent='AR μη διαθέσιμο'; }
+})();
+
+$('#startBtn').onclick=()=>{ if(!$('#startBtn').disabled) startAR(); };
+$('#exitBtn').onclick=()=>{ if(session) session.end(); };
+
+// mode bar
+document.querySelectorAll('.modebar button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('.modebar button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); mode=b.dataset.mode; resetPoints();
+    $('#tapBtn').innerHTML = '＋ Σημείο';
+    updateReadout();
+  };
+});
+
+// ---------- three / xr globals ----------
+let renderer, scene, camera, session, refSpace, viewerSpace, hitTestSource;
+let reticle, points=[], markers=[], lines=[], areaMesh=null;
+const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('show');
+  clearTimeout(t._);t._=setTimeout(()=>t.classList.remove('show'),1600);};
+
+async function startAR(){
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera();
+  renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.xr.enabled=true;
+  document.body.appendChild(renderer.domElement);
+  renderer.domElement.style.position='absolute';
+  renderer.domElement.style.inset='0';
+  renderer.domElement.style.zIndex='1';
+
+  scene.add(new THREE.HemisphereLight(0xffffff,0x445566,1.1));
+
+  // reticle
+  const ring=new THREE.RingGeometry(0.07,0.085,40).rotateX(-Math.PI/2);
+  const dot=new THREE.CircleGeometry(0.012,20).rotateX(-Math.PI/2);
+  reticle=new THREE.Group();
+  const mat=new THREE.MeshBasicMaterial({color:0xE8772E});
+  reticle.add(new THREE.Mesh(ring,mat));
+  reticle.add(new THREE.Mesh(dot,mat));
+  reticle.matrixAutoUpdate=false; reticle.visible=false;
+  scene.add(reticle);
+
+  try{
+    session=await navigator.xr.requestSession('immersive-ar',{
+      requiredFeatures:['hit-test','local-floor'],
+      optionalFeatures:['dom-overlay'],
+      domOverlay:{root:$('#app')}
+    });
+  }catch(e){ toast('Δεν ξεκίνησε το AR'); return; }
+
+  startEl.style.display='none';
+  overlayEl.style.display='block';
+  sheetEl.style.display='none';
+
+  renderer.xr.setReferenceSpaceType('local-floor');
+  await renderer.xr.setSession(session);
+
+  refSpace=await session.requestReferenceSpace('local-floor').catch(()=>session.requestReferenceSpace('local'));
+  viewerSpace=await session.requestReferenceSpace('viewer');
+  hitTestSource=await session.requestHitTestSource({space:viewerSpace});
+
+  session.addEventListener('end',onEnd);
+  resetPoints();
+  renderer.setAnimationLoop(onFrame);
+}
+
+$('#tapBtn').onclick=addPoint;
+$('#undoBtn').onclick=undo;
+$('#doneBtn').onclick=finish;
+
+function onFrame(t,frame){
+  if(!frame) return;
+  const results=hitTestSource?frame.getHitTestResults(hitTestSource):[];
+  if(results.length){
+    const pose=results[0].getPose(refSpace);
+    reticle.visible=true;
+    reticle.matrix.fromArray(pose.transform.matrix);
+    setStatus('Έτοιμο — σημάδεψε γωνία');
+    $('#reticle-hint').style.opacity = points.length? '0':'0';
+  }else{
+    reticle.visible=false;
+    setStatus('Εντοπισμός επιφάνειας…');
+    $('#reticle-hint').style.opacity = points.length? '0':'1';
+  }
+  renderer.render(scene,camera);
+}
+
+function reticlePos(){
+  const p=new THREE.Vector3();
+  p.setFromMatrixPosition(reticle.matrix);
+  return p;
+}
+
+function addPoint(){
+  if(!reticle.visible){ toast('Δεν βρέθηκε σημείο'); return; }
+  const p=reticlePos();
+
+  if(mode==='height'){
+    points.push(p.clone());
+    addMarker(p);
+    if(points.length===2){
+      // height = vertical distance between the two picks
+      const h=Math.abs(points[1].y-points[0].y);
+      drawLine(points[0],points[1]);
+      vibrate();
+      finishHeight(h);
+      return;
+    }
+    toast('Τώρα σημάδεψε το άλλο επίπεδο (ταβάνι/πάτωμα)');
+  }
+  else if(mode==='dist'){
+    points.push(p.clone()); addMarker(p);
+    if(points.length>1) drawLine(points[points.length-2],points[points.length-1]);
+    if(points.length===2){ vibrate(); finish(); return; }
+  }
+  else{ // area
+    points.push(p.clone()); addMarker(p);
+    if(points.length>1) drawLine(points[points.length-2],points[points.length-1]);
+  }
+  vibrate();
+  updateReadout();
+  $('#readout').style.display='block';
+}
+
+function addMarker(p){
+  const m=new THREE.Mesh(
+    new THREE.SphereGeometry(0.022,16,16),
+    new THREE.MeshBasicMaterial({color:0x3ddc97}));
+  m.position.copy(p); scene.add(m); markers.push(m);
+}
+function drawLine(a,b){
+  const g=new THREE.BufferGeometry().setFromPoints([a,b]);
+  const l=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xE8772E}));
+  scene.add(l); lines.push(l);
+}
+function clearArea(){ if(areaMesh){scene.remove(areaMesh);areaMesh=null;} }
+
+function undo(){
+  if(!points.length) return;
+  points.pop();
+  if(markers.length){scene.remove(markers.pop());}
+  if(lines.length){scene.remove(lines.pop());}
+  clearArea();
+  if(mode==='area'&&points.length>2) drawAreaFill();
+  updateReadout();
+}
+function resetPoints(){
+  points=[];
+  markers.forEach(m=>scene&&scene.remove(m));
+  lines.forEach(l=>scene&&scene.remove(l));
+  markers=[];lines=[];clearArea();
+  $('#readout').style.display='none';
+  updateReadout();
+}
+
+// ---------- geometry on floor plane (XZ) ----------
+function dist(a,b){return a.distanceTo(b);}
+function shoelace(pts){ // area on XZ plane
+  let s=0;
+  for(let i=0;i<pts.length;i++){
+    const a=pts[i],b=pts[(i+1)%pts.length];
+    s+=a.x*b.z-b.x*a.z;
+  }
+  return Math.abs(s)/2;
+}
+function perimeter(pts,closed){
+  let s=0;
+  for(let i=0;i<pts.length-1;i++) s+=dist(pts[i],pts[i+1]);
+  if(closed&&pts.length>2) s+=dist(pts[pts.length-1],pts[0]);
+  return s;
+}
+function drawAreaFill(){
+  clearArea();
+  if(points.length<3)return;
+  const shape=new THREE.Shape(points.map(p=>new THREE.Vector2(p.x,p.z)));
+  const g=new THREE.ShapeGeometry(shape);
+  g.rotateX(Math.PI/2); // back to XZ
+  const mat=new THREE.MeshBasicMaterial({color:0xE8772E,transparent:true,
+    opacity:0.18,side:THREE.DoubleSide});
+  areaMesh=new THREE.Mesh(g,mat);
+  areaMesh.position.y=points[0].y+0.002;
+  scene.add(areaMesh);
+  // close the loop visually
+  drawLine(points[points.length-1],points[0]);
+}
+
+function updateReadout(){
+  $('#roCount').textContent=points.length;
+  if(mode==='height'){
+    $('#roLast').textContent = points.length? '…':'—';
+    $('#roArea').textContent='—'; $('#roPerim').textContent='—';
+    return;
+  }
+  if(points.length>=2){
+    const a=points[points.length-2],b=points[points.length-1];
+    $('#roLast').textContent=dist(a,b).toFixed(2)+' m';
+  }else $('#roLast').textContent='—';
+
+  if(mode==='area'){
+    $('#roArea').textContent = points.length>=3? shoelace(points).toFixed(2)+' m²':'—';
+    $('#roPerim').textContent = points.length>=2? perimeter(points,points.length>=3).toFixed(2)+' m':'—';
+  }else{
+    $('#roArea').textContent='—';
+    $('#roPerim').textContent = points.length>=2? perimeter(points,false).toFixed(2)+' m':'—';
+  }
+}
+
+function setStatus(t){ $('#statusText').textContent=t; }
+function vibrate(){ if(navigator.vibrate) navigator.vibrate(18); }
+
+// live area fill update on each area point
+const _add=addPoint;
+function refreshFill(){ if(mode==='area'&&points.length>=3) drawAreaFill(); }
+$('#tapBtn').addEventListener('click',()=>setTimeout(refreshFill,0));
+
+// ---------- finish & results ----------
+let result=null;
+function finish(){
+  if(mode==='height') return; // handled separately
+  if(mode==='dist'){
+    if(points.length<2){toast('Χρειάζονται 2 σημεία');return;}
+    const d=dist(points[0],points[1]);
+    result={type:'dist',distance:d};
+    showSheet();
+    return;
+  }
+  // area
+  if(points.length<3){toast('Χρειάζονται ≥3 γωνίες');return;}
+  drawAreaFill();
+  const segs=[];
+  for(let i=0;i<points.length;i++){
+    segs.push(dist(points[i],points[(i+1)%points.length]));
+  }
+  result={type:'area',area:shoelace(points),perimeter:perimeter(points,true),
+    count:points.length,segs,plan:localPlan(points)};
+  showSheet();
+}
+
+// project AR floor points (XZ) to a clean local 2D system in metres.
+// Origin = first corner (0,0). +X follows first edge. Right-handed, Y up in plan.
+function localPlan(pts){
+  const o=pts[0];
+  // raw XZ relative to origin (note: AR Z grows toward viewer; flip to get map-like Y)
+  const raw=pts.map(p=>({x:p.x-o.x, y:-(p.z-o.z)}));
+  return raw; // already metres, local
+}
+function finishHeight(h){
+  result={type:'height',height:h};
+  showSheet();
+}
+
+function showSheet(){
+  overlayEl.style.display='none';
+  sheetEl.style.display='flex';
+  const m=$('#metrics'), seg=$('#segList');
+  m.innerHTML='';seg.innerHTML='';
+  const now=new Date().toLocaleString('el-GR');
+  $('#sheetSub').textContent='hexis · Σάρωση Χώρου · '+now;
+
+  const row=(k,v,u='')=>`<div class="metric"><span class="k">${k}</span>
+    <span class="v">${v}<small>${u}</small></span></div>`;
+
+  if(result.type==='area'){
+    $('#sheetTitle').textContent='Δωμάτιο';
+    m.innerHTML = row('Εμβαδόν',result.area.toFixed(2),' m²')
+      + row('Περίμετρος',result.perimeter.toFixed(2),' m')
+      + row('Γωνίες',result.count,'');
+    seg.innerHTML='<div style="font-size:12px;color:var(--muted);margin:14px 0 4px;letter-spacing:.1em;text-transform:uppercase">Πλευρές</div>'
+      + result.segs.map((s,i)=>`<div class="seg"><span>Πλευρά ${i+1}</span><b>${s.toFixed(2)} m</b></div>`).join('');
+    $('#planBox').innerHTML=planSVG(result.plan,result.segs);
+    $('#planWrap').style.display='block';
+    $('#dxfBtn').style.display='block';
+  }else{
+    $('#planWrap').style.display='none';
+    $('#dxfBtn').style.display='none';
+    if(result.type==='dist'){
+      $('#sheetTitle').textContent='Απόσταση';
+      m.innerHTML=row('Μήκος',result.distance.toFixed(2),' m')
+        + row('Σε εκατοστά',(result.distance*100).toFixed(0),' cm');
+    }else{
+      $('#sheetTitle').textContent='Ύψος';
+      m.innerHTML=row('Ύψος',result.height.toFixed(2),' m')
+        + row('Σε εκατοστά',(result.height*100).toFixed(0),' cm');
+    }
+  }
+}
+
+// ---------- 2D plan preview (SVG) ----------
+function planSVG(plan,segs){
+  const W=300,H=220,pad=34;
+  const xs=plan.map(p=>p.x), ys=plan.map(p=>p.y);
+  const minX=Math.min(...xs),maxX=Math.max(...xs);
+  const minY=Math.min(...ys),maxY=Math.max(...ys);
+  const w=(maxX-minX)||1, h=(maxY-minY)||1;
+  const s=Math.min((W-2*pad)/w,(H-2*pad)/h);
+  const tx=x=>pad+(x-minX)*s;
+  const ty=y=>H-pad-(y-minY)*s; // flip for screen
+  const pp=plan.map(p=>`${tx(p.x).toFixed(1)},${ty(p.y).toFixed(1)}`).join(' ');
+  let labels='';
+  for(let i=0;i<plan.length;i++){
+    const a=plan[i],b=plan[(i+1)%plan.length];
+    const mx=tx((a.x+b.x)/2),my=ty((a.y+b.y)/2);
+    labels+=`<text x="${mx.toFixed(1)}" y="${my.toFixed(1)}" fill="#E8772E" font-size="11" font-family="monospace" text-anchor="middle" dy="-3">${segs[i].toFixed(2)}</text>`;
+  }
+  const dots=plan.map(p=>`<circle cx="${tx(p.x).toFixed(1)}" cy="${ty(p.y).toFixed(1)}" r="3.5" fill="#3ddc97"/>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">
+    <polygon points="${pp}" fill="rgba(232,119,46,.14)" stroke="#E8772E" stroke-width="1.6"/>
+    ${dots}${labels}
+  </svg>`;
+}
+
+// ---------- DXF export (local metres, ProgeCAD-ready) ----------
+function buildDXF(plan,segs,area){
+  // Minimal but valid AutoCAD R12 DXF: layers, LWPOLYLINE-equiv via POLYLINE,
+  // dimension TEXT, area TEXT. Units = metres (header $INSUNITS=6).
+  const L=[];
+  const p=(code,val)=>{L.push(code);L.push(val);};
+  // HEADER
+  p(0,'SECTION');p(2,'HEADER');
+  p(9,'$INSUNITS');p(70,6);          // 6 = metres
+  p(9,'$MEASUREMENT');p(70,1);       // metric
+  p(0,'ENDSEC');
+  // TABLES (layers)
+  p(0,'SECTION');p(2,'TABLES');
+  p(0,'TABLE');p(2,'LAYER');p(70,2);
+  const layer=(n,c)=>{p(0,'LAYER');p(2,n);p(70,0);p(62,c);p(6,'CONTINUOUS');};
+  layer('KATOPSI',7);   // walls - white
+  layer('DIASTASEIS',2);// dims - yellow
+  p(0,'ENDTAB');p(0,'ENDSEC');
+  // ENTITIES
+  p(0,'SECTION');p(2,'ENTITIES');
+  // closed polyline of corners
+  p(0,'POLYLINE');p(8,'KATOPSI');p(66,1);p(70,1); // 70=1 closed
+  plan.forEach(pt=>{
+    p(0,'VERTEX');p(8,'KATOPSI');p(10,pt.x.toFixed(4));p(20,pt.y.toFixed(4));p(30,'0.0');
+  });
+  p(0,'SEQEND');
+  // side length labels at edge midpoints
+  for(let i=0;i<plan.length;i++){
+    const a=plan[i],b=plan[(i+1)%plan.length];
+    const mx=((a.x+b.x)/2).toFixed(4), my=((a.y+b.y)/2).toFixed(4);
+    p(0,'TEXT');p(8,'DIASTASEIS');p(10,mx);p(20,my);p(30,'0.0');
+    p(40,'0.12');p(1,segs[i].toFixed(2)+' m');
+  }
+  // area label at centroid
+  let cx=0,cy=0;plan.forEach(pt=>{cx+=pt.x;cy+=pt.y;});
+  cx=(cx/plan.length).toFixed(4);cy=(cy/plan.length).toFixed(4);
+  p(0,'TEXT');p(8,'DIASTASEIS');p(10,cx);p(20,cy);p(30,'0.0');
+  p(40,'0.18');p(1,'E='+area.toFixed(2)+' m2');
+  p(0,'ENDSEC');
+  p(0,'EOF');
+  return L.join('\r\n');
+}
+$('#dxfBtn').onclick=()=>{
+  if(!result||result.type!=='area')return;
+  const dxf=buildDXF(result.plan,result.segs,result.area);
+  const blob=new Blob([dxf],{type:'application/dxf'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const stamp=new Date().toISOString().slice(0,16).replace(/[:T]/g,'');
+  a.href=url; a.download='katopsi_'+stamp+'.dxf';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+  toast('DXF αποθηκεύτηκε');
+};
+
+$('#copyBtn').onclick=()=>{
+  let txt='hexis · Σάρωση Χώρου — '+new Date().toLocaleString('el-GR')+'\n';
+  if(result.type==='area'){
+    txt+=`Εμβαδόν: ${result.area.toFixed(2)} m²\nΠερίμετρος: ${result.perimeter.toFixed(2)} m\nΓωνίες: ${result.count}\n`;
+    result.segs.forEach((s,i)=>txt+=`  Πλευρά ${i+1}: ${s.toFixed(2)} m\n`);
+  }else if(result.type==='dist') txt+=`Απόσταση: ${result.distance.toFixed(2)} m\n`;
+  else txt+=`Ύψος: ${result.height.toFixed(2)} m\n`;
+  navigator.clipboard?.writeText(txt).then(()=>toast('Αντιγράφηκε'),()=>toast('Σφάλμα'));
+};
+$('#againBtn').onclick=()=>{
+  sheetEl.style.display='none';
+  if(session){ overlayEl.style.display='block'; resetPoints(); }
+  else startEl.style.display='flex';
+};
+
+function onEnd(){
+  hitTestSource=null;session=null;
+  renderer.setAnimationLoop(null);
+  if(renderer.domElement.parentNode) renderer.domElement.remove();
+  overlayEl.style.display='none';
+  if(result) sheetEl.style.display='flex';
+  else startEl.style.display='flex';
+}
+</script>
+</body>
+</html>
