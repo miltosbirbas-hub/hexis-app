@@ -266,11 +266,19 @@ $('#exitBtn').onclick=()=>{ if(session) session.end(); };
 // mode bar
 document.querySelectorAll('.modebar button').forEach(b=>{
   b.onclick=()=>{
-    if(collecting) return;
-    if(calibMode){ calibMode=false; $('#calibBtn').textContent='⚙ Βαθμονόμηση ακρίβειας'; $('#calibBtn').style.background='rgba(233,168,38,.12)'; }
+    // always allow mode switch; cancel any in-progress capture cleanly
+    collecting=false;
+    touchActive=false;
+    frozenPos=null;
+    recentPoses.length=0;
+    const tb=$('#tapBtn'); if(tb) tb.disabled=false;
+    if(calibMode){ calibMode=false; calibPts=[]; $('#calibBtn').textContent='⚙ Βαθμονόμηση ακρίβειας'; $('#calibBtn').style.background='rgba(233,168,38,.12)'; }
     document.querySelectorAll('.modebar button').forEach(x=>x.classList.remove('on'));
     b.classList.add('on'); mode=b.dataset.mode; resetPoints();
     $('#tapBtn').innerHTML = '＋ Σημείο';
+    // hint differs per mode
+    if(mode==='height') setStatus('Ύψος: στόχευσε το πάτωμα στο κέντρο');
+    else setStatus(floorReady?'Σύρε το δάχτυλο στο σημείο':'Σύρε στο σημείο που θες');
     updateReadout();
   };
 });
@@ -297,6 +305,7 @@ let floorY=null;                // ύψος επιπέδου πατώματος 
 let floorReady=false;           // βρέθηκε το πάτωμα τουλάχιστον μία φορά;
 let frozenPos=null;             // παγωμένη θέση δείκτη αφού σηκωθεί το δάχτυλο
 let raycaster=null;
+let calibPts=[];                // σημεία βαθμονόμησης
 const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('show');
   clearTimeout(t._);t._=setTimeout(()=>t.classList.remove('show'),1600);};
 
@@ -597,7 +606,6 @@ function resetPoints(){
 }
 
 // ---------- calibration ----------
-let calibPts=[];
 $('#calibBtn').onclick=startCalib;
 function startCalib(){
   if(collecting) return;
