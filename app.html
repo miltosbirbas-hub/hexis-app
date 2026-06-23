@@ -378,6 +378,8 @@ tr:hover td { background: var(--surface2); }
 .ai-disclaimer{font-size:11px;color:var(--text3);text-align:center;padding:4px 8px}
 #qt-notes{flex:1;width:100%;min-height:300px;background:var(--surface,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px;font-size:14px;resize:none;font-family:inherit}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(window.pdfjsLib){pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';}</script>
 </head>
 <body>
 
@@ -481,7 +483,12 @@ tr:hover td { background: var(--surface2); }
         <option value="snag">⚠️ Έλλειψη</option>
       </select></div>
     <div class="form-group"><label class="form-label">Έργο</label><select class="form-select" id="entry-proj"></select></div>
-    <div class="form-group"><label class="form-label">Κτίριο</label><select class="form-select" id="entry-building"><option value="">— Όλο το έργο —</option></select></div>
+    <div class="form-group"><label class="form-label">Κτίριο</label><select class="form-select" id="entry-building" onchange="onEntryBuildingChange()"><option value="">— Όλο το έργο —</option></select></div>
+    <div class="form-group" id="fp-field" style="display:none">
+      <label class="form-label">📐 Κάτοψη (πινέζα)</label>
+      <select class="form-select" id="entry-floorplan" onchange="onFloorplanPick()"><option value="">— Χωρίς κάτοψη —</option></select>
+      <div id="fp-pin-status" style="font-size:12px;color:var(--text2);margin-top:6px"></div>
+    </div>
     <div class="form-group"><label class="form-label">Κατηγορία</label>
       <select class="form-select" id="entry-sub">
         <option value="">— Γενικό —</option>
@@ -1817,6 +1824,7 @@ function showAddEntry(projId) {
   const projForBuilding = projId || state.proj;
   const blds = buildingsFor(projForBuilding);
   bsel.innerHTML = '<option value="">— Όλο το έργο —</option>' + blds.map(b => '<option value="' + b.id + '">' + b.name + '</option>').join('');
+  if (typeof onEntryBuildingChange === 'function') onEntryBuildingChange();
   document.getElementById('modal-entry').classList.remove('hidden');
 }
 
@@ -1839,6 +1847,15 @@ function editEntry(id) {
   const grid = document.getElementById('photo-preview');
   grid.innerHTML = (e.photos && e.photos.length)
     ? '<div style="font-size:11px;color:var(--text2);width:100%">' + e.photos.length + ' υπάρχουσες φωτό διατηρούνται — πρόσθεσε κι άλλες αν θες</div>' : '';
+  // φόρτωσε κατόψεις & προεπίλεξε αν η καταγραφή έχει πινέζα
+  if (typeof onEntryBuildingChange === 'function') onEntryBuildingChange();
+  if (e.floorplan_id) {
+    const fpsel = document.getElementById('entry-floorplan');
+    if (fpsel) { fpsel.value = e.floorplan_id; }
+    fpPick = { fileId: e.floorplan_id, x: e.pin_x, y: e.pin_y, no: e.pin_no };
+    const st = document.getElementById('fp-pin-status');
+    if (st && e.pin_no!=null) st.textContent = '📍 Πινέζα #' + e.pin_no + ' (υπάρχουσα)';
+  }
   document.getElementById('modal-entry').classList.remove('hidden');
 }
 
@@ -2032,14 +2049,18 @@ async function saveEntry() {
       ex.person = document.getElementById('entry-person').value.trim();
       ex.deadline = document.getElementById('entry-deadline').value || null;
       ex.building = document.getElementById('entry-building') ? document.getElementById('entry-building').value : (ex.building || '');
+      ex.floorplan_id = fpPick.fileId || null;
+      ex.pin_x = fpPick.x; ex.pin_y = fpPick.y; ex.pin_no = fpPick.no;
       ex.photos = (ex.photos || []).concat(photos);
       saveEntriesLocal();
       sb.from('entries').update({
         type: ex.type, project_id: ex.project, sub: ex.sub, description: ex.desc,
-        person: ex.person, deadline: ex.deadline, building: ex.building, photos: ex.photos
+        person: ex.person, deadline: ex.deadline, building: ex.building, photos: ex.photos,
+        floorplan_id: ex.floorplan_id, pin_x: ex.pin_x, pin_y: ex.pin_y, pin_no: ex.pin_no
       }).eq('id', editingEntryId).then(r => { if (r.error) console.error('[ENTRY] edit sync failed:', r.error); else console.log('[ENTRY] ✓ edit synced'); });
     }
     editingEntryId = null;
+    fpPick = { fileId:null, x:null, y:null, no:null };
     pendingPhotos = [];
     clearEntryDraft();
     if (btn) btn.textContent = 'Αποθήκευση';
@@ -2061,6 +2082,8 @@ async function saveEntry() {
     engineer: currentEngineer,
     photos,
     building: document.getElementById('entry-building') ? document.getElementById('entry-building').value : '',
+    floorplan_id: fpPick.fileId || null,
+    pin_x: fpPick.x, pin_y: fpPick.y, pin_no: fpPick.no,
     user_id: getUserId(),
   };
 
@@ -2068,10 +2091,13 @@ async function saveEntry() {
   appData.entries.unshift({
     id: entryId, type: entry.type, project: entry.project_id, sub: entry.sub,
     desc: entry.description, person: entry.person, deadline: entry.deadline,
-    status: 'pending', engineer: entry.engineer, photos: photos, building: entry.building||'', date: new Date().toISOString()
+    status: 'pending', engineer: entry.engineer, photos: photos, building: entry.building||'',
+    floorplan_id: entry.floorplan_id, pin_x: entry.pin_x, pin_y: entry.pin_y, pin_no: entry.pin_no,
+    date: new Date().toISOString()
   });
   // Save to DB (non-blocking)
   dbInsert('entries', entry).then(ok => { if (!ok) console.warn('DB insert failed, kept locally'); });
+  fpPick = { fileId:null, x:null, y:null, no:null };
   pendingPhotos = [];
   clearEntryDraft();
   if(btn) btn.textContent='Αποθήκευση';
@@ -2372,7 +2398,7 @@ async function uploadFiles(input, projId) {
     try {
       await uploadViaRest('hexis-files', path, file);
       uploadedCount++;
-      stored.push({id:uid(), name:file.name,
+      stored.push({id:uid(), name:file.name, _isNew:true,
         size: file.size>1048576 ? (file.size/1048576).toFixed(1)+'MB' : (file.size/1024).toFixed(0)+'KB',
         url: SB_URL+'/storage/v1/object/public/hexis-files/'+path,
         path, engineer:currentEngineer||'—',
@@ -2393,6 +2419,17 @@ async function uploadFiles(input, projId) {
   input.value = '';
   render();
   if (failed.length) alert('⚠️ Δεν ανέβηκαν:\n' + failed.join('\n'));
+  // Ρώτα χαρακτηρισμό (κάτοψη;) για κάθε νέο αρχείο, ένα-ένα
+  const toClassify = stored.filter(f => f._isNew);
+  toClassify.forEach(f => delete f._isNew);
+  if (toClassify.length) { classifyQueue = toClassify.slice(); classifyProjId = projId; nextClassify(); }
+}
+
+let classifyQueue = [], classifyProjId = null;
+function nextClassify() {
+  if (!classifyQueue.length) return;
+  const f = classifyQueue.shift();
+  askClassify(f, classifyProjId);
 }
 
 // Direct REST upload via XMLHttpRequest — more reliable on mobile than fetch
@@ -2981,7 +3018,7 @@ function buildReportHTML(period, lang, trMap) {
     let h = '';
     list.forEach(e => {
       // Χτίσε επικεφαλίδα + meta + σχόλια ως ένα string
-      let head = '<div style="font-size:13px"><strong>' + tl(e.type) + '</strong> — ' + T(e.desc) + '</div>'
+      let head = '<div style="font-size:13px">' + (e.pin_no!=null ? '<span style="display:inline-block;min-width:20px;height:20px;line-height:20px;text-align:center;background:#E8772E;color:#fff;border-radius:50%;font-size:11px;font-weight:700;margin-right:6px">'+e.pin_no+'</span>' : '') + '<strong>' + tl(e.type) + '</strong> — ' + T(e.desc) + '</div>'
         + '<div style="font-size:10px;color:#777;margin-top:3px">' + sl(e.status)
         + (e.person ? ' · 👤 ' + e.person : '')
         + (e.engineer ? ' · 📝 ' + e.engineer : '')
@@ -3018,6 +3055,44 @@ function buildReportHTML(period, lang, trMap) {
     return h;
   }
 
+  // Συγκεντρωτική ενότητα κατόψεων (roadmap): ανά κάτοψη, όλες οι πινέζες + υπόμνημα
+  function floorplanRoadmap(entryList) {
+    const projFiles = (()=>{ try { return JSON.parse(localStorage.getItem('hexis_files_'+state.proj)||'[]'); } catch(e){ return []; } })();
+    const ids = [...new Set(entryList.filter(e=>e.floorplan_id && e.pin_x!=null).map(e=>e.floorplan_id))];
+    if (!ids.length) return '';
+    const bMap = {}; buildings.forEach(b=>bMap[b.id]=b.name);
+    let sections = '';
+    ids.forEach(fid => {
+      const f = projFiles.find(x=>x.id===fid);
+      if (!f) return;
+      const isPdf = /\.pdf$/i.test(f.name);
+      // καταγραφές αυτής της κάτοψης, ταξινομημένες κατά αριθμό πινέζας
+      const pinned = entryList.filter(e=>e.floorplan_id===fid && e.pin_x!=null)
+        .sort((a,b)=>(a.pin_no||0)-(b.pin_no||0));
+      const pins = pinned.map(e=>'<div style="position:absolute;left:'+e.pin_x+'%;top:'+e.pin_y+'%;transform:translate(-50%,-100%);width:26px;height:26px;border-radius:50% 50% 50% 0;background:#E8772E;rotate:-45deg;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)"><span style="rotate:45deg;color:#fff;font-size:12px;font-weight:700">'+(e.pin_no||'')+'</span></div>').join('');
+      // υπόμνημα
+      const legend = pinned.map(e=>'<div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;margin:3px 0">'
+        + '<span style="flex:0 0 auto;min-width:20px;height:20px;line-height:20px;text-align:center;background:#E8772E;color:#fff;border-radius:50%;font-size:11px;font-weight:700">'+(e.pin_no||'')+'</span>'
+        + '<span>'+ tl(e.type) +' — '+ T(e.desc) +'</span></div>').join('');
+      const title = (bMap[f.building]?bMap[f.building]+' · ':'') + (f.floor?f.floor+' · ':'') + (f.plan_type||'') + ' — ' + f.name;
+      let imgBlock;
+      if (isPdf) {
+        imgBlock = '<div style="padding:10px;border:1px dashed #ccc;border-radius:6px;font-size:12px;text-align:center"><a href="'+f.url+'" target="_blank">📄 '+(L('Άνοιγμα κάτοψης (PDF)','Open floorplan (PDF)','Hap planin (PDF)'))+'</a></div>';
+      } else {
+        imgBlock = '<div style="position:relative;display:inline-block;max-width:100%"><img src="'+f.url+'" style="max-width:100%;max-height:560px;border:1px solid #ccc;border-radius:6px;display:block">'+pins+'</div>';
+      }
+      sections += '<div style="margin-bottom:22px;page-break-inside:avoid">'
+        + '<h3 style="font-size:14px;color:#0A1730;margin:0 0 8px;border-bottom:2px solid #E8772E;padding-bottom:4px">📐 '+title+'</h3>'
+        + '<div style="text-align:center;margin-bottom:8px">'+imgBlock+'</div>'
+        + '<div style="background:#fafafa;border-radius:6px;padding:8px 12px">'+legend+'</div>'
+        + '</div>';
+    });
+    return '<div style="page-break-before:always;margin-top:24px">'
+      + '<h2 style="background:#0A1730;color:#fff;padding:10px 14px;border-radius:6px;font-size:16px;margin-bottom:16px">'
+      + (L('🗺️ Συγκεντρωτικές Κατόψεις (Roadmap πινεζών)','🗺️ Floorplan Roadmap','🗺️ Përmbledhje Planimetrish')) + '</h2>'
+      + sections + '</div>';
+  }
+
   let body = '';
   buildings.forEach(b => {
     const list = allE.filter(e => (e.building||'')===b.id);
@@ -3034,6 +3109,8 @@ function buildReportHTML(period, lang, trMap) {
   if (!buildings.length && !general.length) {
     body = '<p style="color:#999;text-align:center;padding:30px">' + (L('Καμία καταγραφή για αυτή την περίοδο.','No records for this period.','Asnjë regjistrim për këtë periudhë.')) + '</p>';
   }
+  // Συγκεντρωτικές κατόψεις (roadmap) στο τέλος
+  body += floorplanRoadmap(allE);
 
   let phaseSummary = '';
   if (phases.length) {
@@ -4411,6 +4488,219 @@ async function aiSend() {
     sx = sy = null; edge = false;
   }, { passive: true });
 })();
+
+/* ════════════════════════════════════════════════════════
+   ΚΑΤΟΨΕΙΣ & ΠΙΝΕΖΕΣ — σύνδεση παρατήρησης με σημείο σε σχέδιο
+   ════════════════════════════════════════════════════════ */
+
+// Κατάσταση τρέχουσας πινέζας (στη φόρμα καταγραφής)
+let fpPick = { fileId:null, x:null, y:null, no:null };
+let _classifyCtx = null; // για το modal χαρακτηρισμού στο ανέβασμα
+
+// Επιστρέφει τα αρχεία-κατόψεις ενός έργου (από localStorage/DB cache)
+function floorplansFor(projId, buildingId) {
+  let arr = [];
+  try { arr = JSON.parse(localStorage.getItem('hexis_files_'+projId) || '[]'); } catch(e) {}
+  return arr.filter(f => f.is_floorplan && (!buildingId || f.building === buildingId));
+}
+
+// Όταν αλλάζει το κτίριο στη φόρμα → φόρτωσε τις κατόψεις του
+function onEntryBuildingChange() {
+  const projId = document.getElementById('entry-proj').value;
+  const bId = document.getElementById('entry-building').value;
+  const sel = document.getElementById('entry-floorplan');
+  const field = document.getElementById('fp-field');
+  if (!sel) return;
+  const fps = floorplansFor(projId, bId);
+  // δείξε το πεδίο μόνο αν υπάρχουν κατόψεις
+  field.style.display = fps.length ? 'block' : 'none';
+  sel.innerHTML = '<option value="">— Χωρίς κάτοψη —</option>' +
+    fps.map(f => '<option value="'+f.id+'">'+(f.floor?f.floor+' · ':'')+(f.plan_type||'')+' — '+f.name+'</option>').join('');
+  // reset επιλογής πινέζας
+  fpPick = { fileId:null, x:null, y:null, no:null };
+  document.getElementById('fp-pin-status').textContent = '';
+}
+
+// Όταν διαλέγεις κάτοψη → άνοιξε προβολή για τοποθέτηση πινέζας
+async function onFloorplanPick() {
+  const fileId = document.getElementById('entry-floorplan').value;
+  if (!fileId) { fpPick = {fileId:null,x:null,y:null,no:null}; document.getElementById('fp-pin-status').textContent=''; return; }
+  await openFloorplanForPin(fileId);
+}
+
+// Βρες το file object κάτοψης
+function findFloorplanFile(fileId) {
+  const projId = document.getElementById('entry-proj').value;
+  let arr = [];
+  try { arr = JSON.parse(localStorage.getItem('hexis_files_'+projId) || '[]'); } catch(e) {}
+  return arr.find(f => f.id === fileId);
+}
+
+// Φόρτωσε εικόνα ή PDF (1η σελίδα) στο modal
+async function openFloorplanForPin(fileId) {
+  const f = findFloorplanFile(fileId);
+  if (!f) { alert('Δεν βρέθηκε η κάτοψη.'); return; }
+  const img = document.getElementById('fp-img');
+  document.getElementById('fp-title').textContent = '— ' + (f.floor||'') + ' ' + (f.plan_type||'') + ' (' + f.name + ')';
+  document.getElementById('modal-floorplan').classList.remove('hidden');
+  // καθάρισε προσωρινή πινέζα
+  fpPick = { fileId:fileId, x:null, y:null, no:null };
+
+  const isPdf = /\.pdf$/i.test(f.name);
+  if (isPdf && window.pdfjsLib) {
+    try {
+      const pdf = await pdfjsLib.getDocument(f.url).promise;
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 2 });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width; canvas.height = viewport.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      img.src = canvas.toDataURL('image/jpeg', 0.85);
+    } catch(e) { console.error('PDF render fail', e); img.src = f.url; }
+  } else {
+    img.src = f.url;
+  }
+  img.onload = () => renderExistingPins(fileId);
+}
+
+// Δείξε τις πινέζες προηγούμενων καταγραφών για αυτή την κάτοψη
+function renderExistingPins(fileId) {
+  const wrap = document.getElementById('fp-pins');
+  const existing = appData.entries.filter(e => e.floorplan_id === fileId && e.pin_x != null);
+  let html = existing.map(e =>
+    pinHTML(e.pin_x, e.pin_y, e.pin_no, '#E8772E')
+  ).join('');
+  // πρόσθεσε και την τρέχουσα προσωρινή (μπλε) αν υπάρχει
+  if (fpPick.x != null) html += pinHTML(fpPick.x, fpPick.y, fpPick.no || '?', '#2d7dff');
+  wrap.innerHTML = html;
+}
+
+function pinHTML(x, y, label, color) {
+  return '<div style="position:absolute;left:'+x+'%;top:'+y+'%;transform:translate(-50%,-100%);'+
+    'width:24px;height:24px;border-radius:50% 50% 50% 0;background:'+color+';'+
+    'transform-origin:bottom;rotate:-45deg;display:flex;align-items:center;justify-content:center;'+
+    'box-shadow:0 2px 4px rgba(0,0,0,.4);border:2px solid #fff">'+
+    '<span style="rotate:45deg;color:#fff;font-size:11px;font-weight:700">'+label+'</span></div>';
+}
+
+// Κλικ στην εικόνα → υπολόγισε ποσοστιαία θέση
+function placePinFromClick(ev) {
+  const img = document.getElementById('fp-img');
+  const rect = img.getBoundingClientRect();
+  const x = ((ev.clientX - rect.left) / rect.width) * 100;
+  const y = ((ev.clientY - rect.top) / rect.height) * 100;
+  // επόμενος αριθμός πινέζας για αυτή την κάτοψη
+  const used = appData.entries.filter(e => e.floorplan_id === fpPick.fileId && e.pin_no != null).map(e => e.pin_no);
+  const nextNo = (used.length ? Math.max(...used) : 0) + 1;
+  fpPick.x = Math.round(x*10)/10;
+  fpPick.y = Math.round(y*10)/10;
+  fpPick.no = nextNo;
+  renderExistingPins(fpPick.fileId);
+}
+
+// Επιβεβαίωση πινέζας → κλείσε modal, ενημέρωσε status
+function confirmPin() {
+  if (fpPick.x == null) { alert('Πάτησε πρώτα πάνω στο σχέδιο για να βάλεις την πινέζα.'); return; }
+  document.getElementById('fp-pin-status').textContent =
+    '📍 Πινέζα #' + fpPick.no + ' τοποθετήθηκε (' + Math.round(fpPick.x) + '%, ' + Math.round(fpPick.y) + '%)';
+  closeModal('modal-floorplan');
+}
+
+/* ── Χαρακτηρισμός αρχείου κατά το ανέβασμα ── */
+
+// Καλείται μετά το ανέβασμα κάθε αρχείου: ανοίγει popup χαρακτηρισμού
+function askClassify(fileObj, projId) {
+  _classifyCtx = { file: fileObj, projId };
+  document.getElementById('classify-fname').textContent = fileObj.name;
+  document.getElementById('classify-isfp').value = '0';
+  document.getElementById('classify-fp-fields').style.display = 'none';
+  // γέμισε κτίρια του έργου
+  const bsel = document.getElementById('classify-building');
+  const blds = buildingsFor(projId);
+  bsel.innerHTML = '<option value="">— Όλο το έργο —</option>' +
+    blds.map(b => '<option value="'+b.id+'">'+b.name+'</option>').join('');
+  document.getElementById('modal-classify').classList.remove('hidden');
+}
+
+function saveClassify() {
+  if (!_classifyCtx) { closeModal('modal-classify'); return; }
+  const { file, projId } = _classifyCtx;
+  const isFp = document.getElementById('classify-isfp').value === '1';
+  const stored = JSON.parse(localStorage.getItem('hexis_files_'+projId) || '[]');
+  const rec = stored.find(x => x.id === file.id);
+  if (rec) {
+    rec.is_floorplan = isFp;
+    if (isFp) {
+      rec.building  = document.getElementById('classify-building').value || '';
+      rec.plan_type = document.getElementById('classify-type').value;
+      rec.floor     = document.getElementById('classify-floor').value;
+    }
+    localStorage.setItem('hexis_files_'+projId, JSON.stringify(stored));
+    // sync στη DB
+    sb.from('files').update({
+      is_floorplan: rec.is_floorplan, building: rec.building||null,
+      plan_type: rec.plan_type||null, floor: rec.floor||null
+    }).eq('id', file.id).then(r => { if (r.error) console.error('[CLASSIFY] sync', r.error); });
+  }
+  _classifyCtx = null;
+  closeModal('modal-classify');
+  if (typeof render === 'function') render();
+  // επόμενο αρχείο στην ουρά χαρακτηρισμού
+  if (typeof nextClassify === 'function') setTimeout(nextClassify, 200);
+}
+
 </script>
+<!-- FLOORPLAN PIN MODAL -->
+<div class="modal-overlay hidden" id="modal-floorplan">
+  <div class="modal" style="max-width:96vw;width:96vw">
+    <h3 style="margin:0 0 8px">📐 Τοποθέτησε πινέζα <span id="fp-title" style="font-weight:400;font-size:13px;color:var(--text2)"></span></h3>
+    <p style="font-size:12px;color:var(--text2);margin:0 0 8px">Πάτησε πάνω στο σχέδιο για να βάλεις την πινέζα της παρατήρησης. Οι αριθμημένες πινέζες είναι προηγούμενες καταγραφές.</p>
+    <div id="fp-canvas-wrap" style="position:relative;max-height:70vh;overflow:auto;border:1px solid var(--border);border-radius:8px;background:#222;text-align:center">
+      <img id="fp-img" style="display:block;max-width:100%;height:auto;cursor:crosshair" onclick="placePinFromClick(event)">
+      <div id="fp-pins" style="position:absolute;inset:0;pointer-events:none"></div>
+    </div>
+    <div class="modal-actions" style="margin-top:10px">
+      <button class="btn btn-ghost" onclick="closeModal('modal-floorplan')">Ακύρωση</button>
+      <button class="btn btn-primary" id="fp-confirm-btn" onclick="confirmPin()">Επιβεβαίωση πινέζας</button>
+    </div>
+  </div>
+</div>
+
+<!-- FILE CLASSIFY MODAL -->
+<div class="modal-overlay hidden" id="modal-classify">
+  <div class="modal" style="max-width:440px">
+    <h3>📐 Χαρακτηρισμός αρχείου</h3>
+    <p style="font-size:12px;color:var(--text2);margin:0 0 12px"><span id="classify-fname" style="font-weight:600"></span></p>
+    <div class="form-group">
+      <label class="form-label">Είναι κάτοψη;</label>
+      <select class="form-select" id="classify-isfp" onchange="document.getElementById('classify-fp-fields').style.display=this.value==='1'?'block':'none'">
+        <option value="0">Όχι, απλό αρχείο</option>
+        <option value="1">Ναι, είναι κάτοψη</option>
+      </select>
+    </div>
+    <div id="classify-fp-fields" style="display:none">
+      <div class="form-group"><label class="form-label">Κτίριο</label><select class="form-select" id="classify-building"></select></div>
+      <div class="form-group"><label class="form-label">Τύπος</label>
+        <select class="form-select" id="classify-type">
+          <option value="Αρχιτεκτονικά">Αρχιτεκτονικά</option>
+          <option value="Υδραυλικά">Υδραυλικά</option>
+          <option value="Ηλεκτρολογικά">Ηλεκτρολογικά</option>
+          <option value="Άλλο">Άλλο</option>
+        </select></div>
+      <div class="form-group"><label class="form-label">Όροφος</label>
+        <select class="form-select" id="classify-floor">
+          <option value="Υπόγειο">Υπόγειο</option>
+          <option value="Ισόγειο">Ισόγειο</option>
+          <option value="Α Όροφος">Α Όροφος</option>
+          <option value="Β Όροφος">Β Όροφος</option>
+          <option value="Δώμα">Δώμα</option>
+          <option value="Περιβάλλων Χώρος">Περιβάλλων Χώρος</option>
+        </select></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveClassify()">Αποθήκευση</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
