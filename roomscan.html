@@ -154,6 +154,7 @@
   <section id="overlay">
     <button id="exitBtn">✕</button>
     <div id="status"><span class="pulse"></span><span id="statusText">Εντοπισμός επιφάνειας…</span></div>
+    <div id="scaleBadge" style="position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(10,23,48,.82);border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:20px;z-index:6;display:none">scale ×1.000</div>
     <div id="reticle-hint">Κούνα αργά το κινητό<br>για να βρεθεί το πάτωμα</div>
 
     <div id="readout">
@@ -172,6 +173,7 @@
         <button data-mode="dist">Απόσταση 2 σημείων</button>
         <button data-mode="height">Ύψος</button>
       </div>
+      <button id="calibBtn" style="width:100%;margin:8px 0 0;background:rgba(233,168,38,.12);border:1px solid #e9a826!important;color:#e9a826;font-size:13px;padding:10px">⚙ Βαθμονόμηση ακρίβειας</button>
       <div class="actions">
         <button class="iconbtn" id="undoBtn">↶</button>
         <button id="tapBtn">＋ Σημείο</button>
@@ -264,6 +266,8 @@ $('#exitBtn').onclick=()=>{ if(session) session.end(); };
 // mode bar
 document.querySelectorAll('.modebar button').forEach(b=>{
   b.onclick=()=>{
+    if(collecting) return;
+    if(calibMode){ calibMode=false; $('#calibBtn').textContent='⚙ Βαθμονόμηση ακρίβειας'; $('#calibBtn').style.background='rgba(233,168,38,.12)'; }
     document.querySelectorAll('.modebar button').forEach(x=>x.classList.remove('on'));
     b.classList.add('on'); mode=b.dataset.mode; resetPoints();
     $('#tapBtn').innerHTML = '＋ Σημείο';
@@ -274,6 +278,17 @@ document.querySelectorAll('.modebar button').forEach(b=>{
 // ---------- three / xr globals ----------
 let renderer, scene, camera, session, refSpace, viewerSpace, hitTestSource;
 let reticle, points=[], markers=[], lines=[], areaMesh=null;
+
+// ---------- accuracy: sampling, quality, scale ----------
+const SAMPLE_MS = 650;          // πόσο μαζεύει δείγματα ανά σημείο
+const SAMPLE_MIN = 8;           // ελάχιστα δείγματα για αποδοχή
+const STABLE_TOL = 0.012;       // m — διασπορά κάτω από αυτό = σταθερό (πράσινο)
+let scaleFactor = 1.0;          // διόρθωση κλίμακας από βαθμονόμηση
+let recentPoses = [];           // κυλιόμενο παράθυρο πρόσφατων reticle θέσεων
+let calibMode = false;          // βρισκόμαστε σε λήψη βαθμονόμησης;
+let collecting = false;         // μαζεύουμε δείγματα τώρα;
+let reticleMat = null;          // υλικό reticle (αλλάζει χρώμα ανά ποιότητα)
+const RET = {ok:0x3ddc97, mid:0xE8772E, bad:0xff5252};
 const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('show');
   clearTimeout(t._);t._=setTimeout(()=>t.classList.remove('show'),1600);};
 
@@ -294,9 +309,9 @@ async function startAR(){
   const ring=new THREE.RingGeometry(0.07,0.085,40).rotateX(-Math.PI/2);
   const dot=new THREE.CircleGeometry(0.012,20).rotateX(-Math.PI/2);
   reticle=new THREE.Group();
-  const mat=new THREE.MeshBasicMaterial({color:0xE8772E});
-  reticle.add(new THREE.Mesh(ring,mat));
-  reticle.add(new THREE.Mesh(dot,mat));
+  reticleMat=new THREE.MeshBasicMaterial({color:RET.mid});
+  reticle.add(new THREE.Mesh(ring,reticleMat));
+  reticle.add(new THREE.Mesh(dot,reticleMat));
   reticle.matrixAutoUpdate=false; reticle.visible=false;
   scene.add(reticle);
 
@@ -343,14 +358,43 @@ function onFrame(t,frame){
     const pose=results[0].getPose(refSpace);
     reticle.visible=true;
     reticle.matrix.fromArray(pose.transform.matrix);
-    setStatus('Έτοιμο — σημάδεψε γωνία');
-    $('#reticle-hint').style.opacity = points.length? '0':'0';
+
+    // push current reticle position into rolling window (last ~30 frames)
+    const cp=new THREE.Vector3().setFromMatrixPosition(reticle.matrix);
+    recentPoses.push({x:cp.x,y:cp.y,z:cp.z,t:performance.now()});
+    if(recentPoses.length>30) recentPoses.shift();
+
+    const spread=poseSpread();
+    if(reticleMat){
+      reticleMat.color.setHex(spread<STABLE_TOL?RET.ok:(spread<STABLE_TOL*2.5?RET.mid:RET.bad));
+    }
+    if(!collecting){
+      setStatus(spread<STABLE_TOL? 'Σταθερό — σημάδεψε' : 'Κράτα σταθερά τη συσκευή…');
+    }
+    $('#reticle-hint').style.opacity='0';
   }else{
     reticle.visible=false;
+    recentPoses.length=0;
+    if(reticleMat) reticleMat.color.setHex(RET.bad);
     setStatus('Εντοπισμός επιφάνειας…');
     $('#reticle-hint').style.opacity = points.length? '0':'1';
   }
   renderer.render(scene,camera);
+}
+
+// spread (max distance from centroid) of the rolling pose window — proxy for jitter
+function poseSpread(){
+  const n=recentPoses.length;
+  if(n<4) return 99;
+  let cx=0,cy=0,cz=0;
+  for(const p of recentPoses){cx+=p.x;cy+=p.y;cz+=p.z;}
+  cx/=n;cy/=n;cz/=n;
+  let mx=0;
+  for(const p of recentPoses){
+    const d=Math.hypot(p.x-cx,p.y-cy,p.z-cz);
+    if(d>mx)mx=d;
+  }
+  return mx;
 }
 
 function reticlePos(){
@@ -359,16 +403,50 @@ function reticlePos(){
   return p;
 }
 
-function addPoint(){
+// Collect samples over SAMPLE_MS, return the component-wise median reticle position.
+function sampleReticle(){
+  return new Promise(resolve=>{
+    if(!reticle.visible){ resolve(null); return; }
+    collecting=true;
+    const xs=[],ys=[],zs=[];
+    const t0=performance.now();
+    const tick=()=>{
+      if(reticle.visible){
+        const p=reticlePos();
+        xs.push(p.x); ys.push(p.y); zs.push(p.z);
+      }
+      const elapsed=performance.now()-t0;
+      setStatus('Λήψη… '+Math.min(100,Math.round(elapsed/SAMPLE_MS*100))+'%');
+      if(elapsed<SAMPLE_MS){ requestAnimationFrame(tick); return; }
+      collecting=false;
+      if(xs.length<SAMPLE_MIN){ resolve(null); return; }
+      const med=a=>{const s=[...a].sort((u,v)=>u-v);const m=s.length>>1;
+        return s.length%2?s[m]:(s[m-1]+s[m])/2;};
+      resolve(new THREE.Vector3(med(xs),med(ys),med(zs)));
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+async function addPoint(){
   if(!reticle.visible){ toast('Δεν βρέθηκε σημείο'); return; }
-  const p=reticlePos();
+  if(collecting) return;
+  if(poseSpread()>STABLE_TOL*2.5){ toast('Κράτα πιο σταθερά — δοκίμασε ξανά'); }
+
+  const tapBtn=$('#tapBtn');
+  tapBtn.disabled=true;
+  const p=await sampleReticle();
+  tapBtn.disabled=false;
+  if(!p){ toast('Ασταθές σημείο — ξαναδοκίμασε'); setStatus('Σταθερό — σημάδεψε'); return; }
+
+  // calibration capture path
+  if(calibMode){ onCalibPick(p); return; }
 
   if(mode==='height'){
     points.push(p.clone());
     addMarker(p);
     if(points.length===2){
-      // height = vertical distance between the two picks
-      const h=Math.abs(points[1].y-points[0].y);
+      const h=Math.abs(points[1].y-points[0].y)*scaleFactor;
       drawLine(points[0],points[1]);
       vibrate();
       finishHeight(h);
@@ -384,6 +462,7 @@ function addPoint(){
   else{ // area
     points.push(p.clone()); addMarker(p);
     if(points.length>1) drawLine(points[points.length-2],points[points.length-1]);
+    refreshFill();
   }
   vibrate();
   updateReadout();
@@ -421,15 +500,67 @@ function resetPoints(){
   updateReadout();
 }
 
+// ---------- calibration ----------
+let calibPts=[];
+$('#calibBtn').onclick=startCalib;
+function startCalib(){
+  if(collecting) return;
+  calibMode=true; calibPts=[];
+  resetPoints();
+  $('#calibBtn').textContent='Βαθμονόμηση: σημάδεψε 1ο άκρο';
+  $('#calibBtn').style.background='rgba(233,168,38,.30)';
+  toast('Σημάδεψε 2 άκρα γνωστής απόστασης (π.χ. πλακάκι, πόρτα, μέτρο)');
+  setStatus('Βαθμονόμηση — σημάδεψε 1ο άκρο');
+}
+function onCalibPick(p){
+  calibPts.push(p.clone());
+  addMarker(p);
+  vibrate();
+  if(calibPts.length===1){
+    $('#calibBtn').textContent='Βαθμονόμηση: σημάδεψε 2ο άκρο';
+    setStatus('Τώρα το 2ο άκρο');
+    return;
+  }
+  // two picks captured — ask for the real length
+  drawLine(calibPts[0],calibPts[1]);
+  const measured=calibPts[0].distanceTo(calibPts[1]); // raw metres, pre-scale
+  const cur=(measured).toFixed(3);
+  const ans=prompt('Μετρημένη απόσταση AR: '+cur+' m\n\nΓράψε το ΠΡΑΓΜΑΤΙΚΟ μήκος σε μέτρα (π.χ. 1.000):', cur);
+  finishCalib(measured, ans);
+}
+function finishCalib(measured, ans){
+  calibMode=false;
+  $('#calibBtn').style.background='rgba(233,168,38,.12)';
+  // clear the calibration markers/line
+  markers.forEach(m=>scene&&scene.remove(m));
+  lines.forEach(l=>scene&&scene.remove(l));
+  markers=[];lines=[];
+  if(ans===null){ $('#calibBtn').textContent='⚙ Βαθμονόμηση ακρίβειας'; setStatus('Σταθερό — σημάδεψε'); return; }
+  const real=parseFloat(String(ans).replace(',','.'));
+  if(!isFinite(real)||real<=0||measured<=0){
+    toast('Μη έγκυρη τιμή — η βαθμονόμηση ακυρώθηκε');
+    $('#calibBtn').textContent='⚙ Βαθμονόμηση ακρίβειας';
+    return;
+  }
+  scaleFactor = real/measured;
+  const pct=((scaleFactor-1)*100);
+  $('#scaleBadge').style.display='block';
+  $('#scaleBadge').textContent='scale ×'+scaleFactor.toFixed(4)+' ('+(pct>=0?'+':'')+pct.toFixed(1)+'%)';
+  $('#calibBtn').textContent='✓ Βαθμονομήθηκε ×'+scaleFactor.toFixed(3);
+  toast('Έτοιμο! Διόρθωση '+(pct>=0?'+':'')+pct.toFixed(1)+'% — οι μετρήσεις διορθώνονται αυτόματα');
+  setStatus('Σταθερό — σημάδεψε');
+  resetPoints();
+}
+
 // ---------- geometry on floor plane (XZ) ----------
-function dist(a,b){return a.distanceTo(b);}
-function shoelace(pts){ // area on XZ plane
+function dist(a,b){return a.distanceTo(b)*scaleFactor;}
+function shoelace(pts){ // area on XZ plane (scaled)
   let s=0;
   for(let i=0;i<pts.length;i++){
     const a=pts[i],b=pts[(i+1)%pts.length];
     s+=a.x*b.z-b.x*a.z;
   }
-  return Math.abs(s)/2;
+  return Math.abs(s)/2*scaleFactor*scaleFactor;
 }
 function perimeter(pts,closed){
   let s=0;
@@ -477,9 +608,7 @@ function setStatus(t){ $('#statusText').textContent=t; }
 function vibrate(){ if(navigator.vibrate) navigator.vibrate(18); }
 
 // live area fill update on each area point
-const _add=addPoint;
 function refreshFill(){ if(mode==='area'&&points.length>=3) drawAreaFill(); }
-$('#tapBtn').addEventListener('click',()=>setTimeout(refreshFill,0));
 
 // ---------- finish & results ----------
 let result=null;
@@ -509,8 +638,9 @@ function finish(){
 function localPlan(pts){
   const o=pts[0];
   // raw XZ relative to origin (note: AR Z grows toward viewer; flip to get map-like Y)
-  const raw=pts.map(p=>({x:p.x-o.x, y:-(p.z-o.z)}));
-  return raw; // already metres, local
+  // apply calibration scale so DXF matches the corrected measurements
+  const raw=pts.map(p=>({x:(p.x-o.x)*scaleFactor, y:-(p.z-o.z)*scaleFactor}));
+  return raw; // metres, local, scale-corrected
 }
 function finishHeight(h){
   result={type:'height',height:h};
@@ -639,6 +769,7 @@ $('#copyBtn').onclick=()=>{
     result.segs.forEach((s,i)=>txt+=`  Πλευρά ${i+1}: ${s.toFixed(2)} m\n`);
   }else if(result.type==='dist') txt+=`Απόσταση: ${result.distance.toFixed(2)} m\n`;
   else txt+=`Ύψος: ${result.height.toFixed(2)} m\n`;
+  if(Math.abs(scaleFactor-1)>1e-4) txt+=`(βαθμονομημένο · scale ×${scaleFactor.toFixed(4)})\n`;
   navigator.clipboard?.writeText(txt).then(()=>toast('Αντιγράφηκε'),()=>toast('Σφάλμα'));
 };
 $('#againBtn').onclick=()=>{
