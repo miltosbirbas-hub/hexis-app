@@ -168,10 +168,11 @@
     <div id="status"><span class="pulse"></span><span id="statusText">Εντοπισμός επιφάνειας…</span></div>
     <div id="scaleBadge" style="position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(10,23,48,.82);border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:20px;z-index:6;display:none">scale ×1.000</div>
 
-    <!-- Cadastral-style cursor: a big draggable CIRCLE (where the finger sits) with
+    <!-- Cadastral-style cursor: a draggable CIRCLE (where the finger sits) with
          an ARROW pointing up-left to the exact query point (the arrow TIP at 18,18).
-         viewBox 128×128. TIP=(18,18), circle centre=(96,96). -->
-    <svg id="cursor" width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+         Rendered at 50px so the tip sits ~30px from the finger → real hit-test stays
+         accurate while keeping the target visible. viewBox 128, TIP=(18,18), circle=(96,96). -->
+    <svg id="cursor" width="50" height="50" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
       <!-- arrow shaft from circle toward the tip -->
       <line id="cursorShaft" x1="84" y1="84" x2="30" y2="30" stroke="#3fb6c8" stroke-width="9" stroke-linecap="round"/>
       <!-- filled arrowhead at the tip (up-left) -->
@@ -185,6 +186,18 @@
     </svg>
 
     <div id="reticle-hint">Σύρε τον <b>κύκλο</b> με το δάχτυλο<br>η <b>αιχμή</b> δείχνει το σημείο μέτρησης</div>
+
+    <!-- warmup / scan banner shown until ARCore tracking stabilises -->
+    <div id="warmup" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+         z-index:8;text-align:center;background:rgba(10,23,48,.86);border:1px solid var(--line);
+         border-radius:16px;padding:22px 26px;max-width:80%;display:none">
+      <div style="font-size:34px;margin-bottom:8px">📡</div>
+      <div style="color:var(--ink);font-size:15px;font-weight:700;margin-bottom:6px">Σάρωση χώρου</div>
+      <div style="color:var(--muted);font-size:13px;line-height:1.5">Κούνα <b>αργά</b> το κινητό γύρω στον χώρο<br>για να σταθεροποιηθεί η ακρίβεια</div>
+      <div style="margin-top:14px;height:6px;background:rgba(255,255,255,.12);border-radius:3px;overflow:hidden">
+        <div id="warmupBar" style="height:100%;width:0%;background:var(--accent);transition:width .2s"></div>
+      </div>
+    </div>
 
     <div id="readout">
       <div class="big" id="roLast">—</div>
@@ -242,7 +255,7 @@ window.addEventListener('unhandledrejection', e=>{
 });
 
 // App version — shown on the start screen so you can confirm a fresh load.
-window.ROOMSCAN_VERSION = 'v1.7 · import-to-entry';
+window.ROOMSCAN_VERSION = 'v1.8 · real-hittest+warmup';
 
 // Evict THIS page (and roomscan.html) from every Cache Storage bucket on load,
 // without unregistering the hexis service worker. Keeps the rest of hexis intact.
@@ -366,6 +379,10 @@ document.querySelectorAll('.modebar button').forEach(b=>{
 
 // ---------- three / xr globals ----------
 let renderer, scene, camera, session, refSpace, viewerSpace, hitTestSource;
+let transientHitSource=null, transientSupported=false;
+let warmupDone=false;           // ολοκληρώθηκε η προθέρμανση tracking;
+let warmupFrames=0;             // πόσα συνεχόμενα frames με έγκυρο hit-test
+const WARMUP_NEED=45;           // ~1.5s στα 30fps σταθερό tracking
 let reticle, points=[], markers=[], lines=[], areaMesh=null;
 
 // ---------- accuracy: sampling, quality, scale ----------
@@ -438,8 +455,24 @@ async function startAR(){
   viewerSpace=await session.requestReferenceSpace('viewer');
   hitTestSource=await session.requestHitTestSource({space:viewerSpace});
 
+  // TRANSIENT hit-test: follows a screen-touch point and returns the REAL surface
+  // the device detects there (not a projection onto an assumed floor plane).
+  // This is the accurate path; if unsupported we fall back to the plane method.
+  transientSupported=false;
+  if(session.requestHitTestSourceForTransientInput && typeof XRRay!=='undefined'){
+    try{
+      transientHitSource=await session.requestHitTestSourceForTransientInput({
+        profile:'generic-touchscreen',
+        offsetRay:new XRRay()
+      });
+      transientSupported=true;
+    }catch(e){ transientSupported=false; }
+  }
+
   session.addEventListener('end',onEnd);
   raycaster=new THREE.Raycaster();
+  warmupDone=false; warmupFrames=0;
+  $('#warmup').style.display='block';
   setupTouch();
   resetPoints();
   renderer.setAnimationLoop(onFrame);
@@ -450,12 +483,13 @@ function setupTouch(){
   // NOTE: #overlay is pointer-events:none (passthrough), so we listen on window
   // and ignore touches that land on the actual controls.
   const cursorEl=$('#cursor');
-  // SVG geometry (viewBox 128): arrow TIP at (18,18), drag-handle circle at (96,96).
-  const TIP_X=18, TIP_Y=18;          // tip position inside the svg
-  const HANDLE_X=96, HANDLE_Y=96;    // circle centre inside the svg (under finger)
+  // SVG geometry (viewBox 128) rendered at 50px → scale factor.
+  const CURSOR_PX=50, VB=128, S=CURSOR_PX/VB;   // ≈0.39
+  const TIP_X=18*S, TIP_Y=18*S;          // tip position inside the svg (px)
+  const HANDLE_X=96*S, HANDLE_Y=96*S;    // circle centre inside the svg (px)
   // aim (target) point relative to finger = tip minus handle offset
-  const DX=HANDLE_X-TIP_X;           // 78 → aim is 78px LEFT of finger
-  const DY=HANDLE_Y-TIP_Y;           // 78 → aim is 78px ABOVE finger
+  const DX=HANDLE_X-TIP_X;           // ≈30px → aim is 30px LEFT of finger
+  const DY=HANDLE_Y-TIP_Y;           // ≈30px → aim is 30px ABOVE finger
   const moveCursorToAim=(aimX,aimY)=>{
     if(!cursorEl) return;
     // place svg so its TIP coincides with the aim point
@@ -523,16 +557,55 @@ function onFrame(t,frame){
     floorReady=true;
   }
 
+  // 1b) warmup: require stable tracking before measuring
+  if(!warmupDone){
+    if(results.length) warmupFrames++; else warmupFrames=Math.max(0,warmupFrames-2);
+    const pct=Math.min(100,Math.round(warmupFrames/WARMUP_NEED*100));
+    const bar=$('#warmupBar'); if(bar) bar.style.width=pct+'%';
+    if(warmupFrames>=WARMUP_NEED){
+      warmupDone=true;
+      const w=$('#warmup'); if(w) w.style.display='none';
+      toast('Έτοιμο — σύρε τον κύκλο στη γωνία');
+    }else{
+      // don't allow targeting during warmup
+      renderer.render(scene,camera);
+      return;
+    }
+  }
+
   // 2) decide pointer position
   let target=null;
-  if(touchActive && mode!=='height' && floorReady && camera){
-    // following finger: ray through the AIM point, intersect floor plane y=floorY
-    raycaster.setFromCamera(touchNDC,camera);
-    const o=raycaster.ray.origin, d=raycaster.ray.direction;
-    if(Math.abs(d.y)>1e-5){
-      const dist=(floorY-o.y)/d.y;
-      if(dist>0){
-        target=new THREE.Vector3(o.x+d.x*dist, floorY, o.z+d.z*dist);
+  let usedTransient=false;
+  if(touchActive && mode!=='height'){
+    // (a) ACCURATE: real surface hit at the finger/aim point via transient hit-test
+    if(transientSupported && transientHitSource){
+      const tr=frame.getHitTestResultsForTransientInput(transientHitSource);
+      if(tr && tr.length){
+        // find the input result that has hit results
+        for(const item of tr){
+          if(item.results && item.results.length){
+            const pose=item.results[0].getPose(refSpace);
+            if(pose){
+              target=new THREE.Vector3(
+                pose.transform.position.x,
+                pose.transform.position.y,
+                pose.transform.position.z);
+              usedTransient=true;
+              break;
+            }
+          }
+        }
+      }
+    }
+    // (b) FALLBACK: project the aim ray onto the assumed floor plane
+    if(!target && floorReady && camera){
+      raycaster.setFromCamera(touchNDC,camera);
+      const o=raycaster.ray.origin, d=raycaster.ray.direction;
+      if(Math.abs(d.y)>1e-5){
+        const dist=(floorY-o.y)/d.y;
+        if(dist>0){
+          target=new THREE.Vector3(o.x+d.x*dist, floorY, o.z+d.z*dist);
+        }
       }
     }
   }else if(frozenPos && mode!=='height'){
@@ -584,7 +657,8 @@ function onFrame(t,frame){
     }
 
     if(!collecting){
-      if(touchActive) setStatus(spread<STABLE_TOL?'Σταθερό — άσε & πάτα «Σημείο»':'Κράτα ακίνητο το δάχτυλο…');
+      const acc = usedTransient ? ' ◆' : '';
+      if(touchActive) setStatus((spread<STABLE_TOL?'Σταθερό — άσε & πάτα «Σημείο»':'Κράτα ακίνητο το δάχτυλο…')+acc);
       else if(frozenPos) setStatus('Κλειδωμένο — πάτα «Σημείο» ή σύρε ξανά');
       else setStatus(floorReady?'Σύρε το δάχτυλο στο σημείο':'Σύρε στο σημείο που θες');
     }
@@ -1108,6 +1182,7 @@ $('#importBtn').onclick=importToEntry;
 
 function onEnd(){
   hitTestSource=null;session=null;
+  transientHitSource=null;transientSupported=false;
   renderer.setAnimationLoop(null);
   if(renderer.domElement.parentNode) renderer.domElement.remove();
   overlayEl.style.display='none';
