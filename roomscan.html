@@ -718,19 +718,23 @@ function drawLine(a,b){
 function clearArea(){ if(areaMesh){scene.remove(areaMesh);areaMesh=null;} }
 
 function undo(){
-  if(!points.length) return;
+  if(!points.length){ toast('Δεν υπάρχει σημείο να αναιρεθεί'); return; }
   points.pop();
   if(markers.length){scene.remove(markers.pop());}
   if(lines.length){scene.remove(lines.pop());}
   clearArea();
   if(mode==='area'&&points.length>2) drawAreaFill();
+  // release the frozen cursor so it returns to live preview / next drag
+  frozenPos=null; frozenScreen=null;
   updateReadout();
+  toast('Αναιρέθηκε');
 }
 function resetPoints(){
   points=[];
   markers.forEach(m=>scene&&scene.remove(m));
   lines.forEach(l=>scene&&scene.remove(l));
   markers=[];lines=[];clearArea();
+  frozenPos=null; frozenScreen=null;
   $('#readout').style.display='none';
   updateReadout();
 }
