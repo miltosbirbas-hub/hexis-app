@@ -52,13 +52,12 @@
     color:var(--muted);font-size:13px;text-align:center;pointer-events:none;
     text-shadow:0 1px 6px rgba(0,0,0,.6);transition:opacity .3s}
 
-  /* 2D cursor arrow — positioned so its TIP (bottom point) sits on the target.
-     Anchor at bottom-centre: left/top point to the tip, translate up by full height. */
-  #cursor{position:absolute;left:50%;top:50%;
-    transform:translate(-50%,-100%);
+  /* 2D cursor arrow — JS sets left/top to the finger position; the SVG is offset
+     so its TIP (58,6) lands 80px ABOVE the finger. No transform needed (JS handles it). */
+  #cursor{position:absolute;left:0;top:0;
     z-index:7;pointer-events:none;
-    filter:drop-shadow(0 2px 5px rgba(0,0,0,.5));
-    transition:opacity .15s}
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,.55));
+    transition:opacity .12s}
 
   /* top status */
   #status{position:absolute;top:max(14px,env(safe-area-inset-top));left:50%;
@@ -169,16 +168,23 @@
     <div id="status"><span class="pulse"></span><span id="statusText">Εντοπισμός επιφάνειας…</span></div>
     <div id="scaleBadge" style="position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(10,23,48,.82);border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:20px;z-index:6;display:none">scale ×1.000</div>
 
-    <!-- 2D cursor arrow: its TIP (bottom point) marks the exact spot -->
-    <svg id="cursor" width="46" height="58" viewBox="0 0 46 58" xmlns="http://www.w3.org/2000/svg">
-      <!-- arrow body -->
-      <path id="cursorPath" d="M23 56 L9 30 L18 30 L18 6 L28 6 L28 30 L37 30 Z"
-            fill="#E8772E" stroke="#0A1730" stroke-width="2" stroke-linejoin="round"/>
-      <!-- precise tip dot -->
-      <circle id="cursorTip" cx="23" cy="56" r="2.4" fill="#ffffff"/>
+    <!-- Cadastral-style cursor: a big draggable CIRCLE (where the finger sits) with
+         an ARROW pointing up-left to the exact query point (the arrow TIP at 18,18).
+         viewBox 128×128. TIP=(18,18), circle centre=(96,96). -->
+    <svg id="cursor" width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+      <!-- arrow shaft from circle toward the tip -->
+      <line id="cursorShaft" x1="84" y1="84" x2="30" y2="30" stroke="#3fb6c8" stroke-width="9" stroke-linecap="round"/>
+      <!-- filled arrowhead at the tip (up-left) -->
+      <path id="cursorPath" d="M18 18 L44 26 L26 44 Z"
+            fill="#3fb6c8" stroke="#0A1730" stroke-width="2" stroke-linejoin="round"/>
+      <!-- precise target dot exactly at the tip -->
+      <circle id="cursorTip" cx="18" cy="18" r="3.5" fill="#ffffff" stroke="#0A1730" stroke-width="1"/>
+      <!-- big draggable handle circle (under the finger) -->
+      <circle id="cursorHandle" cx="96" cy="96" r="26"
+              fill="rgba(63,182,200,0.30)" stroke="#ffffff" stroke-width="5"/>
     </svg>
 
-    <div id="reticle-hint">Σύρε το δάχτυλο στην οθόνη<br>βάλε την <b>αιχμή του βέλους</b> στο σημείο</div>
+    <div id="reticle-hint">Σύρε τον <b>κύκλο</b> με το δάχτυλο<br>η <b>αιχμή</b> δείχνει το σημείο μέτρησης</div>
 
     <div id="readout">
       <div class="big" id="roLast">—</div>
@@ -235,7 +241,7 @@ window.addEventListener('unhandledrejection', e=>{
 });
 
 // App version — shown on the start screen so you can confirm a fresh load.
-window.ROOMSCAN_VERSION = 'v1.4 · cursor';
+window.ROOMSCAN_VERSION = 'v1.6 · circle+arrow';
 
 // Evict THIS page (and roomscan.html) from every Cache Storage bucket on load,
 // without unregistering the hexis service worker. Keeps the rest of hexis intact.
@@ -378,7 +384,8 @@ let touchActive=false;          // αγγίζει ο χρήστης την οθ�
 let touchNDC={x:0,y:0};         // θέση δαχτύλου σε normalized device coords (-1..1)
 let floorY=null;                // ύψος επιπέδου πατώματος (από hit-test)
 let floorReady=false;           // βρέθηκε το πάτωμα τουλάχιστον μία φορά;
-let frozenPos=null;             // παγωμένη θέση δείκτη αφού σηκωθεί το δάχτυλο
+let frozenPos=null;             // παγωμένη 3D θέση δείκτη αφού σηκωθεί το δάχτυλο
+let frozenScreen=null;          // παγωμένη θέση cursor στην οθόνη (left/top)
 let raycaster=null;
 let calibPts=[];                // σημεία βαθμονόμησης
 const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('show');
@@ -442,17 +449,30 @@ function setupTouch(){
   // NOTE: #overlay is pointer-events:none (passthrough), so we listen on window
   // and ignore touches that land on the actual controls.
   const cursorEl=$('#cursor');
-  const moveCursor=(x,y)=>{
+  // SVG geometry (viewBox 128): arrow TIP at (18,18), drag-handle circle at (96,96).
+  const TIP_X=18, TIP_Y=18;          // tip position inside the svg
+  const HANDLE_X=96, HANDLE_Y=96;    // circle centre inside the svg (under finger)
+  // aim (target) point relative to finger = tip minus handle offset
+  const DX=HANDLE_X-TIP_X;           // 78 → aim is 78px LEFT of finger
+  const DY=HANDLE_Y-TIP_Y;           // 78 → aim is 78px ABOVE finger
+  const moveCursorToAim=(aimX,aimY)=>{
     if(!cursorEl) return;
-    cursorEl.style.left=x+'px';
-    cursorEl.style.top=y+'px';
+    // place svg so its TIP coincides with the aim point
+    cursorEl.style.left=(aimX-TIP_X)+'px';
+    cursorEl.style.top =(aimY-TIP_Y)+'px';
   };
+  // finger sits on the handle; the aim/tip is up-left of the finger
+  const aimFromFinger=(fx,fy)=>({x:Math.max(8,fx-DX), y:Math.max(8,fy-DY)});
   const upd=(clientX,clientY)=>{
+    const a=aimFromFinger(clientX,clientY);
     const w=window.innerWidth,h=window.innerHeight;
-    touchNDC.x=(clientX/w)*2-1;
-    touchNDC.y=-(clientY/h)*2+1;
-    moveCursor(clientX,clientY);
+    // hit-test uses the AIM point (where the tip is), not the fingertip
+    touchNDC.x=(a.x/w)*2-1;
+    touchNDC.y=-(a.y/h)*2+1;
+    moveCursorToAim(a.x,a.y);
   };
+  // expose so onFrame can park the cursor at centre when idle
+  window._parkCursor=()=>{ moveCursorToAim(window.innerWidth/2, window.innerHeight/2); };
   const onCtl=t=> t.closest && (t.closest('#controls')||t.closest('#exitBtn')||
        t.closest('#status')||t.closest('#scaleBadge')||t.closest('#sheet'));
   const start=e=>{
@@ -460,7 +480,7 @@ function setupTouch(){
     if(onCtl(tgt)) return;
     if(overlayEl.style.display==='none') return; // only while AR overlay active
     const t=e.touches?e.touches[0]:e;
-    touchActive=true; frozenPos=null; upd(t.clientX,t.clientY);
+    touchActive=true; frozenPos=null; frozenScreen=null; upd(t.clientX,t.clientY);
     e.preventDefault();
   };
   const move=e=>{
@@ -472,7 +492,11 @@ function setupTouch(){
   const end=e=>{
     if(!touchActive) return;
     touchActive=false;
-    if(reticle.visible) frozenPos=reticle.position.clone();
+    // freeze BOTH the 3D point and the on-screen cursor exactly where they are
+    if(reticle.visible){
+      frozenPos=reticle.position.clone();
+      frozenScreen={left:cursorEl.style.left, top:cursorEl.style.top};
+    }
   };
   window.addEventListener('touchstart',start,{passive:false});
   window.addEventListener('touchmove',move,{passive:false});
@@ -500,12 +524,8 @@ function onFrame(t,frame){
 
   // 2) decide pointer position
   let target=null;
-  if(mode==='height' && results.length){
-    // height needs vertical picks (floor & ceiling) → use centre hit-test as before
-    const pose=results[0].getPose(refSpace);
-    target=new THREE.Vector3(pose.transform.position.x,pose.transform.position.y,pose.transform.position.z);
-  }else if(touchActive && floorReady && camera){
-    // ray from camera through the finger's screen point, intersect floor plane y=floorY
+  if(touchActive && mode!=='height' && floorReady && camera){
+    // following finger: ray through the AIM point, intersect floor plane y=floorY
     raycaster.setFromCamera(touchNDC,camera);
     const o=raycaster.ray.origin, d=raycaster.ray.direction;
     if(Math.abs(d.y)>1e-5){
@@ -514,17 +534,28 @@ function onFrame(t,frame){
         target=new THREE.Vector3(o.x+d.x*dist, floorY, o.z+d.z*dist);
       }
     }
-  }else if(frozenPos){
-    // finger lifted → hold the pointer where it was left, so «Σημείο» locks it
+  }else if(frozenPos && mode!=='height'){
+    // finger lifted → hold EXACTLY where it was left; never recompute from hit-test
     target=frozenPos.clone();
-  }else if(results.length){
-    // nothing touched yet → fall back to centre hit-test position
+  }else if(mode==='height' && results.length){
+    // height needs vertical picks (floor & ceiling) → centre hit-test
+    const pose=results[0].getPose(refSpace);
+    target=new THREE.Vector3(pose.transform.position.x,pose.transform.position.y,pose.transform.position.z);
+  }else if(!frozenPos && results.length){
+    // nothing placed yet → centre hit-test preview
     const pose=results[0].getPose(refSpace);
     target=new THREE.Vector3(pose.transform.position.x,pose.transform.position.y,pose.transform.position.z);
   }
 
   const cursorEl=$('#cursor'), cursorPath=$('#cursorPath');
+  const cursorShaft=$('#cursorShaft'), cursorHandle=$('#cursorHandle');
   const hexColor=h=>'#'+h.toString(16).padStart(6,'0');
+  const colorCursor=(hex)=>{
+    const col=hexColor(hex);
+    if(cursorPath) cursorPath.setAttribute('fill',col);
+    if(cursorShaft) cursorShaft.setAttribute('stroke',col);
+    if(cursorHandle){ cursorHandle.setAttribute('stroke',col); }
+  };
 
   if(target){
     reticle.visible=true;
@@ -536,16 +567,24 @@ function onFrame(t,frame){
 
     const spread=poseSpread();
     const c=spread<STABLE_TOL?RET.ok:(spread<STABLE_TOL*2.5?RET.mid:RET.bad);
-    if(cursorPath) cursorPath.setAttribute('fill',hexColor(c));
+    colorCursor(c);
     if(cursorEl) cursorEl.style.opacity='1';
 
-    // when no finger is down, park the cursor at screen centre (centre hit-test)
-    if(!touchActive && !frozenPos && cursorEl){
-      cursorEl.style.left='50%'; cursorEl.style.top='50%';
+    // cursor on-screen placement:
+    if(touchActive){
+      // following the finger — moveCursor already set left/top in upd(); nothing to do
+    }else if(frozenPos && frozenScreen){
+      // FROZEN: keep the cursor exactly where it was placed — no drift
+      cursorEl.style.left=frozenScreen.left;
+      cursorEl.style.top =frozenScreen.top;
+    }else if(cursorEl){
+      // idle, nothing placed → park at centre (where centre hit-test points)
+      if(window._parkCursor) window._parkCursor();
     }
 
     if(!collecting){
       if(touchActive) setStatus(spread<STABLE_TOL?'Σταθερό — άσε & πάτα «Σημείο»':'Κράτα ακίνητο το δάχτυλο…');
+      else if(frozenPos) setStatus('Κλειδωμένο — πάτα «Σημείο» ή σύρε ξανά');
       else setStatus(floorReady?'Σύρε το δάχτυλο στο σημείο':'Σύρε στο σημείο που θες');
     }
     $('#reticle-hint').style.opacity='0';
@@ -553,7 +592,7 @@ function onFrame(t,frame){
     reticle.visible=false;
     recentPoses.length=0;
     if(cursorEl) cursorEl.style.opacity='0.35';
-    if(cursorPath) cursorPath.setAttribute('fill',hexColor(RET.bad));
+    colorCursor(RET.bad);
     setStatus(floorReady?'Σύρε το δάχτυλο στο σημείο':'Εντοπισμός επιφάνειας…');
     $('#reticle-hint').style.opacity = (points.length||floorReady)? '0':'1';
   }
@@ -656,7 +695,9 @@ async function addPoint(){
     if(points.length>1) drawLine(points[points.length-2],points[points.length-1]);
     refreshFill();
   }
-  frozenPos=null;        // release so the next finger drag starts fresh
+  // keep the cursor frozen exactly at the placed point; it only moves again when
+  // the user starts a NEW finger drag (touchstart clears frozenPos/frozenScreen).
+  frozenPos=p.clone();
   vibrate();
   updateReadout();
   $('#readout').style.display='block';
