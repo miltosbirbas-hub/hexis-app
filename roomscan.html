@@ -222,6 +222,7 @@
     </div>
     <div id="segList"></div>
     <div class="sheetbtns">
+      <button id="importBtn" style="display:none;background:var(--accent2);color:#06241a;font-weight:700">✓ Εισαγωγή στην καταγραφή</button>
       <button id="dxfBtn" style="display:none;background:var(--accent);color:#1a1206">Εξαγωγή DXF (κάτοψη)</button>
       <button id="copyBtn">Αντιγραφή report</button>
       <button id="againBtn">Νέα μέτρηση</button>
@@ -241,7 +242,7 @@ window.addEventListener('unhandledrejection', e=>{
 });
 
 // App version — shown on the start screen so you can confirm a fresh load.
-window.ROOMSCAN_VERSION = 'v1.6 · circle+arrow';
+window.ROOMSCAN_VERSION = 'v1.7 · import-to-entry';
 
 // Evict THIS page (and roomscan.html) from every Cache Storage bucket on load,
 // without unregistering the hexis service worker. Keeps the rest of hexis intact.
@@ -883,6 +884,7 @@ function finishHeight(h){
 function showSheet(){
   overlayEl.style.display='none';
   sheetEl.style.display='flex';
+  if(RETURN_TO_APP){ const ib=$('#importBtn'); if(ib){ ib.style.display='block'; ib.disabled=false; ib.textContent='✓ Εισαγωγή στην καταγραφή'; } }
   const m=$('#metrics'), seg=$('#segList');
   m.innerHTML='';seg.innerHTML='';
   const now=new Date().toLocaleString('el-GR');
@@ -996,20 +998,109 @@ $('#dxfBtn').onclick=()=>{
 };
 
 $('#copyBtn').onclick=()=>{
-  let txt='hexis · Σάρωση Χώρου — '+new Date().toLocaleString('el-GR')+'\n';
-  if(result.type==='area'){
-    txt+=`Εμβαδόν: ${result.area.toFixed(2)} m²\nΠερίμετρος: ${result.perimeter.toFixed(2)} m\nΓωνίες: ${result.count}\n`;
-    result.segs.forEach((s,i)=>txt+=`  Πλευρά ${i+1}: ${s.toFixed(2)} m\n`);
-  }else if(result.type==='dist') txt+=`Απόσταση: ${result.distance.toFixed(2)} m\n`;
-  else txt+=`Ύψος: ${result.height.toFixed(2)} m\n`;
-  if(Math.abs(scaleFactor-1)>1e-4) txt+=`(βαθμονομημένο · scale ×${scaleFactor.toFixed(4)})\n`;
-  navigator.clipboard?.writeText(txt).then(()=>toast('Αντιγράφηκε'),()=>toast('Σφάλμα'));
+  navigator.clipboard?.writeText(buildReportText()).then(()=>toast('Αντιγράφηκε'),()=>toast('Σφάλμα'));
 };
 $('#againBtn').onclick=()=>{
   sheetEl.style.display='none';
   if(session){ overlayEl.style.display='block'; resetPoints(); }
   else startEl.style.display='flex';
 };
+
+// ---------- Import to hexis project entry ----------
+// Detect whether we were opened from the project app (app.html) asking for a return.
+const RETURN_TO_APP = new URLSearchParams(location.search).get('return') === 'entry';
+
+function buildReportText(){
+  let txt='hexis · Σάρωση Χώρου — '+new Date().toLocaleString('el-GR')+'\n';
+  if(result.type==='area'){
+    txt+=`Εμβαδόν: ${result.area.toFixed(2)} m²\nΠερίμετρος: ${result.perimeter.toFixed(2)} m\nΓωνίες: ${result.count}\n`;
+    result.segs.forEach((s,i)=>txt+=`  Πλευρά ${i+1}: ${s.toFixed(2)} m\n`);
+  }else if(result.type==='dist') txt+=`Απόσταση: ${result.distance.toFixed(2)} m\n`;
+  else txt+=`Ύψος: ${result.height.toFixed(2)} m\n`;
+  if(Math.abs(scaleFactor-1)>1e-4) txt+=`(βαθμονομημένο · scale ×${scaleFactor.toFixed(4)})`;
+  return txt;
+}
+
+// Render a clean, white-background PNG sketch (for area) at high resolution.
+function sketchToPNG(){
+  return new Promise((resolve,reject)=>{
+    try{
+      const W=1000, H=750, pad=90;
+      const plan=result.plan, segs=result.segs;
+      const xs=plan.map(p=>p.x), ys=plan.map(p=>p.y);
+      const minX=Math.min(...xs),maxX=Math.max(...xs);
+      const minY=Math.min(...ys),maxY=Math.max(...ys);
+      const w=(maxX-minX)||1, h=(maxY-minY)||1;
+      const s=Math.min((W-2*pad)/w,(H-2*pad)/h);
+      const tx=x=>pad+(x-minX)*s;
+      const ty=y=>H-pad-(y-minY)*s;
+      const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+      const c=cv.getContext('2d');
+      c.fillStyle='#ffffff'; c.fillRect(0,0,W,H);
+      // polygon
+      c.beginPath();
+      plan.forEach((p,i)=>{ const X=tx(p.x),Y=ty(p.y); i?c.lineTo(X,Y):c.moveTo(X,Y); });
+      c.closePath();
+      c.fillStyle='rgba(232,119,46,0.12)'; c.fill();
+      c.strokeStyle='#0A1730'; c.lineWidth=3; c.stroke();
+      // corners + side labels
+      c.font='22px monospace'; c.textAlign='center'; c.textBaseline='middle';
+      for(let i=0;i<plan.length;i++){
+        const a=plan[i],b=plan[(i+1)%plan.length];
+        const mx=(tx(a.x)+tx(b.x))/2, my=(ty(a.y)+ty(b.y))/2;
+        c.fillStyle='#E8772E';
+        c.fillText(segs[i].toFixed(2)+' m', mx, my-14);
+      }
+      plan.forEach(p=>{ c.beginPath(); c.arc(tx(p.x),ty(p.y),6,0,7); c.fillStyle='#1f9d6b'; c.fill(); });
+      // title + area
+      c.fillStyle='#0A1730'; c.textAlign='left';
+      c.font='bold 30px sans-serif';
+      c.fillText('Κάτοψη — '+result.area.toFixed(2)+' m²', pad, 44);
+      c.font='17px monospace';
+      c.fillStyle='#555';
+      c.fillText('hexis · Σάρωση Χώρου · '+new Date().toLocaleDateString('el-GR')
+        +(Math.abs(scaleFactor-1)>1e-4?(' · scale ×'+scaleFactor.toFixed(3)):''), pad, 72);
+      cv.toBlob(b=> b?resolve(b):reject(new Error('toBlob null')), 'image/png');
+    }catch(e){ reject(e); }
+  });
+}
+
+function blobToDataURL(b){
+  return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(b); });
+}
+
+async function importToEntry(){
+  const btn=$('#importBtn');
+  btn.disabled=true; btn.textContent='Προετοιμασία…';
+  try{
+    const stamp=new Date().toISOString().slice(0,16).replace(/[:T]/g,'');
+    const payload={
+      kind: result.type,
+      report: buildReportText(),
+      ts: Date.now()
+    };
+    // PNG sketch (only meaningful for area; for dist/height we still send the report)
+    if(result.type==='area'){
+      const png=await sketchToPNG();
+      payload.png = await blobToDataURL(png);
+      payload.pngName = 'katopsi_'+stamp+'.png';
+      const dxf=buildDXF(result.plan,result.segs,result.area);
+      payload.dxf = 'data:application/dxf;base64,'+btoa(unescape(encodeURIComponent(dxf)));
+      payload.dxfName = 'katopsi_'+stamp+'.dxf';
+      payload.area=result.area; payload.perimeter=result.perimeter;
+    }else if(result.type==='dist'){ payload.distance=result.distance; }
+    else { payload.height=result.height; }
+
+    sessionStorage.setItem('hexis_scan_result', JSON.stringify(payload));
+    btn.textContent='Επιστροφή…';
+    // go back to the app; app.html picks up sessionStorage on load
+    location.href='app.html?scan=1';
+  }catch(e){
+    btn.disabled=false; btn.textContent='✓ Εισαγωγή στην καταγραφή';
+    toast('Σφάλμα εισαγωγής: '+(e.message||e));
+  }
+}
+$('#importBtn').onclick=importToEntry;
 
 function onEnd(){
   hitTestSource=null;session=null;
