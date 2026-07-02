@@ -1,9 +1,9 @@
 // ============================================
 //  HEXIS SERVICE WORKER
 //  ΑΛΛΑΖΕΙΣ ΜΟΝΟ ΤΟΝ ΑΡΙΘΜΟ VERSION ΣΕ ΚΑΘΕ ΝΕΑ ΕΚΔΟΣΗ
-//  (πρέπει να ταιριάζει με το v3.79 του index.html)
+//  (πρέπει να ταιριάζει με την έκδοση του app.html)
 // ============================================
-const VERSION = 'v3.79';
+const VERSION = 'v3.84';
 const CACHE_NAME = 'hexis-' + VERSION;
 
 // Άμεση ενεργοποίηση νέας έκδοσης
@@ -32,15 +32,20 @@ self.addEventListener('fetch', (e) => {
   // POST/PUT κλπ. δεν μπαίνουν ποτέ σε cache
   if (e.request.method !== 'GET') return;
 
+  // ΔΙΟΡΘΩΣΗ v3.83: ΟΛΑ τα .html (app.html, login.html, index.html)
+  // + navigations + sw.js -> ΠΑΝΤΑ network-first, ώστε κάθε νέα έκδοση
+  // να φορτώνει αμέσως. Πριν, το app.html ήταν cache-first και το PWA
+  // κολλούσε σε παλιές εκδόσεις.
   const isAppShell =
+    e.request.mode === 'navigate' ||
     url.pathname.endsWith('/') ||
-    url.pathname.endsWith('index.html') ||
+    url.pathname.endsWith('.html') ||
     url.pathname.endsWith('sw.js');
 
   if (isAppShell) {
-    // index.html + sw.js -> ΠΑΝΤΑ φρέσκα (network-first)
+    // HTML + sw.js -> ΠΑΝΤΑ φρέσκα (network-first, cache μόνο ως fallback offline)
     e.respondWith(
-      fetch(e.request)
+      fetch(e.request, { cache: 'no-store' })
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE_NAME).then((c) => c.put(e.request, copy));
@@ -51,7 +56,7 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Όλα τα άλλα τοπικά αρχεία -> cache-first (γρήγορα + offline)
+  // Όλα τα άλλα τοπικά αρχεία (εικόνες, icons κλπ.) -> cache-first (γρήγορα + offline)
   e.respondWith(
     caches.match(e.request).then((cached) => {
       return (
