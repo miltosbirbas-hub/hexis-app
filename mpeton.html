@@ -868,6 +868,8 @@ const I18N = {
   cost_buy:        {el:'ποσότητες αγοράς (στρογγ. πάνω)', sq:'sasi blerjeje (rrumb. lart)'},
   cost_vat:        {el:'με ΦΠΑ 24%', sq:'me TVSH 24%'},
   cost_unit:       {el:'€ / m³ λάσπης', sq:'€ / m³ llaç'},
+  c_cost_unit:     {el:'€ / m³ μπετόν', sq:'€ / m³ beton'},
+  c_cost_note:     {el:'Κόστος υλικών με ΦΠΑ 24%: τσιμέντο με τιμή σακιού + αδρανή με τιμή άμμου big bag (καρτέλα Λάσπη → Τιμές υλικών). Νερό & ρευστοποιητής εκτός. Για έτοιμο σκυρόδεμα ισχύει η τιμή της μονάδας.', sq:'Kosto materialesh me TVSH 24%: çimento me çmim thesi + inerte me çmimin e rërës big bag (skeda Llaç → Çmimet). Uji & superplastifikuesi veç. Për beton të gatshëm vlen çmimi i njësisë.'},
   sz_title:        {el:'Κρυφά σενάζ σκυροδέματος', sq:'Senazhe të fshehura betoni'},
   sz_base:         {el:'Βάση — πάχος (cm) · 0 = χωρίς', sq:'Baza — trashësia (cm) · 0 = pa'},
   sz_every:        {el:'Ενδιάμεσα ανά (m ύψους)', sq:'Të ndërmjetme çdo (m lartësi)'},
@@ -1002,6 +1004,18 @@ function calcConcrete(){
 
   const litPerBatch = vPer*1000;
 
+  // ---- κόστος υλικών (τιμές από καρτέλα Λάσπη) ----
+  let unitCostC=0, totalCostC=0, haveP=false;
+  if(typeof getPrices==='function' && document.getElementById('prCem')){
+    const P=getPrices();
+    if(P.cem>0 || P.sand>0){
+      haveP=true;
+      const aggPrice=P.sand/Math.max(P.sandM3,0.0001);            // €/m³ αδρανών ~ τιμή άμμου
+      unitCostC=(c.cementKg/BAG_KG)*P.cem + (c.sand+c.gravel)*aggPrice;
+      totalCostC=unitCostC*V;
+    }
+  }
+
   // ---- δόση ανά γέμισμα κάδου ----
   const denom = Math.max(exactBatches,0.0001);
   const aggPerBatchM3 = aggM3/denom;
@@ -1081,7 +1095,10 @@ function calcConcrete(){
       ${targetMode
         ? `<div class="chip"><b style="color:var(--accent-2)">${batches}</b><span>${t('r_fillings_drum')}</span></div>`
         : `<div class="chip"><b style="color:#5fa9d1">${fmt(waterL,0)}</b><span>${t('r_lt_water')}</span></div>`}
+      ${haveP?`<div class="chip"><b>${fmt(unitCostC,0)} €</b><span>${t('c_cost_unit')}</span></div>
+      <div class="chip"><b>${fmt(totalCostC,0)} €</b><span>${t('cost_total')}</span></div>`:''}
     </div>
+    ${haveP?`<p class="note" style="margin-top:10px">${t('c_cost_note')}</p>`:''}
   `;
   document.getElementById('concreteResult').innerHTML=html;
 }
