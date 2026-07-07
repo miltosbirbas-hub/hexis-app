@@ -746,7 +746,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
 // ⚠️ ΣΥΜΠΛΗΡΩΣΕ: URL & anon key από το ΝΕΟ Supabase project (Settings → API)
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
-const APP_VERSION = 'v3.85'; // πρέπει να ταιριάζει με το VERSION του sw.js
+const APP_VERSION = 'v3.86'; // πρέπει να ταιριάζει με το VERSION του sw.js
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
 
@@ -1891,6 +1891,81 @@ function editEntry(id) {
 }
 
 function isVideoPath(p) { return /\.(mp4|mov|webm)$/i.test(String(p || '')); }
+/* ===== VIDEO THUMBNAILS + QR ΓΙΑ ΑΝΑΦΟΡΕΣ ===== */
+let _qrLibP = null;
+function loadQRLib() {
+  if (window.qrcode) return Promise.resolve();
+  if (_qrLibP) return _qrLibP;
+  _qrLibP = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+    s.onload = res; s.onerror = rej; document.head.appendChild(s);
+  });
+  return _qrLibP;
+}
+function qrDataURL(text) {
+  try { const q = qrcode(0, 'M'); q.addData(text); q.make(); return q.createDataURL(4, 8); }
+  catch(e) { console.warn('[QR]', e); return null; }
+}
+// Τραβάει ένα καρέ από το βίντεο (CORS-safe, το Supabase public bucket στέλνει Access-Control-Allow-Origin:*)
+function videoThumb(url) {
+  return new Promise(res => {
+    const v = document.createElement('video');
+    v.crossOrigin = 'anonymous'; v.muted = true; v.playsInline = true; v.preload = 'metadata';
+    let done = false;
+    const fin = d => { if (!done) { done = true; try { v.src = ''; } catch(e){} res(d); } };
+    v.onloadedmetadata = () => { try { v.currentTime = Math.min(0.5, (v.duration || 1) / 2); } catch(e) { fin(null); } };
+    v.onseeked = () => {
+      try {
+        const w = 480, h = Math.round(w * v.videoHeight / v.videoWidth) || 270;
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        c.getContext('2d').drawImage(v, 0, 0, w, h);
+        fin(c.toDataURL('image/jpeg', 0.72));
+      } catch(e) { console.warn('[VTHUMB]', e); fin(null); }
+    };
+    v.onerror = () => fin(null);
+    setTimeout(() => fin(null), 8000);
+    v.src = url;
+  });
+}
+// Προετοιμάζει thumbnails + QR για όλα τα βίντεο μιας λίστας εγγραφών → window._vidMedia
+async function prepVideoMedia(entries) {
+  window._vidMedia = window._vidMedia || {};
+  const vids = [];
+  (entries || []).forEach(e => (e.photos || []).forEach(p => {
+    if (isVideoPath(p) && !window._vidMedia[p] && vids.indexOf(p) < 0) vids.push(p);
+  }));
+  if (!vids.length) return;
+  try { await loadQRLib(); } catch(e) { console.warn('[QR] lib load fail', e); }
+  await Promise.all(vids.map(async p => {
+    const url = SB_URL + '/storage/v1/object/public/hexis-photos/' + p;
+    const thumb = await videoThumb(url);
+    const qr = window.qrcode ? qrDataURL(url) : null;
+    window._vidMedia[p] = { thumb, qr };
+  }));
+}
+// HTML μπλοκ βίντεο για αναφορές: clickable thumbnail με ▶ + QR δίπλα
+function videoBlockHTML(p, url, capText, scanText, playText) {
+  const vm = (window._vidMedia || {})[p] || {};
+  let thumbHtml;
+  if (vm.thumb) {
+    thumbHtml = '<a href="' + url + '" target="_blank" style="position:relative;display:inline-block;text-decoration:none">'
+      + '<img src="' + vm.thumb + '" style="width:300px;max-width:100%;height:auto;border-radius:8px;border:1px solid #ccc;display:block">'
+      + '<span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:52px;height:52px;background:rgba(0,0,0,0.62);border-radius:50%;color:#fff;font-size:22px;line-height:52px;text-align:center;padding-left:4px;box-sizing:border-box">&#9654;</span>'
+      + '</a>';
+  } else {
+    thumbHtml = '<a href="' + url + '" target="_blank" style="display:inline-block;padding:24px 30px;border:1px dashed #bbb;border-radius:8px;font-size:13px;text-decoration:none;color:#E8772E;font-weight:bold">&#127916; ' + capText + ' &#9654;</a>';
+  }
+  const qrHtml = vm.qr
+    ? '<span style="display:inline-block;vertical-align:top;margin-left:8px;text-align:center">'
+      + '<img src="' + vm.qr + '" style="width:84px;height:84px;border:1px solid #ccc;border-radius:6px;display:block">'
+      + '<span style="display:block;font-size:8.5px;color:#666;margin-top:2px;max-width:84px">' + scanText + '</span></span>'
+    : '';
+  return '<div style="display:inline-block;vertical-align:top;margin:6px;page-break-inside:avoid;break-inside:avoid;text-align:center">'
+    + '<span style="display:inline-block;vertical-align:top">' + thumbHtml
+    + '<div style="font-size:10px;color:#666;margin-top:3px;font-weight:bold">&#127916; ' + capText + ' — ' + playText + '</div></span>'
+    + qrHtml + '</div>';
+}
 function videoDuration(file) {
   return new Promise(res => {
     const v = document.createElement('video');
@@ -3126,6 +3201,7 @@ function buildReportHTML(period, lang, trMap) {
   const T = s => (TRANS && trMap && trMap[s]) ? trMap[s] : s;
   const LOC = (AL ? 'sq-AL' : EN ? 'en-GB' : 'el-GR');
   let photoNum = 0;
+  let vidNum = 0;
   const proj = getProj(state.proj);
   const now = new Date();
   let startDate, endDate, periodLabel;
@@ -3183,7 +3259,11 @@ function buildReportHTML(period, lang, trMap) {
         e.photos.forEach(p => {
           const url = SB_URL + '/storage/v1/object/public/hexis-photos/' + p;
           if (isVideoPath(p)) {
-            photoTags.push('<div style="margin:6px"><a href="' + url + '" target="_blank" style="font-size:12px">\ud83c\udfac ' + (L('Βίντεο','Video','Video')) + '</a></div>');
+            vidNum++;
+            photoTags.push(videoBlockHTML(p, url,
+              L('Βίντεο ','Video ','Video ') + vidNum,
+              L('Σκανάρετε για βίντεο','Scan for video','Skano për video'),
+              L('πατήστε για αναπαραγωγή','click to play','kliko për të luajtur')));
             return;
           }
           photoNum++;
@@ -3357,6 +3437,7 @@ async function generateReport(period, action) {
   const T = s => (TRANS && trMap && trMap[s]) ? trMap[s] : s;
 
   if (action === 'pdf') {
+    try { await prepVideoMedia(getReportEntries(period)); } catch(e) { console.warn('[VID] prep fail', e); }
     const html = buildReportHTML(period, lang, trMap);
     // Script που τρέχει ΜΕΣΑ στο report window: γεμίζει τα PDF canvases ασύγχρονα.
     // Η αναφορά εμφανίζεται ΑΜΕΣΩΣ· τα PDF σχέδια ζωγραφίζονται όταν είναι έτοιμα.
@@ -3417,7 +3498,7 @@ async function generateReport(period, action) {
   }
 }
 
-function printReport() {
+async function printReport() {
   const proj = getProj(state.proj);
   const now = new Date();
   const ws = new Date(now); ws.setDate(now.getDate()-now.getDay()+1);
@@ -3425,6 +3506,7 @@ function printReport() {
   const fmt = d => d.toLocaleDateString('el-GR');
   const allE = appData.entries.filter(e => e.project===state.proj);
   const weekE = allE.filter(e => { const d=new Date(e.date); return d>=ws&&d<=we; });
+  try { await prepVideoMedia(weekE); } catch(e) { console.warn('[VID] prep fail', e); }
   const engs = [...new Set(allE.map(e=>e.engineer).filter(Boolean))];
   const boq = loadBOQ(state.proj);
   const budget = boq.reduce((s,i)=>s+i.real_cost,0);
@@ -3448,7 +3530,7 @@ function printReport() {
         let imgs = '';
         e.photos.forEach(p => {
           const url = SB_URL + '/storage/v1/object/public/hexis-photos/' + p;
-          if (isVideoPath(p)) { imgs += '<a href="' + url + '" target="_blank" style="font-size:12px;margin:4px;display:inline-block">\ud83c\udfac Βίντεο</a>'; return; }
+          if (isVideoPath(p)) { imgs += videoBlockHTML(p, url, 'Βίντεο', 'Σκανάρετε για βίντεο', 'πατήστε για αναπαραγωγή'); return; }
           imgs += '<a href="' + url + '" target="_blank" style="text-decoration:none"><img src="' + url + '" style="height:130px;border-radius:6px;margin:4px;border:1px solid #ccc;cursor:pointer" title="Κλικ για μεγέθυνση"></a>';
         });
         engSec += '<tr><td colspan="4" style="padding:8px;border:1px solid #ddd;background:#fafafa">'
