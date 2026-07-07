@@ -34,9 +34,11 @@
   --text3: #5C6F8F;
   --radius: 10px;
   --topbar-bg: #0D1C36;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; min-height: 100dvh; }
 
 /* LIGHT (outdoor) THEME */
 body.light {
@@ -79,7 +81,7 @@ body.light .alert-banner { box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
   .entries-tbl .td-actions button { margin-bottom: 4px; }
 }
 /* FOOTER */
-.app-footer { padding: 18px 20px 26px; text-align: center; border-top: 1px solid var(--border); margin-top: 30px; }
+.app-footer { padding: 18px 20px calc(26px + var(--safe-bottom)); text-align: center; border-top: 1px solid var(--border); margin-top: 30px; }
 .app-footer-brand { font-size: 11px; font-weight: 700; color: var(--text2); }
 .app-footer-legal { font-size: 9.5px; color: var(--text3); margin-top: 6px; max-width: 640px; margin-left: auto; margin-right: auto; line-height: 1.5; }
 /* ROW HIGHLIGHT */
@@ -88,7 +90,8 @@ body.light .alert-banner { box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
 .topbar {
   background: var(--topbar-bg);
   border-bottom: 1px solid var(--border);
-  padding: 0 20px; height: 56px;
+  padding: var(--safe-top) 20px 0;
+  height: calc(56px + var(--safe-top));
   display: flex; align-items: center; justify-content: space-between;
   position: sticky; top: 0; z-index: 100; gap: 8px;
 }
@@ -112,7 +115,7 @@ body.light .alert-banner { box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
 .btn-sm { padding: 5px 10px; font-size: 11px; }
 
 /* LAYOUT */
-.layout { display: flex; height: calc(100vh - 56px); }
+.layout { display: flex; height: calc(100vh - 56px - var(--safe-top)); height: calc(100dvh - 56px - var(--safe-top)); }
 
 /* SIDEBAR */
 .sidebar {
@@ -246,7 +249,7 @@ tr:hover td { background: var(--surface2); }
 .map-container { height: 280px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); margin-top: 8px; }
 
 /* ALERT */
-.alert-banner { position: fixed; top: 56px; left: 0; right: 0; z-index: 150; padding: 10px 20px; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); animation: slideDown 0.4s ease; }
+.alert-banner { position: fixed; top: calc(56px + var(--safe-top)); left: 0; right: 0; z-index: 150; padding: 10px 20px; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); animation: slideDown 0.4s ease; }
 .alert-banner.red { background: linear-gradient(90deg, #7f1d1d, #dc2626); color: #fff; }
 .alert-banner.orange { background: linear-gradient(90deg, #78350f, #d97706); color: #fff; }
 @keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -258,8 +261,8 @@ tr:hover td { background: var(--surface2); }
 .lightbox.hidden { display: none; }
 .lightbox img { max-width: 95vw; max-height: 90vh; border-radius: 8px; touch-action: none; cursor: zoom-in; will-change: transform; user-select: none; -webkit-user-drag: none; }
 .lightbox img.lb-zoomed { cursor: zoom-out; }
-.lightbox-close { position: fixed; top: 14px; right: 14px; z-index: 401; background: rgba(255,255,255,0.18); color: #fff; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 18px; line-height: 1; cursor: pointer; }
-.lightbox-hint { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); color: #fff; background: rgba(0,0,0,0.55); padding: 6px 14px; border-radius: 16px; font-size: 12px; z-index: 401; pointer-events: none; }
+.lightbox-close { position: fixed; top: calc(14px + var(--safe-top)); right: 14px; z-index: 401; background: rgba(255,255,255,0.18); color: #fff; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 18px; line-height: 1; cursor: pointer; }
+.lightbox-hint { position: fixed; bottom: calc(18px + var(--safe-bottom)); left: 50%; transform: translateX(-50%); color: #fff; background: rgba(0,0,0,0.55); padding: 6px 14px; border-radius: 16px; font-size: 12px; z-index: 401; pointer-events: none; }
 
 /* TEAM MODAL */
 .team-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
@@ -295,7 +298,7 @@ tr:hover td { background: var(--surface2); }
 .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 90; }
 @media (max-width: 768px) {
   .menu-btn { display: flex; align-items: center; }
-  .sidebar { position: fixed !important; top: 56px; left: 0; bottom: 0; z-index: 95; transform: translateX(-100%); transition: transform 0.25s; width: 240px !important; min-width: 240px !important; }
+  .sidebar { position: fixed !important; top: calc(56px + var(--safe-top)); left: 0; bottom: 0; z-index: 95; transform: translateX(-100%); transition: transform 0.25s; width: 240px !important; min-width: 240px !important; }
   .sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.4); }
   .sidebar-overlay.open { display: block; }
   .stats { grid-template-columns: repeat(2,1fr); }
@@ -350,7 +353,7 @@ tr:hover td { background: var(--surface2); }
 .help-tip{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);border-radius:12px;padding:12px 14px;font-size:12.5px;color:var(--text2);line-height:1.7}
 
 /* QUICK TOOLS (κομπιουτεράκι + σημειώσεις) */
-#qt-panel{position:fixed;top:0;right:-360px;width:340px;max-width:90vw;height:100%;background:var(--bg,#1c1c1e);border-left:1px solid var(--border);z-index:9990;transition:right 0.25s ease;display:flex;flex-direction:column;box-shadow:-4px 0 20px rgba(0,0,0,0.4)}
+#qt-panel{position:fixed;top:0;right:-360px;width:340px;max-width:90vw;height:100%;background:var(--bg,#1c1c1e);border-left:1px solid var(--border);z-index:9990;transition:right 0.25s ease;display:flex;flex-direction:column;box-shadow:-4px 0 20px rgba(0,0,0,0.4);padding-top:var(--safe-top);padding-bottom:var(--safe-bottom)}
 #qt-panel.open{right:0}
 #qt-handle{position:fixed;top:50%;right:0;transform:translateY(-50%);width:30px;height:78px;background:#17171a;border:1px solid #3a3a40;border-right:none;border-radius:12px 0 0 12px;z-index:9989;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;box-shadow:-2px 2px 10px rgba(0,0,0,0.5);user-select:none}
 .qt-tabs{display:flex;border-bottom:1px solid var(--border)}
@@ -383,7 +386,7 @@ tr:hover td { background: var(--surface2); }
 </head>
 <body>
 
-<div id="offline-indicator" style="display:none;position:fixed;top:0;left:0;right:0;background:#c4915a;color:#fff;text-align:center;padding:6px;font-size:12px;z-index:9999">📡 Εκτός σύνδεσης — οι αλλαγές αποθηκεύονται τοπικά και θα συγχρονιστούν</div>
+<div id="offline-indicator" style="display:none;position:fixed;top:0;left:0;right:0;background:#c4915a;color:#fff;text-align:center;padding:calc(6px + var(--safe-top)) 6px 6px;font-size:12px;z-index:9999">📡 Εκτός σύνδεσης — οι αλλαγές αποθηκεύονται τοπικά και θα συγχρονιστούν</div>
 <!-- TOPBAR -->
 <div class="topbar">
   <div class="topbar-left">
@@ -703,7 +706,7 @@ tr:hover td { background: var(--surface2); }
   <div id="lightbox-caption" onclick="event.stopPropagation()" style="position:fixed;left:50%;transform:translateX(-50%);bottom:100px;max-width:min(620px,90vw);max-height:24vh;overflow-y:auto;background:rgba(8,20,39,0.92);backdrop-filter:blur(4px);padding:12px 16px;border-radius:12px;box-sizing:border-box;font-size:15px;line-height:1.5;color:#EEF2F8;display:none;z-index:11;box-shadow:0 4px 20px rgba(0,0,0,0.5)"></div>
   <img id="lightbox-img" src="" alt="">
   <div class="lightbox-hint" id="lightbox-hint">Πάτα στη φωτό για μεγέθυνση 3× · σύρε για μετακίνηση</div>
-  <div style="position:fixed;bottom:18px;left:0;right:0;display:flex;justify-content:center;gap:10px;z-index:10" onclick="event.stopPropagation()">
+  <div style="position:fixed;bottom:calc(18px + var(--safe-bottom));left:0;right:0;display:flex;justify-content:center;gap:10px;z-index:10" onclick="event.stopPropagation()">
     <button onclick="lbShare()" style="background:#22c55e;color:#fff;border:none;border-radius:10px;padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Αποθήκευση στη Συλλογή</button>
     <button onclick="lbDownload()" style="background:#444;color:#fff;border:none;border-radius:10px;padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Λήψη</button>
   </div>
@@ -743,7 +746,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
 // ⚠️ ΣΥΜΠΛΗΡΩΣΕ: URL & anon key από το ΝΕΟ Supabase project (Settings → API)
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
-const APP_VERSION = 'v3.84'; // πρέπει να ταιριάζει με το VERSION του sw.js
+const APP_VERSION = 'v3.85'; // πρέπει να ταιριάζει με το VERSION του sw.js
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
 
@@ -3519,7 +3522,7 @@ function hexisShowUpdateBanner(newVer) {
   const old = document.getElementById('upd-banner'); if (old) old.remove();
   const d = document.createElement('div');
   d.id = 'upd-banner';
-  d.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:99999;'
+  d.style.cssText = 'position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%);z-index:99999;'
     + 'background:#0A1730;color:#fff;border:2px solid #E8772E;border-radius:14px;'
     + 'padding:12px 16px;display:flex;gap:12px;align-items:center;box-shadow:0 6px 20px rgba(0,0,0,.45);'
     + 'font-size:13px;max-width:92vw';
@@ -4565,7 +4568,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault(); deferredPrompt = e;
 });
 </script>
-<div id="photo-editor" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.92);flex-direction:column;align-items:center;justify-content:center;padding:8px">
+<div id="photo-editor" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.92);flex-direction:column;align-items:center;justify-content:center;padding:calc(8px + var(--safe-top)) 8px calc(8px + var(--safe-bottom))">
   <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:center;margin-bottom:8px">
     <button class="ped-tool" data-tool="draw" onclick="pedSetTool('draw')" style="background:#333;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer">✏️ Σχέδιο</button>
     <button class="ped-tool" data-tool="text" onclick="pedSetTool('text')" style="background:#333;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer">🅰️ Κείμενο</button>
