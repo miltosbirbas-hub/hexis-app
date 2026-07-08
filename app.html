@@ -359,6 +359,8 @@ tr:hover td { background: var(--surface2); }
 .qt-tabs{display:flex;border-bottom:1px solid var(--border)}
 .qt-tab{flex:1;padding:11px 6px;text-align:center;cursor:pointer;font-size:11.5px;font-weight:600;color:var(--text2);border-bottom:2px solid transparent}
 .qt-tab.active{color:var(--text);border-bottom-color:var(--accent,#E8772E)}
+.topo-mode-btn{flex:1;padding:7px 4px;font-size:11.5px;font-weight:600;border:1px solid var(--border);background:none;color:var(--text2);border-radius:8px;cursor:pointer}
+.topo-mode-btn.active{background:var(--accent,#E8772E);color:#fff;border-color:var(--accent,#E8772E)}
 .qt-tool-card{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--surface,rgba(255,255,255,0.05));color:var(--text);text-decoration:none;transition:border-color .15s}
 .qt-tool-card:hover{border-color:var(--accent,#E8772E)}
 .qt-tool-ico{font-size:26px;flex:none}
@@ -755,7 +757,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
 // ⚠️ ΣΥΜΠΛΗΡΩΣΕ: URL & anon key από το ΝΕΟ Supabase project (Settings → API)
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
-const APP_VERSION = 'v3.87'; // πρέπει να ταιριάζει με το VERSION του sw.js
+const APP_VERSION = 'v3.89'; // πρέπει να ταιριάζει με το VERSION του sw.js
 // Η έκδοση εμφανίζεται παντού δυναμικά — ΕΝΑ σημείο αλλαγής (+ sw.js)
 ['ver-mobile','ver-sub','ver-footer'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = APP_VERSION; });
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
@@ -2288,7 +2290,7 @@ async function saveEntry() {
         const path = getUserId() + '/' + entryId + '/' + Date.now() + ext;
         await uploadViaRest('hexis-photos', path, file);
         photos.push(path);
-        if (p.pin) photoPins.push({ p: path, x: p.pin.x, y: p.pin.y });
+        if (p.pin) photoPins.push({ p: path, x: p.pin.x, y: p.pin.y, n: p.pin.n || null });
         console.log('[PHOTO] ✓ uploaded:', path);
       } catch(e) {
         console.error('[PHOTO] upload failed:', e);
@@ -3267,6 +3269,7 @@ function buildReportHTML(period, lang, trMap) {
   const LOC = (AL ? 'sq-AL' : EN ? 'en-GB' : 'el-GR');
   let photoNum = 0;
   let vidNum = 0;
+  const _ppNoAll = photoPinNoMap(appData.entries.filter(e => e.project===state.proj));
   const proj = getProj(state.proj);
   const now = new Date();
   let startDate, endDate, periodLabel;
@@ -3325,16 +3328,19 @@ function buildReportHTML(period, lang, trMap) {
           const url = SB_URL + '/storage/v1/object/public/hexis-photos/' + p;
           if (isVideoPath(p)) {
             vidNum++;
+            const _vn = _ppNoAll[p];
             photoTags.push(videoBlockHTML(p, url,
-              L('Βίντεο ','Video ','Video ') + vidNum,
+              L('Βίντεο ','Video ','Video ') + vidNum + (_vn ? ' · 📷 ' + (L('πινέζα ','pin ','pineza ')) + _vn : ''),
               L('Σκανάρετε για βίντεο','Scan for video','Skano për video'),
               L('πατήστε για αναπαραγωγή','click to play','kliko për të luajtur')));
             return;
           }
           photoNum++;
+          const _pn = _ppNoAll[p];
           photoTags.push('<div style="display:inline-block;vertical-align:top;margin:6px;page-break-inside:avoid;break-inside:avoid;text-align:center">'
             + '<a href="' + url + '" target="_blank"><img src="' + url + '" style="width:340px;max-width:100%;height:auto;border-radius:8px;border:1px solid #ccc"></a>'
-            + '<div style="font-size:10px;color:#666;margin-top:3px;font-weight:bold">' + (L('Φωτ. ','Photo ','Foto ')) + photoNum + '</div></div>');
+            + '<div style="font-size:10px;color:#666;margin-top:3px;font-weight:bold">' + (L('Φωτ. ','Photo ','Foto ')) + photoNum
+            + (_pn ? ' <span style="color:#2d7dff">· 📷 ' + (L('πινέζα ','pin ','pineza ')) + _pn + '</span>' : '') + '</div></div>');
         });
       }
       // ΚΛΕΙΔΙ: επικεφαλίδα + ΠΡΩΤΗ φωτό δεμένα μαζί (page-break-inside:avoid).
@@ -3351,6 +3357,7 @@ function buildReportHTML(period, lang, trMap) {
 
   // Συγκεντρωτική ενότητα κατόψεων (roadmap): ανά κάτοψη, όλες οι πινέζες + υπόμνημα
   function floorplanRoadmap(entryList) {
+    const _ppNo = _ppNoAll; // ίδιοι αριθμοί με τις λεζάντες φωτογραφιών
     const projFiles = (()=>{ try { return JSON.parse(localStorage.getItem('hexis_files_'+state.proj)||'[]'); } catch(e){ return []; } })();
     const ids = [...new Set(entryList.filter(e=>e.floorplan_id && (e.pin_x!=null || (e.photo_pins && e.photo_pins.length))).map(e=>e.floorplan_id))];
     if (!ids.length) return '';
@@ -3368,13 +3375,16 @@ function buildReportHTML(period, lang, trMap) {
         + '<path d="M12 1C6 1 1.5 5.7 1.5 11.5c0 8 10.5 19.5 10.5 19.5s10.5-11.5 10.5-19.5C22.5 5.7 18 1 12 1z" fill="#E8772E" stroke="#fff" stroke-width="1.6"/>'
         + '<circle cx="12" cy="11.5" r="7.5" fill="#E8772E"/>'
         + '<text x="12" y="15.2" text-anchor="middle" font-family="Arial" font-size="10.5" font-weight="700" fill="#fff">'+(e.pin_no||'')+'</text></svg>').join('')
-        // πινέζες θέσης λήψης φωτογραφιών — μπλε κύκλος με κάμερα (κεντραρισμένος στη θέση)
+        // πινέζες θέσης λήψης φωτογραφιών — μπλε κύκλος με κάμερα + αριθμό
         + entryList.filter(e=>e.floorplan_id===fid && e.photo_pins && e.photo_pins.length)
           .flatMap(e=>e.photo_pins)
-          .map(pp=>'<svg style="position:absolute;left:'+pp.x+'%;top:'+pp.y+'%;transform:translate(-50%,-50%)" width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
-            + '<circle cx="12" cy="12" r="10.8" fill="#2d7dff" stroke="#fff" stroke-width="1.8"/>'
-            + '<path d="M9.4 6.8 8.5 8.2H6.4c-.8 0-1.4.6-1.4 1.4v6c0 .8.6 1.4 1.4 1.4h11.2c.8 0 1.4-.6 1.4-1.4v-6c0-.8-.6-1.4-1.4-1.4h-2.1l-.9-1.4c-.3-.4-.7-.6-1.2-.6h-2.8c-.5 0-.9.2-1.2.6z" fill="#fff"/>'
-            + '<circle cx="12" cy="12.6" r="2.4" fill="#2d7dff"/></svg>').join('');
+          .map(pp=>{ const n = pp.n || _ppNo[pp.p] || '';
+            return '<svg style="position:absolute;left:'+pp.x+'%;top:'+pp.y+'%;transform:translate(-50%,-50%)" width="30" height="28" viewBox="0 0 30 28" xmlns="http://www.w3.org/2000/svg">'
+            + '<circle cx="13" cy="15" r="10.6" fill="#2d7dff" stroke="#fff" stroke-width="1.8"/>'
+            + '<path d="M10.4 9.8 9.5 11.2H7.4c-.8 0-1.4.6-1.4 1.4v6c0 .8.6 1.4 1.4 1.4h11.2c.8 0 1.4-.6 1.4-1.4v-6c0-.8-.6-1.4-1.4-1.4h-2.1l-.9-1.4c-.3-.4-.7-.6-1.2-.6h-2.8c-.5 0-.9.2-1.2.6z" fill="#fff"/>'
+            + '<circle cx="13" cy="15.6" r="2.4" fill="#2d7dff"/>'
+            + '<circle cx="23" cy="6.5" r="6" fill="#fff" stroke="#2d7dff" stroke-width="1.4"/>'
+            + '<text x="23" y="9.2" text-anchor="middle" font-family="Arial" font-size="7.5" font-weight="700" fill="#2d7dff">'+n+'</text></svg>'; }).join('');
       const hasCamPins = entryList.some(e=>e.floorplan_id===fid && e.photo_pins && e.photo_pins.length);
       // υπόμνημα
       const legend = (hasCamPins
@@ -4777,8 +4787,52 @@ window.addEventListener('beforeinstallprompt', (e) => {
     <div class="qt-tab" id="qt-tab-tools" onclick="qtTab('tools')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#FFB02E" stroke-width="1.8" style="vertical-align:-2px"><polygon points="20,3 33.9,11 33.9,29 20,37 6.1,29 6.1,11" transform="scale(0.6)" /></svg> TOOLS</div>
   </div>
   <div class="qt-body" id="qt-body-calc">
+    <div style="display:flex;gap:6px;margin-bottom:8px">
+      <button id="calc-mode-simple" class="btn btn-sm" onclick="topoSwitch(false)" style="flex:1;background:var(--accent,#E8772E);color:#fff;border:none">🧮 Απλός</button>
+      <button id="calc-mode-topo" class="btn btn-sm btn-ghost" onclick="topoSwitch(true)" style="flex:1">📐 Τοπογραφικά</button>
+    </div>
+    <div id="calc-simple-wrap">
     <div id="calc-display">0</div>
     <div class="calc-grid"><button class="calc-btn fn op" onclick="calcPress('MODE')"><span id="calc-mode">DEG</span></button><button class="calc-btn fn" onclick="calcPress('sin')">sin</button><button class="calc-btn fn" onclick="calcPress('cos')">cos</button><button class="calc-btn fn" onclick="calcPress('tan')">tan</button><button class="calc-btn op" onclick="calcPress('B')">&#9003;</button><button class="calc-btn fn" onclick="calcPress('PI')">&#960;</button><button class="calc-btn fn" onclick="calcPress('sqrt')">&#8730;</button><button class="calc-btn fn" onclick="calcPress('SQ')">x&#178;</button><button class="calc-btn fn" onclick="calcPress('^')">x&#696;</button><button class="calc-btn op" onclick="calcPress('/')">&#247;</button><button class="calc-btn" onclick="calcPress('7')">7</button><button class="calc-btn" onclick="calcPress('8')">8</button><button class="calc-btn" onclick="calcPress('9')">9</button><button class="calc-btn fn" onclick="calcPress('(')">(</button><button class="calc-btn op" onclick="calcPress('*')">&#215;</button><button class="calc-btn" onclick="calcPress('4')">4</button><button class="calc-btn" onclick="calcPress('5')">5</button><button class="calc-btn" onclick="calcPress('6')">6</button><button class="calc-btn fn" onclick="calcPress(')')">)</button><button class="calc-btn op" onclick="calcPress('-')">-</button><button class="calc-btn" onclick="calcPress('1')">1</button><button class="calc-btn" onclick="calcPress('2')">2</button><button class="calc-btn" onclick="calcPress('3')">3</button><button class="calc-btn fn" onclick="calcPress('log')">log</button><button class="calc-btn op" onclick="calcPress('+')">+</button><button class="calc-btn" onclick="calcPress('0')">0</button><button class="calc-btn" onclick="calcPress('.')">.</button><button class="calc-btn op" onclick="calcPress('C')">C</button><button class="calc-btn fn" onclick="calcPress('ln')">ln</button><button class="calc-btn op" onclick="calcPress('=')">=</button></div>
+    </div>
+    <div id="topo-wrap" style="display:none;overflow-y:auto">
+      <div style="display:flex;gap:5px;margin-bottom:10px">
+        <button class="topo-mode-btn active" id="tm-dist" onclick="topoModeSet('dist')">Απόσταση</button>
+        <button class="topo-mode-btn" id="tm-dens" onclick="topoModeSet('dens')">Πύκνωση</button>
+        <button class="topo-mode-btn" id="tm-ext" onclick="topoModeSet('ext')">Επέκταση</button>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px">Συντεταγμένες ΕΓΣΑ'87 (Χ = Easting, Υ = Northing)</div>
+      <div class="form-group" style="margin-bottom:8px">
+        <label class="form-label" style="font-size:11px">Σημείο Α</label>
+        <div style="display:flex;gap:6px">
+          <input type="text" inputmode="decimal" id="tp-ax" placeholder="Χ (m)" class="form-input" style="flex:1;font-size:13px;padding:8px">
+          <input type="text" inputmode="decimal" id="tp-ay" placeholder="Υ (m)" class="form-input" style="flex:1;font-size:13px;padding:8px">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:8px">
+        <label class="form-label" style="font-size:11px">Σημείο Β</label>
+        <div style="display:flex;gap:6px">
+          <input type="text" inputmode="decimal" id="tp-bx" placeholder="Χ (m)" class="form-input" style="flex:1;font-size:13px;padding:8px">
+          <input type="text" inputmode="decimal" id="tp-by" placeholder="Υ (m)" class="form-input" style="flex:1;font-size:13px;padding:8px">
+        </div>
+      </div>
+      <div class="form-group" id="tp-dens-opts" style="display:none;margin-bottom:8px">
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="tp-dens-mode" class="form-input" style="flex:1;font-size:12px;padding:8px">
+            <option value="step">Ανά βήμα (m)</option>
+            <option value="n">Πλήθος τμημάτων</option>
+          </select>
+          <input type="text" inputmode="decimal" id="tp-dens-val" placeholder="π.χ. 5" class="form-input" style="flex:1;font-size:13px;padding:8px">
+        </div>
+      </div>
+      <div class="form-group" id="tp-ext-opts" style="display:none;margin-bottom:8px">
+        <label class="form-label" style="font-size:11px">Απόσταση επέκτασης πέρα από το Β (m)</label>
+        <input type="text" inputmode="decimal" id="tp-ext-d" placeholder="π.χ. 12.50 (αρνητικό = προς το Α)" class="form-input" style="width:100%;font-size:13px;padding:8px">
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="topoCalc()" style="width:100%;margin-bottom:8px">Υπολογισμός</button>
+      <div id="tp-result" style="font-size:12.5px;line-height:1.55;background:var(--surface,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:8px;padding:10px;min-height:40px;white-space:pre-wrap;font-family:'Courier New',monospace"></div>
+      <button class="btn btn-ghost btn-sm" id="tp-copy" onclick="topoCopy()" style="width:100%;margin-top:6px;display:none">📋 Αντιγραφή συντεταγμένων</button>
+    </div>
   </div>
   <div class="qt-body" id="qt-body-notes" style="display:none">
     <textarea id="qt-notes" placeholder="Γρήγορες σημειώσεις...&#10;Αποθηκεύονται αυτόματα σε αυτή τη συσκευή." oninput="qtNotesSave()"></textarea>
@@ -4820,6 +4874,104 @@ window.addEventListener('beforeinstallprompt', (e) => {
 </div>
 <script>
 let _calcExpr = '';
+/* ===== ΤΟΠΟΓΡΑΦΙΚΟΙ ΥΠΟΛΟΓΙΣΜΟΙ (qt calc) ===== */
+let _topoMode = 'dist', _topoCopyText = '';
+function topoSwitch(topo) {
+  document.getElementById('calc-simple-wrap').style.display = topo ? 'none' : '';
+  document.getElementById('topo-wrap').style.display = topo ? 'block' : 'none';
+  const s = document.getElementById('calc-mode-simple'), t = document.getElementById('calc-mode-topo');
+  s.style.background = topo ? 'none' : 'var(--accent,#E8772E)'; s.style.color = topo ? 'var(--text2)' : '#fff';
+  s.classList.toggle('btn-ghost', topo);
+  t.style.background = topo ? 'var(--accent,#E8772E)' : 'none'; t.style.color = topo ? '#fff' : 'var(--text2)';
+  t.classList.toggle('btn-ghost', !topo);
+}
+function topoModeSet(m) {
+  _topoMode = m;
+  ['dist','dens','ext'].forEach(x => document.getElementById('tm-'+x).classList.toggle('active', x === m));
+  document.getElementById('tp-dens-opts').style.display = m === 'dens' ? '' : 'none';
+  document.getElementById('tp-ext-opts').style.display = m === 'ext' ? '' : 'none';
+  document.getElementById('tp-result').textContent = '';
+  document.getElementById('tp-copy').style.display = 'none';
+}
+function _tpNum(id) {
+  const v = String(document.getElementById(id).value || '').trim().replace(',', '.');
+  return v === '' ? NaN : parseFloat(v);
+}
+// Γωνία διεύθυνσης από Βορρά (άξονα Υ), δεξιόστροφα → grads 0–400
+function _tpAzimuth(dx, dy) {
+  let g = Math.atan2(dx, dy) * 200 / Math.PI;
+  if (g < 0) g += 400;
+  return g;
+}
+const _tpF = (v, d) => v.toLocaleString('el-GR', { minimumFractionDigits: d === undefined ? 3 : d, maximumFractionDigits: d === undefined ? 3 : d, useGrouping: false }).replace(',', '.');
+function topoCalc() {
+  const ax = _tpNum('tp-ax'), ay = _tpNum('tp-ay'), bx = _tpNum('tp-bx'), by = _tpNum('tp-by');
+  const out = document.getElementById('tp-result'), copyBtn = document.getElementById('tp-copy');
+  _topoCopyText = ''; copyBtn.style.display = 'none';
+  if ([ax, ay, bx, by].some(isNaN)) { out.textContent = '⚠️ Συμπλήρωσε Χ,Υ και για τα δύο σημεία.'; return; }
+  const dx = bx - ax, dy = by - ay;
+  const S = Math.hypot(dx, dy);
+  if (S < 1e-9) { out.textContent = '⚠️ Τα σημεία Α και Β ταυτίζονται.'; return; }
+  const g = _tpAzimuth(dx, dy);
+  const deg = g * 0.9;
+  if (_topoMode === 'dist') {
+    out.textContent =
+      'Απόσταση S  = ' + _tpF(S) + ' m\n' +
+      'ΔΧ = ' + _tpF(dx) + ' m   ΔΥ = ' + _tpF(dy) + ' m\n' +
+      'Γωνία διεύθυνσης Α→Β:\n' +
+      '  ' + _tpF(g, 4) + ' g  (' + _tpF(deg, 4) + '°)';
+    return;
+  }
+  if (_topoMode === 'dens') {
+    const mode = document.getElementById('tp-dens-mode').value;
+    const val = _tpNum('tp-dens-val');
+    if (isNaN(val) || val <= 0) { out.textContent = '⚠️ Δώσε βήμα (m) ή πλήθος τμημάτων.'; return; }
+    let pts = [];
+    if (mode === 'step') {
+      if (val >= S) { out.textContent = '⚠️ Το βήμα (' + _tpF(val) + ' m) είναι ≥ από το μήκος ΑΒ (' + _tpF(S) + ' m).'; return; }
+      for (let s = val; s < S - 1e-9; s += val) pts.push(s);
+    } else {
+      const n = Math.round(val);
+      if (n < 2) { out.textContent = '⚠️ Τουλάχιστον 2 τμήματα.'; return; }
+      if (n > 500) { out.textContent = '⚠️ Μέγιστο 500 τμήματα.'; return; }
+      for (let i = 1; i < n; i++) pts.push(S * i / n);
+    }
+    if (pts.length > 200) { out.textContent = '⚠️ Πάνω από 200 ενδιάμεσα σημεία — μεγάλωσε το βήμα.'; return; }
+    const ux = dx / S, uy = dy / S;
+    let txt = 'ΑΒ = ' + _tpF(S) + ' m · ' + pts.length + ' ενδιάμεσα σημεία\n\n  α/α        Χ (m)          Υ (m)\n';
+    let copyLines = [];
+    pts.forEach((s, i) => {
+      const x = ax + ux * s, y = ay + uy * s;
+      txt += String(i + 1).padStart(4) + '  ' + _tpF(x).padStart(13) + '  ' + _tpF(y).padStart(13) + '\n';
+      copyLines.push(_tpF(x) + '\t' + _tpF(y));
+    });
+    out.textContent = txt;
+    _topoCopyText = copyLines.join('\n');
+    copyBtn.style.display = '';
+    return;
+  }
+  if (_topoMode === 'ext') {
+    const d = _tpNum('tp-ext-d');
+    if (isNaN(d) || d === 0) { out.textContent = '⚠️ Δώσε απόσταση επέκτασης (m).'; return; }
+    const ux = dx / S, uy = dy / S;
+    const x = bx + ux * d, y = by + uy * d;
+    out.textContent =
+      'Σημείο Γ στην ευθεία ΑΒ,\n' + _tpF(Math.abs(d)) + ' m ' + (d > 0 ? 'πέρα από το Β' : 'από το Β προς το Α') + ':\n\n' +
+      '  Χ = ' + _tpF(x) + ' m\n  Υ = ' + _tpF(y) + ' m\n\n' +
+      'Απόσταση ΑΓ = ' + _tpF(S + d) + ' m';
+    _topoCopyText = _tpF(x) + '\t' + _tpF(y);
+    copyBtn.style.display = '';
+    return;
+  }
+}
+function topoCopy() {
+  if (!_topoCopyText) return;
+  navigator.clipboard.writeText(_topoCopyText).then(() => {
+    const b = document.getElementById('tp-copy');
+    const t = b.textContent; b.textContent = '✅ Αντιγράφηκαν';
+    setTimeout(() => { b.textContent = t; }, 1500);
+  }).catch(() => alert('Αποτυχία αντιγραφής.'));
+}
 function qtToggle() {
   const p = document.getElementById('qt-panel');
   p.classList.toggle('open');
@@ -5246,21 +5398,38 @@ function renderExistingPins(fileId) {
   const wrap = document.getElementById('fp-pins');
   const existing = appData.entries.filter(e => e.floorplan_id === fileId && e.pin_x != null);
   let html = existing.map(e => pinHTML(e.pin_x, e.pin_y, e.pin_no, '#E8772E')).join('');
-  // πινέζες φωτογραφιών (θέσεις λήψης) — μπλε κύκλος με κάμερα
+  // πινέζες φωτογραφιών (θέσεις λήψης) — μπλε κύκλος με κάμερα + αριθμό
+  let fallbackN = 0;
+  appData.entries.forEach(e => { if (e.floorplan_id === fileId && e.photo_pins) e.photo_pins.forEach(pp => { if (pp.n) fallbackN = Math.max(fallbackN, pp.n); }); });
   appData.entries.filter(e => e.floorplan_id === fileId && e.photo_pins && e.photo_pins.length)
-    .forEach(e => e.photo_pins.forEach(pp => { html += photoPinHTML(pp.x, pp.y); }));
+    .forEach(e => e.photo_pins.forEach(pp => { html += photoPinHTML(pp.x, pp.y, pp.n || ++fallbackN); }));
   pendingPhotos.filter(p => p.pin && p.pin.fileId === fileId)
-    .forEach(p => { html += photoPinHTML(p.pin.x, p.pin.y); });
+    .forEach(p => { html += photoPinHTML(p.pin.x, p.pin.y, p.pin.n || ++fallbackN); });
   if (fpPick.x != null) html += pinHTML(fpPick.x, fpPick.y, fpPick.no || '?', '#2d7dff');
   wrap.innerHTML = html;
 }
 
-// Πινέζα φωτογραφίας: μπλε κύκλος με σύμβολο κάμερας, κεντραρισμένος στη θέση λήψης
-function photoPinHTML(x, y) {
+// Πινέζα φωτογραφίας: μπλε κύκλος με κάμερα + λευκό badge αρίθμησης
+function photoPinHTML(x, y, n) {
   return '<div style="position:absolute;left:'+x+'%;top:'+y+'%;transform:translate(-50%,-50%);'+
     'width:24px;height:24px;border-radius:50%;background:#2d7dff;display:flex;align-items:center;justify-content:center;'+
     'box-shadow:0 2px 4px rgba(0,0,0,.4);border:2px solid #fff">'+
-    '<svg width="13" height="13" viewBox="0 0 24 24" fill="#fff"><path d="M9.4 5.5 8.2 7.3H5a2 2 0 0 0-2 2V17a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9.3a2 2 0 0 0-2-2h-3.2l-1.2-1.8a1.5 1.5 0 0 0-1.2-.7h-2.8a1.5 1.5 0 0 0-1.2.7z"/><circle cx="12" cy="13" r="3" fill="#2d7dff"/></svg></div>';
+    '<svg width="13" height="13" viewBox="0 0 24 24" fill="#fff"><path d="M9.4 5.5 8.2 7.3H5a2 2 0 0 0-2 2V17a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9.3a2 2 0 0 0-2-2h-3.2l-1.2-1.8a1.5 1.5 0 0 0-1.2-.7h-2.8a1.5 1.5 0 0 0-1.2.7z"/><circle cx="12" cy="13" r="3" fill="#2d7dff"/></svg>'+
+    (n != null ? '<span style="position:absolute;top:-8px;right:-8px;background:#fff;color:#2d7dff;border:1.5px solid #2d7dff;border-radius:50%;min-width:15px;height:15px;padding:0 2px;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;box-sizing:border-box">'+n+'</span>' : '')+
+    '</div>';
+}
+
+// Αριθμοί πινεζών φωτογραφιών: path → n (αποθηκευμένος ή διαδοχικός ανά κάτοψη για παλιές)
+function photoPinNoMap(entries) {
+  const map = {}, counters = {};
+  (entries || []).forEach(e => (e.photo_pins || []).forEach(pp => {
+    const fid = e.floorplan_id || '_';
+    if (pp.n) { map[pp.p] = pp.n; counters[fid] = Math.max(counters[fid] || 0, pp.n); }
+  }));
+  (entries || []).forEach(e => (e.photo_pins || []).forEach(pp => {
+    if (!pp.n) { const fid = e.floorplan_id || '_'; counters[fid] = (counters[fid] || 0) + 1; map[pp.p] = counters[fid]; }
+  }));
+  return map;
 }
 
 // Πινέζα τοποθετημένη σε ποσοστιαία θέση (left/top %) μέσα στο stage
@@ -5286,13 +5455,19 @@ function confirmPin() {
   }
   // ── Πινέζα φωτογραφίας (θέση λήψης) ──
   if (_photoPinTarget) {
+    // επόμενος αριθμός πινέζας φωτογραφίας σε αυτή την κάτοψη (αποθηκευμένες + εκκρεμείς)
+    const usedN = [];
+    appData.entries.forEach(e => { if (e.floorplan_id === fpPick.fileId && e.photo_pins) e.photo_pins.forEach(pp => { if (pp.n) usedN.push(pp.n); }); });
+    pendingPhotos.forEach(p => { if (p.pin && p.pin.fileId === fpPick.fileId && p.pin.n) usedN.push(p.pin.n); });
+    const nextN = (usedN.length ? Math.max(...usedN) : 0) + 1;
     _photoPinTarget.pin = {
       x: Math.round((imgX / fpView.natW) * 1000) / 10,
       y: Math.round((imgY / fpView.natH) * 1000) / 10,
-      fileId: fpPick.fileId
+      fileId: fpPick.fileId,
+      n: nextN
     };
-    if (_photoPinBtn) { _photoPinBtn.style.background = '#2e9e5b'; _photoPinBtn.textContent = '\u2705'; }
-    document.getElementById('fp-pin-status').textContent = '📷 Πινέζα φωτογραφίας τοποθετήθηκε';
+    if (_photoPinBtn) { _photoPinBtn.style.background = '#2e9e5b'; _photoPinBtn.textContent = String(nextN); _photoPinBtn.style.color = '#fff'; _photoPinBtn.style.fontWeight = '700'; }
+    document.getElementById('fp-pin-status').textContent = '📷 Πινέζα φωτογραφίας #' + nextN + ' τοποθετήθηκε';
     _photoPinTarget = null; _photoPinBtn = null;
     closeModal('modal-floorplan');
     return;
