@@ -298,6 +298,16 @@ tr:hover td { background: var(--surface2); }
 .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 90; }
 @media (max-width: 768px) {
   .menu-btn { display: flex; align-items: center; }
+  /* Topbar: όλα τα κουμπιά ορατά χωρίς οριζόντιο scroll */
+  .topbar { padding-left: 8px; padding-right: 8px; gap: 4px; }
+  .topbar-right { gap: 3px; min-width: 0; flex-shrink: 1; }
+  .topbar-right .btn, .topbar-right .eng-btn { padding: 4px 6px; font-size: 10.5px; }
+  .topbar-right svg { width: 15px; height: 15px; }
+  .btn-label { display: none; }
+  #eng-btn { max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .plan-badge { font-size: 8px; padding: 2px 6px; letter-spacing: 0.5px; margin-left: 0; }
+  .logo-wrap img { width: 34px; height: 34px; }
+  .brand-name { font-size: 15px; }
   .sidebar { position: fixed !important; top: calc(56px + var(--safe-top)); left: 0; bottom: 0; z-index: 95; transform: translateX(-100%); transition: transform 0.25s; width: 240px !important; min-width: 240px !important; }
   .sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.4); }
   .sidebar-overlay.open { display: block; }
@@ -324,6 +334,18 @@ tr:hover td { background: var(--surface2); }
   .stats { grid-template-columns: 1fr 1fr; }
   .proj-actions .btn { font-size: 10px !important; padding: 6px 8px !important; }
   .tab { padding: 5px 9px; font-size: 10px; }
+}
+@media (max-width: 560px) {
+  /* Πολύ στενές οθόνες: το logo μένει ορατό — μαζεύουμε αλλού */
+  .logo-wrap img { width: 30px; height: 30px; }
+  .ver-mobile { display: none; }
+  .brand-name { font-size: 13.5px; }
+  #eng-btn { max-width: 56px; }
+  .topbar-right { gap: 2px; }
+  .topbar-right .btn, .topbar-right .eng-btn { padding: 4px 4px; }
+  .topbar { padding-left: 5px; padding-right: 5px; gap: 3px; }
+  .plan-badge { padding: 2px 4px; }
+  .menu-btn { padding: 4px 6px; }
 }
 @media print { .sidebar, .topbar, .tabs, .proj-actions, .btn, select { display: none !important; } body { background: #fff !important; color: #000 !important; } }
 ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -408,8 +430,8 @@ tr:hover td { background: var(--surface2); }
       <button class="eng-btn" id="eng-btn" onclick="showEngModal()"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Επίλεξε</button>
     <button class="btn btn-ghost btn-sm" onclick="showUserMenu()" title="Αποσύνδεση"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
     <button class="btn btn-ghost btn-sm" onclick="showHelpModal()" title="Οδηγός"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></button>
-    <button class="btn btn-ghost btn-sm" onclick="showTeamModal()"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Ομάδα</button>
-    <button class="btn btn-ghost btn-sm" onclick="exportICS()"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> .ics</button>
+    <button class="btn btn-ghost btn-sm" onclick="showTeamModal()"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="btn-label"> Ομάδα</span></button>
+    <button class="btn btn-ghost btn-sm" onclick="exportICS()"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="btn-label"> .ics</span></button>
   </div>
 </div>
 
@@ -757,7 +779,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
 // ⚠️ ΣΥΜΠΛΗΡΩΣΕ: URL & anon key από το ΝΕΟ Supabase project (Settings → API)
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
-const APP_VERSION = 'v3.89'; // πρέπει να ταιριάζει με το VERSION του sw.js
+const APP_VERSION = 'v3.90'; // πρέπει να ταιριάζει με το VERSION του sw.js
 // Η έκδοση εμφανίζεται παντού δυναμικά — ΕΝΑ σημείο αλλαγής (+ sw.js)
 ['ver-mobile','ver-sub','ver-footer'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = APP_VERSION; });
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
