@@ -298,17 +298,19 @@ tr:hover td { background: var(--surface2); }
 .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 90; }
 @media (max-width: 768px) {
   .menu-btn { display: flex; align-items: center; }
-  /* Topbar: όλα τα κουμπιά ορατά — αν δεν χωράνε σε μία σειρά, τυλίγονται σε δεύτερη */
-  .topbar { padding-left: 8px; padding-right: 8px; gap: 4px; flex-wrap: wrap; height: auto; min-height: calc(56px + var(--safe-top)); padding-bottom: 4px; row-gap: 2px; }
-  .topbar-right { gap: 3px; min-width: 0; flex-shrink: 1; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
-  .layout { height: auto; min-height: calc(100dvh - 56px - var(--safe-top)); }
-  .topbar-right .btn, .topbar-right .eng-btn { padding: 4px 6px; font-size: 10.5px; }
-  .topbar-right svg { width: 15px; height: 15px; }
+  /* Topbar κινητού: 2 τακτοποιημένες σειρές — brand πάνω, toolbar κάτω από άκρη σε άκρη */
+  .topbar { padding-left: 10px; padding-right: 10px; gap: 0; flex-wrap: wrap; height: auto; min-height: calc(56px + var(--safe-top)); padding-bottom: 6px; }
+  .topbar-left { width: 100%; align-items: center; gap: 8px; padding: 6px 0 7px; }
+  .topbar-right { width: 100%; gap: 4px; min-width: 0; margin-left: 0; flex-wrap: nowrap; justify-content: space-between; }
+  .topbar-right > * { flex: 1 1 0; min-width: 0; display: flex; align-items: center; justify-content: center; }
+  .topbar-right .btn, .topbar-right .eng-btn { padding: 6px 2px; font-size: 10.5px; height: 32px; }
+  .topbar-right svg { width: 16px; height: 16px; flex-shrink: 0; }
   .btn-label { display: none; }
-  #eng-btn { max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .plan-badge { font-size: 8px; padding: 2px 6px; letter-spacing: 0.5px; margin-left: 0; }
-  .logo-wrap img { width: 34px; height: 34px; }
-  .brand-name { font-size: 15px; }
+  #eng-btn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; line-height: 20px; text-align: center; }
+  .plan-badge { font-size: 8px; padding: 0 2px; letter-spacing: 0.5px; margin-left: 0; height: 32px; border-radius: 8px; overflow: hidden; }
+  .logo-wrap, .logo-wrap img { width: 36px; height: 36px; }
+  .brand-name { font-size: 16px; line-height: 1; }
+  .layout { height: auto; min-height: calc(100dvh - 56px - var(--safe-top)); }
   .sidebar { position: fixed !important; top: var(--tbh, calc(56px + var(--safe-top))); left: 0; bottom: 0; z-index: 95; transform: translateX(-100%); transition: transform 0.25s; width: 240px !important; min-width: 240px !important; }
   .sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.4); }
   .sidebar-overlay.open { display: block; }
@@ -337,16 +339,11 @@ tr:hover td { background: var(--surface2); }
   .tab { padding: 5px 9px; font-size: 10px; }
 }
 @media (max-width: 560px) {
-  /* Πολύ στενές οθόνες: το logo μένει ορατό — μαζεύουμε αλλού */
-  .logo-wrap img { width: 30px; height: 30px; }
+  /* Πολύ στενές οθόνες: ίδιο layout, ελαφρώς πιο σφιχτό */
+  .logo-wrap, .logo-wrap img { width: 32px; height: 32px; }
   .ver-mobile { display: none; }
-  .brand-name { font-size: 13.5px; }
-  #eng-btn { max-width: 56px; }
-  .topbar-right { gap: 2px; }
-  .topbar-right .btn, .topbar-right .eng-btn { padding: 4px 4px; }
-  .topbar { padding-left: 5px; padding-right: 5px; gap: 3px; }
-  .plan-badge { padding: 2px 4px; }
-  .menu-btn { padding: 4px 6px; }
+  .topbar-right { gap: 3px; }
+  .topbar-right .btn, .topbar-right .eng-btn { font-size: 10px; }
 }
 @media print { .sidebar, .topbar, .tabs, .proj-actions, .btn, select { display: none !important; } body { background: #fff !important; color: #000 !important; } }
 ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -780,7 +777,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
 // ⚠️ ΣΥΜΠΛΗΡΩΣΕ: URL & anon key από το ΝΕΟ Supabase project (Settings → API)
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
-const APP_VERSION = 'v3.91'; // πρέπει να ταιριάζει με το VERSION του sw.js
+const APP_VERSION = 'v3.92'; // πρέπει να ταιριάζει με το VERSION του sw.js
 // Η έκδοση εμφανίζεται παντού δυναμικά — ΕΝΑ σημείο αλλαγής (+ sw.js)
 ['ver-mobile','ver-sub','ver-footer'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = APP_VERSION; });
 // Μετράει το πραγματικό ύψος του topbar (μπορεί να τυλιχτεί σε 2 σειρές σε κινητό)
