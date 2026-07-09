@@ -249,7 +249,7 @@ tr:hover td { background: var(--surface2); }
 .map-container { height: 280px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); margin-top: 8px; }
 
 /* ALERT */
-.alert-banner { position: fixed; top: calc(56px + var(--safe-top)); left: 0; right: 0; z-index: 150; padding: 10px 20px; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); animation: slideDown 0.4s ease; }
+.alert-banner { position: fixed; top: var(--tbh, calc(56px + var(--safe-top))); left: 0; right: 0; z-index: 150; padding: 10px 20px; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); animation: slideDown 0.4s ease; }
 .alert-banner.red { background: linear-gradient(90deg, #7f1d1d, #dc2626); color: #fff; }
 .alert-banner.orange { background: linear-gradient(90deg, #78350f, #d97706); color: #fff; }
 @keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -298,9 +298,10 @@ tr:hover td { background: var(--surface2); }
 .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 90; }
 @media (max-width: 768px) {
   .menu-btn { display: flex; align-items: center; }
-  /* Topbar: όλα τα κουμπιά ορατά χωρίς οριζόντιο scroll */
-  .topbar { padding-left: 8px; padding-right: 8px; gap: 4px; }
-  .topbar-right { gap: 3px; min-width: 0; flex-shrink: 1; }
+  /* Topbar: όλα τα κουμπιά ορατά — αν δεν χωράνε σε μία σειρά, τυλίγονται σε δεύτερη */
+  .topbar { padding-left: 8px; padding-right: 8px; gap: 4px; flex-wrap: wrap; height: auto; min-height: calc(56px + var(--safe-top)); padding-bottom: 4px; row-gap: 2px; }
+  .topbar-right { gap: 3px; min-width: 0; flex-shrink: 1; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
+  .layout { height: auto; min-height: calc(100dvh - 56px - var(--safe-top)); }
   .topbar-right .btn, .topbar-right .eng-btn { padding: 4px 6px; font-size: 10.5px; }
   .topbar-right svg { width: 15px; height: 15px; }
   .btn-label { display: none; }
@@ -308,7 +309,7 @@ tr:hover td { background: var(--surface2); }
   .plan-badge { font-size: 8px; padding: 2px 6px; letter-spacing: 0.5px; margin-left: 0; }
   .logo-wrap img { width: 34px; height: 34px; }
   .brand-name { font-size: 15px; }
-  .sidebar { position: fixed !important; top: calc(56px + var(--safe-top)); left: 0; bottom: 0; z-index: 95; transform: translateX(-100%); transition: transform 0.25s; width: 240px !important; min-width: 240px !important; }
+  .sidebar { position: fixed !important; top: var(--tbh, calc(56px + var(--safe-top))); left: 0; bottom: 0; z-index: 95; transform: translateX(-100%); transition: transform 0.25s; width: 240px !important; min-width: 240px !important; }
   .sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.4); }
   .sidebar-overlay.open { display: block; }
   .stats { grid-template-columns: repeat(2,1fr); }
@@ -779,9 +780,14 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
 // ⚠️ ΣΥΜΠΛΗΡΩΣΕ: URL & anon key από το ΝΕΟ Supabase project (Settings → API)
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
-const APP_VERSION = 'v3.90'; // πρέπει να ταιριάζει με το VERSION του sw.js
+const APP_VERSION = 'v3.91'; // πρέπει να ταιριάζει με το VERSION του sw.js
 // Η έκδοση εμφανίζεται παντού δυναμικά — ΕΝΑ σημείο αλλαγής (+ sw.js)
 ['ver-mobile','ver-sub','ver-footer'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = APP_VERSION; });
+// Μετράει το πραγματικό ύψος του topbar (μπορεί να τυλιχτεί σε 2 σειρές σε κινητό)
+function _setTbh() { const t = document.querySelector('.topbar'); if (t) document.documentElement.style.setProperty('--tbh', t.offsetHeight + 'px'); }
+window.addEventListener('resize', _setTbh);
+window.addEventListener('orientationchange', _setTbh);
+_setTbh(); setTimeout(_setTbh, 300); setTimeout(_setTbh, 1200);
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
 
@@ -4370,6 +4376,8 @@ function showHelpModal() {
       <div class="help-chips">
         <span class="help-chip">📲 Εγκατάσταση σαν app</span><span class="help-chip">📸 Φωτό με zoom 3×</span>
         <span class="help-chip">🎙️ Φωνητική καταγραφή</span><span class="help-chip">📊 Αναφορές PDF</span>
+        <span class="help-chip">📷 Πινέζες θέσης λήψης</span><span class="help-chip">🎬 Βίντεο με QR</span>
+        <span class="help-chip">🏷️ Δικό σου λογότυπο</span><span class="help-chip">📐 Τοπογραφικά</span>
         <span class="help-chip">💬 Σχόλια ομάδας</span><span class="help-chip">📅 Gantt</span>
         <span class="help-chip">📡 Λειτουργεί offline</span><span class="help-chip">🌓 Φωτεινό / σκούρο</span>
       </div>
@@ -4413,6 +4421,40 @@ function showHelpModal() {
           <li>Πάτα <b>Επιβεβαίωση πινέζας</b> και συνέχισε κανονικά με κείμενο + φωτογραφίες</li>
         </ol>
         <p style="margin-top:12px"><b>Στην αναφορά:</b> στο <b>τέλος</b> μπαίνει αυτόματα ενότητα <b>«🗺️ Συγκεντρωτικές Κατόψεις»</b> — κάθε κάτοψη μία φορά, με <u>όλες</u> τις πινέζες αριθμημένες σαν roadmap, και υπόμνημα (αρ. → παρατήρηση). Ο ίδιος αριθμός εμφανίζεται και πάνω στην κάθε καταγραφή.</p>
+      </div>
+
+      <div class="help-card" style="border-color:rgba(45,125,255,0.4)">
+        <h3><span class="help-ico">📷</span> Πινέζες φωτογραφιών — θέση λήψης <span style="font-size:10px;color:#4D8DFF;font-weight:700">ΝΕΟ</span></h3>
+        <p>Εκτός από την πινέζα της καταγραφής, μπορείς να σημειώσεις στην κάτοψη <b>από πού τραβήχτηκε κάθε φωτογραφία ή βίντεο</b>:</p>
+        <ol class="help-steps">
+          <li>Στη Νέα Καταγραφή διάλεξε πρώτα <b>Κάτοψη</b> και πρόσθεσε φωτογραφίες</li>
+          <li>Σε κάθε μικρογραφία υπάρχει μπλε κουμπί <b>📍</b> — πάτα το</li>
+          <li>Ανοίγει η κάτοψη: σημάδεψε με το σταυρόνημα τη <b>θέση λήψης</b> και επιβεβαίωσε</li>
+          <li>Η πινέζα παίρνει <b>αυτόματο αριθμό</b> και το κουμπί γίνεται πράσινο με τον αριθμό</li>
+        </ol>
+        <p style="margin-top:10px">Οι πινέζες φωτογραφιών είναι <b>μπλε με σύμβολο κάμερας</b> (οι καταγραφές παραμένουν πορτοκαλί). <b>Στην αναφορά:</b> εμφανίζονται πάνω στην κάτοψη με υπόμνημα, και κάθε φωτογραφία γράφει στη λεζάντα της «📷 πινέζα Ν» — ο αναγνώστης εντοπίζει αμέσως το σημείο λήψης.</p>
+      </div>
+
+      <div class="help-grid2">
+        <div class="help-card">
+          <h3><span class="help-ico">🎬</span> Βίντεο στις αναφορές <span style="font-size:10px;color:#4D8DFF;font-weight:700">ΝΕΟ</span></h3>
+          <p>Τα βίντεο των καταγραφών μπαίνουν στο PDF ως <b>εικόνα-καρέ με κουμπί ▶</b> — ο παραλήπτης πατάει πάνω και το βίντεο παίζει στον browser του. Δίπλα υπάρχει <b>QR code</b>: αν η αναφορά εκτυπωθεί σε χαρτί, σκανάρει με το κινητό και βλέπει το βίντεο.</p>
+        </div>
+        <div class="help-card">
+          <h3><span class="help-ico">🏷️</span> Δικό σου λογότυπο <span style="font-size:10px;color:#4D8DFF;font-weight:700">ΝΕΟ</span></h3>
+          <p>Στο παράθυρο <b>📊 Αναφορές</b>, στην ενότητα «Λογότυπο γραφείου», πάτα <b>⬆️ Δικό μου λογότυπο</b> και ανέβασε την εικόνα του γραφείου σου — θα εμφανίζεται σε <b>όλες τις αναφορές σου</b> δίπλα στο HEXIS, από κάθε συσκευή. Με το <b>↩️ Προεπιλογή</b> επανέρχεται το αρχικό.</p>
+        </div>
+      </div>
+
+      <div class="help-card">
+        <h3><span class="help-ico">📐</span> Τοπογραφικοί υπολογισμοί <span style="font-size:10px;color:#4D8DFF;font-weight:700">ΝΕΟ</span></h3>
+        <p>Στο πλαϊνό πάνελ <b>🧮 Εργαλεία</b> → καρτέλα <b>Υπολογιστής</b> → κουμπί <b>📐 Τοπογραφικά</b>. Δίνεις συντεταγμένες ΕΓΣΑ'87 (Χ, Υ — δέχεται και κόμμα) για δύο σημεία Α, Β και έχεις τρεις λειτουργίες:</p>
+        <ol class="help-steps">
+          <li><b>Απόσταση</b> — μήκος S, ΔΧ/ΔΥ και <b>γωνία διεύθυνσης</b> Α→Β σε βαθμούς (g) και μοίρες</li>
+          <li><b>Πύκνωση</b> — ενδιάμεσα σημεία στην ΑΒ, <b>ανά βήμα</b> (π.χ. κάθε 5 m) ή σε <b>ίσα τμήματα</b>· πίνακας Χ,Υ με 3 δεκαδικά</li>
+          <li><b>Επέκταση</b> — σημείο στην προέκταση της ΑΒ σε δοσμένη απόσταση πέρα από το Β (αρνητική τιμή = προς το Α)</li>
+        </ol>
+        <p style="margin-top:10px">Με το <b>📋 Αντιγραφή</b> τα αποτελέσματα κοπιάρονται ως Χ↹Υ ανά γραμμή — έτοιμα για επικόλληση σε <b>Excel ή CAD</b>.</p>
       </div>
 
       <div class="help-card">
