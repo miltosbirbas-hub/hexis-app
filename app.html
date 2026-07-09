@@ -410,6 +410,53 @@ tr:hover td { background: var(--surface2); }
 
 <script>
 window.HX_I18N = {
+"Πρόσφατες Καταγραφές": "Recent Entries",
+"Σήμερα": "Today",
+"Χθες": "Yesterday",
+"Πάτα μια εκκρεμότητα για να πας στο έργο της, ή ✓ για να την κλείσεις.": "Tap a pending item to open its project, or ✓ to close it.",
+"🎙️ Φωνητική καταγραφή (Chrome)": "🎙️ Voice input (Chrome)",
+"🎙️ φωνή": "🎙️ voice",
+"👥 ΟΜΑΔΑ": "👥 TEAM",
+"🤝 ΠΡΟΣΒΑΣΗ": "🤝 ACCESS",
+"👥 Ομάδα": "👥 Team",
+"📤 Στείλε την πινέζα": "📤 Send the pin",
+"🤝 Έργα που συμμετέχω": "🤝 Projects I'm part of",
+"Μετακίνησε & μεγέθυνε το σχέδιο (σύρε με το δάχτυλο, pinch ή κουμπιά). Το": "Pan & zoom the drawing (drag, pinch or buttons). The",
+"σταυρόνημα στο κέντρο": "crosshair at the center",
+"δείχνει πού θα μπει η πινέζα — πάτα": "shows where the pin goes — press",
+"Εδώ δίνεις σε κάποιον δικαίωμα να βλέπει": "Here you give someone the right to view",
+"ένα συγκεκριμένο έργο": "one specific project",
+"online, από τη δική του συσκευή.": "online, from their own device.",
+"Επίλεξε γλώσσα εφαρμογής": "Choose your app language",
+"Αλλάζει όποτε θες από τα 🧮 Εργαλεία / Change anytime in 🧮 Tools": "Change anytime in 🧮 Tools / Αλλάζει όποτε θες από τα 🧮 Εργαλεία",
+"🇬🇷 Ελληνικά": "🇬🇷 Ελληνικά (Greek)",
+"Επισκόπηση": "Overview",
+"Ελλείψεις": "Snags",
+"Εβδομάδα": "Week",
+"✓ Έγινε": "✓ Done",
+"κτιρίων…": "buildings…",
+"— συνεχίζω": "— continuing",
+"Δίπλα σε κάθε email — και στη λωρίδα": "Next to each email — and on the strip",
+"πάνω στο έργο — βλέπεις μια βούλα:": "on the project — you'll see a dot:",
+"Ανοίγουν κατευθείαν συνομιλία/κλήση με τον αριθμό του.": "They open a chat/call with their number directly.",
+"Χρησιμοποίησε τα κουμπιά WhatsApp / Viber / κλήσης δίπλα σε κάθε επαφή.": "Use the WhatsApp / Viber / call buttons next to each contact.",
+"Άνοιξε το έργο που θες": "Open the project you want",
+"Στείλε του το": "Send them",
+"να φτιάξει λογαριασμό με το": "to create an account with the",
+"ίδιο email": "same email",
+"Μόλις συνδεθεί, το έργο εμφανίζεται στην αρχική του στην ενότητα": "Once they sign in, the project appears on their home page under",
+"Τι βλέπει αυτός:": "What they see:",
+"Δεν βλέπει κανένα άλλο δικό σου έργο": "They can't see any of your other projects",
+"— μόνο αυτό που του έδωσες.": "— only the one you shared.",
+"Ποιος μπαίνει online να": "Who can log in to",
+"δει ένα έργο": "view a project",
+"Το HEXIS συνδέει εσένα με": "HEXIS connects you with",
+"συνεργάτες, τεχνίτες και ιδιοκτήτες": "collaborators, workers and owners",
+"δύο ξεχωριστά πράγματα": "two separate things",
+"— μην τα μπερδεύεις:": "— don't confuse them:",
+"Ο τηλεφωνικός σου κατάλογος. Ποιους παίρνεις WhatsApp / Viber / τηλέφωνο.": "Your phone book. Who you call on WhatsApp / Viber / phone.",
+"Έργο": "Project",
+
 "Αρχική σελίδα": "Home",
 "Ομάδα": "Team",
 "Οδηγός": "Guide",
@@ -684,8 +731,8 @@ window.HX_I18N = {
 "Έργο": "Project",
 "Εξαγωγή ως": "Export as",
 "Εξαγωγή:": "Export:",
-"Email (σύνοψη + φωτό)": "Email (summary + photos)",
-"WhatsApp (σύνοψη + φωτό)": "WhatsApp (summary + photos)",
+"Email (PDF + σύνοψη)": "Email (summary + photos)",
+"WhatsApp (PDF + σύνοψη)": "WhatsApp (summary + photos)",
 "Αποστολή Email": "Send Email",
 "Αποστολή WhatsApp / Viber": "Send WhatsApp / Viber",
 "💬 Συμπερίληψη σχολίων μηχανικών στην εκτύπωση": "💬 Include engineer comments in the printout",
@@ -1061,6 +1108,31 @@ window.HX_HELP = {
    ============================================================ */
 function hxLang() { try { return localStorage.getItem('hexis_lang') || 'el'; } catch(e) { return 'el'; } }
 function hxIsEN() { return hxLang() === 'en'; }
+function hxLoc() { return hxIsEN() ? 'en-GB' : 'el-GR'; }
+/* Μεταγραφή ελληνικών ονομάτων σε λατινικούς χαρακτήρες (Μπίρμπας → Birbas) */
+function hxTranslit(s) {
+  if (!s || !/[Α-Ωα-ωΆΈΉΊΌΎΏάέήίόύώϊϋΐΰ]/.test(s)) return s;
+  let t = String(s);
+  // δίψηφα (πεζά/κεφαλαία/μικτά)
+  const dig = [
+    [/ου|ού/g,'ou'],[/ΟΥ|ΟΎ/g,'OU'],[/Ου|Ού/g,'Ou'],
+    [/αυ|αύ/g,'av'],[/ΑΥ|ΑΎ/g,'AV'],[/Αυ|Αύ/g,'Av'],
+    [/ευ|εύ/g,'ev'],[/ΕΥ|ΕΎ/g,'EV'],[/Ευ|Εύ/g,'Ev'],
+    [/γγ/g,'ng'],[/ΓΓ/g,'NG'],
+    [/(^|[^A-Za-zΑ-Ωα-ωΆΈΉΊΌΎΏάέήίόύώ])μπ/g,'$1b'],[/(^|[^A-Za-zΑ-Ωα-ωΆΈΉΊΌΎΏάέήίόύώ])Μπ/g,'$1B'],[/(^|[^A-Za-zΑ-Ωα-ωΆΈΉΊΌΎΏάέήίόύώ])ΜΠ/g,'$1B'],[/μπ/g,'b'],[/ΜΠ/g,'B'],[/Μπ/g,'B'],
+    [/(^|[^A-Za-zΑ-Ωα-ωΆΈΉΊΌΎΏάέήίόύώ])ντ/g,'$1d'],[/(^|[^A-Za-zΑ-Ωα-ωΆΈΉΊΌΎΏάέήίόύώ])Ντ/g,'$1D'],[/(^|[^A-Za-zΑ-Ωα-ωΆΈΉΊΌΎΏάέήίόύώ])ΝΤ/g,'$1D'],[/ντ/g,'nt'],[/ΝΤ/g,'NT'],[/Ντ/g,'Nt'],
+    [/(^|[^A-Za-zΑ-Ωα-ωΆΈΉΊΌΎΏάέήίόύώ])γκ/g,'$1g'],[/(^|[^A-Za-zΑ-Ωα-ωΆΈΉΊΌΎΏάέήίόύώ])Γκ/g,'$1G'],[/(^|[^A-Za-zΑ-Ωα-ωΆΈΉΊΌΎΏάέήίόύώ])ΓΚ/g,'$1G'],[/γκ/g,'gk'],[/ΓΚ/g,'GK'],[/Γκ/g,'Gk'],
+    [/τσ/g,'ts'],[/ΤΣ/g,'TS'],[/Τσ/g,'Ts'],[/τζ/g,'tz'],[/ΤΖ/g,'TZ'],[/Τζ/g,'Tz'],
+    [/θ/g,'th'],[/Θ/g,'Th'],[/χ/g,'ch'],[/Χ/g,'Ch'],[/ψ/g,'ps'],[/Ψ/g,'Ps'],
+  ];
+  dig.forEach(([re, rep]) => { t = t.replace(re, rep); });
+  const map = {'α':'a','ά':'a','β':'v','γ':'g','δ':'d','ε':'e','έ':'e','ζ':'z','η':'i','ή':'i','ι':'i','ί':'i','ϊ':'i','ΐ':'i','κ':'k','λ':'l','μ':'m','ν':'n','ξ':'x','ο':'o','ό':'o','π':'p','ρ':'r','σ':'s','ς':'s','τ':'t','υ':'y','ύ':'y','ϋ':'y','ΰ':'y','φ':'f','ω':'o','ώ':'o',
+    'Α':'A','Ά':'A','Β':'V','Γ':'G','Δ':'D','Ε':'E','Έ':'E','Ζ':'Z','Η':'I','Ή':'I','Ι':'I','Ί':'I','Κ':'K','Λ':'L','Μ':'M','Ν':'N','Ξ':'X','Ο':'O','Ό':'O','Π':'P','Ρ':'R','Σ':'S','Τ':'T','Υ':'Y','Ύ':'Y','Φ':'F','Ω':'O','Ώ':'O'};
+  t = t.replace(/[Α-Ωα-ωΆΈΉΊΌΎΏάέήίόύώϊϋΐΰς]/g, ch => map[ch] !== undefined ? map[ch] : ch);
+  return t;
+}
+/* Όνομα προσώπου όπως εμφανίζεται στη γλώσσα του app */
+function hxName(s) { return hxIsEN() ? hxTranslit(s) : s; }
 
 /* --- Μεταφράσεις με παραμέτρους (αριθμοί κλπ) --- */
 const HX_PATTERNS = [
@@ -1097,6 +1169,22 @@ const HX_PATTERNS = [
   [/^⚠️ Το βήμα \((.+) m\) είναι ≥ από το μήκος ΑΒ \((.+) m\)\.$/, '⚠️ The step ($1 m) is ≥ the length of AB ($2 m).'],
   [/^ΑΒ = (.+) m · (\d+) ενδιάμεσα σημεία$/, 'AB = $1 m · $2 intermediate points'],
   [/^⚠️ Έχεις φτάσει το όριο μηχανικών για το πλάνο (.+)$/, '⚠️ You have reached the engineer limit for the $1 plan'],
+  [/^([^A-Za-zΑ-Ωα-ω]*)Σήμερα · (.+)$/, '$1Today · $2'],
+  [/^([^A-Za-zΑ-Ωα-ω]*)Χθες · (.+)$/, '$1Yesterday · $2'],
+  [/^Πρόσφατες Καταγραφές(.*)$/, 'Recent Entries$1'],
+  [/^Καλώς ήρθες(?:, (.+))?$/, (m, nm) => 'Welcome' + (nm ? ', ' + hxTranslit(nm) : '')],
+  [/^(💬 )?Νέο σχόλιο — (.+)$/, '$1New comment — $2'],
+  [/^Εντολές \((\d+)\)$/, 'Tasks ($1)'],
+  [/^Παραγγελίες \((\d+)\)$/, 'Orders ($1)'],
+  [/^Ελλείψεις \((\d+)\)$/, 'Snags ($1)'],
+  [/^Π\/Υ: (.+) · Εκτ: (.+)$/, 'Budget: $1 · Exec: $2'],
+  [/^Έκδοση: (.+)$/, 'Issued: $1'],
+  [/^Το πλάνο σου \((.+)$/, 'Your plan ($1'],
+  [/^(\d+) εργασίες!$/, '$1 tasks!'],
+  [/^(\d+)\/(\d+|∞) συνεργάτες$/, '$1/$2 collaborators'],
+  [/^· (\d+)\/(.+) μέλη$/, '· $1/$2 members'],
+  [/^(\d+) συνεργάτες ανά έργο \(πλάνο (.+)\)$/, '$1 collaborators per project ($2 plan)'],
+  [/^(Ιαν|Φεβ|Μαρ|Απρ|Μαϊ|Ιουν|Ιουλ|Αυγ|Σεπ|Οκτ|Νοε|Δεκ)( .*)?$/, (m,mo,rest)=>({'Ιαν':'Jan','Φεβ':'Feb','Μαρ':'Mar','Απρ':'Apr','Μαϊ':'May','Ιουν':'Jun','Ιουλ':'Jul','Αυγ':'Aug','Σεπ':'Sep','Οκτ':'Oct','Νοε':'Nov','Δεκ':'Dec'}[mo]+(rest||''))],
 ];
 
 function hxT(s) {
@@ -1106,7 +1194,7 @@ function hxT(s) {
   if (!core) return s;
   const dict = window.HX_I18N || {};
   if (dict[core] !== undefined) return lead + dict[core] + trail;
-  for (const [re, rep] of HX_PATTERNS) { if (re.test(core)) return lead + core.replace(re, rep) + trail; }
+  for (const [re, rep] of HX_PATTERNS) { if (re.test(core)) { const out = core.replace(re, rep); return lead + out.replace(/\$1$/, '').replace(/undefined$/, '') + trail; } }
   return s;
 }
 function hxHelpT(s) {
@@ -1479,8 +1567,8 @@ document.addEventListener('DOMContentLoaded', () => {
       <label class="form-label">Εξαγωγή ως</label>
       <div style="display:flex;gap:8px;flex-direction:column">
         <button class="btn btn-primary" id="rp-pdf-btn" onclick="generateReport(window._rPeriod||'day','pdf')" style="font-size:15px;padding:12px">📄 Δημιουργία PDF <span style="font-size:10px;opacity:.85;font-weight:400">(προεπιλογή — Enter)</span></button>
-        <button class="btn btn-ghost" onclick="generateReport(window._rPeriod||'day','email')" style="background:#5a7c8c;color:#fff"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg> Email (σύνοψη + φωτό)</button>
-        <button class="btn btn-ghost" onclick="generateReport(window._rPeriod||'day','whatsapp')" style="background:#25d366;color:#fff"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="vertical-align:-3px"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.26-.46-2.39-1.47-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.5 0 1.47 1.07 2.89 1.22 3.09.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.42.25-.7.25-1.3.18-1.42-.08-.13-.28-.2-.57-.35z"/><path d="M12 2a10 10 0 0 0-8.6 15.07L2 22l5.05-1.32A10 10 0 1 0 12 2zm0 18.3a8.3 8.3 0 0 1-4.23-1.16l-.3-.18-3 .79.8-2.93-.2-.3A8.32 8.32 0 1 1 12 20.3z"/></svg> WhatsApp (σύνοψη + φωτό)</button>
+        <button class="btn btn-ghost" onclick="generateReport(window._rPeriod||'day','email')" style="background:#5a7c8c;color:#fff"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg> Email (PDF + σύνοψη)</button>
+        <button class="btn btn-ghost" onclick="generateReport(window._rPeriod||'day','whatsapp')" style="background:#25d366;color:#fff"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="vertical-align:-3px"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.26-.46-2.39-1.47-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.5 0 1.47 1.07 2.89 1.22 3.09.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.42.25-.7.25-1.3.18-1.42-.08-.13-.28-.2-.57-.35z"/><path d="M12 2a10 10 0 0 0-8.6 15.07L2 22l5.05-1.32A10 10 0 1 0 12 2zm0 18.3a8.3 8.3 0 0 1-4.23-1.16l-.3-.18-3 .79.8-2.93-.2-.3A8.32 8.32 0 1 1 12 20.3z"/></svg> WhatsApp (PDF + σύνοψη)</button>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:12px">
@@ -1587,7 +1675,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
 // ⚠️ ΣΥΜΠΛΗΡΩΣΕ: URL & anon key από το ΝΕΟ Supabase project (Settings → API)
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
-const APP_VERSION = 'v3.93'; // πρέπει να ταιριάζει με το VERSION του sw.js
+const APP_VERSION = 'v3.96'; // πρέπει να ταιριάζει με το VERSION του sw.js
 // Η έκδοση εμφανίζεται παντού δυναμικά — ΕΝΑ σημείο αλλαγής (+ sw.js)
 ['ver-mobile','ver-sub','ver-footer'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = APP_VERSION; });
 // Μετράει το πραγματικό ύψος του topbar (μπορεί να τυλιχτεί σε 2 σειρές σε κινητό)
@@ -1655,7 +1743,7 @@ let currentEngineer = localStorage.getItem('hexis_engineer') || '';
 // ── HELPERS ───────────────────────────────────────────
 const uid = () => Math.random().toString(36).slice(2, 10);
 const fmtDate = d => d ? new Date(d).toLocaleDateString('el-GR', {day:'2-digit',month:'short',year:'numeric'}) : '—';
-const fmtDateTime = d => d ? new Date(d).toLocaleString('el-GR', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+const fmtDateTime = d => d ? new Date(d).toLocaleString(hxLoc(), {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
 const fmtEur = n => n ? new Intl.NumberFormat('el-GR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n) : '—';
 const catLabel = c => ({basement:'Υπόγειο',ground:'Ισόγειο',pool:'Πισίνα',outdoor:'Περιβάλλων Χώρος',general:'Γενικό'})[c] || c;
 const typeLabel = t => t==='order' ? '🔧' : t==='purchase' ? '🛒' : '⚠️';
@@ -1902,7 +1990,7 @@ function selectEngineer(name) {
   localStorage.setItem('hexis_engineer', name);
   window._contactsLoaded = false; // reload contacts for this engineer
   const eb = document.getElementById('eng-btn');
-  eb.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ' + name;
+  eb.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ' + hxName(name);
   eb.style.animation = '';
   closeModal('modal-eng');
   applyTheme(state.proj);
@@ -2153,8 +2241,8 @@ function renderOverview(proj, entries, phases) {
         const dd = new Date(dk + 'T00:00:00');
         const today = new Date(); today.setHours(0,0,0,0);
         const yest = new Date(today); yest.setDate(today.getDate()-1);
-        if (dd.getTime() === today.getTime()) dayLabel = 'Σήμερα · ' + dd.toLocaleDateString('el-GR');
-        else if (dd.getTime() === yest.getTime()) dayLabel = 'Χθες · ' + dd.toLocaleDateString('el-GR');
+        if (dd.getTime() === today.getTime()) dayLabel = 'Σήμερα · ' + dd.toLocaleDateString(hxLoc());
+        else if (dd.getTime() === yest.getTime()) dayLabel = 'Χθες · ' + dd.toLocaleDateString(hxLoc());
         else dayLabel = dd.toLocaleDateString('el-GR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
       }
       html += '<div style="display:flex;align-items:center;gap:8px;margin:18px 0 8px">'
@@ -2199,7 +2287,7 @@ function renderComments(e) {
     const cid = (e.id || '') + '_' + ci;
     h += '<div style="font-size:11px;color:#5a7c8c;background:#eef3f5;padding:4px 8px;border-radius:6px;margin-top:3px">'
       + '💬 <strong>' + c.author + '</strong>' + (roleForName(c.author) ? ' <span style="font-size:9px;color:#888;font-weight:600">· ' + roleForName(c.author) + '</span>' : '') + ': <span id="cmt-' + cid + '">' + c.text + '</span>'
-      + ' <span style="font-size:9px;color:#999">' + (c.date ? new Date(c.date).toLocaleDateString('el-GR') : '') + '</span>'
+      + ' <span style="font-size:9px;color:#999">' + (c.date ? new Date(c.date).toLocaleDateString(hxLoc()) : '') + '</span>'
       + ' <button onclick="translateComment(&quot;' + cid + '&quot;,&quot;' + encodeURIComponent(c.text) + '&quot;)" style="background:none;border:none;cursor:pointer;font-size:11px;padding:0 2px" title="Μετάφραση στα Ελληνικά">🔄</button></div>';
   });
   h += '</div>';
@@ -2313,7 +2401,7 @@ function entryRow(e) {
   return '<tr id="row-' + e.id + '">'
     + '<td class="td-desc">' + typeLabel(e.type) + ' <span class="desc-bold">' + e.desc + '</span>'
       + (e.pin_no!=null ? '<span style="display:inline-flex;align-items:center;gap:2px;background:#E8772E;color:#fff;border-radius:10px;padding:1px 8px;font-size:10px;font-weight:700;margin-left:6px;vertical-align:1px;white-space:nowrap">' + ICON_PIN.replace('width="15" height="15"','width="11" height="11"') + ' #' + e.pin_no + '</span>' : '')
-      + (e.engineer ? '<span class="eng-badge">' + e.engineer + (roleForName(e.engineer) ? ' · ' + roleForName(e.engineer) : '') + '</span>' : '') + photos
+      + (e.engineer ? '<span class="eng-badge">' + hxName(e.engineer) + (roleForName(e.engineer) ? ' · ' + roleForName(e.engineer) : '') + '</span>' : '') + photos
       + '<div style="font-size:12px;color:var(--text3);margin-top:5px">📝 ' + fmtDateTime(e.date) + '</div>'
       + (e.commentsOff ? '' : renderComments(e))
       + (e.commentsOff
@@ -3515,7 +3603,7 @@ async function uploadFiles(input, projId) {
         size: file.size>1048576 ? (file.size/1048576).toFixed(1)+'MB' : (file.size/1024).toFixed(0)+'KB',
         url: SB_URL+'/storage/v1/object/public/hexis-files/'+path,
         path, engineer:currentEngineer||'—',
-        uploaded: new Date().toLocaleDateString('el-GR')});
+        uploaded: new Date().toLocaleDateString(hxLoc())});
       console.log('[UPLOAD] ✓', file.name);
     } catch(e) {
       console.error('[UPLOAD] FAIL:', e);
@@ -3620,7 +3708,7 @@ function saveLink() {
   const stored = JSON.parse(localStorage.getItem('hexis_files_'+linkProjId)||'[]');
   stored.push({id:uid(), name, url:fixedUrl, type:'link',
     source: url.includes('drive.google.com')?'drive':url.includes('dropbox.com')?'dropbox':'external',
-    engineer:currentEngineer||'—', uploaded:new Date().toLocaleDateString('el-GR')});
+    engineer:currentEngineer||'—', uploaded:new Date().toLocaleDateString(hxLoc())});
   localStorage.setItem('hexis_files_'+linkProjId, JSON.stringify(stored));
   const newFile = stored[stored.length-1];
   if (newFile) sb.from('files').upsert({id:newFile.id, project_id:linkProjId, name:newFile.name, size:newFile.size||'link', url:newFile.url, path:newFile.path||'', is_link:true, engineer:newFile.engineer, uploaded:newFile.uploaded});
@@ -4149,7 +4237,7 @@ function buildReportHTML(period, lang, trMap) {
       let head = '<div style="font-size:13px">' + (e.pin_no!=null ? '<svg width="20" height="20" viewBox="0 0 20 20" style="vertical-align:-5px;margin-right:6px" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9.5" fill="#E8772E"/><text x="10" y="13.8" text-anchor="middle" font-family="Arial" font-size="10" font-weight="700" fill="#fff">'+e.pin_no+'</text></svg>' : '') + '<strong>' + tl(e.type) + '</strong> — ' + T(e.desc) + '</div>'
         + '<div style="font-size:10px;color:#777;margin-top:3px">' + sl(e.status)
         + (e.person ? ' · 👤 ' + e.person : '')
-        + (e.engineer ? ' · 📝 ' + e.engineer : '')
+        + (e.engineer ? ' · 📝 ' + hxName(e.engineer) : '')
         + (e.date ? ' · 📅 ' + new Date(e.date).toLocaleDateString(LOC) + ' ' + new Date(e.date).toLocaleTimeString(LOC,{hour:'2-digit',minute:'2-digit'}) : '') + '</div>';
       if (window._rComments !== false && !e.commentsOff && e.comments && e.comments.length) {
         e.comments.forEach(c => {
@@ -4417,11 +4505,119 @@ async function generateReport(period, action) {
     const bIds2 = new Set(buildings.map(b => b.id));
     const general = allE.filter(e => !e.building || !bIds2.has(e.building));
     if (general.length) { txt += '📋 ' + (L('Γενικά:','General:','Të përgjithshme:')) + '\n'; general.forEach(e => { txt += '  ' + tl(e.type) + ' ' + T(e.desc) + '\n' + photoLines(e); }); }
-    const url = action === 'email'
-      ? 'https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(proj.name + (L(' - Αναφορά',' - Site Report',' - Raport Kantieri'))) + '&body=' + encodeURIComponent(txt)
-      : 'https://wa.me/?text=' + encodeURIComponent(txt);
-    if (win) win.location.href = url; else window.open(url, '_blank');
+    const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(proj.name + (L(' - Αναφορά',' - Site Report',' - Raport Kantieri'))) + '&body=' + encodeURIComponent(txt + '\n\n' + (L('📎 Η αναλυτική αναφορά PDF επισυνάπτεται (κατέβηκε στη συσκευή σου).','📎 The detailed PDF report is attached (downloaded to your device).','📎 Raporti i detajuar PDF është bashkëngjitur (u shkarkua në pajisjen tënde).')));
+    const waUrl = 'https://wa.me/?text=' + encodeURIComponent(txt);
+    if (win) { try { win.close(); } catch(e) {} }
+    // Δημιουργία πραγματικού PDF και αποστολή ως αρχείο (share sheet σε κινητά)
+    hxPdfOverlay('<div style="font-size:15px;font-weight:700;margin-bottom:8px">⏳ ' + (L('Δημιουργία PDF αναφοράς…','Creating PDF report…','Krijimi i raportit PDF…')) + '</div><div style="font-size:11.5px;color:var(--text2,#93A5C4)">' + (L('Λίγα δευτερόλεπτα — ετοιμάζονται οι φωτογραφίες.','A few seconds — preparing the photos.','Disa sekonda — po përgatiten fotot.')) + '</div>');
+    try {
+      const blob = await reportPdfBlob(period, lang, trMap);
+      _hxShareFile = new File([blob], reportFileName(period, lang) + '.pdf', { type: 'application/pdf' });
+      _hxShareTxt = txt.length > 400 ? txt.slice(0, 400) + '…' : txt;
+      _hxShareUrl = action === 'email' ? gmailUrl : waUrl;
+      const mb = (blob.size / 1048576).toFixed(1);
+      const canShare = !!(navigator.canShare && navigator.canShare({ files: [_hxShareFile] }));
+      const label = action === 'email' ? 'Email' : 'WhatsApp';
+      if (canShare) {
+        hxPdfOverlay('<div style="font-size:15px;font-weight:700;margin-bottom:6px">✅ ' + (L('Η αναφορά PDF είναι έτοιμη','The PDF report is ready','Raporti PDF është gati')) + '</div>'
+          + '<div style="font-size:11.5px;color:var(--text2,#93A5C4);margin-bottom:14px">' + _hxShareFile.name + ' · ' + mb + ' MB</div>'
+          + '<button onclick="hxDoShare()" style="display:block;width:100%;padding:13px;background:#E8772E;color:#fff;border:none;border-radius:11px;font-size:14.5px;font-weight:700;cursor:pointer;margin-bottom:8px">📤 ' + (L('Αποστολή σε ','Send via ','Dërgo me ')) + label + '</button>'
+          + '<button onclick="hxDownloadShareFile()" style="display:block;width:100%;padding:10px;background:none;color:var(--text2,#93A5C4);border:1px solid var(--border,#253B63);border-radius:11px;font-size:12.5px;cursor:pointer">⬇️ ' + (L('Λήψη PDF','Download PDF','Shkarko PDF')) + '</button>');
+      } else {
+        // Desktop: λήψη PDF + άνοιγμα Gmail/WhatsApp Web με τη σύνοψη
+        hxPdfOverlay('<div style="font-size:15px;font-weight:700;margin-bottom:6px">✅ ' + (L('Η αναφορά PDF είναι έτοιμη','The PDF report is ready','Raporti PDF është gati')) + '</div>'
+          + '<div style="font-size:11.5px;color:var(--text2,#93A5C4);margin-bottom:14px">' + _hxShareFile.name + ' · ' + mb + ' MB<br>' + (L('Θα κατέβει το PDF και θα ανοίξει το ','The PDF will download and ','Do të shkarkohet PDF dhe do të hapet ')) + label + (L(' — επισύναψέ το στο μήνυμα.',' will open — attach it to the message.',' — bashkëngjite në mesazh.')) + '</div>'
+          + '<button onclick="hxDownloadShareFile()" style="display:block;width:100%;padding:13px;background:#E8772E;color:#fff;border:none;border-radius:11px;font-size:14.5px;font-weight:700;cursor:pointer">⬇️📤 ' + (L('Λήψη & άνοιγμα ','Download & open ','Shkarko & hap ')) + label + '</button>');
+      }
+    } catch(err) {
+      console.error('[SHAREPDF]', err);
+      hxPdfOverlayClose();
+      // fallback: παλιά συμπεριφορά με σύνοψη κειμένου
+      window.open(action === 'email' ? gmailUrl : waUrl, '_blank');
+    }
   }
+}
+
+/* ===== ΑΠΟΣΤΟΛΗ ΑΝΑΦΟΡΑΣ ΩΣ PDF (WhatsApp / Email μέσω share sheet) ===== */
+let _h2pP = null;
+function loadHtml2Pdf() {
+  if (window.html2pdf) return Promise.resolve();
+  if (_h2pP) return _h2pP;
+  _h2pP = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+    s.onload = res; s.onerror = rej; document.head.appendChild(s);
+  });
+  return _h2pP;
+}
+async function reportPdfBlob(period, lang, trMap) {
+  await loadHtml2Pdf();
+  try { await prepVideoMedia(getReportEntries(period)); } catch(e) { console.warn('[VID] prep fail', e); }
+  try { await loadCustomLogo(); } catch(e) { console.warn('[LOGO] load fail', e); }
+  const html = buildReportHTML(period, lang, trMap);
+  const holder = document.createElement('div');
+  holder.style.cssText = 'position:absolute;left:-10000px;top:0;width:800px;background:#fff;color:#333;font-family:Arial,sans-serif;padding:20px;z-index:-1';
+  holder.innerHTML = html;
+  document.body.appendChild(holder);
+  try {
+    // Σχέδια-PDF κατόψεων: γέμισε τα canvases με pdf.js (είναι ήδη φορτωμένο στο app)
+    const cvs = holder.querySelectorAll('.fp-pdf-canvas');
+    await Promise.all([...cvs].map(cv => {
+      const u = decodeURIComponent(cv.getAttribute('data-pdf-url') || '');
+      if (!u || !window.pdfjsLib) return Promise.resolve();
+      return pdfjsLib.getDocument(u).promise
+        .then(p => p.getPage(1))
+        .then(pg => { const vp = pg.getViewport({ scale: 2 }); cv.width = vp.width; cv.height = vp.height; return pg.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise; })
+        .catch(e => console.warn('[SHAREPDF] fp pdf', e));
+    }));
+    // Περίμενε τις φωτογραφίες (max 10s)
+    const imgs = [...holder.querySelectorAll('img')];
+    await Promise.race([
+      Promise.all(imgs.map(im => im.complete ? Promise.resolve() : new Promise(r => { im.onload = r; im.onerror = r; }))),
+      new Promise(r => setTimeout(r, 10000))
+    ]);
+    const blob = await html2pdf().set({
+      margin: [8, 8, 10, 8],
+      image: { type: 'jpeg', quality: 0.82 },
+      html2canvas: { scale: 1.35, useCORS: true, logging: false, allowTaint: false },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'] }
+    }).from(holder).outputPdf('blob');
+    return blob;
+  } finally { holder.remove(); }
+}
+function hxPdfOverlay(inner) {
+  let d = document.getElementById('pdf-share-ov');
+  if (!d) {
+    d = document.createElement('div'); d.id = 'pdf-share-ov';
+    d.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(6,14,28,0.82);display:flex;align-items:center;justify-content:center;padding:20px';
+    d.onclick = ev => { if (ev.target === d) d.remove(); };
+    document.body.appendChild(d);
+  }
+  d.innerHTML = '<div style="background:var(--card,#0D1C36);border:1px solid var(--border,#253B63);border-radius:16px;padding:22px 18px;max-width:340px;width:100%;text-align:center;color:var(--text,#EEF2F8)">' + inner + '</div>';
+  return d;
+}
+function hxPdfOverlayClose() { const d = document.getElementById('pdf-share-ov'); if (d) d.remove(); }
+let _hxShareFile = null, _hxShareTxt = '', _hxShareUrl = '';
+async function hxDoShare() {
+  if (!_hxShareFile) return;
+  try {
+    await navigator.share({ files: [_hxShareFile], title: _hxShareFile.name, text: _hxShareTxt });
+    hxPdfOverlayClose();
+  } catch(e) {
+    if (e && e.name === 'AbortError') return; // ο χρήστης ακύρωσε το share sheet — μένει ανοιχτό
+    console.warn('[SHAREPDF] share fail, fallback', e);
+    hxDownloadShareFile();
+  }
+}
+function hxDownloadShareFile() {
+  if (!_hxShareFile) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(_hxShareFile); a.download = _hxShareFile.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  if (_hxShareUrl) window.open(_hxShareUrl, '_blank');
+  hxPdfOverlayClose();
 }
 
 async function printReport() {
@@ -4429,7 +4625,7 @@ async function printReport() {
   const now = new Date();
   const ws = new Date(now); ws.setDate(now.getDate()-now.getDay()+1);
   const we = new Date(ws); we.setDate(ws.getDate()+6);
-  const fmt = d => d.toLocaleDateString('el-GR');
+  const fmt = d => d.toLocaleDateString(hxLoc());
   const allE = appData.entries.filter(e => e.project===state.proj);
   const weekE = allE.filter(e => { const d=new Date(e.date); return d>=ws&&d<=we; });
   try { await prepVideoMedia(weekE); } catch(e) { console.warn('[VID] prep fail', e); }
@@ -4443,7 +4639,7 @@ async function printReport() {
   let engSec = '';
   engs.forEach(eng => {
     const ee = weekE.filter(e=>e.engineer===eng); if (!ee.length) return;
-    engSec += '<h3 style="margin:14px 0 8px;color:#E8772E;font-size:14px">👤 ' + eng + '</h3>'
+    engSec += '<h3 style="margin:14px 0 8px;color:#E8772E;font-size:14px">👤 ' + hxName(eng) + '</h3>'
       + '<table style="width:100%;border-collapse:collapse;font-size:11px">'
       + '<tr style="background:#f5f5f5"><th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Τύπος</th><th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Περιγραφή</th><th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Deadline</th><th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Κατάσταση</th></tr>';
     ee.forEach(e => {
@@ -4489,7 +4685,7 @@ async function printReport() {
     + '<div class="sb"><div class="sn">' + (budget>0?(rcd/budget*100).toFixed(1)+'%':'—') + '</div><div class="sl">Πρόοδος BOQ</div></div></div>'
     + '<h2>📋 Καταγραφές Εβδομάδας ανά Μηχανικό</h2>' + (engSec||'<p style="color:#888">Δεν υπάρχουν καταγραφές αυτή την εβδομάδα.</p>')
     + '<h2>⚠️ Ανοιχτές Ελλείψεις</h2>' + snagTbl
-    + '<div style="margin-top:28px;border-top:1px solid #eee;padding-top:10px;font-size:10px;color:#999;text-align:center">HEXIS — powered by BRB Development MON IKE · v2.1-XHR | ' + new Date().toLocaleString('el-GR') + '</div>'
+    + '<div style="margin-top:28px;border-top:1px solid #eee;padding-top:10px;font-size:10px;color:#999;text-align:center">HEXIS — powered by BRB Development MON IKE · v2.1-XHR | ' + new Date().toLocaleString(hxLoc()) + '</div>'
     + '<button onclick="window.print()" style="position:fixed;bottom:16px;right:16px;background:#E8772E;border:none;color:#fff;padding:10px 18px;border-radius:8px;cursor:pointer;font-weight:700">🖨️ PDF</button>'
     + '</body></html>';
   const win = window.open('', '_blank');
@@ -5496,11 +5692,18 @@ async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = 'login.html'; return; }
   currentUser = session.user;
-  // Κουμπί μεταφοράς κτιρίων: ορατό μόνο στον ιδιοκτήτη (εσένα)
+  // Κουμπί μεταφοράς κτιρίων: ορατό σε όποιον έχει τοπικά κτίρια στη συσκευή (ή στον ιδιοκτήτη)
   try {
     const OWNER_EMAILS = ['miltos.birbas@gmail.com'];
     const myEmail = (currentUser.email || '').toLowerCase();
-    if (OWNER_EMAILS.includes(myEmail)) {
+    let hasLocalBuildings = false;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.indexOf('hexis_buildings_') === 0) {
+        try { const arr = JSON.parse(localStorage.getItem(k) || '[]'); if (Array.isArray(arr) && arr.length) { hasLocalBuildings = true; break; } } catch(e) {}
+      }
+    }
+    if (OWNER_EMAILS.includes(myEmail) || hasLocalBuildings) {
       const mc = document.getElementById('migrate-card');
       if (mc) mc.style.display = 'flex';
     }
