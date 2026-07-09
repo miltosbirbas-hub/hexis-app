@@ -1675,7 +1675,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
 // ⚠️ ΣΥΜΠΛΗΡΩΣΕ: URL & anon key από το ΝΕΟ Supabase project (Settings → API)
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
-const APP_VERSION = 'v3.96'; // πρέπει να ταιριάζει με το VERSION του sw.js
+const APP_VERSION = 'v3.97'; // πρέπει να ταιριάζει με το VERSION του sw.js
 // Η έκδοση εμφανίζεται παντού δυναμικά — ΕΝΑ σημείο αλλαγής (+ sw.js)
 ['ver-mobile','ver-sub','ver-footer'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = APP_VERSION; });
 // Μετράει το πραγματικό ύψος του topbar (μπορεί να τυλιχτεί σε 2 σειρές σε κινητό)
@@ -4539,28 +4539,30 @@ async function generateReport(period, action) {
 }
 
 /* ===== ΑΠΟΣΤΟΛΗ ΑΝΑΦΟΡΑΣ ΩΣ PDF (WhatsApp / Email μέσω share sheet) ===== */
-let _h2pP = null;
-function loadHtml2Pdf() {
-  if (window.html2pdf) return Promise.resolve();
-  if (_h2pP) return _h2pP;
-  _h2pP = new Promise((res, rej) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-    s.onload = res; s.onerror = rej; document.head.appendChild(s);
-  });
-  return _h2pP;
+let _pdfLibsP = null;
+function loadPdfLibs() {
+  if (window.html2canvas && window.jspdf) return Promise.resolve();
+  if (_pdfLibsP) return _pdfLibsP;
+  const one = src => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+  _pdfLibsP = Promise.all([
+    window.html2canvas ? Promise.resolve() : one('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'),
+    window.jspdf ? Promise.resolve() : one('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
+  ]);
+  return _pdfLibsP;
 }
 async function reportPdfBlob(period, lang, trMap) {
-  await loadHtml2Pdf();
+  await loadPdfLibs();
   try { await prepVideoMedia(getReportEntries(period)); } catch(e) { console.warn('[VID] prep fail', e); }
   try { await loadCustomLogo(); } catch(e) { console.warn('[LOGO] load fail', e); }
   const html = buildReportHTML(period, lang, trMap);
   const holder = document.createElement('div');
-  holder.style.cssText = 'position:absolute;left:-10000px;top:0;width:800px;background:#fff;color:#333;font-family:Arial,sans-serif;padding:20px;z-index:-1';
+  // Σημ.: ΟΧΙ εκτός οθόνης (το html2canvas βγάζει κενά για off-screen στοιχεία σε κινητά).
+  // Τοποθετείται πίσω από το app (z-index αρνητικό) — αόρατο γιατί το overlay καλύπτει την οθόνη.
+  holder.style.cssText = 'position:absolute;left:0;top:0;width:800px;background:#fff;color:#333;font-family:Arial,sans-serif;padding:12px;z-index:-9999;pointer-events:none';
   holder.innerHTML = html;
   document.body.appendChild(holder);
   try {
-    // Σχέδια-PDF κατόψεων: γέμισε τα canvases με pdf.js (είναι ήδη φορτωμένο στο app)
+    // Σχέδια-PDF κατόψεων → canvases μέσω pdf.js (ήδη φορτωμένο)
     const cvs = holder.querySelectorAll('.fp-pdf-canvas');
     await Promise.all([...cvs].map(cv => {
       const u = decodeURIComponent(cv.getAttribute('data-pdf-url') || '');
@@ -4570,20 +4572,57 @@ async function reportPdfBlob(period, lang, trMap) {
         .then(pg => { const vp = pg.getViewport({ scale: 2 }); cv.width = vp.width; cv.height = vp.height; return pg.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise; })
         .catch(e => console.warn('[SHAREPDF] fp pdf', e));
     }));
-    // Περίμενε τις φωτογραφίες (max 10s)
+    // Περίμενε τις φωτογραφίες (max 12s)
     const imgs = [...holder.querySelectorAll('img')];
     await Promise.race([
       Promise.all(imgs.map(im => im.complete ? Promise.resolve() : new Promise(r => { im.onload = r; im.onerror = r; }))),
-      new Promise(r => setTimeout(r, 10000))
+      new Promise(r => setTimeout(r, 12000))
     ]);
-    const blob = await html2pdf().set({
-      margin: [8, 8, 10, 8],
-      image: { type: 'jpeg', quality: 0.82 },
-      html2canvas: { scale: 1.35, useCORS: true, logging: false, allowTaint: false },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'] }
-    }).from(holder).outputPdf('blob');
-    return blob;
+    // ── Σελιδοποίηση τμήμα-τμήμα: κάθε μπλοκ δικός του (μικρός) καμβάς — κανένα όριο καμβά σε κινητά ──
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const PW = 210, PH = 297, ML = 8, MT = 8, MB = 10;
+    const usableW = PW - 2 * ML, pageBottom = PH - MB;
+    let y = MT, firstBlock = true;
+    const MAXPX = 1500; // μπλοκ ψηλότερα από αυτό σπάνε στα παιδιά τους
+    const atoms = [];
+    (function collect(el) {
+      for (const ch of el.children) {
+        if (!ch.offsetHeight) continue;
+        if (ch.offsetHeight > MAXPX && ch.children.length > 1) collect(ch);
+        else atoms.push(ch);
+      }
+    })(holder);
+    for (const el of atoms) {
+      let canvas;
+      try {
+        canvas = await html2canvas(el, { scale: 1.35, useCORS: true, logging: false, backgroundColor: '#ffffff' });
+      } catch(e) { console.warn('[SHAREPDF] block render fail', e); continue; }
+      if (!canvas || !canvas.width || !canvas.height) continue;
+      const imgH = canvas.height * usableW / canvas.width;
+      const data = canvas.toDataURL('image/jpeg', 0.82);
+      if (imgH <= pageBottom - MT) {
+        if (y + imgH > pageBottom && !firstBlock) { pdf.addPage(); y = MT; }
+        pdf.addImage(data, 'JPEG', ML, y, usableW, imgH);
+        y += imgH + 1.5;
+      } else {
+        // Πολύ ψηλό αδιαίρετο μπλοκ: κόψιμο του καμβά σε σελίδες
+        const pxPerMm = canvas.width / usableW;
+        const slicePx = Math.floor((pageBottom - MT) * pxPerMm);
+        for (let off = 0; off < canvas.height; off += slicePx) {
+          const h = Math.min(slicePx, canvas.height - off);
+          const c2 = document.createElement('canvas'); c2.width = canvas.width; c2.height = h;
+          c2.getContext('2d').drawImage(canvas, 0, off, canvas.width, h, 0, 0, canvas.width, h);
+          if (y > MT || !firstBlock) { pdf.addPage(); y = MT; }
+          pdf.addImage(c2.toDataURL('image/jpeg', 0.82), 'JPEG', ML, y, usableW, h / pxPerMm);
+          y += h / pxPerMm + 1.5;
+          firstBlock = false;
+        }
+        continue;
+      }
+      firstBlock = false;
+    }
+    return pdf.output('blob');
   } finally { holder.remove(); }
 }
 function hxPdfOverlay(inner) {
