@@ -1675,7 +1675,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
 // ⚠️ ΣΥΜΠΛΗΡΩΣΕ: URL & anon key από το ΝΕΟ Supabase project (Settings → API)
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
-const APP_VERSION = 'v3.97'; // πρέπει να ταιριάζει με το VERSION του sw.js
+const APP_VERSION = 'v3.98'; // πρέπει να ταιριάζει με το VERSION του sw.js
 // Η έκδοση εμφανίζεται παντού δυναμικά — ΕΝΑ σημείο αλλαγής (+ sw.js)
 ['ver-mobile','ver-sub','ver-footer'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = APP_VERSION; });
 // Μετράει το πραγματικό ύψος του topbar (μπορεί να τυλιχτεί σε 2 σειρές σε κινητό)
@@ -4531,9 +4531,11 @@ async function generateReport(period, action) {
       }
     } catch(err) {
       console.error('[SHAREPDF]', err);
-      hxPdfOverlayClose();
-      // fallback: παλιά συμπεριφορά με σύνοψη κειμένου
-      window.open(action === 'email' ? gmailUrl : waUrl, '_blank');
+      hxPdfOverlay('<div style="font-size:14px;font-weight:700;margin-bottom:6px">⚠️ ' + (L('Το PDF δεν μπόρεσε να δημιουργηθεί σε αυτή τη συσκευή','The PDF could not be created on this device','PDF nuk u krijua në këtë pajisje')) + '</div>'
+        + '<div style="font-size:11.5px;color:var(--text2,#93A5C4);margin-bottom:12px">' + (L('Θα ανοίξει η σύνοψη κειμένου. Εναλλακτικά χρησιμοποίησε 🖨️ Λήψη PDF και μοιράσου το αρχείο.','Opening the text summary instead. Alternatively use 🖨️ Download PDF and share the file.','Do të hapet përmbledhja me tekst. Ose përdor 🖨️ Shkarko PDF dhe ndaje skedarin.')) + '</div>'
+        + '<button onclick="hxPdfOverlayClose();window.open(\'' + (action === 'email' ? 'GMAILURL' : 'WAURL') + '\',\'_blank\')" style="display:block;width:100%;padding:12px;background:#E8772E;color:#fff;border:none;border-radius:11px;font-size:14px;font-weight:700;cursor:pointer">' + (L('Συνέχεια με σύνοψη','Continue with summary','Vazhdo me përmbledhje')) + '</button>');
+      const ov = document.getElementById('pdf-share-ov');
+      if (ov) { const btn = ov.querySelector('button'); if (btn) btn.onclick = () => { hxPdfOverlayClose(); window.open(action === 'email' ? gmailUrl : waUrl, '_blank'); }; }
     }
   }
 }
@@ -4578,12 +4580,34 @@ async function reportPdfBlob(period, lang, trMap) {
       Promise.all(imgs.map(im => im.complete ? Promise.resolve() : new Promise(r => { im.onload = r; im.onerror = r; }))),
       new Promise(r => setTimeout(r, 12000))
     ]);
+    // Προ-μετατροπή εικόνων σε dataURL — μηδενίζει τα CORS θέματα του html2canvas σε κινητά
+    await Promise.all(imgs.map(async im => {
+      const u = im.src || '';
+      if (!u || u.startsWith('data:')) return;
+      try {
+        const r = await fetch(u, { mode: 'cors' });
+        if (!r.ok) return;
+        const b = await r.blob();
+        im.src = await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = () => res(u); fr.readAsDataURL(b); });
+        await new Promise(res => { if (im.complete) res(); else { im.onload = res; im.onerror = res; } });
+      } catch(e) { console.warn('[SHAREPDF] img inline fail', u.slice(-40), e); }
+    }));
+    console.log('[SHAREPDF] images inlined:', imgs.filter(i => (i.src||'').startsWith('data:')).length + '/' + imgs.length);
     // ── Σελιδοποίηση τμήμα-τμήμα: κάθε μπλοκ δικός του (μικρός) καμβάς — κανένα όριο καμβά σε κινητά ──
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
     const PW = 210, PH = 297, ML = 8, MT = 8, MB = 10;
     const usableW = PW - 2 * ML, pageBottom = PH - MB;
     let y = MT, firstBlock = true;
+    let blankCount = 0, okCount = 0;
+    const isBlank = cv => {
+      try {
+        const w = Math.min(cv.width, 300), h = Math.min(cv.height, 300);
+        const d = cv.getContext('2d').getImageData(0, 0, w, h).data;
+        for (let i = 0; i < d.length; i += 40) { if (d[i] < 245 || d[i+1] < 245 || d[i+2] < 245) return false; }
+        return true;
+      } catch(e) { console.warn('[SHAREPDF] taint/getImageData', e); return true; }
+    };
     const MAXPX = 1500; // μπλοκ ψηλότερα από αυτό σπάνε στα παιδιά τους
     const atoms = [];
     (function collect(el) {
@@ -4599,6 +4623,7 @@ async function reportPdfBlob(period, lang, trMap) {
         canvas = await html2canvas(el, { scale: 1.35, useCORS: true, logging: false, backgroundColor: '#ffffff' });
       } catch(e) { console.warn('[SHAREPDF] block render fail', e); continue; }
       if (!canvas || !canvas.width || !canvas.height) continue;
+      if (isBlank(canvas)) { blankCount++; } else { okCount++; }
       const imgH = canvas.height * usableW / canvas.width;
       const data = canvas.toDataURL('image/jpeg', 0.82);
       if (imgH <= pageBottom - MT) {
@@ -4621,6 +4646,10 @@ async function reportPdfBlob(period, lang, trMap) {
         continue;
       }
       firstBlock = false;
+    }
+    console.log('[SHAREPDF] blocks ok:', okCount, '| blank:', blankCount);
+    if (okCount === 0 && blankCount > 0) {
+      throw new Error('BLANK_RENDER: όλα τα μπλοκ βγήκαν λευκά (' + blankCount + ') — html2canvas failure σε αυτή τη συσκευή');
     }
     return pdf.output('blob');
   } finally { holder.remove(); }
