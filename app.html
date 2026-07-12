@@ -410,6 +410,27 @@ tr:hover td { background: var(--surface2); }
 
 <script>
 window.HX_I18N = {
+"Αντίγραφο ασφαλείας": "Backup",
+"Τα δεδομένα σου, στο χέρι σου": "Your data, in your hands",
+"💾 Εξαγωγή δεδομένων": "💾 Export data",
+"🖼️ + Φωτογραφίες": "🖼️ + Photos",
+
+"Κατέβασε όλα τα δεδομένα σου σε ένα αρχείο. Η επαναφορά (Εισαγωγή) γίνεται μόνο από υπολογιστή (PC).": "Download all your data in one file. Restore (Import) is only available from a computer (PC).",
+"Η επαναφορά backup επιτρέπεται μόνο από υπολογιστή (PC), για ασφάλεια.": "Backup restore is only allowed from a computer (PC), for safety.",
+"⏳ Καθαρισμός λίστας διαγραμμένων…": "⏳ Clearing deleted-projects list…",
+
+"📦 Αντίγραφο ασφαλείας": "📦 Backup",
+"Κατέβασε όλα τα δεδομένα σου σε ένα αρχείο — επαναφορά όποτε χρειαστεί.": "Download all your data in one file — restore whenever needed.",
+"💾 Εξαγωγή": "💾 Export",
+"🖼️ + Φωτογραφίες (ZIP)": "🖼️ + Photos (ZIP)",
+"📥 Εισαγωγή": "📥 Import",
+"⏳ Συλλογή δεδομένων…": "⏳ Collecting data…",
+"⏳ Συλλογή λίστας αρχείων…": "⏳ Collecting file list…",
+"Δεν υπάρχουν φωτογραφίες.": "No photos found.",
+"🗜️ Συμπίεση…": "🗜️ Compressing…",
+"✅ Η επαναφορά ολοκληρώθηκε — ανανέωση…": "✅ Restore complete — refreshing…",
+"Μη έγκυρο αρχείο backup HEXIS.": "Not a valid HEXIS backup file.",
+
 "Πρόσφατες Καταγραφές": "Recent Entries",
 "Σήμερα": "Today",
 "Χθες": "Yesterday",
@@ -821,7 +842,6 @@ window.HX_I18N = {
 "Αναλογίες μπετόν C12/15–C40 · τούβλα · σενάζ": "Concrete mixes C12/15–C40 · bricks · bands",
 "Έλεγχος Δόμησης": "Building Inspection",
 "Πόρισμα Ελεγκτών · Ν.4495/2017 · ΚΥΑ 299/2014 · αμοιβή": "Inspector findings · L.4495/2017 · fees",
-"Στήσιμο Base/Rover L1 · Localization · Helmert": "Base/Rover L1 setup · Localization · Helmert",
 "Γρήγορες σημειώσεις...\nΑποθηκεύονται αυτόματα σε αυτή τη συσκευή.": "Quick notes...\nAutosaved on this device.",
 "Βοηθός AI": "AI Assistant",
 "Νέα συζήτηση": "New chat",
@@ -928,6 +948,8 @@ window.HX_I18N = {
 "Ημέρας · Εβδομάδας · Συνολική · Συγκεκριμένη ημερομηνία": "Day · Week · All time · Specific date"
 };
 window.HX_HELP = {
+"📥 Πλήρης οδηγός (PDF)": "📥 Full guide (PDF)",
+
 "📖 Οδηγός HEXIS": "📖 HEXIS Guide",
 "Παρακολούθηση εργοταξίου σε πραγματικό χρόνο — καταγραφές, φωτογραφίες, αναφορές, ομάδα.": "Real-time site tracking — entries, photos, reports, team.",
 "📲 Εγκατάσταση σαν app": "📲 Install as an app",
@@ -1676,7 +1698,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
 // ⚠️ ΣΥΜΠΛΗΡΩΣΕ: URL & anon key από το ΝΕΟ Supabase project (Settings → API)
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
-const APP_VERSION = 'v4.00'; // πρέπει να ταιριάζει με το VERSION του sw.js
+const APP_VERSION = 'v4.02'; // πρέπει να ταιριάζει με το VERSION του sw.js
 // Η έκδοση εμφανίζεται παντού δυναμικά — ΕΝΑ σημείο αλλαγής (+ sw.js)
 ['ver-mobile','ver-sub','ver-footer'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = APP_VERSION; });
 // Μετράει το πραγματικό ύψος του topbar (μπορεί να τυλιχτεί σε 2 σειρές σε κινητό)
@@ -4543,6 +4565,113 @@ async function generateReport(period, action) {
 }
 
 /* ===== ΑΠΟΣΤΟΛΗ ΑΝΑΦΟΡΑΣ ΩΣ PDF (native pdfmake — χωρίς html2canvas) ===== */
+
+/* ===== ΑΝΤΙΓΡΑΦΟ ΑΣΦΑΛΕΙΑΣ ΧΡΗΣΤΗ (εξαγωγή / εισαγωγή) ===== */
+const HX_BACKUP_TABLES = ['projects','entries','buildings','contacts','engineers','files','phases','project_members'];
+async function hxFetchAll(table) {
+  const out = []; let from = 0;
+  while (true) {
+    const r = await sb.from(table).select('*').range(from, from + 999);
+    if (r.error) { console.warn('[BACKUP]', table, r.error.message); break; }
+    out.push(...(r.data || []));
+    if (!r.data || r.data.length < 1000) break;
+    from += 1000;
+  }
+  return out;
+}
+async function hxExportBackup() {
+  const st = document.getElementById('bk-status'); const say = t => { if (st) st.textContent = t; };
+  try {
+    say('⏳ Συλλογή δεδομένων…');
+    const data = { _hexis_backup: 1, version: APP_VERSION, exported: new Date().toISOString(), user: getUserId(), tables: {}, localStorage: {} };
+    for (const t of HX_BACKUP_TABLES) { say('⏳ ' + t + '…'); data.tables[t] = await hxFetchAll(t); }
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.indexOf('hexis') === 0 || k.indexOf('brb') === 0)) data.localStorage[k] = localStorage.getItem(k);
+    }
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'hexis-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    say('✅ Εξήχθησαν: ' + HX_BACKUP_TABLES.map(t => data.tables[t].length + ' ' + t).join(' · '));
+  } catch(e) { console.error('[BACKUP]', e); say('❌ Σφάλμα εξαγωγής: ' + (e.message || e)); }
+}
+async function hxImportBackup(input) {
+  const f = input.files && input.files[0]; if (!f) return; input.value = '';
+  const st = document.getElementById('bk-status'); const say = t => { if (st) st.textContent = t; };
+  if (typeof isMobileDevice === 'function' && isMobileDevice()) {
+    alert('Η επαναφορά backup επιτρέπεται μόνο από υπολογιστή (PC), για ασφάλεια.');
+    return;
+  }
+  try {
+    const data = JSON.parse(await f.text());
+    if (!data || data._hexis_backup !== 1 || !data.tables) throw new Error('Μη έγκυρο αρχείο backup HEXIS.');
+    const summary = HX_BACKUP_TABLES.filter(t => data.tables[t] && data.tables[t].length)
+      .map(t => data.tables[t].length + ' ' + t).join(', ');
+    if (!confirm('Επαναφορά backup (' + String(data.exported || '').slice(0, 10) + '):\n' + summary + '\n\nΟι εγγραφές με ίδιο id θα ενημερωθούν, οι υπόλοιπες θα προστεθούν. Συνέχεια;')) return;
+    for (const t of HX_BACKUP_TABLES) {
+      const rows = data.tables[t] || []; if (!rows.length) continue;
+      for (let i = 0; i < rows.length; i += 100) {
+        say('⏳ ' + t + ' ' + Math.min(i + 100, rows.length) + '/' + rows.length);
+        const r = await sb.from(t).upsert(rows.slice(i, i + 100));
+        if (r.error) console.warn('[RESTORE]', t, r.error.message);
+      }
+    }
+    Object.entries(data.localStorage || {}).forEach(([k, v]) => { try { localStorage.setItem(k, v); } catch(e) {} });
+    // Ξε-διαγραφή: τα έργα του backup βγαίνουν από τη μαύρη λίστα διαγραμμένων
+    // (τοπικά ΚΑΙ στη βάση), αλλιώς θα ξανακρύβονταν μετά την επαναφορά.
+    try {
+      const restoredIds = (data.tables.projects || []).map(p => p.id).filter(Boolean);
+      if (restoredIds.length) {
+        say('⏳ Καθαρισμός λίστας διαγραμμένων…');
+        const del = JSON.parse(localStorage.getItem('hexis_deleted_projects') || '[]');
+        localStorage.setItem('hexis_deleted_projects', JSON.stringify(del.filter(id => !restoredIds.includes(id))));
+        const r = await sb.from('deleted_projects_v2').delete().in('id', restoredIds).eq('user_id', getUserId());
+        if (r.error) console.warn('[RESTORE] undelete', r.error.message);
+      }
+    } catch(e) { console.warn('[RESTORE] undelete', e); }
+    say('✅ Η επαναφορά ολοκληρώθηκε — ανανέωση…');
+    setTimeout(() => location.reload(), 1200);
+  } catch(e) { console.error('[RESTORE]', e); say('❌ ' + (e.message || e)); }
+}
+let _jszipP = null;
+function loadJSZip() {
+  if (window.JSZip) return Promise.resolve();
+  if (_jszipP) return _jszipP;
+  _jszipP = new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc); });
+  return _jszipP;
+}
+async function hxExportPhotosZip() {
+  const st = document.getElementById('bk-status'); const say = t => { if (st) st.textContent = t; };
+  try {
+    await loadJSZip();
+    say('⏳ Συλλογή λίστας αρχείων…');
+    const entries = await hxFetchAll('entries');
+    const paths = [...new Set(entries.flatMap(e => e.photos || []))];
+    if (!paths.length) { say('Δεν υπάρχουν φωτογραφίες.'); return; }
+    if (!confirm(paths.length + ' αρχεία θα κατέβουν και θα γίνουν ZIP. Προτείνεται από υπολογιστή με WiFi. Συνέχεια;')) return;
+    const zip = new JSZip(); let ok = 0, fail = 0;
+    for (let i = 0; i < paths.length; i++) {
+      say('⬇️ ' + (i + 1) + ' / ' + paths.length);
+      try {
+        const r = await fetch(SB_URL + '/storage/v1/object/public/hexis-photos/' + paths[i]);
+        if (!r.ok) { fail++; continue; }
+        zip.file(paths[i], await r.blob()); ok++;
+      } catch(e) { fail++; }
+    }
+    say('🗜️ Συμπίεση…');
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'hexis-photos-' + new Date().toISOString().slice(0, 10) + '.zip';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 6000);
+    say('✅ ZIP: ' + ok + ' αρχεία' + (fail ? ' (' + fail + ' απέτυχαν)' : ''));
+  } catch(e) { console.error('[ZIP]', e); say('❌ ' + (e.message || e)); }
+}
+
 let _pmP = null;
 function loadPdfMake() {
   if (window.pdfMake && window.pdfMake.vfs) return Promise.resolve();
@@ -5520,6 +5649,7 @@ function showHelpModal() {
       <div>
         <h2>📖 Οδηγός HEXIS</h2>
         <p>Παρακολούθηση εργοταξίου σε πραγματικό χρόνο — καταγραφές, φωτογραφίες, αναφορές, ομάδα.</p>
+        <a href="HEXIS-Odigos-Xrisis.pdf" target="_blank" style="display:inline-block;margin-top:8px;padding:8px 14px;background:var(--accent,#E8772E);color:#fff;border-radius:9px;font-size:12px;font-weight:700;text-decoration:none">📥 Πλήρης οδηγός (PDF)</a>
       </div>
       <button class="help-close" onclick="document.getElementById('help-overlay').remove()">✕</button>
     </div>
@@ -6088,6 +6218,25 @@ window.addEventListener('beforeinstallprompt', (e) => {
         <button onclick="hxSetLang('en')" class="btn btn-sm" style="padding:5px 12px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text2);cursor:pointer" id="lang-btn-en">EN</button>
       </span>
     </div>
+    <div style="border:1px solid transparent;background:linear-gradient(var(--card,#0D1C36),var(--card,#0D1C36)) padding-box,linear-gradient(120deg,rgba(232,119,46,0.55),rgba(45,125,255,0.35),rgba(232,119,46,0.55)) border-box;border-radius:14px;padding:14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#E8772E,#c95f1d);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 10px rgba(232,119,46,0.35)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+        </span>
+        <div>
+          <div style="font-size:13.5px;font-weight:700">Αντίγραφο ασφαλείας</div>
+          <div style="font-size:10.5px;color:var(--text2)">Τα δεδομένα σου, στο χέρι σου</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:10px">Κατέβασε όλα τα δεδομένα σου σε ένα αρχείο. Η επαναφορά (Εισαγωγή) γίνεται μόνο από υπολογιστή (PC).</div>
+      <button onclick="hxExportBackup()" style="display:block;width:100%;padding:11px;background:linear-gradient(135deg,#E8772E,#d0651f);color:#fff;border:none;border-radius:11px;font-size:13.5px;font-weight:700;cursor:pointer;box-shadow:0 3px 12px rgba(232,119,46,0.3);margin-bottom:7px">💾 Εξαγωγή δεδομένων</button>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm btn-ghost" onclick="hxExportPhotosZip()" style="flex:1">🖼️ + Φωτογραφίες</button>
+        <button class="btn btn-sm btn-ghost" onclick="document.getElementById('bk-file').click()" style="flex:1">📥 Εισαγωγή</button>
+        <input type="file" id="bk-file" accept=".json,application/json" style="display:none" onchange="hxImportBackup(this)">
+      </div>
+      <div id="bk-status" style="font-size:10.5px;color:var(--text2);margin-top:7px"></div>
+    </div>
     <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Εργαλεία υπολογισμού επί τόπου του έργου</div>
     <a href="mpeton.html" target="_blank" class="qt-tool-card">
       <span class="qt-tool-ico">&#129521;</span>
@@ -6096,10 +6245,6 @@ window.addEventListener('beforeinstallprompt', (e) => {
     <a href="elegxos.html" target="_blank" class="qt-tool-card">
       <span class="qt-tool-ico">&#128203;</span>
       <span><b>Έλεγχος Δόμησης</b><br><small>Πόρισμα Ελεγκτών · Ν.4495/2017 · ΚΥΑ 299/2014 · αμοιβή</small></span>
-    </a>
-    <a href="rtk_checklist.html" target="_blank" class="qt-tool-card">
-      <span class="qt-tool-ico">&#128225;</span>
-      <span><b>RTK Checklist</b><br><small>Στήσιμο Base/Rover L1 · Localization · Helmert</small></span>
     </a>
     <div class="qt-tool-card" id="migrate-card" onclick="migrateBuildings()" style="cursor:pointer;display:none">
       <span class="qt-tool-ico">&#11014;&#65039;</span>

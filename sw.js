@@ -3,17 +3,11 @@
 //  ΑΛΛΑΖΕΙΣ ΜΟΝΟ ΤΟΝ ΑΡΙΘΜΟ VERSION ΣΕ ΚΑΘΕ ΝΕΑ ΕΚΔΟΣΗ
 //  (πρέπει να ταιριάζει με την έκδοση του app.html)
 // ============================================
-const VERSION = 'v4.00';
+const VERSION = 'v4.02';
 const CACHE_NAME = 'hexis-' + VERSION;
 
 // Άμεση ενεργοποίηση νέας έκδοσης
 self.addEventListener('install', (e) => {
-  // Precache: το RTK Checklist να δουλεύει offline από την πρώτη στιγμή
-  e.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((c) => c.addAll(['./rtk_checklist.html']))
-      .catch(() => {}) // αν αποτύχει, δεν μπλοκάρει το install
-  );
   self.skipWaiting();
 });
 
