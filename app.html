@@ -1704,7 +1704,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
 // ⚠️ ΣΥΜΠΛΗΡΩΣΕ: URL & anon key από το ΝΕΟ Supabase project (Settings → API)
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
-const APP_VERSION = 'v4.03'; // πρέπει να ταιριάζει με το VERSION του sw.js
+const APP_VERSION = 'v4.04'; // πρέπει να ταιριάζει με το VERSION του sw.js
 // Η έκδοση εμφανίζεται παντού δυναμικά — ΕΝΑ σημείο αλλαγής (+ sw.js)
 ['ver-mobile','ver-sub','ver-footer'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = APP_VERSION; });
 // Μετράει το πραγματικό ύψος του topbar (μπορεί να τυλιχτεί σε 2 σειρές σε κινητό)
@@ -5296,16 +5296,41 @@ async function removeMember(id) {
 async function sharePin(name, lat, lng) {
   const url = 'https://maps.google.com/?q=' + lat + ',' + lng;
   const text = '\ud83d\udccd ' + name + '\n' + url;
-  if (navigator.share) {
-    try { await navigator.share({ title: name, text: '\ud83d\udccd ' + name, url: url }); return; }
-    catch (e) { if (e && e.name === 'AbortError') return; }
-  }
-  try {
-    await navigator.clipboard.writeText(text);
-    alert('Η τοποθεσία αντιγράφηκε \u2014 κάνε επικόλληση όπου θες (WhatsApp, Viber, SMS).');
-  } catch (e) {
-    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
-  }
+  const enc = encodeURIComponent(text);
+  const old = document.getElementById('pin-share-ov'); if (old) old.remove();
+  const d = document.createElement('div');
+  d.id = 'pin-share-ov';
+  d.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(6,14,28,0.8);display:flex;align-items:flex-end;justify-content:center';
+  d.onclick = ev => { if (ev.target === d) d.remove(); };
+  const btn = (label, ico, color) =>
+    '<button data-act="' + label + '" style="display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--text,#EEF2F8);font-size:11px;flex:1;padding:6px 2px">'
+    + '<span style="width:46px;height:46px;border-radius:14px;background:' + color + ';display:flex;align-items:center;justify-content:center;font-size:21px">' + ico + '</span>' + label + '</button>';
+  d.innerHTML = '<div style="background:var(--card,#10182b);border:1px solid var(--border,#253B63);border-radius:18px 18px 0 0;padding:16px 12px 22px;max-width:440px;width:100%">'
+    + '<div style="font-size:13.5px;font-weight:700;margin-bottom:2px;color:var(--text,#EEF2F8)">\ud83d\udccd ' + name.replace(/</g,'&lt;') + '</div>'
+    + '<div style="font-size:10.5px;color:var(--text2,#93A5C4);margin-bottom:12px;word-break:break-all">' + url + '</div>'
+    + '<div style="display:flex;gap:2px">'
+    + btn('WhatsApp', '\ud83d\udcac', '#25D366')
+    + btn('Viber', '\ud83d\udcf1', '#7360f2')
+    + btn('SMS', '\u2709\ufe0f', '#4a7dbd')
+    + btn('Email', '\ud83d\udce7', '#EA4335')
+    + btn('\u0386\u03bb\u03bb\u03bf...', '\ud83d\udce4', '#E8772E')
+    + btn('\u0391\u03bd\u03c4\u03b9\u03b3\u03c1\u03b1\u03c6\u03ae', '\ud83d\udccb', '#5C6F8F')
+    + '</div></div>';
+  document.body.appendChild(d);
+  d.querySelectorAll('button[data-act]').forEach(b => b.onclick = async () => {
+    const act = b.getAttribute('data-act');
+    if (act === 'WhatsApp') window.open('https://wa.me/?text=' + enc, '_blank');
+    else if (act === 'Viber') { try { await navigator.clipboard.writeText(text); } catch(e) {} location.href = 'viber://forward?text=' + enc; }
+    else if (act === 'SMS') location.href = 'sms:?body=' + enc;
+    else if (act === 'Email') location.href = 'mailto:?subject=' + encodeURIComponent('\ud83d\udccd ' + name) + '&body=' + enc;
+    else if (act === '\u0386\u03bb\u03bb\u03bf...') {
+      if (navigator.share) { try { await navigator.share({ title: name, text: '\ud83d\udccd ' + name, url: url }); } catch(e) {} }
+      else { try { await navigator.clipboard.writeText(text); alert('\u0397 \u03c4\u03bf\u03c0\u03bf\u03b8\u03b5\u03c3\u03af\u03b1 \u03b1\u03bd\u03c4\u03b9\u03b3\u03c1\u03ac\u03c6\u03b7\u03ba\u03b5.'); } catch(e) {} }
+    } else {
+      try { await navigator.clipboard.writeText(text); b.querySelector('span').textContent = '\u2705'; setTimeout(() => d.remove(), 700); return; } catch(e) {}
+    }
+    d.remove();
+  });
 }
 // ── ΛΙΣΤΑ ΕΚΚΡΕΜΟΤΗΤΩΝ ΑΠΟ ΤΟ BANNER ─────────────────
 function showAlertList() {
