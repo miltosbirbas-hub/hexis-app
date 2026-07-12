@@ -1705,7 +1705,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
 // ⚠️ ΣΥΜΠΛΗΡΩΣΕ: URL & anon key από το ΝΕΟ Supabase project (Settings → API)
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
-const APP_VERSION = 'v4.06'; // πρέπει να ταιριάζει με το VERSION του sw.js
+const APP_VERSION = 'v4.07'; // πρέπει να ταιριάζει με το VERSION του sw.js
 // Η έκδοση εμφανίζεται παντού δυναμικά — ΕΝΑ σημείο αλλαγής (+ sw.js)
 ['ver-mobile','ver-sub','ver-footer'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = APP_VERSION; });
 // Μετράει το πραγματικό ύψος του topbar (μπορεί να τυλιχτεί σε 2 σειρές σε κινητό)
@@ -1969,6 +1969,8 @@ function setupRealtime() {
     checkAlerts();
   }).on('postgres_changes',{event:'*',schema:'public',table:'phases'}, async () => {
     await loadFromDB(); render();
+  }).on('postgres_changes',{event:'*',schema:'public',table:'projects'}, async () => {
+    await loadFromDB(); renderSidebar(); render();
   }).subscribe();
 }
 
@@ -3444,7 +3446,7 @@ function editProject(projId) {
   const p = getProj(projId); if (!p) return;
   editingProjId = projId;
   document.getElementById('proj-modal-title').textContent = 'Επεξεργασία Project';
-  document.getElementById('proj-del-btn').classList.toggle('hidden', isMobileDevice());
+  document.getElementById('proj-del-btn').classList.remove('hidden');
   document.getElementById('proj-name').value = p.name||'';
   document.getElementById('proj-client').value = p.client||'';
   document.getElementById('proj-owner').value = p.owner||'';
@@ -3515,7 +3517,7 @@ async function saveProject() {
     if (idx>=0) PROJECTS[idx] = {...PROJECTS[idx], ...data, color:PROJECTS[idx].color||'#E8772E'};
     // Persist to localStorage as backup
     localStorage.setItem('hexis_proj_' + editingProjId, JSON.stringify(data));
-    sb.from('projects').upsert({...data, id: editingProjId}).then(r=>{ if(r.error) console.error('[PROJECT] update failed:', r.error); else console.log('[PROJECT] \u2713 update synced'); });
+    sb.from('projects').upsert({...data, id: editingProjId, user_id: getUserId()}).then(r=>{ if(r.error){ console.error('[PROJECT] update failed:', r.error); alert('Οι αλλαγές αποθηκεύτηκαν τοπικά, αλλά ΔΕΝ συγχρονίστηκαν στο cloud:\n' + r.error.message); } else console.log('[PROJECT] \u2713 update synced'); });
   } else {
     const id = 'proj_' + uid();
     data.id = id;
@@ -3525,7 +3527,7 @@ async function saveProject() {
     // Also keep a list of custom project IDs so they reload even if offline
     const customList = JSON.parse(localStorage.getItem('hexis_custom_projects')||'[]');
     if (!customList.includes(id)) { customList.push(id); localStorage.setItem('hexis_custom_projects', JSON.stringify(customList)); }
-    sb.from('projects').insert(data).then(r=>{ if(r.error){ console.error('[PROJECT] insert failed:', r.error); queueOffline({action:'insert', table:'projects', data:data}); } else { console.log('[PROJECT] ✓ saved to cloud'); } }).catch(()=>queueOffline({action:'insert', table:'projects', data:data}));
+    sb.from('projects').insert(data).then(r=>{ if(r.error){ console.error('[PROJECT] insert failed:', r.error); alert('Το έργο αποθηκεύτηκε τοπικά, αλλά ΔΕΝ ανέβηκε στο cloud:\n' + r.error.message + '\n\nΘα γίνει αυτόματη επαναπροσπάθεια. Αν το μήνυμα επαναλαμβάνεται, επικοινωνήστε με την υποστήριξη.'); queueOffline({action:'insert', table:'projects', data:data}); } else { console.log('[PROJECT] ✓ saved to cloud'); } }).catch(()=>queueOffline({action:'insert', table:'projects', data:data}));
   }
   closeModal('modal-project');
   renderSidebar(); render();
@@ -3534,7 +3536,6 @@ async function saveProject() {
 const isMobileDevice = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
 
 async function deleteProject(projId) {
-  if (isMobileDevice()) { alert('Η διαγραφή έργων επιτρέπεται μόνο από υπολογιστή (PC).'); return; }
   const p = getProj(projId);
   if (!p) return;
   // ── ΔΙΠΛΗ ΕΠΙΒΕΒΑΙΩΣΗ ──
