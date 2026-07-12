@@ -1705,7 +1705,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
 // ⚠️ ΣΥΜΠΛΗΡΩΣΕ: URL & anon key από το ΝΕΟ Supabase project (Settings → API)
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
-const APP_VERSION = 'v4.05'; // πρέπει να ταιριάζει με το VERSION του sw.js
+const APP_VERSION = 'v4.06'; // πρέπει να ταιριάζει με το VERSION του sw.js
 // Η έκδοση εμφανίζεται παντού δυναμικά — ΕΝΑ σημείο αλλαγής (+ sw.js)
 ['ver-mobile','ver-sub','ver-footer'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = APP_VERSION; });
 // Μετράει το πραγματικό ύψος του topbar (μπορεί να τυλιχτεί σε 2 σειρές σε κινητό)
@@ -3533,37 +3533,107 @@ async function saveProject() {
 
 const isMobileDevice = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
 
-function deleteProject(projId) {
+async function deleteProject(projId) {
   if (isMobileDevice()) { alert('Η διαγραφή έργων επιτρέπεται μόνο από υπολογιστή (PC).'); return; }
   const p = getProj(projId);
   if (!p) return;
   // ── ΔΙΠΛΗ ΕΠΙΒΕΒΑΙΩΣΗ ──
-  if (!confirm('Διαγραφή του έργου "' + p.name + '";\n\nΤο έργο θα κρυφτεί από όλες τις συσκευές.')) return;
+  if (!confirm('Διαγραφή του έργου "' + p.name + '";\n\nΘα διαγραφούν ΟΡΙΣΤΙΚΑ: το έργο, οι καταγραφές, οι φάσεις, τα κτίρια, τα αρχεία ΚΑΙ όλες οι φωτογραφίες του από το cloud.\n\nΗ ενέργεια ΔΕΝ αναιρείται.')) return;
   const typed = prompt('Για επιβεβαίωση, πληκτρολόγησε το όνομα του έργου ακριβώς:\n\n' + p.name);
   if (typed === null) return;
   if (typed.trim() !== p.name.trim()) { alert('Το όνομα δεν ταιριάζει — η διαγραφή ακυρώθηκε.'); return; }
-  // ── SOFT DELETE: τα δεδομένα (καταγραφές/φάσεις/φωτό) ΜΕΝΟΥΝ στη βάση ──
+
+  // ── ΕΛΕΓΧΟΣ ΙΔΙΟΚΤΗΣΙΑΣ πριν από οτιδήποτε καταστροφικό ──
+  // Μόνο ο ιδιοκτήτης (user_id) μπορεί να κάνει ολική διαγραφή. Αν δεν είμαστε
+  // ιδιοκτήτες, το έργο απλώς ΚΡΥΒΕΤΑΙ από τις συσκευές μας (tombstone) και
+  // ο χρήστης ενημερώνεται ρητά — ΟΧΙ σιωπηλή αποτυχία.
+  let isOwner = false;
+  try {
+    const { data: ownRow } = await sb.from('projects').select('user_id').eq('id', projId).maybeSingle();
+    isOwner = !!(ownRow && ownRow.user_id === getUserId());
+    if (ownRow && !isOwner) {
+      if (!confirm('Δεν είστε ο ιδιοκτήτης αυτού του έργου (δημιουργήθηκε από άλλον λογαριασμό).\n\nΤο έργο θα ΚΡΥΦΤΕΙ μόνο από τις δικές σας συσκευές — τα δεδομένα του ΔΕΝ θα διαγραφούν.\n\nΣυνέχεια;')) return;
+    }
+  } catch(e) { console.warn('[PROJECT] owner check:', e.message); }
+
+  // ── ΣΥΛΛΟΓΗ STORAGE PATHS πριν σβηστούν τα rows (αλλιώς χάνονται τα paths) ──
+  let photoPaths = [], filePaths = [];
+  if (isOwner) {
+    try {
+      const [epr, fpr] = await Promise.all([
+        sb.from('entries').select('photos').eq('project_id', projId),
+        sb.from('files').select('path').eq('project_id', projId)
+      ]);
+      if (epr.data) epr.data.forEach(e => (e.photos || []).forEach(ph => { if (ph && typeof ph === 'string') photoPaths.push(ph); }));
+      if (fpr.data) fpr.data.forEach(f => { if (f.path) filePaths.push(f.path); });
+    } catch(e) { console.warn('[PROJECT] paths fetch:', e.message); }
+  }
+
+  // ── ΤΟΠΙΚΟ UI: αφαίρεση αμέσως ──
   const idx = PROJECTS.findIndex(x => x.id === projId);
   if (idx >= 0) PROJECTS.splice(idx, 1);
   appData.entries = appData.entries.filter(e => e.project !== projId);
   appData.phases = appData.phases.filter(ph => ph.project !== projId);
-  // Τοπική λίστα + pending queue (για offline)
+  BUILDINGS = BUILDINGS.filter(b => b.project_id !== projId);
+
+  // ── TOMBSTONE (απαραίτητο και με hard delete): εμποδίζει το restore-from-local
+  //    backup (hexis_custom_projects) στις υπόλοιπες συσκευές του χρήστη ──
   const deleted = JSON.parse(localStorage.getItem('hexis_deleted_projects') || '[]');
   if (!deleted.includes(projId)) { deleted.push(projId); localStorage.setItem('hexis_deleted_projects', JSON.stringify(deleted)); }
-  // Αφαίρεση και από το τοπικό backup ώστε να μην επανέλθει
-  try {
-    const cl = JSON.parse(localStorage.getItem('hexis_custom_projects')||'[]');
-    localStorage.setItem('hexis_custom_projects', JSON.stringify(cl.filter(x => x !== projId)));
-    localStorage.removeItem('hexis_proj_' + projId);
-  } catch(e) {}
   const pending = JSON.parse(localStorage.getItem('hexis_deleted_pending') || '[]');
   if (!pending.includes(projId)) { pending.push(projId); localStorage.setItem('hexis_deleted_pending', JSON.stringify(pending)); }
-  // Sync στο cloud — αν πετύχει, φεύγει από το pending
   sb.from('deleted_projects_v2').upsert({id: projId, user_id: getUserId()}).then(r=>{
     if (r.error) { console.error('[PROJECT] deleted sync failed:', r.error); return; }
     const pq = JSON.parse(localStorage.getItem('hexis_deleted_pending') || '[]');
     localStorage.setItem('hexis_deleted_pending', JSON.stringify(pq.filter(x => x !== projId)));
   });
+
+  // ── ΤΟΠΙΚΟΣ ΚΑΘΑΡΙΣΜΟΣ: όλα τα per-project κλειδιά ──
+  try {
+    const cl = JSON.parse(localStorage.getItem('hexis_custom_projects')||'[]');
+    localStorage.setItem('hexis_custom_projects', JSON.stringify(cl.filter(x => x !== projId)));
+    ['hexis_proj_','hexis_files_','hexis_phases_','hexis_boq_'].forEach(k => localStorage.removeItem(k + projId));
+  } catch(e) {}
+
+  // ── ΟΛΙΚΗ ΔΙΑΓΡΑΦΗ (μόνο ο ιδιοκτήτης) ──
+  if (isOwner) {
+    // 1) Storage: φωτογραφίες + αρχεία, σε πακέτα των 100
+    const chunk = (a, n) => { const o = []; for (let i = 0; i < a.length; i += n) o.push(a.slice(i, i + n)); return o; };
+    try {
+      for (const c of chunk([...new Set(photoPaths)], 100)) {
+        const r = await sb.storage.from('hexis-photos').remove(c);
+        if (r.error) console.warn('[PROJECT] photos remove:', r.error.message);
+      }
+      for (const c of chunk([...new Set(filePaths)], 100)) {
+        const r = await sb.storage.from('hexis-files').remove(c);
+        if (r.error) console.warn('[PROJECT] files remove:', r.error.message);
+      }
+      console.log('[PROJECT] storage cleanup: ' + photoPaths.length + ' photos, ' + filePaths.length + ' files');
+    } catch(e) { console.warn('[PROJECT] storage cleanup:', e.message); }
+
+    // 2) Βάση: πρώτα τα παιδιά, μετά το έργο — με έλεγχο αποτελέσματος
+    try {
+      await sb.from('project_members').delete().eq('project_id', projId);
+      await sb.from('entries').delete().eq('project_id', projId);
+      await sb.from('phases').delete().eq('project_id', projId);
+      await sb.from('files').delete().eq('project_id', projId);
+      await sb.from('buildings').delete().eq('project_id', projId);
+      const { data: delRows, error } = await sb.from('projects').delete().eq('id', projId).select('id');
+      if (error) {
+        console.error('[PROJECT] hard delete failed:', error);
+        alert('Το έργο κρύφτηκε από τις συσκευές σας, αλλά η οριστική διαγραφή από τη βάση απέτυχε:\n' + error.message);
+      } else if (!delRows || delRows.length === 0) {
+        alert('Το έργο κρύφτηκε από τις συσκευές σας, αλλά η γραμμή του δεν βρέθηκε/διαγράφηκε στη βάση.');
+        console.warn('[PROJECT] hard delete: 0 rows for', projId);
+      } else {
+        console.log('[PROJECT] ✓ οριστική διαγραφή (έργο + δεδομένα + storage):', projId);
+      }
+    } catch(e) {
+      console.error('[PROJECT] hard delete exception:', e.message);
+      alert('Το έργο κρύφτηκε τοπικά, αλλά η οριστική διαγραφή δεν ολοκληρώθηκε (offline;). Θα παραμείνει κρυμμένο.');
+    }
+  }
+
   if (state.proj === projId) state.proj = null;
   closeModal('modal-project');
   renderSidebar(); render();
