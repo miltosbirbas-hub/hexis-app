@@ -3,11 +3,19 @@
 //  ΑΛΛΑΖΕΙΣ ΜΟΝΟ ΤΟΝ ΑΡΙΘΜΟ VERSION ΣΕ ΚΑΘΕ ΝΕΑ ΕΚΔΟΣΗ
 //  (πρέπει να ταιριάζει με την έκδοση του app.html)
 // ============================================
-const VERSION = 'v4.08';
+const VERSION = 'v4.09';
 const CACHE_NAME = 'hexis-' + VERSION;
+
+// Αρχεία που προ-κατεβαίνουν στο install (παίζουν και offline)
+const PRECACHE = ['intro.mp4'];
 
 // Άμεση ενεργοποίηση νέας έκδοσης
 self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((c) => c.addAll(PRECACHE))
+      .catch(() => {}) // αν αποτύχει (offline install), δεν μπλοκάρει την εγκατάσταση
+  );
   self.skipWaiting();
 });
 

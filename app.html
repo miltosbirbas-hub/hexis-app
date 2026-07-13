@@ -408,6 +408,43 @@ tr:hover td { background: var(--surface2); }
 </head>
 <body>
 
+<!-- ===== HEXIS SPLASH INTRO (v4.09) ===== -->
+<div id="hxSplash">
+  <video id="hxSplashVideo" autoplay muted playsinline preload="auto" src="intro.mp4"></video>
+  <button id="hxSplashSkip">ΠΑΡΑΛΕΙΨΗ ›</button>
+</div>
+<style>
+#hxSplash{position:fixed;inset:0;z-index:99999;background:#000;display:flex;align-items:center;justify-content:center;transition:opacity .6s ease}
+#hxSplash.hx-hide{opacity:0;pointer-events:none}
+#hxSplashVideo{width:100%;height:100%;object-fit:cover;background:#000}
+#hxSplashSkip{position:absolute;bottom:28px;right:20px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:20px;padding:8px 18px;font-size:14px;cursor:pointer;backdrop-filter:blur(4px)}
+</style>
+<script>
+(function(){
+  var sp = document.getElementById('hxSplash');
+  var v  = document.getElementById('hxSplashVideo');
+  if(!sp) return;
+  // Μία φορά ανά session (όχι σε κάθε refresh)
+  if(sessionStorage.getItem('hxSplashSeen')){ sp.remove(); return; }
+  var done = false;
+  function endSplash(){
+    if(done) return; done = true;
+    try{ sessionStorage.setItem('hxSplashSeen','1'); }catch(e){}
+    sp.classList.add('hx-hide');
+    setTimeout(function(){ sp.remove(); }, 700);
+  }
+  v.addEventListener('ended', endSplash);
+  v.addEventListener('error', endSplash);
+  document.getElementById('hxSplashSkip').addEventListener('click', endSplash);
+  var p = v.play(); if(p && p.catch) p.catch(endSplash);
+  // Failsafe: αν δεν έχει φορτώσει σε 4s (π.χ. πρώτη φορά offline), κλείσε
+  setTimeout(function(){ if(v.readyState < 2) endSplash(); }, 4000);
+  // Απόλυτο όριο: video 7s + περιθώριο
+  setTimeout(endSplash, 10000);
+})();
+</script>
+<!-- ===== /HEXIS SPLASH INTRO ===== -->
+
 <script>
 window.HX_I18N = {
 "RTK Checklist": "RTK Checklist",
@@ -1705,7 +1742,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
 // ⚠️ ΣΥΜΠΛΗΡΩΣΕ: URL & anon key από το ΝΕΟ Supabase project (Settings → API)
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
-const APP_VERSION = 'v4.08'; // πρέπει να ταιριάζει με το VERSION του sw.js
+const APP_VERSION = 'v4.09'; // πρέπει να ταιριάζει με το VERSION του sw.js
 // Η έκδοση εμφανίζεται παντού δυναμικά — ΕΝΑ σημείο αλλαγής (+ sw.js)
 ['ver-mobile','ver-sub','ver-footer'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = APP_VERSION; });
 // Μετράει το πραγματικό ύψος του topbar (μπορεί να τυλιχτεί σε 2 σειρές σε κινητό)
