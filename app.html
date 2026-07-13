@@ -1705,7 +1705,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
 // ⚠️ ΣΥΜΠΛΗΡΩΣΕ: URL & anon key από το ΝΕΟ Supabase project (Settings → API)
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
-const APP_VERSION = 'v4.07'; // πρέπει να ταιριάζει με το VERSION του sw.js
+const APP_VERSION = 'v4.08'; // πρέπει να ταιριάζει με το VERSION του sw.js
 // Η έκδοση εμφανίζεται παντού δυναμικά — ΕΝΑ σημείο αλλαγής (+ sw.js)
 ['ver-mobile','ver-sub','ver-footer'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = APP_VERSION; });
 // Μετράει το πραγματικό ύψος του topbar (μπορεί να τυλιχτεί σε 2 σειρές σε κινητό)
@@ -6756,6 +6756,37 @@ let fpView = { scale:1, tx:0, ty:0, natW:0, natH:0, imgEl:null };
 let _fpRenderedDataUrl = {}; // cache: fileId -> base64 της rendered εικόνας (για αναφορά)
 
 // Φόρτωσε εικόνα ή PDF (1η σελίδα) στο modal
+// Μήνυμα κατάστασης/σφάλματος μέσα στο viewport της κάτοψης
+function fpShowMsg(text, isErr) {
+  const vp = document.getElementById('fp-viewport');
+  if (!vp) return;
+  let el = document.getElementById('fp-msg');
+  if (!text) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'fp-msg';
+    el.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;z-index:7;font-size:14px;line-height:1.5;pointer-events:none';
+    vp.appendChild(el);
+  }
+  el.style.color = isErr ? '#ff8a80' : '#9aa4b2';
+  el.innerHTML = text;
+}
+
+// Δυναμική φόρτωση pdf.js αν δεν φορτώθηκε από το CDN στην εκκίνηση
+function ensurePdfJs() {
+  if (window.pdfjsLib) return Promise.resolve(true);
+  return new Promise((res) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = () => {
+      try { pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; } catch(e){}
+      res(!!window.pdfjsLib);
+    };
+    s.onerror = () => res(false);
+    document.head.appendChild(s);
+  });
+}
+
 async function openFloorplanForPin(fileId, keepPick) {
   const f = findFloorplanFile(fileId);
   if (!f) { alert('Δεν βρέθηκε η κάτοψη.'); return; }
@@ -6769,10 +6800,23 @@ async function openFloorplanForPin(fileId, keepPick) {
     _photoPinTarget = null; _photoPinBtn = null;
     fpPick = { fileId:fileId, x:null, y:null, no:null };
   }
+  setupFpGestures();
+  fpShowMsg('⏳ Φόρτωση κάτοψης…');
+
+  if (!f.url) {
+    console.error('[FP] missing url for file', f);
+    fpShowMsg('❌ Το αρχείο της κάτοψης δεν έχει διεύθυνση (url).<br>Διάγραψέ το και ανέβασέ το ξανά.', true);
+    return;
+  }
 
   let srcUrl = f.url;
   const isPdf = /\.pdf$/i.test(f.name);
-  if (isPdf && window.pdfjsLib) {
+  if (isPdf) {
+    const hasPdfJs = await ensurePdfJs();
+    if (!hasPdfJs) {
+      fpShowMsg('❌ Δεν φορτώθηκε η βιβλιοθήκη PDF (pdf.js).<br>Έλεγξε τη σύνδεση στο internet και δοκίμασε ξανά.', true);
+      return;
+    }
     try {
       const pdf = await pdfjsLib.getDocument(f.url).promise;
       const page = await pdf.getPage(1);
@@ -6781,12 +6825,17 @@ async function openFloorplanForPin(fileId, keepPick) {
       canvas.width = viewport.width; canvas.height = viewport.height;
       await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
       srcUrl = canvas.toDataURL('image/jpeg', 0.9);
-    } catch(e) { console.error('PDF render fail', e); srcUrl = f.url; }
+    } catch(e) {
+      console.error('[FP] PDF render fail', e);
+      fpShowMsg('❌ Το PDF της κάτοψης δεν άνοιξε.<br><span style="font-size:12px">' + (e && e.message ? String(e.message).slice(0,120) : 'Άγνωστο σφάλμα') + '</span><br>Δοκίμασε να ανεβάσεις την κάτοψη ως εικόνα (JPG/PNG).', true);
+      return; // ΜΗΝ βάλεις PDF url σε <img> — δεν εμφανίζεται ποτέ
+    }
   }
   // αποθήκευσε για χρήση στην αναφορά (screenshot)
   _fpRenderedDataUrl[fileId] = srcUrl;
 
-  img.onload = () => {
+  const applyLoaded = () => {
+    fpShowMsg('');
     fpView.natW = img.naturalWidth; fpView.natH = img.naturalHeight; fpView.imgEl = img;
     img.style.width = fpView.natW + 'px';
     img.style.height = fpView.natH + 'px';
@@ -6795,8 +6844,15 @@ async function openFloorplanForPin(fileId, keepPick) {
     fpFit();
     renderExistingPins(fileId);
   };
+  img.onload = applyLoaded;
+  img.onerror = () => {
+    console.error('[FP] image load fail:', srcUrl);
+    fpShowMsg('❌ Η κάτοψη δεν φορτώθηκε.<br>Έλεγξε τη σύνδεση στο internet ή ανέβασε ξανά το αρχείο.', true);
+  };
   img.src = srcUrl;
-  setupFpGestures();
+  // Cache-safe: αν η εικόνα είναι ήδη πλήρως φορτωμένη (ίδιο src από πριν),
+  // το onload μπορεί να μην ξαναπυροδοτηθεί (iOS/Safari) — τρέξ' το χειροκίνητα
+  if (img.complete && img.naturalWidth > 0) applyLoaded();
 }
 
 // Προσαρμογή ώστε να χωράει όλη η κάτοψη στο viewport
