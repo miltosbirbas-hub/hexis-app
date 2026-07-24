@@ -15,6 +15,11 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://hexis-app.gr/nomothesia_intro.png">
 <meta name="theme-color" content="#14213D">
+<link rel="manifest" href="nomothesia-manifest.json">
+<link rel="apple-touch-icon" href="nomothesia-icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Νομοθεσία">
 <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="9" fill="%2314213D"/><g fill="none" stroke="%238FB4EE" stroke-width="3.2" stroke-linecap="square"><path d="M20 44 H6 V6 H42 V44 H28"/><path d="M13 13 V35"/><path d="M35 13 V35"/><path d="M13 13 H35"/></g><g fill="none" stroke="%23FFFFFF" stroke-width="3.2" stroke-linecap="square"><path d="M20 18 V30"/><path d="M28 18 V30"/><path d="M20 24 H28"/></g></svg>'>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1254,7 +1259,7 @@ function renderAI(){
         html += `</div>`;
       }
       if(m.local){
-        html += `<div class="refs"><button class="askaibtn" style="border-color:#1F4E9C;background:#1F4E9C;color:#fff">🤖 Ρώτησε το AI γι' αυτό</button></div>`;
+        html += `<div class="refs"><button class="askaibtn" style="border:none;background:#1F4E9C;color:#fff;font-family:inherit;font-size:14.5px;font-weight:700;border-radius:10px;padding:12px 18px;width:100%;cursor:pointer;box-shadow:0 2px 6px rgba(31,78,156,.35)">🤖 Ρώτησε το AI γι' αυτό — αναλυτική απάντηση</button></div>`;
       }
       if(!m.err && !m.verified && !m.local && m.q){
         html += `<div class="refs"><button class="verifybtn" data-vq="${esc(m.q)}">🔍 Επαλήθευση live (ΦΕΚ/πηγές, 10-30 δευτ.)</button></div>`;
@@ -1343,11 +1348,14 @@ async function sendQuestion(){
   chatHistory.push({role:"user", text});
   // ΠΡΩΤΑ δωρεάν τοπική εύρεση — κανένα API call, καμία χρέωση
   const refs = localFind(text);
+  const isQuestion = /;\s*$/.test(text) || /^(τι|πως|πώς|ποτε|πότε|γιατι|γιατί|ποια|ποιά|ποιο|ποιό|ποσο|πόσο|ποσα|πόσα|μπορω|μπορώ|πρεπει|πρέπει|επιτρεπεται|επιτρέπεται|ισχυει|ισχύει)\b/i.test(text.trim());
   chatHistory.push({
     role:"assistant", local:true, q:text, refs,
     text: refs.length
-      ? "🔎 **Δωρεάν εύρεση στο ευρετήριο** (χωρίς AI) — σχετικά άρθρα:"
-      : "🔎 Δεν βρέθηκε κάτι στο ευρετήριο για αυτούς τους όρους. Δοκίμασε άλλες λέξεις-κλειδιά ή ρώτησε το AI."
+      ? (isQuestion
+          ? "🔎 **Δωρεάν εύρεση** — αυτά τα άρθρα αφορούν την ερώτησή σου. Για **αναλυτική απάντηση**, πάτα το μπλε κουμπί από κάτω:"
+          : "🔎 **Δωρεάν εύρεση στο ευρετήριο** (χωρίς AI) — σχετικά άρθρα:")
+      : "🔎 Δεν βρέθηκε κάτι στο ευρετήριο για αυτούς τους όρους. Πάτα το μπλε κουμπί για να απαντήσει το AI:"
   });
   renderAI();
 }
@@ -1631,6 +1639,12 @@ function scheduleUpdateCheck(){
   }
 }
 scheduleUpdateCheck();
+</script>
+<script>
+/* Κοινός service worker του HEXIS — δίνει offline λειτουργία και στο αυτόνομο app */
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
 </script>
 </body>
 </html>

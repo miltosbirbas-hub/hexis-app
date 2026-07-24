@@ -3,11 +3,11 @@
 //  ΑΛΛΑΖΕΙΣ ΜΟΝΟ ΤΟΝ ΑΡΙΘΜΟ VERSION ΣΕ ΚΑΘΕ ΝΕΑ ΕΚΔΟΣΗ
 //  (πρέπει να ταιριάζει με την έκδοση του app.html)
 // ============================================
-const VERSION = 'v4.11';
+const VERSION = 'v4.13';
 const CACHE_NAME = 'hexis-' + VERSION;
 
 // Αρχεία που προ-κατεβαίνουν στο install (παίζουν και offline)
-const PRECACHE = ['intro.mp4', 'nomothesia.html'];
+const PRECACHE = ['intro.mp4', 'nomothesia.html', 'nomothesia-manifest.json', 'nomothesia-icon-192.png', 'nomothesia-icon-512.png', 'nomothesia-icon-maskable.png'];
 
 // Άμεση ενεργοποίηση νέας έκδοσης
 self.addEventListener('install', (e) => {
