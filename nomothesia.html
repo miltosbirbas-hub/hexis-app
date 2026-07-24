@@ -569,6 +569,63 @@ async function askAI(payload){
   }
 }
 
+/* Streaming: το κείμενο έρχεται ζωντανά (SSE) — onText καλείται με το σωρευτικό κείμενο */
+async function askAIStream(payload, onText){
+  const res = await fetch(EDGE_URL, {
+    method:"POST",
+    headers:{"Content-Type":"application/json","Authorization":"Bearer "+SB_ANON,"apikey":SB_ANON},
+    body:JSON.stringify(Object.assign({}, payload, {stream:true}))
+  });
+  if(!res.ok || !res.body){
+    let msg = "HTTP "+res.status;
+    try{ const j = await res.json(); const m = j && (j.error && j.error.message || j.error); if(m) msg += " — " + String(m).slice(0,200); }catch(_){}
+    throw new Error(msg);
+  }
+  const ct = res.headers.get("Content-Type") || "";
+  if(!ct.includes("event-stream")){
+    // Παλιά έκδοση function χωρίς streaming: ήρθε ολόκληρο JSON
+    const data = await res.json();
+    const txt = (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n").trim();
+    if(txt && onText) onText(txt);
+    return txt;
+  }
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "", full = "";
+  for(;;){
+    const {done, value} = await reader.read();
+    if(done) break;
+    buf += dec.decode(value, {stream:true});
+    const lines = buf.split("\n");
+    buf = lines.pop();
+    for(const ln of lines){
+      if(!ln.startsWith("data:")) continue;
+      const s = ln.slice(5).trim();
+      if(!s) continue;
+      let ev;
+      try{ ev = JSON.parse(s); }catch(_){ continue; }
+      if(ev.type === "content_block_delta" && ev.delta && ev.delta.type === "text_delta"){
+        full += ev.delta.text;
+        if(onText) onText(full);
+      } else if(ev.type === "error"){
+        throw new Error((ev.error && ev.error.message) || "stream error");
+      }
+    }
+  }
+  return full.trim();
+}
+
+/* Πρώτα streaming· αν αποτύχει, fallback στη μη-streaming ροή (edge → direct) */
+async function askAILive(payload, onText){
+  try{
+    const t = await askAIStream(payload, onText);
+    if(t) return t;
+    throw new Error("Κενή απάντηση");
+  }catch(e){
+    return askAIFull(payload);
+  }
+}
+
 // Πλήρης απάντηση: αν κοπεί στο όριο tokens, συνεχίζει αυτόματα (έως 3 γύροι)
 async function askAIFull(payload, maxRounds=3){
   let msgs = payload.messages.slice();
@@ -1037,7 +1094,7 @@ async function verifySub(key, it, idx, lineText, ans){
   st.loading = true;
   ans.innerHTML = `<div class="subloading"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Επαλήθευση live σε ΦΕΚ/πηγές…</div>`;
   try{
-    const answer = await askAIFull({
+    const answer = await askAILive({
       model:"claude-sonnet-4-6",
       max_tokens:1500,
       system:SYSTEM_ART + "\n\nΛΕΙΤΟΥΡΓΙΑ ΕΠΑΛΗΘΕΥΣΗΣ: Χρησιμοποίησε web search για να ΕΠΙΒΕΒΑΙΩΣΕΙΣ από επίσημες/έγκυρες πηγές (ΦΕΚ, et.gr, υπουργικές εγκυκλίους, έγκυρα νομικά sites) κάθε αριθμητικό μέγεθος/προθεσμία της προηγούμενης ερμηνείας. Διόρθωσε ό,τι διαφέρει και σημείωσε ρητά τι επιβεβαιώθηκε και από πού.",
@@ -1047,7 +1104,7 @@ async function verifySub(key, it, idx, lineText, ans){
         {role:"user", content:"Επαλήθευσε την παραπάνω ερμηνεία με live αναζήτηση σε επίσημες πηγές. Δώσε την τελική, επιβεβαιωμένη εκδοχή."}
       ],
       tools:[{type:"web_search_20250305",name:"web_search"}]
-    });
+    }, t=>{ ans.innerHTML = `<div style="font-weight:700;color:#1F6B33;margin-bottom:6px">🔍 Επαλήθευση σε εξέλιξη…</div>` + mdLite(t); });
     if(!answer) throw new Error("Κενή απάντηση");
     st.text = answer;
     st.verified = true;
@@ -1072,12 +1129,12 @@ async function loadSub(key, it, idx, lineText, wrap){
   st.loading = true;
   ans.innerHTML = `<div class="subloading"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Ερμηνεία…</div>`;
   try{
-    const answer = await askAIFull({
+    const answer = await askAILive({
       model:"claude-sonnet-4-6",
-      max_tokens:1500,
+      max_tokens:900,
       system:SYSTEM_ART,
-      messages:[{role:"user", content:`${LAW_LABEL[key]} — ${it.n} («${it.t}»). Εξήγησέ μου αναλυτικά τη συγκεκριμένη διάταξη: «${lineText}»`}]
-    });
+      messages:[{role:"user", content:`${LAW_LABEL[key]} — ${it.n} («${it.t}»). Εξήγησέ μου σύντομα, πρακτικά και περιεκτικά (έως ~180 λέξεις) τη συγκεκριμένη διάταξη: «${lineText}»`}]
+    }, t=>{ ans.innerHTML = mdLite(t); });
     if(!answer) throw new Error("Κενή απάντηση");
     st.text = answer;
     ans.innerHTML = subAnsRender(st);
@@ -1230,13 +1287,13 @@ async function verifyQuestion(q){
   document.getElementById("send").disabled = true;
   renderAI();
   try{
-    let answer = await askAIFull({
+    let answer = await askAILive({
       model:"claude-sonnet-4-6",
       max_tokens:1500,
       system:SYSTEM_REF + "\n\nΛΕΙΤΟΥΡΓΙΑ ΕΠΑΛΗΘΕΥΣΗΣ: Χρησιμοποίησε web search για να ΕΠΙΒΕΒΑΙΩΣΕΙΣ από επίσημες/έγκυρες πηγές (ΦΕΚ, et.gr, υπουργικές εγκυκλίους, έγκυρα νομικά sites) κάθε αριθμητικό μέγεθος της απάντησης. Διόρθωσε ό,τι διαφέρει και σημείωσε ρητά τι επιβεβαιώθηκε.",
       messages:[{role:"user", content:q + "\n\n(Επαλήθευσε τα μεγέθη με live αναζήτηση σε επίσημες πηγές.)"}],
       tools:[{type:"web_search_20250305",name:"web_search"}]
-    });
+    }, streamLive);
     if(!answer) throw new Error("Κενή απάντηση");
     const refs = [];
     answer = answer.replace(/\[\[([a-z0-9]+\|\d+\|\d+)\]\]/g, (m,id)=>{ if(getItem(id) && !refs.includes(id)) refs.push(id); return ""; });
@@ -1295,6 +1352,16 @@ async function sendQuestion(){
   renderAI();
 }
 
+/* Ζωντανό μήνυμα AI μέσα στο chat όσο έρχεται το streaming */
+function streamLive(text){
+  const chat = document.getElementById("chat");
+  if(!chat) return;
+  let d = document.getElementById("stream-live");
+  if(!d){ d = document.createElement("div"); d.id = "stream-live"; d.className = "msg ai"; chat.appendChild(d); }
+  d.innerHTML = mdLite(text);
+  window.scrollTo(0, document.body.scrollHeight);
+}
+
 async function askAIQuestion(){
   if(busy) return;
   busy = true;
@@ -1303,12 +1370,12 @@ async function askAIQuestion(){
 
   try{
     const messages = chatHistory.filter(m=>!m.err && !m.local).map(m=>({role:m.role==="user"?"user":"assistant", content:m.text}));
-    let answer = await askAIFull({
+    let answer = await askAILive({
       model:"claude-sonnet-4-6",
       max_tokens:1200,
       system:SYSTEM_REF,
       messages
-    });
+    }, streamLive);
     if(!answer) throw new Error("Κενή απάντηση");
     // Εξαγωγή παραπομπών [[id]]
     const refs = [];
