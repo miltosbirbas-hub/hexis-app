@@ -535,15 +535,29 @@ ktir:{
 ===================================================================== */
 const EDGE_URL  = "https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/nomothesia-ai";
 const DIRECT_URL = "https://api.anthropic.com/v1/messages";
+// Anon key (δημόσιο by design) — χρειάζεται για να περάσει το Supabase gateway
+const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8";
 
 async function askAI(payload){
-  async function call(url){
-    const res = await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-    if(!res.ok) throw new Error("HTTP "+res.status);
+  async function call(url, extraHeaders){
+    const res = await fetch(url,{method:"POST",headers:Object.assign({"Content-Type":"application/json"},extraHeaders||{}),body:JSON.stringify(payload)});
+    if(!res.ok){
+      let msg = "HTTP "+res.status;
+      try{ const j = await res.json(); const m = j && (j.error && j.error.message || j.error || j.msg || j.message); if(m) msg += " — " + String(m).slice(0,200); }catch(_){}
+      throw new Error(msg);
+    }
     return res.json();
   }
-  try{ return await call(EDGE_URL); }
-  catch(e){ return await call(DIRECT_URL); }
+  let edgeErr;
+  try{ return await call(EDGE_URL, {"Authorization":"Bearer "+SB_ANON, "apikey":SB_ANON}); }
+  catch(e){ edgeErr = e; }
+  try{ return await call(DIRECT_URL); }
+  catch(e){
+    throw new Error("Edge Function «nomothesia-ai»: " + edgeErr.message +
+      (edgeErr.message === "Failed to fetch"
+        ? " — μάλλον δεν έχει γίνει deploy στο Supabase ή δεν υπάρχει δίκτυο"
+        : ""));
+  }
 }
 
 // Πλήρης απάντηση: αν κοπεί στο όριο tokens, συνεχίζει αυτόματα (έως 3 γύροι)
