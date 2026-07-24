@@ -1170,7 +1170,7 @@ function renderAI(){
   let html = `
   <div class="lawmeta">
     <div class="fek">AI<br>ΠΑΡΑΠΟΜΠΗ</div>
-    <p>Περιέγραψε τι ψάχνεις με δικά σου λόγια — το AI απαντά σύντομα και σε πάει με ένα tap στο σωστό άρθρο.</p>
+    <p>Γράψε τι ψάχνεις — πρώτα γίνεται <b>δωρεάν εύρεση</b> στο ευρετήριο όλων των νόμων (χωρίς AI). Το AI καλείται μόνο αν πατήσεις «Ρώτησε το AI».</p>
   </div>`;
   if(!chatHistory.length){
     html += `<div class="chips">
@@ -1196,7 +1196,10 @@ function renderAI(){
         });
         html += `</div>`;
       }
-      if(!m.err && !m.verified && m.q){
+      if(m.local){
+        html += `<div class="refs"><button class="askaibtn" style="border-color:#1F4E9C;background:#1F4E9C;color:#fff">🤖 Ρώτησε το AI γι' αυτό</button></div>`;
+      }
+      if(!m.err && !m.verified && !m.local && m.q){
         html += `<div class="refs"><button class="verifybtn" data-vq="${esc(m.q)}">🔍 Επαλήθευση live (ΦΕΚ/πηγές, 10-30 δευτ.)</button></div>`;
       }
     }
@@ -1214,6 +1217,9 @@ function renderAI(){
   });
   main.querySelectorAll(".verifybtn").forEach(b=>{
     b.addEventListener("click", ()=> verifyQuestion(b.dataset.vq));
+  });
+  main.querySelectorAll(".askaibtn").forEach(b=>{
+    b.addEventListener("click", ()=> askAIQuestion());
   });
   window.scrollTo(0, document.body.scrollHeight);
 }
@@ -1244,18 +1250,59 @@ async function verifyQuestion(q){
   renderAI();
 }
 
+/* ---------- ΔΩΡΕΑΝ τοπική εύρεση σε ΟΛΟΥΣ τους νόμους (χωρίς AI/API) ---------- */
+const STOPWORDS = new Set(["και","η","ο","το","τα","τον","την","τις","της","του","των","σε","στο","στη","στην","στον","στα","στις","στους","με","για","που","πως","τι","να","θελω","θα","ειναι","εχω","εχει","εχεις","απο","ενα","μια","ποσο","ποσα","ποια","ποιο","ποιος","ισχυει","μπορω","πρεπει","αν","οταν","μου","σου","δεν","κανω","βαλω","οτι","ως","κατι","ρε","οχι","ναι"]);
+
+function localFind(q){
+  const tokens = norm(q).replace(/[;,.·!?()«»"']/g," ").split(/\s+/)
+    .filter(t=> t && !STOPWORDS.has(t) && (t.length>=3 || /^\d+$/.test(t)));
+  if(!tokens.length) return [];
+  const res = [];
+  for(const key of Object.keys(LAWS)){
+    LAWS[key].chapters.forEach((ch,ci)=> ch.items.forEach((it,ii)=>{
+      const hay1 = norm(it.n+" "+it.t+" "+(it.k||""));
+      const hay2 = norm((it.d||"")+" "+(it.p||""));
+      const nums = artNums(it.n);
+      let score = 0, matched = 0;
+      for(const t of tokens){
+        let hit = false;
+        if(/^\d+$/.test(t) && nums.includes(+t)){ score += 5; hit = true; }
+        if(hay1.includes(t)){ score += 3; hit = true; }
+        else if(hay2.includes(t)){ score += 1; hit = true; }
+        if(hit) matched++;
+      }
+      if(matched > 0) res.push({id:key+"|"+ci+"|"+ii, score, matched});
+    }));
+  }
+  res.sort((a,b)=> b.matched - a.matched || b.score - a.score);
+  return res.slice(0,8).map(r=>r.id);
+}
+
 async function sendQuestion(){
   const ta = document.getElementById("q");
   const text = ta.value.trim();
   if(!text || busy) return;
   ta.value = "";
   chatHistory.push({role:"user", text});
+  // ΠΡΩΤΑ δωρεάν τοπική εύρεση — κανένα API call, καμία χρέωση
+  const refs = localFind(text);
+  chatHistory.push({
+    role:"assistant", local:true, q:text, refs,
+    text: refs.length
+      ? "🔎 **Δωρεάν εύρεση στο ευρετήριο** (χωρίς AI) — σχετικά άρθρα:"
+      : "🔎 Δεν βρέθηκε κάτι στο ευρετήριο για αυτούς τους όρους. Δοκίμασε άλλες λέξεις-κλειδιά ή ρώτησε το AI."
+  });
+  renderAI();
+}
+
+async function askAIQuestion(){
+  if(busy) return;
   busy = true;
   document.getElementById("send").disabled = true;
   renderAI();
 
   try{
-    const messages = chatHistory.filter(m=>!m.err).map(m=>({role:m.role==="user"?"user":"assistant", content:m.text}));
+    const messages = chatHistory.filter(m=>!m.err && !m.local).map(m=>({role:m.role==="user"?"user":"assistant", content:m.text}));
     let answer = await askAIFull({
       model:"claude-sonnet-4-6",
       max_tokens:1200,
@@ -1267,7 +1314,8 @@ async function sendQuestion(){
     const refs = [];
     answer = answer.replace(/\[\[([a-z0-9]+\|\d+\|\d+)\]\]/g, (m,id)=>{ if(getItem(id) && !refs.includes(id)) refs.push(id); return ""; });
     answer = answer.replace(/^\s*ΣΧΕΤΙΚΑ:\s*$/gmi,"").replace(/\n{3,}/g,"\n\n").trim();
-    chatHistory.push({role:"assistant", text:answer, refs, q:text});
+    const lastQ = [...chatHistory].reverse().find(m=>m.role==="user");
+    chatHistory.push({role:"assistant", text:answer, refs, q: lastQ ? lastQ.text : ""});
   }catch(err){
     chatHistory.push({role:"assistant", err:true,
       text:"Σφάλμα επικοινωνίας με το AI ("+err.message+"). Αν το τρέχεις στο hexis-app.gr, βεβαιώσου ότι έχει γίνει deploy η Edge Function «nomothesia-ai» στο Supabase."});
