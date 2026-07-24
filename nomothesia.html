@@ -15,7 +15,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://hexis-app.gr/nomothesia_intro.png">
 <meta name="theme-color" content="#14213D">
-<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="9" fill="%2314213D"/><g fill="none" stroke="%238FB4EE" stroke-width="3.2" stroke-linecap="square"><path d="M20 44 H6 V6 H42 V44 H28"/><path d="M13 13 H28"/><path d="M35 13 V28"/><path d="M13 20 V35"/><path d="M20 35 H35"/></g><g fill="none" stroke="%23FFFFFF" stroke-width="3.2" stroke-linecap="square"><path d="M20 18 V30"/><path d="M28 18 V30"/><path d="M20 24 H28"/></g></svg>'>
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="9" fill="%2314213D"/><g fill="none" stroke="%238FB4EE" stroke-width="3.2" stroke-linecap="square"><path d="M20 44 H6 V6 H42 V44 H28"/><path d="M13 13 V35"/><path d="M35 13 V35"/><path d="M13 13 H35"/></g><g fill="none" stroke="%23FFFFFF" stroke-width="3.2" stroke-linecap="square"><path d="M20 18 V30"/><path d="M28 18 V30"/><path d="M20 24 H28"/></g></svg>'>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -825,6 +825,12 @@ function renderLaw(key, q=""){
           loadSub(key, it, idx, lineText, wrap);
         }
       });
+      const cidx = +wrap.dataset.sidx;
+      const cst = it._sub && it._sub[cidx];
+      if(cst && cst.text){
+        const lineText = wrap.querySelector(".subline").textContent.replace(/^›\s*/,"").trim();
+        bindSubVerify(wrap.querySelector(".subans"), key, it, cidx, lineText);
+      }
     });
   });
 }
@@ -999,7 +1005,7 @@ function renderContentLines(it){
       const isOpen = cached && cached.open;
       out += `<div class="subwrap${isOpen?" open":""}" data-sidx="${idx}">
         <button type="button" class="subline"><span class="chev">›</span>${mdLite(t.replace(/^•\s*/,""))}</button>
-        <div class="subans">${cached && cached.text ? mdLite(cached.text) : ""}</div>
+        <div class="subans">${cached && cached.text ? subAnsRender(cached) : ""}</div>
       </div>`;
     } else {
       out += `<div class="artcontent" style="margin-bottom:7px">${mdLite(t)}</div>`;
@@ -1008,13 +1014,60 @@ function renderContentLines(it){
   return `<div class="sublines">${out}</div>`;
 }
 
+/* HTML απάντησης γραμμής: κείμενο + κουμπί «Επαλήθευση live» ή σήμανση επαληθευμένου */
+function subAnsRender(st){
+  let h = mdLite(st.text);
+  if(st.verified){
+    h = `<div style="font-weight:700;color:#1F6B33;margin-bottom:6px">✅ ΕΠΑΛΗΘΕΥΜΕΝΟ LIVE</div>` + h;
+  } else {
+    h += `<div style="margin-top:9px"><button type="button" class="subverify" style="appearance:none;border:1.5px solid var(--blue);background:#fff;color:var(--blue);font-family:inherit;font-size:12.5px;font-weight:600;border-radius:8px;padding:6px 11px;cursor:pointer">🔍 Επαλήθευση live (ΦΕΚ/πηγές, 10-30 δευτ.)</button></div>`;
+  }
+  return h;
+}
+
+/* Δένει το κουμπί επαλήθευσης μέσα σε ένα .subans */
+function bindSubVerify(ans, key, it, idx, lineText){
+  const b = ans.querySelector(".subverify");
+  if(b) b.addEventListener("click", (e)=>{ e.stopPropagation(); verifySub(key, it, idx, lineText, ans); });
+}
+
+async function verifySub(key, it, idx, lineText, ans){
+  const st = it._sub[idx];
+  if(!st || !st.text || st.loading) return;
+  st.loading = true;
+  ans.innerHTML = `<div class="subloading"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Επαλήθευση live σε ΦΕΚ/πηγές…</div>`;
+  try{
+    const answer = await askAIFull({
+      model:"claude-sonnet-4-6",
+      max_tokens:1500,
+      system:SYSTEM_ART + "\n\nΛΕΙΤΟΥΡΓΙΑ ΕΠΑΛΗΘΕΥΣΗΣ: Χρησιμοποίησε web search για να ΕΠΙΒΕΒΑΙΩΣΕΙΣ από επίσημες/έγκυρες πηγές (ΦΕΚ, et.gr, υπουργικές εγκυκλίους, έγκυρα νομικά sites) κάθε αριθμητικό μέγεθος/προθεσμία της προηγούμενης ερμηνείας. Διόρθωσε ό,τι διαφέρει και σημείωσε ρητά τι επιβεβαιώθηκε και από πού.",
+      messages:[
+        {role:"user", content:`${LAW_LABEL[key]} — ${it.n} («${it.t}»). Εξήγησέ μου αναλυτικά τη συγκεκριμένη διάταξη: «${lineText}»`},
+        {role:"assistant", content:st.text},
+        {role:"user", content:"Επαλήθευσε την παραπάνω ερμηνεία με live αναζήτηση σε επίσημες πηγές. Δώσε την τελική, επιβεβαιωμένη εκδοχή."}
+      ],
+      tools:[{type:"web_search_20250305",name:"web_search"}]
+    });
+    if(!answer) throw new Error("Κενή απάντηση");
+    st.text = answer;
+    st.verified = true;
+    ans.innerHTML = subAnsRender(st);
+  }catch(err){
+    ans.innerHTML = subAnsRender(st) + `<div style="color:#7A2020;font-size:12.5px;margin-top:6px">Σφάλμα επαλήθευσης (${esc(err.message)}). Δοκίμασε ξανά.</div>`;
+    bindSubVerify(ans, key, it, idx, lineText);
+    st.loading = false;
+    return;
+  }
+  st.loading = false;
+}
+
 async function loadSub(key, it, idx, lineText, wrap){
   it._sub = it._sub || {};
   it._sub[idx] = it._sub[idx] || {};
   const st = it._sub[idx];
   st.open = true;
   const ans = wrap.querySelector(".subans");
-  if(st.text){ ans.innerHTML = mdLite(st.text); return; }
+  if(st.text){ ans.innerHTML = subAnsRender(st); bindSubVerify(ans, key, it, idx, lineText); return; }
   if(st.loading) return;
   st.loading = true;
   ans.innerHTML = `<div class="subloading"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Ερμηνεία…</div>`;
@@ -1027,7 +1080,8 @@ async function loadSub(key, it, idx, lineText, wrap){
     });
     if(!answer) throw new Error("Κενή απάντηση");
     st.text = answer;
-    ans.innerHTML = mdLite(answer);
+    ans.innerHTML = subAnsRender(st);
+    bindSubVerify(ans, key, it, idx, lineText);
   }catch(err){
     ans.innerHTML = `<span style="color:#7A2020">Σφάλμα (${esc(err.message)}). Πάτησε ξανά τη γραμμή.</span>`;
     st.text = null;
