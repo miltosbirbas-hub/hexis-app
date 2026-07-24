@@ -3,11 +3,11 @@
 //  ΑΛΛΑΖΕΙΣ ΜΟΝΟ ΤΟΝ ΑΡΙΘΜΟ VERSION ΣΕ ΚΑΘΕ ΝΕΑ ΕΚΔΟΣΗ
 //  (πρέπει να ταιριάζει με την έκδοση του app.html)
 // ============================================
-const VERSION = 'v4.09';
+const VERSION = 'v4.10';
 const CACHE_NAME = 'hexis-' + VERSION;
 
 // Αρχεία που προ-κατεβαίνουν στο install (παίζουν και offline)
-const PRECACHE = ['intro.mp4'];
+const PRECACHE = ['intro.mp4', 'nomothesia.html'];
 
 // Άμεση ενεργοποίηση νέας έκδοσης
 self.addEventListener('install', (e) => {
