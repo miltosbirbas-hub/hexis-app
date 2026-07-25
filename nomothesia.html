@@ -167,7 +167,7 @@ mark{background:#FFE9A8;color:inherit;border-radius:2px;padding:0 1px}
       </g>
     </svg>
     <div class="brandtxt">
-      <h1>HEXIS <span>ΝΟΜΟΘΕΣΙΑ</span></h1>
+      <h1>HEXIS <span>ΝΟΜΟΘΕΣΙΑ</span> <small id="nomover" style="font-size:11px;font-weight:600;letter-spacing:1px;color:#5B6B85;vertical-align:6px"></small></h1>
       <small>ΚΩΔΙΚΑΣ ΤΑΓΑΡΑ 5306/26 · ΝΟΚ 4067/12 · Ν.4495/17 · ΚΤΙΡΙΟΔΟΜΙΚΟΣ 23 · ΑΙΓΙΑΛΟΣ & ΡΕΜΑΤΑ &nbsp;—&nbsp; hexis-app.gr</small>
     </div>
   </div>
@@ -1681,9 +1681,27 @@ function scheduleUpdateCheck(){
 scheduleUpdateCheck();
 </script>
 <script>
-/* Κοινός service worker του HEXIS — δίνει offline λειτουργία και στο αυτόνομο app */
+/* ---- Έκδοση (ίδια με sw.js/app.html — άλλαξέ τη ΜΑΖΙ τους) ---- */
+const NOMO_VERSION = "v4.15";
+document.getElementById("nomover").textContent = NOMO_VERSION;
+
+/* ---- Κοινός service worker του HEXIS + ΑΥΤΟΜΑΤΗ αναβάθμιση ----
+   Το sw.js σερβίρει τα .html πάντα network-first και κάνει skipWaiting,
+   οπότε: (α) κάθε φόρτωμα online φέρνει τη νέα έκδοση,
+   (β) όταν εγκατασταθεί νέος SW όσο η σελίδα είναι ανοιχτή,
+       η σελίδα ξαναφορτώνει ΜΟΝΗ της στη νέα έκδοση. */
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js").catch(()=>{});
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register("sw.js").then((reg) => {
+    reg.update().catch(()=>{});                       // έλεγχος στο άνοιγμα
+    setInterval(() => reg.update().catch(()=>{}), 60*60*1000); // και κάθε 1 ώρα
+  }).catch(()=>{});
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController || reloaded) return; // όχι reload στην πρώτη εγκατάσταση
+    reloaded = true;
+    location.reload();
+  });
 }
 </script>
 </body>
