@@ -157,11 +157,15 @@ mark{background:#FFE9A8;color:inherit;border-radius:2px;padding:0 1px}
   body.printing #printarea, body.printing #printarea *{visibility:visible !important}
   body.printing #printarea{position:absolute !important; left:0; top:0; width:100%; margin:0; padding:0; background:#fff;
     color:#111; font-family:Calibri, "Segoe UI", sans-serif; font-size:11pt; line-height:1.45; z-index:99999}
-  #printarea .phead{display:flex; align-items:center; gap:5mm; justify-content:center; text-align:center; border-bottom:2.5pt solid #1F4E9C; padding-bottom:4mm; margin-bottom:5mm}
-  #printarea .plogo{width:17mm; height:17mm; flex:0 0 auto}
-  #printarea .ptitle{font-size:19pt; font-weight:800; letter-spacing:2px; color:#14213D}
-  #printarea .ptitle span{color:#1F4E9C}
-  #printarea .pmeta{font-size:9pt; color:#555; margin-top:2mm}
+  #printarea .phead{display:flex; align-items:center; gap:5mm; background:#14213D !important; border-radius:2.5mm; padding:5mm 6mm; margin-bottom:3mm;
+    -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important}
+  #printarea .plogo{width:16mm; height:16mm; flex:0 0 auto}
+  #printarea .pheadtxt{min-width:0}
+  #printarea .ptitle{font-size:18pt; font-weight:800; letter-spacing:2px; color:#FFFFFF !important}
+  #printarea .ptitle span{color:#8FB4EE !important}
+  #printarea .pver2{font-size:8pt; font-weight:600; letter-spacing:1px; color:#5B6B85 !important}
+  #printarea .plaws{font-size:8.5pt; letter-spacing:.5px; color:#93A5C6 !important; margin-top:1.5mm}
+  #printarea .pmeta{font-size:9pt; color:#555; margin:0 0 4mm; text-align:right}
   #printarea .pchap{font-size:10pt; font-weight:700; letter-spacing:1px; color:#1F4E9C; text-transform:uppercase; margin-bottom:2mm}
   #printarea .part{font-size:15pt; font-weight:800; color:#14213D; margin:0 0 2mm}
   #printarea .pdesc{font-style:italic; color:#444; margin:0 0 4mm}
@@ -1203,11 +1207,12 @@ function printArticle(id){
           <path d="M20 18 V30"/><path d="M28 18 V30"/><path d="M20 24 H28"/>
         </g>
       </svg>
-      <div>
-        <div class="ptitle">HEXIS <span>ΝΟΜΟΘΕΣΙΑ</span></div>
-        <div class="pmeta">${esc(LAW_LABEL[key])} · ${esc(law.fek).replace("\n"," — ")} · Εκτύπωση: ${today} · ${NOMO_VERSION}</div>
+      <div class="pheadtxt">
+        <div class="ptitle">HEXIS <span>ΝΟΜΟΘΕΣΙΑ</span> <sup class="pver2">${NOMO_VERSION}</sup></div>
+        <div class="plaws">ΚΩΔΙΚΑΣ ΤΑΓΑΡΑ 5306/26 · ΝΟΚ 4067/12 · Ν.4495/17 · ΚΤΙΡΙΟΔΟΜΙΚΟΣ 23 · ΑΙΓΙΑΛΟΣ &amp; ΡΕΜΑΤΑ &nbsp;—&nbsp; hexis-app.gr</div>
       </div>
     </div>
+    <div class="pmeta">${esc(LAW_LABEL[key])} · ${esc(law.fek).replace("\n"," — ")} · Εκτύπωση: ${today}</div>
     <div class="pchap">${esc(ch.title)}</div>
     <h1 class="part">${esc(it.n)} — ${esc(it.t)}</h1>
     <p class="pdesc">${esc(it.d)}</p>
@@ -1775,7 +1780,7 @@ scheduleUpdateCheck();
 </script>
 <script>
 /* ---- Έκδοση (ίδια με sw.js/app.html — άλλαξέ τη ΜΑΖΙ τους) ---- */
-const NOMO_VERSION = "v4.15";
+const NOMO_VERSION = "v4.16";
 document.getElementById("nomover").textContent = NOMO_VERSION;
 
 /* ---- Κοινός service worker του HEXIS + ΑΥΤΟΜΑΤΗ αναβάθμιση ----
