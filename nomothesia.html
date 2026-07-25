@@ -146,6 +146,27 @@ mark{background:#FFE9A8;color:inherit;border-radius:2px;padding:0 1px}
 .askbar button:disabled{opacity:.45;cursor:default}
 @media (prefers-reduced-motion:reduce){.dot{animation:none}}
 @media (max-width:480px){.article>button{grid-template-columns:62px 1fr}.artnum{font-size:11px}}
+/* ---------- Εκτύπωση άρθρου (PDF) ---------- */
+#printarea{display:none}
+@media print{
+  body.printing > :not(#printarea){display:none !important}
+  body.printing #printarea{display:block !important; color:#111; font-family:Calibri, "Segoe UI", sans-serif; font-size:11pt; line-height:1.45}
+  body.printing{background:#fff !important}
+  #printarea .phead{text-align:center; border-bottom:2.5pt solid #1F4E9C; padding-bottom:4mm; margin-bottom:5mm}
+  #printarea .ptitle{font-size:19pt; font-weight:800; letter-spacing:2px; color:#14213D}
+  #printarea .ptitle span{color:#1F4E9C}
+  #printarea .pmeta{font-size:9pt; color:#555; margin-top:2mm}
+  #printarea .pchap{font-size:10pt; font-weight:700; letter-spacing:1px; color:#1F4E9C; text-transform:uppercase; margin-bottom:2mm}
+  #printarea .part{font-size:15pt; font-weight:800; color:#14213D; margin:0 0 2mm}
+  #printarea .pdesc{font-style:italic; color:#444; margin:0 0 4mm}
+  #printarea .pcorr{border:1pt solid #1F4E9C; background:#EEF3FB; border-radius:2mm; padding:2.5mm 3.5mm; font-size:10pt; margin-bottom:4mm}
+  #printarea .pl{border-left:2.5pt solid #1F4E9C; background:#F5F8FD; padding:2.5mm 3.5mm; margin:0 0 2.5mm; border-radius:0 2mm 2mm 0; page-break-inside:avoid}
+  #printarea .pai{border:1pt solid #C9D6EE; border-radius:2mm; padding:3mm 4mm; margin:0 0 3.5mm 6mm; font-size:10pt; page-break-inside:avoid}
+  #printarea .pailabel{font-weight:700; color:#1F4E9C; margin-bottom:1.5mm}
+  #printarea .pver{font-weight:700; color:#1F6B33; margin-bottom:1.5mm}
+  #printarea .pfoot{border-top:1pt solid #C9D6EE; margin-top:6mm; padding-top:3mm; font-size:8.5pt; color:#666; text-align:center}
+  #printarea strong, #printarea b{color:#14213D}
+}
 </style>
 </head>
 <body>
@@ -887,6 +908,7 @@ function renderLaw(key, q=""){
           ${renderContentLines(it)}
           <div class="artactions">
             <button type="button" class="askbtn morebtn">💬 Ρώτησε το AI γι' αυτό</button>
+            <button type="button" class="printbtn morebtn" title="Εκτύπωση/Αποθήκευση σε PDF">🖨 PDF</button>
           </div>
         </div>
       </div>`;
@@ -909,12 +931,14 @@ function renderLaw(key, q=""){
       card.classList.toggle("open", nowOpen);
       if(nowOpen) openArts.add(id); else openArts.delete(id);
     });
-    card.querySelector(".morebtn").addEventListener("click", ()=>{
+    card.querySelector(".askbtn").addEventListener("click", ()=>{
       switchTab("ai");
       const ta = document.getElementById("q");
       ta.value = `Σχετικά με το ${it.n} (${it.t}): `;
       ta.focus();
     });
+    const pb = card.querySelector(".printbtn");
+    if(pb) pb.addEventListener("click", ()=> printArticle(id));
     card.querySelectorAll(".subwrap").forEach(wrap=>{
       wrap.querySelector(".subline").addEventListener("click", ()=>{
         const idx = +wrap.dataset.sidx;
@@ -1131,6 +1155,54 @@ function subAnsRender(st){
 function bindSubVerify(ans, key, it, idx, lineText){
   const b = ans.querySelector(".subverify");
   if(b) b.addEventListener("click", (e)=>{ e.stopPropagation(); verifySub(key, it, idx, lineText, ans); });
+}
+
+/* ---------- Εκτύπωση άρθρου σε PDF (μέσω print dialog) ---------- */
+function printArticle(id){
+  const f = getItem(id);
+  if(!f) return;
+  const {key, it} = f;
+  const law = LAWS[key];
+  const ch = law.chapters[+id.split("|")[1]];
+  const today = new Date().toLocaleDateString("el-GR");
+
+  let body = "";
+  const src = it.p || it.d;
+  let si = 0;
+  for(const ln of src.split("\n")){
+    const t = ln.trim();
+    if(!t) continue;
+    if(t.startsWith("•")){
+      const idx = si++;
+      const st = it._sub && it._sub[idx];
+      body += `<div class="pl">› ${mdLite(t.replace(/^•\s*/,""))}</div>`;
+      if(st && st.text){
+        body += `<div class="pai">${st.verified ? `<div class="pver">✅ ΕΠΑΛΗΘΕΥΜΕΝΟ LIVE</div>` : ""}<div class="pailabel">Ερμηνεία AI:</div>${mdLite(st.text)}</div>`;
+      }
+    } else {
+      body += `<div class="pl" style="border:none;background:none;padding:2mm 0">${mdLite(t)}</div>`;
+    }
+  }
+  const corr = (typeof corrFor === "function") ? corrFor(key, it) : null;
+
+  const pa = document.getElementById("printarea") || (()=>{ const d = document.createElement("div"); d.id = "printarea"; document.body.appendChild(d); return d; })();
+  pa.innerHTML = `
+    <div class="phead">
+      <div class="ptitle">HEXIS <span>ΝΟΜΟΘΕΣΙΑ</span></div>
+      <div class="pmeta">${esc(LAW_LABEL[key])} · ${esc(law.fek).replace("\n"," — ")} · Εκτύπωση: ${today} · ${NOMO_VERSION}</div>
+    </div>
+    <div class="pchap">${esc(ch.title)}</div>
+    <h1 class="part">${esc(it.n)} — ${esc(it.t)}</h1>
+    <p class="pdesc">${esc(it.d)}</p>
+    ${corr ? `<div class="pcorr">🔁 ${corr.html}</div>` : ""}
+    ${body}
+    <div class="pfoot">hexis-app.gr · Οι ερμηνείες AI είναι βοηθητικές — επιβεβαίωσε στα ΦΕΚ πριν από κρίσιμες αποφάσεις. Δεν αποτελεί νομική συμβουλή.</div>`;
+
+  document.body.classList.add("printing");
+  const done = ()=> { document.body.classList.remove("printing"); window.removeEventListener("afterprint", done); };
+  window.addEventListener("afterprint", done);
+  setTimeout(()=> window.print(), 60);
+  setTimeout(done, 4000); // δίχτυ ασφαλείας αν δεν πυροδοτηθεί afterprint
 }
 
 async function verifySub(key, it, idx, lineText, ans){
