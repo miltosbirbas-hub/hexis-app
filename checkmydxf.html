@@ -211,7 +211,7 @@ footer{text-align:center}
     <div class="step-head"><span class="snum"><span>2</span></span><h2>Ρίξε το DXF — γίνεται ο έλεγχος</h2></div>
     <div class="drop" id="dxfDrop">
       <div class="dicon">📂</div><div class="big">Άσε εδώ το DXF σου (ή πάτησε για επιλογή)</div>
-      <div class="small">ASCII DXF · έκδοση 2000–2014 · ΕΓΣΑ ’87 · μέτρα — το διάγραμμα θα εμφανιστεί αυτόματα στη σωστή θέση στον χάρτη</div>
+      <div class="small">ASCII DXF · έκδοση 2000–2018 · ΕΓΣΑ ’87 · μέτρα — το διάγραμμα θα εμφανιστεί αυτόματα στη σωστή θέση στον χάρτη</div>
       <input type="file" id="dxfInput" accept=".dxf" hidden>
     </div>
     <div id="dxfFileTag"></div>
@@ -560,15 +560,15 @@ function validate(doc, file, dgType, ktimaOn){
     add('W','§4.3','Συστήνεται το όνομα να τελειώνει σε αριθμό έκδοσης (_v01).','Πρόσθεσε κατάληξη έκδοσης, π.χ. <b>_v01</b>.');
 
   /* --- Έκδοση / μορφή (§4.2, §4.4) --- */
-  const VER={AC1009:'R12',AC1012:'R13',AC1014:'R14',AC1015:'2000',AC1018:'2004',AC1021:'2007',AC1024:'2010',AC1027:'2013/2014',AC1032:'2018+'};
+  const VER={AC1009:'R12',AC1012:'R13',AC1014:'R14',AC1015:'2000',AC1018:'2004',AC1021:'2007',AC1024:'2010',AC1027:'2013/2014',AC1032:'2018'};
   if(doc.version){
     const vname=VER[doc.version]||doc.version;
-    if(['AC1015','AC1018','AC1021','AC1024','AC1027'].includes(doc.version)){
-      add('I','§4.2',`Έκδοση DXF: ${vname} (${doc.version}) — αποδεκτή (2000–2014).`);
-    } else if(doc.version==='AC1032' || doc.version>'AC1027'){
-      add('E','§4.2',`Έκδοση DXF: ${vname} (${doc.version}) — εκτός υποστηριζόμενου εύρους 2000–2014.`,'Στο CAD κάνε <b>SAVEAS → AutoCAD 2013 DXF</b> (ή 2000/2004/2010).');
+    if(['AC1015','AC1018','AC1021','AC1024','AC1027','AC1032'].includes(doc.version)){
+      add('I','§4.2',`Έκδοση DXF: ${vname} (${doc.version}) — αποδεκτή (2000–2018).`);
+    } else if(doc.version>'AC1032'){
+      add('W','§4.2',`Έκδοση DXF: ${vname} (${doc.version}) — νεότερη του 2018, μη δοκιμασμένη στην πλατφόρμα.`,'Αν απορριφθεί, κάνε <b>SAVEAS → AutoCAD 2018 DXF</b>.');
     } else {
-      add('W','§4.2',`Έκδοση DXF: ${vname} (${doc.version}) — παλαιότερη των πλήρως υποστηριζόμενων (2000–2014).`,'Αποθήκευσε ξανά ως <b>DXF 2000–2013</b>.');
+      add('W','§4.2',`Έκδοση DXF: ${vname} (${doc.version}) — παλαιότερη των υποστηριζόμενων (2000–2018).`,'Αποθήκευσε ξανά ως <b>DXF 2000–2018</b>.');
     }
   } else {
     add('W','§4.2','Δεν βρέθηκε μεταβλητή $ACADVER στο HEADER.','Αποθήκευσε το αρχείο από CAD ως <b>ASCII DXF 2000–2013</b> ώστε να περιέχει πλήρες HEADER.');
