@@ -147,9 +147,44 @@ h1{font-size:13.5px !important;font-weight:500 !important;margin-top:2px}
 .drop .big{font-size:16px !important}
 button.primary{padding:11px 20px;font-size:14.5px;border-radius:9px}
 footer{text-align:center}
+
+.hxupd{position:fixed;left:0;right:0;top:0;z-index:3000;background:#1B2530;color:#fff;display:none;
+  align-items:center;gap:12px;padding:10px 16px;font-size:13.5px;box-shadow:0 2px 12px rgba(0,0,0,.3)}
+.hxupd.show{display:flex}
+.hxupd b{color:#39FF14}
+.hxupd a,.hxupd button{background:var(--acc);color:#fff;border:none;border-radius:8px;padding:7px 14px;
+  font-size:13px;font-weight:700;text-decoration:none;cursor:pointer;white-space:nowrap}
+.hxupd .x{margin-left:auto;background:transparent;color:#98A2B3;font-size:16px;padding:4px 8px}
+.verchip{font-size:11px;font-weight:800;color:var(--faint);letter-spacing:.5px;border:1px solid var(--line);
+  border-radius:6px;padding:1px 7px;vertical-align:4px;margin-left:6px}
+
+#hxpcgate{position:fixed;inset:0;z-index:5000;background:var(--bg);display:none;align-items:center;justify-content:center;padding:24px;text-align:center}
+#hxpcgate .box{max-width:420px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:34px 26px;box-shadow:0 6px 30px rgba(27,37,48,.12)}
+#hxpcgate h2{font-size:19px;color:var(--ink);margin:14px 0 8px}
+#hxpcgate p{font-size:13.5px;color:var(--dim);line-height:1.55;margin:0 0 6px}
+#hxpcgate .mono{font-family:var(--mono);font-size:12.5px;color:var(--acc);font-weight:700}
 </style>
 </head>
 <body>
+
+<div id="hxpcgate">
+  <div class="box">
+    <svg viewBox="0 0 100 100" width="64" height="64" style="display:inline-block">
+      <polygon points="50,6 88.1,28 88.1,72 50,94 11.9,72 11.9,28" fill="none" stroke="#D97706" stroke-width="6.5" stroke-linejoin="round"/>
+      <polygon points="27.1,63.2 31.5,37.7 52.2,28.9 72,45.6 66.7,68.5 45.6,72" fill="#FDF3E3" stroke="#1B2530" stroke-width="3.6" stroke-linejoin="round"/>
+      <polyline points="36.8,50.9 47.8,62.3 70.2,35.0" fill="none" stroke="#1F4E9C" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+      <polyline points="36.8,50.9 47.8,62.3 70.2,35.0" fill="none" stroke="#39FF14" stroke-width="9.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <h2>Διαθέσιμο μόνο σε υπολογιστή (PC)</h2>
+    <p>Ο έλεγχος διαγραμμάτων DXF/PDF γίνεται στο περιβάλλον εργασίας του CAD — άνοιξε τη σελίδα από τον υπολογιστή σου.</p>
+    <p class="mono">hexis-app.gr/checkmydxf.html</p>
+  </div>
+</div>
+<div class="hxupd" id="hxupd">
+  <span id="hxupd-msg"></span>
+  <span id="hxupd-act"></span>
+  <button class="x" onclick="document.getElementById('hxupd').classList.remove('show')">✕</button>
+</div>
 
 <header>
   <div class="wrap">
@@ -164,7 +199,7 @@ footer{text-align:center}
         <polyline points="36.8,50.9 47.8,62.3 70.2,35.0" fill="none" stroke="#1F4E9C" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/><polyline points="36.8,50.9 47.8,62.3 70.2,35.0" fill="none" stroke="#39FF14" stroke-width="9.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
       <div>
-        <div class="logo">HEXIS <b>CHECK MY DXF</b></div>
+        <div class="logo">HEXIS <b>CHECK MY DXF</b><span class="verchip" id="cmdVer"></span></div>
         <h1>Έλεγξε το διάγραμμά σου πριν την Ηλεκτρονική Υποβολή στο Κτηματολόγιο</h1>
       </div>
     </div>
@@ -235,12 +270,57 @@ footer{text-align:center}
 <footer>
   <div class="wrap">
     <div><b>Σημείωση:</b> Ο έλεγχος είναι προκαταρκτικός/συμβουλευτικός και προσομοιώνει τους δημοσιευμένους κανόνες του Τεύχους Προδιαγραφών. Ο οριστικός έλεγχος [ΕΛΕΓΧΟΣ DXF] γίνεται από την εφαρμογή του Ελληνικού Κτηματολογίου κατά την υποβολή, όπου συγκρίνεται και με την τρέχουσα χωρική βάση (Αναφορά Εφαρμογής). Οι τοπολογικοί έλεγχοι εδώ είναι κατά προσέγγιση.</div>
-    <div class="mono" style="margin-top:6px">HEXIS · hexis-app.gr — BRB DEVELOPMENT MON. I.K.E.</div>
+    <div class="mono" style="margin-top:6px">HEXIS Check My DXF <span id="verFoot"></span> · hexis-app.gr — BRB DEVELOPMENT MON. I.K.E.<br>Λήψεις: <a href="hexis_check_my_dxf.lsp">LISP για AutoCAD/progeCAD</a> · <a href="checkmydxf_offline.html" download>Offline έκδοση</a> · <a href="HEXIS_CheckMyDXF_Manual.pdf">Οδηγίες (PDF)</a></div>
   </div>
 </footer>
 
 <script>
 'use strict';
+
+/* ===== ΜΟΝΟ PC: μπλοκαρισμα σε κινητα/tablet ===== */
+(function(){
+  const ua=navigator.userAgent||'';
+  const mob=/Android|iPhone|iPad|iPod|Mobile|Mobi/i.test(ua)
+        || (navigator.maxTouchPoints>1 && matchMedia('(pointer:coarse)').matches && Math.min(screen.width,screen.height)<820);
+  if(mob){
+    document.getElementById('hxpcgate').style.display='flex';
+    document.querySelectorAll('body > *:not(#hxpcgate)').forEach(el=>{ el.style.display='none'; });
+  }
+})();
+
+
+/* ===== ΕΚΔΟΣΗ & ΑΥΤΟΜΑΤΟΣ ΕΛΕΓΧΟΣ ΕΝΗΜΕΡΩΣΕΩΝ ===== */
+const CMD_VERSION='v2.0';           // ενιαία έκδοση web + LISP
+const CMD_CHANNEL='online';
+const CMD_HOME='https://hexis-app.gr/';
+document.getElementById('cmdVer').textContent=CMD_VERSION;
+(function(){const f=document.getElementById('verFoot'); if(f) f.textContent=CMD_VERSION;})();
+function cmdVerNum(v){ return v.replace(/^v/,'').split('.').reduce((a,b,i)=>a+parseFloat(b)/Math.pow(1000,i),0); }
+(async()=>{
+  try{
+    const r=await fetch(CMD_HOME+'checkmydxf.html?nocache='+Date.now(),{cache:'no-store'});
+    if(!r.ok) return;
+    const t=await r.text();
+    const m=t.match(/CMD_VERSION='(v[\d.]+)'/);
+    if(!m) return;
+    if(cmdVerNum(m[1])>cmdVerNum(CMD_VERSION)){
+      const b=document.getElementById('hxupd');
+      document.getElementById('hxupd-msg').innerHTML='🔄 Νέα έκδοση Check My DXF <b>'+m[1]+'</b> (έχεις '+CMD_VERSION+') — βελτιωμένοι έλεγχοι βάσει πραγματικών υποβολών.';
+      const act=document.getElementById('hxupd-act');
+      if(CMD_CHANNEL==='online'){
+        const btn=document.createElement('button');
+        btn.textContent='Ανανέωση τώρα';
+        btn.onclick=()=>{ location.href='checkmydxf.html?u='+Date.now(); };
+        act.appendChild(btn);
+      } else {
+        act.innerHTML='<a href="'+CMD_HOME+'checkmydxf_offline.html" target="_blank">Κατέβασε τη νέα offline (Ctrl+S)</a> '
+                     +'<a href="'+CMD_HOME+'hexis_check_my_dxf.lsp" target="_blank" style="background:#2A3140">LISP '+m[1]+'</a>';
+      }
+      b.classList.add('show');
+    }
+  }catch(e){/* offline: σιωπηλά */}
+})();
+
 /* =====================================================================
    ΠΙΝΑΚΑΣ Ι — τυποποιημένα layers (Τεύχος v1.3/2024)
 ===================================================================== */
@@ -309,9 +389,9 @@ const REQ = {
       if(!['LINE_XM','LINE_XM_VST','VST_FINAL','EAS_FINAL','MINE_FINAL','DGM_PROP_FINAL'].some(has))
         out.push({sev:'E',ref:'§4.5.2.β',msg:'Λείπει τουλάχιστον ένα από τα layers 19–24 (LINE_XM, LINE_XM_VST, VST_FINAL, EAS_FINAL, MINE_FINAL, DGM_PROP_FINAL).',fix:'Πρόσθεσε τα στοιχεία ενημέρωσης της κτηματολογικής βάσης: π.χ. <b>LINE_XM</b> + <b>DGM_PROP_FINAL</b> για κατάτμηση/συνένωση, ή <b>LINE_XM_VST</b> + <b>VST_FINAL</b> για σύσταση ΧΑΧ, ή <b>EAS_FINAL</b> για δουλεία.'});
       if(has('LINE_XM') !== has('DGM_PROP_FINAL'))
-        out.push({sev:'E',ref:'§4.5.2.β',msg:'Τα layers LINE_XM και DGM_PROP_FINAL πρέπει να συνυπάρχουν (το ένα προϋποθέτει το άλλο).',fix:has('LINE_XM')?'Πρόσθεσε το <b>DGM_PROP_FINAL</b> με τα τελικά πολύγωνα των γεωτεμαχίων.':'Πρόσθεσε το <b>LINE_XM</b> με τη γραμμή χωρικής μεταβολής (εντός των ορίων του PST_KAEK).'});
+        out.push({sev:'W',ref:'§4.5.2.β',msg:'Τα layers LINE_XM και DGM_PROP_FINAL το Τεύχος τα ζητά σε ζεύγη — η πλατφόρμα συνήθως δεν το μπλοκάρει.',fix:has('LINE_XM')?'Πρόσθεσε το <b>DGM_PROP_FINAL</b> με τα τελικά πολύγωνα των γεωτεμαχίων.':'Πρόσθεσε το <b>LINE_XM</b> με τη γραμμή χωρικής μεταβολής (εντός των ορίων του PST_KAEK).'});
       if(has('LINE_XM_VST') !== has('VST_FINAL'))
-        out.push({sev:'E',ref:'§4.5.2.β',msg:'Τα layers LINE_XM_VST και VST_FINAL πρέπει να συνυπάρχουν.',fix:has('LINE_XM_VST')?'Πρόσθεσε το <b>VST_FINAL</b> με τα τελικά πολύγωνα των ΧΑΧ.':'Πρόσθεσε το <b>LINE_XM_VST</b> με τη γραμμή χωρικής μεταβολής των ΧΑΧ.'});
+        out.push({sev:'W',ref:'§4.5.2.β',msg:'Τα layers LINE_XM_VST και VST_FINAL το Τεύχος τα ζητά σε ζεύγη — η πλατφόρμα συνήθως δεν το μπλοκάρει.',fix:has('LINE_XM_VST')?'Πρόσθεσε το <b>VST_FINAL</b> με τα τελικά πολύγωνα των ΧΑΧ.':'Πρόσθεσε το <b>LINE_XM_VST</b> με τη γραμμή χωρικής μεταβολής των ΧΑΧ.'});
       return out;
     }
   },
@@ -336,7 +416,7 @@ const REQ = {
       if(has('TOPO_PROP') && !(has('BOUND_IMPL')||has('BOUND_UNIMPL')))
         out.push({sev:'E',ref:'§4.5.2.γ',msg:'Υπάρχει TOPO_PROP χωρίς BOUND_IMPL / BOUND_UNIMPL.',fix:'Πρόσθεσε τα όρια της ιδιοκτησίας στα layers <b>BOUND_IMPL</b> ή/και <b>BOUND_UNIMPL</b>.'});
       if(has('LINE_XM_VST') !== has('VST_FINAL'))
-        out.push({sev:'E',ref:'§4.5.2.γ',msg:'Τα layers LINE_XM_VST και VST_FINAL πρέπει να συνυπάρχουν.',fix:has('LINE_XM_VST')?'Πρόσθεσε το <b>VST_FINAL</b>.':'Πρόσθεσε το <b>LINE_XM_VST</b>.'});
+        out.push({sev:'W',ref:'§4.5.2.γ',msg:'Τα layers LINE_XM_VST και VST_FINAL το Τεύχος τα ζητά σε ζεύγη — η πλατφόρμα συνήθως δεν το μπλοκάρει.',fix:has('LINE_XM_VST')?'Πρόσθεσε το <b>VST_FINAL</b>.':'Πρόσθεσε το <b>LINE_XM_VST</b>.'});
       return out;
     }
   }
@@ -599,7 +679,7 @@ function validate(doc, file, dgType, ktimaOn){
   if(caseIssues.length)
     add('W','§4.5.1',`Layers με πεζά γράμματα: ${caseIssues.join(', ')}.`,'Μετονόμασε τα layers ακριβώς όπως στον Πίνακα Ι (κεφαλαία λατινικά), π.χ. <b>PST_KAEK</b>.');
   for(const g of greekIssues)
-    add('E','§4.5.1',`Το layer «${g.name}» περιέχει ΕΛΛΗΝΙΚΟΥΣ χαρακτήρες που μοιάζουν με λατινικούς (πιθανώς έπρεπε να είναι «${g.norm}»).`,`Μετονόμασε το layer σε <b>${g.norm}</b> με λατινικούς χαρακτήρες. Συχνό λάθος: ελληνικό «Α» αντί λατινικού «A».`);
+    add('W','§4.5.1',`Το layer «${g.name}» έχει ΕΛΛΗΝΙΚΟΥΣ χαρακτήρες που μοιάζουν λατινικοί — η πλατφόρμα θα το αγνοήσει ως ελεύθερο layer (δεν θα το «δει» ως ${g.norm}).`,`Αν το εννοείς ως <b>${g.norm}</b> του Πίνακα Ι, μετονόμασέ το με λατινικούς χαρακτήρες (HEXISFIX το κάνει αυτόματα). Αν όχι, αγνόησέ το.`);
 
   const has=(k)=> layerMap[k]!==undefined && (entByLayer[layerMap[k]]||[]).length>0;
   const existsEmpty=(k)=> layerMap[k]!==undefined && (entByLayer[layerMap[k]]||[]).length===0;
@@ -665,9 +745,9 @@ function validate(doc, file, dgType, ktimaOn){
     }
 
     if(mtextCnt.length)
-      add('E','§4.4.2',`Layer ${std}: βρέθηκαν ${mtextCnt.length} οντότητες MTEXT.`,`Τα κείμενα πρέπει να είναι <b>TEXT (όχι MTEXT)</b>. Στο CAD: εντολή <b>EXPLODE</b> στο MTEXT ή <b>TXT2MTXT αντίστροφα / MTEXT→TEXT</b>.`);
+      add('W','§4.4.2',`Layer ${std}: ${mtextCnt.length} οντότητες MTEXT (το Τεύχος ζητά TEXT).`,`Η πλατφόρμα συνήθως το δέχεται. Για πλήρη συμμόρφωση: <b>EXPLODE</b> στο MTEXT ώστε να γίνει TEXT.`);
     if(lineCnt.length)
-      add('E','§4.4.2',`Layer ${std}: βρέθηκαν ${lineCnt.length} οντότητες LINE.`,`Τα γραμμικά στοιχεία πρέπει να είναι <b>LWPOLYLINE</b>. Στο CAD: <b>PEDIT → Multiple → Join</b> ή <b>PLINE</b> εκ νέου.`);
+      add('W','§4.4.2',`Layer ${std}: ${lineCnt.length} οντότητες LINE (το Τεύχος ζητά LWPOLYLINE).`,`Η πλατφόρμα συνήθως το δέχεται. Για πλήρη συμμόρφωση: <b>PEDIT → Join</b> ή HEXISFIX στο CAD.`);
     if(polyOldCnt.length)
       add('W','§4.4.2',`Layer ${std}: ${polyOldCnt.length} παλαιού τύπου POLYLINE (2D/3D).`,`Μετάτρεψε σε LWPOLYLINE: εντολή <b>CONVERTPOLY → Light</b>.`);
     const btKeys=Object.keys(badTypes);
@@ -675,15 +755,15 @@ function validate(doc, file, dgType, ktimaOn){
       const list=btKeys.map(k=>`${k}×${badTypes[k]}`).join(', ');
       const fixes={INSERT:'Κάνε <b>EXPLODE</b> στα blocks — δεν επιτρέπονται blocks στα layers του Πίνακα Ι.',IMAGE:'Αφαίρεσε τις εικόνες από τα τυποποιημένα layers (δεν επιτρέπονται images).',CIRCLE:'Μετάτρεψε κύκλους σε LWPOLYLINE (π.χ. PEDIT ή προσέγγιση με πολύγωνο).',ARC:'Μετάτρεψε τόξα σε LWPOLYLINE (PEDIT → Join).',SPLINE:'Μετάτρεψε splines σε LWPOLYLINE (SPLINEDIT ή FLATTEN).',HATCH:'Αφαίρεσε τα hatch από τα τυποποιημένα layers.'};
       const fix=btKeys.map(k=>fixes[k]).filter(Boolean).join(' ')||`Επιτρεπτές οντότητες στο ${std}: ${spec.ent.map(t=>({PL:'LWPOLYLINE',PLC:'Closed LWPOLYLINE',TX:'TEXT',PT:'POINT'}[t])).join(', ')}. Μετάφερε ή μετάτρεψε τις υπόλοιπες.`;
-      add('E','§4.4.2 / §4.5.1',`Layer ${std}: μη επιτρεπτές οντότητες → ${list}.`,fix);
+      add('W','§4.4.2 / §4.5.1',`Layer ${std}: οντότητες εκτός Πίνακα Ι → ${list}.`,fix);
     }
     if(openBad.length)
-      add('E','Πίν.Ι',`Layer ${std}: ${openBad.length} πολυγραμμή/ές ΔΕΝ είναι κλειστές, ενώ απαιτείται Closed LWPOLYLINE.`,`Στο CAD: <b>PEDIT → Close</b> σε κάθε πολύγωνο του <b>${std}</b>. Έλεγξε ότι πρώτη και τελευταία κορυφή ταυτίζονται.`,
+      add(['DGM_PROP_FINAL','VST_FINAL','EAS_FINAL','MINE_FINAL','AREA_D','AREA_A'].includes(std)?'E':'W','Πίν.Ι',`Layer ${std}: ${openBad.length} πολυγραμμή/ές δεν είναι κλειστές${std==='PST_KAEK'?' (συχνά: όρια ομόρων ως ανοιχτές γραμμές — γίνεται δεκτό)':''}.`,`<b>PEDIT → Close</b> όπου πρόκειται για πλήρες πολύγωνο. Στα τελικά layers ενημέρωσης της βάσης (19–27) το κλειστό πολύγωνο είναι υποχρεωτικό.`,
         openBad.slice(0,5).map(e=>`• ${e.pts.length} κορυφές, έναρξη (${e.pts[0]?.[0]?.toFixed(2)}, ${e.pts[0]?.[1]?.toFixed(2)})`).join('\n'));
     if(closedNoFlag.length)
       add('W','Πίν.Ι',`Layer ${std}: ${closedNoFlag.length} πολύγωνα «κλείνουν» με διπλή κορυφή αντί για Closed flag.`,`Προτίμησε <b>PEDIT → Close</b> ώστε το πολύγωνο να έχει το flag Closed και όχι επαναλαμβανόμενη κορυφή.`);
     if(selfX.length)
-      add('E','§4.5.3',`Layer ${std}: ${selfX.length} πολύγωνα ΑΥΤΟΤΕΜΝΟΝΤΑΙ.`,`Διόρθωσε τη γεωμετρία — κανένα πολύγωνο δεν επιτρέπεται να τέμνει τον εαυτό του. Έλεγξε τη σειρά των κορυφών.`);
+      add('W','§4.5.3',`Layer ${std}: ${selfX.length} πολύγωνα φαίνεται να αυτοτέμνονται (ενδεικτικός έλεγχος).`,`Έλεγξε τη σειρά των κορυφών — αυτοτεμνόμενο πολύγωνο δίνει λάθος εμβαδόν.`);
     if(dupVerts.length)
       add('W','§4.5.1',`Layer ${std}: ${dupVerts.length} πολυγραμμές με διαδοχικές διπλές κορυφές.`,`Καθάρισε τις διπλοκορυφές: <b>OVERKILL</b> ή PEDIT → Edit vertex.`);
   }
@@ -708,9 +788,9 @@ function validate(doc, file, dgType, ktimaOn){
       }
     }
     if(dups.length)
-      add('E','§4.5.1',`Layer ${std}: ${dups.length} ζεύγη ΤΑΥΤΟΣΗΜΩΝ πολυγώνων (διπλά στοιχεία).`,`Διάγραψε τα διπλότυπα: εντολή <b>OVERKILL</b> στο layer <b>${std}</b>.`);
+      add('W','§4.5.1',`Layer ${std}: ${dups.length} ζεύγη ταυτόσημων πολυγώνων (διπλά στοιχεία).`,`Καθάρισμα με <b>OVERKILL</b> στο layer <b>${std}</b>.`);
     if(overlaps.length)
-      add('E','§4.5.1 / §4.5.3',`Layer ${std}: ${overlaps.length} ζεύγη πολυγώνων ΕΠΙΚΑΛΥΠΤΟΝΤΑΙ.`,`Στο ίδιο layer δεν επιτρέπονται επικαλύψεις. Διόρθωσε τα κοινά όρια ώστε τα πολύγωνα να εφάπτονται (snap στις ίδιες κορυφές) χωρίς αλληλοεπικάλυψη.`,
+      add('W','§4.5.1 / §4.5.3',`Layer ${std}: ${overlaps.length} ζεύγη πολυγώνων πιθανώς επικαλύπτονται (ενδεικτικός έλεγχος).`,`Έλεγξε τα κοινά όρια — snap στις ίδιες κορυφές χωρίς αλληλοεπικάλυψη.`,
         overlaps.slice(0,5).map(([a,b])=>`• πολύγωνα με εμβαδά ${list[a].area.toFixed(1)} m² και ${list[b].area.toFixed(1)} m²`).join('\n'));
   }
 
@@ -769,7 +849,7 @@ function validate(doc, file, dgType, ktimaOn){
       const lines=(entByLayer[layerMap[std]]||[]).filter(e=>(e.type==='LWPOLYLINE'||e.type==='POLYLINE')&&!isRingClosed(e));
       for(const e of lines){ for(const v of ptsClean(e.pts)){ total++; if(!inPST(v)){ badPts++; if(sample.length<5) sample.push(v); } } }
       if(badPts>0)
-        add(sev,'§4.5.3',`Layer ${std}: ${badPts}/${total} κορυφές βρίσκονται ΕΚΤΟΣ των πολυγώνων του PST_KAEK.`,`Οι οντότητες του <b>${std}</b> πρέπει να περιορίζονται εντός των ορίων του <b>PST_KAEK</b> (snap στα όρια του κτηματογραφικού). Μετακίνησε/κόψε τις κορυφές που εξέχουν.`,
+        add('W','§4.5.3',`Layer ${std}: ${badPts}/${total} κορυφές εκτός των πολυγώνων του PST_KAEK (ενδεικτικός έλεγχος, ανοχή 5 cm).`,`Οι οντότητες του <b>${std}</b> πρέπει να περιορίζονται εντός του <b>PST_KAEK</b> — snap στα όρια του κτηματογραφικού.`,
           sample.map(v=>`• (${v[0].toFixed(2)}, ${v[1].toFixed(2)})`).join('\n'));
     };
     for(const std of ['LINE_XM','LINE_XM_VST','VST_FINAL','EAS_FINAL','DGM_PROP_FINAL']) if(has(std)) checkWithin(std,'E');

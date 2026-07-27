@@ -678,6 +678,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .hxupd .x{margin-left:auto;background:transparent;color:#98A2B3;font-size:16px;padding:4px 8px}
 .verchip{font-size:11px;font-weight:800;color:var(--faint);letter-spacing:.5px;border:1px solid var(--line);
   border-radius:6px;padding:1px 7px;vertical-align:4px;margin-left:6px}
+
+#hxpcgate{position:fixed;inset:0;z-index:5000;background:var(--bg);display:none;align-items:center;justify-content:center;padding:24px;text-align:center}
+#hxpcgate .box{max-width:420px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:34px 26px;box-shadow:0 6px 30px rgba(27,37,48,.12)}
+#hxpcgate h2{font-size:19px;color:var(--ink);margin:14px 0 8px}
+#hxpcgate p{font-size:13.5px;color:var(--dim);line-height:1.55;margin:0 0 6px}
+#hxpcgate .mono{font-family:var(--mono);font-size:12.5px;color:var(--acc);font-weight:700}
 </style>
 <script>
 /* @preserve
@@ -833,6 +839,20 @@ footer{text-align:center}
 </style>
 </head>
 <body>
+
+<div id="hxpcgate">
+  <div class="box">
+    <svg viewBox="0 0 100 100" width="64" height="64" style="display:inline-block">
+      <polygon points="50,6 88.1,28 88.1,72 50,94 11.9,72 11.9,28" fill="none" stroke="#D97706" stroke-width="6.5" stroke-linejoin="round"/>
+      <polygon points="27.1,63.2 31.5,37.7 52.2,28.9 72,45.6 66.7,68.5 45.6,72" fill="#FDF3E3" stroke="#1B2530" stroke-width="3.6" stroke-linejoin="round"/>
+      <polyline points="36.8,50.9 47.8,62.3 70.2,35.0" fill="none" stroke="#1F4E9C" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+      <polyline points="36.8,50.9 47.8,62.3 70.2,35.0" fill="none" stroke="#39FF14" stroke-width="9.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <h2>Διαθέσιμο μόνο σε υπολογιστή (PC)</h2>
+    <p>Ο έλεγχος διαγραμμάτων DXF/PDF γίνεται στο περιβάλλον εργασίας του CAD — άνοιξε τη σελίδα από τον υπολογιστή σου.</p>
+    <p class="mono">hexis-app.gr/checkmydxf.html</p>
+  </div>
+</div>
 <div class="hxupd" id="hxupd">
   <span id="hxupd-msg"></span>
   <span id="hxupd-act"></span>
@@ -929,6 +949,18 @@ footer{text-align:center}
 
 <script>
 'use strict';
+
+/* ===== ΜΟΝΟ PC: μπλοκαρισμα σε κινητα/tablet ===== */
+(function(){
+  const ua=navigator.userAgent||'';
+  const mob=/Android|iPhone|iPad|iPod|Mobile|Mobi/i.test(ua)
+        || (navigator.maxTouchPoints>1 && matchMedia('(pointer:coarse)').matches && Math.min(screen.width,screen.height)<820);
+  if(mob){
+    document.getElementById('hxpcgate').style.display='flex';
+    document.querySelectorAll('body > *:not(#hxpcgate)').forEach(el=>{ el.style.display='none'; });
+  }
+})();
+
 
 /* ===== ΕΚΔΟΣΗ & ΑΥΤΟΜΑΤΟΣ ΕΛΕΓΧΟΣ ΕΝΗΜΕΡΩΣΕΩΝ ===== */
 const CMD_VERSION='v2.0';           // ενιαία έκδοση web + LISP
@@ -1048,9 +1080,9 @@ const REQ = {
       if(!['LINE_XM','LINE_XM_VST','VST_FINAL','EAS_FINAL','MINE_FINAL','DGM_PROP_FINAL'].some(has))
         out.push({sev:'E',ref:'§4.5.2.β',msg:'Λείπει τουλάχιστον ένα από τα layers 19–24 (LINE_XM, LINE_XM_VST, VST_FINAL, EAS_FINAL, MINE_FINAL, DGM_PROP_FINAL).',fix:'Πρόσθεσε τα στοιχεία ενημέρωσης της κτηματολογικής βάσης: π.χ. <b>LINE_XM</b> + <b>DGM_PROP_FINAL</b> για κατάτμηση/συνένωση, ή <b>LINE_XM_VST</b> + <b>VST_FINAL</b> για σύσταση ΧΑΧ, ή <b>EAS_FINAL</b> για δουλεία.'});
       if(has('LINE_XM') !== has('DGM_PROP_FINAL'))
-        out.push({sev:'E',ref:'§4.5.2.β',msg:'Τα layers LINE_XM και DGM_PROP_FINAL πρέπει να συνυπάρχουν (το ένα προϋποθέτει το άλλο).',fix:has('LINE_XM')?'Πρόσθεσε το <b>DGM_PROP_FINAL</b> με τα τελικά πολύγωνα των γεωτεμαχίων.':'Πρόσθεσε το <b>LINE_XM</b> με τη γραμμή χωρικής μεταβολής (εντός των ορίων του PST_KAEK).'});
+        out.push({sev:'W',ref:'§4.5.2.β',msg:'Τα layers LINE_XM και DGM_PROP_FINAL το Τεύχος τα ζητά σε ζεύγη — η πλατφόρμα συνήθως δεν το μπλοκάρει.',fix:has('LINE_XM')?'Πρόσθεσε το <b>DGM_PROP_FINAL</b> με τα τελικά πολύγωνα των γεωτεμαχίων.':'Πρόσθεσε το <b>LINE_XM</b> με τη γραμμή χωρικής μεταβολής (εντός των ορίων του PST_KAEK).'});
       if(has('LINE_XM_VST') !== has('VST_FINAL'))
-        out.push({sev:'E',ref:'§4.5.2.β',msg:'Τα layers LINE_XM_VST και VST_FINAL πρέπει να συνυπάρχουν.',fix:has('LINE_XM_VST')?'Πρόσθεσε το <b>VST_FINAL</b> με τα τελικά πολύγωνα των ΧΑΧ.':'Πρόσθεσε το <b>LINE_XM_VST</b> με τη γραμμή χωρικής μεταβολής των ΧΑΧ.'});
+        out.push({sev:'W',ref:'§4.5.2.β',msg:'Τα layers LINE_XM_VST και VST_FINAL το Τεύχος τα ζητά σε ζεύγη — η πλατφόρμα συνήθως δεν το μπλοκάρει.',fix:has('LINE_XM_VST')?'Πρόσθεσε το <b>VST_FINAL</b> με τα τελικά πολύγωνα των ΧΑΧ.':'Πρόσθεσε το <b>LINE_XM_VST</b> με τη γραμμή χωρικής μεταβολής των ΧΑΧ.'});
       return out;
     }
   },
@@ -1075,7 +1107,7 @@ const REQ = {
       if(has('TOPO_PROP') && !(has('BOUND_IMPL')||has('BOUND_UNIMPL')))
         out.push({sev:'E',ref:'§4.5.2.γ',msg:'Υπάρχει TOPO_PROP χωρίς BOUND_IMPL / BOUND_UNIMPL.',fix:'Πρόσθεσε τα όρια της ιδιοκτησίας στα layers <b>BOUND_IMPL</b> ή/και <b>BOUND_UNIMPL</b>.'});
       if(has('LINE_XM_VST') !== has('VST_FINAL'))
-        out.push({sev:'E',ref:'§4.5.2.γ',msg:'Τα layers LINE_XM_VST και VST_FINAL πρέπει να συνυπάρχουν.',fix:has('LINE_XM_VST')?'Πρόσθεσε το <b>VST_FINAL</b>.':'Πρόσθεσε το <b>LINE_XM_VST</b>.'});
+        out.push({sev:'W',ref:'§4.5.2.γ',msg:'Τα layers LINE_XM_VST και VST_FINAL το Τεύχος τα ζητά σε ζεύγη — η πλατφόρμα συνήθως δεν το μπλοκάρει.',fix:has('LINE_XM_VST')?'Πρόσθεσε το <b>VST_FINAL</b>.':'Πρόσθεσε το <b>LINE_XM_VST</b>.'});
       return out;
     }
   }
@@ -1338,7 +1370,7 @@ function validate(doc, file, dgType, ktimaOn){
   if(caseIssues.length)
     add('W','§4.5.1',`Layers με πεζά γράμματα: ${caseIssues.join(', ')}.`,'Μετονόμασε τα layers ακριβώς όπως στον Πίνακα Ι (κεφαλαία λατινικά), π.χ. <b>PST_KAEK</b>.');
   for(const g of greekIssues)
-    add('E','§4.5.1',`Το layer «${g.name}» περιέχει ΕΛΛΗΝΙΚΟΥΣ χαρακτήρες που μοιάζουν με λατινικούς (πιθανώς έπρεπε να είναι «${g.norm}»).`,`Μετονόμασε το layer σε <b>${g.norm}</b> με λατινικούς χαρακτήρες. Συχνό λάθος: ελληνικό «Α» αντί λατινικού «A».`);
+    add('W','§4.5.1',`Το layer «${g.name}» έχει ΕΛΛΗΝΙΚΟΥΣ χαρακτήρες που μοιάζουν λατινικοί — η πλατφόρμα θα το αγνοήσει ως ελεύθερο layer (δεν θα το «δει» ως ${g.norm}).`,`Αν το εννοείς ως <b>${g.norm}</b> του Πίνακα Ι, μετονόμασέ το με λατινικούς χαρακτήρες (HEXISFIX το κάνει αυτόματα). Αν όχι, αγνόησέ το.`);
 
   const has=(k)=> layerMap[k]!==undefined && (entByLayer[layerMap[k]]||[]).length>0;
   const existsEmpty=(k)=> layerMap[k]!==undefined && (entByLayer[layerMap[k]]||[]).length===0;
