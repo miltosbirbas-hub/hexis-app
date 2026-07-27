@@ -545,19 +545,17 @@ function validate(doc, file, dgType, ktimaOn){
   const fname=file.name;
   const base=fname.replace(/\.[^.]*$/,'');
   const ext=(fname.match(/\.([^.]*)$/)||[])[1]||'';
-  if(ext.toLowerCase()!=='dxf')
-    add('E','§4.3','Η κατάληξη του αρχείου δεν είναι .dxf.','Μετονόμασε το αρχείο ώστε να έχει κατάληξη <b>.dxf</b>.');
-  if(base.length>15)
-    add('E','§4.3',`Το όνομα αρχείου έχει ${base.length} χαρακτήρες (μέγιστο 15, χωρίς την κατάληξη).`,`Συντόμευσε το όνομα σε έως <b>15 χαρακτήρες</b>, π.χ. <b>dgm_kand_v01.dxf</b>.`);
-  if(/\s/.test(base))
-    add('E','§4.3','Το όνομα αρχείου περιέχει κενά.','Αντικατάστησε τα κενά με κάτω παύλες «_».');
-  if(/[^A-Za-z0-9_]/.test(base))
-    add('E','§4.3','Το όνομα αρχείου περιέχει μη επιτρεπτούς χαρακτήρες (μόνο λατινικά A–z, αριθμοί 0–9 και «_»).','Αφαίρεσε ελληνικούς/ειδικούς χαρακτήρες, τελείες και σύμβολα από το όνομα.');
-  const wantPrefix = dgType==='TD' ? 'topo_' : 'dgm_';
-  if(!base.toLowerCase().startsWith(wantPrefix))
-    add('W','§4.3',`Συστήνεται το όνομα να ξεκινά με «${wantPrefix}» για ${dgType==='TD'?'Τοπογραφικά':'ΔΓΜ'}.`,`Μετονόμασε π.χ. σε <b>${wantPrefix}name_v01.dxf</b>.`);
-  if(!/_v\d+$/i.test(base))
-    add('W','§4.3','Συστήνεται το όνομα να τελειώνει σε αριθμό έκδοσης (_v01).','Πρόσθεσε κατάληξη έκδοσης, π.χ. <b>_v01</b>.');
+  {
+    const fnIssues=[];
+    if(ext.toLowerCase()!=='dxf') fnIssues.push('κατάληξη ≠ .dxf');
+    if(base.length>15) fnIssues.push(`μήκος ${base.length} > 15 χαρακτήρες`);
+    if(/\s/.test(base)) fnIssues.push('κενά');
+    if(/[^A-Za-z0-9_\s]/.test(base)) fnIssues.push('ελληνικοί/ειδικοί χαρακτήρες');
+    const wantPrefix = dgType==='TD' ? 'topo_' : 'dgm_';
+    if(fnIssues.length)
+      add('W','§4.3',`Το όνομα αρχείου («${base}») δεν ακολουθεί το §4.3: ${fnIssues.join(' · ')}. Ο έλεγχος περιεχομένου ΔΕΝ επηρεάζεται.`,
+        `Πριν την υποβολή, μετονόμασε σε έως 15 λατινικούς χαρακτήρες/αριθμούς/«_», π.χ. <b>${wantPrefix}name_v01.dxf</b>.`);
+  }
 
   /* --- Έκδοση / μορφή (§4.2, §4.4) --- */
   const VER={AC1009:'R12',AC1012:'R13',AC1014:'R14',AC1015:'2000',AC1018:'2004',AC1021:'2007',AC1024:'2010',AC1027:'2013/2014',AC1032:'2018'};
@@ -1041,9 +1039,16 @@ async function checkPDF(f){
   const add=(sev,ref,msg,fix)=>R.push({sev,ref,msg,fix});
   const base=f.name.replace(/\.[^.]*$/,''), ext=(f.name.match(/\.([^.]*)$/)||[])[1]||'';
 
-  if(ext.toLowerCase()!=='pdf') add('E','§4.2','Η κατάληξη δεν είναι .pdf.','Επίλεξε το αρχείο εικόνας του διαγράμματος σε μορφή <b>.pdf</b>.');
-  if(base.length>15) add('E','§4.3',`Όνομα ${base.length} χαρακτήρες (μέγιστο 15).`,'Συντόμευσε το όνομα του PDF.');
-  if(/[^A-Za-z0-9_]/.test(base)) add('E','§4.3','Το όνομα περιέχει μη επιτρεπτούς χαρακτήρες.','Μόνο λατινικά, αριθμοί και «_».');
+  {
+    const fnIssues=[];
+    if(ext.toLowerCase()!=='pdf') fnIssues.push('κατάληξη ≠ .pdf');
+    if(base.length>15) fnIssues.push(`μήκος ${base.length} > 15 χαρακτήρες`);
+    if(/\s/.test(base)) fnIssues.push('κενά');
+    if(/[^A-Za-z0-9_\s]/.test(base)) fnIssues.push('ελληνικοί/ειδικοί χαρακτήρες');
+    if(fnIssues.length)
+      add('W','§4.3',`Το όνομα του PDF («${base}») δεν ακολουθεί το §4.3: ${fnIssues.join(' · ')}. Ο έλεγχος δεν επηρεάζεται.`,
+        'Πριν την υποβολή, ίδιο όνομα με το DXF (έως 15 λατινικοί χαρακτήρες), διαφορετική μόνο κατάληξη.');
+  }
   if(lastDXF){
     const dxfBase=lastDXF.name.replace(/\.[^.]*$/,'');
     if(base!==dxfBase) add('W','§4.3',`Το όνομα του PDF («${base}») διαφέρει από του DXF («${dxfBase}»).`,'Συστήνεται ίδιο όνομα με διαφορετική μόνο κατάληξη (π.χ. topo_name_v01.dxf / .pdf).');
