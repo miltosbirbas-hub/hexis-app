@@ -115,7 +115,7 @@ footer b{color:#fff;font-variant-numeric:tabular-nums}
 
 <script>
 "use strict";
-const VER = "v1.9";
+const VER = "v1.10";
 document.getElementById("ver").textContent = VER;
 
 /* ============================================================
@@ -303,12 +303,33 @@ function save(){ try{ localStorage.setItem("hx_adeia", JSON.stringify(D)); }catc
 function load(){
  try{
   const d = JSON.parse(localStorage.getItem("hx_adeia"));
-  if(d && !d._v2){ d.works = JSON.parse(JSON.stringify(DEF.works)); d.studies = JSON.parse(JSON.stringify(DEF.studies)); d._v2 = 1;
-   if(d.ektosSxediou===undefined){ d.ektosSxediou=false; d.aekkKg=50; d.aekkEur=9; d.aekkEgy=0; }
-   if(d.kenakPct===undefined){ d.kenakPct=DEF.kenakPct; d.topoFlat=DEF.topoFlat; d.incProsthiki=false; } }
+  if(!d) return null;
+  if(!d._v2){ d.works = JSON.parse(JSON.stringify(DEF.works)); d.studies = JSON.parse(JSON.stringify(DEF.studies)); d._v2 = 1; }
+  if(d.ektosSxediou===undefined){ d.ektosSxediou=false; d.aekkKg=50; d.aekkEur=9; d.aekkEgy=0; }
+  if(d.kenakPct===undefined){ d.kenakPct=DEF.kenakPct; d.topoFlat=DEF.topoFlat; d.incProsthiki=false; }
+  if(d.eta===undefined) d.eta = 118.00;
+  if(!Array.isArray(d.engineers) || !d.engineers.length){
+   d.engineers = [
+    {id:1, name:(d.ergo&&d.ergo.mel)||"", eid:(d.ergo&&d.ergo.melEidik)||"Πολιτικός Μηχανικός", am:(d.ergo&&d.ergo.melAM)||"", afm:(d.ergo&&d.ergo.melAFM)||""},
+    {id:2, name:(d.ergo&&d.ergo.epi)||"", eid:(d.ergo&&d.ergo.epiEidik)||"Πολιτικός Μηχανικός", am:(d.ergo&&d.ergo.epiAM)||"", afm:(d.ergo&&d.ergo.epiAFM)||""},
+   ];
+  }
+  if(!Array.isArray(d.owners) || !d.owners.length){
+   d.owners = [{id:1, type:"f", name:(d.ergo&&d.ergo.idioktitis)||"", afm:(d.ergo&&d.ergo.afmId)||"", doy:"", pct:100}];
+  }
+  if(d.docEng===undefined) d.docEng = 1;
+  if(Array.isArray(d.studies)) d.studies.forEach(st=>{ if(st.mEng===undefined) st.mEng=1; if(st.eEng===undefined) st.eEng=2; });
+  if(Array.isArray(d.uses)) d.uses.forEach(u=>{ if(u.se===undefined) u.se=u.af||1; if(u.cid===undefined) u.cid=0; });
   return d;
  }catch(_){ return null; }
 }
+/* ---- Helpers μηχανικών & ιδιοκτητών ---- */
+function engById(id){ return D.engineers.find(e=>e.id===+id) || D.engineers[0] || {name:"",eid:"",am:"",afm:""}; }
+function engOpts(sel){ return D.engineers.map(e=>`<option value="${e.id}" ${+sel===e.id?"selected":""}>${esc(e.name||("Μηχανικός "+e.id))}</option>`).join(""); }
+function ownersLine(){
+ return D.owners.filter(o=>o.name).map(o=> `${o.type==="n"?"η εταιρεία ":""}${o.name} (ΑΦΜ ${o.afm||"[___]"}${D.owners.length>1?`, ${num(o.pct)}%`:""})`).join(", ") || "[___]";
+}
+function ownersShort(){ return D.owners.filter(o=>o.name).map(o=>o.name).join(" – ") || "[___]"; }
 const eur = (n)=> (isFinite(n)? n.toLocaleString("el-GR",{minimumFractionDigits:2,maximumFractionDigits:2}) : "0,00") + " €";
 const num = (n)=> isFinite(n)? n.toLocaleString("el-GR",{maximumFractionDigits:2}) : "0";
 const esc = (s)=> String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
