@@ -115,7 +115,7 @@ footer b{color:#fff;font-variant-numeric:tabular-nums}
 
 <script>
 "use strict";
-const VER = "v1.10";
+const VER = "v1.11";
 document.getElementById("ver").textContent = VER;
 
 /* ============================================================
@@ -440,11 +440,17 @@ let tab = "ergo";
 function bindAll(scope, obj){
  scope.querySelectorAll("[data-k]").forEach(el=>{
   const path = el.dataset.k.split(".");
-  el.addEventListener("input", ()=>{
+  const apply = ()=>{
    let o = obj; for(let i=0;i<path.length-1;i++) o = o[path[i]];
    o[path[path.length-1]] = (el.type==="number") ? +el.value : el.value;
-   save(); if(el.dataset.re) render();
-  });
+   save(); // ενημερώνει και το συνολικό στο footer — ΧΩΡΙΣ re-render, δεν χάνεται το focus
+  };
+  el.addEventListener("input", apply);
+  if(el.dataset.re){
+   // Οι υπολογισμοί της οθόνης ανανεώνονται όταν ΦΥΓΕΙΣ από το πεδίο (Tab/κλικ αλλού/Enter)
+   el.addEventListener("change", ()=>{ apply(); render(); });
+   el.addEventListener("keydown", (ev)=>{ if(ev.key==="Enter"){ ev.preventDefault(); el.blur(); } });
+  }
  });
 }
 function inp(k, v, type="text", step){ return `<input data-k="${k}" type="${type}" ${step?`step="${step}"`:""} value="${esc(v)}">`; }
