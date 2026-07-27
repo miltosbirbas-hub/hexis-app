@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F4F6F9">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.11.0/proj4.js"></script>
+<title>HEXIS — Check My DXF · Έλεγχος Ηλεκτρονικών Διαγραμμάτων ΕΚ</title>
+<style>
+:root{
+  /* ===== HEXIS LIGHT THEME TOKENS ===== */
+  --bg:#F4F6F9; --panel:#FFFFFF; --panel2:#F1F5F9; --line:#DCE3EC;
+  --ink:#1B2530; --dim:#5B6B7C; --faint:#8A98A8;
+  --acc:#D97706; --acc-dim:#F2C48D; --acc-ink:#FFFFFF;
+  --ok:#15803D; --ok-bg:#E8F6EE;
+  --err:#DC2626; --err-bg:#FDECEC;
+  --warn:#B45309; --warn-bg:#FFF4E0;
+  --info:#2563EB;
+  --mono:ui-monospace,'Cascadia Code','JetBrains Mono',Menlo,Consolas,monospace;
+  --sans:'Segoe UI',system-ui,-apple-system,Roboto,'Helvetica Neue',Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;padding-bottom:60px}
+a{color:var(--acc)}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
+
+header{border-bottom:1px solid var(--line);background:linear-gradient(180deg,#FFFFFF,#EEF3F8);padding:18px 0 14px}
+.hrow{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.logo{font-family:var(--mono);font-weight:700;font-size:20px;letter-spacing:.5px;color:var(--acc)}
+.logo b{color:var(--ink)}
+h1{font-size:15px;font-weight:600;color:var(--dim)}
+.sub{font-size:12px;color:var(--faint);margin-top:4px}
+.sub code{font-family:var(--mono);color:var(--dim)}
+
+.step{margin-top:22px}
+.step-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.snum{font-family:var(--mono);font-size:12px;color:var(--acc);border:1px solid var(--acc-dim);border-radius:4px;padding:1px 7px;white-space:nowrap}
+.step-head h2{font-size:16px;font-weight:600}
+.step.locked{opacity:.38;pointer-events:none;filter:saturate(.4)}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:13px 14px;cursor:pointer;transition:border-color .15s, background .15s}
+.card:hover{border-color:var(--acc-dim)}
+.card.sel{border-color:var(--acc);background:#FFF7EC;box-shadow:0 0 0 1px var(--acc) inset}
+.card .t{font-weight:600;font-size:14px}
+.card .d{font-size:12px;color:var(--dim);margin-top:3px}
+.card .k{font-family:var(--mono);font-size:11px;color:var(--acc);margin-top:6px}
+
+.optrow{margin-top:10px;font-size:13px;color:var(--dim);display:flex;align-items:center;gap:8px}
+.optrow input{accent-color:var(--acc);width:16px;height:16px}
+
+.drop{border:1.5px dashed var(--line);border-radius:10px;background:var(--panel);padding:26px 16px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+.drop:hover,.drop.over{border-color:var(--acc);background:var(--panel2)}
+.drop .big{font-size:15px;font-weight:600}
+.drop .small{font-size:12px;color:var(--faint);margin-top:5px;font-family:var(--mono)}
+.filetag{display:inline-flex;gap:8px;align-items:center;font-family:var(--mono);font-size:12.5px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:5px 10px;margin-top:10px;color:var(--dim);word-break:break-all}
+
+.banner{border-radius:10px;padding:14px 16px;margin:16px 0 12px;display:flex;gap:12px;align-items:flex-start;border:1px solid}
+.banner .ic{font-size:22px;line-height:1.1}
+.banner .bt{font-weight:700;font-size:16px}
+.banner .bd{font-size:13px;margin-top:2px;opacity:.9}
+.banner.ok{background:var(--ok-bg);border-color:#9BD8B4;color:var(--ok)}
+.banner.err{background:var(--err-bg);border-color:#F0ABAB;color:var(--err)}
+.banner.warn{background:var(--warn-bg);border-color:#EDCF90;color:var(--warn)}
+
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:14px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 12px}
+.stat .l{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.5px}
+.stat .v{font-family:var(--mono);font-size:15px;margin-top:2px}
+
+.rules{display:flex;flex-direction:column;gap:8px}
+.rule{border:1px solid var(--line);border-left-width:4px;border-radius:7px;background:var(--panel);padding:10px 13px}
+.rule.E{border-left-color:var(--err)}
+.rule.W{border-left-color:var(--warn)}
+.rule.I{border-left-color:var(--info)}
+.rule .rh{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.rule .badge{font-family:var(--mono);font-size:10.5px;padding:1px 6px;border-radius:4px;white-space:nowrap}
+.rule.E .badge{background:var(--err-bg);color:var(--err);border:1px solid #F0ABAB}
+.rule.W .badge{background:var(--warn-bg);color:var(--warn);border:1px solid #EDCF90}
+.rule.I .badge{background:#EAF0FE;color:var(--info);border:1px solid #B9CCF6}
+.rule .ref{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.rule .msg{font-size:13.5px;margin-top:4px}
+.rule .fix{font-size:12.5px;color:var(--dim);margin-top:5px;padding-left:10px;border-left:2px solid var(--line)}
+.rule .fix b{color:var(--acc);font-weight:600}
+.rule .det{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:5px;white-space:pre-wrap;word-break:break-word;max-height:120px;overflow:auto}
+
+h3.sec{font-size:13px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--dim);margin:20px 0 8px;display:flex;align-items:center;gap:8px}
+h3.sec::after{content:'';flex:1;height:1px;background:var(--line)}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+th,td{padding:6px 10px;text-align:left;border-bottom:1px solid var(--line)}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--faint);background:var(--panel2)}
+td.mono,th.mono{font-family:var(--mono)}
+tr:last-child td{border-bottom:none}
+.tbl-wrap{overflow-x:auto;border-radius:8px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:7px;vertical-align:-1px;border:1px solid rgba(0,0,0,.18)}
+
+#hxmap-wrap{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#DDE5EC;margin-top:8px}
+#hxmap{display:block;width:100%;height:440px;z-index:1}
+.leaflet-container{font-family:var(--sans);background:#C9D6E2}
+.hxmap-kt{position:absolute;top:10px;right:10px;z-index:800;font-family:var(--mono);font-size:11.5px;font-weight:800;background:#FFFFFF;border:1.5px solid var(--line);border-radius:7px;padding:5px 10px;cursor:pointer;color:var(--dim);box-shadow:0 1px 4px rgba(0,0,0,.15);user-select:none}
+.hxmap-kt.on{border-color:var(--acc);color:var(--acc);background:#FFF7EC}
+.hxmap-hint{position:absolute;left:10px;bottom:10px;z-index:800;font-family:var(--mono);font-size:10.5px;color:#41505F;background:rgba(255,255,255,.85);padding:2px 8px;border-radius:4px;pointer-events:none}
+.hxdxf-tip{background:#FFFFFF;border:1.5px solid var(--acc);color:#8A4B04;font-size:10px;font-weight:800;border-radius:5px;padding:1px 5px;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.hxdxf-tip::before{display:none}
+.legend{display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:var(--panel);border-top:1px solid var(--line)}
+.legend label{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;color:var(--dim);background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:3px 8px;cursor:pointer;user-select:none}
+.legend label.off{opacity:.35}
+
+
+button{font-family:var(--sans);font-size:13.5px;font-weight:600;border-radius:7px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:8px 16px;cursor:pointer;transition:background .12s,border-color .12s}
+button:hover{border-color:var(--acc-dim)}
+button.primary{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+button.primary:hover{filter:brightness(1.08)}
+button.ghost{background:transparent}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+
+.copied{color:var(--ok) !important;border-color:var(--ok) !important}
+
+
+footer{margin-top:34px;border-top:1px solid var(--line);padding:14px 0;font-size:11.5px;color:var(--faint)}
+footer .mono{font-family:var(--mono)}
+.hidden{display:none !important}
+@media (max-width:640px){ #hxmap{height:320px} .hrow{gap:6px} }
+
+.hxlogo{width:56px;height:56px;flex:none;filter:drop-shadow(0 2px 4px rgba(27,37,48,.15))}
+.hrow{align-items:center !important}
+.logo{font-size:22px !important}
+.logo b{color:var(--acc)}
+h1{font-size:13.5px !important;font-weight:500 !important;margin-top:2px}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 18px 20px;box-shadow:0 2px 10px rgba(27,37,48,.05)}
+.step-head{margin-bottom:14px !important}
+.snum{width:30px;height:30px;border-radius:50% !important;display:grid;place-items:center;font-size:13px !important;font-weight:800;
+  background:var(--acc);color:#fff !important;border:none !important;padding:0 !important;letter-spacing:0 !important}
+.step.done .snum{background:var(--ok)}
+.step.done .snum::before{content:"✓"}
+.step.done .snum span{display:none}
+.step-head h2{font-size:17px !important}
+.card{display:flex;gap:12px;align-items:flex-start;border-radius:12px !important;padding:14px !important}
+.card .ico{font-size:26px;flex:none;line-height:1.2}
+.card:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgba(27,37,48,.08)}
+.drop{border-radius:14px !important;padding:34px 16px !important}
+.drop .dicon{font-size:38px;line-height:1;margin-bottom:8px}
+.drop .big{font-size:16px !important}
+button.primary{padding:11px 20px;font-size:14.5px;border-radius:9px}
+footer{text-align:center}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="hrow">
+      <svg class="hxlogo" viewBox="0 0 100 100" aria-hidden="true">
+        <polygon points="50,6 88.1,28 88.1,72 50,94 11.9,72 11.9,28" fill="none" stroke="#D97706" stroke-width="6.5" stroke-linejoin="round"/>
+        <polygon points="27.1,63.2 31.5,37.7 52.2,28.9 72,45.6 66.7,68.5 45.6,72" fill="#FDF3E3" stroke="#1B2530" stroke-width="3.6" stroke-linejoin="round"/>
+        <g fill="#1B2530">
+          <circle cx="27.1" cy="63.2" r="2.7"/><circle cx="31.5" cy="37.7" r="2.7"/><circle cx="52.2" cy="28.9" r="2.7"/>
+          <circle cx="72" cy="45.6" r="2.7"/><circle cx="66.7" cy="68.5" r="2.7"/><circle cx="45.6" cy="72" r="2.7"/>
+        </g>
+        <polyline points="36.8,50.9 47.8,62.3 70.2,35.0" fill="none" stroke="#1F4E9C" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/><polyline points="36.8,50.9 47.8,62.3 70.2,35.0" fill="none" stroke="#39FF14" stroke-width="9.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <div class="logo">HEXIS <b>CHECK MY DXF</b></div>
+        <h1>Έλεγξε το διάγραμμά σου πριν την Ηλεκτρονική Υποβολή στο Κτηματολόγιο</h1>
+      </div>
+    </div>
+    <div class="sub">3 απλά βήματα: είδος διαγράμματος → έλεγχος DXF → έλεγχος PDF. Μετά, ψηφιακή υπογραφή με τη δική σου εφαρμογή και υποβολή. Βασισμένο στο Τεύχος Τεχνικών Προδιαγραφών ΕΚ (v1.3/2024). Όλα τρέχουν τοπικά στη συσκευή σου — τίποτα δεν ανεβαίνει πουθενά.</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ΒΗΜΑ 1 -->
+  <section class="step" id="step1">
+    <div class="step-head"><span class="snum"><span>1</span></span><h2>Τι διάγραμμα ελέγχουμε;</h2></div>
+    <div class="cards" id="typeCards">
+      <div class="card" data-type="TD">
+        <span class="ico">📄</span><div>
+        <div class="t">Τοπογραφικό Διάγραμμα</div>
+        <div class="d">Ν.651/77 — προσαρτάται σε εγγραπτέα πράξη</div>
+        <div class="k">§4.5.2.α</div>
+        </div>
+      </div>
+      <div class="card" data-type="DGM_PRAXIS">
+        <span class="ico">✂️</span><div>
+        <div class="t">ΔΓΜ Εγγραπτέας Πράξης</div>
+        <div class="d">Κατάτμηση, συνένωση, σύσταση ΧΑΧ / δουλείας</div>
+        <div class="k">§4.5.2.β</div>
+        </div>
+      </div>
+      <div class="card" data-type="DGM_DIORTH">
+        <span class="ico">🛠️</span><div>
+        <div class="t">ΔΓΜ Διόρθωσης / ΤΔΓΜ</div>
+        <div class="d">Διόρθωση γεωμετρικών στοιχείων — άρθρα 18,19,20 Ν.2664/98</div>
+        <div class="k">§4.5.2.γ</div>
+        </div>
+      </div>
+    </div>
+    <div class="optrow" id="ktimaOptRow">
+      <input type="checkbox" id="ktimaOn" checked>
+      <label for="ktimaOn">Το ακίνητο βρίσκεται σε περιοχή <b>λειτουργούντος Κτηματολογίου</b> (απαιτείται layer PST_KAEK)</label>
+    </div>
+  </section>
+
+  <!-- ΒΗΜΑ 2 -->
+  <section class="step locked" id="step2">
+    <div class="step-head"><span class="snum"><span>2</span></span><h2>Ρίξε το DXF — γίνεται ο έλεγχος</h2></div>
+    <div class="drop" id="dxfDrop">
+      <div class="dicon">📂</div><div class="big">Άσε εδώ το DXF σου (ή πάτησε για επιλογή)</div>
+      <div class="small">ASCII DXF · έκδοση 2000–2014 · ΕΓΣΑ ’87 · μέτρα — το διάγραμμα θα εμφανιστεί αυτόματα στη σωστή θέση στον χάρτη</div>
+      <input type="file" id="dxfInput" accept=".dxf" hidden>
+    </div>
+    <div id="dxfFileTag"></div>
+    <div id="results"></div>
+  </section>
+
+  <!-- ΒΗΜΑ 3 -->
+  <section class="step locked" id="step3">
+    <div class="step-head"><span class="snum"><span>3</span></span><h2>Ρίξε το PDF — έλεγχος §4.6</h2></div>
+    <div class="drop" id="pdfDrop">
+      <div class="dicon">📄</div><div class="big">Άσε εδώ το PDF του διαγράμματος για έλεγχο</div>
+      <div class="small">1 σελίδα · 200–400 dpi · 24bit · dxf+pdf ≤ 10 MB (§4.6)</div>
+      <input type="file" id="pdfInput" accept=".pdf" hidden>
+    </div>
+    <div id="pdfFileTag"></div>
+    <div id="pdfResults"></div>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    <div><b>Σημείωση:</b> Ο έλεγχος είναι προκαταρκτικός/συμβουλευτικός και προσομοιώνει τους δημοσιευμένους κανόνες του Τεύχους Προδιαγραφών. Ο οριστικός έλεγχος [ΕΛΕΓΧΟΣ DXF] γίνεται από την εφαρμογή του Ελληνικού Κτηματολογίου κατά την υποβολή, όπου συγκρίνεται και με την τρέχουσα χωρική βάση (Αναφορά Εφαρμογής). Οι τοπολογικοί έλεγχοι εδώ είναι κατά προσέγγιση.</div>
+    <div class="mono" style="margin-top:6px">HEXIS · hexis-app.gr — BRB DEVELOPMENT MON. I.K.E.</div>
+  </div>
+</footer>
+
+<script>
+'use strict';
+/* =====================================================================
+   ΠΙΝΑΚΑΣ Ι — τυποποιημένα layers (Τεύχος v1.3/2024)
+===================================================================== */
+const LAYERS = {
+  BOUND_IMPL:    {n:1,  desc:'Όρια ιδιοκτησίας υλοποιημένα',            ent:['PL'],        color:'#E8EDF4'},
+  BOUND_UNIMPL:  {n:2,  desc:'Όρια ιδιοκτησίας μη υλοποιημένα',         ent:['PL'],        color:'#8FA0B3'},
+  DBOUND_RYM:    {n:3,  desc:'Ρυμοτομική γραμμή',                       ent:['PL'],        color:'#FF7AD9'},
+  DBOUND_AIG:    {n:4,  desc:'Οριογραμμή αιγιαλού + πράξη',             ent:['PL','TX'],   color:'#3FA9F5'},
+  DBOUND_PRL:    {n:5,  desc:'Οριογραμμή παραλίας + πράξη',             ent:['PL','TX'],   color:'#6FD3FF'},
+  DBOUND_PAIG:   {n:6,  desc:'Οριογραμμή παλαιού αιγιαλού + πράξη',     ent:['PL','TX'],   color:'#2C6FB0'},
+  DBOUND_REM:    {n:7,  desc:'Οριογραμμή ρέματος + πράξη',              ent:['PL','TX'],   color:'#39C6C0'},
+  DBOUND_APAL:   {n:8,  desc:'Οριογραμμή απαλλοτρίωσης + πράξη',        ent:['PL','TX'],   color:'#C08BFF'},
+  DBOUND_PROP:   {n:9,  desc:'Όριο ιδιοκτησίας βάσει Διοικ. Πράξης',    ent:['PL','TX'],   color:'#B8A46A'},
+  ROAD:          {n:10, desc:'Ονοματολογία οδών',                       ent:['TX'],        color:'#A9B7C6'},
+  OT:            {n:11, desc:'Ονοματολογία ΟΤ',                         ent:['TX'],        color:'#A9B7C6'},
+  PST_KAEK:      {n:12, desc:'Όρια & ΚΑΕΚ γεωτεμαχίων (κτημ. διάγρ.)',  ent:['PLC','TX'],  color:'#FFD24A', textIn:true},
+  TOPO_PROP:     {n:13, desc:'Όρια ιδιοκτησιών κατά τη σύνταξη',        ent:['PLC'],       color:'#3DDC84'},
+  TOPO_PROP_NEW: {n:14, desc:'Νέα όρια ιδιοκτησιών (εγγραπτέα πράξη)',  ent:['PLC'],       color:'#37C0D8'},
+  BLD:           {n:15, desc:'Περιγράμματα & αρίθμηση κτισμάτων',       ent:['PLC','TX'],  color:'#FF8A5C', textIn:true},
+  VST:           {n:16, desc:'Χώροι αποκλειστικής χρήσης (ΚΙ)',         ent:['PLC','TX'],  color:'#E06AFF', textIn:true},
+  EAS:           {n:17, desc:'Δεσμευμένοι χώροι (δουλεία)',             ent:['PLC','TX'],  color:'#FF5468', textIn:true},
+  MINE:          {n:18, desc:'Όριο μεταλλείου',                         ent:['PLC'],       color:'#9C6B3E'},
+  LINE_XM:       {n:19, desc:'Γραμμή χωρικής μεταβολής γεωτεμαχίων',    ent:['PL'],        color:'#FF3B3B'},
+  LINE_XM_VST:   {n:20, desc:'Γραμμή χωρικής μεταβολής ΧΑΧ',            ent:['PL'],        color:'#FF6FB5'},
+  VST_FINAL:     {n:21, desc:'Τελικά πολύγωνα ΧΑΧ',                     ent:['PLC'],       color:'#B84DFF'},
+  EAS_FINAL:     {n:22, desc:'Τελικά πολύγωνα δουλείας',                ent:['PLC'],       color:'#D93A55'},
+  MINE_FINAL:    {n:23, desc:'Όριο μεταλλείου (ενημ. βάσης)',           ent:['PLC'],       color:'#7A5230'},
+  DGM_PROP_FINAL:{n:24, desc:'Όρια τελικών γεωτεμαχίων',                ent:['PLC'],       color:'#00E5FF'},
+  AREA_D:        {n:25, desc:'Επιφάνεια που διεκδικείται (προστίθεται)',ent:['PLC'],       color:'#67F58C'},
+  AREA_A:        {n:26, desc:'Επιφάνεια που αποκόπτεται',               ent:['PLC'],       color:'#FFA63B'},
+  OBJ:           {n:27, desc:'Σημειακά αντικείμενα δικαιωμάτων',        ent:['PT'],        color:'#FFFFFF'}
+};
+const STD = Object.keys(LAYERS);
+// PL = LWPolyline (ανοικτή ή κλειστή), PLC = Closed LWPolyline, TX = TEXT, PT = POINT
+const CLOSED_ONLY = STD.filter(k=>LAYERS[k].ent.includes('PLC'));
+
+/* Ελάχιστα απαιτούμενα ανά είδος (§4.5.2) */
+const REQ = {
+  TD: {
+    label:'Τοπογραφικό Διάγραμμα',
+    rules(has, ktima){
+      const out=[];
+      if(!(has('BOUND_IMPL')||has('BOUND_UNIMPL')))
+        out.push({sev:'E',ref:'§4.5.2.α',msg:'Λείπει τουλάχιστον ένα από τα layers BOUND_IMPL / BOUND_UNIMPL (όρια ιδιοκτησίας).',fix:'Τοποθέτησε τα όρια της ιδιοκτησίας σε layer <b>BOUND_IMPL</b> (υλοποιημένα: μάντρα, σύρμα, κτίριο) ή/και <b>BOUND_UNIMPL</b> (μη υλοποιημένα), ως LWPOLYLINE.'});
+      if(ktima && !has('PST_KAEK'))
+        out.push({sev:'E',ref:'§4.5.2.α',msg:'Λείπει το layer PST_KAEK (όρια & ΚΑΕΚ γεωτεμαχίων από το κτηματογραφικό διάγραμμα).',fix:'Πρόσθεσε layer <b>PST_KAEK</b> με τα όρια των εμπλεκόμενων γεωτεμαχίων (Closed LWPOLYLINE) όπως αποδίδονται στο απόσπασμα κτηματολογικού διαγράμματος, και το ΚΑΕΚ ως TEXT εντός κάθε πολυγώνου.'});
+      if(!ktima && !has('PST_KAEK'))
+        out.push({sev:'I',ref:'§4.5.2.α',msg:'Δεν υπάρχει PST_KAEK — δηλώθηκε περιοχή εκτός λειτουργούντος Κτηματολογίου.',fix:'Αν τελικά η περιοχή είναι κτηματογραφημένη, το layer <b>PST_KAEK</b> είναι υποχρεωτικό.'});
+      if(!has('TOPO_PROP'))
+        out.push({sev:'E',ref:'§4.5.2.α',msg:'Λείπει το layer TOPO_PROP (όρια ιδιοκτησιών κατά τη σύνταξη).',fix:'Δημιούργησε layer <b>TOPO_PROP</b> με το/τα όρια της ιδιοκτησίας ως <b>Closed LWPOLYLINE</b>. Συντίθεται από τα όρια των BOUND_IMPL + BOUND_UNIMPL.'});
+      if(has('TOPO_PROP_NEW') && !has('TOPO_PROP'))
+        out.push({sev:'E',ref:'§4.5.2.α',msg:'Υπάρχει TOPO_PROP_NEW χωρίς TOPO_PROP.',fix:'Όταν υπάρχει το <b>TOPO_PROP_NEW</b>, πρέπει να υπάρχει και το <b>TOPO_PROP</b>.'});
+      return out;
+    }
+  },
+  DGM_PRAXIS: {
+    label:'ΔΓΜ Εγγραπτέας Πράξης',
+    rules(has){
+      const out=[];
+      if(!(has('BOUND_IMPL')||has('BOUND_UNIMPL')))
+        out.push({sev:'E',ref:'§4.5.2.β',msg:'Λείπει τουλάχιστον ένα από τα layers BOUND_IMPL / BOUND_UNIMPL.',fix:'Πρόσθεσε τα όρια της ιδιοκτησίας (υλοποιημένα/μη) στα layers <b>BOUND_IMPL</b> / <b>BOUND_UNIMPL</b>.'});
+      if(!has('PST_KAEK'))
+        out.push({sev:'E',ref:'§4.5.2.β',msg:'Λείπει το layer PST_KAEK.',fix:'Υποχρεωτικό στα ΔΓΜ: όρια εμπλεκόμενων γεωτεμαχίων (Closed LWPOLYLINE) + ΚΑΕΚ ως TEXT εντός πολυγώνου, όπως στο κτηματογραφικό διάγραμμα.'});
+      if(!(has('TOPO_PROP')||has('TOPO_PROP_NEW')))
+        out.push({sev:'E',ref:'§4.5.2.β',msg:'Λείπει τουλάχιστον ένα από τα layers TOPO_PROP / TOPO_PROP_NEW.',fix:'Πρόσθεσε <b>TOPO_PROP</b> (υφιστάμενα όρια) ή/και <b>TOPO_PROP_NEW</b> (νέα όρια μετά την πράξη), ως Closed LWPOLYLINE.'});
+      if(!['LINE_XM','LINE_XM_VST','VST_FINAL','EAS_FINAL','MINE_FINAL','DGM_PROP_FINAL'].some(has))
+        out.push({sev:'E',ref:'§4.5.2.β',msg:'Λείπει τουλάχιστον ένα από τα layers 19–24 (LINE_XM, LINE_XM_VST, VST_FINAL, EAS_FINAL, MINE_FINAL, DGM_PROP_FINAL).',fix:'Πρόσθεσε τα στοιχεία ενημέρωσης της κτηματολογικής βάσης: π.χ. <b>LINE_XM</b> + <b>DGM_PROP_FINAL</b> για κατάτμηση/συνένωση, ή <b>LINE_XM_VST</b> + <b>VST_FINAL</b> για σύσταση ΧΑΧ, ή <b>EAS_FINAL</b> για δουλεία.'});
+      if(has('LINE_XM') !== has('DGM_PROP_FINAL'))
+        out.push({sev:'E',ref:'§4.5.2.β',msg:'Τα layers LINE_XM και DGM_PROP_FINAL πρέπει να συνυπάρχουν (το ένα προϋποθέτει το άλλο).',fix:has('LINE_XM')?'Πρόσθεσε το <b>DGM_PROP_FINAL</b> με τα τελικά πολύγωνα των γεωτεμαχίων.':'Πρόσθεσε το <b>LINE_XM</b> με τη γραμμή χωρικής μεταβολής (εντός των ορίων του PST_KAEK).'});
+      if(has('LINE_XM_VST') !== has('VST_FINAL'))
+        out.push({sev:'E',ref:'§4.5.2.β',msg:'Τα layers LINE_XM_VST και VST_FINAL πρέπει να συνυπάρχουν.',fix:has('LINE_XM_VST')?'Πρόσθεσε το <b>VST_FINAL</b> με τα τελικά πολύγωνα των ΧΑΧ.':'Πρόσθεσε το <b>LINE_XM_VST</b> με τη γραμμή χωρικής μεταβολής των ΧΑΧ.'});
+      return out;
+    }
+  },
+  DGM_DIORTH: {
+    label:'ΔΓΜ Διόρθωσης / ΤΔΓΜ',
+    rules(has){
+      const out=[];
+      if(!has('PST_KAEK'))
+        out.push({sev:'E',ref:'§4.5.2.γ',msg:'Λείπει το layer PST_KAEK.',fix:'Υποχρεωτικό: όρια εμπλεκόμενων γεωτεμαχίων (Closed LWPOLYLINE) + ΚΑΕΚ ως TEXT εντός πολυγώνου.'});
+      if(!has('TOPO_PROP'))
+        out.push({sev:'E',ref:'§4.5.2.γ',msg:'Λείπει το layer TOPO_PROP.',fix:'Υποχρεωτικό στα ΔΓΜ διόρθωσης: τα ορθά όρια της ιδιοκτησίας ως <b>Closed LWPOLYLINE</b>.'});
+      const anyE = ['LINE_XM_VST','VST_FINAL','EAS_FINAL','MINE_FINAL','DGM_PROP_FINAL','AREA_D','AREA_A','OBJ'].some(has);
+      if(!anyE)
+        out.push({sev:'E',ref:'§4.5.2.γ',msg:'Λείπει τουλάχιστον ένα από τα layers 20–27 (LINE_XM_VST, VST_FINAL, EAS_FINAL, MINE_FINAL, DGM_PROP_FINAL, AREA_D, AREA_A, OBJ).',fix:'Για διόρθωση ορίων: πρόσθεσε <b>DGM_PROP_FINAL</b> + <b>AREA_D</b>/<b>AREA_A</b>. Για ΧΑΧ/δουλεία/μεταλλείο/σημειακά: τα αντίστοιχα layers.'});
+      const vstMode = has('LINE_XM_VST')||has('VST_FINAL')||has('EAS_FINAL')||has('MINE_FINAL')||has('OBJ');
+      if(has('TOPO_PROP') && !vstMode){
+        if(!has('DGM_PROP_FINAL'))
+          out.push({sev:'E',ref:'§4.5.2.γ',msg:'Υπάρχει TOPO_PROP χωρίς DGM_PROP_FINAL.',fix:'Πρόσθεσε το <b>DGM_PROP_FINAL</b>: τα τελικά πολύγωνα όλων των εμπλεκόμενων γεωτεμαχίων μετά τη διόρθωση. Τα περιμετρικά του όρια πρέπει να ταυτίζονται με του PST_KAEK.'});
+        if(!(has('AREA_D')||has('AREA_A')))
+          out.push({sev:'E',ref:'§4.5.2.γ',msg:'Λείπει τουλάχιστον ένα από τα layers AREA_D / AREA_A.',fix:'Πρόσθεσε <b>AREA_D</b> (επιφάνειες που προσαρτώνται στο υπό διόρθωση γεωτεμάχιο) ή/και <b>AREA_A</b> (επιφάνειες που αποκόπτονται από αυτό), ως Closed LWPOLYLINE.'});
+      }
+      if(has('TOPO_PROP') && !(has('BOUND_IMPL')||has('BOUND_UNIMPL')))
+        out.push({sev:'E',ref:'§4.5.2.γ',msg:'Υπάρχει TOPO_PROP χωρίς BOUND_IMPL / BOUND_UNIMPL.',fix:'Πρόσθεσε τα όρια της ιδιοκτησίας στα layers <b>BOUND_IMPL</b> ή/και <b>BOUND_UNIMPL</b>.'});
+      if(has('LINE_XM_VST') !== has('VST_FINAL'))
+        out.push({sev:'E',ref:'§4.5.2.γ',msg:'Τα layers LINE_XM_VST και VST_FINAL πρέπει να συνυπάρχουν.',fix:has('LINE_XM_VST')?'Πρόσθεσε το <b>VST_FINAL</b>.':'Πρόσθεσε το <b>LINE_XM_VST</b>.'});
+      return out;
+    }
+  }
+};
+
+/* =====================================================================
+   DXF PARSER (ASCII)
+===================================================================== */
+function parseDXF(text){
+  const rawLines = text.split(/\r\n|\r|\n/);
+  const pairs=[];
+  for(let i=0;i+1<rawLines.length;i+=2){
+    const code = parseInt(rawLines[i].trim(),10);
+    if(Number.isNaN(code)) { pairs.push([NaN, rawLines[i+1]]); continue; }
+    pairs.push([code, rawLines[i+1].replace(/\r$/,'')]);
+  }
+  const doc = { version:null, insunits:null, tableLayers:[], entities:[], hasBlocksContent:false, parseIssues:[] };
+  let i=0, section=null;
+  const P = ()=>pairs[i];
+
+  while(i<pairs.length){
+    const [c,v]=pairs[i];
+    if(c===0 && v.trim()==='SECTION'){
+      i++;
+      if(i<pairs.length && pairs[i][0]===2){ section=pairs[i][1].trim(); i++; }
+      continue;
+    }
+    if(c===0 && v.trim()==='ENDSEC'){ section=null; i++; continue; }
+    if(c===0 && v.trim()==='EOF') break;
+
+    if(section==='HEADER'){
+      if(c===9 && v.trim()==='$ACADVER'){ i++; if(pairs[i] && pairs[i][0]===1){ doc.version=pairs[i][1].trim(); i++; } continue; }
+      if(c===9 && v.trim()==='$INSUNITS'){ i++; if(pairs[i] && pairs[i][0]===70){ doc.insunits=parseInt(pairs[i][1],10); i++; } continue; }
+      i++; continue;
+    }
+    if(section==='TABLES'){
+      if(c===0 && v.trim()==='LAYER'){
+        // could be table header (2=LAYER after TABLE) or entry — entries have 2=name later
+        i++;
+        let name=null, flags=0;
+        while(i<pairs.length && pairs[i][0]!==0){
+          if(pairs[i][0]===2) name=pairs[i][1].trim();
+          if(pairs[i][0]===70) flags=parseInt(pairs[i][1],10)||0;
+          i++;
+        }
+        if(name!==null && name!=='') doc.tableLayers.push({name,flags});
+        continue;
+      }
+      i++; continue;
+    }
+    if(section==='BLOCKS'){
+      if(c===0){
+        const t=v.trim();
+        if(!['BLOCK','ENDBLK','ATTDEF'].includes(t) && t!=='') doc.hasBlocksContent=true;
+      }
+      i++; continue;
+    }
+    if(section==='ENTITIES'){
+      if(c===0){
+        const type=v.trim(); i++;
+        const e={type, layer:'0', pts:[], closed:false, text:'', x:null, y:null, x2:null, y2:null};
+        let lastX=null;
+        if(type==='POLYLINE'){
+          // consume own props
+          while(i<pairs.length && !(pairs[i][0]===0)){
+            const [cc,vv]=pairs[i];
+            if(cc===8) e.layer=vv.trim();
+            if(cc===70) e.closed=(parseInt(vv,10)&1)===1;
+            i++;
+          }
+          // vertices
+          while(i<pairs.length && pairs[i][0]===0 && pairs[i][1].trim()==='VERTEX'){
+            i++; let vx=null,vy=null;
+            while(i<pairs.length && pairs[i][0]!==0){
+              if(pairs[i][0]===10) vx=parseFloat(pairs[i][1]);
+              if(pairs[i][0]===20) vy=parseFloat(pairs[i][1]);
+              i++;
+            }
+            if(vx!==null&&vy!==null) e.pts.push([vx,vy]);
+          }
+          if(i<pairs.length && pairs[i][0]===0 && pairs[i][1].trim()==='SEQEND'){
+            i++;
+            while(i<pairs.length && pairs[i][0]!==0) i++;
+          }
+          doc.entities.push(e);
+          continue;
+        }
+        while(i<pairs.length && pairs[i][0]!==0){
+          const [cc,vv]=pairs[i];
+          if(cc===8) e.layer=vv.trim();
+          else if(cc===70 && (type==='LWPOLYLINE')) e.closed=(parseInt(vv,10)&1)===1;
+          else if(cc===10){ lastX=parseFloat(vv); if(e.x===null) e.x=lastX; }
+          else if(cc===20){ const yy=parseFloat(vv); if(e.y===null) e.y=yy; if(type==='LWPOLYLINE'&&lastX!==null){ e.pts.push([lastX,yy]); lastX=null; } }
+          else if(cc===11){ e.x2=parseFloat(vv); }
+          else if(cc===21){ e.y2=parseFloat(vv); }
+          else if(cc===1){ e.text += vv; }
+          i++;
+        }
+        doc.entities.push(e);
+        continue;
+      }
+      i++; continue;
+    }
+    i++;
+  }
+  return doc;
+}
+
+/* =====================================================================
+   GEOMETRY
+===================================================================== */
+const EPS=0.001;
+function ptsClean(pts){
+  const out=[];
+  for(const p of pts){
+    if(out.length && Math.abs(p[0]-out[out.length-1][0])<EPS && Math.abs(p[1]-out[out.length-1][1])<EPS) continue;
+    out.push(p);
+  }
+  return out;
+}
+function isRingClosed(e){
+  if(e.closed) return true;
+  const p=e.pts;
+  if(p.length>2 && Math.abs(p[0][0]-p[p.length-1][0])<0.005 && Math.abs(p[0][1]-p[p.length-1][1])<0.005) return true;
+  return false;
+}
+function ringPts(e){ // closed ring without duplicated last point
+  let p=ptsClean(e.pts);
+  if(p.length>2 && Math.abs(p[0][0]-p[p.length-1][0])<0.005 && Math.abs(p[0][1]-p[p.length-1][1])<0.005) p=p.slice(0,-1);
+  return p;
+}
+function area(pts){
+  let a=0;
+  for(let i=0;i<pts.length;i++){
+    const j=(i+1)%pts.length;
+    a += pts[i][0]*pts[j][1]-pts[j][0]*pts[i][1];
+  }
+  return Math.abs(a)/2;
+}
+function pointInPoly(pt,poly){
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const xi=poly[i][0], yi=poly[i][1], xj=poly[j][0], yj=poly[j][1];
+    if(((yi>pt[1])!==(yj>pt[1])) && (pt[0] < (xj-xi)*(pt[1]-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function distToSeg(p,a,b){
+  const dx=b[0]-a[0], dy=b[1]-a[1];
+  const L2=dx*dx+dy*dy;
+  if(L2===0) return Math.hypot(p[0]-a[0],p[1]-a[1]);
+  let t=((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L2; t=Math.max(0,Math.min(1,t));
+  return Math.hypot(p[0]-(a[0]+t*dx), p[1]-(a[1]+t*dy));
+}
+function distToRing(p,ring){
+  let d=Infinity;
+  for(let i=0;i<ring.length;i++) d=Math.min(d,distToSeg(p,ring[i],ring[(i+1)%ring.length]));
+  return d;
+}
+function segCross(p1,p2,p3,p4){ // strict proper crossing
+  const d=(x,y,z)=>(y[0]-x[0])*(z[1]-x[1])-(y[1]-x[1])*(z[0]-x[0]);
+  const d1=d(p3,p4,p1), d2=d(p3,p4,p2), d3=d(p1,p2,p3), d4=d(p1,p2,p4);
+  return ((d1>1e-9&&d2<-1e-9)||(d1<-1e-9&&d2>1e-9)) && ((d3>1e-9&&d4<-1e-9)||(d3<-1e-9&&d4>1e-9));
+}
+function selfIntersects(ring){
+  const n=ring.length;
+  if(n<4) return false;
+  for(let i=0;i<n;i++){
+    for(let j=i+2;j<n;j++){
+      if(i===0 && j===n-1) continue;
+      if(segCross(ring[i],ring[(i+1)%n],ring[j],ring[(j+1)%n])) return true;
+    }
+  }
+  return false;
+}
+function ringsCross(r1,r2){
+  for(let i=0;i<r1.length;i++)
+    for(let j=0;j<r2.length;j++)
+      if(segCross(r1[i],r1[(i+1)%r1.length],r2[j],r2[(j+1)%r2.length])) return true;
+  return false;
+}
+function centroid(pts){
+  let x=0,y=0;
+  for(const p of pts){x+=p[0];y+=p[1];}
+  return [x/pts.length,y/pts.length];
+}
+function sameRing(a,b){
+  if(a.length!==b.length) return false;
+  const eq=(o)=>{ for(let k=0;k<a.length;k++){ const q=b[(k+o)%b.length]; if(Math.abs(a[k][0]-q[0])>EPS||Math.abs(a[k][1]-q[1])>EPS) return false;} return true; };
+  const eqR=(o)=>{ for(let k=0;k<a.length;k++){ const q=b[(o-k+2*b.length)%b.length]; if(Math.abs(a[k][0]-q[0])>EPS||Math.abs(a[k][1]-q[1])>EPS) return false;} return true; };
+  for(let o=0;o<b.length;o++){ if(eq(o)||eqR(o)) return true; }
+  return false;
+}
+
+/* Greek lookalike letters that sneak into layer names */
+const GREEK_LOOKALIKE=/[ΑΒΕΖΗΙΚΜΝΟΡΤΥΧα-ωΆ-Ώ]/;
+
+/* =====================================================================
+   VALIDATION ENGINE
+===================================================================== */
+function validate(doc, file, dgType, ktimaOn){
+  const R=[]; // {sev:'E'|'W'|'I', ref, msg, fix, det}
+  const add=(sev,ref,msg,fix,det)=>R.push({sev,ref,msg,fix,det});
+
+  /* --- Ονομασία αρχείου (§4.3) --- */
+  const fname=file.name;
+  const base=fname.replace(/\.[^.]*$/,'');
+  const ext=(fname.match(/\.([^.]*)$/)||[])[1]||'';
+  if(ext.toLowerCase()!=='dxf')
+    add('E','§4.3','Η κατάληξη του αρχείου δεν είναι .dxf.','Μετονόμασε το αρχείο ώστε να έχει κατάληξη <b>.dxf</b>.');
+  if(base.length>15)
+    add('E','§4.3',`Το όνομα αρχείου έχει ${base.length} χαρακτήρες (μέγιστο 15, χωρίς την κατάληξη).`,`Συντόμευσε το όνομα σε έως <b>15 χαρακτήρες</b>, π.χ. <b>dgm_kand_v01.dxf</b>.`);
+  if(/\s/.test(base))
+    add('E','§4.3','Το όνομα αρχείου περιέχει κενά.','Αντικατάστησε τα κενά με κάτω παύλες «_».');
+  if(/[^A-Za-z0-9_]/.test(base))
+    add('E','§4.3','Το όνομα αρχείου περιέχει μη επιτρεπτούς χαρακτήρες (μόνο λατινικά A–z, αριθμοί 0–9 και «_»).','Αφαίρεσε ελληνικούς/ειδικούς χαρακτήρες, τελείες και σύμβολα από το όνομα.');
+  const wantPrefix = dgType==='TD' ? 'topo_' : 'dgm_';
+  if(!base.toLowerCase().startsWith(wantPrefix))
+    add('W','§4.3',`Συστήνεται το όνομα να ξεκινά με «${wantPrefix}» για ${dgType==='TD'?'Τοπογραφικά':'ΔΓΜ'}.`,`Μετονόμασε π.χ. σε <b>${wantPrefix}name_v01.dxf</b>.`);
+  if(!/_v\d+$/i.test(base))
+    add('W','§4.3','Συστήνεται το όνομα να τελειώνει σε αριθμό έκδοσης (_v01).','Πρόσθεσε κατάληξη έκδοσης, π.χ. <b>_v01</b>.');
+
+  /* --- Έκδοση / μορφή (§4.2, §4.4) --- */
+  const VER={AC1009:'R12',AC1012:'R13',AC1014:'R14',AC1015:'2000',AC1018:'2004',AC1021:'2007',AC1024:'2010',AC1027:'2013/2014',AC1032:'2018+'};
+  if(doc.version){
+    const vname=VER[doc.version]||doc.version;
+    if(['AC1015','AC1018','AC1021','AC1024','AC1027'].includes(doc.version)){
+      add('I','§4.2',`Έκδοση DXF: ${vname} (${doc.version}) — αποδεκτή (2000–2014).`);
+    } else if(doc.version==='AC1032' || doc.version>'AC1027'){
+      add('E','§4.2',`Έκδοση DXF: ${vname} (${doc.version}) — εκτός υποστηριζόμενου εύρους 2000–2014.`,'Στο CAD κάνε <b>SAVEAS → AutoCAD 2013 DXF</b> (ή 2000/2004/2010).');
+    } else {
+      add('W','§4.2',`Έκδοση DXF: ${vname} (${doc.version}) — παλαιότερη των πλήρως υποστηριζόμενων (2000–2014).`,'Αποθήκευσε ξανά ως <b>DXF 2000–2013</b>.');
+    }
+  } else {
+    add('W','§4.2','Δεν βρέθηκε μεταβλητή $ACADVER στο HEADER.','Αποθήκευσε το αρχείο από CAD ως <b>ASCII DXF 2000–2013</b> ώστε να περιέχει πλήρες HEADER.');
+  }
+  if(doc.insunits!==null && doc.insunits!==6 && doc.insunits!==0)
+    add('W','§4.4',`Μονάδες σχεδίου ($INSUNITS=${doc.insunits}) ≠ μέτρα.`,'Όρισε <b>UNITS → Meters</b> (INSUNITS=6). Οι συντεταγμένες πρέπει να είναι σε μέτρα ΕΓΣΑ ’87.');
+
+  /* --- Layers που υπάρχουν --- */
+  const entByLayer={};
+  for(const e of doc.entities){
+    (entByLayer[e.layer] ||= []).push(e);
+  }
+  const allLayerNames = new Set([...doc.tableLayers.map(l=>l.name), ...Object.keys(entByLayer)]);
+  const stdUpper = new Set(STD);
+  const layerMap={}; // std name -> actual name used
+  const caseIssues=[], greekIssues=[];
+  for(const name of allLayerNames){
+    const up=name.toUpperCase();
+    if(stdUpper.has(up)){
+      layerMap[up]=name;
+      if(name!==up) caseIssues.push(name);
+    } else {
+      // greek lookalikes: normalize Α→A etc
+      const norm = name.replace(/Α/g,'A').replace(/Β/g,'B').replace(/Ε/g,'E').replace(/Ζ/g,'Z').replace(/Η/g,'H')
+        .replace(/Ι/g,'I').replace(/Κ/g,'K').replace(/Μ/g,'M').replace(/Ν/g,'N').replace(/Ο/g,'O')
+        .replace(/Ρ/g,'P').replace(/Τ/g,'T').replace(/Υ/g,'Y').replace(/Χ/g,'X').toUpperCase();
+      if(stdUpper.has(norm) && GREEK_LOOKALIKE.test(name)) greekIssues.push({name,norm});
+    }
+  }
+  if(caseIssues.length)
+    add('W','§4.5.1',`Layers με πεζά γράμματα: ${caseIssues.join(', ')}.`,'Μετονόμασε τα layers ακριβώς όπως στον Πίνακα Ι (κεφαλαία λατινικά), π.χ. <b>PST_KAEK</b>.');
+  for(const g of greekIssues)
+    add('E','§4.5.1',`Το layer «${g.name}» περιέχει ΕΛΛΗΝΙΚΟΥΣ χαρακτήρες που μοιάζουν με λατινικούς (πιθανώς έπρεπε να είναι «${g.norm}»).`,`Μετονόμασε το layer σε <b>${g.norm}</b> με λατινικούς χαρακτήρες. Συχνό λάθος: ελληνικό «Α» αντί λατινικού «A».`);
+
+  const has=(k)=> layerMap[k]!==undefined && (entByLayer[layerMap[k]]||[]).length>0;
+  const existsEmpty=(k)=> layerMap[k]!==undefined && (entByLayer[layerMap[k]]||[]).length===0;
+  for(const k of STD){
+    if(existsEmpty(k))
+      add('W','§5.2.1',`Το layer ${k} υπάρχει αλλά είναι ΚΕΝΟ (χωρίς οντότητες).`,`Πρόσθεσε περιεχόμενο στο <b>${k}</b> ή διάγραψε το layer αν δεν αφορά το διάγραμμα.`);
+  }
+
+  /* --- Ελάχιστα layers ανά είδος --- */
+  for(const r of REQ[dgType].rules(has, ktimaOn)) R.push(r);
+
+  /* --- Οντότητες ανά layer (Πίνακας Ι, §4.4.2, §4.5.1) --- */
+  let coordMin=[Infinity,Infinity], coordMax=[-Infinity,-Infinity];
+  const noteCoord=(x,y)=>{ if(x<coordMin[0])coordMin[0]=x; if(y<coordMin[1])coordMin[1]=y; if(x>coordMax[0])coordMax[0]=x; if(y>coordMax[1])coordMax[1]=y; };
+
+  const polyInfo={}; // std -> [{ring, area, e}]
+  const textInfo={}; // std -> [{pt, text}]
+
+  for(const std of STD){
+    const actual=layerMap[std];
+    if(!actual) continue;
+    const ents=entByLayer[actual]||[];
+    const spec=LAYERS[std];
+    const allowPL=spec.ent.includes('PL')||spec.ent.includes('PLC');
+    const needClosed=spec.ent.includes('PLC') && !spec.ent.includes('PL');
+    const allowTX=spec.ent.includes('TX');
+    const allowPT=spec.ent.includes('PT');
+    const badTypes={}, mtextCnt=[], lineCnt=[], polyOldCnt=[];
+    let openBad=[], closedNoFlag=[], selfX=[], dupVerts=[];
+
+    for(const e of ents){
+      if(e.type==='LWPOLYLINE'||e.type==='POLYLINE'){
+        if(!allowPL){ badTypes[e.type]=(badTypes[e.type]||0)+1; continue; }
+        if(e.type==='POLYLINE') polyOldCnt.push(e);
+        const cleaned=ptsClean(e.pts);
+        if(cleaned.length<e.pts.length) dupVerts.push(e);
+        for(const p of e.pts) noteCoord(p[0],p[1]);
+        const closed=isRingClosed(e);
+        if(needClosed && !closed){ openBad.push(e); }
+        if(needClosed && closed && !e.closed) closedNoFlag.push(e);
+        if(closed){
+          const ring=ringPts(e);
+          if(ring.length>=3){
+            if(selfIntersects(ring)) selfX.push(e);
+            (polyInfo[std] ||= []).push({ring, area:area(ring), e});
+          }
+        }
+      }
+      else if(e.type==='TEXT'){
+        if(!allowTX){ badTypes.TEXT=(badTypes.TEXT||0)+1; continue; }
+        if(e.x!==null&&e.y!==null){ noteCoord(e.x,e.y); (textInfo[std] ||= []).push({pt:[e.x,e.y], text:e.text}); }
+      }
+      else if(e.type==='MTEXT'){ mtextCnt.push(e); if(e.x!==null&&e.y!==null)noteCoord(e.x,e.y); }
+      else if(e.type==='POINT'){
+        if(!allowPT){ badTypes.POINT=(badTypes.POINT||0)+1; }
+        if(e.x!==null&&e.y!==null){ noteCoord(e.x,e.y); (textInfo[std+'_PT'] ||= []).push({pt:[e.x,e.y]}); }
+      }
+      else if(e.type==='LINE'){ lineCnt.push(e); if(e.x!==null)noteCoord(e.x,e.y); if(e.x2!==null)noteCoord(e.x2,e.y2); }
+      else if(['INSERT','IMAGE','CIRCLE','ARC','SPLINE','ELLIPSE','HATCH','DIMENSION','MLINE','3DFACE'].includes(e.type)){
+        badTypes[e.type]=(badTypes[e.type]||0)+1;
+      }
+      else { badTypes[e.type]=(badTypes[e.type]||0)+1; }
+    }
+
+    if(mtextCnt.length)
+      add('E','§4.4.2',`Layer ${std}: βρέθηκαν ${mtextCnt.length} οντότητες MTEXT.`,`Τα κείμενα πρέπει να είναι <b>TEXT (όχι MTEXT)</b>. Στο CAD: εντολή <b>EXPLODE</b> στο MTEXT ή <b>TXT2MTXT αντίστροφα / MTEXT→TEXT</b>.`);
+    if(lineCnt.length)
+      add('E','§4.4.2',`Layer ${std}: βρέθηκαν ${lineCnt.length} οντότητες LINE.`,`Τα γραμμικά στοιχεία πρέπει να είναι <b>LWPOLYLINE</b>. Στο CAD: <b>PEDIT → Multiple → Join</b> ή <b>PLINE</b> εκ νέου.`);
+    if(polyOldCnt.length)
+      add('W','§4.4.2',`Layer ${std}: ${polyOldCnt.length} παλαιού τύπου POLYLINE (2D/3D).`,`Μετάτρεψε σε LWPOLYLINE: εντολή <b>CONVERTPOLY → Light</b>.`);
+    const btKeys=Object.keys(badTypes);
+    if(btKeys.length){
+      const list=btKeys.map(k=>`${k}×${badTypes[k]}`).join(', ');
+      const fixes={INSERT:'Κάνε <b>EXPLODE</b> στα blocks — δεν επιτρέπονται blocks στα layers του Πίνακα Ι.',IMAGE:'Αφαίρεσε τις εικόνες από τα τυποποιημένα layers (δεν επιτρέπονται images).',CIRCLE:'Μετάτρεψε κύκλους σε LWPOLYLINE (π.χ. PEDIT ή προσέγγιση με πολύγωνο).',ARC:'Μετάτρεψε τόξα σε LWPOLYLINE (PEDIT → Join).',SPLINE:'Μετάτρεψε splines σε LWPOLYLINE (SPLINEDIT ή FLATTEN).',HATCH:'Αφαίρεσε τα hatch από τα τυποποιημένα layers.'};
+      const fix=btKeys.map(k=>fixes[k]).filter(Boolean).join(' ')||`Επιτρεπτές οντότητες στο ${std}: ${spec.ent.map(t=>({PL:'LWPOLYLINE',PLC:'Closed LWPOLYLINE',TX:'TEXT',PT:'POINT'}[t])).join(', ')}. Μετάφερε ή μετάτρεψε τις υπόλοιπες.`;
+      add('E','§4.4.2 / §4.5.1',`Layer ${std}: μη επιτρεπτές οντότητες → ${list}.`,fix);
+    }
+    if(openBad.length)
+      add('E','Πίν.Ι',`Layer ${std}: ${openBad.length} πολυγραμμή/ές ΔΕΝ είναι κλειστές, ενώ απαιτείται Closed LWPOLYLINE.`,`Στο CAD: <b>PEDIT → Close</b> σε κάθε πολύγωνο του <b>${std}</b>. Έλεγξε ότι πρώτη και τελευταία κορυφή ταυτίζονται.`,
+        openBad.slice(0,5).map(e=>`• ${e.pts.length} κορυφές, έναρξη (${e.pts[0]?.[0]?.toFixed(2)}, ${e.pts[0]?.[1]?.toFixed(2)})`).join('\n'));
+    if(closedNoFlag.length)
+      add('W','Πίν.Ι',`Layer ${std}: ${closedNoFlag.length} πολύγωνα «κλείνουν» με διπλή κορυφή αντί για Closed flag.`,`Προτίμησε <b>PEDIT → Close</b> ώστε το πολύγωνο να έχει το flag Closed και όχι επαναλαμβανόμενη κορυφή.`);
+    if(selfX.length)
+      add('E','§4.5.3',`Layer ${std}: ${selfX.length} πολύγωνα ΑΥΤΟΤΕΜΝΟΝΤΑΙ.`,`Διόρθωσε τη γεωμετρία — κανένα πολύγωνο δεν επιτρέπεται να τέμνει τον εαυτό του. Έλεγξε τη σειρά των κορυφών.`);
+    if(dupVerts.length)
+      add('W','§4.5.1',`Layer ${std}: ${dupVerts.length} πολυγραμμές με διαδοχικές διπλές κορυφές.`,`Καθάρισε τις διπλοκορυφές: <b>OVERKILL</b> ή PEDIT → Edit vertex.`);
+  }
+
+  /* --- Διπλά / επικαλυπτόμενα στο ίδιο layer (§4.5.1, §4.5.3) --- */
+  for(const std of Object.keys(polyInfo)){
+    const list=polyInfo[std];
+    const dups=[], overlaps=[];
+    for(let a=0;a<list.length;a++){
+      for(let b=a+1;b<list.length;b++){
+        if(sameRing(list[a].ring,list[b].ring)){ dups.push([a,b]); continue; }
+        if(ringsCross(list[a].ring,list[b].ring)) overlaps.push([a,b]);
+        else {
+          const cA=centroid(list[a].ring), cB=centroid(list[b].ring);
+          if(std!=='BLD'){
+            if(pointInPoly(cA,list[b].ring) && distToRing(cA,list[b].ring)>0.02 && pointInPoly(list[a].ring[0],list[b].ring))
+              overlaps.push([a,b]);
+            else if(pointInPoly(cB,list[a].ring) && distToRing(cB,list[a].ring)>0.02 && pointInPoly(list[b].ring[0],list[a].ring))
+              overlaps.push([a,b]);
+          }
+        }
+      }
+    }
+    if(dups.length)
+      add('E','§4.5.1',`Layer ${std}: ${dups.length} ζεύγη ΤΑΥΤΟΣΗΜΩΝ πολυγώνων (διπλά στοιχεία).`,`Διάγραψε τα διπλότυπα: εντολή <b>OVERKILL</b> στο layer <b>${std}</b>.`);
+    if(overlaps.length)
+      add('E','§4.5.1 / §4.5.3',`Layer ${std}: ${overlaps.length} ζεύγη πολυγώνων ΕΠΙΚΑΛΥΠΤΟΝΤΑΙ.`,`Στο ίδιο layer δεν επιτρέπονται επικαλύψεις. Διόρθωσε τα κοινά όρια ώστε τα πολύγωνα να εφάπτονται (snap στις ίδιες κορυφές) χωρίς αλληλοεπικάλυψη.`,
+        overlaps.slice(0,5).map(([a,b])=>`• πολύγωνα με εμβαδά ${list[a].area.toFixed(1)} m² και ${list[b].area.toFixed(1)} m²`).join('\n'));
+  }
+
+  /* --- TEXT εντός πολυγώνου (§4.5.1) --- */
+  for(const std of STD){
+    if(!LAYERS[std].textIn) continue;
+    if(!has(std)) continue;
+    const polys=polyInfo[std]||[], txts=textInfo[std]||[];
+    if(polys.length && !txts.length && std!=='DBOUND_PROP')
+      add('W','Πίν.Ι',`Layer ${std}: υπάρχουν ${polys.length} πολύγωνα αλλά κανένα TEXT.`,
+        std==='PST_KAEK' ? 'Πρόσθεσε το <b>ΚΑΕΚ κάθε γεωτεμαχίου ως TEXT εντός του αντίστοιχου πολυγώνου</b> στο ίδιο layer.' :
+        `Πρόσθεσε την αρίθμηση/κωδικοποίηση ως TEXT εντός κάθε πολυγώνου του <b>${std}</b>.`);
+    const outside=txts.filter(t=>!polys.some(p=>pointInPoly(t.pt,p.ring)));
+    if(outside.length && polys.length)
+      add('W','§4.5.1',`Layer ${std}: ${outside.length} TEXT με σημείο εισαγωγής εκτός πολυγώνου.`,
+        std==='PST_KAEK' ? `Αν πρόκειται για <b>ΚΑΕΚ όμορων γεωτεμαχίων</b> χωρίς σχεδιασμένο πολύγωνο, είναι σύνηθες και γίνεται δεκτό από την πλατφόρμα. Διαφορετικά μετακίνησε το insertion point εντός του πολυγώνου.` : `Κατά το Τεύχος, το σημείο εισαγωγής πρέπει να βρίσκεται <b>εντός</b> του πολυγώνου που περιγράφει.`,
+        outside.slice(0,6).map(t=>`• «${t.text}» @ (${t.pt[0].toFixed(2)}, ${t.pt[1].toFixed(2)})`).join('\n'));
+    if(std==='PST_KAEK' && polys.length && txts.length){
+      // ένα ΚΑΕΚ ανά πολύγωνο
+      const empty=polys.filter(p=>!txts.some(t=>pointInPoly(t.pt,p.ring)));
+      if(empty.length)
+        add('W','Πίν.Ι',`Layer PST_KAEK: ${empty.length} πολύγωνα χωρίς ΚΑΕΚ (TEXT) στο εσωτερικό τους.`,`Συστήνεται κάθε σχεδιασμένο γεωτεμάχιο του PST_KAEK να έχει το <b>ΚΑΕΚ του ως TEXT εντός του πολυγώνου</b> για τη σωστή αντιστοίχιση.`,
+          empty.slice(0,5).map(p=>`• πολύγωνο ${p.area.toFixed(1)} m² @ (${centroid(p.ring)[0].toFixed(1)}, ${centroid(p.ring)[1].toFixed(1)})`).join('\n'));
+      const badKaek=txts.filter(t=>!/^\d{12}(\/\d+)*$/.test(t.text.trim()));
+      if(badKaek.length)
+        add('W','Πίν.Ι',`Layer PST_KAEK: ${badKaek.length} TEXT δεν έχουν μορφή ΚΑΕΚ (12 ψηφία).`,`Έλεγξε ότι τα TEXT περιέχουν μόνο τον 12ψήφιο ΚΑΕΚ (π.χ. 340551234567), χωρίς πρόθεμα «ΚΑΕΚ:» ή άλλα σύμβολα.`,
+          badKaek.slice(0,6).map(t=>`• «${t.text}»`).join('\n'));
+    }
+  }
+
+  /* --- ΕΓΣΑ ’87 όρια συντεταγμένων --- */
+  if(coordMin[0]!==Infinity){
+    const inEGSA = coordMin[0]>=94000 && coordMax[0]<=1010000 && coordMin[1]>=3850000 && coordMax[1]<=4630000;
+    if(!inEGSA){
+      let hint='Οι συντεταγμένες φαίνονται εκτός των ορίων της Ελλάδας σε ΕΓΣΑ ’87 (X: 94.000–1.010.000, Y: 3.850.000–4.630.000).';
+      let fix='Μετασχημάτισε το σχέδιο σε <b>ΕΓΣΑ ’87 (GGRS87 / EPSG:2100)</b>. ';
+      if(coordMax[0]<1000 && coordMax[1]<1000){ hint+=' Πιθανώς τοπικό/αυθαίρετο σύστημα.'; fix+='Το σχέδιο μοιάζει σε τοπικό σύστημα — κάνε γεωαναφορά στα σημεία ελέγχου σου.'; }
+      else if(Math.abs(coordMax[0])<=180 && Math.abs(coordMax[1])<=90){ hint+=' Πιθανώς WGS84 (μοίρες).'; fix+='Το σχέδιο μοιάζει σε γεωγραφικές συντεταγμένες — μετέτρεψε από WGS84 σε ΕΓΣΑ ’87.'; }
+      add('E','§3.4–3.5',hint,fix,`bbox: X ${coordMin[0].toFixed(2)} … ${coordMax[0].toFixed(2)} · Y ${coordMin[1].toFixed(2)} … ${coordMax[1].toFixed(2)}`);
+    } else {
+      add('I','§3.4–3.5',`Συντεταγμένες εντός ορίων ΕΓΣΑ ’87 ✓ (bbox X: ${coordMin[0].toFixed(1)}–${coordMax[0].toFixed(1)}, Y: ${coordMin[1].toFixed(1)}–${coordMax[1].toFixed(1)}).`);
+    }
+  } else {
+    add('E','§4.4','Δεν βρέθηκε καμία γεωμετρική οντότητα στην ενότητα ENTITIES.','Έλεγξε ότι το σχέδιο έχει περιεχόμενο και εξάγεται σωστά σε DXF (όχι κενό αρχείο, όχι μόνο blocks).');
+  }
+
+  /* --- Τοπολογικοί κανόνες ΔΓΜ (§4.5.3) --- */
+  const pstPolys=polyInfo['PST_KAEK']||[];
+  const inPST=(pt)=> pstPolys.some(p=> pointInPoly(pt,p.ring) || distToRing(pt,p.ring)<=0.05);
+  if(dgType!=='TD' && pstPolys.length){
+    // 19,20,21 να μην υπερκαλύπτουν PST_KAEK / 22,24 να μην υπερβαίνουν
+    const checkWithin=(std,sev)=>{
+      const items=polyInfo[std]||[];
+      let badPts=0, total=0, sample=[];
+      for(const it of items){ for(const v of it.ring){ total++; if(!inPST(v)){ badPts++; if(sample.length<5) sample.push(v); } } }
+      const lines=(entByLayer[layerMap[std]]||[]).filter(e=>(e.type==='LWPOLYLINE'||e.type==='POLYLINE')&&!isRingClosed(e));
+      for(const e of lines){ for(const v of ptsClean(e.pts)){ total++; if(!inPST(v)){ badPts++; if(sample.length<5) sample.push(v); } } }
+      if(badPts>0)
+        add(sev,'§4.5.3',`Layer ${std}: ${badPts}/${total} κορυφές βρίσκονται ΕΚΤΟΣ των πολυγώνων του PST_KAEK.`,`Οι οντότητες του <b>${std}</b> πρέπει να περιορίζονται εντός των ορίων του <b>PST_KAEK</b> (snap στα όρια του κτηματογραφικού). Μετακίνησε/κόψε τις κορυφές που εξέχουν.`,
+          sample.map(v=>`• (${v[0].toFixed(2)}, ${v[1].toFixed(2)})`).join('\n'));
+    };
+    for(const std of ['LINE_XM','LINE_XM_VST','VST_FINAL','EAS_FINAL','DGM_PROP_FINAL']) if(has(std)) checkWithin(std,'E');
+  }
+  if(dgType==='DGM_DIORTH' && pstPolys.length && (polyInfo['DGM_PROP_FINAL']||[]).length){
+    const aPST=pstPolys.reduce((s,p)=>s+p.area,0);
+    const aDGM=polyInfo['DGM_PROP_FINAL'].reduce((s,p)=>s+p.area,0);
+    const diff=Math.abs(aPST-aDGM), rel=diff/Math.max(aPST,1);
+    if(rel>0.005 && diff>1)
+      add('W','§4.5.3',`ΔΓΜ διόρθωσης: ΣΕμβαδόν DGM_PROP_FINAL (${aDGM.toFixed(1)} m²) ≠ ΣΕμβαδόν PST_KAEK (${aPST.toFixed(1)} m²) — διαφορά ${diff.toFixed(1)} m².`,`Τα περιμετρικά όρια του <b>DGM_PROP_FINAL</b> πρέπει να ΤΑΥΤΙΖΟΝΤΑΙ με του <b>PST_KAEK</b> (η διόρθωση ανακατανέμει εσωτερικά, δεν αλλάζει το συνολικό περίγραμμα, εκτός ειδικών περιπτώσεων). Έλεγξε snap στις εξωτερικές κορυφές.`);
+    else
+      add('I','§4.5.3',`Έλεγχος εμβαδών διόρθωσης ✓ — ΣPST_KAEK ${aPST.toFixed(1)} m² ≈ ΣDGM_PROP_FINAL ${aDGM.toFixed(1)} m².`);
+  }
+  if(doc.hasBlocksContent)
+    add('I','§4.4.2','Το αρχείο περιέχει ορισμούς BLOCK στην ενότητα BLOCKS. Οι οντότητες του Πίνακα Ι δεν επιτρέπεται να είναι blocks — ελέγχθηκαν μόνο τα ENTITIES.','Αν στοιχεία του διαγράμματος είναι «κλειδωμένα» μέσα σε blocks, κάνε <b>EXPLODE</b> ώστε να βρεθούν στα σωστά layers ως απλές οντότητες.');
+
+  /* Στατιστικά */
+  const stats={
+    version: doc.version? (VER[doc.version]||doc.version):'—',
+    layersStd: STD.filter(k=>layerMap[k]!==undefined).length,
+    layersAll: allLayerNames.size,
+    entities: doc.entities.length,
+    layerMap, entByLayer, polyInfo, textInfo,
+    bbox: coordMin[0]!==Infinity? {min:coordMin,max:coordMax} : null
+  };
+  return {results:R, stats};
+}
+
+/* =====================================================================
+   UI
+===================================================================== */
+const $=s=>document.querySelector(s);
+let dgType=null, ktimaOn=true, lastDXF=null, lastCheck=null;
+
+document.querySelectorAll('#typeCards .card').forEach(c=>{
+  c.addEventListener('click',()=>{
+    document.querySelectorAll('#typeCards .card').forEach(x=>x.classList.remove('sel'));
+    c.classList.add('sel');
+    dgType=c.dataset.type;
+    $('#ktimaOptRow').style.display = dgType==='TD' ? 'flex' : 'none';
+    $('#step2').classList.remove('locked');
+    $('#step1').classList.add('done');
+    if(lastDXF) runCheck();
+  });
+});
+$('#ktimaOn').addEventListener('change',e=>{ ktimaOn=e.target.checked; if(lastDXF) runCheck(); });
+
+function setupDrop(dropId, inputId, onFile){
+  const d=$(dropId), inp=$(inputId);
+  d.addEventListener('click',()=>inp.click());
+  inp.addEventListener('change',()=>{ if(inp.files[0]) onFile(inp.files[0]); inp.value=''; });
+  ['dragover','dragenter'].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.add('over');}));
+  ['dragleave','drop'].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.remove('over');}));
+  d.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) onFile(f); });
+}
+setupDrop('#dxfDrop','#dxfInput', f=>{ lastDXF=f; runCheck(); });
+setupDrop('#pdfDrop','#pdfInput', f=>{ checkPDF(f); });
+
+async function runCheck(){
+  if(!dgType||!lastDXF) return;
+  $('#dxfFileTag').innerHTML=`<span class="filetag">📄 ${esc(lastDXF.name)} · ${fmtSize(lastDXF.size)}</span>`;
+  const buf=await lastDXF.arrayBuffer();
+  const head=new Uint8Array(buf.slice(0,32));
+  const headStr=String.fromCharCode(...head);
+  let text;
+  if(headStr.includes('AutoCAD Binary DXF')){
+    render({results:[{sev:'E',ref:'§4.4',msg:'Το αρχείο είναι BINARY DXF.',fix:'Αποθήκευσε ως <b>ASCII DXF</b> (SAVEAS → DXF, Options → ASCII).'}],stats:null});
+    return;
+  }
+  try{ text=new TextDecoder('utf-8',{fatal:false}).decode(buf); }catch{ text=''; }
+  const doc=parseDXF(text);
+  lastCheck=validate(doc,lastDXF,dgType,ktimaOn);
+  lastCheck.doc=doc;
+  render(lastCheck);
+}
+
+function esc(s){return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+function fmtSize(b){ return b>1048576? (b/1048576).toFixed(2)+' MB' : (b/1024).toFixed(1)+' KB'; }
+
+function render(check){
+  const {results,stats}=check;
+  const errs=results.filter(r=>r.sev==='E'), warns=results.filter(r=>r.sev==='W'), infos=results.filter(r=>r.sev==='I');
+  const pass=errs.length===0;
+  let html='';
+
+  if(pass && warns.length===0)
+    html+=`<div class="banner ok"><div class="ic">✔</div><div><div class="bt">ΑΠΟΔΕΚΤΟ — Πληρούνται οι προϋποθέσεις</div><div class="bd">Το DXF συμμορφώνεται με τους ελεγχόμενους κανόνες του Τεύχους Προδιαγραφών (${REQ[dgType].label}). Προχώρησε στο ΒΗΜΑ 3 για τον έλεγχο του PDF.</div></div></div>`;
+  else if(pass)
+    html+=`<div class="banner warn"><div class="ic">⚠</div><div><div class="bt">ΑΠΟΔΕΚΤΟ ΜΕ ΕΠΙΣΗΜΑΝΣΕΙΣ (${warns.length})</div><div class="bd">Δεν εντοπίστηκαν σφάλματα που μπλοκάρουν, αλλά αξιολόγησε τις επισημάνσεις με ευθύνη σου (§5). Μπορείς να προχωρήσεις στο ΒΗΜΑ 3.</div></div></div>`;
+  else
+    html+=`<div class="banner err"><div class="ic">✖</div><div><div class="bt">ΜΗ ΑΠΟΔΕΚΤΟ — ${errs.length} σφάλμα/τα</div><div class="bd">Διόρθωσε τα παρακάτω και ξαναφόρτωσε το DXF. Οι οδηγίες διόρθωσης δίνονται σε κάθε σφάλμα.</div></div></div>`;
+
+  if(stats){
+    html+=`<div class="statgrid">
+      <div class="stat"><div class="l">Είδος</div><div class="v">${REQ[dgType].label}</div></div>
+      <div class="stat"><div class="l">Έκδοση DXF</div><div class="v">${esc(stats.version)}</div></div>
+      <div class="stat"><div class="l">Layers Πίνακα Ι</div><div class="v">${stats.layersStd} / 27</div></div>
+      <div class="stat"><div class="l">Σύνολο layers</div><div class="v">${stats.layersAll}</div></div>
+      <div class="stat"><div class="l">Οντότητες</div><div class="v">${stats.entities}</div></div>
+    </div>`;
+  }
+
+  const ruleHTML=r=>`<div class="rule ${r.sev}">
+    <div class="rh"><span class="badge">${r.sev==='E'?'ΣΦΑΛΜΑ':r.sev==='W'?'ΕΠΙΣΗΜΑΝΣΗ':'ΠΛΗΡΟΦΟΡΙΑ'}</span><span class="ref">${esc(r.ref||'')}</span></div>
+    <div class="msg">${esc(r.msg)}</div>
+    ${r.fix?`<div class="fix">➜ ${r.fix}</div>`:''}
+    ${r.det?`<div class="det">${esc(r.det)}</div>`:''}
+  </div>`;
+
+  if(errs.length){ html+=`<h3 class="sec">Σφάλματα προς διόρθωση</h3><div class="rules">${errs.map(ruleHTML).join('')}</div>`; }
+  if(warns.length){ html+=`<h3 class="sec">Επισημάνσεις</h3><div class="rules">${warns.map(ruleHTML).join('')}</div>`; }
+  if(infos.length){ html+=`<h3 class="sec">Πληροφορίες ελέγχου</h3><div class="rules">${infos.map(ruleHTML).join('')}</div>`; }
+
+  if(stats){
+    // layer table
+    const rows=STD.filter(k=>stats.layerMap[k]!==undefined).map(k=>{
+      const actual=stats.layerMap[k];
+      const ents=stats.entByLayer[actual]||[];
+      const polys=stats.polyInfo[k]||[];
+      const totalArea=polys.reduce((s,p)=>s+p.area,0);
+      return `<tr>
+        <td class="mono"><span class="dot" style="background:${LAYERS[k].color}"></span>${k}</td>
+        <td>${esc(LAYERS[k].desc)}</td>
+        <td class="mono">${ents.length}</td>
+        <td class="mono">${polys.length||'—'}</td>
+        <td class="mono">${polys.length? totalArea.toFixed(1)+' m²':'—'}</td>
+      </tr>`;
+    }).join('');
+    if(rows){
+      html+=`<h3 class="sec">Layers Πίνακα Ι στο αρχείο</h3><div class="tbl-wrap"><table>
+        <tr><th class="mono">Layer</th><th>Περιγραφή</th><th class="mono">Οντ.</th><th class="mono">Πολύγ.</th><th class="mono">ΣΕμβαδόν</th></tr>${rows}</table></div>`;
+    }
+    if(stats.bbox){
+      const inEGSA = stats.bbox.min[0]>=94000 && stats.bbox.max[0]<=1010000 && stats.bbox.min[1]>=3850000 && stats.bbox.max[1]<=4630000;
+      if(inEGSA){
+        html+=`<h3 class="sec">Θέση στον χάρτη</h3>
+        <div id="hxmap-wrap"><div id="hxmap"></div>
+          <div class="hxmap-kt" id="hxmapKT" title="Όρια κτηματογράφησης WMS (ζουμ ≥16)">ΚΤ</div>
+          <div class="hxmap-hint">ΕΓΣΑ '87 → WGS84 · κλικ σε στοιχείο για layer</div>
+          <div class="legend" id="legend"></div></div>`;
+      } else {
+        html+=`<h3 class="sec">Θέση στον χάρτη</h3>
+        <div class="rules"><div class="rule E"><div class="msg">Ο χάρτης δεν μπορεί να δείξει το διάγραμμα: οι συντεταγμένες είναι εκτός ορίων ΕΓΣΑ '87.</div></div></div>`;
+      }
+    }
+    html+=`<div class="btnrow">
+      <button id="copyReport" class="ghost">Αντιγραφή αναφοράς ελέγχου</button>
+      ${pass?'<button id="goPdf" class="primary">Συνέχεια στο ΒΗΜΑ 3 → Έλεγχος PDF</button>':''}
+    </div>`;
+  }
+
+  $('#results').innerHTML=html;
+  $('#step3').classList.toggle('locked', !pass);
+  $('#step2').classList.toggle('done', pass);
+  if(pass){
+    const b=$('#goPdf'); if(b) b.addEventListener('click',()=>$('#step3').scrollIntoView({behavior:'smooth'}));
+  }
+  const cr=$('#copyReport');
+  if(cr) cr.addEventListener('click',()=>copyReport(check,cr));
+  if(stats&&stats.bbox) initMapView(check);
+}
+
+function copyReport(check,btn){
+  const {results,stats}=check;
+  const L=[];
+  L.push('ΑΝΑΦΟΡΑ ΠΡΟΕΛΕΓΧΟΥ DXF — HEXIS CHECK MY DXF');
+  L.push(`Αρχείο: ${lastDXF?.name||''} · Είδος: ${REQ[dgType].label} · ${new Date().toLocaleString('el-GR')}`);
+  const errs=results.filter(r=>r.sev==='E');
+  L.push(`Αποτέλεσμα: ${errs.length? 'ΜΗ ΑΠΟΔΕΚΤΟ ('+errs.length+' σφάλματα)':'ΑΠΟΔΕΚΤΟ'}`);
+  L.push('');
+  for(const r of results){
+    L.push(`[${r.sev==='E'?'ΣΦΑΛΜΑ':r.sev==='W'?'ΕΠΙΣΗΜΑΝΣΗ':'INFO'}] ${r.ref||''} — ${r.msg}`);
+    if(r.fix) L.push(`   ➜ ${r.fix.replace(/<[^>]+>/g,'')}`);
+  }
+  navigator.clipboard.writeText(L.join('\n')).then(()=>{
+    btn.textContent='Αντιγράφηκε ✓'; btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent='Αντιγραφή αναφοράς ελέγχου';btn.classList.remove('copied');},1800);
+  });
+}
+
+/* ---------- Χάρτης (Leaflet + ΕΓΣΑ 87) ---------- */
+proj4.defs("EPSG:2100",
+  "+proj=tmerc +lat_0=0 +lon_0=24 +k=0.9996 +x_0=500000 +y_0=0 "
+  + "+ellps=GRS80 +towgs84=-199.87,74.79,246.62,0,0,0,0 +units=m +no_defs");
+
+let hxMap=null, hxGroups={}, hxKtOn=false, hxKtWMS=null;
+
+function initMapView(check){
+  const el=document.getElementById('hxmap'); if(!el) return;
+  const {stats}=check;
+  const bb=stats.bbox;
+  const inEGSA = bb.min[0]>=94000 && bb.max[0]<=1010000 && bb.min[1]>=3850000 && bb.max[1]<=4630000;
+  if(!inEGSA) return;
+
+  if(hxMap){ try{ hxMap.remove(); }catch(e){} hxMap=null; }
+  hxGroups={};
+
+  hxMap = L.map('hxmap',{ zoomControl:true, attributionControl:false, maxZoom:20 });
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom:20, maxNativeZoom:19 }).addTo(hxMap);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom:20, maxNativeZoom:19, opacity:.9 }).addTo(hxMap);
+
+  hxKtWMS = L.tileLayer.wms(
+    'https://gis.ktimanet.gr/inspire/rest/services/cadastralparcels/CadastralParcelWMS/MapServer/exts/InspireView/service',
+    { layers:'0', format:'image/png', transparent:true, version:'1.3.0', opacity:.9, maxZoom:20, attribution:'Ελληνικό Κτηματολόγιο' });
+  const ktBtn=document.getElementById('hxmapKT');
+  hxKtOn=false;
+  if(ktBtn) ktBtn.onclick=()=>{
+    hxKtOn=!hxKtOn;
+    ktBtn.classList.toggle('on',hxKtOn);
+    if(hxKtOn){ hxKtWMS.addTo(hxMap); } else { hxMap.removeLayer(hxKtWMS); }
+  };
+
+  const toLL = p => { const [lng,lat]=proj4("EPSG:2100","EPSG:4326",[p[0],p[1]]); return [lat,lng]; };
+  let bounds=null;
+  const extend = ll => { bounds = bounds? bounds.extend(ll) : L.latLngBounds(ll,ll); };
+
+  const usedLayers=STD.filter(k=>stats.layerMap[k]!==undefined && (stats.entByLayer[stats.layerMap[k]]||[]).length);
+  for(const k of usedLayers){
+    const col=LAYERS[k].color;
+    const g=L.layerGroup();
+    for(const e of (stats.entByLayer[stats.layerMap[k]]||[])){
+      if((e.type==='LWPOLYLINE'||e.type==='POLYLINE') && e.pts.length>1){
+        const lls=e.pts.map(toLL); lls.forEach(extend);
+        const lyr = isRingClosed(e)
+          ? L.polygon(lls,{color:col,weight:2.5,opacity:.95,fillColor:col,fillOpacity:.07})
+          : L.polyline(lls,{color:col,weight:2.5,opacity:.95,dashArray:'6,4'});
+        lyr.bindPopup(`<b>${k}</b><br>${LAYERS[k].desc}${isRingClosed(e)?'<br>'+area(ringPts(e)).toFixed(1)+' m²':''}`);
+        g.addLayer(lyr);
+      } else if(e.type==='TEXT' && e.x!==null && k==='PST_KAEK'){
+        const ll=toLL([e.x,e.y]); extend(ll);
+        g.addLayer(L.circleMarker(ll,{radius:3,color:col,fillColor:col,fillOpacity:1,weight:1})
+          .bindTooltip(esc(e.text),{permanent:true,direction:'top',className:'hxdxf-tip',offset:[0,-4]}));
+      } else if(e.type==='POINT' && e.x!==null){
+        const ll=toLL([e.x,e.y]); extend(ll);
+        g.addLayer(L.circleMarker(ll,{radius:5,color:col,fillColor:col,fillOpacity:.9,weight:2}).bindPopup(`<b>${k}</b>`));
+      }
+    }
+    g.addTo(hxMap);
+    hxGroups[k]=g;
+  }
+
+  // legend toggles
+  const legend=$('#legend');
+  legend.innerHTML='';
+  for(const k of usedLayers){
+    const lab=document.createElement('label');
+    lab.innerHTML=`<span class="dot" style="background:${LAYERS[k].color}"></span>${k}`;
+    lab.addEventListener('click',()=>{
+      const on=hxMap.hasLayer(hxGroups[k]);
+      if(on){ hxMap.removeLayer(hxGroups[k]); } else { hxGroups[k].addTo(hxMap); }
+      lab.classList.toggle('off',on);
+    });
+    legend.appendChild(lab);
+  }
+
+  if(bounds) hxMap.fitBounds(bounds,{padding:[40,40],maxZoom:19});
+}
+
+/* =====================================================================
+   PDF + HASH
+===================================================================== */
+async function checkPDF(f){
+  $('#pdfFileTag').innerHTML=`<span class="filetag">📄 ${esc(f.name)} · ${fmtSize(f.size)}</span>`;
+  const R=[];
+  const add=(sev,ref,msg,fix)=>R.push({sev,ref,msg,fix});
+  const base=f.name.replace(/\.[^.]*$/,''), ext=(f.name.match(/\.([^.]*)$/)||[])[1]||'';
+
+  if(ext.toLowerCase()!=='pdf') add('E','§4.2','Η κατάληξη δεν είναι .pdf.','Επίλεξε το αρχείο εικόνας του διαγράμματος σε μορφή <b>.pdf</b>.');
+  if(base.length>15) add('E','§4.3',`Όνομα ${base.length} χαρακτήρες (μέγιστο 15).`,'Συντόμευσε το όνομα του PDF.');
+  if(/[^A-Za-z0-9_]/.test(base)) add('E','§4.3','Το όνομα περιέχει μη επιτρεπτούς χαρακτήρες.','Μόνο λατινικά, αριθμοί και «_».');
+  if(lastDXF){
+    const dxfBase=lastDXF.name.replace(/\.[^.]*$/,'');
+    if(base!==dxfBase) add('W','§4.3',`Το όνομα του PDF («${base}») διαφέρει από του DXF («${dxfBase}»).`,'Συστήνεται ίδιο όνομα με διαφορετική μόνο κατάληξη (π.χ. topo_name_v01.dxf / .pdf).');
+    const total=lastDXF.size+f.size;
+    if(total>10*1048576) add('E','§4.6',`Συνολικό μέγεθος dxf+pdf: ${fmtSize(total)} > 10 MB.`,'Μείωσε την ανάλυση του PDF (200–400 dpi) ή περιόρισε το extend εξαγωγής στα όρια της πινακίδας. Μην χρησιμοποιείς λογισμικά συμπίεσης PDF.');
+    else add('I','§4.6',`Συνολικό μέγεθος dxf+pdf: ${fmtSize(total)} ✓ (≤10 MB).`);
+  }
+
+  const buf=await f.arrayBuffer();
+  const bytes=new Uint8Array(buf);
+  let latin=''; const N=Math.min(bytes.length, 4*1048576);
+  for(let i=0;i<N;i++) latin+=String.fromCharCode(bytes[i]);
+  if(!latin.startsWith('%PDF-')) add('E','§4.2','Το αρχείο δεν έχει έγκυρη υπογραφή PDF (%PDF-).','Εξήγαγε ξανά το PDF από το CAD (Plot → PDF).');
+
+  // pages
+  let pages=null;
+  const pageMatches=latin.match(/\/Type\s*\/Page(?![s\w])/g);
+  if(pageMatches) pages=pageMatches.length;
+  if(pages===null){
+    const cm=latin.match(/\/Type\s*\/Pages[^>]*?\/Count\s+(\d+)/);
+    if(cm) pages=parseInt(cm[1],10);
+  }
+  if(pages!==null){
+    if(pages>1) add('E','§4.6',`Το PDF έχει ${pages} σελίδες — δεν επιτρέπεται multi-page.`,'Εξήγαγε το διάγραμμα σε <b>μονοσέλιδο PDF</b> (μία πινακίδα).');
+    else add('I','§4.6','Μονοσέλιδο PDF ✓');
+  } else {
+    add('I','§4.6','Δεν ήταν δυνατός ο αυτόματος έλεγχος πλήθους σελίδων (συμπιεσμένη δομή) — έλεγξέ το οπτικά.');
+  }
+  if(latin.includes('/ByteRange'))
+    add('I','—','Το PDF φαίνεται να περιέχει ήδη ψηφιακή υπογραφή (/ByteRange). Το hash παρακάτω αφορά το αρχείο ως έχει.');
+
+  const errs=R.filter(r=>r.sev==='E');
+  let html='';
+  if(errs.length)
+    html+=`<div class="banner err"><div class="ic">✖</div><div><div class="bt">Το PDF χρειάζεται διόρθωση</div><div class="bd">Διόρθωσε τα παρακάτω πριν την υποβολή.</div></div></div>`;
+  else
+    html+=`<div class="banner ok"><div class="ic">✔</div><div><div class="bt">Το PDF πληροί τους ελεγχόμενους κανόνες</div><div class="bd">Προχώρησε σε ψηφιακή υπογραφή (DXF &amp; PDF με την εφαρμογή υπογραφής σου) και υποβολή στην πλατφόρμα του ΕΚ.</div></div></div>`;
+
+  const ruleHTML=r=>`<div class="rule ${r.sev}">
+    <div class="rh"><span class="badge">${r.sev==='E'?'ΣΦΑΛΜΑ':r.sev==='W'?'ΕΠΙΣΗΜΑΝΣΗ':'ΠΛΗΡΟΦΟΡΙΑ'}</span><span class="ref">${esc(r.ref||'')}</span></div>
+    <div class="msg">${esc(r.msg)}</div>${r.fix?`<div class="fix">➜ ${r.fix}</div>`:''}</div>`;
+  html+=`<div class="rules" style="margin-top:10px">${R.map(ruleHTML).join('')}</div>`;
+
+  $('#pdfResults').innerHTML=html;
+}
+</script>
+</body>
+</html>
