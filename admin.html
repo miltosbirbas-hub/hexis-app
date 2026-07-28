@@ -69,6 +69,21 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 .dtag.pending{border-color:rgba(232,131,12,.45);color:#E8830C}
 .dtag.done{border-color:rgba(31,160,92,.4);color:var(--green)}
 .dtag.rejected{border-color:rgba(214,69,69,.4);color:var(--red)}
+
+.pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10.5px;font-weight:700;text-transform:uppercase}
+.pill.free{background:#EEF1F5;color:var(--muted)}
+.pill.pro{background:#FFF3E8;color:#E05A12}
+.pill.studio{background:#E9F0FF;color:#2F6BDB}
+.pill.on{background:rgba(31,160,92,.12);color:var(--green)}
+.pill.off{background:rgba(214,69,69,.12);color:var(--red)}
+.exp-soon{color:#E8830C;font-weight:700}
+.exp-past{color:var(--red);font-weight:700}
+.subact .row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.subact .row>*{flex:1;min-width:120px}
+.subact select,.subact input{font-family:var(--font-b);font-size:13.5px;padding:9px 12px;border:1px solid var(--border-strong);border-radius:9px;background:#fff;color:var(--text);width:100%}
+.btn-blue{background:#2F6BDB;color:#fff}
+.btn-red{background:var(--red);color:#fff}
+.btn-ghost{background:#fff;color:var(--muted);border:1px solid var(--border-strong)}
 .gate{max-width:420px;margin:80px auto;text-align:center}
 .gate h1{font-family:var(--font-d);font-weight:800;font-size:22px;margin-bottom:8px}
 .gate p{color:var(--muted)}
@@ -209,9 +224,19 @@ function renderDetail(uid){
 }
 
 async function loadUsers(){
-  const { data, error } = await sb.rpc('admin_all_users');
-  if (error) { document.getElementById('users').innerHTML = '<div class="empty">Σφάλμα: '+error.message+'</div>'; return; }
-  USERS = data || [];
+  const [au, ls] = await Promise.all([ sb.rpc('admin_all_users'), sb.rpc('admin_list_subs') ]);
+  if (au.error) { document.getElementById('users').innerHTML = '<div class="empty">Σφάλμα: '+au.error.message+'</div>'; return; }
+  const subs = {};
+  ((ls && ls.data) || []).forEach(x => { subs[x.user_id] = x; });
+  USERS = (au.data || []).map(u => {
+    const x = subs[u.uid] || {};
+    return Object.assign({}, u, {
+      tier: x.tier || u.tier,
+      sub_active: ('active' in x) ? x.active : undefined,
+      trial_ends_at: x.trial_ends_at || null,
+      registered_at: x.registered_at || null
+    });
+  });
   renderUsers();
 }
 
@@ -222,14 +247,40 @@ function renderUsers(){
   document.getElementById('users').innerHTML = list.map(u => {
     const mods = u.modules || [];
     const open = openUid === u.uid;
+    const now = new Date(), soon = new Date(Date.now() + 14*864e5);
+    const exp = u.trial_ends_at ? new Date(u.trial_ends_at) : null;
+    const expCls = exp ? (exp < now ? 'exp-past' : (exp < soon ? 'exp-soon' : '')) : '';
+    const tier = String(u.tier || 'free').toLowerCase();
     return '<div class="urow'+(open?' open':'')+'">'
       + '<button class="uhead" onclick="toggleUser(\''+u.uid+'\')">'
       + '<span class="uemail">'+u.email+'</span>'
-      + '<span class="tierchip">'+(u.tier||'—')+'</span>'
+      + '<span class="pill '+tier+'">'+tier+'</span>'
+      + '<span class="pill '+(u.sub_active===false?'off':'on')+'">'+(u.sub_active===false?'Όχι':'Ναι')+'</span>'
+      + '<span class="modcount '+expCls+'">'+(u.trial_ends_at?fmtDate(u.trial_ends_at):'—')+'</span>'
       + '<span class="modcount">'+mods.length+' / '+Object.keys(MODULES).length+'</span>'
       + '<span class="arr">'+(open?'▼':'▶')+'</span>'
       + '</button>'
-      + (open ? '<div class="detail" id="det-'+u.uid+'"></div><div class="dsub">Modules</div><div class="mods">'+Object.entries(MODULES).map(([k,name]) =>
+      + (open ? '<div class="detail" id="det-'+u.uid+'"></div>'
+          + '<div class="dsub">Συνδρομή — ενέργειες</div>'
+          + '<div class="subact">'
+          + '<div class="row">'
+          + '<button class="btn btn-orange" onclick="subActivate(\''+u.uid+'\',\'pro\',12)">Pro 1 έτος</button>'
+          + '<button class="btn btn-blue" onclick="subActivate(\''+u.uid+'\',\'studio\',12)">Studio 1 έτος</button>'
+          + '<button class="btn btn-ghost" onclick="subActivate(\''+u.uid+'\',\'pro\',6)">Pro 6 μήνες</button>'
+          + '<button class="btn btn-ghost" onclick="subActivate(\''+u.uid+'\',\'pro\',1)">Pro +1 μήνας</button>'
+          + '<button class="btn btn-ghost" onclick="subActivate(\''+u.uid+'\',\'studio\',1)">Studio +1 μήνας</button>'
+          + '</div>'
+          + '<div class="row">'
+          + '<select id="m_tier"><option value="free"'+(tier==='free'?' selected':'')+'>free</option><option value="pro"'+(tier==='pro'?' selected':'')+'>pro</option><option value="studio"'+(tier==='studio'?' selected':'')+'>studio</option></select>'
+          + '<select id="m_active"><option value="true"'+(u.sub_active!==false?' selected':'')+'>Ενεργός</option><option value="false"'+(u.sub_active===false?' selected':'')+'>Μπλοκαρισμένος</option></select>'
+          + '<input type="date" id="m_trial" value="'+(u.trial_ends_at?new Date(u.trial_ends_at).toISOString().slice(0,10):'')+'">'
+          + '</div>'
+          + '<div class="row">'
+          + '<button class="btn btn-ok" onclick="subSave(\''+u.uid+'\')">Αποθήκευση</button>'
+          + '<button class="btn btn-red" onclick="subClear(\''+u.uid+'\')">Καθάρισε λήξη</button>'
+          + '</div>'
+          + '</div>'
+          + '<div class="dsub">Modules</div><div class="mods">'+Object.entries(MODULES).map(([k,name]) =>
           '<div class="mrow"><span>'+name+'</span>'
           + '<button class="sw'+(mods.includes(k)?' on':'')+'" data-mod="'+k+'" data-email="'+u.email+'" data-uid="'+u.uid+'" onclick="toggleMod(this)" aria-label="'+name+'"></button></div>'
         ).join('')+'</div>' : '')
@@ -241,6 +292,40 @@ function toggleUser(uid){
   openUid = (openUid === uid) ? null : uid;
   renderUsers();
   if (openUid) { renderDetail(openUid); loadDetail(openUid); }
+}
+
+async function subActivate(uid, tier, months){
+  const { error } = await sb.rpc('admin_activate', { target: uid, new_tier: tier, months: months });
+  if (error) { toast('Σφάλμα: '+error.message); return; }
+  toast('✓ ' + tier + ' +' + months + ' μήνες');
+  DETAILS[uid] = null;
+  await loadUsers();
+  if (openUid === uid) loadDetail(uid);
+}
+
+async function subSave(uid){
+  const d = document.getElementById('m_trial').value;
+  const { error } = await sb.rpc('admin_set_sub', {
+    target: uid,
+    new_tier: document.getElementById('m_tier').value,
+    new_active: document.getElementById('m_active').value === 'true',
+    new_trial: d ? new Date(d + 'T23:59:59').toISOString() : null,
+    clear_trial: false
+  });
+  if (error) { toast('Σφάλμα: '+error.message); return; }
+  toast('✓ Αποθηκεύτηκε');
+  DETAILS[uid] = null;
+  await loadUsers();
+  if (openUid === uid) loadDetail(uid);
+}
+
+async function subClear(uid){
+  const { error } = await sb.rpc('admin_set_sub', { target: uid, clear_trial: true });
+  if (error) { toast('Σφάλμα: '+error.message); return; }
+  toast('✓ Καθαρίστηκε η λήξη');
+  DETAILS[uid] = null;
+  await loadUsers();
+  if (openUid === uid) loadDetail(uid);
 }
 
 async function toggleMod(btn){
