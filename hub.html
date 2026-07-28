@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>HEXIS Hub</title>
+<meta name="theme-color" content="#FFFFFF">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Commissioner:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --bg:#FFFFFF; --surface:#FFFFFF; --border:#EAEDF1; --border-strong:#D9DDE4;
+  --text:#1F2836; --muted:#5B6675; --faint:#98A1AE;
+  --orange:#F26B21; --orange-deep:#E05A12; --green:#1FA05C; --navy:#1F2836;
+  --radius:14px;
+  --font-d:'Commissioner',system-ui,sans-serif;
+  --font-b:'Inter',system-ui,sans-serif;
+  --font-m:'JetBrains Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--font-b);font-size:15px;line-height:1.6;min-height:100vh}
+::selection{background:rgba(242,107,33,.18)}
+.bggrid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.8}
+.wrap{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:0 22px 70px}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 0;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:11px}
+.brand svg{width:38px;height:42px;flex:none}
+.bname{font-family:var(--font-d);font-weight:900;font-size:20px;letter-spacing:.06em}
+.bname em{font-style:normal;color:var(--orange);font-weight:700}
+.bsub{font-family:var(--font-m);font-size:10px;color:var(--faint);letter-spacing:.14em;text-transform:uppercase;margin-top:-2px}
+.tr{display:flex;align-items:center;gap:10px}
+.plan-chip{display:inline-flex;align-items:center;gap:7px;background:#FFF3E8;color:#E05A12;border:1px solid rgba(242,107,33,.35);font-size:12.5px;font-weight:700;padding:5px 12px;border-radius:99px}
+.plan-chip .dot{width:7px;height:7px;border-radius:50%;background:var(--orange)}
+.logout{font-family:var(--font-d);font-weight:600;font-size:13px;color:var(--muted);background:#fff;border:1px solid var(--border);border-radius:9px;padding:8px 14px;cursor:pointer}
+.logout:hover{border-color:var(--border-strong);color:var(--text)}
+
+.hero{padding:26px 0 8px}
+.eyebrow{font-family:var(--font-m);font-size:11.5px;color:var(--orange);letter-spacing:.18em;text-transform:uppercase;font-weight:600;display:flex;align-items:center;gap:10px}
+.eyebrow::before{content:"";width:22px;height:2px;background:var(--orange)}
+.hero h1{font-family:var(--font-d);font-weight:900;font-size:clamp(25px,4.2vw,38px);letter-spacing:-.01em;line-height:1.2;margin-top:6px}
+.hero h1 span{color:var(--orange)}
+.hero p{color:var(--muted);font-size:14px;margin-top:6px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:13px;margin-top:26px}
+.tile{
+  position:relative;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px 16px 15px;cursor:pointer;text-align:left;color:var(--text);text-decoration:none;display:block;
+  box-shadow:0 1px 2px rgba(16,40,70,.05);
+  transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;
+}
+.tile:hover{transform:translateY(-3px);border-color:var(--border-strong);box-shadow:0 10px 24px rgba(16,40,70,.10)}
+.tile.primary{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:22px 20px;
+  background:linear-gradient(120deg,#FFF7EF, #FFFFFF 55%);border-color:rgba(242,107,33,.35)}
+.tile .ico{font-size:26px;line-height:1;display:inline-block;margin-bottom:10px}
+.tile.primary .ico{font-size:38px;margin:0}
+.tile h3{font-family:var(--font-d);font-size:15.5px;font-weight:700;margin-bottom:2px}
+.tile.primary h3{font-size:19px}
+.tile p{font-size:12.5px;color:var(--muted);line-height:1.5}
+.tile .foot{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)}
+.tile.primary .foot{display:none}
+.badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px}
+.badge.on{background:rgba(31,160,92,.10);color:var(--green)}
+.badge.lock{background:#FFF3E8;color:#E05A12}
+.go{font-size:12px;color:var(--faint)}
+.tile:hover .go{color:var(--orange)}
+.tile.locked{opacity:.62}
+.tile.locked .ico{filter:grayscale(.5)}
+.tile.locked:hover{opacity:.85}
+.lockico{position:absolute;top:10px;right:12px;font-size:13px}
+.primary-cta{margin-left:auto;font-family:var(--font-d);font-weight:700;font-size:14px;color:#fff;
+  background:linear-gradient(135deg,#F7941D,#F15A24);border-radius:10px;padding:11px 20px;white-space:nowrap;
+  box-shadow:0 6px 18px rgba(242,107,33,.35)}
+
+footer{margin-top:50px;padding-top:18px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+footer p{font-size:11.5px;color:var(--faint)}
+
+.overlay{position:fixed;inset:0;background:rgba(20,28,40,.42);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+.overlay.open{display:flex}
+.modal{background:#fff;border:1px solid var(--border);border-radius:18px;width:min(410px,100%);padding:26px;box-shadow:0 24px 60px rgba(16,40,70,.20);animation:pop .2s ease}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+.modal .mico{font-size:28px;margin-bottom:8px}
+.modal h3{font-family:var(--font-d);font-size:18px;font-weight:800}
+.modal .mdesc{font-size:13.5px;color:var(--muted);margin:6px 0 16px}
+.mprice{border:1px solid rgba(242,107,33,.35);background:rgba(242,107,33,.07);border-radius:12px;padding:13px 15px;margin-bottom:16px;font-family:var(--font-d);font-weight:800;color:#E05A12;font-size:19px}
+.mprice small{font-size:12px;color:var(--muted);font-weight:500}
+.mbtn{display:block;text-align:center;padding:12px;border-radius:11px;background:linear-gradient(135deg,#F7941D,#F15A24);color:#fff;font-family:var(--font-d);font-weight:700;text-decoration:none;margin-bottom:8px;box-shadow:0 6px 18px rgba(242,107,33,.3)}
+.mclose{display:block;width:100%;padding:11px;border-radius:11px;background:none;border:1px solid var(--border-strong);color:var(--text);font-family:var(--font-d);font-weight:600;cursor:pointer}
+.modal .fine{font-size:11px;color:var(--faint);margin-top:12px;text-align:center}
+
+.loading{position:fixed;inset:0;background:#fff;z-index:99;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+.spin{width:34px;height:34px;border:3px solid #F0E4D8;border-top-color:var(--orange);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.loading p{font-family:var(--font-m);font-size:12px;color:var(--faint);letter-spacing:.12em;text-transform:uppercase}
+@media(max-width:600px){
+  .tile.primary{flex-direction:column;align-items:flex-start;gap:10px}
+  .primary-cta{margin-left:0}
+}
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading"><div class="spin"></div><p>HEXIS Hub</p></div>
+
+<svg class="bggrid" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  <defs>
+    <pattern id="grid" width="56" height="56" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <path d="M56 0 H0 V56" fill="none" stroke="#EEF1F5" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#grid)"/>
+  <g fill="none" stroke="#E8ECF1" stroke-width="1.3">
+    <path d="M-60,190 C240,130 430,270 730,205 S1180,95 1520,175"/>
+    <path d="M-60,285 C230,215 460,360 770,280 S1210,170 1520,265"/>
+    <path d="M-60,395 C255,310 490,455 795,365 S1235,255 1520,360"/>
+    <path d="M-60,515 C245,425 515,585 815,485 S1255,375 1520,490"/>
+    <path d="M-60,645 C260,545 540,720 840,610 S1280,500 1520,635"/>
+    <path d="M-60,790 C250,675 560,860 860,745 S1305,635 1520,780"/>
+  </g>
+  <g fill="none" stroke="#FBE3CE" stroke-width="1.3">
+    <path d="M-60,340 C260,265 475,405 780,325 S1220,215 1520,315"/>
+    <path d="M-60,700 C255,595 550,780 850,675 S1295,565 1520,705"/>
+  </g>
+  <g stroke="#C9CFD8" stroke-width="1.6" stroke-linecap="round">
+    <path d="M180 140 v14 M173 147 h14"/><path d="M1240 220 v14 M1233 227 h14"/>
+    <path d="M340 620 v14 M333 627 h14"/><path d="M1100 720 v14 M1093 727 h14"/>
+  </g>
+  <g stroke="#F5B27C" stroke-width="1.6" stroke-linecap="round">
+    <path d="M760 90 v14 M753 97 h14"/><path d="M90 460 v14 M83 467 h14"/>
+  </g>
+</svg>
+
+<div class="wrap">
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 40 44" aria-hidden="true">
+        <path d="M20 2 L37 12 V32 L20 42 L3 32 V12 Z" fill="none" stroke="#F26B21" stroke-width="2.4"/>
+        <path d="M20 10 L30 16 V28 L20 34 L10 28 V16 Z" fill="rgba(242,107,33,.12)" stroke="#F26B21" stroke-width="1.5"/>
+        <circle cx="20" cy="22" r="2.6" fill="#F26B21"/>
+      </svg>
+      <div>
+        <div class="bname">HEXIS <em>Hub</em></div>
+        <div class="bsub">Site &amp; survey toolkit</div>
+      </div>
+    </div>
+    <div class="tr">
+      <span class="plan-chip" id="plan-chip" style="display:none"><span class="dot"></span><span id="plan-name">—</span></span>
+      <button class="logout" onclick="doLogout()">Αποσύνδεση</button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="eyebrow">HEXIS · Όλα τα εργαλεία σου</div>
+    <h1 id="hello">Καλώς ήρθες</h1>
+    <p>Επίλεξε εφαρμογή. Τα κλειδωμένα εργαλεία ενεργοποιούνται ως πρόσθετα (add-ons) στη συνδρομή σου.</p>
+  </section>
+
+  <div class="grid" id="grid"></div>
+
+  <footer>
+    <p>© 2026 BRB Development ΜΟΝ. Ι.Κ.Ε. — hexis-app.gr</p>
+    <p style="font-family:var(--font-m)" id="ver">hub v1.0</p>
+  </footer>
+</div>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="mico">🔒</div>
+    <h3 id="m-title">Module</h3>
+    <p class="mdesc" id="m-desc">Το εργαλείο είναι πρόσθετο (add-on) και δεν περιλαμβάνεται στη συνδρομή σου. Ενεργοποιείται ξεχωριστά και μένει διαθέσιμο σε όλες τις συσκευές σου.</p>
+    <div class="mprice" id="m-price"></div>
+    <a class="mbtn" id="m-mail" href="#">Θέλω να το ενεργοποιήσω</a>
+    <button class="mclose" onclick="closeModal()">Κλείσιμο</button>
+    <p class="fine">Η ενεργοποίηση γίνεται από την ομάδα του HEXIS μετά την επικοινωνία.</p>
+  </div>
+</div>
+
+<script>
+const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+const MODULE_CONTACT_EMAIL = 'info@hexis-app.gr';
+const BRB_TERRAIN_URL = 'https://miltosbirbas-hub.github.io/BRB-contour-live/';
+
+// ΕΝΑ σημείο αλλαγής για ονόματα/τιμές — κράτα το ίδιο με το MODULE_INFO του app.html
+const TOOLS = [
+  { id:'app',        ico:'🏗️', name:'Διαχείριση Έργων', desc:'Εργοτάξια · ημερολόγιο · φωτογραφίες με pins · εντολές · αναφορές PDF · συνεργάτες', href:'app.html', primary:true },
+  { id:'mpeton',     ico:'🧱', name:'Σκυρόδεμα & Τοιχοποιία', desc:'Αναλογίες μπετόν C12/15–C40 · τούβλα · σενάζ · λάσπη', href:'mpeton.html', price:'20€ / έτος + ΦΠΑ' },
+  { id:'rtk',        ico:'🛰️', name:'RTK Checklist', desc:'Στήσιμο Base + Rover · γνωστό σημείο / localization', href:'rtk_checklist.html', price:'20€ / έτος + ΦΠΑ' },
+  { id:'ktima',      ico:'🗺️', name:"Κτηματολόγιο & ΕΓΣΑ'87", desc:'Χάρτης με συντεταγμένες · μετρήσεις · όρια κτηματολογίου', href:'ktimatologio.html', price:'40€ / έτος + ΦΠΑ' },
+  { id:'dxf',        ico:'📐', name:'Check My DXF', desc:'Έλεγχος διαγράμματος για Ηλεκτρονική Υποβολή ΕΚ · Πίνακας Ι · χάρτης — πακέτο CAD Tools μαζί με το LISP', href:'checkmydxf.html', price:'35€ / έτος + ΦΠΑ' },
+  { id:'lisp',       mod:'dxf', ico:'⬇️', name:'LISP: HEXISCHECK / HEXISFIX', desc:'Λήψη για AutoCAD & progeCAD — πακέτο CAD Tools μαζί με το Check My DXF', href:'hexis_check_my_dxf.lsp', download:true, price:'35€ / έτος + ΦΠΑ' },
+  { id:'domisi',     ico:'📋', name:'Έλεγχος Δόμησης', desc:'Πόρισμα Ελεγκτών · Ν.4495/2017 · ΚΥΑ 299/2014 · αμοιβή', href:'elegxos.html', price:'40€ / έτος + ΦΠΑ' },
+  { id:'nomothesia', ico:'⚖️', name:'Νομοθεσία', desc:'Κώδικας Ταγαρά 5306/26 · ΝΟΚ · Ν.4495 · Κτιριοδομικός + AI αναζήτηση', href:'nomothesia.html', price:'80€ / έτος + ΦΠΑ' },
+  { id:'kostos',     ico:'💰', name:'Κόστος Άδειας', desc:'Προϋπολογισμός · Αμοιβές · Φόροι · ΕΦΚΑ · Συμφωνητικά · ΣΑΥ/ΦΑΥ · ΥΔ · XML', href:'adeia_kostos.html', price:'80€ / έτος + ΦΠΑ' },
+  { id:'terrain',    ico:'⛰️', name:'BRB Terrain', desc:"KMZ/KML → ΕΓΣΑ'87 · υψόμετρα DEM · ισοϋψείς · DXF εξαγωγή", href:BRB_TERRAIN_URL, external:true, price:'40€ / έτος + ΦΠΑ' }
+];
+
+let myModules = new Set();
+let currentUser = null;
+
+function render() {
+  const g = document.getElementById('grid');
+  g.innerHTML = TOOLS.map(t => {
+    if (t.primary) {
+      return '<a class="tile primary" href="' + t.href + '">'
+        + '<span class="ico">' + t.ico + '</span>'
+        + '<span><h3>' + t.name + '</h3><p>' + t.desc + '</p></span>'
+        + '<span class="primary-cta">Άνοιγμα →</span></a>';
+    }
+    const has = myModules.has(t.mod || t.id);
+    const attrs = has
+      ? 'href="' + t.href + '"' + (t.download ? ' download' : ' target="_blank" rel="noopener"')
+      : 'href="#" data-locked="' + t.id + '"';
+    return '<a class="tile' + (has ? '' : ' locked') + '" ' + attrs + '>'
+      + (has ? '' : '<span class="lockico">🔒</span>')
+      + '<span class="ico">' + t.ico + '</span>'
+      + '<h3>' + t.name + '</h3><p>' + t.desc + '</p>'
+      + '<span class="foot">'
+      + (has ? '<span class="badge on">✓ Ενεργό</span>' : '<span class="badge lock">Add-on</span>')
+      + '<span class="go">' + (has ? (t.download ? 'Λήψη →' : 'Άνοιγμα →') : 'Ξεκλείδωμα →') + '</span>'
+      + '</span></a>';
+  }).join('');
+  g.querySelectorAll('[data-locked]').forEach(el => {
+    el.addEventListener('click', ev => { ev.preventDefault(); showModal(el.dataset.locked); });
+  });
+}
+
+function showModal(id) {
+  const t = TOOLS.find(x => x.id === id);
+  if (!t) return;
+  document.getElementById('m-title').textContent = t.name;
+  document.getElementById('m-price').innerHTML = t.price + ' <small>ετήσια χρέωση</small>';
+  const mail = document.getElementById('m-mail');
+  mail.href = 'mailto:' + MODULE_CONTACT_EMAIL
+    + '?subject=' + encodeURIComponent('Ενεργοποίηση module: ' + t.name)
+    + '&body=' + encodeURIComponent('Γεια σας, θα ήθελα να ενεργοποιήσω το εργαλείο «' + t.name + '» στον λογαριασμό μου (email λογαριασμού: ' + ((currentUser && currentUser.email) || '') + ').');
+  document.getElementById('overlay').classList.add('open');
+}
+function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+document.getElementById('overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+function doLogout(){
+  if (confirm('Αποσύνδεση από το HEXIS;')) sb.auth.signOut().then(() => window.location.href = 'login.html');
+}
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = 'login.html'; return; }
+  currentUser = session.user;
+  const name = currentUser.user_metadata?.full_name
+    || ((currentUser.user_metadata?.first_name || '') + ' ' + (currentUser.user_metadata?.last_name || '')).trim()
+    || currentUser.email.split('@')[0];
+  document.getElementById('hello').innerHTML = 'Καλώς ήρθες, <span>' + name.split(' ')[0] + '</span>';
+
+  // Πλάνο (my_sub) — ίδια λογική με app.html
+  try {
+    const { data: s } = await sb.rpc('my_sub');
+    let plan = currentUser.user_metadata?.plan || 'starter';
+    if (s && (s.tier || s.plan)) {
+      const dead = (s.active === false) || (s.trial_ends_at && new Date(s.trial_ends_at) < new Date());
+      const PLAN_MAP = { starter:'starter', free:'starter', trial:'starter', pro:'pro', studio:'studio' };
+      plan = dead ? 'starter' : (PLAN_MAP[String(s.tier || s.plan).toLowerCase()] || 'starter');
+    }
+    const labels = { starter:'Starter', pro:'Pro', studio:'Studio' };
+    document.getElementById('plan-name').textContent = labels[plan] || 'Starter';
+    document.getElementById('plan-chip').style.display = 'inline-flex';
+  } catch(e) { console.warn('sub:', e.message); }
+
+  // Entitlements
+  try {
+    const { data, error } = await sb.from('entitlements').select('module,active,expires_at');
+    if (error) throw error;
+    const now = new Date();
+    myModules = new Set((data || [])
+      .filter(e => e.active && (!e.expires_at || new Date(e.expires_at) > now))
+      .map(e => e.module));
+  } catch(e) { console.warn('entitlements:', e.message); }
+
+  render();
+  document.getElementById('loading').style.display = 'none';
+  sb.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') window.location.href = 'login.html'; });
+}
+init();
+</script>
+</body>
+</html>
