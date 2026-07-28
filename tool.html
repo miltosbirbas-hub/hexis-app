@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>HEXIS Hub — Εργαλείο</title>
+<meta name="theme-color" content="#FFFFFF">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Commissioner:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --bg:#FFFFFF; --border:#EAEDF1; --border-strong:#D9DDE4;
+  --text:#1F2836; --muted:#5B6675; --faint:#98A1AE;
+  --orange:#F26B21; --orange-deep:#E05A12; --green:#1FA05C;
+  --font-d:'Commissioner',system-ui,sans-serif;
+  --font-b:'Inter',system-ui,sans-serif;
+  --font-m:'JetBrains Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--font-b);font-size:15px;line-height:1.65;min-height:100vh}
+::selection{background:rgba(242,107,33,.18)}
+.bggrid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.8}
+.wrap{position:relative;z-index:1;max-width:840px;margin:0 auto;padding:0 22px 70px}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 0;gap:14px}
+.brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--text)}
+.brand svg{width:36px;height:40px;flex:none}
+.bname{font-family:var(--font-d);font-weight:900;font-size:19px;letter-spacing:.06em}
+.bname em{font-style:normal;color:var(--orange);font-weight:700}
+.back{font-family:var(--font-d);font-weight:600;font-size:13.5px;color:var(--muted);background:#fff;border:1px solid var(--border);border-radius:9px;padding:8px 15px;text-decoration:none}
+.back:hover{border-color:var(--border-strong);color:var(--text)}
+
+.hero{padding:34px 0 10px;text-align:left}
+.hex{width:74px;height:82px;position:relative;display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+.hex svg{position:absolute;inset:0;width:100%;height:100%}
+.hex .ico{position:relative;font-size:34px;line-height:1}
+.eyebrow{font-family:var(--font-m);font-size:11.5px;color:var(--orange);letter-spacing:.18em;text-transform:uppercase;font-weight:600;display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.eyebrow::before{content:"";width:22px;height:2px;background:var(--orange)}
+h1{font-family:var(--font-d);font-weight:900;font-size:clamp(26px,4.5vw,40px);letter-spacing:-.01em;line-height:1.15}
+.tagline{color:var(--muted);font-size:16px;margin-top:10px;max-width:600px}
+
+.cta-row{display:flex;align-items:center;gap:14px;margin-top:24px;flex-wrap:wrap}
+.btn{font-family:var(--font-d);font-weight:700;font-size:15px;padding:13px 26px;border-radius:11px;text-decoration:none;display:inline-block;cursor:pointer;border:none}
+.btn-orange{background:linear-gradient(135deg,#F7941D,#F15A24);color:#fff;box-shadow:0 6px 18px rgba(242,107,33,.35)}
+.btn-orange:hover{filter:brightness(1.06)}
+.btn-ghost{background:#fff;color:var(--text);border:1px solid var(--border-strong)}
+.price-tag{font-family:var(--font-d);font-weight:800;font-size:17px;color:#E05A12}
+.price-tag small{font-size:12px;color:var(--muted);font-weight:500}
+.status-on{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--green);background:rgba(31,160,92,.10);padding:6px 13px;border-radius:99px}
+
+.features{margin-top:38px;background:#fff;border:1px solid var(--border);border-radius:16px;padding:26px;box-shadow:0 1px 2px rgba(16,40,70,.05)}
+.features h2{font-family:var(--font-d);font-size:16px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.features h2::before{content:"";width:18px;height:2px;background:var(--orange);border-radius:2px}
+.feat{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--border);font-size:14.5px}
+.feat:last-child{border-bottom:none}
+.feat .tick{color:var(--orange);font-weight:800;flex:none}
+.note{margin-top:22px;font-size:13px;color:var(--muted);background:#FFF7EF;border:1px solid rgba(242,107,33,.25);border-radius:12px;padding:14px 16px}
+
+footer{margin-top:50px;padding-top:18px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+footer p{font-size:11.5px;color:var(--faint)}
+.loading{position:fixed;inset:0;background:#fff;z-index:99;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+.spin{width:34px;height:34px;border:3px solid #F0E4D8;border-top-color:var(--orange);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading"><div class="spin"></div></div>
+
+<svg class="bggrid" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  <defs>
+    <pattern id="bggrid-pat" width="56" height="56" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <path d="M56 0 H0 V56" fill="none" stroke="#EEF1F5" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#bggrid-pat)"/>
+  <g fill="none" stroke="#E8ECF1" stroke-width="1.3">
+    <path d="M-60,285 C230,215 460,360 770,280 S1210,170 1520,265"/>
+    <path d="M-60,515 C245,425 515,585 815,485 S1255,375 1520,490"/>
+    <path d="M-60,790 C250,675 560,860 860,745 S1305,635 1520,780"/>
+  </g>
+  <g fill="none" stroke="#FBE3CE" stroke-width="1.3">
+    <path d="M-60,395 C255,310 490,455 795,365 S1235,255 1520,360"/>
+  </g>
+  <g stroke="#C9CFD8" stroke-width="1.6" stroke-linecap="round">
+    <path d="M180 140 v14 M173 147 h14"/><path d="M1240 220 v14 M1233 227 h14"/><path d="M340 620 v14 M333 627 h14"/>
+  </g>
+</svg>
+
+<div class="wrap">
+  <header class="topbar">
+    <a class="brand" href="hub.html">
+      <svg viewBox="0 0 40 44" aria-hidden="true">
+        <path d="M20 2 L37 12 V32 L20 42 L3 32 V12 Z" fill="none" stroke="#F26B21" stroke-width="2.4"/>
+        <path d="M20 10 L30 16 V28 L20 34 L10 28 V16 Z" fill="rgba(242,107,33,.12)" stroke="#F26B21" stroke-width="1.5"/>
+        <circle cx="20" cy="22" r="2.6" fill="#F26B21"/>
+      </svg>
+      <span class="bname">HEXIS <em>Hub</em></span>
+    </a>
+    <a class="back" href="hub.html">&larr; Πίσω στο Hub</a>
+  </header>
+
+  <section class="hero">
+    <div class="hex">
+      <svg viewBox="0 0 74 82"><path d="M37 3 L69 21 V61 L37 79 L5 61 V21 Z" fill="rgba(242,107,33,.07)" stroke="rgba(242,107,33,.5)" stroke-width="2"/></svg>
+      <span class="ico" id="t-ico">🧰</span>
+    </div>
+    <div class="eyebrow" id="t-eyebrow">HEXIS Hub · Εργαλείο</div>
+    <h1 id="t-name">—</h1>
+    <p class="tagline" id="t-tagline"></p>
+    <div class="cta-row" id="cta-row"></div>
+  </section>
+
+  <section class="features">
+    <h2>Τι κάνει</h2>
+    <div id="t-features"></div>
+  </section>
+
+  <div class="note" id="t-note" style="display:none"></div>
+
+  <footer>
+    <p>© 2026 BRB Development ΜΟΝ. Ι.Κ.Ε. — hexis-app.gr</p>
+    <p style="font-family:var(--font-m)">hub v1.0</p>
+  </footer>
+</div>
+
+<script>
+const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+const MODULE_CONTACT_EMAIL = 'info@hexis-app.gr';
+const BRB_TERRAIN_URL = 'https://miltosbirbas-hub.github.io/BRB-contour-live/';
+
+// ΕΝΑ σημείο αλλαγής — κράτα ονόματα/τιμές συγχρονισμένα με hub.html & app.html
+const CATALOG = {
+  mpeton: { ico:'🧱', name:'Σκυρόδεμα & Τοιχοποιία', mod:'mpeton', href:'mpeton.html', price:'20€ / έτος + ΦΠΑ',
+    tagline:'Υπολογιστές ποσοτήτων για σκυρόδεμα και τοιχοποιία, επί τόπου του έργου — από το κινητό σου.',
+    feats:['Αναλογίες μπετόν για όλες τις κατηγορίες C12/15 έως C40','Υπολογισμός τούβλων και σενάζ ανά τοιχοποιία','Ξεχωριστή καρτέλα για λάσπη / κονιάματα','Δουλεύει offline στο εργοτάξιο (PWA)'] },
+  rtk: { ico:'🛰️', name:'RTK Checklist', mod:'rtk', href:'rtk_checklist.html', price:'20€ / έτος + ΦΠΑ',
+    tagline:'Η λίστα ελέγχου που εξασφαλίζει σωστές μετρήσεις GNSS — πριν χάσεις μια μέρα στο πεδίο.',
+    feats:['Βήμα-βήμα στήσιμο Base + Rover','Έλεγχος σε γνωστό σημείο / localization','Έλεγχοι FIX, PDOP και ύψους κεραίας','Offline PWA — δουλεύει και χωρίς σήμα'] },
+  ktima: { ico:'🗺️', name:"Κτηματολόγιο & ΕΓΣΑ'87", mod:'ktima', href:'ktimatologio.html', price:'40€ / έτος + ΦΠΑ',
+    tagline:'Χάρτης με υπόβαθρο κτηματολογίου και συντεταγμένες ΕΓΣΑ΄87, στο χέρι σου.',
+    feats:["Ζωντανές συντεταγμένες ΕΓΣΑ'87 σε κάθε σημείο",'Υπόβαθρο ορίων κτηματολογίου (WMS)','Μετρήσεις αποστάσεων και εμβαδών πάνω στον χάρτη','Ιδανικό για αυτοψίες και προέλεγχο ορίων'] },
+  dxf: { ico:'📐', name:'Check My DXF', mod:'dxf', href:'checkmydxf.html', price:'35€ / έτος + ΦΠΑ',
+    tagline:'Έλεγχος διαγράμματος πριν την Ηλεκτρονική Υποβολή στο Κτηματολόγιο — χωρίς απορρίψεις.',
+    feats:['Αυτόματος έλεγχος DXF για Ηλεκτρονική Υποβολή ΕΚ','Έλεγχος Πίνακα Ι και δομής αρχείου','Προεπισκόπηση σε χάρτη','Πακέτο CAD Tools: περιλαμβάνει και το LISP για AutoCAD/progeCAD'],
+    note:'Το Check My DXF και το LISP HEXISCHECK/HEXISFIX πωλούνται μαζί ως ένα πακέτο (CAD Tools) — με μία ενεργοποίηση αποκτάς και τα δύο.' },
+  lisp: { ico:'⬇️', name:'LISP: HEXISCHECK / HEXISFIX', mod:'dxf', href:'hexis_check_my_dxf.lsp', download:true, price:'35€ / έτος + ΦΠΑ',
+    tagline:'Έλεγχος και αυτόματες διορθώσεις του DWG, μέσα στο CAD σου.',
+    feats:['HEXISCHECK: εντοπίζει σφάλματα στο σχέδιο πριν την εξαγωγή DXF','HEXISFIX: αυτόματες διορθώσεις με μία εντολή','Συμβατό με AutoCAD και progeCAD','Πακέτο CAD Tools: περιλαμβάνει και το Check My DXF'],
+    note:'Το LISP και το Check My DXF πωλούνται μαζί ως ένα πακέτο (CAD Tools) — με μία ενεργοποίηση αποκτάς και τα δύο.' },
+  domisi: { ico:'📋', name:'Έλεγχος Δόμησης', mod:'domisi', href:'elegxos.html', price:'40€ / έτος + ΦΠΑ',
+    tagline:'Το πόρισμα του Ελεγκτή Δόμησης, δομημένο και χωρίς παραλείψεις.',
+    feats:['Δομημένο πόρισμα κατά Ν.4495/2017','Έλεγχοι σύμφωνα με την ΚΥΑ 299/2014','Υπολογισμός αμοιβής ελεγκτή','Έτοιμο κείμενο για υποβολή'] },
+  nomothesia: { ico:'⚖️', name:'Νομοθεσία', mod:'nomothesia', href:'nomothesia.html', price:'80€ / έτος + ΦΠΑ',
+    tagline:'Όλη η πολεοδομική νομοθεσία σε ένα σημείο — με AI αναζήτηση που απαντάει σε φυσική γλώσσα.',
+    feats:['Κώδικας Ταγαρά 5306/26','ΝΟΚ, Ν.4495/2017 και Κτιριοδομικός Κανονισμός','AI αναζήτηση: ρωτάς όπως θα ρωτούσες συνάδελφο','Παραπομπές σε άρθρα και διατάξεις'] },
+  kostos: { ico:'💰', name:'Κόστος Άδειας', mod:'kostos', href:'adeia_kostos.html', price:'80€ / έτος + ΦΠΑ',
+    tagline:'Πλήρης κοστολόγηση οικοδομικής άδειας: από τον προϋπολογισμό μέχρι το XML.',
+    feats:['Συμβατικός προϋπολογισμός έργου','Αμοιβές μηχανικών, φόροι και κρατήσεις ΕΦΚΑ','Συμφωνητικά, ΣΑΥ/ΦΑΥ και Υπεύθυνες Δηλώσεις','Εξαγωγή XML για το e-Άδειες'] },
+  terrain: { ico:'⛰️', name:'BRB Terrain', mod:'terrain', href:BRB_TERRAIN_URL, external:true, price:'40€ / έτος + ΦΠΑ',
+    tagline:'Από KMZ/KML σε τοπογραφικό υπόβαθρο ΕΓΣΑ΄87 — με υψόμετρα, ισοϋψείς και DXF.',
+    feats:["Μετατροπή KMZ/KML σε ΕΓΣΑ'87",'Υψόμετρα από DEM σε κάθε κορυφή','Αυτόματες ισοϋψείς καμπύλες και TIN','Εξαγωγή έτοιμου DXF για το CAD σου'] }
+};
+
+let currentUser = null;
+
+function q(id){ return document.getElementById(id); }
+
+async function init(){
+  const id = new URLSearchParams(location.search).get('id');
+  const t = CATALOG[id];
+  if (!t) { location.href = 'hub.html'; return; }
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { location.href = 'login.html'; return; }
+  currentUser = session.user;
+
+  document.title = 'HEXIS Hub — ' + t.name;
+  q('t-ico').textContent = t.ico;
+  q('t-name').textContent = t.name;
+  q('t-tagline').textContent = t.tagline;
+  q('t-features').innerHTML = t.feats.map(f => '<div class="feat"><span class="tick">✓</span><span>' + f + '</span></div>').join('');
+  if (t.note) { q('t-note').textContent = t.note; q('t-note').style.display = 'block'; }
+
+  let has = false;
+  try {
+    const { data, error } = await sb.from('entitlements').select('module,active,expires_at');
+    if (error) throw error;
+    const now = new Date();
+    has = (data || []).some(e => e.module === (t.mod || id) && e.active && (!e.expires_at || new Date(e.expires_at) > now));
+  } catch(e) { console.warn('entitlements:', e.message); }
+
+  const row = q('cta-row');
+  if (has) {
+    const open = t.download ? 'Λήψη αρχείου ⬇' : 'Άνοιγμα εφαρμογής →';
+    const extra = t.download ? ' download' : (t.external ? ' target="_blank" rel="noopener"' : '');
+    row.innerHTML = '<a class="btn btn-orange" href="' + t.href + '"' + extra + '>' + open + '</a>'
+      + '<span class="status-on">✓ Ενεργό στον λογαριασμό σου</span>';
+  } else {
+    const mail = 'mailto:' + MODULE_CONTACT_EMAIL
+      + '?subject=' + encodeURIComponent('Ενεργοποίηση module: ' + t.name)
+      + '&body=' + encodeURIComponent('Γεια σας, θα ήθελα να ενεργοποιήσω το εργαλείο «' + t.name + '» στον λογαριασμό μου (email λογαριασμού: ' + (currentUser.email || '') + ').');
+    row.innerHTML = '<a class="btn btn-orange" href="' + mail + '">🔒 Ενεργοποίηση</a>'
+      + '<span class="price-tag">' + t.price + ' <small>ετήσια χρέωση</small></span>';
+  }
+
+  q('loading').style.display = 'none';
+}
+init();
+</script>
+</body>
+</html>
