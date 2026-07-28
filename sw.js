@@ -1,80 +1,43 @@
-// ============================================
-//  HEXIS SERVICE WORKER
-//  ΑΛΛΑΖΕΙΣ ΜΟΝΟ ΤΟΝ ΑΡΙΘΜΟ VERSION ΣΕ ΚΑΘΕ ΝΕΑ ΕΚΔΟΣΗ
-//  (πρέπει να ταιριάζει με την έκδοση του app.html)
-// ============================================
-const VERSION = 'v4.32';
-const CACHE_NAME = 'hexis-' + VERSION;
+/* BRB Terrain - Service Worker */
+const CACHE = 'brb-terrain-v2';
+const SHELL = [
+  './',
+  './index.html',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png',
+  'https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.2/proj4.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'
+];
 
-// Αρχεία που προ-κατεβαίνουν στο install (παίζουν και offline)
-const PRECACHE = ['hub.html', 'tool.html', 'admin.html', 'manual.html', 'admin-manifest.json', 'admin-icon-192.png', 'intro.mp4', 'nomothesia.html', 'nomothesia-manifest.json', 'nomothesia-icon-192.png', 'nomothesia-icon-512.png', 'nomothesia-icon-maskable.png', 'adeia_kostos.html', 'checkmydxf.html', 'hexis_check_my_dxf.lsp'];
-
-// Άμεση ενεργοποίηση νέας έκδοσης
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((c) => c.addAll(PRECACHE))
-      .catch(() => {}) // αν αποτύχει (offline install), δεν μπλοκάρει την εγκατάσταση
-  );
-  self.skipWaiting();
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
 
-// Σβήνει όλα τα παλιά cache μόλις ανέβει νέα έκδοση
-self.addEventListener('activate', (e) => {
+self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys()
-      .then((keys) =>
-        Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-      )
+    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
 
-self.addEventListener('fetch', (e) => {
+self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-
-  // Μόνο same-origin requests περνάνε από εδώ.
-  // Supabase, Google Maps, fonts κλπ. πάνε κατευθείαν στο δίκτυο.
-  if (url.origin !== self.location.origin) return;
-
-  // POST/PUT κλπ. δεν μπαίνουν ποτέ σε cache
-  if (e.request.method !== 'GET') return;
-
-  // ΔΙΟΡΘΩΣΗ v3.83: ΟΛΑ τα .html (app.html, login.html, index.html)
-  // + navigations + sw.js -> ΠΑΝΤΑ network-first, ώστε κάθε νέα έκδοση
-  // να φορτώνει αμέσως. Πριν, το app.html ήταν cache-first και το PWA
-  // κολλούσε σε παλιές εκδόσεις.
-  const isAppShell =
-    e.request.mode === 'navigate' ||
-    url.pathname.endsWith('/') ||
-    url.pathname.endsWith('.html') ||
-    url.pathname.endsWith('sw.js');
-
-  if (isAppShell) {
-    // HTML + sw.js -> ΠΑΝΤΑ φρέσκα (network-first, cache μόνο ως fallback offline)
-    e.respondWith(
-      fetch(e.request, { cache: 'no-store' })
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(e.request, copy));
-          return res;
-        })
-        .catch(() => caches.match(e.request))
-    );
-    return;
+  // Υψόμετρα (DEM APIs): πάντα δίκτυο, ποτέ cache
+  if (/open-meteo|open-elevation|elevation-tiles-prod/.test(url.hostname + url.pathname)) {
+    return; // default network
   }
-
-  // Όλα τα άλλα τοπικά αρχεία (εικόνες, icons κλπ.) -> cache-first (γρήγορα + offline)
+  // App shell + CDN: cache-first με ενημέρωση στο παρασκήνιο
   e.respondWith(
-    caches.match(e.request).then((cached) => {
-      return (
-        cached ||
-        fetch(e.request).then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(e.request, copy));
-          return res;
-        })
-      );
+    caches.match(e.request).then(cached => {
+      const fetched = fetch(e.request).then(resp => {
+        if (resp.ok && (url.origin === location.origin || /cdnjs\.cloudflare\.com/.test(url.hostname))) {
+          const clone = resp.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return resp;
+      }).catch(() => cached);
+      return cached || fetched;
     })
   );
 });
