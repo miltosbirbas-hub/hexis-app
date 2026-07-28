@@ -180,7 +180,7 @@ footer p{font-size:11.5px;color:var(--faint)}
 </div>
 
 <script>
-const HUB_VERSION = 'v1.1';
+const HUB_VERSION = 'v1.2';
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
@@ -282,6 +282,7 @@ async function init() {
 
   render();
   document.getElementById('loading').style.display = 'none';
+  sb.from('user_activity').upsert({ user_id: currentUser.id, last_seen: new Date().toISOString(), last_app: 'hub' }).then(()=>{}).catch?.(()=>{});
   sb.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') window.location.href = 'login.html'; });
 }
 init();

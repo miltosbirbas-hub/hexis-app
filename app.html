@@ -1749,7 +1749,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
 // ⚠️ ΣΥΜΠΛΗΡΩΣΕ: URL & anon key από το ΝΕΟ Supabase project (Settings → API)
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
-const APP_VERSION = 'v4.30'; // πρέπει να ταιριάζει με το VERSION του sw.js
+const APP_VERSION = 'v4.31'; // πρέπει να ταιριάζει με το VERSION του sw.js
 // Η έκδοση εμφανίζεται παντού δυναμικά — ΕΝΑ σημείο αλλαγής (+ sw.js)
 ['ver-mobile','ver-sub','ver-footer'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = APP_VERSION; });
 // Μετράει το πραγματικό ύψος του topbar (μπορεί να τυλιχτεί σε 2 σειρές σε κινητό)
@@ -5801,6 +5801,11 @@ async function loadEntitlements() {
       .map(e => e.module));
   } catch (e) { console.warn('entitlements:', e.message); myModules = new Set(); }
   applyModuleLocks();
+  try {
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.id) {
+      sb.from('user_activity').upsert({ user_id: currentUser.id, last_seen: new Date().toISOString(), last_app: 'hexis' });
+    }
+  } catch (e) {}
 }
 
 function applyModuleLocks() {

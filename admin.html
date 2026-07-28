@@ -147,7 +147,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 <div class="toast" id="toast"></div>
 
 <script>
-const ADMIN_VERSION = 'v1.3';
+const ADMIN_VERSION = 'v1.4';
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
@@ -207,6 +207,15 @@ let openUid = null;
 const DETAILS = {};
 
 function fmtDate(d){ return d ? new Date(d).toLocaleDateString('el-GR') : '—'; }
+function fmtAgo(d){
+  if (!d) return '—';
+  const ms = Date.now() - new Date(d).getTime();
+  if (ms < 60e3) return 'μόλις τώρα';
+  if (ms < 3600e3) return 'πριν ' + Math.floor(ms/60e3) + ' λ.';
+  if (ms < 86400e3) return 'πριν ' + Math.floor(ms/3600e3) + ' ώ.';
+  if (ms < 30*86400e3) return 'πριν ' + Math.floor(ms/86400e3) + ' ημ.';
+  return new Date(d).toLocaleDateString('el-GR');
+}
 
 async function loadDetail(uid){
   if (DETAILS[uid]) { renderDetail(uid); return; }
@@ -236,6 +245,8 @@ function renderDetail(uid){
     rows.push(['Εγγραφή χρήστη', fmtDate(d.user.created_at)]);
     rows.push(['Τελευταία σύνδεση', fmtDate(d.user.last_sign_in_at)]);
   }
+  const uu = USERS.find(x => x.uid === uid);
+  if (uu && uu.last_seen) rows.push(['Τελευταία χρήση', fmtAgo(uu.last_seen) + (uu.last_app ? ' · ' + (MODULES[uu.last_app] || uu.last_app) : '')]);
   const ent = d.entitlements || [];
   const reqs = d.requests || [];
   el.innerHTML =
@@ -281,6 +292,7 @@ function renderUsers(){
       + '<span class="pill '+tier+'">'+tier+'</span>'
       + '<span class="pill '+(u.sub_active===false?'off':'on')+'">'+(u.sub_active===false?'Όχι':'Ναι')+'</span>'
       + '<span class="modcount '+expCls+'">'+(u.trial_ends_at?fmtDate(u.trial_ends_at):'—')+'</span>'
+      + '<span class="modcount" title="Τελευταία χρήση">⏱ '+fmtAgo(u.last_seen)+'</span>'
       + '<span class="modcount">'+mods.length+' / '+Object.keys(MODULES).length+'</span>'
       + '<span class="arr">'+(open?'▼':'▶')+'</span>'
       + '</button>'

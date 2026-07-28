@@ -21328,7 +21328,18 @@ header .sub{font-size:11px;opacity:.7;font-weight:400}
   var KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
   var CK = 'hx_gate_' + MODULE, TTL = 7 * 864e5; // offline χάρη 7 ημερών μετά από επιτυχή έλεγχο
   document.documentElement.style.visibility = 'hidden';
-  function allow(){ document.documentElement.style.visibility = ''; try{ localStorage.setItem(CK, String(Date.now())); }catch(e){} }
+  function allow(){
+    document.documentElement.style.visibility = '';
+    try{ localStorage.setItem(CK, String(Date.now())); }catch(e){}
+    try{
+      var pl = JSON.parse(atob(tok.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+      fetch(SB + '/rest/v1/user_activity', {
+        method: 'POST',
+        headers: { apikey: KEY, Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' },
+        body: JSON.stringify({ user_id: pl.sub, last_seen: new Date().toISOString(), last_app: MODULE })
+      }).catch(function(){});
+    }catch(e){}
+  }
   function deny(u){ location.replace(u); }
   function cachedOk(){ try{ var t = +localStorage.getItem(CK); return t && (Date.now() - t) < TTL; }catch(e){ return false; } }
   function offlineMsg(){
