@@ -50,6 +50,13 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 .sw.on{background:var(--green)}
 .sw.on::after{left:21px}
 .sw:disabled{opacity:.5}
+.urow{border:1px solid var(--border);border-radius:11px;padding:10px 13px;margin-bottom:8px;background:#fff}
+.urow.open{border-color:var(--border-strong);box-shadow:0 2px 8px rgba(16,40,70,.06)}
+.uhead{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;cursor:pointer;font-family:var(--font-b);font-size:14px;color:var(--text);text-align:left;padding:0}
+.uemail{flex:1;font-weight:600;word-break:break-all}
+.tierchip{font-size:10.5px;font-weight:700;text-transform:uppercase;background:#FFF3E8;color:#E05A12;border-radius:99px;padding:2px 9px}
+.modcount{font-family:var(--font-m);font-size:12px;color:var(--muted);white-space:nowrap}
+.arr{color:var(--faint);font-size:12px}
 .gate{max-width:420px;margin:80px auto;text-align:center}
 .gate h1{font-family:var(--font-d);font-weight:800;font-size:22px;margin-bottom:8px}
 .gate p{color:var(--muted)}
@@ -74,16 +81,12 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
   </div>
 
   <div class="card">
-    <h2>Modules χρήστη</h2>
+    <h2>Χρήστες <span class="count" id="u-count">0</span></h2>
     <div class="searchrow">
-      <input type="email" id="u-email" placeholder="email πελάτη" onkeydown="if(event.key==='Enter')loadUser()">
-      <button class="btn btn-orange" onclick="loadUser()">Αναζήτηση</button>
+      <input type="text" id="filter" placeholder="Φίλτρο με email..." oninput="renderUsers()">
     </div>
-    <div class="userinfo" id="userinfo">
-      <div class="uline" id="uline"></div>
-      <div class="mods" id="mods"></div>
-      <div class="hint">Οι αλλαγές αποθηκεύονται αμέσως. Η συνδρομή (Starter/Pro/Studio) παραμένει στη διαχείριση του πίνακα subscriptions.</div>
-    </div>
+    <div id="users" style="margin-top:12px"><div class="empty">Φόρτωση...</div></div>
+    <div class="hint">Πάτησε σε χρήστη για να δεις και να αλλάξεις τα modules του — οι αλλαγές αποθηκεύονται αμέσως. Η συνδρομή (Starter/Pro/Studio) παραμένει στον πίνακα subscriptions.</div>
   </div>
 </div>
 
@@ -105,7 +108,6 @@ const MODULES = {
   kostos:'Κόστος Άδειας', terrain:'BRB Terrain'
 };
 
-let currentEmail = null;
 let toastTimer;
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2400); }
 
@@ -117,6 +119,7 @@ async function init(){
   if (error) { document.getElementById('gate').style.display='block'; return; }
   document.getElementById('main').style.display='block';
   loadRequests();
+  loadUsers();
 }
 
 async function loadRequests(){
@@ -140,7 +143,7 @@ async function approve(id){
   if (error) { toast('Σφάλμα: '+error.message); return; }
   toast('✓ Ενεργοποιήθηκε');
   loadRequests();
-  if (currentEmail) loadUser(currentEmail);
+  loadUsers();
 }
 async function reject(id){
   const { error } = await sb.rpc('admin_reject_request', { req: id });
@@ -149,34 +152,54 @@ async function reject(id){
   loadRequests();
 }
 
-async function loadUser(preset){
-  const email = (preset || document.getElementById('u-email').value || '').trim().toLowerCase();
-  if (!email) return;
-  if (preset) document.getElementById('u-email').value = email;
-  const { data, error } = await sb.rpc('admin_user_modules', { u_email: email });
-  const box = document.getElementById('userinfo');
-  if (error) { toast('Σφάλμα: '+error.message); box.style.display='none'; return; }
-  if (data === null || (Array.isArray(data) && data.length && data[0].user_found === false)) {
-    toast('Δεν βρέθηκε χρήστης με αυτό το email'); box.style.display='none'; return;
-  }
-  currentEmail = email;
-  const active = new Set((data||[]).filter(m=>m.active).map(m=>m.module));
-  document.getElementById('uline').innerHTML = 'Χρήστης: <b>'+email+'</b> · Ενεργά modules: <b>'+active.size+' / '+Object.keys(MODULES).length+'</b>';
-  document.getElementById('mods').innerHTML = Object.entries(MODULES).map(([k,name]) =>
-    '<div class="mrow"><span>'+name+'</span>'
-    + '<button class="sw'+(active.has(k)?' on':'')+'" data-mod="'+k+'" onclick="toggleMod(this)" aria-label="'+name+'"></button></div>'
-  ).join('');
-  box.style.display='block';
+let USERS = [];
+let openUid = null;
+
+async function loadUsers(){
+  const { data, error } = await sb.rpc('admin_all_users');
+  if (error) { document.getElementById('users').innerHTML = '<div class="empty">Σφάλμα: '+error.message+'</div>'; return; }
+  USERS = data || [];
+  renderUsers();
 }
+
+function renderUsers(){
+  const f = (document.getElementById('filter').value || '').toLowerCase();
+  const list = USERS.filter(u => (u.email||'').toLowerCase().includes(f));
+  document.getElementById('u-count').textContent = USERS.length;
+  document.getElementById('users').innerHTML = list.map(u => {
+    const mods = u.modules || [];
+    const open = openUid === u.uid;
+    return '<div class="urow'+(open?' open':'')+'">'
+      + '<button class="uhead" onclick="toggleUser(\''+u.uid+'\')">'
+      + '<span class="uemail">'+u.email+'</span>'
+      + '<span class="tierchip">'+(u.tier||'—')+'</span>'
+      + '<span class="modcount">'+mods.length+' / '+Object.keys(MODULES).length+'</span>'
+      + '<span class="arr">'+(open?'▼':'▶')+'</span>'
+      + '</button>'
+      + (open ? '<div class="mods" style="margin-top:12px">'+Object.entries(MODULES).map(([k,name]) =>
+          '<div class="mrow"><span>'+name+'</span>'
+          + '<button class="sw'+(mods.includes(k)?' on':'')+'" data-mod="'+k+'" data-email="'+u.email+'" data-uid="'+u.uid+'" onclick="toggleMod(this)" aria-label="'+name+'"></button></div>'
+        ).join('')+'</div>' : '')
+      + '</div>';
+  }).join('') || '<div class="empty">Κανένας χρήστης</div>';
+}
+
+function toggleUser(uid){ openUid = (openUid === uid) ? null : uid; renderUsers(); }
 
 async function toggleMod(btn){
   const turnOn = !btn.classList.contains('on');
   btn.disabled = true;
-  const { error } = await sb.rpc('admin_set_module', { u_email: currentEmail, m: btn.dataset.mod, on_off: turnOn });
+  const { error } = await sb.rpc('admin_set_module', { u_email: btn.dataset.email, m: btn.dataset.mod, on_off: turnOn });
   btn.disabled = false;
   if (error) { toast('Σφάλμα: '+error.message); return; }
-  btn.classList.toggle('on', turnOn);
-  toast((turnOn?'✓ Ενεργοποιήθηκε':'Απενεργοποιήθηκε')+' — '+MODULES[btn.dataset.mod]);
+  const u = USERS.find(x => x.uid === btn.dataset.uid);
+  if (u) {
+    u.modules = u.modules || [];
+    if (turnOn) { if (!u.modules.includes(btn.dataset.mod)) u.modules.push(btn.dataset.mod); }
+    else u.modules = u.modules.filter(m => m !== btn.dataset.mod);
+  }
+  renderUsers();
+  toast((turnOn ? '✓ Ενεργοποιήθηκε' : 'Απενεργοποιήθηκε') + ' — ' + MODULES[btn.dataset.mod]);
 }
 
 init();
