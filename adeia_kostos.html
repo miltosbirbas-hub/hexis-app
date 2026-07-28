@@ -149,6 +149,7 @@ footer b{color:#fff;font-variant-numeric:tabular-nums}
     <button data-tab="amoives">💶 Αμοιβές</button>
     <button data-tab="foro">🧾 Φόροι</button>
     <button data-tab="efka">🛡️ ΕΦΚΑ</button>
+    <button data-tab="aekk">♻️ ΑΕΚΚ/ΣΔΑ</button>
     <button data-tab="xrono">📅 Χρονοδ/μα</button>
     <button data-tab="docs">📄 Έγγραφα</button>
     <button data-tab="export">⬇️ Εξαγωγή</button>
@@ -163,7 +164,16 @@ footer b{color:#fff;font-variant-numeric:tabular-nums}
 
 <script>
 "use strict";
-const VER = "v1.11";
+const VER = "v1.12";
+function defAekk(){ return {
+ newOn:true,
+ excOn:false, excM3:0, excDens:1.65, excReuseM3:0, excEur:4,
+ demOn:false, demM2:0, demT:1.2,
+ renOn:false, renM2:0, renT:0.15,
+ ssed:"", ssedEdra:"", ssedAfm:"",
+ diax:"", diaxAfm:"", diaxAddr:"",
+ egyMode:"a05", egyManual:0,
+};}
 document.getElementById("ver").textContent = VER;
 
 /* ============================================================
@@ -339,7 +349,7 @@ let D = load() || {
  docEng:1,
  lambda:DEF.lambda, tekmHm:DEF.tekmHm, efkaPct:DEF.efkaPct,
  fpa:DEF.fpa, parakr:DEF.parakr, teeKrat:DEF.teeKrat, dimosFee:DEF.dimosFee, eadeiesFee:0,
- ektosSxediou:false, aekkKg:50, aekkEur:9, aekkEgy:0,
+ ektosSxediou:false, aekkKg:50, aekkEur:9, aekkEgy:0, aekk: defAekk(),
  uses: [ {...USES_CATALOG[1], m2:0}, {...USES_CATALOG[12], m2:0}, {...USES_CATALOG[11], m2:0} ],
  eta: DEF.eta, studies: JSON.parse(JSON.stringify(DEF.studies)), kenakPct: DEF.kenakPct, topoFlat: DEF.topoFlat, incProsthiki: false,
  works: JSON.parse(JSON.stringify(DEF.works)),
@@ -354,6 +364,7 @@ function load(){
   if(!d) return null;
   if(!d._v2){ d.works = JSON.parse(JSON.stringify(DEF.works)); d.studies = JSON.parse(JSON.stringify(DEF.studies)); d._v2 = 1; }
   if(d.ektosSxediou===undefined){ d.ektosSxediou=false; d.aekkKg=50; d.aekkEur=9; d.aekkEgy=0; }
+  if(!d.aekk) d.aekk = defAekk();
   if(d.kenakPct===undefined){ d.kenakPct=DEF.kenakPct; d.topoFlat=DEF.topoFlat; d.incProsthiki=false; }
   if(d.eta===undefined) d.eta = 118.00;
   if(!Array.isArray(d.engineers) || !d.engineers.length){
@@ -423,10 +434,38 @@ function prasinoCalc(){
  const p = symbatikos() * 0.005;           // 5‰ επί προϋπολογισμού (εκτός σχεδίου)
  return Math.min(5000, Math.max(250, p));  // ελάχιστο 250 € — μέγιστο 5.000 €
 }
+/* ΑΕΚΚ — τυπική ποιοτική σύνθεση ανά είδος εργασίας (επί % κ.β., ενδεικτική πρακτική ΣΣΕΔ/ΕΜΠ) */
+const EKA_NEW = [["17 01 01","Σκυρόδεμα",.40],["17 01 02","Τούβλα",.25],["17 01 03","Πλακίδια και κεραμικά",.10],["17 02 01","Ξύλο",.05],["17 04 07","Ανάμεικτα μέταλλα",.05],["17 08 02","Υλικά δομικών κατασκευών με βάση τον γύψο",.08],["17 09 04","Μεικτά απόβλητα δομικών κατασκευών",.07]];
+const EKA_DEM = [["17 01 01","Σκυρόδεμα",.50],["17 01 02","Τούβλα",.25],["17 01 03","Πλακίδια και κεραμικά",.05],["17 04 07","Ανάμεικτα μέταλλα",.05],["17 02 01","Ξύλο",.03],["17 09 04","Μεικτά απόβλητα δομικών κατασκευών",.12]];
+const EKA_REN = [["17 01 07","Μείγμα σκυροδέματος, τούβλων, πλακιδίων, κεραμικών",.45],["17 08 02","Υλικά δομικών κατασκευών με βάση τον γύψο",.15],["17 02 01","Ξύλο",.08],["17 02 03","Πλαστικά",.05],["17 04 07","Ανάμεικτα μέταλλα",.05],["17 09 04","Μεικτά απόβλητα δομικών κατασκευών",.22]];
+
 function aekkCalc(){
- const tons = totM2() * ((+D.aekkKg||0)/1000);
- const cost = tons * (+D.aekkEur||0) + (+D.aekkEgy||0);
- return {tons, cost};
+ const A = D.aekk || (D.aekk = defAekk());
+ const rows = [];
+ const add = (eka, per, t) => {
+  if(t <= 0.0005) return;
+  const r = rows.find(x => x.eka === eka);
+  if(r) r.t += t; else rows.push({eka, per, t});
+ };
+ // Εκσκαφές: όγκος × πυκνότητα, μείον επιτόπου αξιοποίηση (αυτοδιαχείριση χωμάτων)
+ const excGross = A.excOn ? (+A.excM3||0) * (+A.excDens||0) : 0;
+ const excReuse = A.excOn ? Math.min((+A.excReuseM3||0) * (+A.excDens||0), excGross) : 0;
+ if(A.excOn) add("17 05 04", "Χώματα και πέτρες (εκτός 17 05 03)", excGross - excReuse);
+ // Νέα κατασκευή: συνολικά μ² × kg/μ²
+ if(A.newOn){ const t = totM2() * ((+D.aekkKg||0)/1000); EKA_NEW.forEach(([e,p,f]) => add(e, p, t*f)); }
+ // Κατεδάφιση: μ² × t/μ²
+ if(A.demOn){ const t = (+A.demM2||0) * (+A.demT||0); EKA_DEM.forEach(([e,p,f]) => add(e, p, t*f)); }
+ // Ανακαίνιση: μ² × t/μ²
+ if(A.renOn){ const t = (+A.renM2||0) * (+A.renT||0); EKA_REN.forEach(([e,p,f]) => add(e, p, t*f)); }
+
+ const excT  = rows.filter(r => r.eka.startsWith("17 05")).reduce((a,r)=>a+r.t, 0);
+ const restT = rows.reduce((a,r)=>a+r.t, 0) - excT;
+ const tons  = excT + restT;
+ const cost  = excT*(+A.excEur||0) + restT*(+D.aekkEur||0) + (+D.aekkEgy||0);
+ // Εγγυητική ΚΥΑ 36259/2010 άρθ.7: 0,5% προϋπ. (κατασκευές/κατεδαφίσεις) · 0,2% (αποκλειστικά εκσκαφές)
+ const P = symbatikos();
+ const egy = A.egyMode==="man" ? (+A.egyManual||0) : P * (A.egyMode==="a02" ? 0.002 : 0.005);
+ return {tons, cost, excT, restT, excGross, excReuse, egy, P, rows};
 }
 function foroCalc(){
  const a = amoivesCalc();
@@ -511,6 +550,7 @@ function render(){
  else if(tab==="amoives") rAmoives();
  else if(tab==="foro") rForo();
  else if(tab==="efka") rEfka();
+ else if(tab==="aekk") rAekk();
  else if(tab==="xrono") rXrono();
  else if(tab==="docs") rDocs();
  else rExport();
@@ -705,18 +745,13 @@ function rForo(){
   </div>
   <label style="margin-top:8px"><input type="checkbox" id="ektos" ${D.ektosSxediou?"checked":""} style="width:auto;margin-right:6px"><b>Εκτός σχεδίου</b> — εισφορά Πράσινου Ταμείου 5‰ επί προϋπολογισμού (min 250 € / max 5.000 €)</label>
   <h3>ΑΕΚΚ — Διαχείριση Αποβλήτων (ΣΔΑ, ΚΥΑ 36259/2010)</h3>
-  <div class="grid3">
-   <div><label>Παραγωγή ΑΕΚΚ kg/μ²</label>${ninp("aekkKg", D.aekkKg, "1", 1)}</div>
-   <div><label>Κόστος ΣΣΕΔ €/τόνο</label>${ninp("aekkEur", D.aekkEur, "0.1", 1)}</div>
-   <div><label>Εγγυητική/λοιπά €</label>${ninp("aekkEgy", D.aekkEgy, "1", 1)}</div>
-  </div>
-  <div class="note">Το ΣΔΑ (Σχέδιο Διαχείρισης Αποβλήτων) και η σύμβαση με εγκεκριμένο ΣΣΕΔ (π.χ. ΑΝΑΚΕΜ, ΣΑΝΚΕ) είναι υποχρεωτικά για την άδεια. Τυπικές τιμές: ανέγερση ~40-80 kg/μ², κατεδάφιση πολλαπλάσια· κόστος ΣΣΕΔ συνήθως 6-15 €/τόνο ανά ρεύμα — προσάρμοσε στα τιμολόγια του τοπικού ΣΣΕΔ.</div>
+  <div class="note">Ο αναλυτικός υπολογισμός (εκσκαφές/κατεδάφιση/ανακαίνιση ανά ΕΚΑ), η εγγυητική επιστολή και τα έντυπα (ΣΔΑ, συμφωνητικό ΣΣΕΔ, ΥΔ) βρίσκονται στη νέα καρτέλα <b>♻️ ΑΕΚΚ/ΣΔΑ</b>. Το κόστος ΣΣΕΔ που υπολογίζεται εκεί ενσωματώνεται αυτόματα στο σύνολο παρακάτω.</div>
   <div style="margin-top:10px">
    <div class="sumrow"><span>Αμοιβές (καθαρές)</span><b>${eur(f.a.sum)}</b></div>
    <div class="sumrow"><span>ΦΠΑ ${num(D.fpa)}%</span><b>${eur(f.fpa)}</b></div>
    <div class="sumrow"><span>Κράτηση ΤΕΕ ${num(D.teeKrat)}‰</span><b>${eur(f.tee)}</b></div>
    <div class="sumrow"><span>Πράσινο Ταμείο ${D.ektosSxediou?"(εκτός σχεδίου: 5‰, min 250 – max 5.000 €)":"(εντός σχεδίου: —)"}</span><b>${eur(f.prasino)}</b></div>
-   <div class="sumrow"><span>ΑΕΚΚ (${num(f.aekk.tons)} τόνοι × ${num(D.aekkEur)} €/τν + εγγ.)</span><b>${eur(f.aekk.cost)}</b></div>
+   <div class="sumrow"><span>ΑΕΚΚ — κόστος ΣΣΕΔ (${num(f.aekk.tons)} τόνοι — βλ. καρτέλα ♻️)</span><b>${eur(f.aekk.cost)}</b></div>
    <div class="sumrow"><span>Τέλη (e-Άδειες + δήμος)</span><b>${eur(f.other)}</b></div>
    <div class="sumrow"><span><b>ΤΑΜΕΙΑΚΟ ΚΟΣΤΟΣ ΑΜΟΙΒΩΝ & ΤΕΛΩΝ</b></span><b class="big">${eur(f.cash)}</b></div>
    <div class="sumrow" style="border:0"><span style="color:var(--mut)">Παρακράτηση φόρου ${num(D.parakr)}% (πληροφοριακά — παρακρατείται από την αμοιβή)</span><b style="color:var(--mut)">${eur(f.parakr)}</b></div>
@@ -778,6 +813,106 @@ function rEfka(){
  const a3 = document.getElementById("add3");
  if(a3) a3.addEventListener("click", ()=>{ D.efka3.push({w:"",b:0,p:30}); save(); render(); });
 }
+function rAekk(){
+ const A = D.aekk || (D.aekk = defAekk());
+ const k = aekkCalc();
+ const rowsHtml = k.rows.length
+  ? k.rows.map(r=>`<tr><td>${r.eka}</td><td>${esc(r.per)}</td><td class="num">${num(r.t)}</td><td>Παράδοση σε ΣΣΕΔ</td></tr>`).join("")
+  : `<tr><td colspan="4" style="text-align:center;color:var(--mut)">— ενεργοποίησε τουλάχιστον μία πηγή αποβλήτων —</td></tr>`;
+ main.innerHTML = `
+ <h2>♻️ ΑΕΚΚ — Σχέδιο Διαχείρισης Αποβλήτων (ΣΔΑ)</h2>
+ <div class="card">
+  <div class="note">Υποχρέωση κατά <b>ΚΥΑ 36259/1757/Ε103/2010 (άρθ. 7)</b> και <b>ν.4819/2021 (άρθ. 30)</b>: πριν την έναρξη εργασιών υποβάλλεται ΣΔΑ στο e-Άδειες, συνάπτεται σύμβαση με εγκεκριμένο ΣΣΕΔ και κατατίθεται εγγυητική επιστολή στην ΥΔΟΜ. Μετά την αποπεράτωση: βεβαίωση παραλαβής ΑΕΚΚ από το ΣΣΕΔ εντός 30 ημερών → επιστροφή εγγυητικής εντός 10 ημερών.</div>
+  <h3>Διαχειριστής ΑΕΚΚ (κύριος έργου ή ανάδοχος)</h3>
+  <div class="grid3">
+   <div><label>Ονοματεπώνυμο / Επωνυμία</label>${inp("aekk.diax", A.diax)}</div>
+   <div><label>ΑΦΜ</label>${inp("aekk.diaxAfm", A.diaxAfm)}</div>
+   <div><label>Διεύθυνση</label>${inp("aekk.diaxAddr", A.diaxAddr)}</div>
+  </div>
+  <h3>ΣΣΕΔ ΑΕΚΚ (εγκεκριμένο σύστημα)</h3>
+  <div class="grid3">
+   <div><label>Επωνυμία ΣΣΕΔ</label>${inp("aekk.ssed", A.ssed)}</div>
+   <div><label>Έδρα</label>${inp("aekk.ssedEdra", A.ssedEdra)}</div>
+   <div><label>ΑΦΜ ΣΣΕΔ</label>${inp("aekk.ssedAfm", A.ssedAfm)}</div>
+  </div>
+  <div class="note">Το ΣΣΕΔ πρέπει να είναι εγκεκριμένο από τον Ε.Ο.ΑΝ. με εμβέλεια στην Περιφερειακή Ενότητα του έργου (π.χ. ΑΝΑΚΕΜ, ΑΝΑΚΤΗΣΗ, ΣΑΝΚΕ, ΣΕΔΠΕΚΑΤ, τοπικές μονάδες).</div>
+ </div>
+
+ <div class="card">
+  <h3>Πηγές αποβλήτων — εκτίμηση ποσοτήτων</h3>
+  <label><input type="checkbox" id="akNew" ${A.newOn?"checked":""} style="width:auto;margin-right:6px"><b>Νέα κατασκευή</b> — ${num(totM2())} μ² (από καρτέλα Έργο) × <b>${num(D.aekkKg)}</b> kg/μ²</label>
+  <div class="grid3" style="margin-top:6px">
+   <div><label>Παραγωγή kg/μ² δόμησης</label>${ninp("aekkKg", D.aekkKg, "1", 1)}</div>
+  </div>
+  <hr>
+  <label><input type="checkbox" id="akExc" ${A.excOn?"checked":""} style="width:auto;margin-right:6px"><b>Εκσκαφές</b> (ΕΚΑ 17 05 04)</label>
+  <div class="grid3" style="margin-top:6px">
+   <div><label>Όγκος εκσκαφών (μ³)</label>${ninp("aekk.excM3", A.excM3, "1", 1)}</div>
+   <div><label>Πυκνότητα (t/μ³)</label>${ninp("aekk.excDens", A.excDens, "0.05", 1)}</div>
+   <div><label>Επιτόπου αξιοποίηση (μ³)</label>${ninp("aekk.excReuseM3", A.excReuseM3, "1", 1)}</div>
+  </div>
+  <div class="note">Αυτοδιαχείριση επιτρέπεται <b>μόνο για τα χώματα εκσκαφών</b> νέας οικοδομής, εφόσον αξιοποιούνται επιτόπου (επιχώσεις, διαμόρφωση περιβάλλοντος χώρου) — δηλώνεται στο ΣΔΑ και καλύπτεται με ΥΔ (κουμπί παρακάτω).</div>
+  <hr>
+  <label><input type="checkbox" id="akDem" ${A.demOn?"checked":""} style="width:auto;margin-right:6px"><b>Κατεδάφιση</b></label>
+  <div class="grid3" style="margin-top:6px">
+   <div><label>Επιφάνεια κατεδάφισης (μ²)</label>${ninp("aekk.demM2", A.demM2, "1", 1)}</div>
+   <div><label>Συντελεστής (t/μ²)</label>${ninp("aekk.demT", A.demT, "0.05", 1)}</div>
+  </div>
+  <hr>
+  <label><input type="checkbox" id="akRen" ${A.renOn?"checked":""} style="width:auto;margin-right:6px"><b>Ανακαίνιση / επισκευή</b></label>
+  <div class="grid3" style="margin-top:6px">
+   <div><label>Επιφάνεια παρέμβασης (μ²)</label>${ninp("aekk.renM2", A.renM2, "1", 1)}</div>
+   <div><label>Συντελεστής (t/μ²)</label>${ninp("aekk.renT", A.renT, "0.05", 1)}</div>
+  </div>
+  <div class="note">Ενδεικτικοί συντελεστές πρακτικής: ανέγερση 40–80 kg/μ² · κατεδάφιση Ο/Σ 1,0–1,4 t/μ² · ανακαίνιση 0,10–0,25 t/μ² · χώματα 1,5–1,8 t/μ³. Προσάρμοσέ τους στο έργο — οι δηλωθείσες ποσότητες ελέγχονται από τον ελεγκτή δόμησης.</div>
+ </div>
+
+ <div class="card">
+  <h3>Πίνακας ΣΔΑ — εκτιμώμενες ποσότητες ανά ΕΚΑ</h3>
+  <table><tr><th>ΕΚΑ</th><th>Περιγραφή</th><th class="num">Ποσότητα (t)</th><th>Διαχείριση</th></tr>${rowsHtml}
+  ${k.excReuse>0?`<tr><td>17 05 04</td><td>Χώματα — επιτόπου αξιοποίηση (αυτοδιαχείριση)</td><td class="num">${num(k.excReuse)}</td><td>Επαναχρησιμοποίηση στο ακίνητο</td></tr>`:""}
+  <tr><td colspan="2"><b>ΣΥΝΟΛΟ προς ΣΣΕΔ</b></td><td class="num"><b>${num(k.tons)}</b></td><td></td></tr></table>
+ </div>
+
+ <div class="card">
+  <h3>Κόστος διαχείρισης & Εγγυητική επιστολή</h3>
+  <div class="grid3">
+   <div><label>Τιμή ΣΣΕΔ χώματα €/t</label>${ninp("aekk.excEur", A.excEur, "0.1", 1)}</div>
+   <div><label>Τιμή ΣΣΕΔ λοιπά €/t</label>${ninp("aekkEur", D.aekkEur, "0.1", 1)}</div>
+   <div><label>Διοικητικά / λοιπά €</label>${ninp("aekkEgy", D.aekkEgy, "1", 1)}</div>
+  </div>
+  <div class="sumrow"><span>Εκτιμώμενο κόστος ΣΣΕΔ (${num(k.excT)} t χώματα + ${num(k.restT)} t λοιπά)</span><b>${eur(k.cost)}</b></div>
+  <label style="margin-top:10px">Εγγυητική επιστολή (ΚΥΑ 36259/2010 άρθ.7 — επί προϋπολογισμού ${eur(k.P)})</label>
+  <select data-k="aekk.egyMode" data-re="1">
+   <option value="a05" ${A.egyMode==="a05"?"selected":""}>0,5% — έργα κατασκευών & κατεδαφίσεων</option>
+   <option value="a02" ${A.egyMode==="a02"?"selected":""}>0,2% — αποκλειστικά έργα εκσκαφών</option>
+   <option value="man" ${A.egyMode==="man"?"selected":""}>Χειροκίνητο ποσό</option>
+  </select>
+  ${A.egyMode==="man"?`<div style="margin-top:6px"><label>Ποσό εγγυητικής €</label>${ninp("aekk.egyManual", A.egyManual, "1", 1)}</div>`:""}
+  <div class="sumrow"><span><b>Εγγυητική προς ΥΔΟΜ</b> (Τράπεζα ή Τ.Π.&Δ. — επιστρέφεται μετά τη βεβαίωση ΣΣΕΔ)</span><b class="big">${eur(k.egy)}</b></div>
+  <div class="note">Η εγγυητική <b>δεν</b> προστίθεται στο ταμειακό κόστος (επιστρέφεται) — στο κόστος μετρά μόνο η αμοιβή του ΣΣΕΔ και τυχόν έξοδα έκδοσης.</div>
+ </div>
+
+ <div class="card">
+  <h3>Έντυπα ΑΕΚΚ</h3>
+  <div class="btnrow">
+   <button class="btn" onclick="printSDA()">📄 Έντυπο ΣΔΑ (e-Άδειες / ΥΔΟΜ)</button>
+   <button class="btn" onclick="printSymfSSED()">📄 Συμφωνητικό με ΣΣΕΔ</button>
+  </div>
+  <div class="btnrow">
+   <button class="btn sec" onclick="printYDAekk()">✍ ΥΔ διαχειριστή ΑΕΚΚ</button>
+   <button class="btn sec" onclick="printYDXomata()" ${k.excReuse>0?"":"disabled"}>✍ ΥΔ αυτοδιαχείρισης χωμάτων</button>
+  </div>
+  <div class="note">Τα περισσότερα ΣΣΕΔ διαθέτουν και δικά τους τυποποιημένα έντυπα σύμβασης — το παρόν συμφωνητικό καλύπτει τα στοιχεία του ΣΔΑ και μπορεί να χρησιμοποιηθεί ως προσύμφωνο/παράρτημα. Έλεγξε τα σημεία [___] πριν την υποβολή.</div>
+ </div>`;
+ bindAll(main, D);
+ const cb = [["akNew","newOn"],["akExc","excOn"],["akDem","demOn"],["akRen","renOn"]];
+ cb.forEach(([id,key])=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener("change", ()=>{ A[key] = el.checked; save(); render(); });
+ });
+}
+
 function rXrono(){
  const M = +D.ergo.months||18;
  main.innerHTML = `
@@ -814,6 +949,12 @@ function rDocs(){
    <button class="btn" onclick="printSAY()">🦺 ΣΑΥ (συντάκτης: ο επιλεγμένος)</button>
    <button class="btn" onclick="printFAY()">📘 ΦΑΥ</button>
   </div>
+  <div class="btnrow">
+   <button class="btn sec" onclick="printSDA()">♻️ Έντυπο ΣΔΑ</button>
+   <button class="btn sec" onclick="printSymfSSED()">♻️ Συμφωνητικό ΣΣΕΔ</button>
+   <button class="btn sec" onclick="printYDAekk()">✍ ΥΔ διαχειριστή ΑΕΚΚ</button>
+  </div>
+  <div class="note">Τα στοιχεία ΑΕΚΚ (ποσότητες, ΣΣΕΔ, εγγυητική) συμπληρώνονται στην καρτέλα ♻️ ΑΕΚΚ/ΣΔΑ.</div>
   <div class="note">Τα ΣΑΥ/ΦΑΥ παράγονται ως πλήρη πρότυπα π.δ. 305/1996 προσαρμοσμένα στο έργο — έλεγξε & συμπλήρωσε τα σημεία [___] πριν την υποβολή.</div>
   <div class="note">🗺️ Το τοπογραφικό διάγραμμα (DXF) πριν την υποβολή στο Κτηματολόγιο/e-Άδειες πέρασέ το από το <a href="checkmydxf.html" target="_blank"><b>Check My DXF</b></a> — έλεγχος layers, ΕΓΣΑ΄87 και προδιαγραφών ΔΓΜ.</div>
  </div>`;
@@ -931,6 +1072,77 @@ function printYD(kind){
  3. Έχω τα νόμιμα προσόντα για την ανωτέρω επίβλεψη.</p>`}
  <p style="margin-top:8mm">Ημερομηνία: ${new Date().toLocaleDateString("el-GR")}</p>
  <div class="sig"><div></div><div>Ο/Η Δηλών/ούσα<br><br><br>${esc(who)}</div></div></div>
+ <div class="pfoot">HEXIS Κόστος Άδειας ${VER}</div>`);
+}
+
+/* ============ ΑΕΚΚ — ΕΝΤΥΠΑ ============ */
+function aekkTableHtml(k){
+ return `<table><tr><th>ΕΚΑ</th><th>Περιγραφή αποβλήτου</th><th>Ποσότητα (t)</th><th>Τρόπος διαχείρισης</th></tr>
+ ${k.rows.map(r=>`<tr><td>${r.eka}</td><td>${esc(r.per)}</td><td class="num">${num(r.t)}</td><td>Παράδοση σε εγκεκριμένο ΣΣΕΔ</td></tr>`).join("")}
+ ${k.excReuse>0?`<tr><td>17 05 04</td><td>Χώματα και πέτρες — περίσσεια εκσκαφών</td><td class="num">${num(k.excReuse)}</td><td>Επιτόπου αξιοποίηση στο ακίνητο (αυτοδιαχείριση)</td></tr>`:""}
+ <tr><td colspan="2"><b>ΣΥΝΟΛΟ προς εναλλακτική διαχείριση</b></td><td class="num"><b>${num(k.tons)}</b></td><td></td></tr></table>`;
+}
+function printSDA(){
+ const A=D.aekk, k=aekkCalc();
+ doPrint(phead("ΣΔΑ — Στοιχεία Διαχείρισης Αποβλήτων")+`<div class="doc">
+ <h1>ΣΧΕΔΙΟ ΔΙΑΧΕΙΡΙΣΗΣ ΑΠΟΒΛΗΤΩΝ (Σ.Δ.Α.)</h1>
+ <p style="text-align:center">κατά το άρθρο 7 παρ. 2 της ΚΥΑ 36259/1757/Ε103/2010 (ΦΕΚ 1312 Β΄) και το άρθρο 30 του ν.4819/2021</p>
+ <h2>1. Στοιχεία έργου</h2>${ergoline()}
+ <p><b>Είδος εργασιών:</b> ${[A.newOn&&"Ανέγερση νέας κατασκευής",A.excOn&&"Εκσκαφές",A.demOn&&"Κατεδάφιση",A.renOn&&"Ανακαίνιση/επισκευή"].filter(Boolean).join(" · ")||"[___]"} · <b>Επιφάνεια δόμησης:</b> ${num(totM2())} μ² · <b>Προϋπολογισμός έργου:</b> ${eur(k.P)}</p>
+ <h2>2. Διαχειριστής ΑΕΚΚ</h2>
+ <p><b>${esc(A.diax||"[___]")}</b> · ΑΦΜ ${esc(A.diaxAfm||"[___]")} · ${esc(A.diaxAddr||"[___]")}</p>
+ <h2>3. Σύστημα Εναλλακτικής Διαχείρισης (ΣΣΕΔ)</h2>
+ <p><b>${esc(A.ssed||"[___]")}</b> · Έδρα: ${esc(A.ssedEdra||"[___]")} · ΑΦΜ ${esc(A.ssedAfm||"[___]")} — εγκεκριμένο από τον Ε.Ο.ΑΝ.</p>
+ <h2>4. Εκτίμηση παραγόμενων ΑΕΚΚ ανά κωδικό ΕΚΑ</h2>
+ ${aekkTableHtml(k)}
+ <p style="font-size:0.9em">Οι ποσότητες αποτελούν εκτίμηση βάσει τυπικών συντελεστών παραγωγής· οι τελικές ποσότητες θα προκύψουν από τα παραστατικά παραλαβής (ζυγολόγια) του ΣΣΕΔ.</p>
+ <h2>5. Εγγυητική επιστολή (άρθ. 7 ΚΥΑ 36259/2010)</h2>
+ <p>Ποσό: <b>${eur(k.egy)}</b> (${A.egyMode==="a02"?"0,2% — αποκλειστικά έργο εκσκαφών":A.egyMode==="man"?"κατά δήλωση":"0,5% — έργο κατασκευών/κατεδαφίσεων"} επί προϋπολογισμού ${eur(k.P)}), εκδίδεται από αναγνωρισμένη Τράπεζα ή το Ταμείο Παρακαταθηκών και Δανείων και κατατίθεται στην αρμόδια ΥΔΟΜ. Επιστρέφεται εντός 10 ημερών από την κατάθεση της βεβαίωσης παραλαβής ΑΕΚΚ, η οποία υποβάλλεται εντός 30 ημερών από την αποπεράτωση των εργασιών διαχείρισης.</p>
+ <p style="margin-top:8mm">Ημερομηνία: ${new Date().toLocaleDateString("el-GR")}</p>
+ <div class="sig"><div>Ο Διαχειριστής ΑΕΚΚ<br><br><br>${esc(A.diax||"")}</div><div>Ο Μηχανικός<br><br><br>${esc(engById(D.docEng).name||"")}</div></div></div>
+ <div class="pfoot">HEXIS Κόστος Άδειας ${VER} — έλεγξε τα [___] πριν την υποβολή στο e-Άδειες</div>`);
+}
+function printSymfSSED(){
+ const A=D.aekk, k=aekkCalc();
+ doPrint(phead("Συμφωνητικό διαχείρισης ΑΕΚΚ")+`<div class="doc">
+ <h1>ΙΔΙΩΤΙΚΟ ΣΥΜΦΩΝΗΤΙΚΟ<br>ΕΝΑΛΛΑΚΤΙΚΗΣ ΔΙΑΧΕΙΡΙΣΗΣ ΑΕΚΚ</h1>
+ <p>Στ.. [___], σήμερα ${new Date().toLocaleDateString("el-GR")}, μεταξύ:</p>
+ <p><b>Α.</b> Του/Της <b>${esc(A.diax||"[___]")}</b>, ΑΦΜ ${esc(A.diaxAfm||"[___]")}, ${esc(A.diaxAddr||"[___]")}, ως «Διαχειριστή ΑΕΚΚ» του έργου «${esc(D.ergo.titlos||"[___]")}» στη θέση ${esc(D.ergo.dieuth||"[___]")}, ΚΑΕΚ ${esc(D.ergo.kaek||"[___]")}, και</p>
+ <p><b>Β.</b> Της εταιρείας <b>${esc(A.ssed||"[___]")}</b>, ΑΦΜ ${esc(A.ssedAfm||"[___]")}, με έδρα ${esc(A.ssedEdra||"[___]")}, εγκεκριμένου Συλλογικού Συστήματος Εναλλακτικής Διαχείρισης ΑΕΚΚ («ΣΣΕΔ»),</p>
+ <p>συμφωνούνται τα εξής, κατ' εφαρμογή της ΚΥΑ 36259/1757/Ε103/2010 και του ν.4819/2021:</p>
+ <h2>Άρθρο 1 — Αντικείμενο</h2>
+ <p>Ο Διαχειριστής αναθέτει και το ΣΣΕΔ αναλαμβάνει την εναλλακτική διαχείριση (συλλογή, μεταφορά, επεξεργασία/ανάκτηση) των ΑΕΚΚ που θα παραχθούν από το ανωτέρω έργο, σύμφωνα με τον κατωτέρω πίνακα εκτιμώμενων ποσοτήτων:</p>
+ ${aekkTableHtml(k)}
+ <h2>Άρθρο 2 — Υποχρεώσεις μερών</h2>
+ <p>1. Τα ΑΕΚΚ παραδίδονται σε αδειοδοτημένες μονάδες του ΣΣΕΔ με συνοδευτικά παραστατικά (δελτία αποστολής, ζυγολόγια).<br>
+ 2. Το ΣΣΕΔ εκδίδει, μετά την ολοκλήρωση, <b>βεβαίωση παραλαβής ΑΕΚΚ</b> με τις πραγματικές ποσότητες ανά ΕΚΑ, για κατάθεση στην ΥΔΟΜ και επιστροφή της εγγυητικής επιστολής.<br>
+ 3. Ο Διαχειριστής καταβάλλει τη χρηματική εισφορά σύμφωνα με τον ισχύοντα τιμοκατάλογο του ΣΣΕΔ (εκτίμηση: ${eur(k.cost)} για ${num(k.tons)} t).<br>
+ 4. Αποκλίσεις ποσοτήτων από την εκτίμηση του ΣΔΑ τιμολογούνται απολογιστικά βάσει ζυγολογίων.</p>
+ <h2>Άρθρο 3 — Διάρκεια</h2>
+ <p>Από την υπογραφή έως την ολοκλήρωση των εργασιών διαχείρισης ΑΕΚΚ του έργου (εκτιμώμενη διάρκεια έργου: ${num(D.ergo.months)} μήνες).</p>
+ <div class="sig"><div>Ο Διαχειριστής ΑΕΚΚ<br><br><br>${esc(A.diax||"")}</div><div>Για το ΣΣΕΔ<br><br><br>${esc(A.ssed||"")}</div></div></div>
+ <div class="pfoot">Τα ΣΣΕΔ διαθέτουν συνήθως δικό τους τυποποιημένο έντυπο — το παρόν λειτουργεί ως προσύμφωνο/παράρτημα ΣΔΑ. HEXIS ${VER}</div>`);
+}
+function printYDAekk(){
+ const A=D.aekk, k=aekkCalc();
+ doPrint(phead("Υπεύθυνη Δήλωση ΑΕΚΚ")+`<div class="doc"><h1>ΥΠΕΥΘΥΝΗ ΔΗΛΩΣΗ (άρθρο 8 ν.1599/1986)</h1>
+ <p>Ο/Η υπογράφων/ουσα <b>${esc(A.diax||"[___]")}</b>, ΑΦΜ ${esc(A.diaxAfm||"[___]")}, με την ιδιότητα του διαχειριστή ΑΕΚΚ του έργου «${esc(D.ergo.titlos||"[___]")}» στη θέση ${esc(D.ergo.dieuth||"[___]")}, ΚΑΕΚ ${esc(D.ergo.kaek||"[___]")}, με ατομική μου ευθύνη και γνωρίζοντας τις κυρώσεις που προβλέπονται από τις διατάξεις της παρ. 6 του άρθρου 22 του ν.1599/1986, δηλώνω ότι:</p>
+ <p>1. Τα απόβλητα εκσκαφών, κατασκευών και κατεδαφίσεων (ΑΕΚΚ) του ανωτέρω έργου, εκτιμώμενης συνολικής ποσότητας <b>${num(k.tons)} τόνων</b>, θα παραδοθούν προς εναλλακτική διαχείριση στο εγκεκριμένο ΣΣΕΔ «<b>${esc(A.ssed||"[___]")}</b>», σύμφωνα με την ΚΥΑ 36259/1757/Ε103/2010 και τον ν.4819/2021.<br>
+ 2. Θα καταθέσω στην αρμόδια ΥΔΟΜ, εντός 30 ημερών από την αποπεράτωση των εργασιών διαχείρισης, τη βεβαίωση παραλαβής ΑΕΚΚ του ως άνω συστήματος.<br>
+ 3. Οι ποσότητες του υποβαλλόμενου ΣΔΑ αποτελούν εκτίμηση· οι τελικές ποσότητες θα αποδειχθούν από τα νόμιμα παραστατικά παραλαβής.</p>
+ <p style="margin-top:8mm">Ημερομηνία: ${new Date().toLocaleDateString("el-GR")}</p>
+ <div class="sig"><div></div><div>Ο/Η Δηλών/ούσα<br><br><br>${esc(A.diax||"")}</div></div></div>
+ <div class="pfoot">HEXIS Κόστος Άδειας ${VER}</div>`);
+}
+function printYDXomata(){
+ const A=D.aekk, k=aekkCalc();
+ doPrint(phead("ΥΔ αυτοδιαχείρισης χωμάτων")+`<div class="doc"><h1>ΥΠΕΥΘΥΝΗ ΔΗΛΩΣΗ (άρθρο 8 ν.1599/1986)</h1>
+ <p>Ο/Η υπογράφων/ουσα <b>${esc(A.diax||"[___]")}</b>, ΑΦΜ ${esc(A.diaxAfm||"[___]")}, με την ιδιότητα του διαχειριστή ΑΕΚΚ του έργου «${esc(D.ergo.titlos||"[___]")}» στη θέση ${esc(D.ergo.dieuth||"[___]")}, ΚΑΕΚ ${esc(D.ergo.kaek||"[___]")}, με ατομική μου ευθύνη και γνωρίζοντας τις κυρώσεις που προβλέπονται από τις διατάξεις της παρ. 6 του άρθρου 22 του ν.1599/1986, δηλώνω ότι:</p>
+ <p>1. Ποσότητα <b>${num(k.excReuse)} τόνων</b> (≈ ${num(A.excReuseM3)} μ³) χωμάτων και πετρών εκσκαφών (ΕΚΑ 17 05 04), μη περιεχόντων επικίνδυνες ουσίες, θα αξιοποιηθεί <b>επιτόπου στο ακίνητο</b> του έργου (επιχώσεις, εξομαλύνσεις, διαμόρφωση περιβάλλοντος χώρου), σύμφωνα με τα προβλεπόμενα στην ΚΥΑ 36259/1757/Ε103/2010 και τον ν.4819/2021 περί αυτοδιαχείρισης της περίσσειας εκσκαφών.<br>
+ 2. Η υπόλοιπη ποσότητα ΑΕΚΚ του έργου παραδίδεται σε εγκεκριμένο ΣΣΕΔ σύμφωνα με το υποβαλλόμενο ΣΔΑ.<br>
+ 3. Η ως άνω αξιοποίηση αποτυπώνεται στη διαμόρφωση του περιβάλλοντος χώρου της εγκεκριμένης μελέτης.</p>
+ <p style="margin-top:8mm">Ημερομηνία: ${new Date().toLocaleDateString("el-GR")}</p>
+ <div class="sig"><div></div><div>Ο/Η Δηλών/ούσα<br><br><br>${esc(A.diax||"")}</div></div></div>
  <div class="pfoot">HEXIS Κόστος Άδειας ${VER}</div>`);
 }
 function printSAY(){
