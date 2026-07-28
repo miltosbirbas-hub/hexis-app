@@ -57,6 +57,18 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 .tierchip{font-size:10.5px;font-weight:700;text-transform:uppercase;background:#FFF3E8;color:#E05A12;border-radius:99px;padding:2px 9px}
 .modcount{font-family:var(--font-m);font-size:12px;color:var(--muted);white-space:nowrap}
 .arr{color:var(--faint);font-size:12px}
+
+.dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:12px}
+.drow{background:#F6F8FB;border:1px solid var(--border);border-radius:9px;padding:8px 11px}
+.drow small{display:block;font-size:10.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.05em}
+.drow b{font-size:13.5px}
+.dsub{font-family:var(--font-d);font-weight:700;font-size:12.5px;margin:14px 0 7px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.dlist{display:flex;flex-wrap:wrap;gap:6px}
+.dtag{font-size:12px;font-family:var(--font-m);background:#F6F8FB;border:1px solid var(--border);border-radius:8px;padding:4px 9px;color:var(--muted)}
+.dtag.on{border-color:rgba(31,160,92,.4);color:var(--green)}
+.dtag.pending{border-color:rgba(232,131,12,.45);color:#E8830C}
+.dtag.done{border-color:rgba(31,160,92,.4);color:var(--green)}
+.dtag.rejected{border-color:rgba(214,69,69,.4);color:var(--red)}
 .gate{max-width:420px;margin:80px auto;text-align:center}
 .gate h1{font-family:var(--font-d);font-weight:800;font-size:22px;margin-bottom:8px}
 .gate p{color:var(--muted)}
@@ -115,8 +127,8 @@ async function init(){
   const { data:{ session } } = await sb.auth.getSession();
   if (!session) { location.href='login.html'; return; }
   // δοκιμή admin πρόσβασης
-  const { error } = await sb.rpc('admin_requests');
-  if (error) { document.getElementById('gate').style.display='block'; return; }
+  const { data: isAdm, error } = await sb.rpc('is_admin');
+  if (error || !isAdm) { document.getElementById('gate').style.display='block'; return; }
   document.getElementById('main').style.display='block';
   loadRequests();
   loadUsers();
@@ -154,6 +166,47 @@ async function reject(id){
 
 let USERS = [];
 let openUid = null;
+const DETAILS = {};
+
+function fmtDate(d){ return d ? new Date(d).toLocaleDateString('el-GR') : '—'; }
+
+async function loadDetail(uid){
+  if (DETAILS[uid]) { renderDetail(uid); return; }
+  const { data, error } = await sb.rpc('admin_user_detail', { u: uid });
+  if (error) { const el=document.getElementById('det-'+uid); if (el) el.innerHTML='<div class="empty">Σφάλμα: '+error.message+'</div>'; return; }
+  DETAILS[uid] = data || {};
+  renderDetail(uid);
+}
+
+function renderDetail(uid){
+  const el = document.getElementById('det-'+uid);
+  if (!el) return;
+  const d = DETAILS[uid];
+  if (!d) { el.innerHTML = '<div class="empty">Φόρτωση...</div>'; return; }
+  const sub = d.subscription || {};
+  const rows = [];
+  rows.push(['Πλάνο', String(sub.tier || sub.plan || 'free').toUpperCase()]);
+  if ('active' in sub) rows.push(['Συνδρομή', sub.active ? 'Ενεργή' : 'Ανενεργή']);
+  if (sub.trial_ends_at) rows.push(['Trial έως', fmtDate(sub.trial_ends_at)]);
+  if (sub.created_at) rows.push(['Έναρξη συνδρομής', fmtDate(sub.created_at)]);
+  if (sub.expires_at) rows.push(['Λήξη συνδρομής', fmtDate(sub.expires_at)]);
+  const known = ['id','user_id','tier','plan','active','trial_ends_at','created_at','expires_at','updated_at','email'];
+  Object.entries(sub).forEach(([k,v]) => {
+    if (!known.includes(k) && v !== null && typeof v !== 'object') rows.push([k, String(v)]);
+  });
+  if (d.user) {
+    rows.push(['Εγγραφή χρήστη', fmtDate(d.user.created_at)]);
+    rows.push(['Τελευταία σύνδεση', fmtDate(d.user.last_sign_in_at)]);
+  }
+  const ent = d.entitlements || [];
+  const reqs = d.requests || [];
+  el.innerHTML =
+    '<div class="dgrid">' + rows.map(r => '<div class="drow"><small>'+r[0]+'</small><b>'+r[1]+'</b></div>').join('') + '</div>'
+    + (ent.length ? '<div class="dsub">Add-ons — αγορές</div><div class="dlist">'
+        + ent.map(e => '<span class="dtag'+(e.active?' on':'')+'">'+(MODULES[e.module]||e.module)+' · από '+fmtDate(e.created_at)+(e.expires_at ? ' → '+fmtDate(e.expires_at) : '')+(e.active?'':' · ΑΝΕΝΕΡΓΟ')+'</span>').join('')+'</div>' : '')
+    + (reqs.length ? '<div class="dsub">Ιστορικό αιτημάτων</div><div class="dlist">'
+        + reqs.map(r => '<span class="dtag '+r.status+'">'+(MODULES[r.module]||r.module)+' · '+r.status+' · '+fmtDate(r.created_at)+'</span>').join('')+'</div>' : '');
+}
 
 async function loadUsers(){
   const { data, error } = await sb.rpc('admin_all_users');
@@ -176,7 +229,7 @@ function renderUsers(){
       + '<span class="modcount">'+mods.length+' / '+Object.keys(MODULES).length+'</span>'
       + '<span class="arr">'+(open?'▼':'▶')+'</span>'
       + '</button>'
-      + (open ? '<div class="mods" style="margin-top:12px">'+Object.entries(MODULES).map(([k,name]) =>
+      + (open ? '<div class="detail" id="det-'+u.uid+'"></div><div class="dsub">Modules</div><div class="mods">'+Object.entries(MODULES).map(([k,name]) =>
           '<div class="mrow"><span>'+name+'</span>'
           + '<button class="sw'+(mods.includes(k)?' on':'')+'" data-mod="'+k+'" data-email="'+u.email+'" data-uid="'+u.uid+'" onclick="toggleMod(this)" aria-label="'+name+'"></button></div>'
         ).join('')+'</div>' : '')
@@ -184,7 +237,11 @@ function renderUsers(){
   }).join('') || '<div class="empty">Κανένας χρήστης</div>';
 }
 
-function toggleUser(uid){ openUid = (openUid === uid) ? null : uid; renderUsers(); }
+function toggleUser(uid){
+  openUid = (openUid === uid) ? null : uid;
+  renderUsers();
+  if (openUid) { renderDetail(openUid); loadDetail(openUid); }
+}
 
 async function toggleMod(btn){
   const turnOn = !btn.classList.contains('on');
