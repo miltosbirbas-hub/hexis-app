@@ -215,6 +215,7 @@ async function requestActivation(t) {
       user_id: currentUser.id, email: currentUser.email, module: t.mod || new URLSearchParams(location.search).get('id')
     });
     if (error && error.code !== '23505') throw error;
+    sb.functions.invoke('notify-request', { body: { email: currentUser.email, module: t.mod || new URLSearchParams(location.search).get('id') } }).catch(()=>{});
     btn.textContent = '✓ Το αίτημα εστάλη';
     btn.style.background = '#1FA05C'; btn.style.boxShadow = 'none';
     const msg = document.createElement('p');
