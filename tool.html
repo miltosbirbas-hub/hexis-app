@@ -35,7 +35,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-b);font-size:
 .hero{padding:34px 0 10px;text-align:left}
 .hex{width:74px;height:82px;position:relative;display:flex;align-items:center;justify-content:center;margin-bottom:18px}
 .hex svg{position:absolute;inset:0;width:100%;height:100%}
-.hex .ico{position:relative;font-size:34px;line-height:1}
+.hex .ico{position:relative;width:36px;height:36px;color:#E05A12}
+.hex .ico svg{width:100%;height:100%;display:block}
 .eyebrow{font-family:var(--font-m);font-size:11.5px;color:var(--orange);letter-spacing:.18em;text-transform:uppercase;font-weight:600;display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .eyebrow::before{content:"";width:22px;height:2px;background:var(--orange)}
 h1{font-family:var(--font-d);font-weight:900;font-size:clamp(26px,4.5vw,40px);letter-spacing:-.01em;line-height:1.15}
@@ -105,7 +106,7 @@ footer p{font-size:11.5px;color:var(--faint)}
   <section class="hero">
     <div class="hex">
       <svg viewBox="0 0 74 82"><path d="M37 3 L69 21 V61 L37 79 L5 61 V21 Z" fill="rgba(242,107,33,.07)" stroke="rgba(242,107,33,.5)" stroke-width="2"/></svg>
-      <span class="ico" id="t-ico">🧰</span>
+      <span class="ico" id="t-ico"></span>
     </div>
     <div class="eyebrow" id="t-eyebrow">HEXIS Hub · Εργαλείο</div>
     <h1 id="t-name">—</h1>
@@ -166,6 +167,18 @@ const CATALOG = {
     feats:["Μετατροπή KMZ/KML σε ΕΓΣΑ'87",'Υψόμετρα από DEM σε κάθε κορυφή','Αυτόματες ισοϋψείς καμπύλες και TIN','Εξαγωγή έτοιμου DXF για το CAD σου'] }
 };
 
+const ICONS = {
+  app: '<svg viewBox="0 0 40 44" fill="none"><path d="M20 2 L37 12 V32 L20 42 L3 32 V12 Z" stroke="#F26B21" stroke-width="2.4"/><path d="M20 10 L30 16 V28 L20 34 L10 28 V16 Z" fill="rgba(242,107,33,.12)" stroke="#F26B21" stroke-width="1.5"/><circle cx="20" cy="22" r="2.6" fill="#F26B21"/></svg>',
+  mpeton: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="1"/><path d="M3 12h18"/><path d="M9 5.5V12M15 5.5V12M12 12v6.5M6 12v6.5M18 12v6.5"/></svg>',
+  rtk: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9.5" r="2.1"/><path d="M12 11.6V21"/><path d="M8.2 5.8a5.4 5.4 0 0 1 7.6 0"/><path d="M5.8 3.2a9 9 0 0 1 12.4 0"/><path d="M8.5 21h7"/></svg>',
+  ktima: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6.5V20l6-2.5 6 2.5 6-2.5V4l-6 2.5L9 4Z"/><path d="M9 4v13.5M15 6.5V20"/></svg>',
+  dxf: '<svg viewBox="0 0 100 100" fill="none"><polygon points="50,6 88.1,28 88.1,72 50,94 11.9,72 11.9,28" stroke="#D97706" stroke-width="7" stroke-linejoin="round"/><polygon points="27.1,63.2 31.5,37.7 52.2,28.9 72,45.6 66.7,68.5 45.6,72" stroke="#1B2530" stroke-width="4.5" stroke-linejoin="round"/><polyline points="36.8,50.9 47.8,62.3 70.2,35.0" stroke="#1F4E9C" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/><polyline points="36.8,50.9 47.8,62.3 70.2,35.0" stroke="#39FF14" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  lisp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3h7.5L18.5 7v14h-12V3Z"/><path d="M14 3v4h4.5"/><path d="M12.5 10.5v6M12.5 16.5 10 14M12.5 16.5 15 14"/></svg>',
+  domisi: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16.5" rx="2"/><rect x="9" y="2.5" width="6" height="3.5" rx="1"/><path d="m8.5 13 2.4 2.4 4.8-4.8"/></svg>',
+  nomothesia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5V21M7.5 21h9M5.5 6.5h13"/><path d="M5.5 6.5 3 12.2a2.7 2.7 0 0 0 5 0L5.5 6.5ZM18.5 6.5 16 12.2a2.7 2.7 0 0 0 5 0l-2.5-5.7Z"/></svg>',
+  kostos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.7"/><path d="M15.3 8.8a4.2 4.2 0 1 0 0 6.4M7.8 10.9h5.4M7.8 13.1h5.4"/></svg>',
+  terrain: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19 9.5 8l3.4 5.4 2.5-3.6L21 19H3Z"/><path d="M7.3 19c1.6-1 3.2-1 4.7 0 1.6 1 3.2 1 4.7 0"/></svg>'
+};
 let currentUser = null;
 
 function q(id){ return document.getElementById(id); }
@@ -180,7 +193,7 @@ async function init(){
   currentUser = session.user;
 
   document.title = 'HEXIS Hub — ' + t.name;
-  q('t-ico').textContent = t.ico;
+  q('t-ico').innerHTML = ICONS[t.mod === 'dxf' ? (id === 'lisp' ? 'lisp' : 'dxf') : id] || ICONS[id] || '';
   q('t-name').textContent = t.name;
   q('t-tagline').textContent = t.tagline;
   q('t-features').innerHTML = t.feats.map(f => '<div class="feat"><span class="tick">✓</span><span>' + f + '</span></div>').join('');
@@ -201,14 +214,31 @@ async function init(){
     row.innerHTML = '<a class="btn btn-orange" href="' + t.href + '"' + extra + '>' + open + '</a>'
       + '<span class="status-on">✓ Ενεργό στον λογαριασμό σου</span>';
   } else {
-    const mail = 'mailto:' + MODULE_CONTACT_EMAIL
-      + '?subject=' + encodeURIComponent('Ενεργοποίηση module: ' + t.name)
-      + '&body=' + encodeURIComponent('Γεια σας, θα ήθελα να ενεργοποιήσω το εργαλείο «' + t.name + '» στον λογαριασμό μου (email λογαριασμού: ' + (currentUser.email || '') + ').');
-    row.innerHTML = '<a class="btn btn-orange" href="' + mail + '">🔒 Ενεργοποίηση</a>'
+    row.innerHTML = '<button class="btn btn-orange" id="req-btn">Ενεργοποίηση</button>'
       + '<span class="price-tag">' + t.price + ' <small>ετήσια χρέωση</small></span>';
+    document.getElementById('req-btn').addEventListener('click', () => requestActivation(t));
   }
 
   q('loading').style.display = 'none';
+}
+async function requestActivation(t) {
+  const btn = document.getElementById('req-btn');
+  btn.disabled = true; btn.textContent = 'Αποστολή...';
+  try {
+    const { error } = await sb.from('module_requests').insert({
+      user_id: currentUser.id, email: currentUser.email, module: t.mod || new URLSearchParams(location.search).get('id')
+    });
+    if (error && error.code !== '23505') throw error;
+    btn.textContent = '✓ Το αίτημα εστάλη';
+    btn.style.background = '#1FA05C'; btn.style.boxShadow = 'none';
+    const msg = document.createElement('p');
+    msg.style.cssText = 'font-size:13px;color:#1FA05C;font-weight:600;width:100%';
+    msg.textContent = 'Λάβαμε το αίτημά σου — το εργαλείο θα ενεργοποιηθεί σύντομα και θα ενημερωθείς στο ' + (currentUser.email || 'email σου') + '.';
+    document.getElementById('cta-row').appendChild(msg);
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Ενεργοποίηση';
+    alert('Κάτι πήγε στραβά (' + e.message + '). Στείλε μας email στο ' + MODULE_CONTACT_EMAIL);
+  }
 }
 init();
 </script>

@@ -1749,7 +1749,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
 // ⚠️ ΣΥΜΠΛΗΡΩΣΕ: URL & anon key από το ΝΕΟ Supabase project (Settings → API)
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
-const APP_VERSION = 'v4.26'; // πρέπει να ταιριάζει με το VERSION του sw.js
+const APP_VERSION = 'v4.27'; // πρέπει να ταιριάζει με το VERSION του sw.js
 // Η έκδοση εμφανίζεται παντού δυναμικά — ΕΝΑ σημείο αλλαγής (+ sw.js)
 ['ver-mobile','ver-sub','ver-footer'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = APP_VERSION; });
 // Μετράει το πραγματικό ύψος του topbar (μπορεί να τυλιχτεί σε 2 σειρές σε κινητό)
@@ -5837,11 +5837,25 @@ function showModuleModal(m) {
     + '<div style="font-size:18px;font-weight:800;margin-bottom:6px">' + info.name + '</div>'
     + '<div style="font-size:13.5px;color:var(--text2,#667);margin-bottom:16px">Το εργαλείο είναι πρόσθετο (add-on) και δεν περιλαμβάνεται στη συνδρομή σου. Ενεργοποιείται ξεχωριστά και μένει διαθέσιμο σε όλες τις συσκευές σου.</div>'
     + (info.price ? '<div style="border:1px solid rgba(232,119,46,.4);background:rgba(232,119,46,.08);border-radius:11px;padding:12px 14px;margin-bottom:16px;font-weight:800;color:#E8772E;font-size:17px">' + info.price + '</div>' : '')
-    + '<a href="mailto:' + MODULE_CONTACT_EMAIL + '?subject=' + encodeURIComponent('Ενεργοποίηση module: ' + info.name) + '&body=' + encodeURIComponent('Γεια σας, θα ήθελα να ενεργοποιήσω το εργαλείο «' + info.name + '» στον λογαριασμό μου (email λογαριασμού: ' + ((typeof currentUser !== 'undefined' && currentUser && currentUser.email) || '') + ').') + '" style="display:block;text-align:center;padding:12px;border-radius:11px;background:linear-gradient(135deg,#E8772E,#d0651f);color:#fff;font-weight:700;text-decoration:none;margin-bottom:8px">Θέλω να το ενεργοποιήσω</a>'
+    + '<button id="hx-mod-req" style="display:block;width:100%;text-align:center;padding:12px;border-radius:11px;background:linear-gradient(135deg,#E8772E,#d0651f);color:#fff;font-weight:700;border:none;cursor:pointer;margin-bottom:8px">Θέλω να το ενεργοποιήσω</button>'
     + '<button onclick="document.getElementById(&quot;hx-mod-overlay&quot;).remove()" style="display:block;width:100%;padding:11px;border-radius:11px;background:none;border:1px solid var(--border,#ccc);color:var(--text,#1B2530);font-weight:600;cursor:pointer">Κλείσιμο</button>'
     + '</div>';
   o.addEventListener('click', e => { if (e.target === o) o.remove(); });
   document.body.appendChild(o);
+  document.getElementById('hx-mod-req').addEventListener('click', async function() {
+    this.disabled = true; this.textContent = 'Αποστολή...';
+    try {
+      const { error } = await sb.from('module_requests').insert({
+        user_id: currentUser.id, email: currentUser.email, module: m
+      });
+      if (error && error.code !== '23505') throw error;
+      this.textContent = '✓ Το αίτημα εστάλη — θα ενεργοποιηθεί σύντομα';
+      this.style.background = '#1FA05C';
+    } catch (e) {
+      this.disabled = false; this.textContent = 'Θέλω να το ενεργοποιήσω';
+      alert('Κάτι πήγε στραβά (' + e.message + '). Στείλε μας email στο ' + MODULE_CONTACT_EMAIL);
+    }
+  });
 }
 
 function toggleHelpLang() {
