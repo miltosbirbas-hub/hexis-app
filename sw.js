@@ -3,11 +3,11 @@
 //  ΑΛΛΑΖΕΙΣ ΜΟΝΟ ΤΟΝ ΑΡΙΘΜΟ VERSION ΣΕ ΚΑΘΕ ΝΕΑ ΕΚΔΟΣΗ
 //  (πρέπει να ταιριάζει με την έκδοση του app.html)
 // ============================================
-const VERSION = 'v4.28';
+const VERSION = 'v4.29';
 const CACHE_NAME = 'hexis-' + VERSION;
 
 // Αρχεία που προ-κατεβαίνουν στο install (παίζουν και offline)
-const PRECACHE = ['hub.html', 'tool.html', 'intro.mp4', 'nomothesia.html', 'nomothesia-manifest.json', 'nomothesia-icon-192.png', 'nomothesia-icon-512.png', 'nomothesia-icon-maskable.png', 'adeia_kostos.html', 'checkmydxf.html', 'hexis_check_my_dxf.lsp'];
+const PRECACHE = ['hub.html', 'tool.html', 'admin.html', 'admin-manifest.json', 'admin-icon-192.png', 'intro.mp4', 'nomothesia.html', 'nomothesia-manifest.json', 'nomothesia-icon-192.png', 'nomothesia-icon-512.png', 'nomothesia-icon-maskable.png', 'adeia_kostos.html', 'checkmydxf.html', 'hexis_check_my_dxf.lsp'];
 
 // Άμεση ενεργοποίηση νέας έκδοσης
 self.addEventListener('install', (e) => {
