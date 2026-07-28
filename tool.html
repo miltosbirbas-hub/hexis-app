@@ -120,11 +120,12 @@ footer p{font-size:11.5px;color:var(--faint)}
 
   <footer>
     <p>© 2026 BRB Development ΜΟΝ. Ι.Κ.Ε. — hexis-app.gr</p>
-    <p style="font-family:var(--font-m)">hub v1.0</p>
+    <p style="font-family:var(--font-m)" id="ver"></p>
   </footer>
 </div>
 
 <script>
+const HUB_VERSION = 'v1.1';
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
@@ -228,6 +229,25 @@ async function requestActivation(t) {
   }
 }
 init();
+document.getElementById('ver').textContent = 'hub ' + HUB_VERSION;
+
+// ===== Αυτόματες αναβαθμίσεις =====
+if ('serviceWorker' in navigator) {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    // έλεγχος για νέα έκδοση κάθε φορά που η σελίδα ξαναγίνεται ορατή
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') reg.update().catch(()=>{});
+    });
+    setInterval(() => reg.update().catch(()=>{}), 60 * 60 * 1000); // και κάθε 1 ώρα
+  }).catch(()=>{});
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloaded) return; // μόνο σε πραγματική αναβάθμιση, όχι στην 1η εγκατάσταση
+    reloaded = true;
+    location.reload(); // νέα έκδοση -> άμεσο φρεσκάρισμα
+  });
+}
 </script>
 </body>
 </html>

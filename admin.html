@@ -134,6 +134,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
     <div id="users" style="margin-top:12px"><div class="empty">Φόρτωση...</div></div>
     <div class="hint">Πάτησε σε χρήστη για να δεις και να αλλάξεις τα modules του — οι αλλαγές αποθηκεύονται αμέσως. Η συνδρομή (Starter/Pro/Studio) παραμένει στον πίνακα subscriptions.</div>
   </div>
+  <p style="text-align:center;font-family:var(--font-m);font-size:11px;color:var(--faint);margin-top:22px" id="ver"></p>
 </div>
 
 <div class="gate" id="gate" style="display:none">
@@ -144,6 +145,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 <div class="toast" id="toast"></div>
 
 <script>
+const ADMIN_VERSION = 'v1.2';
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
@@ -364,7 +366,25 @@ async function toggleMod(btn){
 }
 
 init();
-if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+document.getElementById('ver').textContent = 'HEXIS Admin ' + ADMIN_VERSION + ' — αυτόματες ενημερώσεις ενεργές';
+
+// ===== Αυτόματες αναβαθμίσεις =====
+if ('serviceWorker' in navigator) {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    // έλεγχος για νέα έκδοση κάθε φορά που η σελίδα ξαναγίνεται ορατή
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') reg.update().catch(()=>{});
+    });
+    setInterval(() => reg.update().catch(()=>{}), 60 * 60 * 1000); // και κάθε 1 ώρα
+  }).catch(()=>{});
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloaded) return; // μόνο σε πραγματική αναβάθμιση, όχι στην 1η εγκατάσταση
+    reloaded = true;
+    location.reload(); // νέα έκδοση -> άμεσο φρεσκάρισμα
+  });
+}
 </script>
 </body>
 </html>

@@ -166,6 +166,43 @@ footer{text-align:center}
 </style>
 </head>
 <body>
+<script>
+/* ===== HEXIS HUB GATE — έλεγχος entitlement (dxf) ===== */
+(function(){
+  var MODULE = 'dxf';
+  var SB = 'https://oucqqudfdimccgowvpqp.supabase.co';
+  var KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
+  var CK = 'hx_gate_' + MODULE, TTL = 7 * 864e5; // offline χάρη 7 ημερών μετά από επιτυχή έλεγχο
+  document.documentElement.style.visibility = 'hidden';
+  function allow(){ document.documentElement.style.visibility = ''; try{ localStorage.setItem(CK, String(Date.now())); }catch(e){} }
+  function deny(u){ location.replace(u); }
+  function cachedOk(){ try{ var t = +localStorage.getItem(CK); return t && (Date.now() - t) < TTL; }catch(e){ return false; } }
+  function offlineMsg(){
+    document.documentElement.style.visibility = '';
+    document.body.innerHTML = '<div style="font-family:system-ui,sans-serif;padding:60px 20px;text-align:center;color:#1F2836">'
+      + '<h2 style="margin-bottom:8px">Χρειάζεται σύνδεση στο internet</h2>'
+      + '<p style="color:#5B6675;margin-bottom:20px">για τον έλεγχο πρόσβασης του εργαλείου.</p>'
+      + '<a href="hub.html" style="color:#E05A12;font-weight:700">&larr; Επιστροφή στο HEXIS Hub</a></div>';
+  }
+  var raw = null; try{ raw = localStorage.getItem('sb-oucqqudfdimccgowvpqp-auth-token'); }catch(e){}
+  var tok = '';
+  if (raw) { try{ var s = JSON.parse(raw); tok = s.access_token || (s.currentSession && s.currentSession.access_token) || ''; }catch(e){} }
+  if (!tok) { deny('login.html'); return; }
+  fetch(SB + '/rest/v1/entitlements?select=module,active,expires_at&module=eq.' + MODULE, {
+    headers: { apikey: KEY, Authorization: 'Bearer ' + tok }
+  }).then(function(r){
+    if (r.status === 401 || r.status === 403) { if (cachedOk()) { allow(); } else { deny('hub.html'); } return null; }
+    return r.json();
+  }).then(function(rows){
+    if (rows === null) return;
+    var ok = (rows || []).some(function(e){ return e.active && (!e.expires_at || new Date(e.expires_at) > new Date()); });
+    if (ok) allow(); else deny('tool.html?id=' + MODULE);
+  }).catch(function(){
+    if (cachedOk()) allow(); else offlineMsg();
+  });
+})();
+</script>
+
 
 <div id="hxpcgate">
   <div class="box">
