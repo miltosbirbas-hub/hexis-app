@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HEXIS Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<link href="https://fonts.googleapis.com/css2?family=Commissioner:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{--bg:#FFFFFF;--border:#EAEDF1;--border-strong:#D9DDE4;--text:#1F2836;--muted:#5B6675;--faint:#98A1AE;
+--orange:#F26B21;--orange-deep:#E05A12;--green:#1FA05C;--red:#D64545;
+--font-d:'Commissioner',system-ui,sans-serif;--font-b:'Inter',system-ui,sans-serif;--font-m:'JetBrains Mono',monospace}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14.5px;line-height:1.6;min-height:100vh}
+.wrap{max-width:860px;margin:0 auto;padding:0 20px 70px}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 0;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px}
+.brand img{width:36px;height:36px;border-radius:9px}
+.bname{font-family:var(--font-d);font-weight:900;font-size:19px;letter-spacing:.05em}
+.bname em{font-style:normal;color:var(--orange);font-weight:700}
+.back{font-family:var(--font-d);font-weight:600;font-size:13px;color:var(--muted);background:#fff;border:1px solid var(--border);border-radius:9px;padding:8px 14px;text-decoration:none}
+.card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px;margin-top:18px;box-shadow:0 1px 2px rgba(16,40,70,.05)}
+.card h2{font-family:var(--font-d);font-size:15.5px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:9px}
+.card h2::before{content:"";width:16px;height:2px;background:var(--orange);border-radius:2px}
+.card h2 .count{font-size:11.5px;font-weight:700;background:#FFF3E8;color:#E05A12;border-radius:99px;padding:2px 9px}
+.req{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.req:last-child{border-bottom:none}
+.req .who{flex:1;min-width:180px}
+.req .who b{font-size:14px}
+.req .who small{display:block;color:var(--faint);font-size:12px;font-family:var(--font-m)}
+.mod-chip{font-size:12px;font-weight:700;background:#EFF3F8;border-radius:8px;padding:4px 10px;font-family:var(--font-m)}
+.btn{font-family:var(--font-d);font-weight:700;font-size:13px;padding:8px 15px;border-radius:9px;border:none;cursor:pointer}
+.btn-ok{background:var(--green);color:#fff}
+.btn-no{background:#fff;color:var(--red);border:1px solid var(--border-strong)}
+.btn-orange{background:linear-gradient(135deg,#F7941D,#F15A24);color:#fff}
+.btn:disabled{opacity:.5;cursor:default}
+.empty{color:var(--faint);font-size:13.5px;padding:8px 0}
+.searchrow{display:flex;gap:10px;flex-wrap:wrap}
+.searchrow input{flex:1;min-width:220px;font-family:var(--font-b);font-size:14.5px;padding:10px 14px;border:1px solid var(--border-strong);border-radius:10px;outline:none}
+.searchrow input:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(242,107,33,.15)}
+.userinfo{margin-top:14px;display:none}
+.userinfo .uline{font-size:13px;color:var(--muted);margin-bottom:12px}
+.userinfo .uline b{color:var(--text)}
+.mods{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:9px}
+.mrow{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--border);border-radius:10px;padding:10px 13px}
+.mrow span{font-size:13.5px;font-weight:600}
+.sw{position:relative;width:42px;height:24px;border-radius:99px;background:#D9DEE6;cursor:pointer;transition:.15s;flex:none;border:none}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.sw.on{background:var(--green)}
+.sw.on::after{left:21px}
+.sw:disabled{opacity:.5}
+.gate{max-width:420px;margin:80px auto;text-align:center}
+.gate h1{font-family:var(--font-d);font-weight:800;font-size:22px;margin-bottom:8px}
+.gate p{color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(80px);background:#1F2836;color:#fff;padding:11px 20px;border-radius:11px;font-size:13.5px;z-index:60;opacity:0;transition:.3s ease}
+.toast.show{transform:translateX(-50%);opacity:1}
+.hint{font-size:12px;color:var(--faint);margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap" id="main" style="display:none">
+  <header class="topbar">
+    <div class="brand">
+      <img src="icon-192.png" alt="">
+      <span class="bname">HEXIS <em>Admin</em></span>
+    </div>
+    <a class="back" href="hub.html">&larr; Hub</a>
+  </header>
+
+  <div class="card">
+    <h2>Αιτήματα ενεργοποίησης <span class="count" id="req-count">0</span></h2>
+    <div id="req-list"><div class="empty">Φόρτωση...</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Modules χρήστη</h2>
+    <div class="searchrow">
+      <input type="email" id="u-email" placeholder="email πελάτη" onkeydown="if(event.key==='Enter')loadUser()">
+      <button class="btn btn-orange" onclick="loadUser()">Αναζήτηση</button>
+    </div>
+    <div class="userinfo" id="userinfo">
+      <div class="uline" id="uline"></div>
+      <div class="mods" id="mods"></div>
+      <div class="hint">Οι αλλαγές αποθηκεύονται αμέσως. Η συνδρομή (Starter/Pro/Studio) παραμένει στη διαχείριση του πίνακα subscriptions.</div>
+    </div>
+  </div>
+</div>
+
+<div class="gate" id="gate" style="display:none">
+  <h1>Δεν έχεις πρόσβαση</h1>
+  <p>Η σελίδα είναι μόνο για διαχειριστές του HEXIS.</p>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+const MODULES = {
+  mpeton:'Σκυρόδεμα & Τοιχοποιία', rtk:'RTK Checklist', ktima:"Κτηματολόγιο & ΕΓΣΑ'87",
+  dxf:'CAD Tools (DXF + LISP)', domisi:'Έλεγχος Δόμησης', nomothesia:'Νομοθεσία',
+  kostos:'Κόστος Άδειας', terrain:'BRB Terrain'
+};
+
+let currentEmail = null;
+let toastTimer;
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2400); }
+
+async function init(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if (!session) { location.href='login.html'; return; }
+  // δοκιμή admin πρόσβασης
+  const { error } = await sb.rpc('admin_requests');
+  if (error) { document.getElementById('gate').style.display='block'; return; }
+  document.getElementById('main').style.display='block';
+  loadRequests();
+}
+
+async function loadRequests(){
+  const { data, error } = await sb.rpc('admin_requests');
+  const list = document.getElementById('req-list');
+  if (error) { list.innerHTML = '<div class="empty">Σφάλμα: '+error.message+'</div>'; return; }
+  const pending = (data||[]).filter(r=>r.status==='pending');
+  document.getElementById('req-count').textContent = pending.length;
+  if (!pending.length) { list.innerHTML = '<div class="empty">Κανένα εκκρεμές αίτημα 🎉</div>'; return; }
+  list.innerHTML = pending.map(r =>
+    '<div class="req" id="req-'+r.id+'">'
+    + '<div class="who"><b>'+ (r.email||'—') +'</b><small>'+ new Date(r.created_at).toLocaleString('el-GR') +'</small></div>'
+    + '<span class="mod-chip">'+ (MODULES[r.module]||r.module) +'</span>'
+    + '<button class="btn btn-ok" onclick="approve(\''+r.id+'\')">Ενεργοποίηση</button>'
+    + '<button class="btn btn-no" onclick="reject(\''+r.id+'\')">Απόρριψη</button>'
+    + '</div>').join('');
+}
+
+async function approve(id){
+  const { error } = await sb.rpc('admin_approve_request', { req: id });
+  if (error) { toast('Σφάλμα: '+error.message); return; }
+  toast('✓ Ενεργοποιήθηκε');
+  loadRequests();
+  if (currentEmail) loadUser(currentEmail);
+}
+async function reject(id){
+  const { error } = await sb.rpc('admin_reject_request', { req: id });
+  if (error) { toast('Σφάλμα: '+error.message); return; }
+  toast('Το αίτημα απορρίφθηκε');
+  loadRequests();
+}
+
+async function loadUser(preset){
+  const email = (preset || document.getElementById('u-email').value || '').trim().toLowerCase();
+  if (!email) return;
+  if (preset) document.getElementById('u-email').value = email;
+  const { data, error } = await sb.rpc('admin_user_modules', { u_email: email });
+  const box = document.getElementById('userinfo');
+  if (error) { toast('Σφάλμα: '+error.message); box.style.display='none'; return; }
+  if (data === null || (Array.isArray(data) && data.length && data[0].user_found === false)) {
+    toast('Δεν βρέθηκε χρήστης με αυτό το email'); box.style.display='none'; return;
+  }
+  currentEmail = email;
+  const active = new Set((data||[]).filter(m=>m.active).map(m=>m.module));
+  document.getElementById('uline').innerHTML = 'Χρήστης: <b>'+email+'</b> · Ενεργά modules: <b>'+active.size+' / '+Object.keys(MODULES).length+'</b>';
+  document.getElementById('mods').innerHTML = Object.entries(MODULES).map(([k,name]) =>
+    '<div class="mrow"><span>'+name+'</span>'
+    + '<button class="sw'+(active.has(k)?' on':'')+'" data-mod="'+k+'" onclick="toggleMod(this)" aria-label="'+name+'"></button></div>'
+  ).join('');
+  box.style.display='block';
+}
+
+async function toggleMod(btn){
+  const turnOn = !btn.classList.contains('on');
+  btn.disabled = true;
+  const { error } = await sb.rpc('admin_set_module', { u_email: currentEmail, m: btn.dataset.mod, on_off: turnOn });
+  btn.disabled = false;
+  if (error) { toast('Σφάλμα: '+error.message); return; }
+  btn.classList.toggle('on', turnOn);
+  toast((turnOn?'✓ Ενεργοποιήθηκε':'Απενεργοποιήθηκε')+' — '+MODULES[btn.dataset.mod]);
+}
+
+init();
+</script>
+</body>
+</html>
