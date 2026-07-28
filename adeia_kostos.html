@@ -84,6 +84,33 @@ footer b{color:#fff;font-variant-numeric:tabular-nums}
  #printarea .pfoot{border-top:.8pt solid #C9D6EE;margin-top:6mm;padding-top:2mm;font-size:8pt;color:#666;text-align:center}
  #printarea .pbreak{page-break-before:always}
 }
+/* ===== v1.13: συμπαγές layout — όλα σε μία οθόνη ===== */
+.card{padding:10px 12px;margin-bottom:9px;border-radius:11px}
+h2{margin:8px 0 6px;font-size:16px}
+h3{margin:7px 0 4px;font-size:13.5px}
+input,select,textarea{padding:6px 8px;font-size:13.5px;border-radius:7px}
+label{font-size:11.5px}
+td,th{padding:4px 6px;font-size:12.5px}
+.sumrow{padding:4px 0;font-size:13px}
+.btn{padding:7px 10px;font-size:13px}
+main{max-width:1240px}
+@media(min-width:1050px){
+ .twocol{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;align-items:start}
+ .grid3{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+/* Σημειώσεις: συμπτυγμένες σε 1 γραμμή — κλικ για ανάπτυξη */
+.note{font-size:11.5px;padding:4px 8px;margin:5px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.note.open{white-space:normal;overflow:visible;text-overflow:clip}
+.note::before{content:"ℹ️ "}
+.note.warn::before{content:"⚠️ "}
+/* Επισήμανση συμπληρωμένων τιμών — το μάτι πέφτει στις επιλογές */
+input.filled,select.filled,textarea.filled{border-color:#E08A2E !important;background:#FFF4E3 !important;color:#7A4A00;font-weight:700}
+label:has(>input[type=checkbox]:checked){color:#B25E00;font-weight:700}
+tr:has(input.filled)>td:first-child{border-left:3px solid #E08A2E}
+/* Εργαλεία κεφαλίδας */
+.hdrtools{display:flex;gap:6px;margin:8px 0 0;align-items:center}
+.hdrtools .btn{padding:6px 10px;font-size:12.5px;white-space:nowrap;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:8px;cursor:pointer}
+.hdrtools .btn:hover{background:rgba(255,255,255,.22)}
 </style>
 </head>
 <body>
@@ -143,6 +170,10 @@ footer b{color:#fff;font-variant-numeric:tabular-nums}
       <small>Προϋπολογισμός · Αμοιβές · Φορολογικά · ΕΦΚΑ · Έγγραφα · XML — hexis-app.gr</small>
     </div>
   </div>
+  <div class="hdrtools">
+    <button type="button" class="btn sm sec" id="undoBtn" title="Αναίρεση τελευταίας αλλαγής">↩️ Αναίρεση</button>
+    <button type="button" class="btn sm sec" id="clrBtn" title="Μηδενισμός όλων των ποσοτήτων (μ², ΑΕΚΚ)">🧹 Μηδενισμός</button>
+  </div>
   <nav id="tabs">
     <button data-tab="ergo" class="active">🏠 Έργο</button>
     <button data-tab="proyp">🧮 Προϋπ/σμός</button>
@@ -164,7 +195,8 @@ footer b{color:#fff;font-variant-numeric:tabular-nums}
 
 <script>
 "use strict";
-const VER = "v1.12";
+const VER = "v1.13";
+function defStat(){ return { dimos:"", tk:"", oikopedo:0, ogkos:0, orofoi:0, katoik:0, domatia:0, parking:0, ydreysi:"Δημοτικό δίκτυο", apoxeteysi:"Δημοτικό δίκτυο", thermansi:"Αντλία θερμότητας", energeia:"ΔΕΔΔΗΕ (ρεύμα)" };}
 function defAekk(){ return {
  newOn:true,
  excOn:false, excM3:0, excDens:1.65, excReuseM3:0, excEur:4,
@@ -349,7 +381,7 @@ let D = load() || {
  docEng:1,
  lambda:DEF.lambda, tekmHm:DEF.tekmHm, efkaPct:DEF.efkaPct,
  fpa:DEF.fpa, parakr:DEF.parakr, teeKrat:DEF.teeKrat, dimosFee:DEF.dimosFee, eadeiesFee:0,
- ektosSxediou:false, aekkKg:50, aekkEur:9, aekkEgy:0, aekk: defAekk(),
+ ektosSxediou:false, aekkKg:50, aekkEur:9, aekkEgy:0, aekk: defAekk(), stat: defStat(),
  uses: [ {...USES_CATALOG[1], m2:0}, {...USES_CATALOG[12], m2:0}, {...USES_CATALOG[11], m2:0} ],
  eta: DEF.eta, studies: JSON.parse(JSON.stringify(DEF.studies)), kenakPct: DEF.kenakPct, topoFlat: DEF.topoFlat, incProsthiki: false,
  works: JSON.parse(JSON.stringify(DEF.works)),
@@ -357,7 +389,39 @@ let D = load() || {
  sched: JSON.parse(JSON.stringify(DEF.sched)),
 };
 
-function save(){ try{ localStorage.setItem("hx_adeia", JSON.stringify(D)); }catch(_){} refreshTotals(); }
+function save(){ try{ localStorage.setItem("hx_adeia", JSON.stringify(D)); }catch(_){} refreshTotals(); histQueue(); }
+
+/* ===== v1.13: Ιστορικό αναίρεσης ===== */
+let HIST = [], HTIMER = null;
+function histSnap(){ try{ const s = JSON.stringify(D); if(HIST[HIST.length-1] !== s){ HIST.push(s); if(HIST.length > 60) HIST.shift(); } }catch(_){} }
+function histQueue(){ clearTimeout(HTIMER); HTIMER = setTimeout(histSnap, 900); }
+function undo(){
+ clearTimeout(HTIMER);
+ const cur = JSON.stringify(D);
+ let s = HIST.pop();
+ if(s === cur) s = HIST.pop();
+ if(!s){ alert("Δεν υπάρχει προηγούμενη κατάσταση για αναίρεση."); return; }
+ D = JSON.parse(s);
+ try{ localStorage.setItem("hx_adeia", s); }catch(_){}
+ render();
+}
+function clearQuantities(){
+ if(!confirm("Μηδενισμός όλων των ποσοτήτων;\n(επιφάνειες χρήσεων, ποσότητες ΑΕΚΚ, προϋπολογισμός e-Άδειες)\n\nΜπορείς να το αναιρέσεις με ↩️.")) return;
+ histSnap();
+ D.uses.forEach(u => u.m2 = 0);
+ D.eadeiesS = 0;
+ const A = D.aekk || (D.aekk = defAekk());
+ A.excM3 = 0; A.excReuseM3 = 0; A.demM2 = 0; A.renM2 = 0;
+ save(); render();
+}
+
+/* Επισήμανση συμπληρωμένων πεδίων */
+function markFilled(scope){
+ scope.querySelectorAll("input[data-k],textarea[data-k]").forEach(el=>{
+  const f = el.type === "number" ? Math.abs(+el.value) > 0 : String(el.value).trim() !== "";
+  el.classList.toggle("filled", f);
+ });
+}
 function load(){
  try{
   const d = JSON.parse(localStorage.getItem("hx_adeia"));
@@ -365,6 +429,8 @@ function load(){
   if(!d._v2){ d.works = JSON.parse(JSON.stringify(DEF.works)); d.studies = JSON.parse(JSON.stringify(DEF.studies)); d._v2 = 1; }
   if(d.ektosSxediou===undefined){ d.ektosSxediou=false; d.aekkKg=50; d.aekkEur=9; d.aekkEgy=0; }
   if(!d.aekk) d.aekk = defAekk();
+  if(!d.stat) d.stat = defStat();
+  (d.owners||[]).forEach(o=>{ if(!o.eidos) o.eidos = "Πλήρης κυριότητα"; });
   if(d.kenakPct===undefined){ d.kenakPct=DEF.kenakPct; d.topoFlat=DEF.topoFlat; d.incProsthiki=false; }
   if(d.eta===undefined) d.eta = 118.00;
   if(!Array.isArray(d.engineers) || !d.engineers.length){
@@ -530,6 +596,8 @@ function bindAll(scope, obj){
   const apply = ()=>{
    let o = obj; for(let i=0;i<path.length-1;i++) o = o[path[i]];
    o[path[path.length-1]] = (el.type==="number") ? +el.value : el.value;
+   const f = el.type === "number" ? Math.abs(+el.value) > 0 : String(el.value).trim() !== "";
+   el.classList.toggle("filled", f);
    save(); // ενημερώνει και το συνολικό στο footer — ΧΩΡΙΣ re-render, δεν χάνεται το focus
   };
   el.addEventListener("input", apply);
@@ -554,19 +622,22 @@ function render(){
  else if(tab==="xrono") rXrono();
  else if(tab==="docs") rDocs();
  else rExport();
+ markFilled(main);
  refreshTotals();
 }
+/* v1.13: ανάπτυξη/σύμπτυξη σημειώσεων + κουμπιά κεφαλίδας */
+document.addEventListener("click", e=>{
+ const n = e.target.closest(".note");
+ if(n && !e.target.closest("a,button,input,select")) n.classList.toggle("open");
+});
+document.getElementById("undoBtn").addEventListener("click", undo);
+document.getElementById("clrBtn").addEventListener("click", clearQuantities);
+histSnap(); // αρχική κατάσταση στο ιστορικό
 
 function rErgo(){
  const e = D.ergo;
  main.innerHTML = `
- <div class="card" style="background:linear-gradient(135deg,#EFF4FA,#FDFDFB);border-color:#DCE5F0">
-  <div style="display:flex;gap:12px;align-items:center">
-   <div style="font-size:34px">👋</div>
-   <div><b style="font-size:15.5px;color:#3D4E6D">Καλώς ήρθες!</b><br>
-   <span style="font-size:13px;color:#66707F">Τρία απλά βήματα: <b>1)</b> συμπλήρωσε το έργο και τις επιφάνειες εδώ, <b>2)</b> δες αμοιβές-φόρους-ΕΦΚΑ να υπολογίζονται μόνα τους, <b>3)</b> τύπωσε έγγραφα και XML από τα δεξιά tabs. Ό,τι γράφεις αποθηκεύεται αυτόματα στη συσκευή σου.</span></div>
-  </div>
- </div>
+ <div class="note">👋 Τρία βήματα: <b>1)</b> έργο & επιφάνειες εδώ → <b>2)</b> αμοιβές-φόροι-ΕΦΚΑ-ΑΕΚΚ υπολογίζονται μόνα τους → <b>3)</b> έγγραφα & XML από τα δεξιά tabs. Αυτόματη αποθήκευση στη συσκευή. Κλικ στις ℹ️ σημειώσεις για ανάπτυξη.</div>
  <h2>Στοιχεία έργου</h2>
  <div class="card">
   <label>Τίτλος έργου</label>${inp("ergo.titlos", e.titlos)}
@@ -574,19 +645,38 @@ function rErgo(){
    <div><label>Διεύθυνση / θέση</label>${inp("ergo.dieuth", e.dieuth)}</div>
    <div><label>ΚΑΕΚ</label>${inp("ergo.kaek", e.kaek)}</div>
   </div>
-  <label>Διάρκεια εργασιών (μήνες)</label>${ninp("ergo.months", e.months, "1")}
+  <div class="grid3">
+   <div><label>Δήμος / Δημ. Ενότητα</label>${inp("stat.dimos", D.stat.dimos)}</div>
+   <div><label>Τ.Κ.</label>${inp("stat.tk", D.stat.tk)}</div>
+   <div><label>Διάρκεια εργασιών (μήνες)</label>${ninp("ergo.months", e.months, "1")}</div>
+  </div>
+  <h3>Στατιστικά στοιχεία (δελτίο ΕΛΣΤΑΤ)</h3>
+  <div class="grid3">
+   <div><label>Εμβαδόν οικοπέδου (μ²)</label>${ninp("stat.oikopedo", D.stat.oikopedo, "1", 1)}</div>
+   <div><label>Όγκος κτιρίου (μ³)</label>${ninp("stat.ogkos", D.stat.ogkos, "1", 1)}</div>
+   <div><label>Αριθμός ορόφων</label>${ninp("stat.orofoi", D.stat.orofoi, "1", 1)}</div>
+   <div><label>Αριθμός κατοικιών</label>${ninp("stat.katoik", D.stat.katoik, "1", 1)}</div>
+   <div><label>Αριθμός δωματίων</label>${ninp("stat.domatia", D.stat.domatia, "1", 1)}</div>
+   <div><label>Θέσεις στάθμευσης</label>${ninp("stat.parking", D.stat.parking, "1", 1)}</div>
+  </div>
+  <div class="grid3" style="margin-top:6px">
+   <div><label>Ύδρευση</label><select data-k="stat.ydreysi">${["Δημοτικό δίκτυο","Γεώτρηση/πηγάδι","Άλλο"].map(v=>`<option ${D.stat.ydreysi===v?"selected":""}>${v}</option>`).join("")}</select></div>
+   <div><label>Αποχέτευση</label><select data-k="stat.apoxeteysi">${["Δημοτικό δίκτυο","Σηπτική/στεγανός βόθρος","Μονάδα επεξεργασίας","Άλλο"].map(v=>`<option ${D.stat.apoxeteysi===v?"selected":""}>${v}</option>`).join("")}</select></div>
+   <div><label>Θέρμανση</label><select data-k="stat.thermansi">${["Αντλία θερμότητας","Πετρέλαιο","Φυσικό αέριο","Ξύλο/pellet","Ηλεκτρική","Άλλο"].map(v=>`<option ${D.stat.thermansi===v?"selected":""}>${v}</option>`).join("")}</select></div>
+  </div>
  </div>
  <h2>Ιδιοκτήτες / Κύριοι του έργου</h2>
  <div class="card">
-  <div style="overflow-x:auto"><table><tr><th>Τύπος</th><th>Ονοματεπώνυμο / Επωνυμία</th><th>ΑΦΜ</th><th>ΔΟΥ</th><th class="num">%</th><th></th></tr>
+  <div style="overflow-x:auto"><table><tr><th>Τύπος</th><th>Ονοματεπώνυμο / Επωνυμία</th><th>ΑΦΜ</th><th>ΔΟΥ</th><th>Δικαίωμα</th><th class="num">%</th><th></th></tr>
   ${D.owners.map((o,i)=>`<tr>
    <td><select data-otype="${i}"><option value="f" ${o.type!=="n"?"selected":""}>Φυσικό πρ.</option><option value="n" ${o.type==="n"?"selected":""}>Νομικό πρ.</option></select></td>
    <td>${inp(`owners.${i}.name`, o.name)}</td>
    <td>${inp(`owners.${i}.afm`, o.afm)}</td>
    <td>${inp(`owners.${i}.doy`, o.doy||"")}</td>
+   <td><select data-oeid="${i}">${["Πλήρης κυριότητα","Ψιλή κυριότητα","Επικαρπία","Μίσθωση","Δικαίωμα επιφανείας","Άλλο"].map(v=>`<option ${o.eidos===v||(!o.eidos&&v==="Πλήρης κυριότητα")?"selected":""}>${v}</option>`).join("")}</select></td>
    <td class="num">${ninp(`owners.${i}.pct`, o.pct, "0.01", 1)}</td>
    <td>${D.owners.length>1?`<button type="button" class="btn sm sec" data-delown="${i}">🗑</button>`:""}</td></tr>`).join("")}
-  <tr class="total"><td colspan="4">ΣΥΝΟΛΟ ΠΟΣΟΣΤΩΝ</td><td class="num">${num(D.owners.reduce((a,o)=>a+(+o.pct||0),0))}%</td><td></td></tr>
+  <tr class="total"><td colspan="5">ΣΥΝΟΛΟ ΠΟΣΟΣΤΩΝ</td><td class="num">${num(D.owners.reduce((a,o)=>a+(+o.pct||0),0))}%</td><td></td></tr>
   </table></div>
   ${Math.abs(D.owners.reduce((a,o)=>a+(+o.pct||0),0)-100)>0.01?`<div class="note warn">⚠ Τα ποσοστά συνιδιοκτησίας πρέπει να αθροίζουν 100%.</div>`:""}
   <div class="btnrow"><button type="button" class="btn sm" id="addOwn">➕ Προσθήκη ιδιοκτήτη</button></div>
@@ -641,6 +731,7 @@ function rErgo(){
  });
  main.querySelectorAll("[data-delown]").forEach(b=> b.addEventListener("click", ()=>{ D.owners.splice(+b.dataset.delown,1); save(); render(); }));
  main.querySelectorAll("[data-otype]").forEach(s=> s.addEventListener("change", ()=>{ D.owners[+s.dataset.otype].type = s.value; save(); }));
+ main.querySelectorAll("[data-oeid]").forEach(s=> s.addEventListener("change", ()=>{ D.owners[+s.dataset.oeid].eidos = s.value; save(); }));
  const ae = document.getElementById("addEng");
  if(ae) ae.addEventListener("click", ()=>{
   const nid = Math.max(0,...D.engineers.map(e=>e.id))+1;
@@ -954,6 +1045,9 @@ function rDocs(){
    <button class="btn sec" onclick="printSymfSSED()">♻️ Συμφωνητικό ΣΣΕΔ</button>
    <button class="btn sec" onclick="printYDAekk()">✍ ΥΔ διαχειριστή ΑΕΚΚ</button>
   </div>
+  <div class="btnrow">
+   <button class="btn" onclick="printStat()">📊 Στατιστικό Δελτίο ΕΛΣΤΑΤ</button>
+  </div>
   <div class="note">Τα στοιχεία ΑΕΚΚ (ποσότητες, ΣΣΕΔ, εγγυητική) συμπληρώνονται στην καρτέλα ♻️ ΑΕΚΚ/ΣΔΑ.</div>
   <div class="note">Τα ΣΑΥ/ΦΑΥ παράγονται ως πλήρη πρότυπα π.δ. 305/1996 προσαρμοσμένα στο έργο — έλεγξε & συμπλήρωσε τα σημεία [___] πριν την υποβολή.</div>
   <div class="note">🗺️ Το τοπογραφικό διάγραμμα (DXF) πριν την υποβολή στο Κτηματολόγιο/e-Άδειες πέρασέ το από το <a href="checkmydxf.html" target="_blank"><b>Check My DXF</b></a> — έλεγχος layers, ΕΓΣΑ΄87 και προδιαγραφών ΔΓΜ.</div>
@@ -1144,6 +1238,39 @@ function printYDXomata(){
  <p style="margin-top:8mm">Ημερομηνία: ${new Date().toLocaleDateString("el-GR")}</p>
  <div class="sig"><div></div><div>Ο/Η Δηλών/ούσα<br><br><br>${esc(A.diax||"")}</div></div></div>
  <div class="pfoot">HEXIS Κόστος Άδειας ${VER}</div>`);
+}
+/* ===== ΣΤΑΤΙΣΤΙΚΟ ΔΕΛΤΙΟ ΟΙΚΟΔΟΜΙΚΗΣ ΔΡΑΣΤΗΡΙΟΤΗΤΑΣ (ΕΛΣΤΑΤ) ===== */
+function printStat(){
+ const s = D.stat || (D.stat = defStat());
+ const usesRows = D.uses.filter(u=>+u.m2>0).map(u=>`<tr><td>${esc(u.u)}</td><td class="num">${num(u.m2)}</td></tr>`).join("")
+   || `<tr><td colspan="2" style="text-align:center">[___]</td></tr>`;
+ const ownRows = D.owners.map(o=>`<tr><td>${esc(o.name||"[___]")}</td><td>${o.type==="n"?"Νομικό πρ.":"Φυσικό πρ."}</td><td>${esc(o.eidos||"Πλήρης κυριότητα")}</td><td class="num">${num(o.pct)}%</td><td>${esc(o.afm||"")}</td></tr>`).join("");
+ doPrint(phead("Στατιστικό Δελτίο Οικοδομικής Δραστηριότητας")+`<div class="doc">
+ <h1>ΣΤΑΤΙΣΤΙΚΟ ΔΕΛΤΙΟ ΟΙΚΟΔΟΜΙΚΗΣ ΔΡΑΣΤΗΡΙΟΤΗΤΑΣ</h1>
+ <p style="text-align:center">προς την Ελληνική Στατιστική Αρχή (ΕΛ.ΣΤΑΤ.) — συνυποβάλλεται με την οικοδομική άδεια (e-Άδειες)</p>
+ <h2>Α. Στοιχεία άδειας & έργου</h2>
+ <p><b>Τίτλος:</b> ${esc(D.ergo.titlos||"[___]")} · <b>Αρ. άδειας:</b> [___] · <b>ΥΔΟΜ:</b> [___]</p>
+ <p><b>Θέση:</b> ${esc(D.ergo.dieuth||"[___]")} · <b>Δήμος/Δ.Ε.:</b> ${esc(s.dimos||"[___]")} · <b>Τ.Κ.:</b> ${esc(s.tk||"[___]")} · <b>ΚΑΕΚ:</b> ${esc(D.ergo.kaek||"[___]")}</p>
+ <h2>Β. Κύριοι του έργου</h2>
+ <table><tr><th>Ονοματεπώνυμο / Επωνυμία</th><th>Τύπος</th><th>Δικαίωμα</th><th class="num">Ποσοστό</th><th>ΑΦΜ</th></tr>${ownRows}</table>
+ <h2>Γ. Χαρακτηριστικά έργου</h2>
+ <table>
+  <tr><td>Εμβαδόν οικοπέδου/γηπέδου</td><td class="num">${num(s.oikopedo)} μ²</td><td>Συνολική επιφάνεια κτιρίου</td><td class="num">${num(totM2())} μ²</td></tr>
+  <tr><td>Όγκος κτιρίου</td><td class="num">${num(s.ogkos)} μ³</td><td>Αριθμός ορόφων</td><td class="num">${num(s.orofoi)}</td></tr>
+  <tr><td>Αριθμός κατοικιών</td><td class="num">${num(s.katoik)}</td><td>Αριθμός δωματίων</td><td class="num">${num(s.domatia)}</td></tr>
+  <tr><td>Θέσεις στάθμευσης</td><td class="num">${num(s.parking)}</td><td>Προϋπολογισμός έργου</td><td class="num">${eur(symbatikos())}</td></tr>
+ </table>
+ <h2>Δ. Επιφάνειες ανά χρήση</h2>
+ <table><tr><th>Χρήση</th><th class="num">μ²</th></tr>${usesRows}
+ <tr class="total"><td><b>ΣΥΝΟΛΟ</b></td><td class="num"><b>${num(totM2())}</b></td></tr></table>
+ <h2>Ε. Παροχές / εγκαταστάσεις</h2>
+ <table>
+  <tr><td>Ύδρευση</td><td>${esc(s.ydreysi)}</td><td>Αποχέτευση</td><td>${esc(s.apoxeteysi)}</td></tr>
+  <tr><td>Θέρμανση</td><td>${esc(s.thermansi)}</td><td>Ενέργεια</td><td>${esc(s.energeia)}</td></tr>
+ </table>
+ <p style="margin-top:8mm">Ημερομηνία: ${new Date().toLocaleDateString("el-GR")}</p>
+ <div class="sig"><div>Ο Μηχανικός<br><br><br>${esc(engById(D.docEng).name||"")}</div><div>Ο Κύριος του Έργου<br><br><br>${esc(ownersShort())}</div></div></div>
+ <div class="pfoot">Συμπλήρωσε τα [___] (αρ. άδειας, ΥΔΟΜ) — τα λοιπά αντλούνται από τις καρτέλες Έργο & Προϋπολογισμός. HEXIS ${VER}</div>`);
 }
 function printSAY(){
  doPrint(phead("ΣΑΥ — π.δ. 305/1996")+`<div class="doc"><h1>ΣΧΕΔΙΟ ΑΣΦΑΛΕΙΑΣ ΚΑΙ ΥΓΕΙΑΣ (Σ.Α.Υ.)</h1>${ergoline()}
@@ -1368,6 +1495,7 @@ ${inner}    <sigma>${sigma}</sigma>
 ${D.owners.map(o=>`  <owner>
     <owner_id>${o.id}</owner_id>
     <percent>${(+o.pct||0).toFixed(2)}</percent>
+    <right>${esc(o.eidos||"Πλήρης κυριότητα")}</right>
     <name>${esc(o.name)}</name>
     <address></address>
     <city></city>
