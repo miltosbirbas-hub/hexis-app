@@ -383,6 +383,9 @@ tr:hover td { background: var(--surface2); }
 .topo-mode-btn.active{background:var(--accent,#E8772E);color:#fff;border-color:var(--accent,#E8772E)}
 .qt-tool-card{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--surface,rgba(255,255,255,0.05));color:var(--text);text-decoration:none;transition:border-color .15s}
 .qt-tool-card:hover{border-color:var(--accent,#E8772E)}
+.qt-tool-card[data-module]{position:relative}
+.qt-tool-card.hx-locked{opacity:.55;filter:grayscale(.4)}
+.qt-tool-card.hx-locked:hover{border-color:var(--accent,#E8772E);opacity:.75}
 .qt-tool-ico{font-size:26px;flex:none}
 .qt-tool-card small{color:var(--text2)}
 .qt-body{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column}
@@ -1746,7 +1749,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
 // ⚠️ ΣΥΜΠΛΗΡΩΣΕ: URL & anon key από το ΝΕΟ Supabase project (Settings → API)
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
-const APP_VERSION = 'v4.25'; // πρέπει να ταιριάζει με το VERSION του sw.js
+const APP_VERSION = 'v4.26'; // πρέπει να ταιριάζει με το VERSION του sw.js
 // Η έκδοση εμφανίζεται παντού δυναμικά — ΕΝΑ σημείο αλλαγής (+ sw.js)
 ['ver-mobile','ver-sub','ver-footer'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = APP_VERSION; });
 // Μετράει το πραγματικό ύψος του topbar (μπορεί να τυλιχτεί σε 2 σειρές σε κινητό)
@@ -5768,9 +5771,78 @@ function renderPlanBadge() {
   b.textContent = name;
   b.title = 'Πλάνο: ' + name;
   eng.insertAdjacentElement('afterend', b);
-  // Εργαλείο «Νομοθεσία» — ορατό ΜΟΝΟ σε Studio
-  const nomo = document.getElementById('nomothesia-card');
-  if (nomo) nomo.style.display = (currentPlan === 'studio') ? 'flex' : 'none';
+  // Εργαλεία add-on — κλειδώματα βάσει entitlements (HEXIS Hub)
+  applyModuleLocks();
+}
+
+/* ===== HEXIS HUB — MODULES / ENTITLEMENTS ===== */
+// Τιμές add-on — ΕΝΑ σημείο αλλαγής. Άλλαξε ελεύθερα τα ποσά/κείμενα.
+const BRB_TERRAIN_URL = 'https://miltosbirbas-hub.github.io/BRB-contour-live/';
+const MODULE_CONTACT_EMAIL = 'info@hexis-app.gr'; // email για αιτήματα ενεργοποίησης
+const MODULE_INFO = {
+  mpeton:     { name: 'Σκυρόδεμα & Τοιχοποιία',        price: '3€ / μήνα + ΦΠΑ' },
+  rtk:        { name: 'RTK Checklist',                  price: '3€ / μήνα + ΦΠΑ' },
+  ktima:      { name: "Κτηματολόγιο & ΕΓΣΑ'87",         price: '5€ / μήνα + ΦΠΑ' },
+  dxf:        { name: 'Check My DXF',                   price: '5€ / μήνα + ΦΠΑ' },
+  lisp:       { name: 'LISP: HEXISCHECK / HEXISFIX',    price: '5€ / μήνα + ΦΠΑ' },
+  domisi:     { name: 'Έλεγχος Δόμησης',                price: '4€ / μήνα + ΦΠΑ' },
+  nomothesia: { name: 'Νομοθεσία',                      price: '8€ / μήνα + ΦΠΑ' },
+  kostos:     { name: 'Κόστος Άδειας',                  price: '5€ / μήνα + ΦΠΑ' },
+  terrain:    { name: 'BRB Terrain',                    price: '5€ / μήνα + ΦΠΑ' }
+};
+let myModules = new Set();
+
+async function loadEntitlements() {
+  try {
+    const { data, error } = await sb.from('entitlements').select('module,active,expires_at');
+    if (error) throw error;
+    const now = new Date();
+    myModules = new Set((data || [])
+      .filter(e => e.active && (!e.expires_at || new Date(e.expires_at) > now))
+      .map(e => e.module));
+  } catch (e) { console.warn('entitlements:', e.message); myModules = new Set(); }
+  applyModuleLocks();
+}
+
+function applyModuleLocks() {
+  const tc = document.getElementById('terrain-card');
+  if (tc && BRB_TERRAIN_URL.indexOf('http') === 0) tc.href = BRB_TERRAIN_URL;
+  document.querySelectorAll('.qt-tool-card[data-module]').forEach(card => {
+    const has = myModules.has(card.dataset.module);
+    card.classList.toggle('hx-locked', !has);
+    let ico = card.querySelector('.hx-lock-ico');
+    if (!has && !ico) {
+      ico = document.createElement('span');
+      ico.className = 'hx-lock-ico';
+      ico.textContent = '\uD83D\uDD12';
+      ico.style.cssText = 'position:absolute;top:8px;right:10px;font-size:13px';
+      card.appendChild(ico);
+    } else if (has && ico) ico.remove();
+    if (!card._hxGate) {
+      card._hxGate = true;
+      card.addEventListener('click', ev => {
+        if (!myModules.has(card.dataset.module)) { ev.preventDefault(); ev.stopPropagation(); showModuleModal(card.dataset.module); }
+      });
+    }
+  });
+}
+
+function showModuleModal(m) {
+  const info = MODULE_INFO[m] || { name: m, price: '' };
+  const old = document.getElementById('hx-mod-overlay'); if (old) old.remove();
+  const o = document.createElement('div');
+  o.id = 'hx-mod-overlay';
+  o.style.cssText = 'position:fixed;inset:0;background:rgba(10,15,25,.6);backdrop-filter:blur(3px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  o.innerHTML = '<div style="background:var(--surface2,#fff);color:var(--text,#1B2530);border-radius:16px;max-width:400px;width:100%;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,.35)">'
+    + '<div style="font-size:26px;margin-bottom:8px">\uD83D\uDD12</div>'
+    + '<div style="font-size:18px;font-weight:800;margin-bottom:6px">' + info.name + '</div>'
+    + '<div style="font-size:13.5px;color:var(--text2,#667);margin-bottom:16px">Το εργαλείο είναι πρόσθετο (add-on) και δεν περιλαμβάνεται στη συνδρομή σου. Ενεργοποιείται ξεχωριστά και μένει διαθέσιμο σε όλες τις συσκευές σου.</div>'
+    + (info.price ? '<div style="border:1px solid rgba(232,119,46,.4);background:rgba(232,119,46,.08);border-radius:11px;padding:12px 14px;margin-bottom:16px;font-weight:800;color:#E8772E;font-size:17px">' + info.price + '</div>' : '')
+    + '<a href="mailto:' + MODULE_CONTACT_EMAIL + '?subject=' + encodeURIComponent('Ενεργοποίηση module: ' + info.name) + '&body=' + encodeURIComponent('Γεια σας, θα ήθελα να ενεργοποιήσω το εργαλείο «' + info.name + '» στον λογαριασμό μου (email λογαριασμού: ' + ((typeof currentUser !== 'undefined' && currentUser && currentUser.email) || '') + ').') + '" style="display:block;text-align:center;padding:12px;border-radius:11px;background:linear-gradient(135deg,#E8772E,#d0651f);color:#fff;font-weight:700;text-decoration:none;margin-bottom:8px">Θέλω να το ενεργοποιήσω</a>'
+    + '<button onclick="document.getElementById(&quot;hx-mod-overlay&quot;).remove()" style="display:block;width:100%;padding:11px;border-radius:11px;background:none;border:1px solid var(--border,#ccc);color:var(--text,#1B2530);font-weight:600;cursor:pointer">Κλείσιμο</button>'
+    + '</div>';
+  o.addEventListener('click', e => { if (e.target === o) o.remove(); });
+  document.body.appendChild(o);
 }
 
 function toggleHelpLang() {
@@ -6149,6 +6221,7 @@ async function init() {
       currentPlan = dead ? 'starter' : (PLAN_MAP[tier] || 'starter');
     }
   } catch(e) { console.warn('subscription:', e.message); }
+  loadEntitlements();
   currentRole = currentUser.user_metadata?.role || 'engineer';
   // Έλεγχος αν ο χρήστης είναι ορισμένος ως owner σε κάποιο έργο (βάσει email)
   try {
@@ -6386,19 +6459,19 @@ window.addEventListener('beforeinstallprompt', (e) => {
       <div id="bk-status" style="font-size:10.5px;color:var(--text2);margin-top:7px"></div>
     </div>
     <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Εργαλεία υπολογισμού επί τόπου του έργου</div>
-    <a href="mpeton.html" target="_blank" class="qt-tool-card">
+    <a href="mpeton.html" target="_blank" class="qt-tool-card" data-module="mpeton">
       <span class="qt-tool-ico">&#129521;</span>
       <span><b>Σκυρόδεμα &amp; Τοιχοποιία</b><br><small>Αναλογίες μπετόν C12/15–C40 · τούβλα · σενάζ · λάσπη</small></span>
     </a>
-    <a href="rtk_checklist.html" target="_blank" class="qt-tool-card">
+    <a href="rtk_checklist.html" target="_blank" class="qt-tool-card" data-module="rtk">
       <span class="qt-tool-ico">&#128752;</span>
       <span><b>RTK Checklist</b><br><small>Στήσιμο Base + Rover · γνωστό σημείο / localization</small></span>
     </a>
-    <a href="ktimatologio.html" target="_blank" class="qt-tool-card">
+    <a href="ktimatologio.html" target="_blank" class="qt-tool-card" data-module="ktima">
       <span class="qt-tool-ico">&#128506;</span>
       <span><b>Κτηματολόγιο &amp; ΕΓΣΑ'87</b><br><small>Χάρτης με συντεταγμένες · μετρήσεις · όρια κτηματολογίου</small></span>
     </a>
-    <a href="checkmydxf.html" target="_blank" class="qt-tool-card">
+    <a href="checkmydxf.html" target="_blank" class="qt-tool-card" data-module="dxf">
       <span class="qt-tool-ico"><svg viewBox="0 0 100 100" width="27" height="27" style="display:block">
         <polygon points="50,6 88.1,28 88.1,72 50,94 11.9,72 11.9,28" fill="none" stroke="#D97706" stroke-width="7" stroke-linejoin="round"/>
         <polygon points="27.1,63.2 31.5,37.7 52.2,28.9 72,45.6 66.7,68.5 45.6,72" fill="none" stroke="#1B2530" stroke-width="4.5" stroke-linejoin="round"/>
@@ -6407,21 +6480,25 @@ window.addEventListener('beforeinstallprompt', (e) => {
       </svg></span>
       <span><b>Check My DXF</b><br><small>Έλεγχος διαγράμματος για Ηλεκτρονική Υποβολή ΕΚ · Πίνακας Ι · χάρτης</small></span>
     </a>
-    <a href="hexis_check_my_dxf.lsp" download class="qt-tool-card">
+    <a href="hexis_check_my_dxf.lsp" download class="qt-tool-card" data-module="lisp">
       <span class="qt-tool-ico">&#11015;&#65039;</span>
       <span><b>LISP: HEXISCHECK / HEXISFIX</b><br><small>Λήψη για AutoCAD &amp; progeCAD — έλεγχος &amp; αυτόματες διορθώσεις στο DWG</small></span>
     </a>
-    <a href="elegxos.html" target="_blank" class="qt-tool-card">
+    <a href="elegxos.html" target="_blank" class="qt-tool-card" data-module="domisi">
       <span class="qt-tool-ico">&#128203;</span>
       <span><b>Έλεγχος Δόμησης</b><br><small>Πόρισμα Ελεγκτών · Ν.4495/2017 · ΚΥΑ 299/2014 · αμοιβή</small></span>
     </a>
-    <a href="nomothesia.html" target="_blank" class="qt-tool-card" id="nomothesia-card" style="display:none">
+    <a href="nomothesia.html" target="_blank" class="qt-tool-card" id="nomothesia-card" data-module="nomothesia">
       <span class="qt-tool-ico">&#9878;&#65039;</span>
-      <span><b>Νομοθεσία <span style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#4D8DFF;border:1px solid #4D8DFF;border-radius:5px;padding:1px 5px;vertical-align:2px">STUDIO</span></b><br><small>Κώδικας Ταγαρά 5306/26 · ΝΟΚ · Ν.4495 · Κτιριοδομικός + AI αναζήτηση</small></span>
+      <span><b>Νομοθεσία <span style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#E8772E;border:1px solid #E8772E;border-radius:5px;padding:1px 5px;vertical-align:2px">ADD-ON</span></b><br><small>Κώδικας Ταγαρά 5306/26 · ΝΟΚ · Ν.4495 · Κτιριοδομικός + AI αναζήτηση</small></span>
     </a>
-    <a href="adeia_kostos.html" target="_blank" class="qt-tool-card">
+    <a href="adeia_kostos.html" target="_blank" class="qt-tool-card" data-module="kostos">
       <span class="qt-tool-ico">&#128176;</span>
       <span><b>Κόστος Άδειας</b><br><small>Προϋπολογισμός · Αμοιβές · Φόροι · ΕΦΚΑ · Συμφωνητικά · ΣΑΥ/ΦΑΥ · ΥΔ · XML</small></span>
+    </a>
+    <a href="#" target="_blank" class="qt-tool-card" id="terrain-card" data-module="terrain">
+      <span class="qt-tool-ico">&#9968;&#65039;</span>
+      <span><b>BRB Terrain</b><br><small>KMZ/KML &rarr; ΕΓΣΑ'87 · υψόμετρα DEM · ισοϋψείς · DXF εξαγωγή</small></span>
     </a>
     <div class="qt-tool-card" id="migrate-card" onclick="migrateBuildings()" style="cursor:pointer;display:none">
       <span class="qt-tool-ico">&#11014;&#65039;</span>
