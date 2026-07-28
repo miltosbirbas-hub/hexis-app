@@ -7,7 +7,7 @@ const VERSION = 'v4.26';
 const CACHE_NAME = 'hexis-' + VERSION;
 
 // Αρχεία που προ-κατεβαίνουν στο install (παίζουν και offline)
-const PRECACHE = ['intro.mp4', 'nomothesia.html', 'nomothesia-manifest.json', 'nomothesia-icon-192.png', 'nomothesia-icon-512.png', 'nomothesia-icon-maskable.png', 'adeia_kostos.html', 'checkmydxf.html', 'hexis_check_my_dxf.lsp'];
+const PRECACHE = ['hub.html', 'intro.mp4', 'nomothesia.html', 'nomothesia-manifest.json', 'nomothesia-icon-192.png', 'nomothesia-icon-512.png', 'nomothesia-icon-maskable.png', 'adeia_kostos.html', 'checkmydxf.html', 'hexis_check_my_dxf.lsp'];
 
 // Άμεση ενεργοποίηση νέας έκδοσης
 self.addEventListener('install', (e) => {
