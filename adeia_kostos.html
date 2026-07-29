@@ -135,6 +135,29 @@ tr:has(input.filled)>td:first-child{border-left:3px solid #E08A2E}
     }catch(e){}
   }
   function deny(u){ location.replace(u); }
+  function devId(){
+    try{
+      var d = localStorage.getItem('hx_device_id');
+      if(!d){ d = (self.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + '-' + Math.random().toString(36).slice(2); localStorage.setItem('hx_device_id', d); }
+      return d;
+    }catch(e){ return 'ls-unavailable-' + MODULE; }
+  }
+  function denyDevices(){
+    document.documentElement.style.visibility = '';
+    document.body.innerHTML = '<div style="font-family:system-ui,sans-serif;padding:60px 20px;text-align:center;color:#1F2836;max-width:520px;margin:0 auto">'
+      + '<h2 style="margin-bottom:8px">Όριο συσκευών (4/4)</h2>'
+      + '<p style="color:#5B6675;margin-bottom:14px">Ο λογαριασμός σου είναι ήδη συνδεδεμένος σε 4 συσκευές. Αποσύνδεσε μια παλιά συσκευή από το HEXIS Hub (Λογαριασμός → Συσκευές) και δοκίμασε ξανά.</p>'
+      + '<a href="hub.html" style="color:#E05A12;font-weight:700">&larr; Επιστροφή στο HEXIS Hub</a></div>';
+  }
+  function checkDevice(cb){
+    fetch(SB + '/rest/v1/rpc/register_device', {
+      method: 'POST',
+      headers: { apikey: KEY, Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_device_id: devId(), p_label: (navigator.userAgent || '').slice(0, 120) })
+    }).then(function(r){ return r.ok ? r.json() : true; })   // αν λείπει το RPC ακόμα: μην κλειδώσεις
+      .then(function(ok){ cb(ok !== false); })
+      .catch(function(){ cb(true); });                        // πρόβλημα δικτύου: καλύπτεται από offline cache
+  }
   function cachedOk(){ try{ var t = +localStorage.getItem(CK); return t && (Date.now() - t) < TTL; }catch(e){ return false; } }
   function offlineMsg(){
     document.documentElement.style.visibility = '';
@@ -155,7 +178,8 @@ tr:has(input.filled)>td:first-child{border-left:3px solid #E08A2E}
   }).then(function(rows){
     if (rows === null) return;
     var ok = (rows || []).some(function(e){ return e.active && (!e.expires_at || new Date(e.expires_at) > new Date()); });
-    if (ok) allow(); else deny('tool.html?id=' + MODULE);
+    if (ok) { checkDevice(function(devOk){ if (devOk) allow(); else denyDevices(); }); }
+    else deny('tool.html?id=' + MODULE);
   }).catch(function(){
     if (cachedOk()) allow(); else offlineMsg();
   });
@@ -195,7 +219,7 @@ tr:has(input.filled)>td:first-child{border-left:3px solid #E08A2E}
 
 <script>
 "use strict";
-const VER = "v1.13";
+const VER = "v1.14";
 function defStat(){ return { dimos:"", tk:"", oikopedo:0, ogkos:0, orofoi:0, katoik:0, domatia:0, parking:0, ydreysi:"Δημοτικό δίκτυο", apoxeteysi:"Δημοτικό δίκτυο", thermansi:"Αντλία θερμότητας", energeia:"ΔΕΔΔΗΕ (ρεύμα)" };}
 function defAekk(){ return {
  newOn:true,
@@ -381,7 +405,7 @@ let D = load() || {
  docEng:1,
  lambda:DEF.lambda, tekmHm:DEF.tekmHm, efkaPct:DEF.efkaPct,
  fpa:DEF.fpa, parakr:DEF.parakr, teeKrat:DEF.teeKrat, dimosFee:DEF.dimosFee, eadeiesFee:0,
- ektosSxediou:false, aekkKg:50, aekkEur:9, aekkEgy:0, aekk: defAekk(), stat: defStat(),
+ ektosSxediou:false, aekkKg:50, aekkEur:9, aekkEgy:0, aekk: defAekk(), stat: defStat(), allagi:false, scen:[],
  uses: [ {...USES_CATALOG[1], m2:0}, {...USES_CATALOG[12], m2:0}, {...USES_CATALOG[11], m2:0} ],
  eta: DEF.eta, studies: JSON.parse(JSON.stringify(DEF.studies)), kenakPct: DEF.kenakPct, topoFlat: DEF.topoFlat, incProsthiki: false,
  works: JSON.parse(JSON.stringify(DEF.works)),
@@ -430,6 +454,7 @@ function load(){
   if(d.ektosSxediou===undefined){ d.ektosSxediou=false; d.aekkKg=50; d.aekkEur=9; d.aekkEgy=0; }
   if(!d.aekk) d.aekk = defAekk();
   if(!d.stat) d.stat = defStat();
+  if(d.allagi===undefined){ d.allagi=false; d.scen=[]; (d.uses||[]).forEach(u=>{ if(u.oldIdx===undefined) u.oldIdx=-1; }); }
   (d.owners||[]).forEach(o=>{ if(!o.eidos) o.eidos = "Πλήρης κυριότητα"; });
   if(d.kenakPct===undefined){ d.kenakPct=DEF.kenakPct; d.topoFlat=DEF.topoFlat; d.incProsthiki=false; }
   if(d.eta===undefined) d.eta = 118.00;
@@ -463,7 +488,21 @@ const esc = (s)=> String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").repla
    ΥΠΟΛΟΓΙΣΜΟΙ
    ============================================================ */
 function totM2(){ return D.uses.reduce((a,x)=> a + (+x.m2||0), 0); }
-function useBudget(x){ return (+x.m2||0) * (+D.eta||118) * (+x.se||1); }
+function useBudget(x){
+ const nv = (+x.m2||0) * (+D.eta||118) * (+x.se||1);
+ if(!D.allagi) return nv;
+ const oldSe = (x.oldIdx!=null && x.oldIdx>=0 && USES_CATALOG[x.oldIdx]) ? +USES_CATALOG[x.oldIdx].se : 0;
+ const ov = (+x.m2||0) * (+D.eta||118) * oldSe;
+ return Math.max(0, nv - ov); // διαφορά αλλαγής χρήσης, ελάχιστο 0 ανά γραμμή
+}
+function usesTotal(which){
+ return D.uses.reduce((a,x)=>{
+  const se = which==="old"
+   ? ((x.oldIdx!=null && x.oldIdx>=0 && USES_CATALOG[x.oldIdx]) ? +USES_CATALOG[x.oldIdx].se : 0)
+   : (+x.se||1);
+  return a + (+x.m2||0) * (+D.eta||118) * se;
+ }, 0);
+}
 function symbatikos(){ if(+D.eadeiesS > 0) return +D.eadeiesS; return D.uses.reduce((a,x)=> a + useBudget(x), 0); }
 
 function beta(base, l, k, m){ if(base<=0||l<=0) return 0; return k + m/Math.cbrt(base/l); }
@@ -683,20 +722,38 @@ function rErgo(){
  </div>
  <h2>Επιφάνειες ανά χρήση</h2>
  <div class="card">
-  <label>ΕΤΑ — Ενιαία Τιμή Αφετηρίας ΤΕΕ €/μ² (ΥΑ ΦΕΚ 56/2012)</label>${ninp("eta", D.eta, "0.01", 1)}
-  <div style="overflow-x:auto"><table><tr><th>Χρήση (κατάλογος ΤΕΕ)</th><th class="num">μ²</th><th class="num">Σ.Ε.</th><th class="num">κωδ.</th><th class="num">Συμβ. αξία (μ²×ΕΤΑ×ΣΕ)</th><th></th></tr>
+  <div class="grid2">
+   <div><label>ΕΤΑ — Ενιαία Τιμή Αφετηρίας ΤΕΕ €/μ² (ΥΑ ΦΕΚ 56/2012)</label>${ninp("eta", D.eta, "0.01", 1)}</div>
+   <div><label style="margin-top:16px"><input type="checkbox" id="allagiChk" ${D.allagi?"checked":""} style="width:auto;margin-right:6px"><b>Αλλαγή χρήσης</b> — προϋπ. = διαφορά νέας − παλαιάς</label></div>
+  </div>
+  <div style="overflow-x:auto"><table><tr><th>${D.allagi?"ΝΕΑ χρήση":"Χρήση"} (κατάλογος ΤΕΕ)</th>${D.allagi?`<th>ΠΑΛΑΙΑ χρήση</th>`:""}<th class="num">μ²</th><th class="num">Σ.Ε.${D.allagi?" νέας":""}</th><th class="num">κωδ.</th><th class="num">${D.allagi?"Διαφορά αξίας":"Συμβ. αξία (μ²×ΕΤΑ×ΣΕ)"}</th><th></th></tr>
   ${D.uses.map((x,i)=>`<tr>
    <td><select data-cat="${i}">${USES_CATALOG.map((c,j)=>`<option value="${j}" ${c.u===x.u?"selected":""}>${esc(c.u)}</option>`).join("")}</select></td>
+   ${D.allagi?`<td><select data-oldcat="${i}">${USES_CATALOG.map((c,j)=>`<option value="${j}" ${(x.oldIdx??-1)===j?"selected":""}>${esc(c.u)} (ΣΕ ${c.se})</option>`).join("")}</select></td>`:""}
    <td class="num">${ninp(`uses.${i}.m2`, x.m2, "0.01", 1)}</td>
    <td class="num">${ninp(`uses.${i}.se`, x.se??1, "0.01", 1)}</td>
    <td class="num">${ninp(`uses.${i}.cid`, x.cid??0, "1", 1)}</td>
    <td class="num">${eur(useBudget(x))}</td>
    <td><button type="button" class="btn sm sec" data-del="${i}">🗑</button></td></tr>`).join("")}
-  <tr class="total"><td>ΣΥΝΟΛΟ</td><td class="num">${num(totM2())} μ²</td><td colspan="2"></td><td class="num">${eur(D.uses.reduce((a,x)=>a+useBudget(x),0))}</td><td></td></tr>
+  <tr class="total"><td>ΣΥΝΟΛΟ</td>${D.allagi?"<td></td>":""}<td class="num">${num(totM2())} μ²</td><td colspan="2"></td><td class="num">${eur(D.uses.reduce((a,x)=>a+useBudget(x),0))}</td><td></td></tr>
   </table></div>
+  ${D.allagi?`
+  <div class="sumrow"><span>Προϋπολογισμός ΝΕΑΣ χρήσης</span><b>${eur(usesTotal("new"))}</b></div>
+  <div class="sumrow"><span>Προϋπολογισμός ΠΑΛΑΙΑΣ χρήσης</span><b>${eur(usesTotal("old"))}</b></div>
+  <div class="sumrow"><span><b>ΔΙΑΦΟΡΑ (βάση αμοιβών/φόρων/αναλυτικού)</b></span><b class="big">${eur(D.uses.reduce((a,x)=>a+useBudget(x),0))}</b></div>
+  <div class="note">Ανά γραμμή: μ² × ΕΤΑ × (ΣΕ νέας − ΣΕ παλαιάς), με ελάχιστο 0. Ο αναλυτικός προϋπολογισμός, οι αμοιβές και τα τέλη υπολογίζονται αυτόματα πάνω στη ΔΙΑΦΟΡΑ.</div>`:""}
   <div class="btnrow"><button type="button" class="btn sm" id="addUse">➕ Προσθήκη χρήσης</button></div>
   <label>Προϋπολογισμός από e-Άδειες € (προαιρετικά — αν συμπληρωθεί, ΥΠΕΡΙΣΧΥΕΙ του παραπάνω)</label>${ninp("eadeiesS", D.eadeiesS||0, "0.01", 1)}
   <div class="note">Πλήρης κατάλογος χρήσεων ΤΕΕ. <b>Σ.Ε.</b> = συντελεστής επιρροής επιφανείας (area_factor στο XML)· ο 0,60 ισχύει για κτίρια αποκλειστικά 1-2 κατοικιών με καθεμία ≤120 μ². Ο συμβατικός υπολογίζεται όπως στο ΤΕΕ: <b>μ² × ΕΤΑ 118 € × Σ.Ε.</b> — επαληθευμένο 1:1 με πραγματική υποβολή. Αν το e-Άδειες βγάλει διαφορετικό σύνολο (π.χ. λόγω zone factor), πέρασέ το στο πεδίο. Στους κωδικούς (cid): επιβεβαιωμένοι οι 1/2 (κατοικίες ≤40, 40-150), 53, 61 — τους υπόλοιπους συμπλήρωσέ τους από δική σου υποβολή ή ρώτα το AI.</div>
+ </div>
+ <h2>Σενάρια προϋπολογισμού — σύγκριση</h2>
+ <div class="card">
+  <div class="btnrow"><button type="button" class="btn sm" id="scenSave">💾 Αποθήκευση τρέχοντος ως σενάριο</button></div>
+  ${(D.scen&&D.scen.length)?`<div style="overflow-x:auto"><table><tr><th>Σενάριο</th><th class="num">μ²</th><th class="num">Προϋπολογισμός</th><th class="num">Διαφορά από τρέχον</th><th></th></tr>
+  ${D.scen.map((s,i)=>`<tr><td><b>${esc(s.name)}</b> <span class="pill">${esc(s.when)}</span>${s.allagi?' <span class="pill">αλλαγή χρήσης</span>':''}</td><td class="num">${num(s.m2)}</td><td class="num">${eur(s.total)}</td><td class="num" style="color:${s.total-symbatikos()>=0?'#3E7A4C':'#A33'}">${eur(s.total-symbatikos())}</td>
+  <td><button type="button" class="btn sm sec" data-scenload="${i}">↪ Φόρτωση</button> <button type="button" class="btn sm sec" data-scendel="${i}">🗑</button></td></tr>`).join("")}
+  <tr class="total"><td>ΤΡΕΧΟΝ</td><td class="num">${num(totM2())}</td><td class="num">${eur(symbatikos())}</td><td></td><td></td></tr></table></div>`
+  :`<div class="note">Αποθήκευσε εναλλακτικές συνθέσεις (π.χ. «Νέα χρήση», «Παλαιά χρήση», «Χωρίς υπόγειο») και σύγκρινέ τες εδώ — μέχρι 6 σενάρια, μένουν στη συσκευή.</div>`}
  </div>
  <h2>Μηχανικοί ομάδας έργου</h2>
  <div class="card">
@@ -717,6 +774,34 @@ function rErgo(){
   const i = +s.dataset.cat, c = USES_CATALOG[+s.value];
   Object.assign(D.uses[i], {u:c.u, se:c.se, cid:c.cid, tm:c.tm});
   save(); render();
+ }));
+ /* v1.14: αλλαγή χρήσης + σενάρια */
+ const ac = document.getElementById("allagiChk");
+ if(ac) ac.addEventListener("change", ()=>{ D.allagi = ac.checked; save(); render(); });
+ main.querySelectorAll("[data-oldcat]").forEach(s=> s.addEventListener("change", ()=>{
+  D.uses[+s.dataset.oldcat].oldIdx = +s.value; save(); render();
+ }));
+ const sv = document.getElementById("scenSave");
+ if(sv) sv.addEventListener("click", ()=>{
+  D.scen = D.scen || [];
+  if(D.scen.length >= 6){ alert("Μέχρι 6 σενάρια — διάγραψε κάποιο πρώτα."); return; }
+  const name = prompt("Όνομα σεναρίου:", D.allagi ? "Αλλαγή χρήσης" : "Σενάριο " + (D.scen.length+1));
+  if(!name) return;
+  histSnap();
+  D.scen.push({ name, when: new Date().toLocaleDateString("el-GR"),
+   uses: JSON.parse(JSON.stringify(D.uses)), eta: D.eta, allagi: !!D.allagi, eadeiesS: +D.eadeiesS||0,
+   m2: totM2(), total: symbatikos() });
+  save(); render();
+ });
+ main.querySelectorAll("[data-scenload]").forEach(b=> b.addEventListener("click", ()=>{
+  const s = D.scen[+b.dataset.scenload];
+  if(!confirm(`Φόρτωση σεναρίου «${s.name}»; Οι τρέχουσες χρήσεις θα αντικατασταθούν (αναιρείται με ↩️).`)) return;
+  histSnap();
+  D.uses = JSON.parse(JSON.stringify(s.uses)); D.eta = s.eta; D.allagi = !!s.allagi; D.eadeiesS = s.eadeiesS||0;
+  save(); render();
+ }));
+ main.querySelectorAll("[data-scendel]").forEach(b=> b.addEventListener("click", ()=>{
+  D.scen.splice(+b.dataset.scendel,1); save(); render();
  }));
  main.querySelectorAll("[data-del]").forEach(b=> b.addEventListener("click", ()=>{
   D.uses.splice(+b.dataset.del, 1); save(); render();
