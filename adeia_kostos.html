@@ -111,6 +111,17 @@ tr:has(input.filled)>td:first-child{border-left:3px solid #E08A2E}
 .hdrtools{display:flex;gap:6px;margin:8px 0 0;align-items:center}
 .hdrtools .btn{padding:6px 10px;font-size:12.5px;white-space:nowrap;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:8px;cursor:pointer}
 .hdrtools .btn:hover{background:rgba(255,255,255,.22)}
+.wizovl{position:fixed;inset:0;background:rgba(20,33,61,.55);z-index:400;display:flex;align-items:flex-start;justify-content:center;padding:30px 12px;overflow:auto}
+.wizbox{background:#fff;border-radius:14px;max-width:640px;width:100%;padding:18px 20px;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.wizbox h2{margin:0 0 4px;color:#14213D}
+.wizbox .wsub{color:#5B6B85;font-size:13px;margin-bottom:12px}
+.wstep{display:flex;gap:10px;align-items:flex-start;border:1px solid #E3E8F2;border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.wstep .wico{font-size:20px;line-height:1;margin-top:2px}
+.wstep.ok{border-color:#BBE3C5;background:#F3FBF5}
+.wstep.warn{border-color:#F2D9A6;background:#FFF9EE}
+.wstep b{color:#14213D}
+.wstep .wmsg{font-size:13px;color:#3D4B63;margin-top:2px}
+.wstep .wgo{margin-left:auto;flex:0 0 auto}
 </style>
 </head>
 <body>
@@ -197,6 +208,7 @@ tr:has(input.filled)>td:first-child{border-left:3px solid #E08A2E}
   <div class="hdrtools">
     <button type="button" class="btn sm sec" id="undoBtn" title="Αναίρεση τελευταίας αλλαγής">↩️ Αναίρεση</button>
     <button type="button" class="btn sm sec" id="clrBtn" title="Μηδενισμός όλων των ποσοτήτων (μ², ΑΕΚΚ)">🧹 Μηδενισμός</button>
+    <button type="button" class="btn sm sec" id="wizBtn" title="Οδηγός συμπλήρωσης βήμα-βήμα">🧭 Οδηγός</button>
   </div>
   <nav id="tabs">
     <button data-tab="ergo" class="active">🏠 Έργο</button>
@@ -406,7 +418,7 @@ let D = load() || {
  docEng:1,
  lambda:DEF.lambda, tekmHm:DEF.tekmHm, efkaPct:DEF.efkaPct,
  fpa:DEF.fpa, parakr:DEF.parakr, teeKrat:DEF.teeKrat, dimosFee:DEF.dimosFee, eadeiesFee:0,
- ektosSxediou:false, aekkKg:50, aekkEur:9, aekkEgy:0, aekk: defAekk(), stat: defStat(), allagi:false, scen:[],
+ ektosSxediou:false, prasMode:"p5", analytP:0, aekkKg:50, aekkEur:9, aekkEgy:0, aekk: defAekk(), stat: defStat(), allagi:false, scen:[],
  uses: [ {...USES_CATALOG[1], m2:0}, {...USES_CATALOG[12], m2:0}, {...USES_CATALOG[11], m2:0} ],
  eta: DEF.eta, studies: JSON.parse(JSON.stringify(DEF.studies)), kenakPct: DEF.kenakPct, topoFlat: DEF.topoFlat, incProsthiki: false,
  works: JSON.parse(JSON.stringify(DEF.works)),
@@ -453,6 +465,7 @@ function load(){
   if(!d) return null;
   if(!d._v2){ d.works = JSON.parse(JSON.stringify(DEF.works)); d.studies = JSON.parse(JSON.stringify(DEF.studies)); d._v2 = 1; }
   if(d.ektosSxediou===undefined){ d.ektosSxediou=false; d.aekkKg=50; d.aekkEur=9; d.aekkEgy=0; }
+  if(d.prasMode===undefined){ d.prasMode="p5"; d.analytP=0; }
   if(!d.aekk) d.aekk = defAekk();
   if(!d.stat) d.stat = defStat();
   if(d.allagi===undefined){ d.allagi=false; d.scen=[]; (d.uses||[]).forEach(u=>{ if(u.oldIdx===undefined) u.oldIdx=-1; }); }
@@ -539,7 +552,10 @@ function amoivesCalc(){
 }
 function prasinoCalc(){
  if(!D.ektosSxediou) return 0;
- const p = symbatikos() * 0.005;           // 5‰ επί προϋπολογισμού (εκτός σχεδίου)
+ // Άρθ.32 §1 ν.4759/2020 (εγκ. ΥΠΕΝ/ΔΑΟΚΑ): 5% επί ΣΥΜΒΑΤΙΚΟΥ ή 5‰ επί ΑΝΑΛΥΤΙΚΟΥ προϋπολογισμού
+ const mode = D.prasMode || "p5";
+ const base = mode==="m5" ? ((+D.analytP||0) > 0 ? +D.analytP : symbatikos()) : symbatikos();
+ const p = base * (mode==="m5" ? 0.005 : 0.05);
  return Math.min(5000, Math.max(250, p));  // ελάχιστο 250 € — μέγιστο 5.000 €
 }
 /* ΑΕΚΚ — τυπική ποιοτική σύνθεση ανά είδος εργασίας (επί % κ.β., ενδεικτική πρακτική ΣΣΕΔ/ΕΜΠ) */
@@ -672,6 +688,63 @@ document.addEventListener("click", e=>{
  const n = e.target.closest(".note");
  if(n && !e.target.closest("a,button,input,select")) n.classList.toggle("open");
 });
+/* ===== ΟΔΗΓΟΣ ΒΗΜΑ-ΒΗΜΑ ===== */
+function wizChecks(){
+ const a = amoivesCalc(), f = foroCalc();
+ const pctOK = Math.abs(D.owners.reduce((s,o)=>s+(+o.pct||0),0)-100)<=0.01;
+ const out = [];
+ out.push({tab:"ergo", t:"1. Στοιχεία έργου & ιδιοκτήτες",
+  ok: !!(D.ergo.titlos && D.ergo.dieuth) && D.owners.some(o=>o.name) && pctOK,
+  msg: !(D.ergo.titlos&&D.ergo.dieuth) ? "Συμπλήρωσε τίτλο έργου και διεύθυνση/θέση (και ΚΑΕΚ αν υπάρχει)."
+     : !D.owners.some(o=>o.name) ? "Πρόσθεσε τουλάχιστον έναν ιδιοκτήτη με ονοματεπώνυμο & ΑΦΜ."
+     : !pctOK ? "Τα ποσοστά των ιδιοκτητών πρέπει να αθροίζουν 100%."
+     : "ΟΚ — έργο, ιδιοκτήτες και ποσοστά συμπληρωμένα."});
+ out.push({tab:"proyp", t:"2. Χρήσεις & προϋπολογισμός",
+  ok: totM2()>0,
+  msg: totM2()>0 ? `ΟΚ — ${num(totM2())} μ², συμβατικός ${eur(symbatikos())} (μ² × ΕΤΑ 118 € × Σ.Ε., όπως στο ΤΕΕ).`
+     : "Δήλωσε τα μ² ανά χρήση (π.χ. Κατοικία). Ο προϋπολογισμός βγαίνει αυτόματα: μ² × 118 € × Σ.Ε."});
+ out.push({tab:"amoives", t:"3. Μηχανικοί & αμοιβές",
+  ok: !!(D.engineers[0]&&D.engineers[0].name) && a.sum>0,
+  msg: !(D.engineers[0]&&D.engineers[0].name) ? "Γράψε ονοματεπώνυμο/ΑΜ ΤΕΕ/ΑΦΜ των μηχανικών (για συμφωνητικά & ΥΔ)."
+     : a.sum>0 ? `ΟΚ — νόμιμες αμοιβές ${eur(a.sum)} (μελέτες ${eur(a.mel)} + επιβλέψεις ${eur(a.epi)}), τύπος ΤΕΕ β=κ+μ/³√(Σ/233,68).`
+     : "Ενεργοποίησε τις μελέτες που αφορούν το έργο."});
+ out.push({tab:"foro", t:"4. Φόροι & τέλη (τα «φορολογικά» της άδειας)",
+  ok: a.sum>0 && (!D.ektosSxediou || f.prasino>0),
+  msg: `ΦΠΑ ${num(D.fpa)}% = ${eur(f.fpa)} · παρακράτηση ${num(D.parakr)}% = ${eur(f.parakr)} · κράτηση ΤΕΕ ${num(D.teeKrat)}‰ = ${eur(f.tee)}${D.ektosSxediou?` · Πράσινο Ταμείο ${eur(f.prasino)}`:" · τσέκαρε «Εκτός σχεδίου» αν ισχύει (τέλος Πράσινου Ταμείου)"}. Σύνολο ταμειακό: ${eur(f.cash)}.`});
+ out.push({tab:"efka", t:"5. ΕΦΚΑ (ένσημα έργου)",
+  ok: true,
+  msg: "Έλεγξε τον πίνακα συντελεστών εργατικής δαπάνης και τα ημερομίσθια — προσυμπληρωμένα κατά ΑΠΔ, προσαρμόζονται ανά έργο."});
+ out.push({tab:"aekk", t:"6. ΑΕΚΚ / ΣΔΑ (απόβλητα)",
+  ok: !!(D.aekk && (D.aekk.newOn||D.aekk.excOn||D.aekk.demOn||D.aekk.renOn)),
+  msg: (D.aekk && (D.aekk.newOn||D.aekk.excOn||D.aekk.demOn||D.aekk.renOn)) ? "ΟΚ — έχουν δηλωθεί εργασίες· θα βγουν ΣΔΑ, συμφωνητικό ΣΣΕΔ και εγγυητική." : "Τσέκαρε τι περιλαμβάνει το έργο (νέα κατασκευή / εκσκαφές / κατεδάφιση / ανακαίνιση) για το ΣΔΑ και την εγγυητική."});
+ out.push({tab:"docs", t:"7. Έγγραφα & εκτυπώσεις",
+  ok: true,
+  msg: "Από εδώ βγάζεις: συμφωνητικά, ΥΔ, ΣΑΥ/ΦΑΥ, ΣΔΑ, Στατιστικό ΕΛΣΤΑΤ, Βεβαίωση Όρων Δόμησης και την πλήρη αναφορά κόστους (PDF)."});
+ return out;
+}
+function openWiz(){
+ const ov = document.createElement("div"); ov.className = "wizovl"; ov.id = "wizovl";
+ const steps = wizChecks();
+ ov.innerHTML = `<div class="wizbox">
+  <h2>🧭 Οδηγός βήμα-βήμα</h2>
+  <div class="wsub">Ακολούθησε τα βήματα με τη σειρά — πράσινο = έτοιμο, πορτοκαλί = κάτι λείπει. Πάτησε «Μετάβαση» για να πας κατευθείαν εκεί.</div>
+  ${steps.map((s,i)=>`<div class="wstep ${s.ok?"ok":"warn"}">
+    <span class="wico">${s.ok?"✅":"⚠️"}</span>
+    <div><b>${s.t}</b><div class="wmsg">${s.msg}</div></div>
+    <button type="button" class="btn sm ${s.ok?"sec":""} wgo" data-wgo="${s.tab}">Μετάβαση →</button>
+   </div>`).join("")}
+  <div class="btnrow" style="margin-top:10px">
+   <button type="button" class="btn sec" id="wizClose">Κλείσιμο</button>
+  </div></div>`;
+ document.body.appendChild(ov);
+ ov.addEventListener("click", e=>{ if(e.target===ov) ov.remove(); });
+ ov.querySelector("#wizClose").addEventListener("click", ()=> ov.remove());
+ ov.querySelectorAll("[data-wgo]").forEach(b=> b.addEventListener("click", ()=>{
+  tab = b.dataset.wgo; ov.remove(); render(); window.scrollTo(0,0);
+  document.querySelectorAll("nav button").forEach(x=> x.classList.toggle("active", x.dataset.tab===tab));
+ }));
+}
+document.getElementById("wizBtn").addEventListener("click", openWiz);
 document.getElementById("undoBtn").addEventListener("click", undo);
 document.getElementById("clrBtn").addEventListener("click", clearQuantities);
 histSnap(); // αρχική κατάσταση στο ιστορικό
@@ -922,14 +995,19 @@ function rForo(){
    <div><label>Τέλη e-Άδειες / ΤΕΕ €</label>${ninp("eadeiesFee", D.eadeiesFee, "1", 1)}</div>
    <div><label>Δημοτικά τέλη / λοιπά €</label>${ninp("dimosFee", D.dimosFee, "1", 1)}</div>
   </div>
-  <label style="margin-top:8px"><input type="checkbox" id="ektos" ${D.ektosSxediou?"checked":""} style="width:auto;margin-right:6px"><b>Εκτός σχεδίου</b> — εισφορά Πράσινου Ταμείου 5‰ επί προϋπολογισμού (min 250 € / max 5.000 €)</label>
+  <label style="margin-top:8px"><input type="checkbox" id="ektos" ${D.ektosSxediou?"checked":""} style="width:auto;margin-right:6px"><b>Εκτός σχεδίου</b> — τέλος Πράσινου Ταμείου (άρθ.32 §1 ν.4759/20): <b>5% επί συμβατικού</b> ή <b>5‰ επί αναλυτικού</b> προϋπολογισμού, min 250 € / max 5.000 €</label>
+  ${D.ektosSxediou?`<div style="margin:6px 0 0 22px">
+   <label style="display:inline-flex;align-items:center;gap:6px;width:auto"><input type="radio" name="prasM" id="prasP5" ${(D.prasMode||"p5")==="p5"?"checked":""} style="width:auto">5% επί συμβατικού (${eur(symbatikos())})</label>
+   <label style="display:inline-flex;align-items:center;gap:6px;width:auto;margin-left:14px"><input type="radio" name="prasM" id="prasM5" ${D.prasMode==="m5"?"checked":""} style="width:auto">5‰ επί αναλυτικού</label>
+   ${D.prasMode==="m5"?`<div style="max-width:280px;margin-top:6px"><label>Αναλυτικός προϋπολογισμός € (0 = χρήση συμβατικού)</label>${ninp("analytP", D.analytP, "100", 1)}</div>`:""}
+  </div>`:""}
   <h3>ΑΕΚΚ — Διαχείριση Αποβλήτων (ΣΔΑ, ΚΥΑ 36259/2010)</h3>
   <div class="note">Ο αναλυτικός υπολογισμός (εκσκαφές/κατεδάφιση/ανακαίνιση ανά ΕΚΑ), η εγγυητική επιστολή και τα έντυπα (ΣΔΑ, συμφωνητικό ΣΣΕΔ, ΥΔ) βρίσκονται στη νέα καρτέλα <b>♻️ ΑΕΚΚ/ΣΔΑ</b>. Το κόστος ΣΣΕΔ που υπολογίζεται εκεί ενσωματώνεται αυτόματα στο σύνολο παρακάτω.</div>
   <div style="margin-top:10px">
    <div class="sumrow"><span>Αμοιβές (καθαρές)</span><b>${eur(f.a.sum)}</b></div>
    <div class="sumrow"><span>ΦΠΑ ${num(D.fpa)}%</span><b>${eur(f.fpa)}</b></div>
    <div class="sumrow"><span>Κράτηση ΤΕΕ ${num(D.teeKrat)}‰</span><b>${eur(f.tee)}</b></div>
-   <div class="sumrow"><span>Πράσινο Ταμείο ${D.ektosSxediou?"(εκτός σχεδίου: 5‰, min 250 – max 5.000 €)":"(εντός σχεδίου: —)"}</span><b>${eur(f.prasino)}</b></div>
+   <div class="sumrow"><span>Πράσινο Ταμείο ${D.ektosSxediou?((D.prasMode==="m5"?"(εκτός σχεδίου: 5‰ αναλυτικού":"(εκτός σχεδίου: 5% συμβατικού")+", 250 – 5.000 €)"):"(εντός σχεδίου: —)"}</span><b>${eur(f.prasino)}</b></div>
    <div class="sumrow"><span>ΑΕΚΚ — κόστος ΣΣΕΔ (${num(f.aekk.tons)} τόνοι — βλ. καρτέλα ♻️)</span><b>${eur(f.aekk.cost)}</b></div>
    <div class="sumrow"><span>Τέλη (e-Άδειες + δήμος)</span><b>${eur(f.other)}</b></div>
    <div class="sumrow"><span><b>ΤΑΜΕΙΑΚΟ ΚΟΣΤΟΣ ΑΜΟΙΒΩΝ & ΤΕΛΩΝ</b></span><b class="big">${eur(f.cash)}</b></div>
@@ -941,6 +1019,9 @@ function rForo(){
  bindAll(main, D);
  const ek = document.getElementById("ektos");
  if(ek) ek.addEventListener("change", ()=>{ D.ektosSxediou = ek.checked; save(); render(); });
+ const p5=document.getElementById("prasP5"), m5=document.getElementById("prasM5");
+ if(p5) p5.addEventListener("change", ()=>{ D.prasMode="p5"; save(); render(); });
+ if(m5) m5.addEventListener("change", ()=>{ D.prasMode="m5"; save(); render(); });
 }
 
 function rEfka(){
@@ -1442,7 +1523,7 @@ function printFull(){
  <tr><td>Αμοιβές (καθαρές)</td><td class="num">${eur(a.sum)}</td></tr>
  <tr><td>ΦΠΑ ${num(D.fpa)}%</td><td class="num">${eur(f.fpa)}</td></tr>
  <tr><td>Κράτηση ΤΕΕ ${num(D.teeKrat)}‰</td><td class="num">${eur(f.tee)}</td></tr>
- <tr><td>Πράσινο Ταμείο${D.ektosSxediou?" (εκτός σχεδίου 5‰)":""}</td><td class="num">${eur(f.prasino)}</td></tr>
+ <tr><td>Πράσινο Ταμείο${D.ektosSxediou?(D.prasMode==="m5"?" (εκτός σχεδίου 5‰ αναλυτ.)":" (εκτός σχεδίου 5% συμβ.)"):""}</td><td class="num">${eur(f.prasino)}</td></tr>
  <tr><td>ΑΕΚΚ — διαχείριση αποβλήτων (${num(f.aekk.tons)} τν)</td><td class="num">${eur(f.aekk.cost)}</td></tr>
  <tr><td>Τέλη e-Άδειες & δήμου</td><td class="num">${eur(f.other)}</td></tr>
  <tr class="total"><td>ΤΑΜΕΙΑΚΟ ΣΥΝΟΛΟ</td><td class="num">${eur(f.cash)}</td></tr></table>
