@@ -302,7 +302,7 @@ const DEF = {
  eta: 118.00,             // Ενιαία Τιμή Αφετηρίας ΤΕΕ €/μ² (ΥΑ ΦΕΚ 56/25-01-2012)
  tekmHm: 60.00,           // Ημερομίσθιο βάσης ΕΦΚΑ (ΣΣΕ οικοδόμων/τεκμαρτό — ΔΙΟΡΘΩΣΕ)
  efkaPct: 60.84,          // Συνολικό ποσοστό εισφορών οικοδομικών % (εργοδ.+ασφ. — ΔΙΟΡΘΩΣΕ με τρέχουσα εγκύκλιο)
- fpa: 24, parakr: 20, teeKrat: 2,  // ΦΠΑ%, παρακράτηση φόρου%, κράτηση ΤΕΕ ‰ επί νόμιμων αμοιβών
+ fpa: 24, parakr: 10, parakrTopo: 4, teeKrat: 2,  // ΦΠΑ% · ΦΕΜ 10% μελ./επιβλ. + 4% τοπογραφικά (ν.4172/13 άρθ.69§4, ΠΟΛ 1025/14) · κράτηση ΤΕΕ ‰
  dimosFee: 0,             // τέλη δήμου/κατάληψης (χειροκίνητα)
  // Χρήσεις: συμβατική τιμή €/μ² (για συμβατικό προϋπ/σμό ΤΕΕ) — προεπιλογές, διορθώνονται
  // Μελέτες κατά ΤΕΕ (κωδικοί task/κ/μ/κατηγορία από πραγματική υποβολή e-Άδειες)
@@ -515,6 +515,7 @@ function load(){
   if(!d._v2){ d.works = JSON.parse(JSON.stringify(DEF.works)); d.studies = JSON.parse(JSON.stringify(DEF.studies)); d._v2 = 1; }
   if(d.ektosSxediou===undefined){ d.ektosSxediou=false; d.aekkKg=50; d.aekkEur=9; d.aekkEgy=0; }
   if(d.prasMode===undefined){ d.prasMode="p5"; d.analytP=0; }
+  if(d.parakrTopo===undefined){ d.parakrTopo=4; if(+d.parakr===20) d.parakr=10; } // ΦΕΜ αντί γενικής παρακράτησης 20%
   if(!d.aekk) d.aekk = defAekk();
   if(!d.stat) d.stat = defStat();
   if(d.allagi===undefined){ d.allagi=false; d.scen=[]; (d.uses||[]).forEach(u=>{ if(u.oldIdx===undefined) u.oldIdx=-1; }); }
@@ -647,7 +648,9 @@ function aekkCalc(){
 function foroCalc(){
  const a = amoivesCalc();
  const fpa = a.sum * (+D.fpa||0)/100;
- const parakr = a.sum * (+D.parakr||0)/100;
+ // ΦΕΜ (προκαταβλητέος φόρος μηχανικών, ν.4172/13 άρθ.69§4): 10% μελέτες-επιβλέψεις, 4% τοπογραφικά
+ const topoFee = a.rows.filter(r=>r.isTopo).reduce((s,r)=>s+(+r.melF||0),0);
+ const parakr = (a.sum - topoFee) * (+D.parakr||0)/100 + topoFee * (+D.parakrTopo||0)/100;
  const tee = a.sum * (+D.teeKrat||0)/1000;
  const prasino = prasinoCalc();
  const aekk = aekkCalc();
@@ -826,7 +829,7 @@ function wizChecks(){
      : "Ενεργοποίησε τις μελέτες που αφορούν το έργο."});
  out.push({tab:"foro", t:"4. Φόροι & τέλη (τα «φορολογικά» της άδειας)",
   ok: a.sum>0 && (!D.ektosSxediou || f.prasino>0),
-  msg: `ΦΠΑ ${num(D.fpa)}% = ${eur(f.fpa)} · παρακράτηση ${num(D.parakr)}% = ${eur(f.parakr)} · κράτηση ΤΕΕ ${num(D.teeKrat)}‰ = ${eur(f.tee)}${D.ektosSxediou?` · Πράσινο Ταμείο ${eur(f.prasino)}`:" · τσέκαρε «Εκτός σχεδίου» αν ισχύει (τέλος Πράσινου Ταμείου)"}. Σύνολο ταμειακό: ${eur(f.cash)}.`});
+  msg: `ΦΠΑ ${num(D.fpa)}% = ${eur(f.fpa)} · ΦΕΜ (10%/4%) = ${eur(f.parakr)} · κράτηση ΤΕΕ ${num(D.teeKrat)}‰ = ${eur(f.tee)}${D.ektosSxediou?` · Πράσινο Ταμείο ${eur(f.prasino)}`:" · τσέκαρε «Εκτός σχεδίου» αν ισχύει (τέλος Πράσινου Ταμείου)"}. Σύνολο ταμειακό: ${eur(f.cash)}.`});
  out.push({tab:"efka", t:"5. ΕΦΚΑ (ένσημα έργου)",
   ok: true,
   msg: `Πίνακας ${D.efkaMode==="2a"?"2Α (μεταλλικός/προκατ. σκελετός)":D.efkaMode==="2b"?"2Β (πλήρης προκατασκευή)":"1 (συμβατική)"} — επιλέχθηκε αυτόματα από τον «Φέροντα οργανισμό» στο βήμα 1. Έλεγξε συντελεστές/ημερομίσθια.`});
@@ -1123,7 +1126,8 @@ function rForo(){
  <div class="card">
   <div class="grid3">
    <div><label>ΦΠΑ %</label>${ninp("fpa", D.fpa, "0.1", 1)}</div>
-   <div><label>Παρακράτηση φόρου %</label>${ninp("parakr", D.parakr, "0.1", 1)}</div>
+   <div><label>ΦΕΜ μελετών-επιβλέψεων % (ν.4172/13 άρθ.69§4β)</label>${ninp("parakr", D.parakr, "0.1", 1)}</div>
+   <div><label>ΦΕΜ τοπογραφικών % (άρθ.69§4α)</label>${ninp("parakrTopo", D.parakrTopo, "0.1", 1)}</div>
    <div><label>Κράτηση ΤΕΕ ‰</label>${ninp("teeKrat", D.teeKrat, "0.1", 1)}</div>
   </div>
   <div class="grid2">
@@ -1146,7 +1150,7 @@ function rForo(){
    <div class="sumrow"><span>ΑΕΚΚ — κόστος ΣΣΕΔ (${num(f.aekk.tons)} τόνοι — βλ. καρτέλα ♻️)</span><b>${eur(f.aekk.cost)}</b></div>
    <div class="sumrow"><span>Τέλη (e-Άδειες + δήμος)</span><b>${eur(f.other)}</b></div>
    <div class="sumrow"><span><b>ΤΑΜΕΙΑΚΟ ΚΟΣΤΟΣ ΑΜΟΙΒΩΝ & ΤΕΛΩΝ</b></span><b class="big">${eur(f.cash)}</b></div>
-   <div class="sumrow" style="border:0"><span style="color:var(--mut)">Παρακράτηση φόρου ${num(D.parakr)}% (πληροφοριακά — παρακρατείται από την αμοιβή)</span><b style="color:var(--mut)">${eur(f.parakr)}</b></div>
+   <div class="sumrow" style="border:0"><span style="color:var(--mut)">ΦΕΜ ${num(D.parakr)}% μελ./επιβλ. + ${num(D.parakrTopo)}% τοπογρ. (πληροφοριακά — αποδίδεται πριν τη θεώρηση/άδεια)</span><b style="color:var(--mut)">${eur(f.parakr)}</b></div>
   </div>
   <div class="note">Θεσμικό πλαίσιο: αμοιβές π.δ. 696/74 (νόμιμες — ελεύθερες κατά ν.3919/2011, αλλά βάση κρατήσεων), κρατήσεις/παράβολα e-Άδειες & ΤΕΕ, ΥΑ ΦΕΚ 56/25-01-2012 (ΕΤΑ). Δες και το εργαλείο <a href="nomothesia.html" target="_blank">HEXIS Νομοθεσία</a>.</div>
   <div class="btnrow"><button class="btn sec" onclick="aiVerify()">🤖 Επαλήθευση συντελεστών live (AI)</button></div><div id="aiout"></div>
