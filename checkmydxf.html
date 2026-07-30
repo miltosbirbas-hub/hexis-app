@@ -617,6 +617,34 @@ function perim(pts){
   }
   return s;
 }
+function distPtSeg(p,a,b){
+  const dx=b[0]-a[0], dy=b[1]-a[1], L2=dx*dx+dy*dy;
+  if(L2===0) return Math.hypot(p[0]-a[0],p[1]-a[1]);
+  let t=((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L2; t=Math.max(0,Math.min(1,t));
+  return Math.hypot(p[0]-(a[0]+t*dx), p[1]-(a[1]+t*dy));
+}
+function distPtRing(p,ring){
+  let d=Infinity;
+  for(let i=0;i<ring.length;i++){ const dd=distPtSeg(p,ring[i],ring[(i+1)%ring.length]); if(dd<d)d=dd; }
+  return d;
+}
+function densify(ring, step, maxPts){
+  const out=[];
+  for(let i=0;i<ring.length;i++){
+    const a=ring[i], b=ring[(i+1)%ring.length];
+    const L=Math.hypot(b[0]-a[0],b[1]-a[1]), n=Math.max(1,Math.ceil(L/step));
+    for(let k=0;k<n;k++) out.push([a[0]+(b[0]-a[0])*k/n, a[1]+(b[1]-a[1])*k/n]);
+    if(out.length>maxPts) return out;
+  }
+  return out;
+}
+function ringDist(A,B){ // συμμετρική: max & mean απόσταση ορίων A↔B
+  const pa=densify(A,1.0,1500), pb=densify(B,1.0,1500);
+  let mx=0, sum=0, n=0, worst=null;
+  for(const p of pa){ const d=distPtRing(p,B); sum+=d; n++; if(d>mx){mx=d; worst=p;} }
+  for(const p of pb){ const d=distPtRing(p,A); sum+=d; n++; if(d>mx){mx=d; worst=p;} }
+  return {max:mx, mean:sum/Math.max(1,n), worst};
+}
 function pointInPoly(pt,poly){
   let inside=false;
   for(let i=0,j=poly.length-1;i<poly.length;j=i++){
@@ -941,15 +969,30 @@ function validate(doc, file, dgType, ktimaOn){
       if(E<=0 || P<=0) continue;
       const sq = Math.sqrt(E);
       const A = ((sq + 2*Uo)**2 - E) * (P/(4*sq));   // Α = [(√Ε+2·Uo)²−Ε]×Π/Πτ, Πτ=4√Ε
-      const cap = 0.10*E;                             // λειτουργούν Κτηματολόγιο: οροφή 10% του Ε (ΟΚΧΕ 462/03/2008) — αστικές Uo=0,50 μ · αγροτικές Uo=2,00 μ
+      const cap = 0.10*E;                             // λειτουργούν Κτηματολόγιο: πιλοτικός υπολογισμός ΟΚΧΕ 475/08/2009 — μέγ. ανοχή 10% του Ε (αστικές Uo=0,50 μ · αγροτικές Uo=2,00 μ)
       const Alim = Math.min(A, cap);
       const dE = Math.abs(Em - E);
       const kaek = (kaekTexts.find(t=>pointInPoly(t.pt,host.ring))||{}).text || '—';
       const nums = `Ε κτημ. βάσης (PST_KAEK) ${E.toFixed(1)} m² · Π ${P.toFixed(1)} μ · Ε τοπογραφικού (TOPO_PROP) ${Em.toFixed(1)} m² · ΔΕ=${dE.toFixed(1)} m² · όριο Α=${Alim.toFixed(1)} m² (${zname}${A>cap?' — περιορισμός οροφής 10%':''})`;
       if(dE <= Alim)
-        add('I','ν.2664/98 §13α',`Έλεγχος αποδεκτής απόκλισης εμβαδού ✓ — ΚΑΕΚ ${kaek}: ${nums}. Εντός ορίου [Α=((√Ε+2·Uo)²−Ε)×Π/4√Ε].`);
+        add('I','ν.2664/98 §13α',`Έλεγχος αποδεκτής απόκλισης εμβαδού ✓ — ΚΑΕΚ ${kaek}: ${nums}. Εντός ορίου ανοχής [Α=((√Ε+2·Uo)²−Ε)×Π/4√Ε — όπως υπολογίζεται και στο σύστημα του Κτηματολογίου, πιλοτικά κατά την ΟΚΧΕ 475/08/2009].`);
       else
-        add('W','ν.2664/98 §13α',`ΕΚΤΟΣ αποδεκτής απόκλισης εμβαδού — ΚΑΕΚ ${kaek}: ${nums}.`,`Η διαφορά ΔΕ υπερβαίνει την αποδεκτή απόκλιση κατά τον τύπο <b>Α=((√Ε+2·Uo)²−Ε)×Π/4√Ε</b> (λειτουργούν Κτηματολόγιο: ΟΚΧΕ 461/03 &amp; 462/03/2008 — Uo=0,50 μ αστικές / 2,00 μ αγροτικές, οροφή 10% επί του Ε της κτηματολογικής βάσης). Πιθανώς απαιτείται <b>διόρθωση γεωμετρικών στοιχείων</b> (ΔΓΜ, άρθ. 19 ν.2664/98) πριν ή παράλληλα με την εγγραπτέα πράξη — τεκμηρίωσε τη διαφορά στο τοπογραφικό και ενημέρωσε τον συμβολαιογράφο.`);
+        add('W','ν.2664/98 §13α',`ΕΚΤΟΣ ορίου ανοχής εμβαδού — ΚΑΕΚ ${kaek}: ${nums}.`,`Η διαφορά ΔΕ υπερβαίνει την αποδεκτή απόκλιση κατά τον τύπο <b>Α=((√Ε+2·Uo)²−Ε)×Π/4√Ε</b> (λειτουργούν Κτηματολόγιο: πιλοτική εφαρμογή ΟΚΧΕ 475/08/2009 — Uo=0,50 μ αστικές / 2,00 μ αγροτικές, μέγιστη ανοχή 10% επί του Ε της κτηματολογικής βάσης· η τιμή είναι αυτή που εμφανίζει το σύστημα του Κτηματολογίου, ενδεικτική και όχι τυπικά δεσμευτική). Πιθανώς απαιτείται <b>διόρθωση γεωμετρικών στοιχείων</b> (ΔΓΜ, άρθ. 19 ν.2664/98) πριν ή παράλληλα με την εγγραπτέα πράξη — τεκμηρίωσε τη διαφορά στο τοπογραφικό και ενημέρωσε τον συμβολαιογράφο.`);
+
+      /* Συμβατότητα ΘΕΣΗΣ & ΣΧΗΜΑΤΟΣ (άρθ. 5 παρ. 3 ν.651/77 — σχήμα, όρια, εμβαδόν) */
+      const cT = centroid(tp.ring), cK = centroid(host.ring);
+      const dX = cT[0]-cK[0], dY = cT[1]-cK[1], dC = Math.hypot(dX,dY);
+      const bd = ringDist(tp.ring, host.ring);
+      const pT = perim(tp.ring);
+      const geo = `μετατόπιση κεντροειδών ΔΧ=${dX.toFixed(2)} μ, ΔΥ=${dY.toFixed(2)} μ (|Δ|=${dC.toFixed(2)} μ) · απόκλιση ορίων: μέγιστη ${bd.max.toFixed(2)} μ / μέση ${bd.mean.toFixed(2)} μ · περίμετροι: τοπογρ. ${pT.toFixed(1)} μ vs κτημ. ${P.toFixed(1)} μ (Δ=${Math.abs(pT-P).toFixed(1)} μ) · ανοχή Uo=${Uo.toFixed(2)} μ`;
+      if(bd.max <= Uo && dC <= Uo)
+        add('I','ν.651/77 §5.3',`Συμβατότητα θέσης & σχήματος ✓ — ΚΑΕΚ ${kaek}: ${geo}. Όλες οι αποκλίσεις εντός της ακρίβειας της κτηματολογικής βάσης.`);
+      else if(bd.max <= 2*Uo)
+        add('W','ν.651/77 §5.3',`Οριακή συμβατότητα θέσης/σχήματος — ΚΑΕΚ ${kaek}: ${geo}.`,`Οι αποκλίσεις υπερβαίνουν το Uo αλλά όχι το 2·Uo — συνήθως αποδεκτές ως ακρίβεια της κτηματολογικής βάσης. Έλεγξε τη γεωαναφορά του αποσπάσματος (PST_KAEK) και τεκμηρίωσε τη σύγκριση στο τοπογραφικό (βεβαίωση συμβατότητας).`,
+          bd.worst?`• μέγιστη απόκλιση κοντά στο (${bd.worst[0].toFixed(2)}, ${bd.worst[1].toFixed(2)})`:'');
+      else
+        add('W','ν.651/77 §5.3',`ΑΣΥΜΒΑΤΟΤΗΤΑ θέσης/σχήματος — ΚΑΕΚ ${kaek}: ${geo}.`,`Η μέγιστη απόκλιση ορίων υπερβαίνει το 2·Uo — τα όρια του τοπογραφικού διαφέρουν ουσιωδώς από την κτηματολογική βάση (πιθανή λάθος γεωαναφορά του PST_KAEK, ή πραγματική γεωμετρική μεταβολή που απαιτεί <b>ΔΓΜ διόρθωσης</b>, άρθ. 19 ν.2664/98). Στη βεβαίωση συμβατότητας του τοπογραφικού πρέπει να αποτυπωθεί ρητά η ασυμβατότητα.`,
+          bd.worst?`• μέγιστη απόκλιση κοντά στο (${bd.worst[0].toFixed(2)}, ${bd.worst[1].toFixed(2)})`:'');
     }
   }
   if(doc.hasBlocksContent)

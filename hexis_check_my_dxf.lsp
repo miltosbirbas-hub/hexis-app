@@ -1,5 +1,5 @@
 ;;; ============================================================================
-;;; HEXIS - CHECK MY DXF  v1.0  (AutoLISP)
+;;; HEXIS - CHECK MY DXF  v2.1  (AutoLISP)
 ;;; Ελεγχος διαγραμματων για Ηλεκτρονικη Υποβολη στο Ελληνικο Κτηματολογιο
 ;;; συμφωνα με το Τευχος Τεχνικων Προδιαγραφων ΕΚ (εκδ. 1.3/2024, ΠΙΝΑΚΑΣ Ι)
 ;;;
@@ -15,7 +15,7 @@
 ;;; ============================================================================
 
 ;;; ---------------------------------------------------------------- ρυθμισεις
-(setq *HX-VER* "2.0")
+(setq *HX-VER* "2.1")
 (setq *HX-ERRLAY* "HEXIS_ERR")
 (setq *HX-TOL* 0.005)      ; ανοχη ταυτισης κορυφων (m)
 (setq *HX-SNAPTOL* 0.05)   ; ανοχη "πανω στο οριο" PST_KAEK (m)
@@ -154,6 +154,38 @@
     (if (< dd d) (setq d dd))
     (setq i (1+ i)))
   d)
+
+;; περιμετρος κλειστου πολυγωνου
+(defun hx-perim (poly / n i s)
+  (setq n (length poly) i 0 s 0.0)
+  (while (< i n)
+    (setq s (+ s (distance (nth i poly) (nth (rem (1+ i) n) poly))) i (1+ i)))
+  s)
+
+;; πυκνωση περιγραμματος ανα step μετρα (με ανω οριο σημειων)
+(defun hx-dens (poly step cap / n i out p q L m k)
+  (setq n (length poly) i 0 out nil)
+  (while (and (< i n) (< (length out) cap))
+    (setq p (nth i poly) q (nth (rem (1+ i) n) poly) L (distance p q))
+    (setq m (max 1 (fix (+ 0.999 (/ L step)))) k 0)
+    (while (< k m)
+      (setq out (cons (list (+ (car p)  (* (- (car q)  (car p))  (/ (float k) m)))
+                            (+ (cadr p) (* (- (cadr q) (cadr p)) (/ (float k) m)))) out))
+      (setq k (1+ k)))
+    (setq i (1+ i)))
+  out)
+
+;; συμμετρικη αποσταση οριων δυο πολυγωνων: (max mean χειροτερο-σημειο)
+(defun hx-rdist (pa2 pb2 / pa pb mx sum n d w p)
+  (setq pa (hx-dens pa2 2.0 400) pb (hx-dens pb2 2.0 400)
+        mx 0.0 sum 0.0 n 0 w nil)
+  (foreach p pa
+    (setq d (hx-d2r p pb2) sum (+ sum d) n (1+ n))
+    (if (> d mx) (setq mx d w p)))
+  (foreach p pb
+    (setq d (hx-d2r p pa2) sum (+ sum d) n (1+ n))
+    (if (> d mx) (setq mx d w p)))
+  (list mx (/ sum (max 1 n)) w))
 
 ;; εντος καποιου PST_KAEK (η πανω στο οριο του)
 (defun hx-inpst (p / ok r)
@@ -298,7 +330,9 @@
 ;;; --------------------------------------------------------- κυρια εντολη
 (defun c:HEXISCHECK (/ dgt ktima lay lname lnames std map actual spec cnt
                       polys texts p tt out empt kaekbad d1 d2 aPST aDGM diff
-                      pr nn f dwgn typ2 lst same a b res s)
+                      pr nn f dwgn typ2 lst same a b res s
+                      zon uo tp tring cenT host EE PP EM SQ AV AL DEV kaek nums
+                      cenK ddx ddy dc bd bmax bmean bw geo)
   (setq *hx-errs* 0 *hx-wrns* 0 *hx-marks* 0 *hx-oldpl* 0 *hx-noflag* 0
         *hx-cnt* nil *hx-polys* nil *hx-texts* nil *hx-pst* nil
         *hx-min* nil *hx-max* nil *hx-mr* nil *hx-file* nil
@@ -532,6 +566,66 @@
           "Τα περιμετρικα ορια του DGM_PROP_FINAL πρεπει να ταυτιζονται με του PST_KAEK.")
         (hx-inf (strcat "Ελεγχος εμβαδων διορθωσης ΟΚ: PST " (rtos aPST 2 1)
                         " m2 ~ DGM_FINAL " (rtos aDGM 2 1) " m2")))))
+
+  ;; ------- Τοπογραφικο σε λειτουργουν Κτηματολογιο:
+  ;; αποδεκτη αποκλιση εμβαδου (αρθ.13α ν.2664/98, πιλοτικα ΟΚΧΕ 475/08/2009, μεγ. 10%)
+  ;; + συμβατοτητα θεσης & σχηματος (αρθ.5 παρ.3 ν.651/77)
+  (if (and (= dgt "TD") ktima *hx-pst* (cdr (assoc "TOPO_PROP" *hx-polys*)))
+    (progn
+      (initget "ASTIKI AGROTIKI")
+      (setq zon (getkword "\nΠεριοχη [ASTIKI=αστικη Uo=0.50μ / AGROTIKI=αγροτικη Uo=2.00μ] <ASTIKI>: "))
+      (setq uo (if (= zon "AGROTIKI") 2.0 0.5))
+      (foreach tp (cdr (assoc "TOPO_PROP" *hx-polys*))
+        (setq tring (car tp) EM (cadr tp) cenT (hx-cen tring) host nil)
+        (foreach pr *hx-pst*
+          (if (and (null host) (hx-pinp cenT (car pr))) (setq host pr)))
+        (if (null host)
+          (hx-wrn "[ν.2664/98 αρθ.13α]"
+            (strcat "TOPO_PROP " (rtos EM 2 1) " m2: δεν εμπιπτει σε πολυγωνο PST_KAEK - ο ελεγχος αποκλισης παραλειφθηκε.")
+            "Ελεγξε τη θεση/γεωαναφορα του κτηματογραφικου αποσπασματος (PST_KAEK).")
+          (progn
+            ;; --- εμβαδον ---
+            (setq EE (cadr host) PP (hx-perim (car host)) SQ (sqrt EE))
+            (setq AV (* (- (expt (+ SQ (* 2.0 uo)) 2) EE) (/ PP (* 4.0 SQ))))
+            (setq AL (min AV (* 0.10 EE)) DEV (abs (- EM EE)))
+            (setq kaek "-")
+            (foreach tt (cdr (assoc "PST_KAEK" *hx-texts*))
+              (if (and (= kaek "-") (hx-pinp (car tt) (car host))) (setq kaek (cdr tt))))
+            (setq nums (strcat "ΚΑΕΚ " kaek ": Ε κτημ. " (rtos EE 2 1) " m2, Π " (rtos PP 2 1)
+                               " m, Ε τοπογρ. " (rtos EM 2 1) " m2, ΔΕ=" (rtos DEV 2 1)
+                               " m2, οριο Α=" (rtos AL 2 1) " m2 ("
+                               (if (= uo 2.0) "αγροτικη Uo=2.00" "αστικη Uo=0.50") ")"))
+            (if (<= DEV AL)
+              (hx-inf (strcat "Αποδεκτη αποκλιση εμβαδου ΟΚ - " nums
+                              " [Α=((sqrtΕ+2Uo)^2-Ε)xΠ/4sqrtΕ, πιλοτικα ΟΚΧΕ 475/08/2009, μεγ. ανοχη 10%]"))
+              (hx-wrn "[ν.2664/98 αρθ.13α]"
+                (strcat "ΕΚΤΟΣ οριου ανοχης εμβαδου - " nums ".")
+                "Πιθανως απαιτειται ΔΓΜ διορθωσης (αρθ.19 ν.2664/98) - τεκμηριωσε τη διαφορα στη βεβαιωση συμβατοτητας."))
+            ;; --- θεση & σχημα ---
+            (setq cenK (hx-cen (car host))
+                  ddx (- (car cenT) (car cenK)) ddy (- (cadr cenT) (cadr cenK))
+                  dc (sqrt (+ (* ddx ddx) (* ddy ddy))))
+            (setq bd (hx-rdist tring (car host))
+                  bmax (car bd) bmean (cadr bd) bw (caddr bd))
+            (setq geo (strcat "ΚΑΕΚ " kaek ": μετατοπιση κεντροειδων ΔΧ=" (rtos ddx 2 2)
+                              " ΔΥ=" (rtos ddy 2 2) " (|Δ|=" (rtos dc 2 2)
+                              " m), αποκλιση οριων max " (rtos bmax 2 2)
+                              " / μεση " (rtos bmean 2 2) " m, περιμετροι τοπογρ. "
+                              (rtos (hx-perim tring) 2 1) " / κτημ. " (rtos PP 2 1)
+                              " m, ανοχη Uo=" (rtos uo 2 2) " m"))
+            (cond
+              ((and (<= bmax uo) (<= dc uo))
+               (hx-inf (strcat "Συμβατοτητα θεσης & σχηματος ΟΚ - " geo)))
+              ((<= bmax (* 2.0 uo))
+               (hx-wrn "[ν.651/77 αρθ.5 παρ.3]"
+                 (strcat "Οριακη συμβατοτητα θεσης/σχηματος - " geo ".")
+                 "Συνηθως αποδεκτο ως ακριβεια της κτημ. βασης - ελεγξε τη γεωαναφορα του PST_KAEK και τεκμηριωσε στη βεβαιωση συμβατοτητας."))
+              (T
+               (hx-wrn "[ν.651/77 αρθ.5 παρ.3]"
+                 (strcat "ΑΣΥΜΒΑΤΟΤΗΤΑ θεσης/σχηματος - " geo
+                         (if bw (strcat " - χειροτερο σημειο (" (rtos (car bw) 2 2) ", " (rtos (cadr bw) 2 2) ") [κυκλος στο HEXIS_ERR]") "") ".")
+                 "Λαθος γεωαναφορα του PST_KAEK ή πραγματικη γεωμετρικη μεταβολη που απαιτει ΔΓΜ διορθωσης (αρθ.19 ν.2664/98) - αποτυπωσε ρητα την ασυμβατοτητα στη βεβαιωση του τοπογραφικου.")
+               (if bw (hx-mark bw)))))))))
 
   ;; =============== ΣΥΝΤΑΞΗ ΑΝΑΦΟΡΑΣ (αρχειο) ===============
   (setq *hx-file* (open dwgn "w"))
