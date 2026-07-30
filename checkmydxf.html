@@ -287,6 +287,11 @@ footer{text-align:center}
       <input type="checkbox" id="ktimaOn" checked>
       <label for="ktimaOn">Το ακίνητο βρίσκεται σε περιοχή <b>λειτουργούντος Κτηματολογίου</b> (απαιτείται layer PST_KAEK)</label>
     </div>
+    <div class="optrow" id="zoneOptRow" title="Χρησιμοποιείται στον έλεγχο αποδεκτής απόκλισης εμβαδού (άρθ. 13α ν.2664/98)">
+      <label style="display:flex;align-items:center;gap:6px"><input type="radio" name="zoneU" id="zoneAst" checked> Αστική περιοχή (Uo=0,50 μ)</label>
+      <label style="display:flex;align-items:center;gap:6px;margin-left:14px"><input type="radio" name="zoneU" id="zoneAgro"> Αγροτική περιοχή (Uo=2,00 μ)</label>
+      <span style="opacity:.7;margin-left:10px">— για τον έλεγχο αποδεκτής απόκλισης εμβαδού από το Κτηματολόγιο</span>
+    </div>
   </section>
 
   <!-- ΒΗΜΑ 2 -->
@@ -338,7 +343,7 @@ footer{text-align:center}
 
 
 /* ===== ΕΚΔΟΣΗ & ΑΥΤΟΜΑΤΟΣ ΕΛΕΓΧΟΣ ΕΝΗΜΕΡΩΣΕΩΝ ===== */
-const CMD_VERSION='v2.0';           // ενιαία έκδοση web + LISP
+const CMD_VERSION='v2.1';           // ενιαία έκδοση web + LISP
 const CMD_CHANNEL='online';
 const CMD_HOME='https://hexis-app.gr/';
 document.getElementById('cmdVer').textContent=CMD_VERSION;
@@ -603,6 +608,14 @@ function area(pts){
     a += pts[i][0]*pts[j][1]-pts[j][0]*pts[i][1];
   }
   return Math.abs(a)/2;
+}
+function perim(pts){
+  let s=0;
+  for(let i=0;i<pts.length;i++){
+    const j=(i+1)%pts.length;
+    s += Math.hypot(pts[j][0]-pts[i][0], pts[j][1]-pts[i][1]);
+  }
+  return s;
 }
 function pointInPoly(pt,poly){
   let inside=false;
@@ -910,6 +923,34 @@ function validate(doc, file, dgType, ktimaOn){
       add('W','§4.5.3',`ΔΓΜ διόρθωσης: ΣΕμβαδόν DGM_PROP_FINAL (${aDGM.toFixed(1)} m²) ≠ ΣΕμβαδόν PST_KAEK (${aPST.toFixed(1)} m²) — διαφορά ${diff.toFixed(1)} m².`,`Τα περιμετρικά όρια του <b>DGM_PROP_FINAL</b> πρέπει να ΤΑΥΤΙΖΟΝΤΑΙ με του <b>PST_KAEK</b> (η διόρθωση ανακατανέμει εσωτερικά, δεν αλλάζει το συνολικό περίγραμμα, εκτός ειδικών περιπτώσεων). Έλεγξε snap στις εξωτερικές κορυφές.`);
     else
       add('I','§4.5.3',`Έλεγχος εμβαδών διόρθωσης ✓ — ΣPST_KAEK ${aPST.toFixed(1)} m² ≈ ΣDGM_PROP_FINAL ${aDGM.toFixed(1)} m².`);
+  }
+
+  /* --- Τοπογραφικό: αποδεκτή απόκλιση εμβαδού από την κτηματολογική βάση (άρθ. 13α ν.2664/98 — ΟΚΧΕ 461/03 & 462/03/2008) --- */
+  if(dgType==='TD' && ktimaOn && (polyInfo['PST_KAEK']||[]).length && (polyInfo['TOPO_PROP']||[]).length){
+    const Uo = document.getElementById('zoneAgro')?.checked ? 2.00 : 0.50;
+    const zname = Uo===2 ? 'αγροτική, Uo=2,00 μ' : 'αστική, Uo=0,50 μ';
+    const kaekTexts = textInfo['PST_KAEK']||[];
+    for(const tp of polyInfo['TOPO_PROP']){
+      const c = centroid(tp.ring);
+      const host = polyInfo['PST_KAEK'].find(p=>pointInPoly(c,p.ring));
+      if(!host){
+        add('W','ν.2664/98 §13α',`Αποδεκτή απόκλιση: το πολύγωνο TOPO_PROP (${tp.area.toFixed(1)} m²) δεν εμπίπτει σε κανένα πολύγωνο PST_KAEK — ο έλεγχος απόκλισης παραλείφθηκε.`,`Έλεγξε τη θέση/γεωαναφορά των ορίων του κτηματογραφικού αποσπάσματος (<b>PST_KAEK</b>) σε σχέση με το <b>TOPO_PROP</b>.`);
+        continue;
+      }
+      const E = host.area, P = perim(host.ring), Em = tp.area;
+      if(E<=0 || P<=0) continue;
+      const sq = Math.sqrt(E);
+      const A = ((sq + 2*Uo)**2 - E) * (P/(4*sq));   // Α = [(√Ε+2·Uo)²−Ε]×Π/Πτ, Πτ=4√Ε
+      const cap = 0.10*E;                             // λειτουργούν Κτηματολόγιο: οροφή 10% του Ε (ΟΚΧΕ 462/03/2008) — αστικές Uo=0,50 μ · αγροτικές Uo=2,00 μ
+      const Alim = Math.min(A, cap);
+      const dE = Math.abs(Em - E);
+      const kaek = (kaekTexts.find(t=>pointInPoly(t.pt,host.ring))||{}).text || '—';
+      const nums = `Ε κτημ. βάσης (PST_KAEK) ${E.toFixed(1)} m² · Π ${P.toFixed(1)} μ · Ε τοπογραφικού (TOPO_PROP) ${Em.toFixed(1)} m² · ΔΕ=${dE.toFixed(1)} m² · όριο Α=${Alim.toFixed(1)} m² (${zname}${A>cap?' — περιορισμός οροφής 10%':''})`;
+      if(dE <= Alim)
+        add('I','ν.2664/98 §13α',`Έλεγχος αποδεκτής απόκλισης εμβαδού ✓ — ΚΑΕΚ ${kaek}: ${nums}. Εντός ορίου [Α=((√Ε+2·Uo)²−Ε)×Π/4√Ε].`);
+      else
+        add('W','ν.2664/98 §13α',`ΕΚΤΟΣ αποδεκτής απόκλισης εμβαδού — ΚΑΕΚ ${kaek}: ${nums}.`,`Η διαφορά ΔΕ υπερβαίνει την αποδεκτή απόκλιση κατά τον τύπο <b>Α=((√Ε+2·Uo)²−Ε)×Π/4√Ε</b> (λειτουργούν Κτηματολόγιο: ΟΚΧΕ 461/03 &amp; 462/03/2008 — Uo=0,50 μ αστικές / 2,00 μ αγροτικές, οροφή 10% επί του Ε της κτηματολογικής βάσης). Πιθανώς απαιτείται <b>διόρθωση γεωμετρικών στοιχείων</b> (ΔΓΜ, άρθ. 19 ν.2664/98) πριν ή παράλληλα με την εγγραπτέα πράξη — τεκμηρίωσε τη διαφορά στο τοπογραφικό και ενημέρωσε τον συμβολαιογράφο.`);
+    }
   }
   if(doc.hasBlocksContent)
     add('I','§4.4.2','Το αρχείο περιέχει ορισμούς BLOCK στην ενότητα BLOCKS. Οι οντότητες του Πίνακα Ι δεν επιτρέπεται να είναι blocks — ελέγχθηκαν μόνο τα ENTITIES.','Αν στοιχεία του διαγράμματος είναι «κλειδωμένα» μέσα σε blocks, κάνε <b>EXPLODE</b> ώστε να βρεθούν στα σωστά layers ως απλές οντότητες.');
