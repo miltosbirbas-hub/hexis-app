@@ -280,7 +280,7 @@ nav button.active{background:linear-gradient(135deg,var(--acc1),var(--acc2));col
 
 <script>
 "use strict";
-const VER = "v1.19";
+const VER = "v1.20";
 function defStat(){ return { dimos:"", tk:"", oikopedo:0, ogkos:0, orofoi:0, katoik:0, domatia:0, parking:0, ydreysi:"Δημοτικό δίκτυο", apoxeteysi:"Δημοτικό δίκτυο", thermansi:"Αντλία θερμότητας", energeia:"ΔΕΔΔΗΕ (ρεύμα)" };}
 function defAekk(){ return {
  newOn:true,
@@ -614,6 +614,52 @@ function topoCalc(){
  add("Κορυφές Ο.Τ. / πολυγώνων", +t.otN, "τεμ", 104);
  return { rows, sum, min: 5000*l };
 }
+
+/* ===== Εισαγωγή μηχανικών από το HEXIS Hub (Supabase) ===== */
+const HUB_SB = "https://oucqqudfdimccgowvpqp.supabase.co";
+const HUB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8";
+function hubToken(){
+ try{
+  const raw = localStorage.getItem("sb-oucqqudfdimccgowvpqp-auth-token");
+  if(!raw) return null;
+  const j = JSON.parse(raw);
+  return j.access_token || (j.currentSession && j.currentSession.access_token) || null;
+ }catch(e){ return null; }
+}
+async function hubGet(path){
+ const tk = hubToken(); if(!tk) throw new Error("Δεν βρέθηκε σύνδεση HEXIS — μπες πρώτα στο Hub.");
+ const r = await fetch(HUB_SB + "/rest/v1/" + path, { headers:{ apikey: HUB_KEY, Authorization: "Bearer " + tk } });
+ if(!r.ok) throw new Error("HTTP " + r.status);
+ return r.json();
+}
+async function hubImportEngineers(silent){
+ try{
+  const prof = await hubGet("engineer_profiles?select=*");
+  const cols = await hubGet("collaborators?select=*&order=id");
+  let added = 0, upd = 0;
+  if(prof && prof[0] && prof[0].name){
+   const p = prof[0], e1 = D.engineers[0];
+   e1.name = p.name; e1.eid = p.specialty || e1.eid; e1.am = p.am_tee || ""; e1.afm = p.afm || "";
+   upd++;
+  }
+  (cols||[]).forEach(c=>{
+   if(!c.name) return;
+   const ex = D.engineers.find(e=> (c.afm && e.afm===c.afm) || e.name===c.name);
+   if(ex){ ex.name=c.name; ex.eid=c.specialty||ex.eid; ex.am=c.am_tee||ex.am; ex.afm=c.afm||ex.afm; upd++; }
+   else{
+    const nid = Math.max(0,...D.engineers.map(e=>e.id))+1;
+    D.engineers.push({ id:nid, name:c.name, eid:c.specialty||"Πολιτικός Μηχανικός", am:c.am_tee||"", afm:c.afm||"" });
+    added++;
+   }
+  });
+  save(); render();
+  if(!silent) alert(`Εισαγωγή από Hub: ενημερώθηκαν ${upd}, προστέθηκαν ${added} μηχανικοί.`);
+ }catch(err){
+  if(!silent) alert("Αποτυχία εισαγωγής: " + err.message);
+ }
+}
+// Σιωπηλή προσυμπλήρωση την πρώτη φορά (αν δεν έχει συμπληρωθεί μηχανικός)
+if(!D.engineers[0] || !D.engineers[0].name){ setTimeout(()=> hubImportEngineers(true), 800); }
 
 function amoivesCalc(){
  const S = symbatikos(), l = +D.lambda||0.23368;
@@ -1008,7 +1054,8 @@ function rErgo(){
    <td>${inp(`engineers.${i}.afm`, en.afm)}</td>
    <td>${D.engineers.length>1?`<button type="button" class="btn sm sec" data-deleng="${i}">🗑</button>`:""}</td></tr>`).join("")}
   </table></div>
-  <div class="btnrow"><button type="button" class="btn sm" id="addEng">➕ Προσθήκη μηχανικού</button></div>
+  <div class="btnrow"><button type="button" class="btn sm" id="addEng">➕ Προσθήκη μηχανικού</button>
+   <button type="button" class="btn sm sec" id="hubEng" title="Τραβάει το προφίλ σου και τους συνεργάτες από τον λογαριασμό HEXIS">⬇ Από το Hub (εγώ + συνεργάτες)</button></div>
   <div class="note">Πρόσθεσε όλη την ομάδα (μελετητές ανά ειδικότητα, επιβλέποντες). Στο tab «💶 Αμοιβές» αναθέτεις ποιος υπογράφει κάθε μελέτη & επίβλεψη — τα συμφωνητικά, οι ΥΔ και το XML βγαίνουν αυτόματα σωστά ανά μηχανικό.</div>
  </div>
  `;
@@ -1071,6 +1118,8 @@ function rErgo(){
  main.querySelectorAll("[data-delown]").forEach(b=> b.addEventListener("click", ()=>{ D.owners.splice(+b.dataset.delown,1); save(); render(); }));
  main.querySelectorAll("[data-otype]").forEach(s=> s.addEventListener("change", ()=>{ D.owners[+s.dataset.otype].type = s.value; save(); }));
  main.querySelectorAll("[data-oeid]").forEach(s=> s.addEventListener("change", ()=>{ D.owners[+s.dataset.oeid].eidos = s.value; save(); }));
+ const he = document.getElementById("hubEng");
+ if(he) he.addEventListener("click", ()=> hubImportEngineers(false));
  const ae = document.getElementById("addEng");
  if(ae) ae.addEventListener("click", ()=>{
   const nid = Math.max(0,...D.engineers.map(e=>e.id))+1;
