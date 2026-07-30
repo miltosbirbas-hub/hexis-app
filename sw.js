@@ -1,5 +1,5 @@
-/* BRB Terrain - Service Worker */
-const CACHE = 'brb-terrain-v2';
+/* HEXIS Terrain - Service Worker */
+const CACHE = 'hexis-terrain-v3';
 const SHELL = [
   './',
   './index.html',
