@@ -1,5 +1,6 @@
 ;;; ============================================================================
 ;;; HEXIS - CHECK MY DXF  v2.1  (AutoLISP)
+;;; Εντολες: HEXISCHECK (ελεγχος) - HEXISFIX (αυτοδιορθωσεις) - HEXISCLR (καθαρισμος σημανσεων)
 ;;; Ελεγχος διαγραμματων για Ηλεκτρονικη Υποβολη στο Ελληνικο Κτηματολογιο
 ;;; συμφωνα με το Τευχος Τεχνικων Προδιαγραφων ΕΚ (εκδ. 1.3/2024, ΠΙΝΑΚΑΣ Ι)
 ;;;
@@ -196,6 +197,21 @@
   ok)
 
 ;; μη λατινικοι χαρακτηρες σε ονομα layer;
+;; μεταγραφη ελληνικων χαρακτηρων-σωσιων σε λατινικους (Α->A, Ρ->P κλπ, cp1253)
+(setq *HX-LATMAP*
+ '((193 . "A")(194 . "B")(197 . "E")(198 . "Z")(199 . "H")(201 . "I")(202 . "K")
+   (204 . "M")(205 . "N")(207 . "O")(209 . "P")(212 . "T")(213 . "Y")(215 . "X")
+   (225 . "A")(226 . "B")(229 . "E")(230 . "Z")(231 . "H")(233 . "I")(234 . "K")
+   (236 . "M")(237 . "N")(239 . "O")(241 . "P")(244 . "T")(245 . "Y")(247 . "X")))
+(defun hx-lat (s / i c r m)
+  (setq i 1 r "")
+  (while (<= i (strlen s))
+    (setq c (ascii (substr s i 1)))
+    (setq m (cdr (assoc c *HX-LATMAP*)))
+    (setq r (strcat r (if m m (substr s i 1))))
+    (setq i (1+ i)))
+  r)
+
 (defun hx-nonlatin (s / i ok c)
   (setq i 1 ok nil)
   (while (<= i (strlen s))
@@ -735,3 +751,119 @@
 (princ (strcat "\nHEXIS - CHECK MY DXF v" *HX-VER*
                " φορτωθηκε. Εντολες: HEXISCHECK, HEXISFIX, HEXISCLR\n"))
 (princ)
+
+;;; =========================================================== HEXISFIX v2.1
+;;; Αυτοματες διορθωσεις: 1) μετονομασια layers (πεζα / ελληνικοι σωσιες -> Πινακας Ι)
+;;;                       2) LINE -> LWPOLYLINE με αλυσιδωση ακρων στα standard layers
+(defun hx-same (a b) (and a b (< (distance (list (car a) (cadr a)) (list (car b) (cadr b))) 0.0005)))
+
+(defun hx-mkpl (lname pts closed / d p)
+  (setq d (list '(0 . "LWPOLYLINE") '(100 . "AcDbEntity") (cons 8 lname)
+                '(100 . "AcDbPolyline") (cons 90 (length pts)) (cons 70 (if closed 1 0))))
+  (foreach p pts (setq d (append d (list (cons 10 (list (car p) (cadr p)))))))
+  (entmake d))
+
+(defun hx-movelay (old new / ss i en ed cnt)
+  (setq cnt 0 ss (ssget "_X" (list (cons 8 old))))
+  (if ss
+    (progn (setq i 0)
+      (while (< i (sslength ss))
+        (setq en (ssname ss i) ed (entget en))
+        (entmod (subst (cons 8 new) (assoc 8 ed) ed))
+        (setq cnt (1+ cnt) i (1+ i)))))
+  cnt)
+
+(defun hx-renlay (old new / e ed r)
+  (cond
+    ;; ιδιο layer με διαφορα μονο πεζων/κεφαλαιων -> RENAME (τα ονοματα ειναι case-insensitive)
+    ((= (strcase old) (strcase new))
+     (command "_.-RENAME" "_LA" old new)
+     -1)
+    ;; υπαρχει ηδη το σωστο layer -> μεταφορα οντοτητων
+    ((tblsearch "LAYER" new) (hx-movelay old new))
+    ;; μετονομασια στον πινακα layers (με fallback δημιουργιας+μεταφορας)
+    (T
+     (setq e (tblobjname "LAYER" old))
+     (setq r (if e (entmod (subst (cons 2 new) (assoc 2 (setq ed (entget e))) ed))))
+     (if r
+       -1
+       (progn
+         (entmake (list '(0 . "LAYER") '(100 . "AcDbSymbolTableRecord")
+                        '(100 . "AcDbLayerTableRecord") (cons 2 new)
+                        '(70 . 0) '(62 . 7) '(6 . "Continuous")))
+         (hx-movelay old new))))))
+
+(defun c:HEXISFIX (/ lay lnames lname std tgt nren nmov npl ndel segs ss i en ed
+                     seg pts ents grew rest s2 closed r n2)
+  (princ "\n=== HEXIS FIX v2.1 - αυτοματες διορθωσεις DXF (ΚΗΔ) ===")
+  (setq lay (tblnext "LAYER" T) lnames nil)
+  (while lay
+    (setq lnames (cons (cdr (assoc 2 lay)) lnames))
+    (setq lay (tblnext "LAYER")))
+  (setq nren 0 nmov 0)
+  ;; --- 1α. πεζα/μικτα ονοματα standard layers -> ΚΕΦΑΛΑΙΑ
+  (foreach lname lnames
+    (foreach std *HX-STD*
+      (if (and (= (strcase lname) (car std)) (/= lname (car std)))
+        (progn
+          (setq r (hx-renlay lname (car std)))
+          (if (= r -1)
+            (progn (setq nren (1+ nren))
+                   (princ (strcat "\n  μετονομασια: " lname " -> " (car std))))
+            (progn (setq nmov (+ nmov r))
+                   (princ (strcat "\n  συγχωνευση: " lname " -> " (car std) " (" (itoa r) " οντοτητες)"))))))))
+  ;; --- 1β. ελληνικοι χαρακτηρες-σωσιες -> λατινικο ονομα Πινακα Ι
+  (setq lay (tblnext "LAYER" T) lnames nil)
+  (while lay
+    (setq lnames (cons (cdr (assoc 2 lay)) lnames))
+    (setq lay (tblnext "LAYER")))
+  (foreach lname lnames
+    (if (and (hx-nonlatin lname) (/= lname "0"))
+      (progn
+        (setq tgt (strcase (hx-lat lname)))
+        (if (and (assoc tgt *HX-STD*) (/= tgt (strcase lname)))
+          (progn
+            (setq r (hx-renlay lname tgt))
+            (if (= r -1)
+              (progn (setq nren (1+ nren))
+                     (princ (strcat "\n  μετονομασια (ελληνικα->λατινικα): " lname " -> " tgt)))
+              (progn (setq nmov (+ nmov r))
+                     (princ (strcat "\n  συγχωνευση: " lname " -> " tgt " (" (itoa r) " οντοτητες)")))))))))
+  ;; --- 2. LINE -> LWPOLYLINE με αλυσιδωση, ανα standard layer
+  (setq npl 0 ndel 0)
+  (foreach std *HX-STD*
+    (setq ss (ssget "_X" (list '(0 . "LINE") (cons 8 (car std)))))
+    (if ss
+      (progn
+        (setq segs nil i 0)
+        (while (< i (sslength ss))
+          (setq en (ssname ss i) ed (entget en))
+          (setq segs (cons (list (cdr (assoc 10 ed)) (cdr (assoc 11 ed)) en) segs))
+          (setq i (1+ i)))
+        (while segs
+          (setq seg (car segs) segs (cdr segs))
+          (setq pts (list (cadr seg) (car seg)) ents (list (caddr seg)) grew T)
+          (while grew
+            (setq grew nil rest nil)
+            (foreach s2 segs
+              (cond
+                ((hx-same (car s2) (car pts))
+                 (setq pts (cons (cadr s2) pts) ents (cons (caddr s2) ents) grew T))
+                ((hx-same (cadr s2) (car pts))
+                 (setq pts (cons (car s2) pts) ents (cons (caddr s2) ents) grew T))
+                ((hx-same (car s2) (last pts))
+                 (setq pts (append pts (list (cadr s2))) ents (cons (caddr s2) ents) grew T))
+                ((hx-same (cadr s2) (last pts))
+                 (setq pts (append pts (list (car s2))) ents (cons (caddr s2) ents) grew T))
+                (T (setq rest (cons s2 rest)))))
+            (setq segs rest))
+          (setq closed (and (> (length pts) 3) (hx-same (car pts) (last pts))))
+          (if closed (setq pts (cdr pts)))       ; κλειστη: χωρις διπλη κορυφη
+          (hx-mkpl (car std) pts closed)
+          (setq npl (1+ npl))
+          (foreach en ents (entdel en) (setq ndel (1+ ndel)))))))
+  (princ (strcat "\n--- HEXISFIX: " (itoa nren) " μετονομασιες, " (itoa nmov)
+                 " μεταφορες οντοτητων, " (itoa npl) " νεες LWPOLYLINE απο " (itoa ndel)
+                 " LINE.\n    Τρεξε ξανα HEXISCHECK για επαληθευση."))
+  (princ))
+
