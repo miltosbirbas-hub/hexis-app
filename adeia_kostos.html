@@ -219,7 +219,7 @@ tr:has(input.filled)>td:first-child{border-left:3px solid #E08A2E}
 
 <script>
 "use strict";
-const VER = "v1.14";
+const VER = "v1.15";
 function defStat(){ return { dimos:"", tk:"", oikopedo:0, ogkos:0, orofoi:0, katoik:0, domatia:0, parking:0, ydreysi:"Δημοτικό δίκτυο", apoxeteysi:"Δημοτικό δίκτυο", thermansi:"Αντλία θερμότητας", energeia:"ΔΕΔΔΗΕ (ρεύμα)" };}
 function defAekk(){ return {
  newOn:true,
@@ -397,6 +397,7 @@ const USES_CATALOG = [
 
 let D = load() || {
  ergo:{titlos:"", dieuth:"", kaek:"", months:18},
+ odFee:0,
  owners:[ {id:1, type:"f", name:"", afm:"", doy:"", pct:100} ],
  engineers:[
   {id:1, name:"", eid:"Πολιτικός Μηχανικός", am:"", afm:""},
@@ -456,6 +457,7 @@ function load(){
   if(!d.stat) d.stat = defStat();
   if(d.allagi===undefined){ d.allagi=false; d.scen=[]; (d.uses||[]).forEach(u=>{ if(u.oldIdx===undefined) u.oldIdx=-1; }); }
   (d.owners||[]).forEach(o=>{ if(!o.eidos) o.eidos = "Πλήρης κυριότητα"; });
+  if(d.odFee===undefined) d.odFee = 0;
   if(d.kenakPct===undefined){ d.kenakPct=DEF.kenakPct; d.topoFlat=DEF.topoFlat; d.incProsthiki=false; }
   if(d.eta===undefined) d.eta = 118.00;
   if(!Array.isArray(d.engineers) || !d.engineers.length){
@@ -1133,12 +1135,48 @@ function rDocs(){
   <div class="btnrow">
    <button class="btn" onclick="printStat()">📊 Στατιστικό Δελτίο ΕΛΣΤΑΤ</button>
   </div>
+  <h3 style="margin-top:14px">Βεβαίωση Όρων Δόμησης</h3>
+  <div style="max-width:280px"><label>Αμοιβή βεβαίωσης (€ προ ΦΠΑ)</label><input id="odFee" type="number" step="10" value="${+D.odFee||0}"></div>
+  <div class="btnrow">
+   <button class="btn" onclick="printSymfOD()">📄 Συμφωνητικό Βεβαίωσης Όρων Δόμησης</button>
+   <button class="btn sec" onclick="printAnathesiOD()">✍ Δήλωση Ανάθεσης (προς ΥΔΟΜ κ.λπ.)</button>
+  </div>
   <div class="note">Τα στοιχεία ΑΕΚΚ (ποσότητες, ΣΣΕΔ, εγγυητική) συμπληρώνονται στην καρτέλα ♻️ ΑΕΚΚ/ΣΔΑ.</div>
   <div class="note">Τα ΣΑΥ/ΦΑΥ παράγονται ως πλήρη πρότυπα π.δ. 305/1996 προσαρμοσμένα στο έργο — έλεγξε & συμπλήρωσε τα σημεία [___] πριν την υποβολή.</div>
   <div class="note">🗺️ Το τοπογραφικό διάγραμμα (DXF) πριν την υποβολή στο Κτηματολόγιο/e-Άδειες πέρασέ το από το <a href="checkmydxf.html" target="_blank"><b>Check My DXF</b></a> — έλεγχος layers, ΕΓΣΑ΄87 και προδιαγραφών ΔΓΜ.</div>
  </div>`;
  const de = document.getElementById("docEng");
  if(de) de.addEventListener("change", ()=>{ D.docEng = +de.value; save(); });
+ const of_ = document.getElementById("odFee");
+ if(of_) of_.addEventListener("input", ()=>{ D.odFee = +of_.value||0; save(); });
+}
+
+function printSymfOD(){
+ const en = engById(D.docEng);
+ const poso = +D.odFee||0, fpa = +D.fpa||0;
+ doPrint(phead("Συμφωνητικό — Βεβαίωση Όρων Δόμησης")+`<div class="doc"><h1>ΙΔΙΩΤΙΚΟ ΣΥΜΦΩΝΗΤΙΚΟ ΑΝΑΘΕΣΗΣ<br>ΕΚΔΟΣΗΣ ΒΕΒΑΙΩΣΗΣ ΟΡΩΝ ΔΟΜΗΣΗΣ</h1>
+ <p>Στ.. [___] σήμερα, ${new Date().toLocaleDateString("el-GR")}, αφενός ${esc(ownersLine())}, εφεξής από κοινού «Κύριος του Ακινήτου», και αφετέρου του/της <b>${esc(en.name||"[___]")}</b>, ${esc(en.eid)}, Α.Μ. ΤΕΕ ${esc(en.am||"[___]")}, ΑΦΜ ${esc(en.afm||"[___]")}, εφεξής «Μηχανικός», συμφωνήθηκαν τα εξής:</p>
+ <p><b>1. Αντικείμενο.</b> Ο Μηχανικός αναλαμβάνει την έρευνα του ισχύοντος πολεοδομικού καθεστώτος και τη σύνταξη <b>Βεβαίωσης Όρων Δόμησης</b> για το ακίνητο στη θέση ${esc(D.ergo.dieuth||"[___]")}, ΚΑΕΚ ${esc(D.ergo.kaek||"[___]")}. Η βεβαίωση περιλαμβάνει ιδίως: ισχύον καθεστώς (εντός σχεδίου / εντός ορίων οικισμού / εκτός σχεδίου), επιτρεπόμενες χρήσεις γης, αρτιότητα και οικοδομησιμότητα, συντελεστή δόμησης, ποσοστό κάλυψης, συντελεστή όγκου, μέγιστο επιτρεπόμενο ύψος, πλάγιες αποστάσεις (Δ), ρυμοτομικές και οικοδομικές γραμμές, καθώς και τυχόν ειδικά καθεστώτα προστασίας (παραδοσιακός οικισμός, αρχαιολογικοί χώροι, δασικές εκτάσεις, Natura, αιγιαλός–παραλία, ρέματα) κατά τα διαθέσιμα στοιχεία των αρμοδίων υπηρεσιών.</p>
+ <p><b>2. Αμοιβή.</b> Η αμοιβή συμφωνείται στο ποσό των <b>${eur(poso)}</b> πλέον ΦΠΑ ${num(fpa)}% (${eur(poso*fpa/100)}), ήτοι συνολικά <b>${eur(poso*(1+fpa/100))}</b>, καταβλητέα με την παράδοση της βεβαίωσης.</p>
+ <p><b>3. Προθεσμία.</b> Η βεβαίωση παραδίδεται εντός [___] εργασίμων ημερών από την υπογραφή του παρόντος και την παράδοση των στοιχείων της παρ. 4, με την επιφύλαξη καθυστερήσεων των αρμοδίων υπηρεσιών.</p>
+ <p><b>4. Υποχρεώσεις Κυρίου.</b> Ο Κύριος του Ακινήτου παραδίδει στον Μηχανικό τους τίτλους ιδιοκτησίας, τυχόν υφιστάμενο τοπογραφικό διάγραμμα, αποσπάσματα κτηματολογίου και κάθε άλλο πρόσφορο στοιχείο, και τον εξουσιοδοτεί να αναζητά στοιχεία από τις αρμόδιες υπηρεσίες.</p>
+ <p><b>5. Ισχύς.</b> Η βεβαίωση αποτυπώνει τους ισχύοντες όρους δόμησης κατά την ημερομηνία σύνταξής της, βάσει των διαθέσιμων στοιχείων, και δεν υποκαθιστά διοικητικές πράξεις ή εγκρίσεις των αρμοδίων οργάνων.</p>
+ <p><b>6.</b> Κάθε τροποποίηση γίνεται εγγράφως. Αρμόδια τα δικαστήρια της περιφέρειας του ακινήτου.</p>
+ <div class="sig"><div>Ο Κύριος του Ακινήτου<br><br><br>${esc(ownersShort())}</div><div>Ο Μηχανικός<br><br><br>${esc(en.name)}</div></div></div>
+ <div class="pfoot">HEXIS Κόστος Άδειας ${VER} — ελέγξτε & προσαρμόστε πριν την υπογραφή</div>`);
+}
+
+function printAnathesiOD(){
+ const en = engById(D.docEng);
+ doPrint(phead("Δήλωση Ανάθεσης — Βεβαίωση Όρων Δόμησης")+`<div class="doc"><h1>ΔΗΛΩΣΗ ΑΝΑΘΕΣΗΣ</h1>
+ <p style="text-align:center"><b>ΠΡΟΣ:</b> Κάθε αρμόδια Υπηρεσία (ΥΔΟΜ, Κτηματολόγιο, Δασαρχείο, Εφορεία Αρχαιοτήτων κ.λπ.)</p>
+ <p>Ο/Οι κάτωθι υπογράφων/-οντες, ${esc(ownersLine())}, με την ιδιότητα του κυρίου / των συγκυρίων του ακινήτου στη θέση <b>${esc(D.ergo.dieuth||"[___]")}</b>, ΚΑΕΚ <b>${esc(D.ergo.kaek||"[___]")}</b>, δηλώνουμε ότι:</p>
+ <p><b>1.</b> Αναθέτουμε στον/στην <b>${esc(en.name||"[___]")}</b>, ${esc(en.eid)}, Α.Μ. ΤΕΕ ${esc(en.am||"[___]")}, ΑΦΜ ${esc(en.afm||"[___]")}, τη σύνταξη <b>Βεβαίωσης Όρων Δόμησης</b> για το ως άνω ακίνητο.</p>
+ <p><b>2.</b> Εξουσιοδοτούμε τον/την ως άνω Μηχανικό να αναζητά, να αιτείται και να παραλαμβάνει από τις αρμόδιες Υπηρεσίες κάθε στοιχείο, έγγραφο, βεβαίωση ή απόσπασμα που αφορά το πολεοδομικό καθεστώς και τους όρους δόμησης του ακινήτου (όροι δόμησης, χρήσεις γης, ρυμοτομικές/οικοδομικές γραμμές, καθεστώτα προστασίας), για λογαριασμό μας.</p>
+ <p><b>3.</b> Η παρούσα ισχύει αποκλειστικά για τον ανωτέρω σκοπό.</p>
+ <p style="margin-top:16px">[___], ${new Date().toLocaleDateString("el-GR")}</p>
+ <div class="sig"><div>Ο/Οι Δηλών/-ούντες<br><br><br>${esc(ownersShort())}</div><div>Ο Μηχανικός (αποδοχή)<br><br><br>${esc(en.name)}</div></div></div>
+ <div class="pfoot">HEXIS Κόστος Άδειας ${VER} — ελέγξτε & προσαρμόστε πριν τη χρήση</div>`);
 }
 function rExport(){
  main.innerHTML = `
