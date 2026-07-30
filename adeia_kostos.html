@@ -219,7 +219,7 @@ tr:has(input.filled)>td:first-child{border-left:3px solid #E08A2E}
 
 <script>
 "use strict";
-const VER = "v1.15";
+const VER = "v1.16";
 function defStat(){ return { dimos:"", tk:"", oikopedo:0, ogkos:0, orofoi:0, katoik:0, domatia:0, parking:0, ydreysi:"Δημοτικό δίκτυο", apoxeteysi:"Δημοτικό δίκτυο", thermansi:"Αντλία θερμότητας", energeia:"ΔΕΔΔΗΕ (ρεύμα)" };}
 function defAekk(){ return {
  newOn:true,
@@ -507,7 +507,7 @@ function usesTotal(which){
 }
 function symbatikos(){ if(+D.eadeiesS > 0) return +D.eadeiesS; return D.uses.reduce((a,x)=> a + useBudget(x), 0); }
 
-function beta(base, l, k, m){ if(base<=0||l<=0) return 0; return k + m/Math.cbrt(base/l); }
+function beta(base, l, k, m){ if(base<=0||l<=0) return 0; return k + m/Math.cbrt(base/(1000*l)); } // ΤΕΕ: β = κ + μ/³√(Σ/233,68), 233,68 = 1000·λ
 function feePart(base, l, k, m, bf){ return base * beta(base,l,k,m) / 100 * (bf||1); }
 
 function amoivesCalc(){
@@ -518,8 +518,9 @@ function amoivesCalc(){
   if(!st.on){ rows.push({...st, melF:0, epiF:0}); continue; }
   const base = S * ((+st.share||0)/100);
   let melF = feePart(base, l, +st.mk, +st.mm, +st.bf) * incP;
-  if(st.aseismic) melF *= 1.80;            // Increment 30: αντισεισμικός +80% (στατικά)
-  const epiF = feePart(base, l, +st.ek, +st.em, +st.bf) * incP;
+  if(st.aseismic) melF *= 1.80;            // αντισεισμικός: μελέτη στατικών +80% (τκ ΤΕΕ)
+  let epiF = feePart(base, l, +st.ek, +st.em, +st.bf) * incP;
+  if(st.aseismic) epiF *= 1.40;            // αντισεισμικός: επίβλεψη στατικών +40% (ανάλυση ΤΕΕ)
   mel += melF; epi += epiF;
   rows.push({...st, base, melF, epiF});
  }
