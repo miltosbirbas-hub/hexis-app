@@ -280,7 +280,7 @@ nav button.active{background:linear-gradient(135deg,var(--acc1),var(--acc2));col
 
 <script>
 "use strict";
-const VER = "v1.18";
+const VER = "v1.19";
 function defStat(){ return { dimos:"", tk:"", oikopedo:0, ogkos:0, orofoi:0, katoik:0, domatia:0, parking:0, ydreysi:"Δημοτικό δίκτυο", apoxeteysi:"Δημοτικό δίκτυο", thermansi:"Αντλία θερμότητας", energeia:"ΔΕΔΔΗΕ (ρεύμα)" };}
 function defAekk(){ return {
  newOn:true,
@@ -302,7 +302,7 @@ const DEF = {
  eta: 118.00,             // Ενιαία Τιμή Αφετηρίας ΤΕΕ €/μ² (ΥΑ ΦΕΚ 56/25-01-2012)
  tekmHm: 60.00,           // Ημερομίσθιο βάσης ΕΦΚΑ (ΣΣΕ οικοδόμων/τεκμαρτό — ΔΙΟΡΘΩΣΕ)
  efkaPct: 60.84,          // Συνολικό ποσοστό εισφορών οικοδομικών % (εργοδ.+ασφ. — ΔΙΟΡΘΩΣΕ με τρέχουσα εγκύκλιο)
- fpa: 24, parakr: 10, parakrTopo: 4, teeKrat: 2,  // ΦΠΑ% · ΦΕΜ 10% μελ./επιβλ. + 4% τοπογραφικά (ν.4172/13 άρθ.69§4, ΠΟΛ 1025/14) · κράτηση ΤΕΕ ‰
+ fpa: 24, parakr: 10, parakrTopo: 4, teeKrat: 0,  // ΦΠΑ% · ΦΕΜ 10% μελ./επιβλ. + 4% τοπογραφικά (ν.4172/13 άρθ.69§4, ΠΟΛ 1025/14) · κράτηση ΤΕΕ ‰
  dimosFee: 0,             // τέλη δήμου/κατάληψης (χειροκίνητα)
  // Χρήσεις: συμβατική τιμή €/μ² (για συμβατικό προϋπ/σμό ΤΕΕ) — προεπιλογές, διορθώνονται
  // Μελέτες κατά ΤΕΕ (κωδικοί task/κ/μ/κατηγορία από πραγματική υποβολή e-Άδειες)
@@ -328,6 +328,7 @@ const DEF = {
  ],
  kenakPct: 20,        // ΚΕΝΑΚ 5601 = 20% επί των αμοιβών μελετών των κλάδων (όπως στο ΤΕΕ)
  topoFlat: 450,       // Τοπογραφικό 2001 — κατ' αποκοπή/μονάδες (method 2)
+ topo: null,          // αναλυτικός υπολογισμός τοπογραφικού (ΠΔ 696/74 άρθ.5-18)
  incProsthiki: false, // Increment 500: Προσθήκη/Επέκταση/Επισκευή +30%
  // Αναλυτικός προϋπολογισμός: πλήρης κατάλογος εργασιών (ΑΤΟΕ-τύπου, % επεξεργάσιμα)
  works: [
@@ -516,6 +517,8 @@ function load(){
   if(d.ektosSxediou===undefined){ d.ektosSxediou=false; d.aekkKg=50; d.aekkEur=9; d.aekkEgy=0; }
   if(d.prasMode===undefined){ d.prasMode="p5"; d.analytP=0; }
   if(d.parakrTopo===undefined){ d.parakrTopo=4; if(+d.parakr===20) d.parakr=10; } // ΦΕΜ αντί γενικής παρακράτησης 20%
+  if(!d.topo) d.topo = defTopo();
+  if(+d.teeKrat===2 && d._krFix===undefined){ d.teeKrat=0; d._krFix=1; } // κρατήσεις ΤΣΜΕΔΕ 2%/ΕΜΠ 1% καταργήθηκαν (ν.4254/14 & 2016)
   if(!d.aekk) d.aekk = defAekk();
   if(!d.stat) d.stat = defStat();
   if(d.allagi===undefined){ d.allagi=false; d.scen=[]; (d.uses||[]).forEach(u=>{ if(u.oldIdx===undefined) u.oldIdx=-1; }); }
@@ -574,6 +577,43 @@ function symbatikos(){ if(+D.eadeiesS > 0) return +D.eadeiesS; return D.uses.red
 
 function beta(base, l, k, m){ if(base<=0||l<=0) return 0; return k + m/Math.cbrt(base/(1000*l)); } // ΤΕΕ: β = κ + μ/³√(Σ/233,68), 233,68 = 1000·λ
 function feePart(base, l, k, m, bf){ return base * beta(base,l,k,m) / 100 * (bf||1); }
+
+/* ===== ΤΟΠΟΓΡΑΦΙΚΟ — ΠΔ 696/74 άρθ.5-18 (τιμές δρχ × λ) ===== */
+function defTopo(){ return { mode:"entos", klim:"500", klisi:"A", kal:"III",
+ strem:0, ypsom:true, omora:0, trigIV:0, trigTomi:0, trigXr:0, polyN:0, rymN:0, otN:0 }; }
+const TOPO_APOT = { // αποτύπωση €δρχ/στρέμμα: [κλίμακα][μεταβλητή]
+ ektos: { "200":{A:325,B:357,G:455,D:650,E:728}, "500":{A:130,B:143,G:182,D:260,E:286}, "1000":{A:65,B:71,G:91,D:130,E:143} },       // άρθ.8 κατά κλίση
+ entos: { "500":{I:455,II:390,III:286,IV:195}, "1000":{I:325,II:260,III:195,IV:130}, "2000":{I:260,II:195,III:130,IV:91} },          // άρθ.9 κατά κάλυψη
+ astiko:{ "100":{I:1248,II:988,III:728,IV:488}, "200":{I:1053,II:879,III:585,IV:410}, "500":{I:683,II:546,III:410,IV:273} }          // άρθ.10 κατά κάλυψη
+};
+const TOPO_OMORA = { ektos:{ "500":110, "1000":99 }, entos:{ "500":600, "1000":390 }, astiko:{ "500":1150, "200":1470, "100":1850 } }; // άρθ.13(0-2στρ)/14(Ι)/15
+function topoCalc(){
+ const t = D.topo || (D.topo = defTopo());
+ const l = +D.lambda||0.23368;
+ const rows = []; let sum = 0;
+ const add = (per, qty, mon, drx, extra)=>{ if(qty<=0||drx<=0) return; const e = qty*drx*l*(extra||1); rows.push({per, qty, mon, drx, e}); sum += e; };
+ // Αποτύπωση
+ const tab = TOPO_APOT[t.mode]||{}; const kl = tab[t.klim] || tab[Object.keys(tab)[0]] || {};
+ let base = t.mode==="ektos" ? (kl[t.klisi]||0) : (kl[t.kal]||0);
+ let extra = 1;
+ if(t.mode==="entos"){ extra += ({A:0,B:.10,G:.40,D:.75,E:1.00})[t.klisi]||0; }              // άρθ.9§2
+ if(t.mode==="astiko"){ extra += (({A:0,B:.10,G:.40,D:.75,E:1.00})[t.klisi]||0)*0.5; }       // άρθ.10§2 (50%)
+ add(`Αποτύπωση ${t.mode==="ektos"?"υπαίθρου (άρθ.8)":t.mode==="entos"?"κατοικημένης (άρθ.9)":"αστική ορθογ. (άρθ.10)"} 1:${t.klim}`, +t.strem, "στρ", base, extra);
+ if(t.ypsom && +t.strem>0 && base>0) add("Υψομέτρηση (60% αποτύπωσης — άρθ.8§2)", +t.strem, "στρ", base*0.60, extra);
+ // Όμορα — κτηματογραφική
+ const om = (TOPO_OMORA[t.mode]||{})[t.klim] || (TOPO_OMORA[t.mode]||{})["500"] || 0;
+ add("Κτηματογραφική αποτύπωση ομόρων (άρθ.13/14/15)", +t.omora, "στρ", om);
+ // Εξάρτηση — τριγωνισμοί (άρθ.5)
+ add("Τριγωνομετρικό σημείο IV τάξης", +t.trigIV, "τεμ", 4550);
+ add("Εμπροσθοτομία/Οπισθοτομία", +t.trigTomi, "τεμ", 1950);
+ add("Αναγνώριση/χρήση υπάρχ. τριγωνομετρικού", +t.trigXr, "τεμ", 390);
+ // Πολυγωνομετρία (άρθ.6)
+ add(`Πολυγωνικό σημείο ${t.mode==="ektos"?"(εκτός κατοικ.)":"(εντός κατοικ.)"}`, +t.polyN, "τεμ", t.mode==="ektos"?260:390);
+ // Εφαρμογή ρυμοτομικών (άρθ.18)
+ add("Εφαρμογή γραμμών — σημεία αξόνων οδών", +t.rymN, "τεμ", 390);
+ add("Κορυφές Ο.Τ. / πολυγώνων", +t.otN, "τεμ", 104);
+ return { rows, sum, min: 5000*l };
+}
 
 function amoivesCalc(){
  const S = symbatikos(), l = +D.lambda||0.23368;
@@ -829,7 +869,7 @@ function wizChecks(){
      : "Ενεργοποίησε τις μελέτες που αφορούν το έργο."});
  out.push({tab:"foro", t:"4. Φόροι & τέλη (τα «φορολογικά» της άδειας)",
   ok: a.sum>0 && (!D.ektosSxediou || f.prasino>0),
-  msg: `ΦΠΑ ${num(D.fpa)}% = ${eur(f.fpa)} · ΦΕΜ (10%/4%) = ${eur(f.parakr)} · κράτηση ΤΕΕ ${num(D.teeKrat)}‰ = ${eur(f.tee)}${D.ektosSxediou?` · Πράσινο Ταμείο ${eur(f.prasino)}`:" · τσέκαρε «Εκτός σχεδίου» αν ισχύει (τέλος Πράσινου Ταμείου)"}. Σύνολο ταμειακό: ${eur(f.cash)}.`});
+  msg: `ΦΠΑ ${num(D.fpa)}% = ${eur(f.fpa)} · ΦΕΜ (10%/4%) = ${eur(f.parakr)} · κρατήσεις ${num(D.teeKrat)}‰ = ${eur(f.tee)}${D.ektosSxediou?` · Πράσινο Ταμείο ${eur(f.prasino)}`:" · τσέκαρε «Εκτός σχεδίου» αν ισχύει (τέλος Πράσινου Ταμείου)"}. Σύνολο ταμειακό: ${eur(f.cash)}.`});
  out.push({tab:"efka", t:"5. ΕΦΚΑ (ένσημα έργου)",
   ok: true,
   msg: `Πίνακας ${D.efkaMode==="2a"?"2Α (μεταλλικός/προκατ. σκελετός)":D.efkaMode==="2b"?"2Β (πλήρης προκατασκευή)":"1 (συμβατική)"} — επιλέχθηκε αυτόματα από τον «Φέροντα οργανισμό» στο βήμα 1. Έλεγξε συντελεστές/ημερομίσθια.`});
@@ -1068,7 +1108,7 @@ function rAmoives(){
   <div class="grid3">
    <div><label>Συντελεστής λ (κωδ. 20121)</label>${ninp("lambda", D.lambda, "0.00001", 1)}</div>
    <div><label>ΚΕΝΑΚ % επί μελετών κλάδων</label>${ninp("kenakPct", D.kenakPct, "1", 1)}</div>
-   <div><label>Τοπογραφικό € (κατ' αποκοπή)</label>${ninp("topoFlat", D.topoFlat, "1", 1)}</div>
+   <div><label>Τοπογραφικό € (κατ' αποκοπή — ή υπολόγισέ το αναλυτικά παρακάτω)</label>${ninp("topoFlat", D.topoFlat, "1", 1)}</div>
   </div>
   <div class="note">Η προσαύξηση προσθήκης +30% (ΠΔ 696/74 άρθ.88 — increment ΤΕΕ 500) εφαρμόζεται <b>αυτόματα και σταθμισμένα</b> από τη στήλη «Είδος» των χρήσεων (γραμμές ΠΡΟΣΘΗΚΗ).</div>
   <div class="note">Βάση κάθε μελέτης = Σ×%Σ (Σ=${eur(S)}). β=κ+μ/∛(Βάση/λ), Αμοιβή=Βάση·β/100. Στατικά: +80% αντισεισμικού (increment 30). Οι %Σ και τα κ/μ προέρχονται από πραγματική υποβολή ΤΕΕ — επεξεργάσιμα.</div>
@@ -1089,6 +1129,43 @@ function rAmoives(){
   <div class="btnrow"><button class="btn sec sm" onclick="addStudy()">➕ Προσθήκη μελέτης (με κωδικό ΤΕΕ)</button></div>
   <div class="sumrow" style="margin-top:8px"><span>Μελέτες + Επιβλέψεις</span><b class="big">${eur(a.sum)}</b></div>
   ${a.belowMin?`<div class="note warn">⚠ Κάτω από την ελάχιστη νόμιμη αμοιβή 5000×λ = ${eur(a.minPay)} — στο ΤΕΕ ισχύει το ελάχιστο.</div>`:""}
+  <h3 style="margin-top:14px">Τοπογραφικό — αναλυτικός υπολογισμός (ΠΔ 696/74 άρθ.5-18, τιμές × λ)</h3>
+  <div class="card">
+   <div class="grid2">
+    <div><label>Περιοχή</label><select id="tpMode">
+     <option value="ektos" ${D.topo.mode==="ektos"?"selected":""}>Εκτός σχεδίου / ακατοίκητη (άρθ.8)</option>
+     <option value="entos" ${D.topo.mode==="entos"?"selected":""}>Εντός σχεδίου / κατοικημένη (άρθ.9)</option>
+     <option value="astiko" ${D.topo.mode==="astiko"?"selected":""}>Αστική με ορθογώνιες (άρθ.10)</option>
+    </select></div>
+    <div><label>Κλίμακα</label><select id="tpKlim">
+     ${(D.topo.mode==="astiko"?["100","200","500"]:D.topo.mode==="entos"?["500","1000","2000"]:["200","500","1000"]).map(k=>`<option value="${k}" ${D.topo.klim===k?"selected":""}>1:${k}</option>`).join("")}
+    </select></div>
+    <div><label>Κλίση εδάφους</label><select id="tpKlisi">
+     ${["A","B","G","D","E"].map((c,i)=>`<option value="${c}" ${D.topo.klisi===c?"selected":""}>${["Α 0-5%","Β 5-20%","Γ 20-50%","Δ 50-100%","Ε >100%"][i]}</option>`).join("")}
+    </select></div>
+    <div><label>Κάλυψη (κατοικημένες/αστικές)</label><select id="tpKal">
+     ${["I","II","III","IV"].map((c,i)=>`<option value="${c}" ${D.topo.kal===c?"selected":""}>${["Ι Εξαιρ. πυκνό","ΙΙ Πυκνό","ΙΙΙ Λιγότερο πυκνό","IV Αραιό"][i]}</option>`).join("")}
+    </select></div>
+    <div><label>Στρέμματα αποτύπωσης</label>${ninp("topo.strem", D.topo.strem, "0.1", 1)}</div>
+    <div><label style="margin-top:16px"><input type="checkbox" id="tpYps" ${D.topo.ypsom?"checked":""} style="width:auto;margin-right:6px">Με υψομέτρηση (+60%)</label></div>
+    <div><label>Στρέμματα ομόρων (κτηματογραφική)</label>${ninp("topo.omora", D.topo.omora, "0.1", 1)}</div>
+    <div><label>Τριγωνομετρικά IV τάξης (τεμ)</label>${ninp("topo.trigIV", D.topo.trigIV, "1", 1)}</div>
+    <div><label>Εμπροσθο/Οπισθοτομίες (τεμ)</label>${ninp("topo.trigTomi", D.topo.trigTomi, "1", 1)}</div>
+    <div><label>Χρήση υπάρχ. τριγωνομετρικών (τεμ)</label>${ninp("topo.trigXr", D.topo.trigXr, "1", 1)}</div>
+    <div><label>Πολυγωνικά σημεία (τεμ)</label>${ninp("topo.polyN", D.topo.polyN, "1", 1)}</div>
+    <div><label>Εφαρμογή γραμμών — σημεία αξόνων (τεμ)</label>${ninp("topo.rymN", D.topo.rymN, "1", 1)}</div>
+    <div><label>Κορυφές Ο.Τ./πολυγώνων (τεμ)</label>${ninp("topo.otN", D.topo.otN, "1", 1)}</div>
+   </div>
+   ${(()=>{ const tc = topoCalc(); return tc.rows.length ? `
+   <div style="overflow-x:auto;margin-top:8px"><table>
+    <tr><th>Εργασία</th><th class="num">Ποσότητα</th><th class="num">Τιμή (δρχ)</th><th class="num">Αμοιβή €</th></tr>
+    ${tc.rows.map(r=>`<tr><td>${r.per}</td><td class="num">${num(r.qty)} ${r.mon}</td><td class="num">${num(r.drx)}</td><td class="num">${eur(r.e)}</td></tr>`).join("")}
+    <tr class="total"><td>ΣΥΝΟΛΟ (× λ ${num(+D.lambda||0.23368)})</td><td></td><td></td><td class="num">${eur(tc.sum)}</td></tr>
+   </table></div>
+   <div class="btnrow"><button type="button" class="btn sm" id="tpApply">✔ Χρήση ως αμοιβή τοπογραφικού (${eur(tc.sum)})</button></div>
+   ${tc.sum>0 && tc.sum<tc.min?`<div class="note">ℹ Το ποσό είναι κάτω από την ελάχιστη αμοιβή 5000×λ = ${eur(tc.min)} ανά εργασία/μηχανικό (άρθ.3§7).</div>`:""}`
+   : `<div class="note">Συμπλήρωσε ποσότητες για να υπολογιστεί αναλυτικά η αμοιβή τοπογραφικού.</div>`; })()}
+  </div>
  </div>
  <h2>Κατανομή αμοιβών ανά μηχανικό</h2>
  <div class="card">
@@ -1100,6 +1177,13 @@ function rAmoives(){
  main.querySelectorAll("[data-chk]").forEach(c=> c.addEventListener("change", ()=>{ D.studies[+c.dataset.chk].on = c.checked; save(); render(); }));
  main.querySelectorAll("[data-meng]").forEach(s=> s.addEventListener("change", ()=>{ D.studies[+s.dataset.meng].mEng = +s.value; save(); render(); }));
  main.querySelectorAll("[data-eeng]").forEach(s=> s.addEventListener("change", ()=>{ D.studies[+s.dataset.eeng].eEng = +s.value; save(); render(); }));
+ const tpM=document.getElementById("tpMode"), tpK=document.getElementById("tpKlim"), tpKl=document.getElementById("tpKlisi"), tpKa=document.getElementById("tpKal"), tpY=document.getElementById("tpYps"), tpA=document.getElementById("tpApply");
+ if(tpM) tpM.addEventListener("change", ()=>{ D.topo.mode=tpM.value; D.topo.klim = tpM.value==="astiko"?"200":"500"; save(); render(); });
+ if(tpK) tpK.addEventListener("change", ()=>{ D.topo.klim=tpK.value; save(); render(); });
+ if(tpKl) tpKl.addEventListener("change", ()=>{ D.topo.klisi=tpKl.value; save(); render(); });
+ if(tpKa) tpKa.addEventListener("change", ()=>{ D.topo.kal=tpKa.value; save(); render(); });
+ if(tpY) tpY.addEventListener("change", ()=>{ D.topo.ypsom=tpY.checked; save(); render(); });
+ if(tpA) tpA.addEventListener("click", ()=>{ D.topoFlat = Math.round(topoCalc().sum*100)/100; save(); render(); });
  const ip = document.getElementById("incP");
  if(ip) ip.addEventListener("change", ()=>{ D.incProsthiki = ip.checked; save(); render(); });
 }
@@ -1128,7 +1212,7 @@ function rForo(){
    <div><label>ΦΠΑ %</label>${ninp("fpa", D.fpa, "0.1", 1)}</div>
    <div><label>ΦΕΜ μελετών-επιβλέψεων % (ν.4172/13 άρθ.69§4β)</label>${ninp("parakr", D.parakr, "0.1", 1)}</div>
    <div><label>ΦΕΜ τοπογραφικών % (άρθ.69§4α)</label>${ninp("parakrTopo", D.parakrTopo, "0.1", 1)}</div>
-   <div><label>Κράτηση ΤΕΕ ‰</label>${ninp("teeKrat", D.teeKrat, "0.1", 1)}</div>
+   <div><label>Λοιπές κρατήσεις ‰ (οι κρατήσεις ΤΣΜΕΔΕ 2% / ΕΜΠ 1% έχουν ΚΑΤΑΡΓΗΘΕΙ — ν.4254/14 & 2016)</label>${ninp("teeKrat", D.teeKrat, "0.1", 1)}</div>
   </div>
   <div class="grid2">
    <div><label>Τέλη e-Άδειες / ΤΕΕ €</label>${ninp("eadeiesFee", D.eadeiesFee, "1", 1)}</div>
@@ -1145,7 +1229,7 @@ function rForo(){
   <div style="margin-top:10px">
    <div class="sumrow"><span>Αμοιβές (καθαρές)</span><b>${eur(f.a.sum)}</b></div>
    <div class="sumrow"><span>ΦΠΑ ${num(D.fpa)}%</span><b>${eur(f.fpa)}</b></div>
-   <div class="sumrow"><span>Κράτηση ΤΕΕ ${num(D.teeKrat)}‰</span><b>${eur(f.tee)}</b></div>
+   <div class="sumrow"><span>Λοιπές κρατήσεις ${num(D.teeKrat)}‰ (ΤΣΜΕΔΕ/ΕΜΠ: καταργημένες)</span><b>${eur(f.tee)}</b></div>
    <div class="sumrow"><span>Πράσινο Ταμείο ${D.ektosSxediou?((D.prasMode==="m5"?"(εκτός σχεδίου: 5‰ αναλυτικού":"(εκτός σχεδίου: 5% συμβατικού")+", 250 – 5.000 €)"):"(εντός σχεδίου: —)"}</span><b>${eur(f.prasino)}</b></div>
    <div class="sumrow"><span>ΑΕΚΚ — κόστος ΣΣΕΔ (${num(f.aekk.tons)} τόνοι — βλ. καρτέλα ♻️)</span><b>${eur(f.aekk.cost)}</b></div>
    <div class="sumrow"><span>Τέλη (e-Άδειες + δήμος)</span><b>${eur(f.other)}</b></div>
@@ -1661,7 +1745,7 @@ function printFull(){
  <table>
  <tr><td>Αμοιβές (καθαρές)</td><td class="num">${eur(a.sum)}</td></tr>
  <tr><td>ΦΠΑ ${num(D.fpa)}%</td><td class="num">${eur(f.fpa)}</td></tr>
- <tr><td>Κράτηση ΤΕΕ ${num(D.teeKrat)}‰</td><td class="num">${eur(f.tee)}</td></tr>
+ <tr><td>Λοιπές κρατήσεις ${num(D.teeKrat)}‰</td><td class="num">${eur(f.tee)}</td></tr>
  <tr><td>Πράσινο Ταμείο${D.ektosSxediou?(D.prasMode==="m5"?" (εκτός σχεδίου 5‰ αναλυτ.)":" (εκτός σχεδίου 5% συμβ.)"):""}</td><td class="num">${eur(f.prasino)}</td></tr>
  <tr><td>ΑΕΚΚ — διαχείριση αποβλήτων (${num(f.aekk.tons)} τν)</td><td class="num">${eur(f.aekk.cost)}</td></tr>
  <tr><td>Τέλη e-Άδειες & δήμου</td><td class="num">${eur(f.other)}</td></tr>
