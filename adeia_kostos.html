@@ -231,7 +231,7 @@ tr:has(input.filled)>td:first-child{border-left:3px solid #E08A2E}
 
 <script>
 "use strict";
-const VER = "v1.16";
+const VER = "v1.17";
 function defStat(){ return { dimos:"", tk:"", oikopedo:0, ogkos:0, orofoi:0, katoik:0, domatia:0, parking:0, ydreysi:"Δημοτικό δίκτυο", apoxeteysi:"Δημοτικό δίκτυο", thermansi:"Αντλία θερμότητας", energeia:"ΔΕΔΔΗΕ (ρεύμα)" };}
 function defAekk(){ return {
  newOn:true,
@@ -469,6 +469,8 @@ function load(){
   if(!d.aekk) d.aekk = defAekk();
   if(!d.stat) d.stat = defStat();
   if(d.allagi===undefined){ d.allagi=false; d.scen=[]; (d.uses||[]).forEach(u=>{ if(u.oldIdx===undefined) u.oldIdx=-1; }); }
+  (d.uses||[]).forEach(u=>{ if(u.kind===undefined) u.kind = (d.allagi && (u.oldIdx??-1)>=0) ? "chg" : (d.incProsthiki ? "pros" : "new"); });
+  if(d.ferOrg===undefined) d.ferOrg = d.efkaMode==="2a" ? "metal" : d.efkaMode==="2b" ? "prokat" : "symv";
   (d.owners||[]).forEach(o=>{ if(!o.eidos) o.eidos = "Πλήρης κυριότητα"; });
   if(d.odFee===undefined) d.odFee = 0;
   if(d.kenakPct===undefined){ d.kenakPct=DEF.kenakPct; d.topoFlat=DEF.topoFlat; d.incProsthiki=false; }
@@ -505,15 +507,15 @@ const esc = (s)=> String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").repla
 function totM2(){ return D.uses.reduce((a,x)=> a + (+x.m2||0), 0); }
 function useBudget(x){
  const nv = (+x.m2||0) * (+D.eta||118) * (+x.se||1);
- if(!D.allagi) return nv;
+ if(x.kind!=="chg") return nv;                      // ΝΕΟ ή ΠΡΟΣΘΗΚΗ: πλήρης αξία
  const oldSe = (x.oldIdx!=null && x.oldIdx>=0 && USES_CATALOG[x.oldIdx]) ? +USES_CATALOG[x.oldIdx].se : 0;
  const ov = (+x.m2||0) * (+D.eta||118) * oldSe;
- return Math.max(0, nv - ov); // διαφορά αλλαγής χρήσης, ελάχιστο 0 ανά γραμμή
+ return Math.max(0, nv - ov); // ΑΛΛΑΓΗ ΧΡΗΣΗΣ: διαφορά νέας − παλαιάς, ελάχιστο 0
 }
 function usesTotal(which){
  return D.uses.reduce((a,x)=>{
   const se = which==="old"
-   ? ((x.oldIdx!=null && x.oldIdx>=0 && USES_CATALOG[x.oldIdx]) ? +USES_CATALOG[x.oldIdx].se : 0)
+   ? (x.kind==="chg" ? ((x.oldIdx!=null && x.oldIdx>=0 && USES_CATALOG[x.oldIdx]) ? +USES_CATALOG[x.oldIdx].se : 0) : (+x.se||1))
    : (+x.se||1);
   return a + (+x.m2||0) * (+D.eta||118) * se;
  }, 0);
@@ -525,7 +527,9 @@ function feePart(base, l, k, m, bf){ return base * beta(base,l,k,m) / 100 * (bf|
 
 function amoivesCalc(){
  const S = symbatikos(), l = +D.lambda||0.23368;
- const incP = D.incProsthiki ? 1.30 : 1.00;
+ // Σταθμισμένη προσαύξηση προσθήκης (ΠΔ 696/74 άρθ.88): γραμμές ΠΡΟΣΘΗΚΗ ×1,30 αναλογικά με το μερίδιό τους στον προϋπ.
+ const _bT = D.uses.reduce((a,x)=>a+useBudget(x),0);
+ const incP = _bT>0 ? D.uses.reduce((a,x)=>a+useBudget(x)*(x.kind==="pros"?1.30:1.00),0)/_bT : (D.incProsthiki?1.30:1.00);
  let mel=0, epi=0; const rows=[];
  for(const st of D.studies){
   if(!st.on){ rows.push({...st, melF:0, epiF:0}); continue; }
@@ -701,8 +705,8 @@ function wizChecks(){
      : "ΟΚ — έργο, ιδιοκτήτες και ποσοστά συμπληρωμένα."});
  out.push({tab:"proyp", t:"2. Χρήσεις & προϋπολογισμός",
   ok: totM2()>0,
-  msg: totM2()>0 ? `ΟΚ — ${num(totM2())} μ², συμβατικός ${eur(symbatikos())} (μ² × ΕΤΑ 118 € × Σ.Ε., όπως στο ΤΕΕ).`
-     : "Δήλωσε τα μ² ανά χρήση (π.χ. Κατοικία). Ο προϋπολογισμός βγαίνει αυτόματα: μ² × 118 € × Σ.Ε."});
+  msg: totM2()>0 ? `ΟΚ — ${num(totM2())} μ², συμβατικός ${eur(symbatikos())}. Έλεγξε τη στήλη «Είδος» κάθε γραμμής: ΝΕΟ / ΠΡΟΣΘΗΚΗ (+30% αμοιβές) / ΑΛΛΑΓΗ ΧΡΗΣΗΣ (διαφορά ΣΕ).`
+     : "Δήλωσε τα μ² ανά χρήση και το «Είδος» κάθε γραμμής (ΝΕΟ / ΠΡΟΣΘΗΚΗ / ΑΛΛΑΓΗ ΧΡΗΣΗΣ — συνδυασμός = πολλές γραμμές). Ο προϋπολογισμός βγαίνει αυτόματα: μ² × 118 € × Σ.Ε."});
  out.push({tab:"amoives", t:"3. Μηχανικοί & αμοιβές",
   ok: !!(D.engineers[0]&&D.engineers[0].name) && a.sum>0,
   msg: !(D.engineers[0]&&D.engineers[0].name) ? "Γράψε ονοματεπώνυμο/ΑΜ ΤΕΕ/ΑΦΜ των μηχανικών (για συμφωνητικά & ΥΔ)."
@@ -713,7 +717,7 @@ function wizChecks(){
   msg: `ΦΠΑ ${num(D.fpa)}% = ${eur(f.fpa)} · παρακράτηση ${num(D.parakr)}% = ${eur(f.parakr)} · κράτηση ΤΕΕ ${num(D.teeKrat)}‰ = ${eur(f.tee)}${D.ektosSxediou?` · Πράσινο Ταμείο ${eur(f.prasino)}`:" · τσέκαρε «Εκτός σχεδίου» αν ισχύει (τέλος Πράσινου Ταμείου)"}. Σύνολο ταμειακό: ${eur(f.cash)}.`});
  out.push({tab:"efka", t:"5. ΕΦΚΑ (ένσημα έργου)",
   ok: true,
-  msg: "Έλεγξε τον πίνακα συντελεστών εργατικής δαπάνης και τα ημερομίσθια — προσυμπληρωμένα κατά ΑΠΔ, προσαρμόζονται ανά έργο."});
+  msg: `Πίνακας ${D.efkaMode==="2a"?"2Α (μεταλλικός/προκατ. σκελετός)":D.efkaMode==="2b"?"2Β (πλήρης προκατασκευή)":"1 (συμβατική)"} — επιλέχθηκε αυτόματα από τον «Φέροντα οργανισμό» στο βήμα 1. Έλεγξε συντελεστές/ημερομίσθια.`});
  out.push({tab:"aekk", t:"6. ΑΕΚΚ / ΣΔΑ (απόβλητα)",
   ok: !!(D.aekk && (D.aekk.newOn||D.aekk.excOn||D.aekk.demOn||D.aekk.renOn)),
   msg: (D.aekk && (D.aekk.newOn||D.aekk.excOn||D.aekk.demOn||D.aekk.renOn)) ? "ΟΚ — έχουν δηλωθεί εργασίες· θα βγουν ΣΔΑ, συμφωνητικό ΣΣΕΔ και εγγυητική." : "Τσέκαρε τι περιλαμβάνει το έργο (νέα κατασκευή / εκσκαφές / κατεδάφιση / ανακαίνιση) για το ΣΔΑ και την εγγυητική."});
@@ -764,6 +768,12 @@ function rErgo(){
    <div><label>Δήμος / Δημ. Ενότητα</label>${inp("stat.dimos", D.stat.dimos)}</div>
    <div><label>Τ.Κ.</label>${inp("stat.tk", D.stat.tk)}</div>
    <div><label>Διάρκεια εργασιών (μήνες)</label>${ninp("ergo.months", e.months, "1")}</div>
+   <div><label>Φέρων οργανισμός / σύστημα κατασκευής (καθορίζει τον πίνακα ΕΦΚΑ)</label>
+    <select id="ferOrg">
+     <option value="symv" ${(D.ferOrg||"symv")==="symv"?"selected":""}>Συμβατική κατασκευή (Ω.Σ.) — ΕΦΚΑ Πίνακας 1</option>
+     <option value="metal" ${D.ferOrg==="metal"?"selected":""}>Μεταλλικός / προκατ. σκελετός — ΕΦΚΑ Πίνακας 2Α</option>
+     <option value="prokat" ${D.ferOrg==="prokat"?"selected":""}>Πλήρης προκατασκευή — ΕΦΚΑ Πίνακας 2Β</option>
+    </select></div>
   </div>
   <h3>Στατιστικά στοιχεία (δελτίο ΕΛΣΤΑΤ)</h3>
   <div class="grid3">
@@ -800,20 +810,22 @@ function rErgo(){
  <div class="card">
   <div class="grid2">
    <div><label>ΕΤΑ — Ενιαία Τιμή Αφετηρίας ΤΕΕ €/μ² (ΥΑ ΦΕΚ 56/2012)</label>${ninp("eta", D.eta, "0.01", 1)}</div>
-   <div><label style="margin-top:16px"><input type="checkbox" id="allagiChk" ${D.allagi?"checked":""} style="width:auto;margin-right:6px"><b>Αλλαγή χρήσης</b> — προϋπ. = διαφορά νέας − παλαιάς</label></div>
+   <div class="note" style="margin-top:16px">Στήλη <b>«Είδος»</b> ανά γραμμή: ΝΕΟ · ΠΡΟΣΘΗΚΗ (+30% αμοιβές, άρθ.88 ΠΔ 696/74) · ΑΛΛΑΓΗ ΧΡΗΣΗΣ (προϋπ. = διαφορά ΣΕ) — συνδυασμός = διαφορετικά είδη ανά γραμμή.</div>
   </div>
-  <div style="overflow-x:auto"><table><tr><th>${D.allagi?"ΝΕΑ χρήση":"Χρήση"} (κατάλογος ΤΕΕ)</th>${D.allagi?`<th>ΠΑΛΑΙΑ χρήση</th>`:""}<th class="num">μ²</th><th class="num">Σ.Ε.${D.allagi?" νέας":""}</th><th class="num">κωδ.</th><th class="num">${D.allagi?"Διαφορά αξίας":"Συμβ. αξία (μ²×ΕΤΑ×ΣΕ)"}</th><th></th></tr>
+  ${(()=>{ window._anyChg = D.uses.some(u=>u.kind==="chg"); return ""; })()}
+  <div style="overflow-x:auto"><table><tr><th>${window._anyChg?"ΝΕΑ χρήση":"Χρήση"} (κατάλογος ΤΕΕ)</th><th>Είδος</th>${window._anyChg?`<th>ΠΑΛΑΙΑ χρήση</th>`:""}<th class="num">μ²</th><th class="num">Σ.Ε.${window._anyChg?" νέας":""}</th><th class="num">κωδ.</th><th class="num">Αξία γραμμής</th><th></th></tr>
   ${D.uses.map((x,i)=>`<tr>
    <td><select data-cat="${i}">${USES_CATALOG.map((c,j)=>`<option value="${j}" ${c.u===x.u?"selected":""}>${esc(c.u)}</option>`).join("")}</select></td>
-   ${D.allagi?`<td><select data-oldcat="${i}">${USES_CATALOG.map((c,j)=>`<option value="${j}" ${(x.oldIdx??-1)===j?"selected":""}>${esc(c.u)} (ΣΕ ${c.se})</option>`).join("")}</select></td>`:""}
+   <td><select data-kind="${i}"><option value="new" ${(x.kind||"new")==="new"?"selected":""}>ΝΕΟ</option><option value="pros" ${x.kind==="pros"?"selected":""}>ΠΡΟΣΘΗΚΗ</option><option value="chg" ${x.kind==="chg"?"selected":""}>ΑΛΛΑΓΗ ΧΡΗΣΗΣ</option></select></td>
+   ${window._anyChg?`<td>${x.kind==="chg"?`<select data-oldcat="${i}">${USES_CATALOG.map((c,j)=>`<option value="${j}" ${(x.oldIdx??-1)===j?"selected":""}>${esc(c.u)} (ΣΕ ${c.se})</option>`).join("")}</select>`:"—"}</td>`:""}
    <td class="num">${ninp(`uses.${i}.m2`, x.m2, "0.01", 1)}</td>
    <td class="num">${ninp(`uses.${i}.se`, x.se??1, "0.01", 1)}</td>
    <td class="num">${ninp(`uses.${i}.cid`, x.cid??0, "1", 1)}</td>
    <td class="num">${eur(useBudget(x))}</td>
    <td><button type="button" class="btn sm sec" data-del="${i}">🗑</button></td></tr>`).join("")}
-  <tr class="total"><td>ΣΥΝΟΛΟ</td>${D.allagi?"<td></td>":""}<td class="num">${num(totM2())} μ²</td><td colspan="2"></td><td class="num">${eur(D.uses.reduce((a,x)=>a+useBudget(x),0))}</td><td></td></tr>
+  <tr class="total"><td>ΣΥΝΟΛΟ</td><td></td>${window._anyChg?"<td></td>":""}<td class="num">${num(totM2())} μ²</td><td colspan="2"></td><td class="num">${eur(D.uses.reduce((a,x)=>a+useBudget(x),0))}</td><td></td></tr>
   </table></div>
-  ${D.allagi?`
+  ${window._anyChg?`
   <div class="sumrow"><span>Προϋπολογισμός ΝΕΑΣ χρήσης</span><b>${eur(usesTotal("new"))}</b></div>
   <div class="sumrow"><span>Προϋπολογισμός ΠΑΛΑΙΑΣ χρήσης</span><b>${eur(usesTotal("old"))}</b></div>
   <div class="sumrow"><span><b>ΔΙΑΦΟΡΑ (βάση αμοιβών/φόρων/αναλυτικού)</b></span><b class="big">${eur(D.uses.reduce((a,x)=>a+useBudget(x),0))}</b></div>
@@ -853,7 +865,12 @@ function rErgo(){
  }));
  /* v1.14: αλλαγή χρήσης + σενάρια */
  const ac = document.getElementById("allagiChk");
- if(ac) ac.addEventListener("change", ()=>{ D.allagi = ac.checked; save(); render(); });
+ main.querySelectorAll("[data-kind]").forEach(s=> s.addEventListener("change", ()=>{
+  D.uses[+s.dataset.kind].kind = s.value;
+  D.allagi = D.uses.some(u=>u.kind==="chg");           // παράγωγο (σενάρια/συμβατότητα)
+  D.incProsthiki = D.uses.some(u=>u.kind==="pros");    // παράγωγο (XML increment 500)
+  save(); render();
+ }));
  main.querySelectorAll("[data-oldcat]").forEach(s=> s.addEventListener("change", ()=>{
   D.uses[+s.dataset.oldcat].oldIdx = +s.value; save(); render();
  }));
@@ -883,7 +900,13 @@ function rErgo(){
   D.uses.splice(+b.dataset.del, 1); save(); render();
  }));
  const au = document.getElementById("addUse");
- if(au) au.addEventListener("click", ()=>{ D.uses.push({...USES_CATALOG[1], m2:0}); save(); render(); });
+ if(au) au.addEventListener("click", ()=>{ D.uses.push({...USES_CATALOG[1], m2:0, kind:"new"}); save(); render(); });
+ const fo = document.getElementById("ferOrg");
+ if(fo) fo.addEventListener("change", ()=>{
+  D.ferOrg = fo.value;
+  D.efkaMode = fo.value==="metal" ? "2a" : fo.value==="prokat" ? "2b" : "1";
+  save(); render();
+ });
  const ao = document.getElementById("addOwn");
  if(ao) ao.addEventListener("click", ()=>{
   const nid = Math.max(0,...D.owners.map(o=>o.id))+1;
@@ -932,7 +955,7 @@ function rAmoives(){
    <div><label>ΚΕΝΑΚ % επί μελετών κλάδων</label>${ninp("kenakPct", D.kenakPct, "1", 1)}</div>
    <div><label>Τοπογραφικό € (κατ' αποκοπή)</label>${ninp("topoFlat", D.topoFlat, "1", 1)}</div>
   </div>
-  <label style="margin-top:8px"><input type="checkbox" id="incP" ${D.incProsthiki?"checked":""} style="width:auto;margin-right:6px">Προσθήκη / Επέκταση / Επισκευή (+30% σε όλες τις αμοιβές — increment ΤΕΕ 500)</label>
+  <div class="note">Η προσαύξηση προσθήκης +30% (ΠΔ 696/74 άρθ.88 — increment ΤΕΕ 500) εφαρμόζεται <b>αυτόματα και σταθμισμένα</b> από τη στήλη «Είδος» των χρήσεων (γραμμές ΠΡΟΣΘΗΚΗ).</div>
   <div class="note">Βάση κάθε μελέτης = Σ×%Σ (Σ=${eur(S)}). β=κ+μ/∛(Βάση/λ), Αμοιβή=Βάση·β/100. Στατικά: +80% αντισεισμικού (increment 30). Οι %Σ και τα κ/μ προέρχονται από πραγματική υποβολή ΤΕΕ — επεξεργάσιμα.</div>
   <div style="overflow-x:auto"><table><tr><th>✓</th><th>Μελέτη (κωδ. ΤΕΕ)</th><th class="num">%Σ</th><th class="num">κ/μ μελ.</th><th class="num">κ/μ επίβλ.</th><th>Μηχ. μελέτης</th><th>Μηχ. επίβλ.</th><th class="num">Αμ. μελέτης</th><th class="num">Αμ. επίβλεψης</th></tr>
   ${D.studies.map((st,i)=>`<tr>
