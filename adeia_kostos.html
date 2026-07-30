@@ -122,6 +122,43 @@ tr:has(input.filled)>td:first-child{border-left:3px solid #E08A2E}
 .wstep b{color:#14213D}
 .wstep .wmsg{font-size:13px;color:#3D4B63;margin-top:2px}
 .wstep .wgo{margin-left:auto;flex:0 0 auto}
+/* ===== v1.18 modern refresh ===== */
+:root{--acc1:#5B84B8;--acc2:#3D5E8C;--ring:rgba(91,132,184,.25)}
+body{-webkit-font-smoothing:antialiased}
+#tabs{position:sticky;top:0;z-index:120;background:rgba(246,247,249,.92);backdrop-filter:blur(8px);
+ padding:8px 10px;margin:0 -10px 10px;border-bottom:1px solid var(--line);display:flex;gap:6px;flex-wrap:wrap}
+nav button{transition:all .18s ease;border-radius:999px;border:1px solid transparent;font-weight:600}
+nav button:hover{background:#fff;box-shadow:0 2px 8px rgba(61,78,109,.12);transform:translateY(-1px)}
+nav button.active{background:linear-gradient(135deg,var(--acc1),var(--acc2));color:#fff;border-color:transparent;
+ box-shadow:0 3px 10px rgba(61,94,140,.35)}
+.card{transition:box-shadow .2s ease;border-radius:16px}
+.card:hover{box-shadow:0 6px 22px rgba(61,78,109,.10)}
+input,select,textarea{transition:border-color .15s,box-shadow .15s;border-radius:10px}
+input:hover,select:hover{border-color:#C4D2E6}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--acc1);box-shadow:0 0 0 3px var(--ring)}
+.btn{transition:all .16s ease;background:linear-gradient(135deg,var(--acc1),var(--acc2))}
+.btn:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(61,94,140,.35)}
+.btn:active{transform:translateY(0);box-shadow:0 1px 4px rgba(61,94,140,.3)}
+.btn.sec{background:#fff}
+.btn.sec:hover{background:#F3F7FC}
+table{border-radius:10px;overflow:hidden}
+th{background:#EEF3F9;color:var(--navy);font-weight:700;position:sticky;top:0}
+tr:nth-child(even) td{background:#FAFBFD}
+tr:hover td{background:#F1F6FC}
+tr.total td{background:#E9F0F8;font-weight:700}
+.sumrow{transition:background .15s;border-radius:8px;padding:6px 8px}
+.sumrow:hover{background:#F3F7FC}
+h2{display:flex;align-items:center;gap:8px}
+h2::before{content:"";width:5px;height:18px;border-radius:3px;background:linear-gradient(180deg,var(--acc1),var(--acc2))}
+::-webkit-scrollbar{height:9px;width:9px}
+::-webkit-scrollbar-thumb{background:#C7D3E3;border-radius:8px}
+::-webkit-scrollbar-thumb:hover{background:var(--acc1)}
+.projrow{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;transition:all .15s}
+.projrow:hover{border-color:var(--acc1);box-shadow:0 3px 10px rgba(61,94,140,.12)}
+.projrow .pinfo{flex:1;min-width:0}
+.projrow .pname{font-weight:700;color:var(--navy)}
+.projrow .pmeta{font-size:12px;color:var(--mut)}
+@media (max-width:640px){ .btn{padding:11px 14px} td input,td select{min-height:38px} }
 </style>
 </head>
 <body>
@@ -209,6 +246,7 @@ tr:has(input.filled)>td:first-child{border-left:3px solid #E08A2E}
     <button type="button" class="btn sm sec" id="undoBtn" title="Αναίρεση τελευταίας αλλαγής">↩️ Αναίρεση</button>
     <button type="button" class="btn sm sec" id="clrBtn" title="Μηδενισμός όλων των ποσοτήτων (μ², ΑΕΚΚ)">🧹 Μηδενισμός</button>
     <button type="button" class="btn sm sec" id="wizBtn" title="Οδηγός συμπλήρωσης βήμα-βήμα">🧭 Οδηγός</button>
+    <button type="button" class="btn sm sec" id="projBtn" title="Αποθήκευση / φόρτωση έργων">📁 Έργα</button>
   </div>
   <nav id="tabs">
     <button data-tab="ergo" class="active">🏠 Έργο</button>
@@ -231,7 +269,7 @@ tr:has(input.filled)>td:first-child{border-left:3px solid #E08A2E}
 
 <script>
 "use strict";
-const VER = "v1.17";
+const VER = "v1.18";
 function defStat(){ return { dimos:"", tk:"", oikopedo:0, ogkos:0, orofoi:0, katoik:0, domatia:0, parking:0, ydreysi:"Δημοτικό δίκτυο", apoxeteysi:"Δημοτικό δίκτυο", thermansi:"Αντλία θερμότητας", energeia:"ΔΕΔΔΗΕ (ρεύμα)" };}
 function defAekk(){ return {
  newOn:true,
@@ -692,6 +730,69 @@ document.addEventListener("click", e=>{
  const n = e.target.closest(".note");
  if(n && !e.target.closest("a,button,input,select")) n.classList.toggle("open");
 });
+/* ===== ΔΙΑΧΕΙΡΙΣΗ ΕΡΓΩΝ (αποθήκευση/φόρτωση) ===== */
+function projStore(){ try{ return JSON.parse(localStorage.getItem("hx_adeia_projects")) || []; }catch(e){ return []; } }
+function projPersist(list){ try{ localStorage.setItem("hx_adeia_projects", JSON.stringify(list)); }catch(e){ alert("Ο χώρος αποθήκευσης γέμισε — διάγραψε παλιά έργα."); } }
+function updProjBtn(){ const b = document.getElementById("projBtn"); if(b) b.textContent = "📁 " + (D.projName ? D.projName : "Έργα"); }
+function projSaveCurrent(name){
+ name = (name||"").trim(); if(!name){ alert("Δώσε όνομα έργου."); return false; }
+ D.projName = name; save();
+ const snap = JSON.parse(JSON.stringify(D));
+ const list = projStore();
+ const ex = list.find(p=>p.name===name);
+ const meta = { name, savedAt: Date.now(), m2: totM2(), symb: symbatikos(), data: snap };
+ if(ex) Object.assign(ex, meta); else list.unshift({ id: Date.now(), ...meta });
+ projPersist(list); updProjBtn(); return true;
+}
+function openProj(){
+ const ov = document.createElement("div"); ov.className = "wizovl";
+ const list = projStore();
+ const fdate = (t)=> new Date(t).toLocaleString("el-GR",{dateStyle:"short",timeStyle:"short"});
+ ov.innerHTML = `<div class="wizbox">
+  <h2>📁 Τα έργα μου</h2>
+  <div class="wsub">Αποθήκευσε το τρέχον έργο με όνομα και ξαναφόρτωσέ το όποτε θέλεις. Όλα μένουν στη συσκευή σου.</div>
+  <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:14px">
+   <div style="flex:1"><label>Όνομα τρέχοντος έργου</label>
+    <input id="projName" value="${esc(D.projName||D.ergo.titlos||"")}" placeholder="π.χ. Κατοικία Παπαδόπουλου — Λευκάδα"></div>
+   <button type="button" class="btn" id="projSaveBtn">💾 Αποθήκευση</button>
+  </div>
+  ${list.length ? list.map(p=>`<div class="projrow">
+    <div class="pinfo"><div class="pname">${esc(p.name)}</div>
+     <div class="pmeta">${fdate(p.savedAt)} · ${num(p.m2)} μ² · συμβατικός ${eur(p.symb)}</div></div>
+    <button type="button" class="btn sm" data-pload="${p.id}">Φόρτωση</button>
+    <button type="button" class="btn sm sec" data-pdel="${p.id}" title="Διαγραφή">🗑</button>
+   </div>`).join("") : `<div class="note">Δεν υπάρχουν αποθηκευμένα έργα ακόμη.</div>`}
+  <div class="btnrow" style="margin-top:12px">
+   <button type="button" class="btn sec" id="projNew">🆕 Νέο κενό έργο</button>
+   <button type="button" class="btn sec" id="projClose">Κλείσιμο</button>
+  </div></div>`;
+ document.body.appendChild(ov);
+ ov.addEventListener("click", e=>{ if(e.target===ov) ov.remove(); });
+ ov.querySelector("#projClose").addEventListener("click", ()=> ov.remove());
+ ov.querySelector("#projSaveBtn").addEventListener("click", ()=>{
+  if(projSaveCurrent(ov.querySelector("#projName").value)){ ov.remove(); openProj(); }
+ });
+ ov.querySelector("#projNew").addEventListener("click", ()=>{
+  if(confirm("Νέο κενό έργο; Το τρέχον θα χαθεί αν δεν το έχεις αποθηκεύσει στα «Έργα μου».")){
+   localStorage.removeItem("hx_adeia"); location.reload();
+  }
+ });
+ ov.querySelectorAll("[data-pload]").forEach(b=> b.addEventListener("click", ()=>{
+  const p = projStore().find(x=>x.id===+b.dataset.pload); if(!p) return;
+  if(!confirm(`Φόρτωση «${p.name}»; Το τρέχον έργο θα αντικατασταθεί (αποθήκευσέ το πρώτα αν το χρειάζεσαι).`)) return;
+  histSnap();
+  D = JSON.parse(JSON.stringify(p.data));
+  save(); render(); updProjBtn(); ov.remove();
+ }));
+ ov.querySelectorAll("[data-pdel]").forEach(b=> b.addEventListener("click", ()=>{
+  const list2 = projStore(); const p = list2.find(x=>x.id===+b.dataset.pdel); if(!p) return;
+  if(!confirm(`Οριστική διαγραφή «${p.name}»;`)) return;
+  projPersist(list2.filter(x=>x.id!==p.id)); ov.remove(); openProj();
+ }));
+}
+document.getElementById("projBtn").addEventListener("click", openProj);
+updProjBtn();
+
 /* ===== ΟΔΗΓΟΣ ΒΗΜΑ-ΒΗΜΑ ===== */
 function wizChecks(){
  const a = amoivesCalc(), f = foroCalc();
