@@ -280,7 +280,7 @@ nav button.active{background:linear-gradient(135deg,var(--acc1),var(--acc2));col
 
 <script>
 "use strict";
-const VER = "v1.20";
+const VER = "v1.21";
 function defStat(){ return { dimos:"", tk:"", oikopedo:0, ogkos:0, orofoi:0, katoik:0, domatia:0, parking:0, ydreysi:"Δημοτικό δίκτυο", apoxeteysi:"Δημοτικό δίκτυο", thermansi:"Αντλία θερμότητας", energeia:"ΔΕΔΔΗΕ (ρεύμα)" };}
 function defAekk(){ return {
  newOn:true,
@@ -328,6 +328,7 @@ const DEF = {
  ],
  kenakPct: 20,        // ΚΕΝΑΚ 5601 = 20% επί των αμοιβών μελετών των κλάδων (όπως στο ΤΕΕ)
  topoFlat: 450,       // Τοπογραφικό 2001 — κατ' αποκοπή/μονάδες (method 2)
+ agreedFee: 0,        // Συμφωνηθείσα αμοιβή (ελεύθερη διαπραγμάτευση ν.3919/2011) — 0 = χρήση νόμιμης
  topo: null,          // αναλυτικός υπολογισμός τοπογραφικού (ΠΔ 696/74 άρθ.5-18)
  incProsthiki: false, // Increment 500: Προσθήκη/Επέκταση/Επισκευή +30%
  // Αναλυτικός προϋπολογισμός: πλήρης κατάλογος εργασιών (ΑΤΟΕ-τύπου, % επεξεργάσιμα)
@@ -518,6 +519,7 @@ function load(){
   if(d.prasMode===undefined){ d.prasMode="p5"; d.analytP=0; }
   if(d.parakrTopo===undefined){ d.parakrTopo=4; if(+d.parakr===20) d.parakr=10; } // ΦΕΜ αντί γενικής παρακράτησης 20%
   if(!d.topo) d.topo = defTopo();
+  if(d.agreedFee===undefined) d.agreedFee = 0;
   if(+d.teeKrat===2 && d._krFix===undefined){ d.teeKrat=0; d._krFix=1; } // κρατήσεις ΤΣΜΕΔΕ 2%/ΕΜΠ 1% καταργήθηκαν (ν.4254/14 & 2016)
   if(!d.aekk) d.aekk = defAekk();
   if(!d.stat) d.stat = defStat();
@@ -733,15 +735,16 @@ function aekkCalc(){
 }
 function foroCalc(){
  const a = amoivesCalc();
- const fpa = a.sum * (+D.fpa||0)/100;
+ const billed = (+D.agreedFee||0) > 0 ? +D.agreedFee : a.sum;   // συμφωνηθείσα αμοιβή — αλλιώς νόμιμη
+ const fpa = billed * (+D.fpa||0)/100;                          // ΦΠΑ επί της τιμολογούμενης (συμφωνηθείσας)
  // ΦΕΜ (προκαταβλητέος φόρος μηχανικών, ν.4172/13 άρθ.69§4): 10% μελέτες-επιβλέψεις, 4% τοπογραφικά
  const topoFee = a.rows.filter(r=>r.isTopo).reduce((s,r)=>s+(+r.melF||0),0);
  const parakr = (a.sum - topoFee) * (+D.parakr||0)/100 + topoFee * (+D.parakrTopo||0)/100;
- const tee = a.sum * (+D.teeKrat||0)/1000;
+ const tee = billed * (+D.teeKrat||0)/1000;
  const prasino = prasinoCalc();
  const aekk = aekkCalc();
  const other = (+D.dimosFee||0) + (+D.eadeiesFee||0);
- return {a, fpa, parakr, tee, prasino, aekk, other, cash: a.sum + fpa + tee + prasino + aekk.cost + other};
+ return {a, billed, fpa, parakr, tee, prasino, aekk, other, cash: billed + fpa + tee + prasino + aekk.cost + other};
 }
 function mzms(days){ // Μέσος Ζυγισμένος Μειωτικός Συντελεστής (εγκ. 13/99)
  if(days<=3000) return 1.00;
@@ -915,7 +918,7 @@ function wizChecks(){
      : "Ενεργοποίησε τις μελέτες που αφορούν το έργο."});
  out.push({tab:"foro", t:"4. Φόροι & τέλη (τα «φορολογικά» της άδειας)",
   ok: a.sum>0 && (!D.ektosSxediou || f.prasino>0),
-  msg: `ΦΠΑ ${num(D.fpa)}% = ${eur(f.fpa)} · ΦΕΜ (10%/4%) = ${eur(f.parakr)} · κρατήσεις ${num(D.teeKrat)}‰ = ${eur(f.tee)}${D.ektosSxediou?` · Πράσινο Ταμείο ${eur(f.prasino)}`:" · τσέκαρε «Εκτός σχεδίου» αν ισχύει (τέλος Πράσινου Ταμείου)"}. Σύνολο ταμειακό: ${eur(f.cash)}.`});
+  msg: `ΦΠΑ ${num(D.fpa)}% = ${eur(f.fpa)} · ΦΕΜ (10%/4%) = ${eur(f.parakr)} · κρατήσεις ${num(D.teeKrat)}‰ = ${eur(f.tee)}${D.ektosSxediou?` · Πράσινο Ταμείο ${eur(f.prasino)}`:" · τσέκαρε «Εκτός σχεδίου» αν ισχύει (τέλος Πράσινου Ταμείου)"}${(+D.agreedFee||0)>0?` · συμφωνηθείσα ${eur(f.billed)}`:""}. Σύνολο ταμειακό: ${eur(f.cash)}.`});
  out.push({tab:"efka", t:"5. ΕΦΚΑ (ένσημα έργου)",
   ok: true,
   msg: `Πίνακας ${D.efkaMode==="2a"?"2Α (μεταλλικός/προκατ. σκελετός)":D.efkaMode==="2b"?"2Β (πλήρης προκατασκευή)":"1 (συμβατική)"} — επιλέχθηκε αυτόματα από τον «Φέροντα οργανισμό» στο βήμα 1. Έλεγξε συντελεστές/ημερομίσθια.`});
@@ -1178,6 +1181,16 @@ function rAmoives(){
   <div class="btnrow"><button class="btn sec sm" onclick="addStudy()">➕ Προσθήκη μελέτης (με κωδικό ΤΕΕ)</button></div>
   <div class="sumrow" style="margin-top:8px"><span>Μελέτες + Επιβλέψεις</span><b class="big">${eur(a.sum)}</b></div>
   ${a.belowMin?`<div class="note warn">⚠ Κάτω από την ελάχιστη νόμιμη αμοιβή 5000×λ = ${eur(a.minPay)} — στο ΤΕΕ ισχύει το ελάχιστο.</div>`:""}
+  <h3 style="margin-top:14px">Συμφωνηθείσα αμοιβή</h3>
+  <div class="card">
+   <div class="grid2">
+    <div><label>Συμφωνηθείσα αμοιβή € (προ ΦΠΑ) — 0 = χρήση νόμιμης</label>${ninp("agreedFee", D.agreedFee, "50", 1)}</div>
+    <div><button type="button" class="btn sm sec" id="agrEq" style="margin-top:22px">= Νόμιμη (${eur(a.sum)})</button></div>
+   </div>
+   ${(+D.agreedFee||0)>0?`<div class="sumrow"><span>Διαφορά από νόμιμη αμοιβή ΤΕΕ (${eur(a.sum)})</span>
+     <b style="color:${+D.agreedFee>=a.sum?"var(--ok)":"#B3271E"}">${+D.agreedFee>=a.sum?"+":""}${eur(+D.agreedFee - a.sum)} (${a.sum>0?num((+D.agreedFee/a.sum-1)*100):"—"}%)</b></div>`:""}
+   <div class="note">ℹ Οι αμοιβές είναι <b>ελεύθερα διαπραγματεύσιμες</b> (ν.3919/2011). Η <b>συμφωνηθείσα</b> είναι αυτή που τιμολογείται στον πελάτη: πάνω της υπολογίζονται ΦΠΑ και συμφωνητικά. Οι <b>νόμιμες αμοιβές ΤΕΕ</b> παραμένουν η βάση για την υποβολή στο ΤΕΕ και τον <b>ΦΕΜ</b> (10%/4%).</div>
+  </div>
   <h3 style="margin-top:14px">Τοπογραφικό — αναλυτικός υπολογισμός (ΠΔ 696/74 άρθ.5-18, τιμές × λ)</h3>
   <div class="card">
    <div class="grid2">
@@ -1226,6 +1239,8 @@ function rAmoives(){
  main.querySelectorAll("[data-chk]").forEach(c=> c.addEventListener("change", ()=>{ D.studies[+c.dataset.chk].on = c.checked; save(); render(); }));
  main.querySelectorAll("[data-meng]").forEach(s=> s.addEventListener("change", ()=>{ D.studies[+s.dataset.meng].mEng = +s.value; save(); render(); }));
  main.querySelectorAll("[data-eeng]").forEach(s=> s.addEventListener("change", ()=>{ D.studies[+s.dataset.eeng].eEng = +s.value; save(); render(); }));
+ const agrEq = document.getElementById("agrEq");
+ if(agrEq) agrEq.addEventListener("click", ()=>{ D.agreedFee = Math.round(amoivesCalc().sum*100)/100; save(); render(); });
  const tpM=document.getElementById("tpMode"), tpK=document.getElementById("tpKlim"), tpKl=document.getElementById("tpKlisi"), tpKa=document.getElementById("tpKal"), tpY=document.getElementById("tpYps"), tpA=document.getElementById("tpApply");
  if(tpM) tpM.addEventListener("change", ()=>{ D.topo.mode=tpM.value; D.topo.klim = tpM.value==="astiko"?"200":"500"; save(); render(); });
  if(tpK) tpK.addEventListener("change", ()=>{ D.topo.klim=tpK.value; save(); render(); });
@@ -1277,7 +1292,8 @@ function rForo(){
   <div class="note">Ο αναλυτικός υπολογισμός (εκσκαφές/κατεδάφιση/ανακαίνιση ανά ΕΚΑ), η εγγυητική επιστολή και τα έντυπα (ΣΔΑ, συμφωνητικό ΣΣΕΔ, ΥΔ) βρίσκονται στη νέα καρτέλα <b>♻️ ΑΕΚΚ/ΣΔΑ</b>. Το κόστος ΣΣΕΔ που υπολογίζεται εκεί ενσωματώνεται αυτόματα στο σύνολο παρακάτω.</div>
   <div style="margin-top:10px">
    <div class="sumrow"><span>Αμοιβές (καθαρές)</span><b>${eur(f.a.sum)}</b></div>
-   <div class="sumrow"><span>ΦΠΑ ${num(D.fpa)}%</span><b>${eur(f.fpa)}</b></div>
+   ${(+D.agreedFee||0)>0?`<div class="sumrow"><span><b>Συμφωνηθείσα αμοιβή</b> (τιμολογούμενη — νόμιμη ΤΕΕ: ${eur(f.a.sum)})</span><b>${eur(f.billed)}</b></div>`:""}
+   <div class="sumrow"><span>ΦΠΑ ${num(D.fpa)}% ${(+D.agreedFee||0)>0?"(επί συμφωνηθείσας)":""}</span><b>${eur(f.fpa)}</b></div>
    <div class="sumrow"><span>Λοιπές κρατήσεις ${num(D.teeKrat)}‰ (ΤΣΜΕΔΕ/ΕΜΠ: καταργημένες)</span><b>${eur(f.tee)}</b></div>
    <div class="sumrow"><span>Πράσινο Ταμείο ${D.ektosSxediou?((D.prasMode==="m5"?"(εκτός σχεδίου: 5‰ αναλυτικού":"(εκτός σχεδίου: 5% συμβατικού")+", 250 – 5.000 €)"):"(εντός σχεδίου: —)"}</span><b>${eur(f.prasino)}</b></div>
    <div class="sumrow"><span>ΑΕΚΚ — κόστος ΣΣΕΔ (${num(f.aekk.tons)} τόνοι — βλ. καρτέλα ♻️)</span><b>${eur(f.aekk.cost)}</b></div>
@@ -1611,7 +1627,9 @@ function printSymf(kind){
  const a=amoivesCalc(); const isMel = kind==="mel";
  const en = engById(D.docEng);
  const t = engTotals(en.id, a);
- const poso = isMel ? t.mel : t.epi;
+ let poso = isMel ? t.mel : t.epi;
+ const _fac = ((+D.agreedFee||0)>0 && a.sum>0) ? (+D.agreedFee)/a.sum : 1;
+ const posoNom = poso; poso = poso * _fac;   // συμφωνηθείσα αναλογικά στο μερίδιο του μηχανικού
  const list = [];
  D.studies.forEach((st,i)=>{ if(!st.on) return; const r=a.rows[i];
   if(isMel && +st.mEng===+en.id && (r.melF||0)>0) list.push(st.s);
@@ -1622,7 +1640,7 @@ function printSymf(kind){
  doPrint(phead("Ιδιωτικό Συμφωνητικό")+`<div class="doc"><h1>ΙΔΙΩΤΙΚΟ ΣΥΜΦΩΝΗΤΙΚΟ ΑΜΟΙΒΗΣ ${isMel?"ΕΚΠΟΝΗΣΗΣ ΜΕΛΕΤΩΝ":"ΕΠΙΒΛΕΨΗΣ"}</h1>
  <p>Στ.. [___] σήμερα, ${new Date().toLocaleDateString("el-GR")}, αφενός ${esc(ownersLine())}, εφεξής από κοινού «Κύριος του Έργου», και αφετέρου του/της <b>${esc(en.name||"[___]")}</b>, ${esc(en.eid)}, Α.Μ. ΤΕΕ ${esc(en.am||"[___]")}, ΑΦΜ ${esc(en.afm||"[___]")}, εφεξής «Μηχανικός», συμφωνήθηκαν τα εξής:</p>
  <p><b>1. Αντικείμενο.</b> Ο Μηχανικός αναλαμβάνει ${isMel?"την εκπόνηση των μελετών":"την επίβλεψη των εργασιών"}: ${list.map(esc).join(", ")||"[___]"}, για το έργο «${esc(D.ergo.titlos||"[___]")}», στη θέση ${esc(D.ergo.dieuth||"[___]")}, ΚΑΕΚ ${esc(D.ergo.kaek||"[___]")}, στο πλαίσιο έκδοσης οικοδομικής άδειας.</p>
- <p><b>2. Αμοιβή.</b> Η αμοιβή συμφωνείται στο ποσό των <b>${eur(poso)}</b> πλέον ΦΠΑ ${num(D.fpa)}% (${eur(poso*(+D.fpa||0)/100)}), ήτοι συνολικά <b>${eur(poso*(1+(+D.fpa||0)/100))}</b>.</p>
+ <p><b>2. Αμοιβή.</b> Η αμοιβή <b>συμφωνείται ελευθέρως</b> (άρθ. 2§2 ν.3919/2011) στο ποσό των <b>${eur(poso)}</b> πλέον ΦΠΑ ${num(D.fpa)}% (${eur(poso*(+D.fpa||0)/100)}), ήτοι συνολικά <b>${eur(poso*(1+(+D.fpa||0)/100))}</b>${_fac!==1?` — αντίστοιχη νόμιμη αμοιβή ΤΕΕ (ΠΔ 696/74): ${eur(posoNom)}`:""}.</p>
  <p><b>3. Καταβολή.</b> [___]% με την υπογραφή, [___]% με την υποβολή στο e-Άδειες, εξόφληση με την έκδοση της άδειας${isMel?"":" / την πρόοδο εργασιών"}.</p>
  <p><b>4. Υποχρεώσεις.</b> Ο Μηχανικός εκτελεί το αντικείμενο σύμφωνα με την ισχύουσα νομοθεσία (ν.4495/2017, ΝΟΚ, π.δ. 696/74 ως προς τα ελάχιστα περιεχόμενα) και τους κανόνες της επιστήμης και τέχνης.</p>
  <p><b>5.</b> Κάθε τροποποίηση γίνεται εγγράφως. Αρμόδια τα δικαστήρια της έδρας του έργου.</p>
@@ -1793,7 +1811,8 @@ function printFull(){
  <h2>Γ. Φόροι, κρατήσεις & τέλη</h2>
  <table>
  <tr><td>Αμοιβές (καθαρές)</td><td class="num">${eur(a.sum)}</td></tr>
- <tr><td>ΦΠΑ ${num(D.fpa)}%</td><td class="num">${eur(f.fpa)}</td></tr>
+ ${(+D.agreedFee||0)>0?`<tr><td>Συμφωνηθείσα αμοιβή (νόμιμη ΤΕΕ: ${eur(f.a.sum)})</td><td class="num">${eur(f.billed)}</td></tr>`:""}
+ <tr><td>ΦΠΑ ${num(D.fpa)}%${(+D.agreedFee||0)>0?" επί συμφωνηθείσας":""}</td><td class="num">${eur(f.fpa)}</td></tr>
  <tr><td>Λοιπές κρατήσεις ${num(D.teeKrat)}‰</td><td class="num">${eur(f.tee)}</td></tr>
  <tr><td>Πράσινο Ταμείο${D.ektosSxediou?(D.prasMode==="m5"?" (εκτός σχεδίου 5‰ αναλυτ.)":" (εκτός σχεδίου 5% συμβ.)"):""}</td><td class="num">${eur(f.prasino)}</td></tr>
  <tr><td>ΑΕΚΚ — διαχείριση αποβλήτων (${num(f.aekk.tons)} τν)</td><td class="num">${eur(f.aekk.cost)}</td></tr>
