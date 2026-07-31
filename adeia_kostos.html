@@ -312,7 +312,7 @@ nav button.active{background:linear-gradient(135deg,var(--acc1),var(--acc2));col
 
 <script>
 "use strict";
-const VER = "v1.39";
+const VER = "v1.40";
 function defStat(){ return { dimos:"", tk:"", oikopedo:0, ogkos:0, orofoi:0, katoik:0, domatia:0, parking:0, ydreysi:"Δημοτικό δίκτυο", apoxeteysi:"Δημοτικό δίκτυο", thermansi:"Αντλία θερμότητας", energeia:"ΔΕΔΔΗΕ (ρεύμα)" };}
 function defAekk(){ return {
  newOn:true,
@@ -881,6 +881,7 @@ function fixD(){ // v1.31: συμπλήρωση πεδίων που λείπου
  if(!D.ergo) D.ergo = {titlos:"", eidos:"Νέα οικοδομή", dieuth:"", kaek:"", ydom:"", eaAA:"", months:18, lat:null, lon:null, zoom:null};
  if(D.ergo.ydom===undefined) D.ergo.ydom="";
  if(D.ergo.lat===undefined){ D.ergo.lat=null; D.ergo.lon=null; D.ergo.zoom=null; }
+ if(!Array.isArray(D.ergo.poly)) D.ergo.poly = []; // v1.40: κορυφές πολυγώνου οικοπέδου [lat,lon]
  if(!Array.isArray(D.scen)) D.scen = [];
 }
 function render(){
@@ -1111,11 +1112,18 @@ function egsaLine(){
 function ergCoordsUI(){
  const el = document.getElementById("ergCoords"); if(!el) return;
  const s = egsaLine();
- el.innerHTML = s
-  ? `<span class="pill">${esc(s.split(" — ")[0])}</span> <span class="pill"><b>ΕΓΣΑ'87</b> ${esc(s.split(" — ")[1].replace(" (ΕΓΣΑ'87)",""))}</span> <button type="button" class="btn sm sec" id="ergClr">🗑 Καθαρισμός πινέζας</button>`
-  : `<span class="pill">Κλικ στον χάρτη, αναζήτηση ή GPS για να τοποθετήσεις την πινέζα του έργου.</span>`;
+ const P = (D.ergo.poly||[]);
+ const area = P.length>=3 ? ergPolyArea() : 0;
+ const polyPills = P.length
+  ? `<span class="pill" style="border-color:#E08A2E;color:#7A4A00;background:#FFF4E3"><b>Οικόπεδο</b> ${P.length} κορυφές${area?` · ${num(area)} μ²`:""}</span> <button type="button" class="btn sm sec" id="ergPUndo" title="Αναίρεση τελευταίας κορυφής">↩ Κορυφή</button>`
+  : "";
+ el.innerHTML = (s || P.length)
+  ? `${s?`<span class="pill">${esc(s.split(" — ")[0])}</span> <span class="pill"><b>ΕΓΣΑ'87</b> ${esc(s.split(" — ")[1].replace(" (ΕΓΣΑ'87)",""))}</span>`:""} ${polyPills} <button type="button" class="btn sm sec" id="ergClr">🗑 Καθαρισμός</button>`
+  : `<span class="pill">Κλικ στον χάρτη = κορυφή πολυγώνου οικοπέδου (με 3+ κορυφές ορίζεται αυτόματα η θέση & το εμβαδόν). Αναζήτηση / GPS / ΚΑΕΚ για προσανατολισμό.</span>`;
  const b = document.getElementById("ergClr");
  if(b) b.addEventListener("click", ergClearPin);
+ const u = document.getElementById("ergPUndo");
+ if(u) u.addEventListener("click", ergPolyUndo);
 }
 function ergSetPin(la, lo, pan){
  D.ergo.lat = +(+la).toFixed(7); D.ergo.lon = +(+lo).toFixed(7); save();
@@ -1129,10 +1137,58 @@ function ergSetPin(la, lo, pan){
  ergCoordsUI();
 }
 function ergClearPin(){
- D.ergo.lat = null; D.ergo.lon = null; save();
+ D.ergo.lat = null; D.ergo.lon = null; D.ergo.poly = []; save();
  if(ERGMARK && ERGMAP){ ERGMAP.removeLayer(ERGMARK); ERGMARK = null; }
  if(ERGPOLY && ERGMAP){ ERGMAP.removeLayer(ERGPOLY); ERGPOLY = null; }
+ if(ERGDRAW && ERGMAP){ ERGMAP.removeLayer(ERGDRAW); ERGDRAW = null; }
  ergCoordsUI();
+}
+/* ===== v1.40 — Σχεδίαση πολυγώνου οικοπέδου με κλικ στον χάρτη =====
+   Κάθε κλικ = κορυφή. Με ≥3 κορυφές το κεντροειδές γίνεται αυτόματα η θέση του έργου
+   (χωρίς πινέζα) και υπολογίζεται εμβαδόν σε ΕΓΣΑ'87. Η πινέζα μπαίνει πλέον ΜΟΝΟ
+   από αναζήτηση/GPS/ΚΑΕΚ, για προσανατολισμό. */
+function ergPolyArea(){ // shoelace σε ΕΓΣΑ'87 (μ²)
+ const P = D.ergo.poly || [];
+ if(P.length < 3) return 0;
+ const pts = P.map(([la,lo])=>{ const c = wgs84ToEgsa87(la, lo); return [c.E, c.N]; });
+ let s = 0;
+ for(let i=0;i<pts.length;i++){ const [x1,y1]=pts[i], [x2,y2]=pts[(i+1)%pts.length]; s += x1*y2 - x2*y1; }
+ return Math.abs(s)/2;
+}
+function ergPolyCentroid(){
+ const P = D.ergo.poly || [];
+ if(!P.length) return null;
+ let la=0, lo=0; P.forEach(p=>{ la+=p[0]; lo+=p[1]; });
+ return [la/P.length, lo/P.length];
+}
+function ergRedrawPoly(){
+ if(!ERGMAP) return;
+ if(ERGDRAW){ ERGMAP.removeLayer(ERGDRAW); ERGDRAW = null; }
+ const P = D.ergo.poly || [];
+ if(!P.length) return;
+ ERGDRAW = (P.length >= 3
+  ? L.polygon(P, {color:"#E08A2E", weight:2.5, opacity:.95, fillColor:"#F5B95E", fillOpacity:.18})
+  : L.polyline(P, {color:"#E08A2E", weight:2.5, opacity:.95, dashArray:"5,5"})).addTo(ERGMAP);
+ if(P.length >= 3){
+  const a = ergPolyArea();
+  ERGDRAW.bindPopup(`<b>Οικόπεδο</b><br>${num(a)} μ² · ${P.length} κορυφές`);
+ }
+}
+function ergAddVertex(lat, lng){
+ if(!Array.isArray(D.ergo.poly)) D.ergo.poly = [];
+ D.ergo.poly.push([+lat.toFixed(7), +lng.toFixed(7)]);
+ if(D.ergo.poly.length >= 3){
+  const c = ergPolyCentroid();
+  D.ergo.lat = +c[0].toFixed(7); D.ergo.lon = +c[1].toFixed(7);
+  if(ERGMARK && ERGMAP){ ERGMAP.removeLayer(ERGMARK); ERGMARK = null; } // χωρίς πινέζα — μιλάει το πολύγωνο
+ }
+ save(); ergRedrawPoly(); ergCoordsUI();
+}
+function ergPolyUndo(){
+ if(!(D.ergo.poly||[]).length) return;
+ D.ergo.poly.pop();
+ if(D.ergo.poly.length >= 3){ const c = ergPolyCentroid(); D.ergo.lat = +c[0].toFixed(7); D.ergo.lon = +c[1].toFixed(7); }
+ save(); ergRedrawPoly(); ergCoordsUI();
 }
 /* v1.35 — αναζήτηση διεύθυνσης με ακρίβεια αριθμού:
    πολλαπλά αποτελέσματα με επιλογή, προτεραιότητα σε hits με αριθμό οδού/κτίριο,
@@ -1140,6 +1196,7 @@ function ergClearPin(){
 let ERGC = [];
 let ERGKT = null; // WMS ορίων Κτηματολογίου
 let ERGPOLY = null; // πολύγωνο ΚΑΕΚ από kaek-geo
+let ERGDRAW = null; // σχεδιαζόμενο πολύγωνο οικοπέδου (v1.40)
 const KAEK_API = "https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/kaek-geo"; // καλυμμένες περιοχές: Αττική, Αιτωλ/νία (Δυτ. Ελλάδα), Λευκάδα (Ιόνια)
 async function nomFetch(q){
  const r = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=gr&addressdetails=1&accept-language=el&q=" + encodeURIComponent(q), {headers:{"Accept":"application/json"}});
@@ -1274,9 +1331,11 @@ function initErgoMap(){
    {layers:"0", format:"image/png", transparent:true, version:"1.3.0", opacity:0.9, maxZoom:20, attribution:"Ελληνικό Κτηματολόγιο"});
   L.control.layers({"Δορυφόρος": sat, "Χάρτης": osm}, {"ΚΤ όρια γεωτεμαχίων": ERGKT}, {position:"topright"}).addTo(ERGMAP);
   L.control.scale({imperial:false}).addTo(ERGMAP);
-  ERGMAP.on("click", e=> ergSetPin(e.latlng.lat, e.latlng.lng, false));
+  ERGMAP.on("click", e=> ergAddVertex(e.latlng.lat, e.latlng.lng)); // v1.40: κλικ = κορυφή πολυγώνου
   ERGMAP.on("zoomend", ()=>{ D.ergo.zoom = ERGMAP.getZoom(); save(); });
-  if(has) ergSetPin(+D.ergo.lat, +D.ergo.lon, false);
+  if(has && !(D.ergo.poly||[]).length) ergSetPin(+D.ergo.lat, +D.ergo.lon, false);
+  ergRedrawPoly();
+  if((D.ergo.poly||[]).length >= 3 && ERGDRAW){ try{ ERGMAP.fitBounds(ERGDRAW.getBounds(), {padding:[30,30], maxZoom:19}); }catch(_){ } }
   ergCoordsUI();
  }).catch(()=>{ el.innerHTML = '<div class="note warn" style="margin:8px">Ο χάρτης απαιτεί σύνδεση στο διαδίκτυο — οι συντεταγμένες που έχεις ήδη ορίσει διατηρούνται.</div>'; });
 }
