@@ -101,6 +101,24 @@ footer p{font-size:11.5px;color:var(--faint)}
   .tile.primary{flex-direction:column;align-items:flex-start;gap:10px}
   .primary-cta{margin-left:0}
 }
+.dev-chip{display:inline-flex;align-items:center;gap:7px;background:#EEF4FB;color:#1F4E9C;border:1px solid rgba(31,78,156,.3);font-size:12.5px;font-weight:700;padding:5px 12px;border-radius:99px;cursor:pointer;font-family:var(--font-b)}
+.dev-chip:hover{background:#E2EDF9}
+.dev-chip b{font-family:var(--font-m);font-weight:700}
+.dev-list{margin:14px 0 4px;text-align:left;display:flex;flex-direction:column;gap:8px;max-height:46vh;overflow:auto}
+.dev-row{display:flex;align-items:center;gap:11px;border:1px solid var(--border);border-radius:11px;padding:10px 12px;background:#fff}
+.dev-row.cur{border-color:rgba(242,107,33,.45);background:#FFF9F4}
+.dev-ico{font-size:21px;flex:0 0 auto}
+.dev-info{flex:1;min-width:0}
+.dev-name{font-weight:700;font-size:13.5px;color:var(--text)}
+.dev-meta{font-size:11.5px;color:var(--muted);font-family:var(--font-m)}
+.dev-cur{display:inline-block;font-size:10.5px;font-weight:700;color:#E05A12;background:#FFF3E8;border:1px solid rgba(242,107,33,.35);border-radius:99px;padding:1px 8px;margin-left:6px;vertical-align:middle}
+.dev-kick{flex:0 0 auto;font-family:var(--font-d);font-weight:600;font-size:12px;color:#B3261E;background:#fff;border:1px solid #EBC9C6;border-radius:8px;padding:6px 11px;cursor:pointer}
+.dev-kick:hover{background:#FDF1F0;border-color:#D9A19C}
+.dev-kick:disabled{opacity:.5;cursor:wait}
+.dev-bar{display:flex;align-items:center;justify-content:space-between;margin-top:4px}
+.dev-quota{font-family:var(--font-m);font-size:12px;color:var(--muted)}
+.dev-quota b{color:var(--text)}
+.dev-full{color:#B3261E;font-weight:700}
 </style>
 </head>
 <body>
@@ -150,6 +168,7 @@ footer p{font-size:11.5px;color:var(--faint)}
     </div>
     <div class="tr">
       <span class="plan-chip" id="plan-chip" style="display:none"><span class="dot"></span><span id="plan-name">—</span></span>
+      <button class="dev-chip" id="dev-chip" onclick="openDevices()" title="Συνδεδεμένες συσκευές">📱 Συσκευές <b id="dev-count">—/4</b></button>
       <button class="logout" onclick="doLogout()">Αποσύνδεση</button>
     </div>
   </header>
@@ -177,12 +196,23 @@ footer p{font-size:11.5px;color:var(--faint)}
     <div class="mprice" id="m-price"></div>
     <a class="mbtn" id="m-mail" href="#">Θέλω να το ενεργοποιήσω</a>
     <button class="mclose" onclick="closeModal()">Κλείσιμο</button>
+  </div>
+</div>
+
+<div class="overlay" id="dev-overlay" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="mico">📱</div>
+    <h3>Συνδεδεμένες συσκευές</h3>
+    <p class="mdesc">Ο λογαριασμός σου επιτρέπει έως <b>4 συσκευές</b> στα εργαλεία. Μπορείς να αποσυνδέσεις οποιαδήποτε — από οποιαδήποτε συσκευή — για να ελευθερώσεις θέση.</p>
+    <div class="dev-bar"><span class="dev-quota" id="dev-quota">—</span></div>
+    <div class="dev-list" id="dev-list"><div class="dev-meta">Φόρτωση…</div></div>
+    <button class="mclose" onclick="closeDevices()">Κλείσιμο</button>
     <p class="fine">Η ενεργοποίηση γίνεται από την ομάδα του HEXIS μετά την επικοινωνία.</p>
   </div>
 </div>
 
 <script>
-const HUB_VERSION = 'v1.6';
+const HUB_VERSION = 'v1.7';
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
@@ -243,7 +273,82 @@ function showModal(id) {
 }
 function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
 document.getElementById('overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeModal(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape'){ closeModal(); const dv=document.getElementById('dev-overlay'); if(dv) dv.classList.remove('open'); } });
+
+/* ===== Συσκευές (όριο 4) ===== */
+const MAX_DEV = 4;
+let myDevices = [];
+function myDeviceId(){ try{ return localStorage.getItem('hx_device_id') || ''; }catch(e){ return ''; } }
+function devPretty(label){
+  const l = label || '';
+  const os = /Android/i.test(l) ? 'Android' : /iPhone/i.test(l) ? 'iPhone' : /iPad/i.test(l) ? 'iPad'
+    : /Windows/i.test(l) ? 'Windows PC' : /Macintosh/i.test(l) ? 'Mac' : /Linux/i.test(l) ? 'Linux' : 'Συσκευή';
+  const br = /Edg\//.test(l) ? 'Edge' : /SamsungBrowser/i.test(l) ? 'Samsung Internet' : /OPR\//.test(l) ? 'Opera'
+    : /Firefox\//.test(l) ? 'Firefox' : /Chrome\//.test(l) ? 'Chrome' : /Safari\//.test(l) ? 'Safari' : '';
+  return os + (br ? ' · ' + br : '');
+}
+function devIcon(label){ return /Android|iPhone|iPad|Mobile/i.test(label || '') ? '📱' : '💻'; }
+function devAgo(ts){
+  if(!ts) return '—';
+  const d = (Date.now() - new Date(ts).getTime()) / 864e5;
+  if(d < 1) return 'σήμερα';
+  if(d < 2) return 'χθες';
+  if(d < 30) return Math.floor(d) + ' ημ. πριν';
+  return new Date(ts).toLocaleDateString('el-GR');
+}
+async function loadDevices(){
+  try{
+    const { data, error } = await sb.rpc('my_devices');
+    if(error) throw error;
+    myDevices = data || [];
+  }catch(e){ console.warn('devices:', e.message); myDevices = []; }
+  const n = myDevices.length;
+  const cEl = document.getElementById('dev-count');
+  if(cEl){ cEl.textContent = n + '/' + MAX_DEV; cEl.classList.toggle('dev-full', n >= MAX_DEV); }
+  renderDevices();
+}
+function renderDevices(){
+  const list = document.getElementById('dev-list'), q = document.getElementById('dev-quota');
+  if(!list) return;
+  const cur = myDeviceId();
+  if(q) q.innerHTML = 'Σε χρήση: <b>' + myDevices.length + ' / ' + MAX_DEV + '</b>' +
+    (myDevices.length >= MAX_DEV ? ' <span class="dev-full">— πλήρες, αποσύνδεσε μία για νέα συσκευή</span>' : '');
+  if(!myDevices.length){
+    list.innerHTML = '<div class="dev-meta">Καμία καταχωρημένη συσκευή ακόμα — οι συσκευές καταγράφονται όταν ανοίγεις κάποιο εργαλείο (add-on).</div>';
+    return;
+  }
+  list.innerHTML = myDevices.map(d => {
+    const isCur = cur && d.device_id === cur;
+    return '<div class="dev-row' + (isCur ? ' cur' : '') + '">'
+      + '<span class="dev-ico">' + devIcon(d.label) + '</span>'
+      + '<span class="dev-info"><span class="dev-name">' + devPretty(d.label)
+      + (isCur ? '<span class="dev-cur">αυτή η συσκευή</span>' : '') + '</span>'
+      + '<span class="dev-meta">σύνδεση: ' + devAgo(d.created_at) + ' · τελευταία χρήση: ' + devAgo(d.last_seen) + '</span></span>'
+      + '<button class="dev-kick" data-dev="' + d.device_id + '">Αποσύνδεση</button>'
+      + '</div>';
+  }).join('');
+  list.querySelectorAll('.dev-kick').forEach(b => b.addEventListener('click', () => removeDevice(b)));
+}
+async function removeDevice(btn){
+  const id = btn.dataset.dev;
+  const isCur = id === myDeviceId();
+  const msg = isCur
+    ? 'Να αποσυνδεθεί ΑΥΤΗ η συσκευή; Τα εργαλεία θα την ξανακαταχωρήσουν αυτόματα στην επόμενη χρήση (θα ξαναπιάσει θέση).'
+    : 'Να αποσυνδεθεί η συσκευή; Θα ελευθερωθεί μία θέση από τις ' + MAX_DEV + '.';
+  if(!confirm(msg)) return;
+  btn.disabled = true;
+  try{
+    const { data, error } = await sb.rpc('remove_device', { p_device_id: id });
+    if(error) throw error;
+    await loadDevices();
+  }catch(e){
+    alert('Σφάλμα: ' + e.message + '\nΑν δεν έχει γίνει deploy το SQL «devices_self_service.sql», τρέξε το πρώτα στο Supabase.');
+    btn.disabled = false;
+  }
+}
+function openDevices(){ document.getElementById('dev-overlay').classList.add('open'); loadDevices(); }
+function closeDevices(){ document.getElementById('dev-overlay').classList.remove('open'); }
+document.getElementById('dev-overlay').addEventListener('click', e => { if (e.target.id === 'dev-overlay') closeDevices(); });
 
 function doLogout(){
   if (confirm('Αποσύνδεση από το HEXIS;')) sb.auth.signOut().then(() => window.location.href = 'login.html');
@@ -283,6 +388,7 @@ async function init() {
   } catch(e) { console.warn('entitlements:', e.message); }
 
   render();
+  loadDevices();
   document.getElementById('loading').style.display = 'none';
   sb.from('user_activity').upsert({ user_id: currentUser.id, last_seen: new Date().toISOString(), last_app: 'hub' }).then(()=>{}).catch?.(()=>{});
   sb.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') window.location.href = 'login.html'; });
