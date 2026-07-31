@@ -263,7 +263,7 @@
     <button class="b-find" id="ktimBtn" onclick="openKtimatologio()">🗺️ Άνοιγμα Κτηματολογίου</button>
   </div>
   <div style="display:flex;gap:8px;margin-top:8px">
-    <input id="kaekQ" type="text" inputmode="numeric" placeholder="ΚΑΕΚ (12 ψηφία) — Αιτωλ/νία · Λευκάδα"
+    <input id="kaekQ" type="text" inputmode="numeric" placeholder="ΚΑΕΚ (12 ψηφία)"
       style="flex:1;padding:10px 12px;background:var(--panel2);border:1px solid var(--neon);border-radius:9px;color:var(--neon);font-weight:700;font-size:14px;letter-spacing:.5px"
       onkeydown="if(event.key==='Enter'){event.preventDefault();findByKaek();}">
     <button id="kaekGoBtn" onclick="findByKaek()" title="Εύρεση γεωτεμαχίου από ΚΑΕΚ"
@@ -449,7 +449,7 @@ function ringMetrics(ringXY){
   return { area: Math.abs(area)/2, perim };
 }
 
-// ───────── ΚΑΕΚ → γεωτεμάχιο (βάση HEXIS: Αιτωλ/νία · Λευκάδα) ─────────
+// ───────── ΚΑΕΚ → γεωτεμάχιο (βάση γεωτεμαχίων HEXIS) ─────────
 const KAEK_GEO_API = "https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/kaek-geo";
 /* ── Ελεύθερο κλικ στον χάρτη → ΚΑΕΚ (point-in-polygon στη βάση HEXIS) ── */
 async function kaekAtPoint(lat, lon){
@@ -462,7 +462,7 @@ async function kaekAtPoint(lat, lon){
       kaekDisp("Δεν βρέθηκε", "empty");
       clearParcel();
       setHint(p.error==="not_found"
-        ? "Δεν βρέθηκε γεωτεμάχιο εδώ — εκτός καλυμμένων περιοχών (Αιτωλ/νία·Αχαΐα·Ηλεία·Ιόνια) ή εκτός κτηματογράφησης."
+        ? "Δεν βρέθηκε γεωτεμάχιο εδώ — εκτός φορτωμένων περιφερειών ή εκτός κτηματογράφησης."
         : "Σφάλμα: " + (p.error||r.status), "err");
       return;
     }
@@ -499,7 +499,7 @@ async function findByKaek(){
       const j = await r.json().catch(()=>({}));
       kaekDisp("Δεν βρέθηκε", "empty");
       setHint(j.error==="not_found"
-        ? "Ο ΚΑΕΚ δεν υπάρχει στη βάση — καλύπτονται: Αιτωλοακαρνανία/Δυτ. Ελλάδα, Λευκάδα/Ιόνια."
+        ? "Ο ΚΑΕΚ δεν βρέθηκε στη βάση — εκτός φορτωμένων περιφερειών ή εκτός κτηματογράφησης."
         : "Σφάλμα: " + (j.error||r.status), "err");
       return;
     }
