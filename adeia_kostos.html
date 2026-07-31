@@ -280,7 +280,7 @@ nav button.active{background:linear-gradient(135deg,var(--acc1),var(--acc2));col
 
 <script>
 "use strict";
-const VER = "v1.22";
+const VER = "v1.30";
 function defStat(){ return { dimos:"", tk:"", oikopedo:0, ogkos:0, orofoi:0, katoik:0, domatia:0, parking:0, ydreysi:"Δημοτικό δίκτυο", apoxeteysi:"Δημοτικό δίκτυο", thermansi:"Αντλία θερμότητας", energeia:"ΔΕΔΔΗΕ (ρεύμα)" };}
 function defAekk(){ return {
  newOn:true,
@@ -459,7 +459,7 @@ const USES_CATALOG = [
 ];
 
 let D = load() || {
- ergo:{titlos:"", dieuth:"", kaek:"", months:18},
+ ergo:{titlos:"", eidos:"Νέα οικοδομή", dieuth:"", kaek:"", ydom:"", eaAA:"", months:18, lat:null, lon:null, zoom:null},
  odFee:0,
  owners:[ {id:1, type:"f", name:"", afm:"", doy:"", pct:100} ],
  engineers:[
@@ -568,6 +568,7 @@ function load(){
   if(d.docEng===undefined) d.docEng = 1;
   if(Array.isArray(d.studies)) d.studies.forEach(st=>{ if(st.mEng===undefined) st.mEng=1; if(st.eEng===undefined) st.eEng=2; });
   if(Array.isArray(d.uses)) d.uses.forEach(u=>{ if(u.se===undefined) u.se=u.af||1; if(u.cid===undefined) u.cid=0; });
+  if(d.ergo){ if(d.ergo.eidos===undefined) d.ergo.eidos="Νέα οικοδομή"; if(d.ergo.ydom===undefined) d.ergo.ydom=""; if(d.ergo.eaAA===undefined) d.ergo.eaAA=""; if(d.ergo.lat===undefined){ d.ergo.lat=null; d.ergo.lon=null; d.ergo.zoom=null; } }
   return d;
  }catch(_){ return null; }
 }
@@ -693,7 +694,7 @@ function amoivesCalc(){
  const S = symbatikos(), l = +D.lambda||0.23368;
  // Σταθμισμένη προσαύξηση προσθήκης (ΠΔ 696/74 άρθ.88): γραμμές ΠΡΟΣΘΗΚΗ ×1,30 αναλογικά με το μερίδιό τους στον προϋπ.
  const _bT = D.uses.reduce((a,x)=>a+useBudget(x),0);
- const incP = _bT>0 ? D.uses.reduce((a,x)=>a+useBudget(x)*(x.kind==="pros"?1.30:1.00),0)/_bT : (D.incProsthiki?1.30:1.00);
+ const incP = _bT>0 ? D.uses.reduce((a,x)=>a+useBudget(x)*((x.kind==="pros"||x.kind==="episk")?1.30:1.00),0)/_bT : (D.incProsthiki?1.30:1.00);
  let mel=0, epi=0; const rows=[];
  for(const st of D.studies){
   if(!st.on){ rows.push({...st, melF:0, epiF:0}); continue; }
@@ -983,22 +984,143 @@ document.getElementById("undoBtn").addEventListener("click", undo);
 document.getElementById("clrBtn").addEventListener("click", clearQuantities);
 histSnap(); // αρχική κατάσταση στο ιστορικό
 
+/* ===== v1.30: Χάρτης θέσης έργου (Leaflet lazy) + ΕΓΣΑ'87 ===== */
+let _lfP = null;
+function ensureLeaflet(){
+ if(window.L) return Promise.resolve();
+ if(_lfP) return _lfP;
+ _lfP = new Promise((res, rej)=>{
+  const c = document.createElement("link"); c.rel = "stylesheet";
+  c.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"; document.head.appendChild(c);
+  const s = document.createElement("script"); s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+  s.onload = ()=>res(); s.onerror = ()=>{ _lfP = null; rej(new Error("leaflet")); };
+  document.head.appendChild(s);
+ });
+ return _lfP;
+}
+function wgs84ToEgsa87(lat, lon){
+ const d2r = Math.PI/180;
+ // WGS84 γεωδαιτικές → ECEF
+ let a = 6378137, f = 1/298.257223563, e2 = f*(2-f);
+ const fi = lat*d2r, la = lon*d2r;
+ let N = a/Math.sqrt(1 - e2*Math.sin(fi)*Math.sin(fi));
+ let X = N*Math.cos(fi)*Math.cos(la), Y = N*Math.cos(fi)*Math.sin(la), Z = N*(1-e2)*Math.sin(fi);
+ // Μετάθεση WGS84 → ΕΓΣΑ'87 (αντίστροφη της ΕΓΣΑ→WGS: ΔX=-199.87, ΔY=+74.79, ΔZ=+246.62)
+ X += 199.87; Y -= 74.79; Z -= 246.62;
+ // ECEF → γεωδαιτικές σε GRS80
+ a = 6378137; f = 1/298.257222101; e2 = f*(2-f);
+ const p = Math.hypot(X, Y);
+ let fi2 = Math.atan2(Z, p*(1-e2));
+ for(let i=0;i<6;i++){ N = a/Math.sqrt(1 - e2*Math.sin(fi2)*Math.sin(fi2)); fi2 = Math.atan2(Z + e2*N*Math.sin(fi2), p); }
+ const la2 = Math.atan2(Y, X);
+ // Εγκάρσια Μερκατορική ΤΜ87 (λ0=24°, k0=0.9996, FE=500000)
+ const k0 = 0.9996, l0 = 24*d2r, FE = 500000;
+ const ep2 = e2/(1-e2), t = Math.tan(fi2), n2 = ep2*Math.cos(fi2)*Math.cos(fi2);
+ N = a/Math.sqrt(1 - e2*Math.sin(fi2)*Math.sin(fi2));
+ const A = (la2 - l0)*Math.cos(fi2);
+ const M = a*((1 - e2/4 - 3*e2*e2/64 - 5*e2*e2*e2/256)*fi2
+   - (3*e2/8 + 3*e2*e2/32 + 45*e2*e2*e2/1024)*Math.sin(2*fi2)
+   + (15*e2*e2/256 + 45*e2*e2*e2/1024)*Math.sin(4*fi2)
+   - (35*e2*e2*e2/3072)*Math.sin(6*fi2));
+ const E = FE + k0*N*(A + (1 - t*t + n2)*Math.pow(A,3)/6 + (5 - 18*t*t + Math.pow(t,4) + 72*n2 - 58*ep2)*Math.pow(A,5)/120);
+ const No = k0*(M + N*t*(A*A/2 + (5 - t*t + 9*n2 + 4*n2*n2)*Math.pow(A,4)/24 + (61 - 58*t*t + Math.pow(t,4) + 600*n2 - 330*ep2)*Math.pow(A,6)/720));
+ return {E, N: No};
+}
+let ERGMAP = null, ERGMARK = null;
+function ergPinIcon(){
+ return L.divIcon({className:"", iconSize:[34,44], iconAnchor:[17,42],
+  html:'<svg width="34" height="44" viewBox="0 0 34 44" xmlns="http://www.w3.org/2000/svg"><path d="M17 1C8.7 1 2 7.7 2 16c0 10.6 15 27 15 27s15-16.4 15-27C32 7.7 25.3 1 17 1z" fill="#14213D" stroke="#8FB4EE" stroke-width="2.5"/><circle cx="17" cy="16" r="6" fill="#8FB4EE"/></svg>'});
+}
+function egsaLine(){
+ const la = +D.ergo.lat, lo = +D.ergo.lon;
+ if(!isFinite(la) || !isFinite(lo) || (!la && !lo)) return "";
+ const g = wgs84ToEgsa87(la, lo);
+ return `φ ${la.toFixed(6)}° · λ ${lo.toFixed(6)}° (WGS84) — Χ ${g.E.toFixed(2)} · Υ ${g.N.toFixed(2)} (ΕΓΣΑ'87)`;
+}
+function ergCoordsUI(){
+ const el = document.getElementById("ergCoords"); if(!el) return;
+ const s = egsaLine();
+ el.innerHTML = s
+  ? `<span class="pill">${esc(s.split(" — ")[0])}</span> <span class="pill"><b>ΕΓΣΑ'87</b> ${esc(s.split(" — ")[1].replace(" (ΕΓΣΑ'87)",""))}</span> <button type="button" class="btn sm sec" id="ergClr">🗑 Καθαρισμός πινέζας</button>`
+  : `<span class="pill">Κλικ στον χάρτη, αναζήτηση ή GPS για να τοποθετήσεις την πινέζα του έργου.</span>`;
+ const b = document.getElementById("ergClr");
+ if(b) b.addEventListener("click", ergClearPin);
+}
+function ergSetPin(la, lo, pan){
+ D.ergo.lat = +(+la).toFixed(7); D.ergo.lon = +(+lo).toFixed(7); save();
+ if(ERGMAP){
+  if(!ERGMARK){
+   ERGMARK = L.marker([la, lo], {draggable:true, icon: ergPinIcon()}).addTo(ERGMAP);
+   ERGMARK.on("dragend", ()=>{ const p = ERGMARK.getLatLng(); D.ergo.lat = +p.lat.toFixed(7); D.ergo.lon = +p.lng.toFixed(7); save(); ergCoordsUI(); });
+  } else ERGMARK.setLatLng([la, lo]);
+  if(pan) ERGMAP.setView([la, lo], Math.max(ERGMAP.getZoom(), 17));
+ }
+ ergCoordsUI();
+}
+function ergClearPin(){
+ D.ergo.lat = null; D.ergo.lon = null; save();
+ if(ERGMARK && ERGMAP){ ERGMAP.removeLayer(ERGMARK); ERGMARK = null; }
+ ergCoordsUI();
+}
+async function ergSearch(){
+ const inp = document.getElementById("ergQ");
+ const q = inp ? inp.value.trim() : "";
+ if(!q){ if(inp) inp.focus(); return; }
+ const b = document.getElementById("ergGo"); if(b){ b.disabled = true; b.textContent = "…"; }
+ try{
+  const r = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=gr&q=" + encodeURIComponent(q), {headers:{"Accept":"application/json"}});
+  const j = await r.json();
+  if(j && j[0]) ergSetPin(+j[0].lat, +j[0].lon, true);
+  else alert("Δεν βρέθηκε η τοποθεσία — δοκίμασε π.χ. «Οδός, Πόλη».");
+ }catch(_){ alert("Σφάλμα αναζήτησης — έλεγξε τη σύνδεση."); }
+ if(b){ b.disabled = false; b.textContent = "🔍"; }
+}
+function ergGps(){
+ if(!navigator.geolocation){ alert("Το GPS δεν υποστηρίζεται στη συσκευή."); return; }
+ navigator.geolocation.getCurrentPosition(
+  p=> ergSetPin(p.coords.latitude, p.coords.longitude, true),
+  ()=> alert("Αδύνατος ο εντοπισμός θέσης (άδεια/σήμα GPS)."),
+  {enableHighAccuracy:true, timeout:9000});
+}
+function initErgoMap(){
+ const el = document.getElementById("ergMap"); if(!el) return;
+ ensureLeaflet().then(()=>{
+  const m = document.getElementById("ergMap"); if(!m || m._done) return; m._done = 1;
+  const has = isFinite(+D.ergo.lat) && isFinite(+D.ergo.lon) && (+D.ergo.lat || +D.ergo.lon);
+  ERGMAP = L.map(m).setView(has ? [+D.ergo.lat, +D.ergo.lon] : [38.83, 21.16], has ? (D.ergo.zoom || 17) : 8);
+  const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {maxZoom:19, attribution:"Esri World Imagery"});
+  const osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, attribution:"© OpenStreetMap"});
+  sat.addTo(ERGMAP);
+  L.control.layers({"Δορυφόρος": sat, "Χάρτης": osm}, null, {position:"topright"}).addTo(ERGMAP);
+  L.control.scale({imperial:false}).addTo(ERGMAP);
+  ERGMAP.on("click", e=> ergSetPin(e.latlng.lat, e.latlng.lng, false));
+  ERGMAP.on("zoomend", ()=>{ D.ergo.zoom = ERGMAP.getZoom(); save(); });
+  if(has) ergSetPin(+D.ergo.lat, +D.ergo.lon, false);
+  ergCoordsUI();
+ }).catch(()=>{ el.innerHTML = '<div class="note warn" style="margin:8px">Ο χάρτης απαιτεί σύνδεση στο διαδίκτυο — οι συντεταγμένες που έχεις ήδη ορίσει διατηρούνται.</div>'; });
+}
+const YDOM_LIST = ["ΥΔΟΜ Δήμου Λευκάδας","ΥΔΟΜ Δήμου Αγρινίου","ΥΔΟΜ Δήμου Ι.Π. Μεσολογγίου","ΥΔΟΜ Δήμου Ακτίου-Βόνιτσας","ΥΔΟΜ Δήμου Αμφιλοχίας","ΥΔΟΜ Δήμου Πρέβεζας","ΥΔΟΜ Δήμου Αρταίων","ΥΔΟΜ Δήμου Πατρέων","ΥΔΟΜ Δήμου Κέρκυρας","ΥΔΟΜ Δήμου Κεφαλλονιάς"];
+const ERGO_EIDH = ["Νέα οικοδομή","Προσθήκη καθ' ύψος / κατ' επέκταση","Αλλαγή χρήσης","Νομιμοποίηση (ν.4495/2017 άρθ.106)","Ανακαίνιση / Επισκευή","Κατεδάφιση","Περιτοίχιση / Περιβάλλων χώρος","Εργασίες μικρής κλίμακας","Συνδυασμός πράξεων"];
+function kindLabel(k){ return k==="pros" ? "ΠΡΟΣΘΗΚΗ" : k==="chg" ? "ΑΛΛΑΓΗ ΧΡΗΣΗΣ" : k==="nomim" ? "ΝΟΜΙΜΟΠΟΙΗΣΗ" : k==="episk" ? "ΕΠΙΣΚΕΥΗ" : "ΝΕΟ"; }
+
 function rErgo(){
+ ERGMAP = null; ERGMARK = null;
  const e = D.ergo;
+ if(e.eidos===undefined) e.eidos = "Νέα οικοδομή";
+ if(e.ydom===undefined) e.ydom = "";
+ if(e.eaAA===undefined) e.eaAA = "";
  main.innerHTML = `
- <div class="note">👋 Τρία βήματα: <b>1)</b> έργο & επιφάνειες εδώ → <b>2)</b> αμοιβές-φόροι-ΕΦΚΑ-ΑΕΚΚ υπολογίζονται μόνα τους → <b>3)</b> έγγραφα & XML από τα δεξιά tabs. Αυτόματη αποθήκευση στη συσκευή. Κλικ στις ℹ️ σημειώσεις για ανάπτυξη.</div>
+ <div class="note">👋 Ροή: <b>1)</b> στοιχεία έργου, θέση στον χάρτη, εργοδότης & μηχανικοί εδώ → <b>2)</b> «🧮 Προϋπ/σμός» με είδος πράξης ανά χρήση → <b>3)</b> «💶 Αμοιβές» = ανάθεση μελετών → <b>4)</b> Τεύχος Υπολογισμών & XML από «⬇️ Εξαγωγή». Αυτόματη αποθήκευση στη συσκευή.</div>
  <h2>Στοιχεία έργου</h2>
  <div class="card">
-  <label>Τίτλος έργου</label>${inp("ergo.titlos", e.titlos)}
   <div class="grid2">
-   <div><label>Διεύθυνση / θέση</label>${inp("ergo.dieuth", e.dieuth)}</div>
-   <div><label>ΚΑΕΚ</label>${inp("ergo.kaek", e.kaek)}</div>
+   <div><label>Τίτλος έργου</label>${inp("ergo.titlos", e.titlos)}</div>
+   <div><label>Είδος έργου / πράξης</label>
+    <select data-k="ergo.eidos">${ERGO_EIDH.map(v=>`<option ${e.eidos===v?"selected":""}>${v}</option>`).join("")}</select></div>
   </div>
   <div class="grid3">
-   <div><label>Δήμος / Δημ. Ενότητα</label>${inp("stat.dimos", D.stat.dimos)}</div>
-   <div><label>Τ.Κ.</label>${inp("stat.tk", D.stat.tk)}</div>
    <div><label>Διάρκεια εργασιών (μήνες)</label>${ninp("ergo.months", e.months, "1")}</div>
-   <div><label>Φέρων οργανισμός / σύστημα κατασκευής (καθορίζει τον πίνακα ΕΦΚΑ)</label>
+   <div style="grid-column:span 2"><label>Φέρων οργανισμός / σύστημα κατασκευής (καθορίζει τον πίνακα ΕΦΚΑ)</label>
     <select id="ferOrg">
      <option value="symv" ${(D.ferOrg||"symv")==="symv"?"selected":""}>Συμβατική κατασκευή (Ω.Σ.) — ΕΦΚΑ Πίνακας 1</option>
      <option value="metal" ${D.ferOrg==="metal"?"selected":""}>Μεταλλικός / προκατ. σκελετός — ΕΦΚΑ Πίνακας 2Α</option>
@@ -1020,7 +1142,32 @@ function rErgo(){
    <div><label>Θέρμανση</label><select data-k="stat.thermansi">${["Αντλία θερμότητας","Πετρέλαιο","Φυσικό αέριο","Ξύλο/pellet","Ηλεκτρική","Άλλο"].map(v=>`<option ${D.stat.thermansi===v?"selected":""}>${v}</option>`).join("")}</select></div>
   </div>
  </div>
- <h2>Ιδιοκτήτες / Κύριοι του έργου</h2>
+ <h2>Θέση έργου</h2>
+ <div class="card">
+  <div class="grid2">
+   <div><label>Διεύθυνση / θέση</label>${inp("ergo.dieuth", e.dieuth)}</div>
+   <div><label>ΚΑΕΚ</label>${inp("ergo.kaek", e.kaek)}</div>
+  </div>
+  <div class="grid3">
+   <div><label>Δήμος / Δημ. Ενότητα</label>${inp("stat.dimos", D.stat.dimos)}</div>
+   <div><label>Τ.Κ.</label>${inp("stat.tk", D.stat.tk)}</div>
+   <div><label>ΥΔΟΜ (Υπηρεσία Δόμησης)</label>
+    <input data-k="ergo.ydom" list="ydomList" value="${esc(e.ydom||"")}">
+    <datalist id="ydomList">${YDOM_LIST.map(v=>`<option value="${v}">`).join("")}</datalist></div>
+  </div>
+  <div class="grid3">
+   <div><label>Α/Α αίτησης e-Άδειες (προαιρετικά)</label>${inp("ergo.eaAA", e.eaAA||"")}</div>
+  </div>
+  <div style="display:flex;gap:6px;margin:8px 0 6px">
+   <input id="ergQ" type="text" placeholder="Αναζήτηση διεύθυνσης / τοπωνυμίου…" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();ergSearch();}">
+   <button type="button" class="btn sm" id="ergGo" onclick="ergSearch()">🔍</button>
+   <button type="button" class="btn sm sec" onclick="ergGps()" title="Τρέχουσα θέση GPS">📍 GPS</button>
+  </div>
+  <div id="ergMap" style="height:340px;border-radius:12px;border:1px solid #d6ddea;overflow:hidden;background:#eef2f8"></div>
+  <div id="ergCoords" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center"></div>
+  <div class="note">ℹ️ Η πινέζα (κλικ / σύρσιμο / GPS / αναζήτηση) αποθηκεύεται με το έργο. Οι συντεταγμένες εμφανίζονται σε <b>WGS84</b> και <b>ΕΓΣΑ'87</b> (μετασχηματισμός ΔX/ΔY/ΔZ + ΤΜ87, ακρίβεια ~1 μ) και τυπώνονται στο Τεύχος Υπολογισμών.</div>
+ </div>
+ <h2>Εργοδότης — Κύριοι του έργου</h2>
  <div class="card">
   <div style="overflow-x:auto"><table><tr><th>Τύπος</th><th>Ονοματεπώνυμο / Επωνυμία</th><th>ΑΦΜ</th><th>ΔΟΥ</th><th>Δικαίωμα</th><th class="num">%</th><th></th></tr>
   ${D.owners.map((o,i)=>`<tr>
@@ -1036,17 +1183,72 @@ function rErgo(){
   ${Math.abs(D.owners.reduce((a,o)=>a+(+o.pct||0),0)-100)>0.01?`<div class="note warn">⚠ Τα ποσοστά συνιδιοκτησίας πρέπει να αθροίζουν 100%.</div>`:""}
   <div class="btnrow"><button type="button" class="btn sm" id="addOwn">➕ Προσθήκη ιδιοκτήτη</button></div>
  </div>
- <h2>Επιφάνειες ανά χρήση</h2>
+ <h2>Μηχανικοί ομάδας έργου</h2>
+ <div class="card">
+  <div style="overflow-x:auto"><table><tr><th>#</th><th>Ονοματεπώνυμο</th><th>Ειδικότητα</th><th>Α.Μ. ΤΕΕ</th><th>ΑΦΜ</th><th></th></tr>
+  ${D.engineers.map((en,i)=>`<tr><td>${en.id}</td>
+   <td>${inp(`engineers.${i}.name`, en.name)}</td>
+   <td>${inp(`engineers.${i}.eid`, en.eid)}</td>
+   <td>${inp(`engineers.${i}.am`, en.am)}</td>
+   <td>${inp(`engineers.${i}.afm`, en.afm)}</td>
+   <td>${D.engineers.length>1?`<button type="button" class="btn sm sec" data-deleng="${i}">🗑</button>`:""}</td></tr>`).join("")}
+  </table></div>
+  <div class="btnrow"><button type="button" class="btn sm" id="addEng">➕ Προσθήκη μηχανικού</button>
+   <button type="button" class="btn sm sec" id="hubEng" title="Τραβάει το προφίλ σου και τους συνεργάτες από τον λογαριασμό HEXIS">⬇ Από το Hub (εγώ + συνεργάτες)</button></div>
+  <div class="note">Πρόσθεσε όλη την ομάδα (μελετητές ανά ειδικότητα, επιβλέποντες). Η <b>ανάθεση μελετών & επιβλέψεων</b> ανά μηχανικό γίνεται στο tab «💶 Αμοιβές» — συμφωνητικά, ΥΔ και XML βγαίνουν αυτόματα σωστά ανά μηχανικό.</div>
+ </div>
+ `;
+ bindAll(main, D);
+ const fo = document.getElementById("ferOrg");
+ if(fo) fo.addEventListener("change", ()=>{
+  D.ferOrg = fo.value;
+  D.efkaMode = fo.value==="metal" ? "2a" : fo.value==="prokat" ? "2b" : "1";
+  save(); render();
+ });
+ const ao = document.getElementById("addOwn");
+ if(ao) ao.addEventListener("click", ()=>{
+  const nid = Math.max(0,...D.owners.map(o=>o.id))+1;
+  D.owners.push({id:nid, type:"f", name:"", afm:"", doy:"", pct:0});
+  save(); render();
+ });
+ main.querySelectorAll("[data-delown]").forEach(b=> b.addEventListener("click", ()=>{ D.owners.splice(+b.dataset.delown,1); save(); render(); }));
+ main.querySelectorAll("[data-otype]").forEach(s=> s.addEventListener("change", ()=>{ D.owners[+s.dataset.otype].type = s.value; save(); }));
+ main.querySelectorAll("[data-oeid]").forEach(s=> s.addEventListener("change", ()=>{ D.owners[+s.dataset.oeid].eidos = s.value; save(); }));
+ const he = document.getElementById("hubEng");
+ if(he) he.addEventListener("click", ()=> hubImportEngineers(false));
+ const ae = document.getElementById("addEng");
+ if(ae) ae.addEventListener("click", ()=>{
+  const nid = Math.max(0,...D.engineers.map(e=>e.id))+1;
+  D.engineers.push({id:nid, name:"", eid:"Πολιτικός Μηχανικός", am:"", afm:""});
+  save(); render();
+ });
+ main.querySelectorAll("[data-deleng]").forEach(b=> b.addEventListener("click", ()=>{
+  D.engineers.splice(+b.dataset.deleng,1); save(); render();
+ }));
+ initErgoMap();
+}
+
+function rProyp(){
+ const S = symbatikos();
+ const sumP = D.works.reduce((a,w)=> a + (+w.p||0), 0);
+ window._anyChg = D.uses.some(u=>u.kind==="chg");
+ main.innerHTML = `
+ <h2>Επιφάνειες ανά χρήση — Συμβατικός προϋπολογισμός</h2>
  <div class="card">
   <div class="grid2">
    <div><label>ΕΤΑ — Ενιαία Τιμή Αφετηρίας ΤΕΕ €/μ² (ΥΑ ΦΕΚ 56/2012)</label>${ninp("eta", D.eta, "0.01", 1)}</div>
-   <div class="note" style="margin-top:16px">Στήλη <b>«Είδος»</b> ανά γραμμή: ΝΕΟ · ΠΡΟΣΘΗΚΗ (+30% αμοιβές, άρθ.88 ΠΔ 696/74) · ΑΛΛΑΓΗ ΧΡΗΣΗΣ (προϋπ. = διαφορά ΣΕ) — συνδυασμός = διαφορετικά είδη ανά γραμμή.</div>
+   <div class="note" style="margin-top:16px">Στήλη <b>«Είδος»</b> ανά γραμμή: <b>ΝΕΟ</b> · <b>ΠΡΟΣΘΗΚΗ</b> & <b>ΕΠΙΣΚΕΥΗ</b> (+30% αμοιβές, άρθ.88 ΠΔ 696/74 — increment 500) · <b>ΑΛΛΑΓΗ ΧΡΗΣΗΣ</b> (προϋπ. = διαφορά ΣΕ νέας−παλαιάς) · <b>ΝΟΜΙΜΟΠΟΙΗΣΗ</b> (ν.4495/2017 άρθ.106: πλήρης αξία, αμοιβές ως νέου έργου). Συνδυασμός = διαφορετικά είδη ανά γραμμή.</div>
   </div>
-  ${(()=>{ window._anyChg = D.uses.some(u=>u.kind==="chg"); return ""; })()}
   <div style="overflow-x:auto"><table><tr><th>${window._anyChg?"ΝΕΑ χρήση":"Χρήση"} (κατάλογος ΤΕΕ)</th><th>Είδος</th>${window._anyChg?`<th>ΠΑΛΑΙΑ χρήση</th>`:""}<th class="num">μ²</th><th class="num">Σ.Ε.${window._anyChg?" νέας":""}</th><th class="num">κωδ.</th><th class="num">Αξία γραμμής</th><th></th></tr>
   ${D.uses.map((x,i)=>`<tr>
    <td><select data-cat="${i}">${USES_CATALOG.map((c,j)=>`<option value="${j}" ${c.u===x.u?"selected":""}>${esc(c.u)}</option>`).join("")}</select></td>
-   <td><select data-kind="${i}"><option value="new" ${(x.kind||"new")==="new"?"selected":""}>ΝΕΟ</option><option value="pros" ${x.kind==="pros"?"selected":""}>ΠΡΟΣΘΗΚΗ</option><option value="chg" ${x.kind==="chg"?"selected":""}>ΑΛΛΑΓΗ ΧΡΗΣΗΣ</option></select></td>
+   <td><select data-kind="${i}">
+    <option value="new" ${(x.kind||"new")==="new"?"selected":""}>ΝΕΟ</option>
+    <option value="pros" ${x.kind==="pros"?"selected":""}>ΠΡΟΣΘΗΚΗ</option>
+    <option value="chg" ${x.kind==="chg"?"selected":""}>ΑΛΛΑΓΗ ΧΡΗΣΗΣ</option>
+    <option value="nomim" ${x.kind==="nomim"?"selected":""}>ΝΟΜΙΜΟΠΟΙΗΣΗ</option>
+    <option value="episk" ${x.kind==="episk"?"selected":""}>ΕΠΙΣΚΕΥΗ</option>
+   </select></td>
    ${window._anyChg?`<td>${x.kind==="chg"?`<select data-oldcat="${i}">${USES_CATALOG.map((c,j)=>`<option value="${j}" ${(x.oldIdx??-1)===j?"selected":""}>${esc(c.u)} (ΣΕ ${c.se})</option>`).join("")}</select>`:"—"}</td>`:""}
    <td class="num">${ninp(`uses.${i}.m2`, x.m2, "0.01", 1)}</td>
    <td class="num">${ninp(`uses.${i}.se`, x.se??1, "0.01", 1)}</td>
@@ -1071,35 +1273,29 @@ function rErgo(){
   ${D.scen.map((s,i)=>`<tr><td><b>${esc(s.name)}</b> <span class="pill">${esc(s.when)}</span>${s.allagi?' <span class="pill">αλλαγή χρήσης</span>':''}</td><td class="num">${num(s.m2)}</td><td class="num">${eur(s.total)}</td><td class="num" style="color:${s.total-symbatikos()>=0?'#3E7A4C':'#A33'}">${eur(s.total-symbatikos())}</td>
   <td><button type="button" class="btn sm sec" data-scenload="${i}">↪ Φόρτωση</button> <button type="button" class="btn sm sec" data-scendel="${i}">🗑</button></td></tr>`).join("")}
   <tr class="total"><td>ΤΡΕΧΟΝ</td><td class="num">${num(totM2())}</td><td class="num">${eur(symbatikos())}</td><td></td><td></td></tr></table></div>`
-  :`<div class="note">Αποθήκευσε εναλλακτικές συνθέσεις (π.χ. «Νέα χρήση», «Παλαιά χρήση», «Χωρίς υπόγειο») και σύγκρινέ τες εδώ — μέχρι 6 σενάρια, μένουν στη συσκευή.</div>`}
+  :`<div class="note">Αποθήκευσε εναλλακτικές συνθέσεις (π.χ. «Νέα χρήση», «Νομιμοποίηση», «Χωρίς υπόγειο») και σύγκρινέ τες εδώ — μέχρι 6 σενάρια, μένουν στη συσκευή.</div>`}
  </div>
- <h2>Μηχανικοί ομάδας έργου</h2>
+ <h2>Αναλυτικός προϋπολογισμός εργασιών</h2>
  <div class="card">
-  <div style="overflow-x:auto"><table><tr><th>#</th><th>Ονοματεπώνυμο</th><th>Ειδικότητα</th><th>Α.Μ. ΤΕΕ</th><th>ΑΦΜ</th><th></th></tr>
-  ${D.engineers.map((en,i)=>`<tr><td>${en.id}</td>
-   <td>${inp(`engineers.${i}.name`, en.name)}</td>
-   <td>${inp(`engineers.${i}.eid`, en.eid)}</td>
-   <td>${inp(`engineers.${i}.am`, en.am)}</td>
-   <td>${inp(`engineers.${i}.afm`, en.afm)}</td>
-   <td>${D.engineers.length>1?`<button type="button" class="btn sm sec" data-deleng="${i}">🗑</button>`:""}</td></tr>`).join("")}
-  </table></div>
-  <div class="btnrow"><button type="button" class="btn sm" id="addEng">➕ Προσθήκη μηχανικού</button>
-   <button type="button" class="btn sm sec" id="hubEng" title="Τραβάει το προφίλ σου και τους συνεργάτες από τον λογαριασμό HEXIS">⬇ Από το Hub (εγώ + συνεργάτες)</button></div>
-  <div class="note">Πρόσθεσε όλη την ομάδα (μελετητές ανά ειδικότητα, επιβλέποντες). Στο tab «💶 Αμοιβές» αναθέτεις ποιος υπογράφει κάθε μελέτη & επίβλεψη — τα συμφωνητικά, οι ΥΔ και το XML βγαίνουν αυτόματα σωστά ανά μηχανικό.</div>
- </div>
- `;
+  <div class="sumrow"><span>Συμβατικός προϋπολογισμός (βάση)</span><b>${eur(S)}</b></div>
+  <table style="margin-top:8px"><tr><th>Εργασία</th><th class="num">% συνόλου</th><th class="num">Δαπάνη</th></tr>
+  ${D.works.map((w,i)=>`<tr><td>${inp(`works.${i}.w`, w.w)}</td><td class="num">${ninp(`works.${i}.p`, w.p, "0.1", 1)}</td><td class="num">${eur(S*(+w.p||0)/100)}</td></tr>`).join("")}
+  <tr class="total"><td>ΣΥΝΟΛΟ</td><td class="num">${num(sumP)}%</td><td class="num">${eur(S*sumP/100)}</td></tr>
+  </table>
+  ${Math.abs(sumP-100)>0.01?`<div class="note warn">⚠ Τα ποσοστά αθροίζουν ${num(sumP)}% — προσαρμόσέ τα στο 100%.</div>`:""}
+  <div class="btnrow"><button class="btn" onclick="printProyp()">🖨 Εκτύπωση πίνακα (PDF)</button>
+  <button class="btn sec" onclick="addWork()">➕ Προσθήκη εργασίας</button></div>
+ </div>`;
  bindAll(main, D);
  main.querySelectorAll("[data-cat]").forEach(s=> s.addEventListener("change", ()=>{
   const i = +s.dataset.cat, c = USES_CATALOG[+s.value];
   Object.assign(D.uses[i], {u:c.u, se:c.se, cid:c.cid, tm:c.tm});
   save(); render();
  }));
- /* v1.14: αλλαγή χρήσης + σενάρια */
- const ac = document.getElementById("allagiChk");
  main.querySelectorAll("[data-kind]").forEach(s=> s.addEventListener("change", ()=>{
   D.uses[+s.dataset.kind].kind = s.value;
-  D.allagi = D.uses.some(u=>u.kind==="chg");           // παράγωγο (σενάρια/συμβατότητα)
-  D.incProsthiki = D.uses.some(u=>u.kind==="pros");    // παράγωγο (XML increment 500)
+  D.allagi = D.uses.some(u=>u.kind==="chg");                          // παράγωγο (σενάρια/συμβατότητα)
+  D.incProsthiki = D.uses.some(u=>u.kind==="pros"||u.kind==="episk"); // παράγωγο (XML increment 500)
   save(); render();
  }));
  main.querySelectorAll("[data-oldcat]").forEach(s=> s.addEventListener("change", ()=>{
@@ -1132,50 +1328,6 @@ function rErgo(){
  }));
  const au = document.getElementById("addUse");
  if(au) au.addEventListener("click", ()=>{ D.uses.push({...USES_CATALOG[1], m2:0, kind:"new"}); save(); render(); });
- const fo = document.getElementById("ferOrg");
- if(fo) fo.addEventListener("change", ()=>{
-  D.ferOrg = fo.value;
-  D.efkaMode = fo.value==="metal" ? "2a" : fo.value==="prokat" ? "2b" : "1";
-  save(); render();
- });
- const ao = document.getElementById("addOwn");
- if(ao) ao.addEventListener("click", ()=>{
-  const nid = Math.max(0,...D.owners.map(o=>o.id))+1;
-  D.owners.push({id:nid, type:"f", name:"", afm:"", doy:"", pct:0});
-  save(); render();
- });
- main.querySelectorAll("[data-delown]").forEach(b=> b.addEventListener("click", ()=>{ D.owners.splice(+b.dataset.delown,1); save(); render(); }));
- main.querySelectorAll("[data-otype]").forEach(s=> s.addEventListener("change", ()=>{ D.owners[+s.dataset.otype].type = s.value; save(); }));
- main.querySelectorAll("[data-oeid]").forEach(s=> s.addEventListener("change", ()=>{ D.owners[+s.dataset.oeid].eidos = s.value; save(); }));
- const he = document.getElementById("hubEng");
- if(he) he.addEventListener("click", ()=> hubImportEngineers(false));
- const ae = document.getElementById("addEng");
- if(ae) ae.addEventListener("click", ()=>{
-  const nid = Math.max(0,...D.engineers.map(e=>e.id))+1;
-  D.engineers.push({id:nid, name:"", eid:"Πολιτικός Μηχανικός", am:"", afm:""});
-  save(); render();
- });
- main.querySelectorAll("[data-deleng]").forEach(b=> b.addEventListener("click", ()=>{
-  D.engineers.splice(+b.dataset.deleng,1); save(); render();
- }));
-}
-
-function rProyp(){
- const S = symbatikos();
- const sumP = D.works.reduce((a,w)=> a + (+w.p||0), 0);
- main.innerHTML = `
- <h2>Αναλυτικός προϋπολογισμός εργασιών</h2>
- <div class="card">
-  <div class="sumrow"><span>Συμβατικός προϋπολογισμός (βάση)</span><b>${eur(S)}</b></div>
-  <table style="margin-top:8px"><tr><th>Εργασία</th><th class="num">% συνόλου</th><th class="num">Δαπάνη</th></tr>
-  ${D.works.map((w,i)=>`<tr><td>${inp(`works.${i}.w`, w.w)}</td><td class="num">${ninp(`works.${i}.p`, w.p, "0.1", 1)}</td><td class="num">${eur(S*(+w.p||0)/100)}</td></tr>`).join("")}
-  <tr class="total"><td>ΣΥΝΟΛΟ</td><td class="num">${num(sumP)}%</td><td class="num">${eur(S*sumP/100)}</td></tr>
-  </table>
-  ${Math.abs(sumP-100)>0.01?`<div class="note warn">⚠ Τα ποσοστά αθροίζουν ${num(sumP)}% — προσαρμόσέ τα στο 100%.</div>`:""}
-  <div class="btnrow"><button class="btn" onclick="printProyp()">🖨 Εκτύπωση πίνακα (PDF)</button>
-  <button class="btn sec" onclick="addWork()">➕ Προσθήκη εργασίας</button></div>
- </div>`;
- bindAll(main, D);
 }
 
 function rAmoives(){
@@ -1582,11 +1734,19 @@ function rExport(){
   <div class="sumrow"><span>Εισφορές ΕΦΚΑ</span><b>${eur(efkaCalc().cost)}</b></div>
   <div class="sumrow"><span><b>ΣΥΝΟΛΙΚΟ ΕΚΤΙΜΩΜΕΝΟ ΚΟΣΤΟΣ</b></span><b class="big">${eur(grandTotal())}</b></div>
   <div class="btnrow" style="margin-top:12px">
-   <button class="btn" onclick="printFull()">🖨 Πλήρης αναφορά κόστους (PDF)</button>
+   <button class="btn" onclick="printTefxos()">📘 Τεύχος Υπολογισμών (PDF)</button>
+   <button class="btn sec" onclick="printFull()">🖨 Συνοπτική αναφορά κόστους (PDF)</button>
    <button class="btn sec" onclick="dlXML()">⬇ XML δεδομένων (ΤΕΕ)</button>
    <button class="btn sec" onclick="dlJSON()">⬇ JSON (backup)</button>
    <button class="btn sec" onclick="upJSON()">⬆ Επαναφορά JSON</button>
   </div>
+  <div class="note">📘 Το <b>Τεύχος Υπολογισμών</b> περιλαμβάνει αναλυτικά: στοιχεία έργου & θέση (WGS84/ΕΓΣΑ'87), εργοδότες, μηχανικούς, συμβατικό & αναλυτικό προϋπολογισμό, αμοιβές ανά μελέτη με τους συντελεστές β και τις αναθέσεις, τοπογραφικό, φόρους, Πράσινο Ταμείο, ΑΕΚΚ, πίνακα ΕΦΚΑ και συγκεντρωτικό πίνακα πληρωμών.</div>
+ </div>
+ <h2>💳 Πού πληρώνεται τι — ανά φορέα</h2>
+ <div class="card">
+  ${payTableHTML()}
+ </div>
+ <div class="card">
   <div class="note warn">Το XML περιέχει όλα τα δεδομένα σε δομημένη μορφή. Για υποβολή στο σύστημα αμοιβών ΤΕΕ απαιτείται το επίσημο schema — ανέβασε στον Claude ένα δείγμα XML από πραγματική υποβολή σου και θα προσαρμοστεί 1:1.</div>
  </div>`;
 }
@@ -1851,6 +2011,118 @@ function printFull(){
  <div class="pfoot">Εκτίμηση βάσει συντελεστών χρήστη — επιβεβαίωση με e-Άδειες/ΤΕΕ/ΕΦΚΑ πριν από δεσμεύσεις. HEXIS Κόστος Άδειας ${VER}</div>`);
 }
 
+/* ===== v1.30: Πίνακας πληρωμών ανά φορέα ===== */
+function payCalc(){
+ const f = foroCalc(), ef = efkaCalc();
+ const rows = [
+  {to:"Μηχανικοί έργου (τιμολόγια)", ti:"Αμοιβές μελετών & επιβλέψεων" + ((+D.agreedFee||0)>0 ? " — συμφωνηθείσα (ν.3919/2011)" : " — νόμιμη ΤΕΕ"), amt:f.billed},
+  {to:"ΑΑΔΕ (μέσω τιμολογίων μηχανικών)", ti:`ΦΠΑ ${num(D.fpa)}% επί αμοιβών`, amt:f.fpa},
+  {to:"ΔΟΥ — ΦΕΜ", ti:`Προκαταβλητέος φόρος μηχανικών ${num(D.parakr)}% μελ./επιβλ. + ${num(D.parakrTopo)}% τοπογρ. (ν.4172/13 άρθ.69§4) — καταβάλλεται από τους μηχανικούς πριν την έκδοση, ΔΕΝ προστίθεται στο ταμειακό σύνολο`, amt:f.parakr, info:true},
+  {to:"e-ΕΦΚΑ", ti:`Εισφορές οικοδομικών ενσήμων (${num(ef.days)} ημερομίσθια × ${eur(D.tekmHm)} × ${num(D.efkaPct)}%)`, amt:ef.cost},
+ ];
+ if(f.prasino>0) rows.push({to:"Πράσινο Ταμείο (e-Παράβολο)", ti:"Αντισταθμιστικό περιβαλλοντικό τέλος εκτός σχεδίου — άρθ.32 §1 ν.4759/2020 (min 250 € / max 5.000 €)", amt:f.prasino});
+ if(f.aekk.cost>0) rows.push({to:"ΣΣΕΔ ΑΕΚΚ / Διαχειριστής", ti:`Διαχείριση αποβλήτων ΑΕΚΚ (${num(f.aekk.tons)} τν)` + (f.aekk.egy>0?` — επιπλέον εγγυητική ${eur(f.aekk.egy)} προς τον Δήμο (ΚΥΑ 36259/2010)`:""), amt:f.aekk.cost});
+ if((+D.eadeiesFee||0)>0) rows.push({to:"ΤΕΕ / e-Άδειες", ti:"Αντάλλαγμα χρήσης πληροφοριακού συστήματος", amt:+D.eadeiesFee});
+ if((+D.dimosFee||0)>0) rows.push({to:"Δημοτικό Ταμείο", ti:"Δημοτικά τέλη / τέλος κατάληψης κοινόχρηστου χώρου", amt:+D.dimosFee});
+ if(f.tee>0) rows.push({to:"Λοιπές κρατήσεις", ti:`${num(D.teeKrat)}‰ επί αμοιβών`, amt:f.tee});
+ const total = rows.filter(r=>!r.info).reduce((a,r)=> a + r.amt, 0);
+ return {rows, total};
+}
+function payTableHTML(){
+ const p = payCalc();
+ return `<table><tr><th>Φορέας / Δικαιούχος</th><th>Αιτιολογία</th><th class="num">Ποσό €</th></tr>
+ ${p.rows.map(r=>`<tr${r.info?' style="opacity:.75;font-style:italic"':''}><td><b>${esc(r.to)}</b></td><td>${esc(r.ti)}</td><td class="num">${eur(r.amt)}${r.info?" *":""}</td></tr>`).join("")}
+ <tr class="total"><td colspan="2">ΤΑΜΕΙΑΚΟ ΣΥΝΟΛΟ ΕΡΓΟΔΟΤΗ (χωρίς ΦΕΜ*)</td><td class="num">${eur(p.total)}</td></tr></table>
+ <p style="font-size:.85em;opacity:.8">* Ο ΦΕΜ αποτελεί υποχρέωση των μηχανικών (αποδεικτικό ΔΟΥ πριν την έκδοση της άδειας) και δεν επιβαρύνει ταμειακά τον εργοδότη πέραν των αμοιβών.</p>`;
+}
+
+/* ===== v1.30: ΤΕΥΧΟΣ ΥΠΟΛΟΓΙΣΜΩΝ — πλήρες αναλυτικό ===== */
+function printTefxos(){
+ const S = symbatikos(), l = +D.lambda||0.23368;
+ const a = amoivesCalc(), f = foroCalc(), ef = efkaCalc(), t = topoCalc(), ak = aekkCalc();
+ const e = D.ergo;
+ const _bT = D.uses.reduce((x,u)=>x+useBudget(u),0);
+ const incP = _bT>0 ? D.uses.reduce((x,u)=>x+useBudget(u)*((u.kind==="pros"||u.kind==="episk")?1.30:1.00),0)/_bT : (D.incProsthiki?1.30:1.00);
+ const coords = egsaLine();
+ const sumP = D.works.reduce((x,w)=> x + (+w.p||0), 0);
+ const efCols = D.efkaCols || [];
+ let body = phead("Τεύχος Υπολογισμών") + `<h1>Τεύχος Υπολογισμών Οικοδομικής Άδειας</h1>
+ <h2>1. Στοιχεία έργου</h2>
+ <table>
+  <tr><td style="width:34%"><b>Τίτλος έργου</b></td><td>${esc(e.titlos||"[___]")}</td></tr>
+  <tr><td><b>Είδος έργου / πράξης</b></td><td>${esc(e.eidos||"Νέα οικοδομή")}</td></tr>
+  <tr><td><b>Θέση / Διεύθυνση</b></td><td>${esc(e.dieuth||"[___]")}${D.stat.dimos?`, ${esc(D.stat.dimos)}`:""}${D.stat.tk?` — Τ.Κ. ${esc(D.stat.tk)}`:""}</td></tr>
+  ${coords?`<tr><td><b>Συντεταγμένες θέσης</b></td><td>${esc(coords)}</td></tr>`:""}
+  <tr><td><b>ΚΑΕΚ</b></td><td>${esc(e.kaek||"[___]")}</td></tr>
+  <tr><td><b>ΥΔΟΜ</b></td><td>${esc(e.ydom||"[___]")}${e.eaAA?` — Α/Α e-Άδειες: ${esc(e.eaAA)}`:""}</td></tr>
+  <tr><td><b>Διάρκεια εργασιών</b></td><td>${num(e.months)} μήνες</td></tr>
+ </table>
+ <h2>2. Εργοδότης — Κύριοι του έργου</h2>
+ <table><tr><th>Ονοματεπώνυμο / Επωνυμία</th><th>ΑΦΜ</th><th>ΔΟΥ</th><th>Δικαίωμα</th><th class="num">%</th></tr>
+ ${D.owners.filter(o=>o.name).map(o=>`<tr><td>${esc(o.name)}</td><td>${esc(o.afm)}</td><td>${esc(o.doy||"")}</td><td>${esc(o.eidos||"Πλήρης κυριότητα")}</td><td class="num">${num(o.pct)}%</td></tr>`).join("")||'<tr><td colspan="5">[___]</td></tr>'}
+ </table>
+ <h2>3. Μηχανικοί ομάδας έργου</h2>
+ <table><tr><th>#</th><th>Ονοματεπώνυμο</th><th>Ειδικότητα</th><th>Α.Μ. ΤΕΕ</th><th>ΑΦΜ</th></tr>
+ ${D.engineers.filter(en=>en.name).map(en=>`<tr><td>${en.id}</td><td>${esc(en.name)}</td><td>${esc(en.eid)}</td><td>${esc(en.am)}</td><td>${esc(en.afm)}</td></tr>`).join("")||'<tr><td colspan="5">[___]</td></tr>'}
+ </table>
+ <h2>4. Συμβατικός προϋπολογισμός (μ² × ΕΤΑ ${num(D.eta)} € × Σ.Ε.)</h2>
+ <table><tr><th>Χρήση</th><th>Είδος πράξης</th><th class="num">μ²</th><th class="num">Σ.Ε.</th><th class="num">Αξία €</th></tr>
+ ${D.uses.filter(u=>+u.m2>0).map(u=>`<tr><td>${esc(u.u)}${u.kind==="chg"&&(u.oldIdx??-1)>=0?`<br><span style="opacity:.7">από: ${esc(USES_CATALOG[u.oldIdx].u)} (ΣΕ ${USES_CATALOG[u.oldIdx].se})</span>`:""}</td><td>${kindLabel(u.kind)}</td><td class="num">${num(u.m2)}</td><td class="num">${num(u.se??1)}</td><td class="num">${eur(useBudget(u))}</td></tr>`).join("")}
+ <tr class="total"><td>ΣΥΝΟΛΟ${(+D.eadeiesS>0)?" (υπολογιζόμενο)":""}</td><td></td><td class="num">${num(totM2())}</td><td></td><td class="num">${eur(D.uses.reduce((x,u)=>x+useBudget(u),0))}</td></tr>
+ ${(+D.eadeiesS>0)?`<tr class="total"><td colspan="4">ΣΥΜΒΑΤΙΚΟΣ e-ΑΔΕΙΕΣ (υπερισχύει)</td><td class="num">${eur(+D.eadeiesS)}</td></tr>`:""}
+ </table>
+ <h2>5. Αναλυτικός προϋπολογισμός εργασιών</h2>
+ <table><tr><th>Εργασία</th><th class="num">%</th><th class="num">Δαπάνη €</th></tr>
+ ${D.works.filter(w=>+w.p>0).map(w=>`<tr><td>${esc(w.w)}</td><td class="num">${num(w.p)}</td><td class="num">${eur(S*(+w.p||0)/100)}</td></tr>`).join("")}
+ <tr class="total"><td>ΣΥΝΟΛΟ</td><td class="num">${num(sumP)}%</td><td class="num">${eur(S*sumP/100)}</td></tr></table>
+ <h2>6. Αμοιβές μηχανικών — αναλυτικός υπολογισμός</h2>
+ <p>Τύπος ΤΕΕ / π.δ. 696/74: <b>Α = Σ<sub>κλάδου</sub> × β/100 × bf</b>, όπου <b>β = κ + μ/∛(Σ/1000λ)</b>, λ = ${num(l)}${incP>1.0001?` · Προσαύξηση άρθ.88 (Προσθήκη/Επισκευή): σταθμισμένος συντ. ×${num(incP)}`:""}${a.rows.some(r=>r.aseismic&&r.on)?" · Στατικά: αντισεισμικός +80% μελ. / +40% επιβλ.":""}</p>
+ <table><tr><th>Μελέτη</th><th class="num">Βάση Σ €</th><th class="num">β μελ.</th><th class="num">Αμοιβή μελέτης €</th><th>Μελετητής</th><th class="num">β επιβλ.</th><th class="num">Αμοιβή επίβλεψης €</th><th>Επιβλέπων</th></tr>
+ ${a.rows.filter(r=>r.on&&((r.melF||0)>0||(r.epiF||0)>0)).map(r=>{
+  const isX = r.isKenak || r.isTopo;
+  const bm = isX ? "" : num(beta(r.base||0, l, +r.mk, +r.mm));
+  const be = isX || !(r.epiF>0) ? "" : num(beta(r.base||0, l, +r.ek, +r.em));
+  const me = r.mEng ? esc(engById(r.mEng).name||("Μηχ."+r.mEng)) : "";
+  const ee = (r.eEng && (r.epiF||0)>0) ? esc(engById(r.eEng).name||("Μηχ."+r.eEng)) : "";
+  return `<tr><td>${esc(r.s)}</td><td class="num">${isX?"—":eur(r.base||0)}</td><td class="num">${bm}</td><td class="num">${eur(r.melF||0)}</td><td>${me}</td><td class="num">${be}</td><td class="num">${(r.epiF||0)>0?eur(r.epiF):"—"}</td><td>${ee}</td></tr>`;
+ }).join("")}
+ <tr class="total"><td>ΣΥΝΟΛΟ (προ ΦΠΑ)</td><td></td><td></td><td class="num">${eur(a.mel)}</td><td></td><td></td><td class="num">${eur(a.epi)}</td><td></td></tr>
+ </table>
+ ${a.belowMin?`<p><b>⚠ Ελάχιστη νόμιμη αμοιβή:</b> 5000×λ = ${eur(a.minPay)} — το σύνολο υπολείπεται.</p>`:""}
+ ${(+D.agreedFee||0)>0?`<p><b>Συμφωνηθείσα αμοιβή</b> (ελεύθερη διαπραγμάτευση ν.3919/2011): ${eur(+D.agreedFee)} — νόμιμη ΤΕΕ: ${eur(a.sum)}.</p>`:""}
+ ${(t.rows&&t.rows.length)?`<h2>7. Τοπογραφικό διάγραμμα — αναλυτικός (ΠΔ 696/74 άρθ.5-18)</h2>
+ <table><tr><th>Εργασία</th><th class="num">Ποσότητα</th><th></th><th class="num">Τιμή (δρχ)</th><th class="num">Αμοιβή € (×λ)</th></tr>
+ ${t.rows.map(r=>`<tr><td>${esc(r.per)}</td><td class="num">${num(r.qty)}</td><td>${esc(r.mon)}</td><td class="num">${num(r.drx)}</td><td class="num">${eur(r.e)}</td></tr>`).join("")}
+ <tr class="total"><td colspan="4">ΣΥΝΟΛΟ ΑΝΑΛΥΤΙΚΟΥ ΤΟΠΟΓΡΑΦΙΚΟΥ</td><td class="num">${eur(t.sum)}</td></tr></table>
+ <p style="font-size:.9em;opacity:.8">Στις αμοιβές της §6 έχει ληφθεί το τοπογραφικό κατ' αποκοπή ${eur(+D.topoFlat||0)} (κωδ. 2001, method 2).</p>`:""}
+ <h2>${(t.rows&&t.rows.length)?"8":"7"}. Φόροι & κρατήσεις</h2>
+ <table>
+  <tr><td>Τιμολογούμενη αμοιβή</td><td class="num">${eur(f.billed)}</td></tr>
+  <tr><td>ΦΠΑ ${num(D.fpa)}%</td><td class="num">${eur(f.fpa)}</td></tr>
+  <tr><td>ΦΕΜ — προκαταβλητέος φόρος μηχανικών (${num(D.parakr)}% μελ./επιβλ. + ${num(D.parakrTopo)}% τοπογρ.)</td><td class="num">${eur(f.parakr)}</td></tr>
+  ${f.tee>0?`<tr><td>Λοιπές κρατήσεις ${num(D.teeKrat)}‰</td><td class="num">${eur(f.tee)}</td></tr>`:""}
+ </table>
+ <h2>${(t.rows&&t.rows.length)?"9":"8"}. Περιβαλλοντικό τέλος — Πράσινο Ταμείο</h2>
+ ${D.ektosSxediou?`<p>Εκτός σχεδίου (άρθ.32 §1 ν.4759/2020): ${D.prasMode==="m5"?"5‰ επί αναλυτικού":"5% επί συμβατικού"} προϋπολογισμού, όριο 250–5.000 € → <b>${eur(f.prasino)}</b></p>`:`<p>Το έργο δεν δηλώθηκε εκτός σχεδίου — δεν οφείλεται τέλος.</p>`}
+ <h2>${(t.rows&&t.rows.length)?"10":"9"}. ΑΕΚΚ — Διαχείριση αποβλήτων</h2>
+ ${ak.tons>0?`<table><tr><th>Κωδ. ΕΚΑ</th><th>Περιγραφή</th><th class="num">Τόνοι</th></tr>
+ ${ak.rows.map(r=>`<tr><td>${esc(r.eka)}</td><td>${esc(r.per)}</td><td class="num">${num(r.t)}</td></tr>`).join("")}
+ <tr class="total"><td colspan="2">ΣΥΝΟΛΟ (${num(ak.excT)} τν εκσκαφές + ${num(ak.restT)} τν λοιπά)</td><td class="num">${num(ak.tons)}</td></tr></table>
+ <p>Κόστος διαχείρισης: <b>${eur(ak.cost)}</b>${ak.egy>0?` · Εγγυητική προς Δήμο (ΚΥΑ 36259/2010): <b>${eur(ak.egy)}</b>`:""}</p>`:`<p>Δεν έχουν οριστεί ποσότητες ΑΕΚΚ.</p>`}
+ <h2>${(t.rows&&t.rows.length)?"11":"10"}. ΕΦΚΑ — Εισφορές οικοδομικών ενσήμων</h2>
+ ${ef.mode!=="3"?`<table><tr><th>Χώρος</th><th class="num">μ²</th>${efCols.map(c=>`<th class="num">${esc(c)}</th>`).join("")}<th class="num">Ημερομίσθια</th></tr>
+ ${(efkaMatFor(ef.mode)||[]).map((r,i)=>`<tr><td>${esc(r.x)}</td><td class="num">${num(r.m2)}</td>${(r.c||[]).map(c=>`<td class="num">${num(c)}</td>`).join("")}<td class="num">${num((ef.rows[i]||{}).d||0)}</td></tr>`).join("")}
+ <tr class="total"><td colspan="${2+efCols.length}">Άθροισμα ημερομισθίων</td><td class="num">${num(ef.raw)}</td></tr></table>
+ <p>ΜΖΜΣ (εγκ. ΙΚΑ 13/99): ×${num(ef.k)} → <b>${num(ef.days)}</b> ημερομίσθια × ${eur(D.tekmHm)} × ${num(D.efkaPct)}% = <b>${eur(ef.cost)}</b></p>`
+ :`<p>Πίνακας 3 (λοιπές οικοδομοτεχνικές): εργατική δαπάνη ${eur(ef.labor)} → ${num(ef.days)} ημερομίσθια → εισφορές <b>${eur(ef.cost)}</b></p>`}
+ <h2>${(t.rows&&t.rows.length)?"12":"11"}. Συγκεντρωτικός πίνακας πληρωμών ανά φορέα</h2>
+ ${payTableHTML()}
+ <h2>${(t.rows&&t.rows.length)?"13":"12"}. Γενικό σύνολο</h2>
+ <table><tr class="total"><td>ΣΥΝΟΛΙΚΟ ΕΚΤΙΜΩΜΕΝΟ ΚΟΣΤΟΣ ΑΔΕΙΑΣ & ΕΙΣΦΟΡΩΝ</td><td class="num">${eur(grandTotal())}</td></tr></table>
+ <div class="pfoot">Τεύχος Υπολογισμών — εκτίμηση βάσει συντελεστών χρήστη· επιβεβαίωση με e-Άδειες/ΤΕΕ/ΕΦΚΑ πριν από δεσμεύσεις. HEXIS Κόστος Άδειας ${VER} · hexis-app.gr</div>`;
+ doPrint(body);
+}
+
 /* ============================================================
    ΕΞΑΓΩΓΕΣ
    ============================================================ */
@@ -1867,6 +2139,7 @@ function upJSON(){
  i.click();
 }
 function dlXML(){
+ D.incProsthiki = D.uses.some(u=>u.kind==="pros"||u.kind==="episk"); // v1.30: ζωντανή παραγώγιση increment 500
  const a=amoivesCalc(), e=D.ergo, S=symbatikos(), l=(+D.lambda||0.23368).toFixed(5).replace(/0+$/,"").replace(/\.$/,"");
  const today = new Date().toLocaleDateString("el-GR");
  const f2 = n => (Math.round(n*100)/100).toFixed(2);
@@ -2006,9 +2279,9 @@ ${inner}    <sigma>${sigma}</sigma>
   <project_type>1</project_type>
   <project_description>${esc(e.titlos)}</project_description>
   <project_address>${esc(e.dieuth)}</project_address>
-  <project_city></project_city>
-  <project_zip_code></project_zip_code>
-  <project_municipality></project_municipality>
+  <project_city>${esc(D.stat.dimos||"")}</project_city>
+  <project_zip_code>${esc(D.stat.tk||"")}</project_zip_code>
+  <project_municipality>${esc(D.stat.dimos||"")}</project_municipality>
   <roof_replacement />
   <reformation_type />
   <extension${D.incProsthiki?">1</extension":" /"}>
