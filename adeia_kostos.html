@@ -128,6 +128,12 @@ td select[data-meng],td select[data-eeng]{min-width:130px;font-size:12.5px !impo
 .agrline .agrfld label{margin:0;white-space:nowrap}
 .agrline .agrfld input{width:110px;text-align:right;font-weight:700}
 .agrline .agrdiff{font-variant-numeric:tabular-nums;font-weight:700}
+#ergCands{margin:6px 0}
+#ergCands .ergc-head{font-size:12px;font-weight:700;color:var(--mut);margin:2px 0 4px}
+#ergCands .ergc{display:block;width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:8px;padding:7px 10px;margin:3px 0;font-family:inherit;font-size:12.5px;cursor:pointer}
+#ergCands .ergc:hover{border-color:var(--blue);background:#F3F7FD}
+#ergCands .ergc i{color:#9AA5B5;font-style:normal;font-size:11px}
+#ergCands .ergc-done{font-size:12.5px;color:#1B6E3C;background:#EAF6EE;border:1px solid #BFE3CC;border-radius:8px;padding:7px 10px}
 label:has(>input[type=checkbox]:checked){color:#B25E00;font-weight:700}
 tr:has(input.filled)>td:first-child{border-left:3px solid #E08A2E}
 /* Εργαλεία κεφαλίδας */
@@ -303,7 +309,7 @@ nav button.active{background:linear-gradient(135deg,var(--acc1),var(--acc2));col
 
 <script>
 "use strict";
-const VER = "v1.34";
+const VER = "v1.36";
 function defStat(){ return { dimos:"", tk:"", oikopedo:0, ogkos:0, orofoi:0, katoik:0, domatia:0, parking:0, ydreysi:"Δημοτικό δίκτυο", apoxeteysi:"Δημοτικό δίκτυο", thermansi:"Αντλία θερμότητας", energeia:"ΔΕΔΔΗΕ (ρεύμα)" };}
 function defAekk(){ return {
  newOn:true,
@@ -1124,16 +1130,100 @@ function ergClearPin(){
  if(ERGMARK && ERGMAP){ ERGMAP.removeLayer(ERGMARK); ERGMARK = null; }
  ergCoordsUI();
 }
+/* v1.35 — αναζήτηση διεύθυνσης με ακρίβεια αριθμού:
+   πολλαπλά αποτελέσματα με επιλογή, προτεραιότητα σε hits με αριθμό οδού/κτίριο,
+   αυτόματη 2η προσπάθεια με «Οδός Αριθμός, Πόλη», zoom 19 και υπόδειξη μικροδιόρθωσης με σύρσιμο. */
+let ERGC = [];
+let ERGKT = null; // WMS ορίων Κτηματολογίου
+async function nomFetch(q){
+ const r = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=gr&addressdetails=1&accept-language=el&q=" + encodeURIComponent(q), {headers:{"Accept":"application/json"}});
+ return await r.json();
+}
+function ergCandScore(x){
+ let s = 0;
+ if(x.address && x.address.house_number) s += 4;                 // βρήκε τον αριθμό οδού
+ if(x.class==="building" || x.addresstype==="building" || x.type==="house") s += 2;
+ if(x.class==="place" && (x.type==="house"||x.type==="address")) s += 2;
+ if(x.class==="highway") s -= 1;                                  // απλώς η οδός, όχι το κτίριο
+ return s;
+}
+function ergCandsBox(){
+ let box = document.getElementById("ergCands");
+ if(!box){
+  const inp = document.getElementById("ergQ");
+  if(!inp) return null;
+  box = document.createElement("div");
+  box.id = "ergCands";
+  inp.closest("div").insertAdjacentElement("afterend", box);
+ }
+ return box;
+}
+function ergKaekBox(kaek){
+ const base = kaek.split("/")[0];
+ // πέρασε τον ΚΑΕΚ και στο πεδίο του έργου αν είναι κενό
+ if(!D.ergo.kaek){ D.ergo.kaek = kaek; save(); const f = document.querySelector('input[data-k="ergo.kaek"]'); if(f){ f.value = kaek; f.classList.add("filled"); } }
+ const box = ergCandsBox(); if(!box) return;
+ box.innerHTML = `<div class="ergc-head">Αναγνωρίστηκε ΚΑΕΚ <b>${esc(kaek)}</b> — δεν υπάρχει δημόσιο API εντοπισμού θέσης από ΚΑΕΚ, αλλά:</div>
+  <button type="button" class="ergc" id="ktOpen">🗺 Άνοιγμα θεατή Κτηματολογίου (ο ΚΑΕΚ αντιγράφεται — επικόλλησέ τον στην αναζήτηση του θεατή)</button>
+  <button type="button" class="ergc" id="ktWms">📐 Ενεργοποίηση ορίων γεωτεμαχίων στον χάρτη (ΚΤ) — πλησίασε με διεύθυνση/GPS σε zoom ≥16, δες τα όρια και κάρφωσε την πινέζα στο γεωτεμάχιο</button>`;
+ document.getElementById("ktOpen").addEventListener("click", ()=>{
+  try{ navigator.clipboard.writeText(base); }catch(_){ }
+  window.open("https://gis.ktimanet.gr/gis/map/", "_blank");
+ });
+ document.getElementById("ktWms").addEventListener("click", ()=>{
+  if(ERGMAP && ERGKT && !ERGMAP.hasLayer(ERGKT)) ERGKT.addTo(ERGMAP);
+  if(ERGMAP && ERGMAP.getZoom() < 16 && ERGMARK) ERGMAP.setView(ERGMARK.getLatLng(), 17);
+  const b2 = ergCandsBox(); if(b2) b2.innerHTML = '<div class="ergc-done">✔ Τα όρια ΚΤ ενεργά (και από το κουμπί επιπέδων ↗ του χάρτη). Εμφανίζονται από zoom ~16 και πάνω.</div>';
+  setTimeout(()=>{ const b3=ergCandsBox(); if(b3 && b3.querySelector(".ergc-done")) b3.innerHTML=""; }, 7000);
+ });
+}
+function ergPickCand(i){
+ const c = ERGC[i]; if(!c) return;
+ ergSetPin(+c.lat, +c.lon, true);
+ if(ERGMAP) ERGMAP.setView([+c.lat, +c.lon], 19);
+ const box = ergCandsBox();
+ if(box){
+  const exact = c.address && c.address.house_number;
+  box.innerHTML = `<div class="ergc-done">✔ Τοποθετήθηκε${exact?"":" (κατά προσέγγιση — δεν βρέθηκε ο ακριβής αριθμός στο OSM)"} — <b>σύρε την πινέζα</b> πάνω στο σωστό κτίριο για ακρίβεια.</div>`;
+  setTimeout(()=>{ if(box.querySelector(".ergc-done")) box.innerHTML=""; }, 6000);
+ }
+}
 async function ergSearch(){
  const inp = document.getElementById("ergQ");
  const q = inp ? inp.value.trim() : "";
  if(!q){ if(inp) inp.focus(); return; }
+ // v1.36 — Αν ο χρήστης έγραψε ΚΑΕΚ (12 ψηφία, προαιρετικά /Χ/Υ για οριζόντιες/κάθετες)
+ const kaek = q.replace(/[\s.]+/g,"");
+ if(/^\d{12}(\/\d+){0,2}$/.test(kaek)){
+  ergKaekBox(kaek);
+  return;
+ }
  const b = document.getElementById("ergGo"); if(b){ b.disabled = true; b.textContent = "…"; }
  try{
-  const r = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=gr&q=" + encodeURIComponent(q), {headers:{"Accept":"application/json"}});
-  const j = await r.json();
-  if(j && j[0]) ergSetPin(+j[0].lat, +j[0].lon, true);
-  else alert("Δεν βρέθηκε η τοποθεσία — δοκίμασε π.χ. «Οδός, Πόλη».");
+  let j = await nomFetch(q) || [];
+  const hasNum = /\d/.test(q);
+  // Αν το q έχει αριθμό αλλά κανένα αποτέλεσμα δεν τον εντόπισε, δοκίμασε δομημένη παραλλαγή «Οδός Αριθμός, Πόλη»
+  const m = q.match(/^(.+?\s\d+\s*[Α-Ωα-ωA-Za-z]?)\s+(\D{3,})$/u);
+  if(hasNum && m && !q.includes(",") && !j.some(x=>x.address && x.address.house_number)){
+   const j2 = await nomFetch(m[1] + ", " + m[2]) || [];
+   j = j2.concat(j);
+  }
+  // dedupe κοντινών σημείων + ταξινόμηση με προτεραιότητα ακριβούς διεύθυνσης
+  const seen = {};
+  j = j.filter(x=>{ const k = (+x.lat).toFixed(4)+","+(+x.lon).toFixed(4); if(seen[k]) return false; seen[k]=1; return true; });
+  j.sort((a,b)=> ergCandScore(b) - ergCandScore(a));
+  const box = ergCandsBox();
+  if(!j.length){
+   if(box) box.innerHTML = "";
+   alert("Δεν βρέθηκε η τοποθεσία — δοκίμασε «Οδός Αριθμός, Πόλη» ή τοποθέτησε την πινέζα με κλικ στον χάρτη.");
+  } else if(j.length===1){
+   ERGC = j; ergPickCand(0);
+  } else {
+   ERGC = j;
+   if(box) box.innerHTML = `<div class="ergc-head">Βρέθηκαν ${j.length} — διάλεξε το σωστό:</div>` +
+    j.map((x,i)=>{ const ex = x.address && x.address.house_number;
+     return `<button type="button" class="ergc" onclick="ergPickCand(${i})">${ex?"📍":"〰"} ${esc((x.display_name||"").split(",").slice(0,4).join(","))}${ex?"":" <i>(χωρίς αριθμό)</i>"}</button>`; }).join("");
+  }
  }catch(_){ alert("Σφάλμα αναζήτησης — έλεγξε τη σύνδεση."); }
  if(b){ b.disabled = false; b.textContent = "🔍"; }
 }
@@ -1153,7 +1243,10 @@ function initErgoMap(){
   const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {maxZoom:19, attribution:"Esri World Imagery"});
   const osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, attribution:"© OpenStreetMap"});
   sat.addTo(ERGMAP);
-  L.control.layers({"Δορυφόρος": sat, "Χάρτης": osm}, null, {position:"topright"}).addTo(ERGMAP);
+  // v1.36 — Όρια γεωτεμαχίων Κτηματολογίου (WMS θέασης· ορατά σε zoom ≥ ~16)
+  ERGKT = L.tileLayer.wms("https://gis.ktimanet.gr/inspire/rest/services/cadastralparcels/CadastralParcelWMS/MapServer/exts/InspireView/service",
+   {layers:"0", format:"image/png", transparent:true, version:"1.3.0", opacity:0.9, maxZoom:20, attribution:"Ελληνικό Κτηματολόγιο"});
+  L.control.layers({"Δορυφόρος": sat, "Χάρτης": osm}, {"ΚΤ όρια γεωτεμαχίων": ERGKT}, {position:"topright"}).addTo(ERGMAP);
   L.control.scale({imperial:false}).addTo(ERGMAP);
   ERGMAP.on("click", e=> ergSetPin(e.latlng.lat, e.latlng.lng, false));
   ERGMAP.on("zoomend", ()=>{ D.ergo.zoom = ERGMAP.getZoom(); save(); });
