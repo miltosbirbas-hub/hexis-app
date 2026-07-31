@@ -580,20 +580,21 @@ function drawAllParcels(parcels){
   drawParcel(parcels[0]);
 }
 function drawParcel(parcel){
-  $("kaek").textContent = parcel.kaek || "(χωρίς πεδίο ΚΑΕΚ)";
-  $("kaek").className = "kaek-value";
+  // Θωρακισμένο: τα στοιχεία ένδειξης (#kaek, #stats κ.λπ.) είναι προαιρετικά ανά build
+  const set = (id, fn)=>{ const el = $(id); if(el) fn(el); };
+  set("kaek", el=>{ el.textContent = parcel.kaek || "(χωρίς πεδίο ΚΑΕΚ)"; el.className = "kaek-value"; });
   const geom = parcel.geometry;
-  if(!geom){ $("stats").style.display="none"; return; }
+  if(!geom){ set("stats", el=> el.style.display="none"); return; }
   const g = geomToLatLngs(geom);
-  if(!g.latlngs.length){ $("stats").style.display="none"; return; }
+  if(!g.latlngs.length){ set("stats", el=> el.style.display="none"); return; }
   parcelLayer = L.polygon(g.latlngs, {
     color:"#22d3ee", weight:3, opacity:1, fillColor:"#22d3ee", fillOpacity:.2
   }).addTo(map);
   parcelLayer.bindPopup(`<b>${parcel.kaek||"ΚΑΕΚ ;"}</b><br>${g.area.toFixed(1)} m²`);
-  $("area").textContent  = Math.round(g.area).toLocaleString("el-GR")+" m²";
-  $("perim").textContent = Math.round(g.perim)+" m";
-  $("verts").textContent = g.verts;
-  $("stats").style.display = "grid";
+  set("area",  el=> el.textContent = Math.round(g.area).toLocaleString("el-GR")+" m²");
+  set("perim", el=> el.textContent = Math.round(g.perim)+" m");
+  set("verts", el=> el.textContent = g.verts);
+  set("stats", el=> el.style.display = "grid");
 }
 
 // ───────── Πήγαινε σε ΚΑΕΚ ─────────
