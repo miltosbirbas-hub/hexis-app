@@ -115,16 +115,6 @@ tr:has(input.filled)>td:first-child{border-left:3px solid #E08A2E}
 .wizbox{background:#fff;border-radius:14px;max-width:640px;width:100%;padding:18px 20px;box-shadow:0 12px 40px rgba(0,0,0,.3)}
 .wizbox h2{margin:0 0 4px;color:#14213D}
 .wizbox .wsub{color:#5B6B85;font-size:13px;margin-bottom:12px}
-/* ===== v1.22: Βιβλιοθήκη Μηχανικών (μεταφέρθηκε από το Hub) ===== */
-.pf-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;margin:10px 0}
-.pf-grid label{font-size:11.5px;font-weight:700;color:#5B6B85;display:block;margin-bottom:2px}
-.pf-grid input,.pf-grid select{width:100%;padding:8px 9px;border:1px solid #C9D4E4;border-radius:9px;font:inherit;font-size:13.5px;box-sizing:border-box}
-.pf-grid .full{grid-column:1 / -1}
-.collab-row{display:flex;gap:8px;align-items:center;border:1px solid #C9D4E4;border-radius:10px;padding:8px 10px;margin-bottom:6px;font-size:13px}
-.collab-row b{color:#14213D}
-.collab-row small{color:#5B6B85}
-.collab-row .del{margin-left:auto;background:none;border:1px solid #C9D4E4;border-radius:8px;padding:4px 8px;cursor:pointer;font:inherit}
-.libmsg{font-size:12px;color:#5B6B85;margin-top:8px;min-height:15px}
 .wstep{display:flex;gap:10px;align-items:flex-start;border:1px solid #E3E8F2;border-radius:10px;padding:10px 12px;margin-bottom:8px}
 .wstep .wico{font-size:20px;line-height:1;margin-top:2px}
 .wstep.ok{border-color:#BBE3C5;background:#F3FBF5}
@@ -487,7 +477,33 @@ let D = load() || {
  sched: JSON.parse(JSON.stringify(DEF.sched)),
 };
 
-function save(){ try{ localStorage.setItem("hx_adeia", JSON.stringify(D)); }catch(_){} refreshTotals(); histQueue(); }
+/* ===== Αποθήκευση ανά χρήστη (κοινόχρηστα PC) ===== */
+function userSuffix(){
+ try{
+  const raw = localStorage.getItem("sb-oucqqudfdimccgowvpqp-auth-token");
+  if(!raw) return "";
+  const j = JSON.parse(raw);
+  const uid = (j.user && j.user.id) || (j.currentSession && j.currentSession.user && j.currentSession.user.id) || "";
+  return uid ? "_" + uid.slice(0,8) : "";
+ }catch(e){ return ""; }
+}
+const KEY_MAIN = "hx_adeia" + userSuffix();
+const KEY_PROJ = "hx_adeia_projects" + userSuffix();
+// μετανάστευση από τα παλιά κοινά κλειδιά (μία φορά, μόνο για τον πρώτο συνδεδεμένο)
+try{
+ if(userSuffix()){
+  if(!localStorage.getItem(KEY_MAIN) && localStorage.getItem("hx_adeia")){
+   localStorage.setItem(KEY_MAIN, localStorage.getItem("hx_adeia"));
+   localStorage.removeItem("hx_adeia");
+  }
+  if(!localStorage.getItem(KEY_PROJ) && localStorage.getItem("hx_adeia_projects")){
+   localStorage.setItem(KEY_PROJ, localStorage.getItem("hx_adeia_projects"));
+   localStorage.removeItem("hx_adeia_projects");
+  }
+ }
+}catch(e){}
+
+function save(){ try{ localStorage.setItem(KEY_MAIN, JSON.stringify(D)); }catch(_){} refreshTotals(); histQueue(); }
 
 /* ===== v1.13: Ιστορικό αναίρεσης ===== */
 let HIST = [], HTIMER = null;
@@ -500,7 +516,7 @@ function undo(){
  if(s === cur) s = HIST.pop();
  if(!s){ alert("Δεν υπάρχει προηγούμενη κατάσταση για αναίρεση."); return; }
  D = JSON.parse(s);
- try{ localStorage.setItem("hx_adeia", s); }catch(_){}
+ try{ localStorage.setItem(KEY_MAIN, s); }catch(_){}
  render();
 }
 function clearQuantities(){
@@ -522,7 +538,7 @@ function markFilled(scope){
 }
 function load(){
  try{
-  const d = JSON.parse(localStorage.getItem("hx_adeia"));
+  const d = JSON.parse(localStorage.getItem(KEY_MAIN));
   if(!d) return null;
   if(!d._v2){ d.works = JSON.parse(JSON.stringify(DEF.works)); d.studies = JSON.parse(JSON.stringify(DEF.studies)); d._v2 = 1; }
   if(d.ektosSxediou===undefined){ d.ektosSxediou=false; d.aekkKg=50; d.aekkEur=9; d.aekkEgy=0; }
@@ -672,156 +688,6 @@ async function hubImportEngineers(silent){
 }
 // Σιωπηλή προσυμπλήρωση την πρώτη φορά (αν δεν έχει συμπληρωθεί μηχανικός)
 if(!D.engineers[0] || !D.engineers[0].name){ setTimeout(()=> hubImportEngineers(true), 800); }
-
-/* ===== v1.22: Βιβλιοθήκη Μηχανικών (προφίλ + συνεργάτες) — ζει ΜΟΝΟ εδώ, όχι στο Hub ===== */
-function hubUid(){
- try{
-  const tk = hubToken(); if(!tk) return null;
-  const pl = JSON.parse(atob(tk.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));
-  return pl.sub || null;
- }catch(e){ return null; }
-}
-async function hubSend(path, method, body, prefer){
- const tk = hubToken(); if(!tk) throw new Error("Δεν βρέθηκε σύνδεση HEXIS — μπες πρώτα στο Hub.");
- const h = { apikey: HUB_KEY, Authorization: "Bearer " + tk, "Content-Type": "application/json" };
- if(prefer) h.Prefer = prefer;
- const r = await fetch(HUB_SB + "/rest/v1/" + path, { method, headers: h, body: body ? JSON.stringify(body) : undefined });
- if(!r.ok){ const t = await r.text().catch(()=> ""); throw new Error("HTTP " + r.status + (t ? " — " + t.slice(0,120) : "")); }
- const txt = await r.text(); return txt ? JSON.parse(txt) : null;
-}
-let LIB = { prof: null, cols: [], loaded: false };
-async function libLoad(){
- const prof = await hubGet("engineer_profiles?select=*");
- const cols = await hubGet("collaborators?select=*&order=id");
- LIB.prof = (prof && prof[0]) || null;
- LIB.cols = cols || [];
- LIB.loaded = true;
-}
-function libSpecOpts(sel){
- const specs = ["Πολιτικός Μηχανικός","Πολιτικός Μηχανικός Τ.Ε.","Αρχιτέκτων Μηχανικός","Τοπογράφος Μηχανικός","Μηχανολόγος Μηχανικός","Ηλεκτρολόγος Μηχανικός","Άλλη"];
- if(sel && !specs.includes(sel)) specs.push(sel);
- return specs.map(s=>`<option ${s===sel?"selected":""}>${esc(s)}</option>`).join("");
-}
-function libRenderCollabs(){
- const el = document.getElementById("libCollabList"); if(!el) return;
- el.innerHTML = LIB.cols.length ? LIB.cols.map(c=>
-  `<div class="collab-row"><div><b>${esc(c.name)}</b> — ${esc(c.specialty||"")}<br><small>ΑΜ ΤΕΕ ${esc(c.am_tee||"—")} · ΑΦΜ ${esc(c.afm||"—")}</small></div>
-   <button type="button" class="del" data-libdel="${c.id}">🗑</button></div>`).join("")
-  : `<div class="note">Δεν έχεις προσθέσει συνεργάτες ακόμη.</div>`;
- el.querySelectorAll("[data-libdel]").forEach(b=> b.addEventListener("click", ()=> libDelCollab(+b.dataset.libdel)));
-}
-function openLib(auto){
- if(document.getElementById("libOvl")) return;
- const p = LIB.prof || {};
- const ov = document.createElement("div"); ov.className = "wizovl"; ov.id = "libOvl";
- ov.innerHTML = `<div class="wizbox">
-  <h2>📚 Βιβλιοθήκη Μηχανικών</h2>
-  <div class="wsub">Τα στοιχεία σου συμπληρώνονται μία φορά και περνούν αυτόματα σε αμοιβές, συμφωνητικά, ΥΔ και XML. Αποθηκεύονται στον λογαριασμό HEXIS.</div>
-  <h3 style="margin:0 0 2px;color:#14213D">👤 Στοιχεία μηχανικού</h3>
-  <div class="pf-grid">
-   <div class="full"><label>Ονοματεπώνυμο</label><input id="pf_name" value="${esc(p.name||"")}"></div>
-   <div><label>Ειδικότητα</label><select id="pf_spec">${libSpecOpts(p.specialty||"Πολιτικός Μηχανικός")}</select></div>
-   <div><label>ΑΜ ΤΕΕ</label><input id="pf_am" value="${esc(p.am_tee||"")}"></div>
-   <div><label>ΑΦΜ</label><input id="pf_afm" value="${esc(p.afm||"")}"></div>
-   <div><label>ΔΟΥ</label><input id="pf_doy" value="${esc(p.doy||"")}"></div>
-   <div class="full"><label>Διεύθυνση έδρας</label><input id="pf_addr" value="${esc(p.address||"")}"></div>
-   <div><label>Πόλη</label><input id="pf_city" value="${esc(p.city||"")}"></div>
-   <div><label>Τηλέφωνο</label><input id="pf_phone" value="${esc(p.phone||"")}"></div>
-  </div>
-  <h3 style="margin:14px 0 2px;color:#14213D">🤝 Συνεργάτες</h3>
-  <div class="wsub" style="margin-bottom:8px">Η βιβλιοθήκη των συνήθων συνεργατών σου — τραβιούνται με ένα κλικ στην ομάδα έργου.</div>
-  <div id="libCollabList"></div>
-  <div class="pf-grid" style="margin-top:8px">
-   <div><label>Ονοματεπώνυμο</label><input id="cf_name"></div>
-   <div><label>Ειδικότητα</label><input id="cf_spec" value="Πολιτικός Μηχανικός"></div>
-   <div><label>ΑΜ ΤΕΕ</label><input id="cf_am"></div>
-   <div><label>ΑΦΜ</label><input id="cf_afm"></div>
-  </div>
-  <div class="btnrow" style="margin-top:8px">
-   <button type="button" class="btn sm sec" id="libAddCollab">➕ Προσθήκη συνεργάτη</button>
-  </div>
-  <div class="btnrow" style="margin-top:14px">
-   <button type="button" class="btn" id="libSave">💾 Αποθήκευση</button>
-   <button type="button" class="btn sec" id="libClose">Κλείσιμο</button>
-  </div>
-  <div class="libmsg" id="libMsg">${auto ? "Συμπλήρωσε τα στοιχεία σου μία φορά — θα προσυμπληρώνονται σε όλα τα έγγραφα." : ""}</div>
- </div>`;
- document.body.appendChild(ov);
- ov.addEventListener("click", e=>{ if(e.target===ov) ov.remove(); });
- document.getElementById("libClose").addEventListener("click", ()=> ov.remove());
- document.getElementById("libSave").addEventListener("click", libSaveProfile);
- document.getElementById("libAddCollab").addEventListener("click", libAddCollab);
- libRenderCollabs();
- if(!LIB.loaded){
-  libLoad().then(()=>{
-   if(!document.getElementById("libOvl")) return;
-   const q = LIB.prof || {};
-   [["pf_name","name"],["pf_am","am_tee"],["pf_afm","afm"],["pf_doy","doy"],["pf_addr","address"],["pf_city","city"],["pf_phone","phone"]]
-    .forEach(([id,k])=>{ const el=document.getElementById(id); if(el && !el.value) el.value = q[k]||""; });
-   if(q.specialty) document.getElementById("pf_spec").value = q.specialty;
-   libRenderCollabs();
-  }).catch(err=>{ const m=document.getElementById("libMsg"); if(m) m.textContent = "⚠ " + err.message; });
- }
-}
-async function libSaveProfile(){
- const m = document.getElementById("libMsg");
- const uid = hubUid();
- if(!uid){ m.textContent = "⚠ Δεν βρέθηκε σύνδεση HEXIS — μπες πρώτα στο Hub."; return; }
- const row = {
-  user_id: uid,
-  name:  document.getElementById("pf_name").value.trim(),
-  specialty: document.getElementById("pf_spec").value,
-  am_tee: document.getElementById("pf_am").value.trim(),
-  afm:  document.getElementById("pf_afm").value.trim(),
-  doy:  document.getElementById("pf_doy").value.trim(),
-  address: document.getElementById("pf_addr").value.trim(),
-  city:  document.getElementById("pf_city").value.trim(),
-  phone: document.getElementById("pf_phone").value.trim(),
-  updated_at: new Date().toISOString()
- };
- try{
-  await hubSend("engineer_profiles", "POST", row, "resolution=merge-duplicates");
-  LIB.prof = row;
-  m.textContent = "✔ Αποθηκεύτηκε — τα στοιχεία περνούν αυτόματα στο έργο.";
-  hubImportEngineers(true);
- }catch(err){ m.textContent = "⚠ Σφάλμα: " + err.message; }
-}
-async function libAddCollab(){
- const m = document.getElementById("libMsg");
- const uid = hubUid();
- if(!uid){ m.textContent = "⚠ Δεν βρέθηκε σύνδεση HEXIS — μπες πρώτα στο Hub."; return; }
- const c = {
-  user_id: uid,
-  name: document.getElementById("cf_name").value.trim(),
-  specialty: document.getElementById("cf_spec").value.trim() || "Πολιτικός Μηχανικός",
-  am_tee: document.getElementById("cf_am").value.trim(),
-  afm: document.getElementById("cf_afm").value.trim()
- };
- if(!c.name){ m.textContent = "⚠ Δώσε ονοματεπώνυμο συνεργάτη."; return; }
- try{
-  const data = await hubSend("collaborators", "POST", c, "return=representation");
-  LIB.cols.push(Array.isArray(data) ? data[0] : data);
-  ["cf_name","cf_am","cf_afm"].forEach(id=> document.getElementById(id).value = "");
-  m.textContent = "✔ Προστέθηκε στη βιβλιοθήκη.";
-  libRenderCollabs();
-  hubImportEngineers(true);
- }catch(err){ m.textContent = "⚠ Σφάλμα: " + err.message; }
-}
-async function libDelCollab(id){
- if(!confirm("Διαγραφή συνεργάτη από τη βιβλιοθήκη;")) return;
- try{
-  await hubSend("collaborators?id=eq." + id, "DELETE");
-  LIB.cols = LIB.cols.filter(c=> c.id !== id);
-  libRenderCollabs();
- }catch(err){ const m=document.getElementById("libMsg"); if(m) m.textContent = "⚠ Σφάλμα: " + err.message; }
-}
-// Αυτόματο άνοιγμα ΜΟΝΟ εδώ (πρώην συμπεριφορά του Hub): αν λείπει το προφίλ, άνοιξε τη Βιβλιοθήκη
-setTimeout(async ()=>{
- try{
-  await libLoad();
-  if(!LIB.prof || !LIB.prof.name || !LIB.prof.am_tee) openLib(true);
- }catch(e){ /* offline ή χωρίς token — σιωπηλά */ }
-}, 1200);
 
 function amoivesCalc(){
  const S = symbatikos(), l = +D.lambda||0.23368;
@@ -994,8 +860,8 @@ document.addEventListener("click", e=>{
  if(n && !e.target.closest("a,button,input,select")) n.classList.toggle("open");
 });
 /* ===== ΔΙΑΧΕΙΡΙΣΗ ΕΡΓΩΝ (αποθήκευση/φόρτωση) ===== */
-function projStore(){ try{ return JSON.parse(localStorage.getItem("hx_adeia_projects")) || []; }catch(e){ return []; } }
-function projPersist(list){ try{ localStorage.setItem("hx_adeia_projects", JSON.stringify(list)); }catch(e){ alert("Ο χώρος αποθήκευσης γέμισε — διάγραψε παλιά έργα."); } }
+function projStore(){ try{ return JSON.parse(localStorage.getItem(KEY_PROJ)) || []; }catch(e){ return []; } }
+function projPersist(list){ try{ localStorage.setItem(KEY_PROJ, JSON.stringify(list)); }catch(e){ alert("Ο χώρος αποθήκευσης γέμισε — διάγραψε παλιά έργα."); } }
 function updProjBtn(){ const b = document.getElementById("projBtn"); if(b) b.textContent = "📁 " + (D.projName ? D.projName : "Έργα"); }
 function projSaveCurrent(name){
  name = (name||"").trim(); if(!name){ alert("Δώσε όνομα έργου."); return false; }
@@ -1037,7 +903,7 @@ function openProj(){
  });
  ov.querySelector("#projNew").addEventListener("click", ()=>{
   if(confirm("Νέο κενό έργο; Το τρέχον θα χαθεί αν δεν το έχεις αποθηκεύσει στα «Έργα μου».")){
-   localStorage.removeItem("hx_adeia"); location.reload();
+   localStorage.removeItem(KEY_MAIN); location.reload();
   }
  });
  ov.querySelectorAll("[data-pload]").forEach(b=> b.addEventListener("click", ()=>{
@@ -1218,8 +1084,7 @@ function rErgo(){
    <td>${D.engineers.length>1?`<button type="button" class="btn sm sec" data-deleng="${i}">🗑</button>`:""}</td></tr>`).join("")}
   </table></div>
   <div class="btnrow"><button type="button" class="btn sm" id="addEng">➕ Προσθήκη μηχανικού</button>
-   <button type="button" class="btn sm sec" id="hubEng" title="Τραβάει το προφίλ σου και τους συνεργάτες από τον λογαριασμό HEXIS">⬇ Από το Hub (εγώ + συνεργάτες)</button>
-   <button type="button" class="btn sm sec" id="libEng" title="Το προφίλ σου και οι μόνιμοι συνεργάτες σου — αποθηκεύονται στον λογαριασμό HEXIS">📚 Βιβλιοθήκη Μηχανικών</button></div>
+   <button type="button" class="btn sm sec" id="hubEng" title="Τραβάει το προφίλ σου και τους συνεργάτες από τον λογαριασμό HEXIS">⬇ Από το Hub (εγώ + συνεργάτες)</button></div>
   <div class="note">Πρόσθεσε όλη την ομάδα (μελετητές ανά ειδικότητα, επιβλέποντες). Στο tab «💶 Αμοιβές» αναθέτεις ποιος υπογράφει κάθε μελέτη & επίβλεψη — τα συμφωνητικά, οι ΥΔ και το XML βγαίνουν αυτόματα σωστά ανά μηχανικό.</div>
  </div>
  `;
@@ -1284,8 +1149,6 @@ function rErgo(){
  main.querySelectorAll("[data-oeid]").forEach(s=> s.addEventListener("change", ()=>{ D.owners[+s.dataset.oeid].eidos = s.value; save(); }));
  const he = document.getElementById("hubEng");
  if(he) he.addEventListener("click", ()=> hubImportEngineers(false));
- const le = document.getElementById("libEng");
- if(le) le.addEventListener("click", ()=> openLib(false));
  const ae = document.getElementById("addEng");
  if(ae) ae.addEventListener("click", ()=>{
   const nid = Math.max(0,...D.engineers.map(e=>e.id))+1;
