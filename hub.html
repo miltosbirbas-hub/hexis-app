@@ -81,17 +81,6 @@ footer p{font-size:11.5px;color:var(--faint)}
 
 .overlay{position:fixed;inset:0;background:rgba(20,28,40,.42);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
 .modal.wide{width:min(620px,100%);max-height:88vh;overflow:auto;text-align:left}
-.pf-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;margin:10px 0}
-.pf-grid label{font-size:11.5px;font-weight:700;color:var(--muted);display:block;margin-bottom:2px}
-.pf-grid input,.pf-grid select{width:100%;padding:8px 9px;border:1px solid var(--border);border-radius:9px;font:inherit;font-size:13.5px}
-.pf-grid .full{grid-column:1 / -1}
-.collab-row{display:flex;gap:8px;align-items:center;border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin-bottom:6px;font-size:13px}
-.collab-row b{color:var(--ink)}
-.collab-row small{color:var(--muted)}
-.collab-row .del{margin-left:auto;background:none;border:1px solid var(--border);border-radius:8px;padding:4px 8px;cursor:pointer}
-.pbtn{display:inline-block;background:var(--accent,#F26B21);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-weight:700;cursor:pointer;font:inherit}
-.pbtn.sec{background:#fff;color:var(--ink);border:1.5px solid var(--border)}
-.profile-btn{background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:8px 12px;font:inherit;font-weight:600;cursor:pointer}
 .overlay.open{display:flex}
 .modal{background:#fff;border:1px solid var(--border);border-radius:18px;width:min(410px,100%);padding:26px;box-shadow:0 24px 60px rgba(16,40,70,.20);animation:pop .2s ease}
 @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
@@ -161,7 +150,6 @@ footer p{font-size:11.5px;color:var(--faint)}
     </div>
     <div class="tr">
       <span class="plan-chip" id="plan-chip" style="display:none"><span class="dot"></span><span id="plan-name">—</span></span>
-      <button class="profile-btn" id="profBtn" onclick="openProfile(false)">👤 Προφίλ</button>
       <button class="logout" onclick="doLogout()">Αποσύνδεση</button>
     </div>
   </header>
@@ -181,41 +169,6 @@ footer p{font-size:11.5px;color:var(--faint)}
 </div>
 
 
-<div class="overlay" id="profOv" role="dialog" aria-modal="true">
-  <div class="modal wide">
-    <h3>👤 Στοιχεία μηχανικού</h3>
-    <p class="mdesc">Συμπληρώνονται μία φορά και περνούν αυτόματα σε δηλώσεις αμοιβών, συμφωνητικά και έγγραφα των εργαλείων (π.χ. Κόστος Άδειας).</p>
-    <div class="pf-grid">
-      <div class="full"><label>Ονοματεπώνυμο</label><input id="pf_name"></div>
-      <div><label>Ειδικότητα</label><select id="pf_spec">
-        <option>Πολιτικός Μηχανικός</option><option>Πολιτικός Μηχανικός Τ.Ε.</option>
-        <option>Αρχιτέκτων Μηχανικός</option><option>Τοπογράφος Μηχανικός</option>
-        <option>Μηχανολόγος Μηχανικός</option><option>Ηλεκτρολόγος Μηχανικός</option><option>Άλλη</option>
-      </select></div>
-      <div><label>ΑΜ ΤΕΕ</label><input id="pf_am"></div>
-      <div><label>ΑΦΜ</label><input id="pf_afm"></div>
-      <div><label>ΔΟΥ</label><input id="pf_doy"></div>
-      <div class="full"><label>Διεύθυνση έδρας</label><input id="pf_addr"></div>
-      <div><label>Πόλη</label><input id="pf_city"></div>
-      <div><label>Τηλέφωνο</label><input id="pf_phone"></div>
-    </div>
-    <h3 style="margin-top:14px">🤝 Συνεργάτες</h3>
-    <p class="mdesc">Η βιβλιοθήκη των συνήθων συνεργατών σου — τραβιούνται με ένα κλικ μέσα στα εργαλεία.</p>
-    <div id="collabList"></div>
-    <div class="pf-grid" style="margin-top:8px">
-      <div><label>Ονοματεπώνυμο</label><input id="cf_name"></div>
-      <div><label>Ειδικότητα</label><input id="cf_spec" value="Πολιτικός Μηχανικός"></div>
-      <div><label>ΑΜ ΤΕΕ</label><input id="cf_am"></div>
-      <div><label>ΑΦΜ</label><input id="cf_afm"></div>
-    </div>
-    <button class="pbtn sec" onclick="addCollab()">➕ Προσθήκη συνεργάτη</button>
-    <div style="display:flex;gap:8px;margin-top:16px">
-      <button class="pbtn" onclick="saveProfile()">💾 Αποθήκευση</button>
-      <button class="pbtn sec" onclick="closeProfile()">Κλείσιμο</button>
-    </div>
-    <p class="fine" id="pf_msg" style="margin-top:8px"></p>
-  </div>
-</div>
 <div class="overlay" id="overlay" role="dialog" aria-modal="true">
   <div class="modal">
     <div class="mico">🔒</div>
@@ -229,7 +182,7 @@ footer p{font-size:11.5px;color:var(--faint)}
 </div>
 
 <script>
-const HUB_VERSION = 'v1.5';
+const HUB_VERSION = 'v1.6';
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
@@ -334,80 +287,7 @@ async function init() {
   sb.from('user_activity').upsert({ user_id: currentUser.id, last_seen: new Date().toISOString(), last_app: 'hub' }).then(()=>{}).catch?.(()=>{});
   sb.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') window.location.href = 'login.html'; });
 }
-/* ===== Προφίλ μηχανικού & συνεργάτες ===== */
-let myProfile = null, myCollabs = [];
-async function loadProfile(){
-  try{
-    const { data } = await sb.from('engineer_profiles').select('*').maybeSingle();
-    myProfile = data || null;
-    const { data: cs } = await sb.from('collaborators').select('*').order('id');
-    myCollabs = cs || [];
-  }catch(e){ console.warn('profile:', e.message); }
-  if(!myProfile || !myProfile.name || !myProfile.am_tee) openProfile(true);
-}
-function renderCollabs(){
-  const el = document.getElementById('collabList');
-  el.innerHTML = myCollabs.length ? myCollabs.map(c=>
-    `<div class="collab-row"><div><b>${c.name}</b> — ${c.specialty}<br><small>ΑΜ ΤΕΕ ${c.am_tee||'—'} · ΑΦΜ ${c.afm||'—'}</small></div>
-     <button class="del" onclick="delCollab(${c.id})">🗑</button></div>`).join('')
-    : '<p class="fine">Δεν έχεις προσθέσει συνεργάτες ακόμη.</p>';
-}
-function openProfile(auto){
-  const p = myProfile || {};
-  document.getElementById('pf_name').value  = p.name || (currentUser?.user_metadata?.full_name || '');
-  document.getElementById('pf_spec').value  = p.specialty || 'Πολιτικός Μηχανικός';
-  document.getElementById('pf_am').value    = p.am_tee || '';
-  document.getElementById('pf_afm').value   = p.afm || '';
-  document.getElementById('pf_doy').value   = p.doy || '';
-  document.getElementById('pf_addr').value  = p.address || '';
-  document.getElementById('pf_city').value  = p.city || '';
-  document.getElementById('pf_phone').value = p.phone || '';
-  document.getElementById('pf_msg').textContent = auto ? 'Συμπλήρωσε τα στοιχεία σου μία φορά — θα προσυμπληρώνονται παντού.' : '';
-  renderCollabs();
-  document.getElementById('profOv').classList.add('open');
-}
-function closeProfile(){ document.getElementById('profOv').classList.remove('open'); }
-async function saveProfile(){
-  const row = {
-    user_id: currentUser.id,
-    name: document.getElementById('pf_name').value.trim(),
-    specialty: document.getElementById('pf_spec').value,
-    am_tee: document.getElementById('pf_am').value.trim(),
-    afm: document.getElementById('pf_afm').value.trim(),
-    doy: document.getElementById('pf_doy').value.trim(),
-    address: document.getElementById('pf_addr').value.trim(),
-    city: document.getElementById('pf_city').value.trim(),
-    phone: document.getElementById('pf_phone').value.trim(),
-    email: currentUser.email,
-    updated_at: new Date().toISOString()
-  };
-  const { error } = await sb.from('engineer_profiles').upsert(row);
-  document.getElementById('pf_msg').textContent = error ? ('Σφάλμα: '+error.message) : '✔ Αποθηκεύτηκε — τα εργαλεία θα τραβούν αυτόματα τα στοιχεία.';
-  if(!error) myProfile = row;
-}
-async function addCollab(){
-  const c = {
-    user_id: currentUser.id,
-    name: document.getElementById('cf_name').value.trim(),
-    specialty: document.getElementById('cf_spec').value.trim() || 'Πολιτικός Μηχανικός',
-    am_tee: document.getElementById('cf_am').value.trim(),
-    afm: document.getElementById('cf_afm').value.trim()
-  };
-  if(!c.name){ alert('Δώσε ονοματεπώνυμο συνεργάτη.'); return; }
-  const { data, error } = await sb.from('collaborators').insert(c).select().single();
-  if(error){ alert('Σφάλμα: '+error.message); return; }
-  myCollabs.push(data);
-  ['cf_name','cf_am','cf_afm'].forEach(id=> document.getElementById(id).value='');
-  renderCollabs();
-}
-async function delCollab(id){
-  if(!confirm('Διαγραφή συνεργάτη;')) return;
-  await sb.from('collaborators').delete().eq('id', id);
-  myCollabs = myCollabs.filter(c=>c.id!==id);
-  renderCollabs();
-}
-
-init().then(()=> loadProfile());
+init();
 document.getElementById('ver').textContent = 'hub ' + HUB_VERSION;
 
 // ===== Αυτόματες αναβαθμίσεις =====
