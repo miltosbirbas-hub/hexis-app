@@ -312,7 +312,7 @@ nav button.active{background:linear-gradient(135deg,var(--acc1),var(--acc2));col
 
 <script>
 "use strict";
-const VER = "v1.41";
+const VER = "v1.42";
 function defStat(){ return { dimos:"", tk:"", oikopedo:0, ogkos:0, orofoi:0, katoik:0, domatia:0, parking:0, ydreysi:"Δημοτικό δίκτυο", apoxeteysi:"Δημοτικό δίκτυο", thermansi:"Αντλία θερμότητας", energeia:"ΔΕΔΔΗΕ (ρεύμα)" };}
 function defAekk(){ return {
  newOn:true,
@@ -882,6 +882,7 @@ function fixD(){ // v1.31: συμπλήρωση πεδίων που λείπου
  if(D.ergo.ydom===undefined) D.ergo.ydom="";
  if(D.ergo.lat===undefined){ D.ergo.lat=null; D.ergo.lon=null; D.ergo.zoom=null; }
  if(!Array.isArray(D.ergo.poly)) D.ergo.poly = []; // v1.40: κορυφές πολυγώνου οικοπέδου [lat,lon]
+ if(!D.engFees || typeof D.engFees!=="object") D.engFees = {}; // v1.42: συμφωνηθέν ΠΟΣΟ ανά μηχανικό {id:{mel,epi}}
  if(!Array.isArray(D.scen)) D.scen = [];
 }
 function render(){
@@ -1645,32 +1646,40 @@ function rAmoives(){
  </div>
  <h2>Κατανομή αμοιβών ανά μηχανικό</h2>
  <div class="card">
-  ${(()=>{ // v1.38: νόμιμες + συμφωνηθείσες (αναλογική κατανομή της συμφωνηθείσας κατά τα μερίδια ΤΕΕ)
-   const agreed = +D.agreedFee||0, ratio = a.sum>0 ? (agreed>0 ? agreed/a.sum : 1) : 0;
+  ${(()=>{ // v1.42: κάθε μηχανικός συμφωνεί ΠΟΣΟ (€) — επεξεργάσιμο· το άθροισμα γίνεται η συνολική συμφωνηθείσα
+   if(D.engineers.some(en=>!D.engFees[en.id])) engFeesSeed(a);
    let sM=0,sE=0,saM=0,saE=0;
    const rows = D.engineers.map(en=>{
-    const t = engTotals(en.id, a), aM = t.mel*ratio, aE = t.epi*ratio;
-    sM+=t.mel; sE+=t.epi; saM+=aM; saE+=aE;
+    const t = engTotals(en.id, a), f = D.engFees[en.id]||{mel:0,epi:0};
+    sM+=t.mel; sE+=t.epi; saM+=(+f.mel||0); saE+=(+f.epi||0);
     return `<tr><td>${esc(en.name||("Μηχανικός "+en.id))}</td>
      <td class="num">${eur(t.mel)}</td><td class="num">${eur(t.epi)}</td>
-     <td class="num">${eur(aM)}</td><td class="num">${eur(aE)}</td>
-     <td class="num"><b>${eur(aM+aE)}</b></td></tr>`;
+     <td class="num" style="min-width:104px">${ninp(`engFees.${en.id}.mel`, f.mel, "10")}</td>
+     <td class="num" style="min-width:104px">${ninp(`engFees.${en.id}.epi`, f.epi, "10")}</td>
+     <td class="num"><b>${eur((+f.mel||0)+(+f.epi||0))}</b></td></tr>`;
    }).join("");
    return `<table>
-    <tr><th rowspan="2">Μηχανικός</th><th colspan="2" style="text-align:center">Νόμιμες ΤΕΕ</th><th colspan="2" style="text-align:center">Συμφωνηθείσες${agreed>0?"":" (= νόμιμες)"}</th><th rowspan="2" class="num">Σύνολο συμφ.</th></tr>
+    <tr><th rowspan="2">Μηχανικός</th><th colspan="2" style="text-align:center">Νόμιμες ΤΕΕ</th><th colspan="2" style="text-align:center">Συμφωνηθέντα ποσά € (επεξεργάσιμα)</th><th rowspan="2" class="num">Σύνολο συμφ.</th></tr>
     <tr><th class="num">Μελέτες</th><th class="num">Επιβλέψεις</th><th class="num">Μελέτες</th><th class="num">Επιβλέψεις</th></tr>
     ${rows}
     <tr class="total"><td>ΣΥΝΟΛΟ</td><td class="num">${eur(sM)}</td><td class="num">${eur(sE)}</td><td class="num">${eur(saM)}</td><td class="num">${eur(saE)}</td><td class="num">${eur(saM+saE)}</td></tr>
    </table>
-   ${agreed>0?`<div class="note">ℹ Οι συμφωνηθείσες ανά μηχανικό προκύπτουν αναλογικά (συμφωνηθείσα ${eur(agreed)} ÷ νόμιμη ${eur(a.sum)} = ${num(ratio*100)}%) επί των μεριδίων ΤΕΕ κάθε μηχανικού.</div>`:""}`;
+   <div class="note">ℹ Γράψε το ποσό που συμφωνεί κάθε μηχανικός για μελέτες / επιβλέψεις. Το άθροισμα ενημερώνει αυτόματα τη <b>συνολική συμφωνηθείσα</b> (ΦΠΑ, συμφωνητικά, τιμολόγηση). Αν αλλάξεις τη συνολική στο πεδίο πάνω από τον πίνακα, ξαναμοιράζεται αναλογικά με τα μερίδια ΤΕΕ.</div>`;
   })()}
  </div>`;
  bindAll(main, D);
  main.querySelectorAll("[data-chk]").forEach(c=> c.addEventListener("change", ()=>{ D.studies[+c.dataset.chk].on = c.checked; save(); render(); }));
  main.querySelectorAll("[data-meng]").forEach(s=> s.addEventListener("change", ()=>{ D.studies[+s.dataset.meng].mEng = +s.value; save(); render(); }));
  main.querySelectorAll("[data-eeng]").forEach(s=> s.addEventListener("change", ()=>{ D.studies[+s.dataset.eeng].eEng = +s.value; save(); render(); }));
+ // v1.42: ποσά ανά μηχανικό — Enter/blur: άθροισμα → συνολική συμφωνηθείσα
+ main.querySelectorAll('input[data-k^="engFees."]').forEach(el=>{
+  el.addEventListener("keydown", ev=>{ if(ev.key==="Enter"){ ev.preventDefault(); el.blur(); } });
+  el.addEventListener("change", ()=>{ D.agreedFee = engFeesSum(); save(); render(); });
+ });
+ const agrIn = main.querySelector('input[data-k="agreedFee"]');
+ if(agrIn) agrIn.addEventListener("change", ()=>{ engFeesSeed(); save(); render(); }); // αλλαγή συνόλου → αναλογική ανακατανομή
  const agrEq = document.getElementById("agrEq");
- if(agrEq) agrEq.addEventListener("click", ()=>{ D.agreedFee = Math.round(amoivesCalc().sum*100)/100; save(); render(); });
+ if(agrEq) agrEq.addEventListener("click", ()=>{ const a2 = amoivesCalc(); D.agreedFee = Math.round(a2.sum*100)/100; engFeesSeed(a2); save(); render(); });
  const tpM=document.getElementById("tpMode"), tpK=document.getElementById("tpKlim"), tpKl=document.getElementById("tpKlisi"), tpKa=document.getElementById("tpKal"), tpY=document.getElementById("tpYps"), tpA=document.getElementById("tpApply");
  if(tpM) tpM.addEventListener("change", ()=>{ D.topo.mode=tpM.value; D.topo.klim = tpM.value==="astiko"?"200":"500"; save(); render(); });
  if(tpK) tpK.addEventListener("change", ()=>{ D.topo.klim=tpK.value; save(); render(); });
@@ -1696,6 +1705,18 @@ function engTotals(id, a){
  if(arch && +arch.mEng===+id && kenakRow) mel += kenakRow.melF||0;
  if(D.engineers[0] && +D.engineers[0].id===+id && topoRow) mel += topoRow.melF||0;
  return {mel, epi};
+}
+/* v1.42 — συμφωνηθέντα ποσά ανά μηχανικό */
+function engFeesSeed(a){ // αρχικοποίηση αναλογικά από τη συνολική συμφωνηθείσα (ή = νόμιμες αν 0)
+ a = a || amoivesCalc();
+ const agreed = +D.agreedFee||0, ratio = a.sum>0 ? (agreed>0 ? agreed/a.sum : 1) : 0;
+ D.engineers.forEach(en=>{ const t = engTotals(en.id, a);
+  D.engFees[en.id] = { mel:+(t.mel*ratio).toFixed(2), epi:+(t.epi*ratio).toFixed(2) }; });
+}
+function engFeesSum(){
+ let s = 0;
+ D.engineers.forEach(en=>{ const f = D.engFees[en.id]; if(f) s += (+f.mel||0) + (+f.epi||0); });
+ return Math.round(s*100)/100;
 }
 function rForo(){
  const f = foroCalc();
