@@ -451,6 +451,40 @@ function ringMetrics(ringXY){
 
 // ───────── ΚΑΕΚ → γεωτεμάχιο (βάση HEXIS: Αιτωλ/νία · Λευκάδα) ─────────
 const KAEK_GEO_API = "https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/kaek-geo";
+/* ── Ελεύθερο κλικ στον χάρτη → ΚΑΕΚ (point-in-polygon στη βάση HEXIS) ── */
+async function kaekAtPoint(lat, lon){
+  kaekDisp("Αναζήτηση ΚΑΕΚ…", "loading");
+  setHint("🔎 Ψάχνω γεωτεμάχιο στο σημείο…");
+  try{
+    const r = await fetch(KAEK_GEO_API + "?lat=" + lat.toFixed(7) + "&lon=" + lon.toFixed(7) + "&neighbors=1&r=150");
+    const p = await r.json().catch(()=>({}));
+    if(!r.ok || p.error){
+      kaekDisp("Δεν βρέθηκε", "empty");
+      clearParcel();
+      setHint(p.error==="not_found"
+        ? "Δεν βρέθηκε γεωτεμάχιο εδώ — εκτός καλυμμένων περιοχών (Αιτωλ/νία·Αχαΐα·Ηλεία·Ιόνια) ή εκτός κτηματογράφησης."
+        : "Σφάλμα: " + (p.error||r.status), "err");
+      return;
+    }
+    kaekDisp(p.kaek, "");
+    if(typeof inp !== "undefined"){}
+    const q = $("kaekQ"); if(q) q.value = p.kaek;
+    const parcels = [];
+    if(p.geometry_egsa) parcels.push({ kaek: p.kaek, geometry: p.geometry_egsa });
+    (p.neighbors||[]).forEach(n=>{ if(n.geometry_egsa) parcels.push({ kaek: n.kaek, geometry: n.geometry_egsa }); });
+    if(parcels.length) drawAllParcels(parcels);
+    const nb = (p.neighbors||[]).length;
+    setHint(`✔ ΚΑΕΚ ${p.kaek}${p.area_m2?` · ${Math.round(p.area_m2)} m²`:""}${p.approx?" (πλησιέστερο)":""}${nb?`  (+${nb} όμορα)`:""}`, "ok");
+  }catch(err){
+    kaekDisp("Σφάλμα", "empty");
+    setHint("Σφάλμα δικτύου: " + err.message, "err");
+  }
+}
+map.on("click", (e)=>{
+  if(measuring || drawing) return; // τα εργαλεία 📏/✏️ έχουν προτεραιότητα
+  kaekAtPoint(e.latlng.lat, e.latlng.lng);
+});
+
 function kaekDisp(txt, cls){ const el = $("kaek"); if(el){ el.textContent = txt; el.className = "kaek-value" + (cls?" "+cls:""); } }
 async function findByKaek(){
   const inp = $("kaekQ");
