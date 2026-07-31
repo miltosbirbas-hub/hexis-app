@@ -262,6 +262,13 @@
     <button class="b-gps" id="gpsBtn" title="Κέντραρε στη θέση μου">📍 Θέση μου</button>
     <button class="b-find" id="ktimBtn" onclick="openKtimatologio()">🗺️ Άνοιγμα Κτηματολογίου</button>
   </div>
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <input id="kaekQ" type="text" inputmode="numeric" placeholder="ΚΑΕΚ (12 ψηφία) — Αιτωλ/νία · Λευκάδα"
+      style="flex:1;padding:10px 12px;background:var(--panel2);border:1px solid var(--neon);border-radius:9px;color:var(--neon);font-weight:700;font-size:14px;letter-spacing:.5px"
+      onkeydown="if(event.key==='Enter'){event.preventDefault();findByKaek();}">
+    <button id="kaekGoBtn" onclick="findByKaek()" title="Εύρεση γεωτεμαχίου από ΚΑΕΚ"
+      style="padding:10px 16px;background:var(--panel2);border:1px solid var(--neon);color:var(--neon);border-radius:9px;font-weight:800;font-size:14px;cursor:pointer">🔎 ΚΑΕΚ</button>
+  </div>
   <div class="hint" id="hint">Σύρε τον χάρτη ώστε ο κόκκινος στόχος να πέσει στο σημείο. Πάτα 📋 για αντιγραφή των ΕΓΣΑ'87 συντεταγμένων.</div>
 </div>
 
@@ -439,6 +446,47 @@ function ringMetrics(ringXY){
     perim += Math.hypot(x2-x1, y2-y1);
   }
   return { area: Math.abs(area)/2, perim };
+}
+
+// ───────── ΚΑΕΚ → γεωτεμάχιο (βάση HEXIS: Αιτωλ/νία · Λευκάδα) ─────────
+const KAEK_GEO_API = "https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/kaek-geo";
+async function findByKaek(){
+  const inp = $("kaekQ");
+  const raw = (inp ? inp.value : "").replace(/[\s.]+/g,"").split("/")[0];
+  if(!/^\d{12}/.test(raw)){ setHint("Δώσε έγκυρο ΚΑΕΚ — 12 ψηφία.", "err"); if(inp) inp.focus(); return; }
+  const kaek = raw.slice(0,12);
+  const b = $("kaekGoBtn"); if(b){ b.disabled = true; b.textContent = "…"; }
+  $("kaek").textContent = "Αναζήτηση ΚΑΕΚ…";
+  $("kaek").className = "kaek-value loading";
+  try{
+    const r = await fetch(KAEK_GEO_API + "?kaek=" + encodeURIComponent(kaek));
+    if(!r.ok){
+      const j = await r.json().catch(()=>({}));
+      $("kaek").textContent = "Δεν βρέθηκε";
+      $("kaek").className = "kaek-value empty";
+      setHint(j.error==="not_found"
+        ? "Ο ΚΑΕΚ δεν υπάρχει στη βάση — καλύπτονται: Αιτωλοακαρνανία/Δυτ. Ελλάδα, Λευκάδα/Ιόνια."
+        : "Σφάλμα: " + (j.error||r.status), "err");
+      return;
+    }
+    const p = await r.json();
+    $("kaek").textContent = p.kaek;
+    $("kaek").className = "kaek-value";
+    if(p.geometry_egsa){
+      drawAllParcels([{ kaek: p.kaek, geometry: p.geometry_egsa }]);
+      try{ if(parcelLayer) map.fitBounds(parcelLayer.getBounds(), { padding:[60,60], maxZoom:19 }); }catch(e){}
+    } else {
+      clearParcel();
+      map.setView([p.lat, p.lon], 18);
+    }
+    setHint(`✔ ΚΑΕΚ ${p.kaek} — ${p.region||""}${p.area_m2?` · ${Math.round(p.area_m2)} m²`:""}`, "ok");
+  }catch(err){
+    $("kaek").textContent = "Σφάλμα";
+    $("kaek").className = "kaek-value empty";
+    setHint("Σφάλμα δικτύου: " + err.message, "err");
+  }finally{
+    if(b){ b.disabled = false; b.textContent = "🔎 ΚΑΕΚ"; }
+  }
 }
 
 // ───────── ΚΑΕΚ lookup ─────────
