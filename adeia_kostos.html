@@ -105,6 +105,10 @@ main{max-width:1240px}
  main{flex:1 1 auto;min-height:0;overflow:hidden;max-width:1500px;width:100%;box-sizing:border-box;margin:0 auto;padding:8px 14px 6px}
  main.cols2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
  main:not(.cols2){overflow-y:auto}
+ /* v1.43 — στοιχεία .wide πιάνουν όλο το πλάτος· η καρτέλα τότε κάνει ενιαίο κατακόρυφο scroll */
+ main.cols2 .widefull{grid-column:1/-1}
+ main.cols2.haswide{overflow-y:auto;grid-auto-rows:min-content;align-content:start}
+ main.cols2.haswide .colwrap{overflow:visible;padding-right:0}
  .colwrap{overflow-y:auto;min-height:0;padding-right:6px;scrollbar-width:thin}
  .colwrap::-webkit-scrollbar{width:7px}
  .colwrap::-webkit-scrollbar-thumb{background:#C6D2E4;border-radius:4px}
@@ -312,7 +316,7 @@ nav button.active{background:linear-gradient(135deg,var(--acc1),var(--acc2));col
 
 <script>
 "use strict";
-const VER = "v1.42";
+const VER = "v1.43";
 function defStat(){ return { dimos:"", tk:"", oikopedo:0, ogkos:0, orofoi:0, katoik:0, domatia:0, parking:0, ydreysi:"Δημοτικό δίκτυο", apoxeteysi:"Δημοτικό δίκτυο", thermansi:"Αντλία θερμότητας", energeia:"ΔΕΔΔΗΕ (ρεύμα)" };}
 function defAekk(){ return {
  newOn:true,
@@ -906,8 +910,25 @@ function render(){
 function compactCols(){
  main.classList.remove("cols2");
  if(window.innerWidth < 1050) return;
- const kids = [...main.children];
+ let kids = [...main.children];
  if(kids.length < 2) return;
+ // v1.43: ό,τι έχει class "wide" (μεγάλοι πίνακες) πάει full-width πάνω από τις στήλες
+ const wide = kids.filter(k=> k.classList && k.classList.contains("wide"));
+ kids = kids.filter(k=> !wide.includes(k));
+ if(wide.length){
+  const W = document.createElement("div"); W.className = "widefull";
+  wide.forEach(k=> W.appendChild(k));
+  if(kids.length < 2){
+   const L2 = document.createElement("div"); L2.className = "colwrap widefull";
+   kids.forEach(k=> L2.appendChild(k));
+   main.append(W, L2);
+   main.classList.add("cols2","haswide");
+   if(typeof ERGMAP!=="undefined" && ERGMAP){ setTimeout(()=>{ try{ ERGMAP.invalidateSize(); }catch(_){ } }, 80); }
+   return;
+  }
+  main.classList.add("haswide");
+  main.appendChild(W); // οι στήλες μπαίνουν από κάτω στη συνέχεια
+ } else main.classList.remove("haswide");
  const h = kids.map(k=> Math.max(1, k.offsetHeight||1));
  const total = h.reduce((a,b)=>a+b,0);
  let acc=0, split=kids.length;
@@ -1574,8 +1595,8 @@ function rProyp(){
 function rAmoives(){
  const S = symbatikos(), a = amoivesCalc();
  main.innerHTML = `
- <h2>Αμοιβές μηχανικών — μοντέλο ΤΕΕ / π.δ. 696/74</h2>
- <div class="card">
+ <h2 class="wide">Αμοιβές μηχανικών — μοντέλο ΤΕΕ / π.δ. 696/74</h2>
+ <div class="card wide">
   <div class="grid3">
    <div><label>Συντελεστής λ (κωδ. 20121)</label>${ninp("lambda", D.lambda, "0.00001", 1)}</div>
    <div><label>ΚΕΝΑΚ % επί μελετών κλάδων</label>${ninp("kenakPct", D.kenakPct, "1", 1)}</div>
@@ -1599,6 +1620,7 @@ function rAmoives(){
   </table></div>
   <div class="btnrow"><button class="btn sec sm" onclick="addStudy()">➕ Προσθήκη μελέτης (με κωδικό ΤΕΕ)</button></div>
   <div class="agrline">
+   <b style="color:var(--blue);font-size:14px">💶 Συμφωνηθείσα αμοιβή</b>
    <span class="agrsum">Μελέτες + Επιβλέψεις (νόμιμη ΤΕΕ): <b>${eur(a.sum)}</b></span>
    <span class="agrfld"><label>Συμφωνηθείσα € (προ ΦΠΑ, 0 = νόμιμη)</label>${ninp("agreedFee", D.agreedFee, "50", 1)}</span>
    <button type="button" class="btn sm sec" id="agrEq">= Νόμιμη</button>
@@ -1644,8 +1666,8 @@ function rAmoives(){
    : `<div class="note">Συμπλήρωσε ποσότητες για να υπολογιστεί αναλυτικά η αμοιβή τοπογραφικού.</div>`; })()}
   </div>
  </div>
- <h2>Κατανομή αμοιβών ανά μηχανικό</h2>
- <div class="card">
+ <h2 class="wide">Κατανομή αμοιβών ανά μηχανικό</h2>
+ <div class="card wide">
   ${(()=>{ // v1.42: κάθε μηχανικός συμφωνεί ΠΟΣΟ (€) — επεξεργάσιμο· το άθροισμα γίνεται η συνολική συμφωνηθείσα
    if(D.engineers.some(en=>!D.engFees[en.id])) engFeesSeed(a);
    let sM=0,sE=0,saM=0,saE=0;
