@@ -117,6 +117,17 @@ main{max-width:1240px}
 .note.warn::before{content:"⚠️ "}
 /* Επισήμανση συμπληρωμένων τιμών — το μάτι πέφτει στις επιλογές */
 input.filled,select.filled,textarea.filled{border-color:#E08A2E !important;background:#FFF4E3 !important;color:#7A4A00;font-weight:700}
+/* v1.33 — πίνακας αμοιβών: μικροί συντελεστές κ/μ, φαρδιά ονόματα μηχανικών */
+.coefpair{display:flex;gap:2px}
+.coefpair input{padding:3px 2px !important;font-size:11px !important;text-align:center;border-radius:5px !important;max-width:46px;min-width:34px}
+td input[data-k$=".share"]{max-width:56px;padding:3px 4px !important;font-size:11.5px !important;text-align:center}
+td select[data-meng],td select[data-eeng]{min-width:130px;font-size:12.5px !important;padding:5px 6px !important}
+.agrline{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;background:#F3F6FA;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-top:8px}
+.agrline .agrsum b{font-size:17px}
+.agrline .agrfld{display:flex;align-items:center;gap:6px}
+.agrline .agrfld label{margin:0;white-space:nowrap}
+.agrline .agrfld input{width:110px;text-align:right;font-weight:700}
+.agrline .agrdiff{font-variant-numeric:tabular-nums;font-weight:700}
 label:has(>input[type=checkbox]:checked){color:#B25E00;font-weight:700}
 tr:has(input.filled)>td:first-child{border-left:3px solid #E08A2E}
 /* Εργαλεία κεφαλίδας */
@@ -292,7 +303,7 @@ nav button.active{background:linear-gradient(135deg,var(--acc1),var(--acc2));col
 
 <script>
 "use strict";
-const VER = "v1.32";
+const VER = "v1.34";
 function defStat(){ return { dimos:"", tk:"", oikopedo:0, ogkos:0, orofoi:0, katoik:0, domatia:0, parking:0, ydreysi:"Δημοτικό δίκτυο", apoxeteysi:"Δημοτικό δίκτυο", thermansi:"Αντλία θερμότητας", energeia:"ΔΕΔΔΗΕ (ρεύμα)" };}
 function defAekk(){ return {
  newOn:true,
@@ -1393,13 +1404,13 @@ function rAmoives(){
   </div>
   <div class="note">Η προσαύξηση προσθήκης +30% (ΠΔ 696/74 άρθ.88 — increment ΤΕΕ 500) εφαρμόζεται <b>αυτόματα και σταθμισμένα</b> από τη στήλη «Είδος» των χρήσεων (γραμμές ΠΡΟΣΘΗΚΗ).</div>
   <div class="note">Βάση κάθε μελέτης = Σ×%Σ (Σ=${eur(S)}). β=κ+μ/∛(Βάση/λ), Αμοιβή=Βάση·β/100. Στατικά: +80% αντισεισμικού (increment 30). Οι %Σ και τα κ/μ προέρχονται από πραγματική υποβολή ΤΕΕ — επεξεργάσιμα.</div>
-  <div style="overflow-x:auto"><table><tr><th>✓</th><th>Μελέτη (κωδ. ΤΕΕ)</th><th class="num">%Σ</th><th class="num">κ/μ μελ.</th><th class="num">κ/μ επίβλ.</th><th>Μηχ. μελέτης</th><th>Μηχ. επίβλ.</th><th class="num">Αμ. μελέτης</th><th class="num">Αμ. επίβλεψης</th></tr>
+  <div style="overflow-x:auto"><table><tr><th>✓</th><th>Μελέτη (κωδ. ΤΕΕ)</th><th class="num">%Σ</th><th class="num">κ/μ μελ.</th><th class="num">κ/μ επίβλ.</th><th>Συντελεστής μελέτης</th><th>Συντελεστής επίβλεψης</th><th class="num">Αμ. μελέτης</th><th class="num">Αμ. επίβλεψης</th></tr>
   ${D.studies.map((st,i)=>`<tr>
     <td><input type="checkbox" data-chk="${i}" ${st.on?"checked":""}></td>
     <td>${esc(st.s)} <span class="pill">${st.tM}/${st.tE}</span>${st.aseismic?' <span class="pill">+80% αντισ.</span>':''}</td>
     <td class="num">${ninp(`studies.${i}.share`, st.share, "0.01", 1)}</td>
-    <td class="num"><div class="grid2" style="gap:3px">${ninp(`studies.${i}.mk`, st.mk, "0.1", 1)}${ninp(`studies.${i}.mm`, st.mm, "1", 1)}</div></td>
-    <td class="num"><div class="grid2" style="gap:3px">${ninp(`studies.${i}.ek`, st.ek, "0.1", 1)}${ninp(`studies.${i}.em`, st.em, "1", 1)}</div></td>
+    <td class="num"><div class="coefpair" title="κ / μ μελέτης">${ninp(`studies.${i}.mk`, st.mk, "0.1", 1)}${ninp(`studies.${i}.mm`, st.mm, "1", 1)}</div></td>
+    <td class="num"><div class="coefpair" title="κ / μ επίβλεψης">${ninp(`studies.${i}.ek`, st.ek, "0.1", 1)}${ninp(`studies.${i}.em`, st.em, "1", 1)}</div></td>
     <td><select data-meng="${i}">${engOpts(st.mEng)}</select></td>
     <td><select data-eeng="${i}">${engOpts(st.eEng)}</select></td>
     <td class="num">${eur(a.rows[i].melF||0)}</td><td class="num">${eur(a.rows[i].epiF||0)}</td></tr>`).join("")}
@@ -1408,18 +1419,14 @@ function rAmoives(){
   <tr class="total"><td colspan="7">ΣΥΝΟΛΟ (προ ΦΠΑ)</td><td class="num">${eur(a.mel)}</td><td class="num">${eur(a.epi)}</td></tr>
   </table></div>
   <div class="btnrow"><button class="btn sec sm" onclick="addStudy()">➕ Προσθήκη μελέτης (με κωδικό ΤΕΕ)</button></div>
-  <div class="sumrow" style="margin-top:8px"><span>Μελέτες + Επιβλέψεις</span><b class="big">${eur(a.sum)}</b></div>
-  ${a.belowMin?`<div class="note warn">⚠ Κάτω από την ελάχιστη νόμιμη αμοιβή 5000×λ = ${eur(a.minPay)} — στο ΤΕΕ ισχύει το ελάχιστο.</div>`:""}
-  <h3 style="margin-top:14px">Συμφωνηθείσα αμοιβή</h3>
-  <div class="card">
-   <div class="grid2">
-    <div><label>Συμφωνηθείσα αμοιβή € (προ ΦΠΑ) — 0 = χρήση νόμιμης</label>${ninp("agreedFee", D.agreedFee, "50", 1)}</div>
-    <div><button type="button" class="btn sm sec" id="agrEq" style="margin-top:22px">= Νόμιμη (${eur(a.sum)})</button></div>
-   </div>
-   ${(+D.agreedFee||0)>0?`<div class="sumrow"><span>Διαφορά από νόμιμη αμοιβή ΤΕΕ (${eur(a.sum)})</span>
-     <b style="color:${+D.agreedFee>=a.sum?"var(--ok)":"#B3271E"}">${+D.agreedFee>=a.sum?"+":""}${eur(+D.agreedFee - a.sum)} (${a.sum>0?num((+D.agreedFee/a.sum-1)*100):"—"}%)</b></div>`:""}
-   <div class="note">ℹ Οι αμοιβές είναι <b>ελεύθερα διαπραγματεύσιμες</b> (ν.3919/2011). Η <b>συμφωνηθείσα</b> είναι αυτή που τιμολογείται στον πελάτη: πάνω της υπολογίζονται ΦΠΑ και συμφωνητικά. Οι <b>νόμιμες αμοιβές ΤΕΕ</b> παραμένουν η βάση για την υποβολή στο ΤΕΕ και τον <b>ΦΕΜ</b> (10%/4%).</div>
+  <div class="agrline">
+   <span class="agrsum">Μελέτες + Επιβλέψεις (νόμιμη ΤΕΕ): <b>${eur(a.sum)}</b></span>
+   <span class="agrfld"><label>Συμφωνηθείσα € (προ ΦΠΑ, 0 = νόμιμη)</label>${ninp("agreedFee", D.agreedFee, "50", 1)}</span>
+   <button type="button" class="btn sm sec" id="agrEq">= Νόμιμη</button>
+   ${(+D.agreedFee||0)>0?`<span class="agrdiff" style="color:${+D.agreedFee>=a.sum?"var(--ok)":"#B3271E"}">Διαφορά: ${+D.agreedFee>=a.sum?"+":""}${eur(+D.agreedFee - a.sum)} (${a.sum>0?num((+D.agreedFee/a.sum-1)*100):"—"}%)</span>`:""}
   </div>
+  ${a.belowMin?`<div class="note warn">⚠ Κάτω από την ελάχιστη νόμιμη αμοιβή 5000×λ = ${eur(a.minPay)} — στο ΤΕΕ ισχύει το ελάχιστο.</div>`:""}
+  <div class="note">ℹ Οι αμοιβές είναι <b>ελεύθερα διαπραγματεύσιμες</b> (ν.3919/2011). Η <b>συμφωνηθείσα</b> είναι αυτή που τιμολογείται στον πελάτη: πάνω της υπολογίζονται ΦΠΑ και συμφωνητικά. Οι <b>νόμιμες αμοιβές ΤΕΕ</b> παραμένουν η βάση για την υποβολή στο ΤΕΕ και τον <b>ΦΕΜ</b> (10%/4%).</div>
   <h3 style="margin-top:14px">Τοπογραφικό — αναλυτικός υπολογισμός (ΠΔ 696/74 άρθ.5-18, τιμές × λ)</h3>
   <div class="card">
    <div class="grid2">
