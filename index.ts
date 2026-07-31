@@ -1,6 +1,8 @@
-// HEXIS kaek-geo — ΚΑΕΚ → θέση & πολύγωνο (WGS84 + ΕΓΣΑ'87)
+// HEXIS kaek-geo v2 — ΚΑΕΚ → θέση & πολύγωνο (WGS84 + ΕΓΣΑ'87) + ΟΜΟΡΑ γεωτεμάχια
 // Deploy:  supabase functions deploy kaek-geo --no-verify-jwt --project-ref oucqqudfdimccgowvpqp
-// Κλήση:   GET /functions/v1/kaek-geo?kaek=340561203015   ή   POST {"kaek":"..."}
+// Κλήση:   GET /functions/v1/kaek-geo?kaek=140120508024            → μόνο το τεμάχιο
+//          GET /functions/v1/kaek-geo?kaek=...&neighbors=1          → + όμορα (ακτίνα 120 m)
+//          GET /functions/v1/kaek-geo?kaek=...&neighbors=1&r=200    → + όμορα σε ακτίνα 200 m
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const CORS = {
@@ -35,7 +37,6 @@ function wgsToEgsa(lat: number, lon: number): [number, number] {
   const No = k0 * (M + N * t * (A * A / 2 + (5 - t * t + 9 * n2 + 4 * n2 * n2) * A ** 4 / 24 + (61 - 58 * t * t + t ** 4 + 600 * n2 - 330 * ep2) * A ** 6 / 720));
   return [Math.round(E * 100) / 100, Math.round(No * 100) / 100];
 }
-
 function geoToEgsa(g: any): any {
   const conv = (c: any): any => typeof c[0] === "number" ? wgsToEgsa(c[1], c[0]) : c.map(conv);
   return { type: g.type, coordinates: conv(g.coordinates) };
@@ -44,9 +45,16 @@ function geoToEgsa(g: any): any {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   try {
-    let kaek = "";
-    if (req.method === "GET") kaek = new URL(req.url).searchParams.get("kaek") ?? "";
-    else kaek = (await req.json().catch(() => ({})))?.kaek ?? "";
+    const url = new URL(req.url);
+    let kaek = "", wantN = false, r = 120;
+    if (req.method === "GET") {
+      kaek = url.searchParams.get("kaek") ?? "";
+      wantN = url.searchParams.get("neighbors") === "1";
+      r = Math.min(500, Math.max(30, parseFloat(url.searchParams.get("r") ?? "120") || 120));
+    } else {
+      const b = await req.json().catch(() => ({}));
+      kaek = b?.kaek ?? ""; wantN = !!b?.neighbors; r = Math.min(500, Math.max(30, +b?.r || 120));
+    }
     kaek = String(kaek).replace(/[\s.]+/g, "").split("/")[0];
     if (!/^\d{12}/.test(kaek)) {
       return new Response(JSON.stringify({ error: "Μη έγκυρος ΚΑΕΚ (απαιτούνται 12 ψηφία)." }), { status: 400, headers: CORS });
@@ -63,7 +71,29 @@ Deno.serve(async (req) => {
       kaek: data.kaek, region: data.region, lat: data.lat, lon: data.lon, area_m2: data.area_m2,
       geometry_wgs: data.geojson ?? null,
       geometry_egsa: data.geojson ? geoToEgsa(data.geojson) : null,
+      neighbors: [] as any[],
     };
+
+    if (wantN) {
+      // Όμορα: γεωτεμάχια με κεντροειδές μέσα σε κουτί ±r μέτρων γύρω από το κύριο
+      const dLat = r / 111320;
+      const dLon = r / (111320 * Math.cos(data.lat * Math.PI / 180));
+      const { data: nb } = await sb.from("kaek_parcels")
+        .select("kaek, area_m2, lat, lon, geojson")
+        .gte("lat", data.lat - dLat).lte("lat", data.lat + dLat)
+        .gte("lon", data.lon - dLon).lte("lon", data.lon + dLon)
+        .neq("kaek", kaek)
+        .limit(40);
+      if (nb) {
+        nb.sort((a: any, b: any) =>
+          ((a.lat - data.lat) ** 2 + (a.lon - data.lon) ** 2) - ((b.lat - data.lat) ** 2 + (b.lon - data.lon) ** 2));
+        out.neighbors = nb.slice(0, 30).map((p: any) => ({
+          kaek: p.kaek, area_m2: p.area_m2, lat: p.lat, lon: p.lon,
+          geometry_wgs: p.geojson ?? null,
+          geometry_egsa: p.geojson ? geoToEgsa(p.geojson) : null,
+        }));
+      }
+    }
     return new Response(JSON.stringify(out), { headers: CORS });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: CORS });

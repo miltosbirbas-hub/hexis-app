@@ -460,7 +460,7 @@ async function findByKaek(){
   $("kaek").textContent = "Αναζήτηση ΚΑΕΚ…";
   $("kaek").className = "kaek-value loading";
   try{
-    const r = await fetch(KAEK_GEO_API + "?kaek=" + encodeURIComponent(kaek));
+    const r = await fetch(KAEK_GEO_API + "?kaek=" + encodeURIComponent(kaek) + "&neighbors=1&r=150");
     if(!r.ok){
       const j = await r.json().catch(()=>({}));
       $("kaek").textContent = "Δεν βρέθηκε";
@@ -473,14 +473,18 @@ async function findByKaek(){
     const p = await r.json();
     $("kaek").textContent = p.kaek;
     $("kaek").className = "kaek-value";
-    if(p.geometry_egsa){
-      drawAllParcels([{ kaek: p.kaek, geometry: p.geometry_egsa }]);
+    const parcels = [];
+    if(p.geometry_egsa) parcels.push({ kaek: p.kaek, geometry: p.geometry_egsa });
+    (p.neighbors||[]).forEach(n=>{ if(n.geometry_egsa) parcels.push({ kaek: n.kaek, geometry: n.geometry_egsa }); });
+    if(parcels.length){
+      drawAllParcels(parcels); // κύριο έντονο, όμορα διακριτικά με δικό τους popup ΚΑΕΚ/εμβαδόν
       try{ if(parcelLayer) map.fitBounds(parcelLayer.getBounds(), { padding:[60,60], maxZoom:19 }); }catch(e){}
     } else {
       clearParcel();
       map.setView([p.lat, p.lon], 18);
     }
-    setHint(`✔ ΚΑΕΚ ${p.kaek} — ${p.region||""}${p.area_m2?` · ${Math.round(p.area_m2)} m²`:""}`, "ok");
+    const nb = (p.neighbors||[]).length;
+    setHint(`✔ ΚΑΕΚ ${p.kaek} — ${p.region||""}${p.area_m2?` · ${Math.round(p.area_m2)} m²`:""}${nb?`  (+${nb} όμορα — κλικ πάνω τους για ΚΑΕΚ)`:""}`, "ok");
   }catch(err){
     $("kaek").textContent = "Σφάλμα";
     $("kaek").className = "kaek-value empty";
