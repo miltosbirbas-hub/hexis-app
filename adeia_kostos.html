@@ -141,6 +141,9 @@ td select[data-meng],td select[data-eeng]{min-width:130px;font-size:12.5px !impo
 #ergCands .ergc:hover{border-color:var(--blue);background:#F3F7FD}
 #ergCands .ergc i{color:#9AA5B5;font-style:normal;font-size:11px}
 #ergCands .ergc-done{font-size:12.5px;color:#1B6E3C;background:#EAF6EE;border:1px solid #BFE3CC;border-radius:8px;padding:7px 10px}
+/* v1.44 — κουμπί μολυβιού σχεδίασης πολυγώνου στον χάρτη */
+.ergpen{width:34px;height:34px;background:#fff;border:2px solid rgba(0,0,0,.2);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;user-select:none;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.ergpen.on{background:#E08A2E;border-color:#B96F1D;color:#fff;box-shadow:0 0 0 3px rgba(224,138,46,.30)}
 label:has(>input[type=checkbox]:checked){color:#B25E00;font-weight:700}
 tr:has(input.filled)>td:first-child{border-left:3px solid #E08A2E}
 /* Εργαλεία κεφαλίδας */
@@ -316,7 +319,7 @@ nav button.active{background:linear-gradient(135deg,var(--acc1),var(--acc2));col
 
 <script>
 "use strict";
-const VER = "v1.43";
+const VER = "v1.44";
 function defStat(){ return { dimos:"", tk:"", oikopedo:0, ogkos:0, orofoi:0, katoik:0, domatia:0, parking:0, ydreysi:"Δημοτικό δίκτυο", apoxeteysi:"Δημοτικό δίκτυο", thermansi:"Αντλία θερμότητας", energeia:"ΔΕΔΔΗΕ (ρεύμα)" };}
 function defAekk(){ return {
  newOn:true,
@@ -1141,7 +1144,7 @@ function ergCoordsUI(){
   : "";
  el.innerHTML = (s || P.length)
   ? `${s?`<span class="pill">${esc(s.split(" — ")[0])}</span> <span class="pill"><b>ΕΓΣΑ'87</b> ${esc(s.split(" — ")[1].replace(" (ΕΓΣΑ'87)",""))}</span>`:""} ${polyPills} <button type="button" class="btn sm sec" id="ergClr">🗑 Καθαρισμός</button>`
-  : `<span class="pill">Κλικ στον χάρτη = κορυφή πολυγώνου οικοπέδου (με 3+ κορυφές ορίζεται αυτόματα η θέση & το εμβαδόν). Αναζήτηση / GPS / ΚΑΕΚ για προσανατολισμό.</span>`;
+  : `<span class="pill">${(typeof ERGDRAWON!=="undefined" && ERGDRAWON)?"✏️ Σχεδίαση ενεργή — κάθε κλικ στον χάρτη = κορυφή του οικοπέδου. Ξαναπάτα το μολύβι για τέλος.":"Πάτα το ✏️ στον χάρτη για να σχεδιάσεις το πολύγωνο του οικοπέδου (με 3+ κορυφές ορίζεται αυτόματα θέση & εμβαδόν). Αναζήτηση / GPS / ΚΑΕΚ για προσανατολισμό."}</span>`;
  const b = document.getElementById("ergClr");
  if(b) b.addEventListener("click", ergClearPin);
  const u = document.getElementById("ergPUndo");
@@ -1219,6 +1222,17 @@ let ERGC = [];
 let ERGKT = null; // WMS ορίων Κτηματολογίου
 let ERGPOLY = null; // πολύγωνο ΚΑΕΚ από kaek-geo
 let ERGDRAW = null; // σχεδιαζόμενο πολύγωνο οικοπέδου (v1.40)
+let ERGDRAWON = false, ERGPENEL = null; // v1.44: λειτουργία μολυβιού
+const ERG_PEN_CURSOR = 'url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22><path d=%22M3 21l2.5-7L17 2.5a2.1 2.1 0 013 3L8.5 17 3 21z%22 fill=%22%23E08A2E%22 stroke=%22%23663d00%22 stroke-width=%221.4%22/></svg>") 2 22, crosshair';
+function ergDrawToggle(force){
+ ERGDRAWON = (force!==undefined) ? !!force : !ERGDRAWON;
+ if(ERGPENEL) ERGPENEL.classList.toggle("on", ERGDRAWON);
+ if(ERGMAP){
+  ERGMAP.getContainer().style.cursor = ERGDRAWON ? ERG_PEN_CURSOR : "";
+  if(ERGDRAWON) ERGMAP.doubleClickZoom.disable(); else ERGMAP.doubleClickZoom.enable();
+ }
+ ergCoordsUI();
+}
 const KAEK_API = "https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/kaek-geo"; // καλυμμένες περιοχές: Αιτωλ/νία (Δυτ. Ελλάδα), Λευκάδα (Ιόνια)
 async function nomFetch(q){
  const r = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=gr&addressdetails=1&accept-language=el&q=" + encodeURIComponent(q), {headers:{"Accept":"application/json"}});
@@ -1353,7 +1367,19 @@ function initErgoMap(){
    {layers:"0", format:"image/png", transparent:true, version:"1.3.0", opacity:0.9, maxZoom:20, attribution:"Ελληνικό Κτηματολόγιο"});
   L.control.layers({"Δορυφόρος": sat, "Χάρτης": osm}, {"ΚΤ όρια γεωτεμαχίων": ERGKT}, {position:"topright"}).addTo(ERGMAP);
   L.control.scale({imperial:false}).addTo(ERGMAP);
-  ERGMAP.on("click", e=> ergAddVertex(e.latlng.lat, e.latlng.lng)); // v1.40: κλικ = κορυφή πολυγώνου
+  // v1.44 — κουμπί μολυβιού: σχεδίαση πολυγώνου οικοπέδου on/off
+  const pen = L.control({position:"topleft"});
+  pen.onAdd = ()=>{
+   const el = L.DomUtil.create("div","ergpen");
+   el.innerHTML = "✏️"; el.title = "Σχεδίαση πολυγώνου οικοπέδου (κλικ = κορυφή). Ξαναπάτα για τέλος.";
+   L.DomEvent.disableClickPropagation(el);
+   el.addEventListener("click", ()=> ergDrawToggle());
+   ERGPENEL = el;
+   return el;
+  };
+  pen.addTo(ERGMAP);
+  ERGDRAWON = false; if(ERGPENEL) ERGPENEL.classList.remove("on");
+  ERGMAP.on("click", e=>{ if(ERGDRAWON) ergAddVertex(e.latlng.lat, e.latlng.lng); }); // v1.44: κορυφή μόνο με ενεργό ✏
   ERGMAP.on("zoomend", ()=>{ D.ergo.zoom = ERGMAP.getZoom(); save(); });
   if(has && !(D.ergo.poly||[]).length) ergSetPin(+D.ergo.lat, +D.ergo.lon, false);
   ergRedrawPoly();
