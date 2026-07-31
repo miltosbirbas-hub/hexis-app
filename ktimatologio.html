@@ -300,14 +300,15 @@ const $ = id => document.getElementById(id);
 const _qp = new URLSearchParams(location.search);
 const _lat = parseFloat(_qp.get('lat')) || 38.715;
 const _lon = parseFloat(_qp.get('lon')) || 20.640;
-const map = L.map('map', { zoomControl:false, attributionControl:false, maxZoom:20, doubleClickZoom:false })
+const map = L.map('map', { zoomControl:false, attributionControl:false, maxZoom:21, doubleClickZoom:false })
   .setView([_lat, _lon], 18); // κέντρο: σημείο έργου ή Λευκάδα default
 
 L.control.zoom({ position:'bottomright' }).addTo(map);
 
 const esriSat = L.tileLayer(
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  { maxZoom:20, maxNativeZoom:19 }
+  // v: σε αγροτικές περιοχές η Esri δεν έχει tiles σε z19 — από z18 και πάνω μεγεθύνουμε ψηφιακά αντί να «σπάει» σε κενό
+  { maxZoom:21, maxNativeZoom:18 }
 ).addTo(map);
 
 // labels overlay (δρόμοι/ονόματα πάνω από δορυφόρο)
