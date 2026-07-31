@@ -451,28 +451,26 @@ function ringMetrics(ringXY){
 
 // ───────── ΚΑΕΚ → γεωτεμάχιο (βάση HEXIS: Αιτωλ/νία · Λευκάδα) ─────────
 const KAEK_GEO_API = "https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/kaek-geo";
+function kaekDisp(txt, cls){ const el = $("kaek"); if(el){ el.textContent = txt; el.className = "kaek-value" + (cls?" "+cls:""); } }
 async function findByKaek(){
   const inp = $("kaekQ");
   const raw = (inp ? inp.value : "").replace(/[\s.]+/g,"").split("/")[0];
   if(!/^\d{12}/.test(raw)){ setHint("Δώσε έγκυρο ΚΑΕΚ — 12 ψηφία.", "err"); if(inp) inp.focus(); return; }
   const kaek = raw.slice(0,12);
   const b = $("kaekGoBtn"); if(b){ b.disabled = true; b.textContent = "…"; }
-  $("kaek").textContent = "Αναζήτηση ΚΑΕΚ…";
-  $("kaek").className = "kaek-value loading";
+  kaekDisp("Αναζήτηση ΚΑΕΚ…", "loading");
   try{
     const r = await fetch(KAEK_GEO_API + "?kaek=" + encodeURIComponent(kaek) + "&neighbors=1&r=150");
     if(!r.ok){
       const j = await r.json().catch(()=>({}));
-      $("kaek").textContent = "Δεν βρέθηκε";
-      $("kaek").className = "kaek-value empty";
+      kaekDisp("Δεν βρέθηκε", "empty");
       setHint(j.error==="not_found"
         ? "Ο ΚΑΕΚ δεν υπάρχει στη βάση — καλύπτονται: Αιτωλοακαρνανία/Δυτ. Ελλάδα, Λευκάδα/Ιόνια."
         : "Σφάλμα: " + (j.error||r.status), "err");
       return;
     }
     const p = await r.json();
-    $("kaek").textContent = p.kaek;
-    $("kaek").className = "kaek-value";
+    kaekDisp(p.kaek, "");
     const parcels = [];
     if(p.geometry_egsa) parcels.push({ kaek: p.kaek, geometry: p.geometry_egsa });
     (p.neighbors||[]).forEach(n=>{ if(n.geometry_egsa) parcels.push({ kaek: n.kaek, geometry: n.geometry_egsa }); });
@@ -486,8 +484,7 @@ async function findByKaek(){
     const nb = (p.neighbors||[]).length;
     setHint(`✔ ΚΑΕΚ ${p.kaek} — ${p.region||""}${p.area_m2?` · ${Math.round(p.area_m2)} m²`:""}${nb?`  (+${nb} όμορα — κλικ πάνω τους για ΚΑΕΚ)`:""}`, "ok");
   }catch(err){
-    $("kaek").textContent = "Σφάλμα";
-    $("kaek").className = "kaek-value empty";
+    kaekDisp("Σφάλμα", "empty");
     setHint("Σφάλμα δικτύου: " + err.message, "err");
   }finally{
     if(b){ b.disabled = false; b.textContent = "🔎 ΚΑΕΚ"; }
