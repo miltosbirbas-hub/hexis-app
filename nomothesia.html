@@ -1028,7 +1028,10 @@ function renderLaw(key, q=""){
   law.chapters.forEach((ch,ci)=>{
     const items = ch.items.map((it,ii)=>({it,ii})).filter(({it})=>{
       if(!nq) return true;
-      return norm(it.n+" "+it.t+" "+it.d+" "+(it.k||"")+" "+(it.p||"")).includes(nq);
+      const hayRaw = norm(it.n+" "+it.t+" "+it.d+" "+(it.k||"")+" "+(it.p||""));
+      if(hayRaw.includes(nq)) return true;                 /* ακριβής φράση */
+      const need = toksOf(nq);                              /* αλλιώς: όλα τα stems */
+      return need.length > 0 && need.every(t=> itemStems(it).has(t) || hayRaw.includes(t));
     });
     if(!items.length) return;
     hits += items.length;
@@ -1564,7 +1567,7 @@ async function verifyQuestion(q){
       model:"claude-sonnet-4-6",
       max_tokens:1500,
       system:SYSTEM_REF + "\n\nΛΕΙΤΟΥΡΓΙΑ ΕΠΑΛΗΘΕΥΣΗΣ: Χρησιμοποίησε web search για να ΕΠΙΒΕΒΑΙΩΣΕΙΣ από επίσημες/έγκυρες πηγές (ΦΕΚ, et.gr, υπουργικές εγκυκλίους, έγκυρα νομικά sites) κάθε αριθμητικό μέγεθος της απάντησης. Διόρθωσε ό,τι διαφέρει και σημείωσε ρητά τι επιβεβαιώθηκε.",
-      messages:[{role:"user", content:q + "\n\n(Επαλήθευσε τα μεγέθη με live αναζήτηση σε επίσημες πηγές.)"}],
+      messages:[{role:"user", content:q + groundBlock(q) + "\n\n(Επαλήθευσε τα μεγέθη με live αναζήτηση σε επίσημες πηγές· το ΠΛΑΙΣΙΟ πιο πάνω είναι το ευρετήριο της εφαρμογής — διασταύρωσέ το.)"}],
       tools:[{type:"web_search_20250305",name:"web_search"}]
     }, streamLive);
     if(!answer) throw new Error("Κενή απάντηση");
@@ -1583,29 +1586,130 @@ async function verifyQuestion(q){
 /* ---------- ΔΩΡΕΑΝ τοπική εύρεση σε ΟΛΟΥΣ τους νόμους (χωρίς AI/API) ---------- */
 const STOPWORDS = new Set(["και","η","ο","το","τα","τον","την","τις","της","του","των","σε","στο","στη","στην","στον","στα","στις","στους","με","για","που","πως","τι","να","θελω","θα","ειναι","εχω","εχει","εχεις","απο","ενα","μια","ποσο","ποσα","ποια","ποιο","ποιος","ισχυει","μπορω","πρεπει","αν","οταν","μου","σου","δεν","κανω","βαλω","οτι","ως","κατι","ρε","οχι","ναι"]);
 
-function localFind(q){
-  const tokens = norm(q).replace(/[;,.·!?()«»"']/g," ").split(/\s+/)
-    .filter(t=> t && !STOPWORDS.has(t) && (t.length>=3 || /^\d+$/.test(t)));
-  if(!tokens.length) return [];
-  const res = [];
+/* ---------- v4.30 ΑΛΓΟΡΙΘΜΟΣ ΑΚΡΙΒΕΙΑΣ: stemming + συνώνυμα + BM25 + τεκμηριωμένη 1η απάντηση ---------- */
+function stemGr(t){
+  if(/^\d/.test(t)) return t;
+  const END = ["ιασεων","ησεων","ωσεων","οτητας","οτητες","σεων","ματων","ματος","ματα","ουσας","ουσες","οτητα","ησης","ησεις","ωσης","ωσεις","ικος","ικης","ικων","ικες","ικοι","ειας","ειες","ικα","ιας","ιες","εων","εις","ους","ων","ος","ης","ας","ες","οι","αι","α","η","ο","ι","υ","ε","ς"];
+  for(const e of END){ if(t.length - e.length >= 4 && t.endsWith(e)) return t.slice(0, -e.length); }
+  return t;
+}
+/* Συνώνυμα/καθομιλουμένη μηχανικού → όροι νομοθεσίας (τα extra tokens μετράνε με μειωμένο βάρος) */
+const SYN = {
+  "σδ":["συντελεστ","δομησ"], "σ.δ":["συντελεστ","δομησ"],
+  "νοκ":["4067"], "ταγαρ":["5306","κωδικ"],
+  "αυθαιρετ":["4495","τακτοποιησ","προστιμ"],
+  "τακτοποιησ":["4495","αυθαιρετ"],
+  "ημιυπαιθρ":["υπαιθρ","χωρ"],
+  "μπαλκον":["εξωστ","προεξοχ"], "βεραντ":["εξωστ"],
+  "παταρ":["σοφιτ","εσωτερικ"],
+  "πισιν":["κολυμβητικ","δεξαμεν","ακαλυπτ"],
+  "παρκινγκ":["σταθμευσ"], "παρκιν":["σταθμευσ"], "γκαραζ":["σταθμευσ"],
+  "ασανσερ":["ανελκυστηρ"], "σκαλ":["κλιμακοστασι","κλιμακ"],
+  "τζακ":["καπνοδοχ","εστι"],
+  "μαντρ":["περιφραξ","περιτοιχισ"], "φραχτ":["περιφραξ"],
+  "ρευμα":["οκω","συνδεσ"], "φωτοβολταικ":["απε","στεγ"],
+  "γηπεδ":["εκτος","σχεδι","αρτιοτητ"],
+  "οικοπεδ":["αρτιοτητ","οικοδομησιμ"],
+  "πρασι":["προκηπι"], "προκηπι":["πρασι"],
+  "δωμα":["στεγ","φυτεμεν"], "ταρατσ":["δωμα","στεγ"],
+  "υψος":["μεγιστ","υψ"],
+  "δασ":["δασικ"], "ρεμα":["υδατορεμ","οριοθετησ"], "ρεματ":["υδατορεμ"],
+  "αιγιαλ":["παραλι"], "θαλασσ":["αιγιαλ","παραλι"],
+  "κοτετσ":["σταβλ","αγροτικ"], "στανη":["σταβλ"],
+  "διατηρητε":["μνημει","παραδοσιακ"],
+  "μικροεργασι":["μικρ","κλιμακ"], "48":["εργασι","δομησ"],
+  "καεκ":["κτηματολογι"], "εγσα":["κτηματολογι","συντεταγμεν"],
+  "φωτια":["πυροπροστασι"], "πυρκαγι":["πυροπροστασι"]
+};
+const LAW_HINT = {
+  tagaras:["ταγαρ","5306","κωδικ"], nok:["νοκ","4067"],
+  n4495:["4495","αυθαιρετ","τακτοποιησ"], ktir:["κτιριοδομ"],
+  ktim:["κτηματολογι","καεκ"], das:["δασικ","δασαρχει"],
+  aig:["αιγιαλ","παραλι"], pyr:["πυροπροστασι","πυρασφαλει"]
+};
+function toksOf(s){
+  return norm(s).replace(/[;,.·!?()«»""'\/\-–—:]/g," ").split(/\s+/)
+    .filter(t=> t && !STOPWORDS.has(t) && (t.length>=3 || /^\d+$/.test(t)))
+    .map(stemGr);
+}
+const _stemCache = new WeakMap();
+function itemStems(it){
+  let s = _stemCache.get(it);
+  if(!s){ s = new Set(toksOf(it.n+" "+it.t+" "+(it.d||"")+" "+(it.k||"")+" "+(it.p||""))); _stemCache.set(it, s); }
+  return s;
+}
+let _IDX = null;
+function buildIdx(){
+  if(_IDX) return _IDX;
+  const docs = [];
   for(const key of Object.keys(LAWS)){
     LAWS[key].chapters.forEach((ch,ci)=> ch.items.forEach((it,ii)=>{
-      const hay1 = norm(it.n+" "+it.t+" "+(it.k||""));
-      const hay2 = norm((it.d||"")+" "+(it.p||""));
-      const nums = artNums(it.n);
-      let score = 0, matched = 0;
-      for(const t of tokens){
-        let hit = false;
-        if(/^\d+$/.test(t) && nums.includes(+t)){ score += 5; hit = true; }
-        if(hay1.includes(t)){ score += 3; hit = true; }
-        else if(hay2.includes(t)){ score += 1; hit = true; }
-        if(hit) matched++;
-      }
-      if(matched > 0) res.push({id:key+"|"+ci+"|"+ii, score, matched});
+      const t1 = new Set(toksOf(it.n+" "+it.t+" "+(it.k||"")));
+      const t2 = new Set(toksOf((it.d||"")+" "+(it.p||"")));
+      docs.push({id:key+"|"+ci+"|"+ii, key, t1, t2, nums:artNums(it.n),
+        raw:norm(it.n+" "+it.t+" "+(it.d||"")+" "+(it.k||"")+" "+(it.p||"")),
+        len:t1.size + t2.size});
     }));
   }
-  res.sort((a,b)=> b.matched - a.matched || b.score - a.score);
-  return res.slice(0,8).map(r=>r.id);
+  const df = {};
+  docs.forEach(d=>{ new Set([...d.t1, ...d.t2]).forEach(t=> df[t] = (df[t]||0)+1); });
+  const N = docs.length, avg = docs.reduce((a,d)=>a+d.len,0)/Math.max(1,N);
+  _IDX = {docs, df, N, avg};
+  return _IDX;
+}
+function localFindScored(q){
+  const IDX = buildIdx();
+  const raw = norm(q).replace(/[;,.·!?()«»""'\/\-–—:]/g," ").split(/\s+/).filter(Boolean);
+  let extra = [];
+  for(const r of raw){ for(const k in SYN){ if(r===k || r.startsWith(k)) extra = extra.concat(SYN[k]); } }
+  const qt = [...new Set(raw.filter(t=> !STOPWORDS.has(t) && (t.length>=3 || /^\d+$/.test(t))).map(stemGr))];
+  const et = [...new Set(extra.map(stemGr))].filter(t=> !qt.includes(t));
+  if(!qt.length && !et.length) return {ids:[], conf:0, list:[]};
+  const lawBoost = {};
+  for(const k in LAW_HINT){ if(LAW_HINT[k].some(h=> raw.some(r=> r===h || r.startsWith(h)))) lawBoost[k] = 1.6; }
+  const bigrams = [];
+  for(let i=0;i<raw.length-1;i++){ if(!STOPWORDS.has(raw[i]) && !STOPWORDS.has(raw[i+1])) bigrams.push(raw[i]+" "+raw[i+1]); }
+  const idf = t=>{ const d = IDX.df[t]||0; return Math.log(1 + (IDX.N - d + 0.5)/(d + 0.5)); };
+  const out = [];
+  for(const doc of IDX.docs){
+    let s = 0, matched = 0;
+    for(const t of qt){
+      if(/^\d+$/.test(t) && doc.nums.includes(+t)){ s += 6; matched++; continue; }
+      if(doc.t1.has(t)){ s += 2.4*idf(t); matched++; }
+      else if(doc.t2.has(t)){ s += 1.0*idf(t); matched++; }
+    }
+    for(const t of et){ if(doc.t1.has(t)) s += 0.9*idf(t); else if(doc.t2.has(t)) s += 0.45*idf(t); }
+    if(!s) continue;
+    for(const bg of bigrams){ if(doc.raw.includes(bg)) s += 3; }
+    const cov = qt.length ? matched/qt.length : 1;
+    s *= (0.35 + 0.65*cov);                       /* κάλυψη όρων ερώτησης */
+    s *= 1/(0.55 + 0.45*doc.len/IDX.avg);          /* κανονικοποίηση μήκους */
+    if(lawBoost[doc.key]) s *= lawBoost[doc.key];  /* στόχευση νόμου */
+    out.push({id:doc.id, s, matched});
+  }
+  out.sort((a,b)=> b.s - a.s);
+  const top = out[0];
+  let conf = 0;
+  if(top) conf = Math.min(1, (top.matched >= Math.min(2, qt.length) ? 0.55 : 0.25) + Math.min(0.45, top.s/22));
+  return {ids: out.slice(0,8).map(o=>o.id), conf, list: out.slice(0,8)};
+}
+function localFind(q){ return localFindScored(q).ids; }
+/* Τεκμηρίωση 1ης απάντησης: τα πλήρη κείμενα των κορυφαίων λημμάτων μπαίνουν στο prompt */
+function groundContext(qtext){
+  const ids = localFindScored(qtext).ids.slice(0,8);
+  const parts = [];
+  for(const id of ids){
+    const g = getItem(id); if(!g) continue;
+    const law = LAWS[id.split("|")[0]];
+    const lab = (law && law.fek) ? law.fek.split("\n")[0] : id.split("|")[0];
+    parts.push(`[[${id}]] ${lab} · ${g.it.n} — ${g.it.t}\n${[g.it.d, g.it.p].filter(Boolean).join("\n")}`);
+  }
+  return parts.join("\n\n");
+}
+function groundBlock(qtext){
+  const ctx = groundContext(qtext);
+  if(!ctx) return "";
+  return `\n\n=== ΑΥΘΕΝΤΙΚΟ ΠΛΑΙΣΙΟ ΕΥΡΕΤΗΡΙΟΥ HEXIS (ελεγμένες περιλήψεις διατάξεων) ===\n${ctx}\n=== ΚΑΝΟΝΕΣ ΑΚΡΙΒΕΙΑΣ (ΥΠΟΧΡΕΩΤΙΚΟΙ) ===\n1. Κάθε αριθμητικό μέγεθος (ποσοστά, μέτρα, τ.μ., προθεσμίες, πρόστιμα) το δίνεις ΜΟΝΟ αν προκύπτει από το παραπάνω ΠΛΑΙΣΙΟ ή είσαι απολύτως βέβαιος· διαφορετικά γράφεις δίπλα του «⚠ προς live επαλήθευση» — ΠΟΤΕ δεν μαντεύεις νούμερο.\n2. Κάθε ισχυρισμός συνοδεύεται από νόμο + άρθρο.\n3. Αν το ΠΛΑΙΣΙΟ δεν καλύπτει πλήρως την ερώτηση, το δηλώνεις ρητά και προτείνεις το κουμπί live επαλήθευσης.`;
 }
 
 async function sendQuestion(){
@@ -1615,14 +1719,15 @@ async function sendQuestion(){
   ta.value = "";
   chatHistory.push({role:"user", text});
   // ΠΡΩΤΑ δωρεάν τοπική εύρεση — κανένα API call, καμία χρέωση
-  const refs = localFind(text);
+  const found = localFindScored(text);
+  const refs = found.ids;
   const isQuestion = /;\s*$/.test(text) || /^(τι|πως|πώς|ποτε|πότε|γιατι|γιατί|ποια|ποιά|ποιο|ποιό|ποσο|πόσο|ποσα|πόσα|μπορω|μπορώ|πρεπει|πρέπει|επιτρεπεται|επιτρέπεται|ισχυει|ισχύει)\b/i.test(text.trim());
   chatHistory.push({
     role:"assistant", local:true, q:text, refs,
     text: refs.length
-      ? (isQuestion
-          ? "🔎 **Δωρεάν εύρεση** — αυτά τα άρθρα αφορούν την ερώτησή σου. Για **αναλυτική απάντηση**, πάτα το μπλε κουμπί από κάτω:"
-          : "🔎 **Δωρεάν εύρεση στο ευρετήριο** (χωρίς AI) — σχετικά άρθρα:")
+      ? ((found.conf>=0.7 ? "🎯 **Υψηλή συνάφεια ευρετηρίου.** " : found.conf<0.4 ? "ℹ️ **Χαμηλή βεβαιότητα** — πιθανώς σχετικά. " : "") + (isQuestion
+          ? "🔎 Αυτά τα άρθρα αφορούν την ερώτησή σου. Για **τεκμηριωμένη απάντηση πάνω στα κείμενά τους**, πάτα το μπλε κουμπί από κάτω:"
+          : "🔎 **Δωρεάν εύρεση στο ευρετήριο** (χωρίς AI) — σχετικά άρθρα:"))
       : "🔎 Δεν βρέθηκε κάτι στο ευρετήριο για αυτούς τους όρους. Πάτα το μπλε κουμπί για να απαντήσει το AI:"
   });
   renderAI();
@@ -1646,9 +1751,11 @@ async function askAIQuestion(){
 
   try{
     const messages = chatHistory.filter(m=>!m.err && !m.local).map(m=>({role:m.role==="user"?"user":"assistant", content:m.text}));
+    const lastU = messages.length && messages[messages.length-1].role==="user" ? messages[messages.length-1] : null;
+    if(lastU){ const gb = groundBlock(lastU.content); if(gb) lastU.content += gb; }
     let answer = await askAILive({
       model:"claude-sonnet-4-6",
-      max_tokens:1200,
+      max_tokens:1400,
       system:SYSTEM_REF,
       messages
     }, streamLive);
@@ -1915,7 +2022,7 @@ scheduleUpdateCheck();
 </script>
 <script>
 /* ---- Έκδοση (ίδια με sw.js/app.html — άλλαξέ τη ΜΑΖΙ τους) ---- */
-const NOMO_VERSION = "v4.23";
+const NOMO_VERSION = "v4.30";
 document.getElementById("nomover").textContent = NOMO_VERSION;
 
 /* ---- Κοινός service worker του HEXIS + ΑΥΤΟΜΑΤΗ αναβάθμιση ----
