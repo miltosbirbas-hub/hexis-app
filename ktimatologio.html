@@ -262,6 +262,21 @@
   <div class="actions">
     <button class="b-gps" id="gpsBtn" title="Κέντραρε στη θέση μου">📍 Θέση μου</button>
     <button class="b-find" id="ktimBtn" onclick="openKtimatologio()">🗺️ Άνοιγμα Κτηματολογίου</button>
+    <button class="b-gps" id="helpBtn" onclick="toggleHelp()" title="Οδηγίες χρήσης">❔ Οδηγίες</button>
+  </div>
+  <div id="helpOvl" style="display:none;position:fixed;inset:0;z-index:900;background:rgba(2,8,18,.82);backdrop-filter:blur(3px)" onclick="if(event.target===this)toggleHelp()">
+    <div style="max-width:560px;margin:5vh auto;max-height:88vh;overflow-y:auto;background:var(--panel);border:1px solid var(--neon);border-radius:14px;padding:18px 20px;font-size:13.5px;line-height:1.65;color:#d9f2fc;box-shadow:0 0 24px var(--neon-glow)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <b style="color:var(--neon);font-size:16px">❔ Οδηγίες — Hexis Cadastral</b>
+        <button onclick="toggleHelp()" style="background:none;border:1px solid var(--neon);color:var(--neon);border-radius:8px;padding:4px 10px;cursor:pointer;font-weight:800">✕</button>
+      </div>
+      <p><b style="color:#22d3ee">🖱 Κλικ οπουδήποτε → ΚΑΕΚ.</b> Πάτα πάνω σε γεωτεμάχιο: εμφανίζεται με έντονο περίγραμμα, ανοιχτό καρτελάκι (ΚΑΕΚ · εμβαδόν) και τα όμορά του γύρω-γύρω με διακεκομμένη γραμμή. <b>Κλικ σε όμορο</b> = γίνεται αυτό το επιλεγμένο, με δική του γειτονιά — «περπατάς» τα οικόπεδα κλικ-κλικ. Πιάνει και κοινόχρηστα ΕΚ (δρόμους, ρέματα, αιγιαλούς).</p>
+      <p><b style="color:#22d3ee">🔎 Αναζήτηση ΚΑΕΚ.</b> Ξέρεις τον αριθμό; Γράψ' τον στο πεδίο (12 ψηφία, δέχεται και ΕΚ) και το 🔎 σε πηγαίνει πάνω του με zoom.</p>
+      <p><b style="color:#22d3ee">⬇ DXF.</b> Με επιλεγμένο γεωτεμάχιο, κατεβάζει σχέδιο σε ΕΓΣΑ'87: κύριο + όμορα + κοινόχρηστα σε layers (KAEK_MAIN / KAEK_OMORA / KAEK_EK) με ετικέτες ΚΑΕΚ — ανοίγει κατευθείαν στο CAD πάνω στο τοπογραφικό.</p>
+      <p><b style="color:#22d3ee">📏 Χάρακας & ✏️ Πολύγωνο με κούμπωμα.</b> Πλησιάζοντας κορυφή γεωτεμαχίου εμφανίζεται πράσινος δακτύλιος και το κλικ κουμπώνει ακριβώς πάνω της (πράσινη κουκκίδα = δεμένο σε κορυφή ΚΤ). Δεξιά ανοίγει παράθυρο με κάθε κορυφή σε ΕΓΣΑ'87, μήκη πλευρών και — στο πολύγωνο — εμβαδόν, περίμετρο, κορυφές. Διπλό κλικ καθαρίζει, ξαναπάτημα του εργαλείου το κλείνει.</p>
+      <p><b style="color:#22d3ee">ΚΤ · 📍 · 🗺️.</b> Το «ΚΤ» ανάβει το επίσημο υπόβαθρο ορίων Κτηματολογίου (από zoom ~16). Το «Θέση μου» σε κεντράρει με GPS. Το «Άνοιγμα Κτηματολογίου» ανοίγει τον επίσημο θεατή με τις τρέχουσες συντεταγμένες.</p>
+      <p style="opacity:.75;font-size:12px;margin-bottom:0">Ο κόκκινος στόχος στο κέντρο δίνει τις συντεταγμένες ΕΓΣΑ'87/WGS84 του panel — σύρε τον χάρτη ώστε να πέσει στο σημείο και αντέγραψέ τες με τα 📋.</p>
+    </div>
   </div>
   <div style="display:flex;gap:8px;margin-top:8px">
     <input id="kaekQ" type="text" inputmode="numeric" placeholder="ΚΑΕΚ (12 ψηφία)"
@@ -558,6 +573,7 @@ map.on("click", (e)=>{
   kaekAtPoint(e.latlng.lat, e.latlng.lng);
 });
 
+function toggleHelp(){ const o = $("helpOvl"); if(o) o.style.display = (o.style.display==="none"||!o.style.display) ? "block" : "none"; }
 function kaekDisp(txt, cls){ const el = $("kaek"); if(el){ el.textContent = txt; el.className = "kaek-value" + (cls?" "+cls:""); } }
 async function findByKaek(){
   const inp = $("kaekQ");
