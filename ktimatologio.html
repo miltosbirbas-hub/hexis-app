@@ -559,10 +559,17 @@ async function kaekAtPoint(lat, lon){
     (p.neighbors||[]).forEach(n=>{ if(n.geometry_egsa) parcels.push({ kaek: n.kaek, geometry: n.geometry_egsa }); });
     if(parcels.length){
       drawAllParcels(parcels);
-      try{ if(parcelLayer){ parcelLayer.openPopup(); } }catch(e){} // v: άνοιξε αμέσως το καρτελάκι ΚΑΕΚ/εμβαδόν
+      try{
+        if(parcelLayer){
+          if(p.approx) parcelLayer.setPopupContent(`<b>ΚΑΕΚ ${p.kaek}</b><br>${p.area_m2?Math.round(p.area_m2)+" m²<br>":""}<i style="color:#f5a623">⚠ πλησιέστερο (~${p.approx_dist||""} μ) — το κλικ ήταν εκτός γεωτεμαχίου</i>`);
+          parcelLayer.openPopup();
+        }
+      }catch(e){}
     }
     const nb = (p.neighbors||[]).length;
-    setHint(`✔ ΚΑΕΚ ${p.kaek}${p.area_m2?` · ${Math.round(p.area_m2)} m²`:""}${p.approx?" (πλησιέστερο)":""}${nb?`  (+${nb} όμορα)`:""}`, "ok");
+    setHint(p.approx
+      ? `⚠ Το σημείο είναι εκτός γεωτεμαχίου (θάλασσα/κοινόχρηστο/ακάλυπτο) — πλησιέστερο: ΚΑΕΚ ${p.kaek} σε ~${p.approx_dist||"λίγα"} μ.`
+      : `✔ ΚΑΕΚ ${p.kaek}${p.area_m2?` · ${Math.round(p.area_m2)} m²`:""}${nb?`  (+${nb} όμορα)`:""}`, p.approx?"":"ok");
   }catch(err){
     kaekDisp("Σφάλμα", "empty");
     setHint("Σφάλμα δικτύου: " + err.message, "err");
