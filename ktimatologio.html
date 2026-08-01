@@ -268,6 +268,8 @@
       onkeydown="if(event.key==='Enter'){event.preventDefault();findByKaek();}">
     <button id="kaekGoBtn" onclick="findByKaek()" title="Εύρεση γεωτεμαχίου από ΚΑΕΚ"
       style="padding:10px 16px;background:var(--panel2);border:1px solid var(--neon);color:var(--neon);border-radius:9px;font-weight:800;font-size:14px;cursor:pointer">🔎 ΚΑΕΚ</button>
+    <button id="dxfBtn" onclick="downloadDXF()" title="Κατέβασμα DXF (ΕΓΣΑ'87): κύριο + όμορα + ΕΚ με ετικέτες ΚΑΕΚ"
+      style="padding:10px 16px;background:var(--panel2);border:1px solid #f5a623;color:#f5a623;border-radius:9px;font-weight:800;font-size:14px;cursor:pointer">⬇ DXF</button>
   </div>
   <div class="hint" id="hint">Σύρε τον χάρτη ώστε ο κόκκινος στόχος να πέσει στο σημείο. Πάτα 📋 για αντιγραφή των ΕΓΣΑ'87 συντεταγμένων.</div>
 </div>
@@ -451,6 +453,73 @@ function ringMetrics(ringXY){
 
 // ───────── ΚΑΕΚ → γεωτεμάχιο (βάση γεωτεμαχίων HEXIS) ─────────
 const KAEK_GEO_API = "https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/kaek-geo";
+/* ── Εξαγωγή DXF (ΕΓΣΑ'87): κύριο + όμορα + ΕΚ (δρόμοι/ρέματα) σε layers ── */
+let LASTP = null; // {main:{kaek,area_m2,geometry_egsa}, neighbors:[...]}
+function isEK(k){ return /[ΕΚEK]/.test(String(k).slice(4,8)) && /[^0-9]/.test(String(k)); }
+function dxfRing(out, ring, layer){
+  out.push("0","POLYLINE","8",layer,"66","1","70","1");
+  for(const pt of ring){ out.push("0","VERTEX","8",layer,"10",String(pt[0]),"20",String(pt[1]),"30","0"); }
+  out.push("0","SEQEND");
+}
+function dxfPoly(out, geom, layer){
+  const polys = geom.type==="Polygon" ? [geom.coordinates] : geom.type==="MultiPolygon" ? geom.coordinates : [];
+  for(const poly of polys) for(const ring of poly) dxfRing(out, ring, layer);
+}
+function dxfCentroid(geom){
+  const ring = (geom.type==="Polygon" ? geom.coordinates[0] : geom.coordinates[0][0]) || [];
+  let x=0,y=0; ring.forEach(p=>{x+=p[0];y+=p[1];});
+  return ring.length? [x/ring.length, y/ring.length] : [0,0];
+}
+function downloadDXF(){
+  if(!LASTP || !LASTP.main){ setHint("Κάνε πρώτα κλικ σε γεωτεμάχιο ή αναζήτηση ΚΑΕΚ.", "err"); return; }
+  const L1="KAEK_MAIN", L2="KAEK_OMORA", L3="KAEK_EK", L4="KAEK_TEXT";
+  const out = ["0","SECTION","2","HEADER","9","$INSUNITS","70","6","0","ENDSEC",
+   "0","SECTION","2","TABLES","0","TABLE","2","LAYER","70","4"];
+  [[L1,"1"],[L2,"4"],[L3,"3"],[L4,"7"]].forEach(([n,c])=>{
+    out.push("0","LAYER","2",n,"70","0","62",c,"6","CONTINUOUS");
+  });
+  out.push("0","ENDTAB","0","ENDSEC","0","SECTION","2","ENTITIES");
+  const items = [{p:LASTP.main, main:true}].concat((LASTP.neighbors||[]).map(n=>({p:n, main:false})));
+  for(const {p, main} of items){
+    if(!p.geometry_egsa) continue;
+    const layer = main? L1 : (isEK(p.kaek)? L3 : L2);
+    dxfPoly(out, p.geometry_egsa, layer);
+    const [cx,cy] = dxfCentroid(p.geometry_egsa);
+    const h = Math.max(1, Math.min(6, Math.sqrt(+p.area_m2||400)/18));
+    out.push("0","TEXT","8",L4,"10",String(cx),"20",String(cy),"30","0","40",h.toFixed(2),"1",String(p.kaek),"72","1","11",String(cx),"21",String(cy));
+  }
+  out.push("0","ENDSEC","0","EOF");
+  const blob = new Blob([out.join("\r\n")], {type:"application/dxf"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "KAEK_" + LASTP.main.kaek + ".dxf";
+  a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
+  const nEK = items.filter(x=>!x.main && isEK(x.p.kaek)).length;
+  setHint(`⬇ DXF: κύριο + ${items.length-1} όμορα${nEK?` (${nEK} ΕΚ)`:""} σε ΕΓΣΑ'87 — layers KAEK_MAIN/OMORA/EK/TEXT.`, "ok");
+}
+
+/* ── Επιλογή γεωτεμαχίου με ΚΑΕΚ (από κλικ σε όμορο) — ήπια ανανέωση χωρίς άλμα χάρτη ── */
+async function selectByKaek(kaek){
+  kaekDisp("Αναζήτηση ΚΑΕΚ…", "loading");
+  try{
+    const r = await fetch(KAEK_GEO_API + "?kaek=" + encodeURIComponent(kaek) + "&neighbors=1&r=150");
+    const p = await r.json().catch(()=>({}));
+    if(!r.ok || p.error){ kaekDisp("Δεν βρέθηκε", "empty"); setHint("Σφάλμα: " + (p.error||r.status), "err"); return; }
+    kaekDisp(p.kaek, "");
+    LASTP = { main: p, neighbors: p.neighbors||[] };
+    const q = $("kaekQ"); if(q) q.value = p.kaek;
+    const parcels = [];
+    if(p.geometry_egsa) parcels.push({ kaek: p.kaek, geometry: p.geometry_egsa });
+    (p.neighbors||[]).forEach(n=>{ if(n.geometry_egsa) parcels.push({ kaek: n.kaek, geometry: n.geometry_egsa }); });
+    if(parcels.length){
+      drawAllParcels(parcels);
+      try{ if(parcelLayer) parcelLayer.openPopup(); }catch(e){}
+    }
+    const nb = (p.neighbors||[]).length;
+    setHint(`✔ ΚΑΕΚ ${p.kaek}${p.area_m2?` · ${Math.round(p.area_m2)} m²`:""}${nb?`  (+${nb} όμορα)`:""}`, "ok");
+  }catch(err){ kaekDisp("Σφάλμα", "empty"); setHint("Σφάλμα δικτύου: " + err.message, "err"); }
+}
+
 /* ── Ελεύθερο κλικ στον χάρτη → ΚΑΕΚ (point-in-polygon στη βάση HEXIS) ── */
 async function kaekAtPoint(lat, lon){
   kaekDisp("Αναζήτηση ΚΑΕΚ…", "loading");
@@ -467,12 +536,15 @@ async function kaekAtPoint(lat, lon){
       return;
     }
     kaekDisp(p.kaek, "");
-    if(typeof inp !== "undefined"){}
+    LASTP = { main: p, neighbors: p.neighbors||[] };
     const q = $("kaekQ"); if(q) q.value = p.kaek;
     const parcels = [];
     if(p.geometry_egsa) parcels.push({ kaek: p.kaek, geometry: p.geometry_egsa });
     (p.neighbors||[]).forEach(n=>{ if(n.geometry_egsa) parcels.push({ kaek: n.kaek, geometry: n.geometry_egsa }); });
-    if(parcels.length) drawAllParcels(parcels);
+    if(parcels.length){
+      drawAllParcels(parcels);
+      try{ if(parcelLayer){ parcelLayer.openPopup(); } }catch(e){} // v: άνοιξε αμέσως το καρτελάκι ΚΑΕΚ/εμβαδόν
+    }
     const nb = (p.neighbors||[]).length;
     setHint(`✔ ΚΑΕΚ ${p.kaek}${p.area_m2?` · ${Math.round(p.area_m2)} m²`:""}${p.approx?" (πλησιέστερο)":""}${nb?`  (+${nb} όμορα)`:""}`, "ok");
   }catch(err){
@@ -505,12 +577,13 @@ async function findByKaek(){
     }
     const p = await r.json();
     kaekDisp(p.kaek, "");
+    LASTP = { main: p, neighbors: p.neighbors||[] };
     const parcels = [];
     if(p.geometry_egsa) parcels.push({ kaek: p.kaek, geometry: p.geometry_egsa });
     (p.neighbors||[]).forEach(n=>{ if(n.geometry_egsa) parcels.push({ kaek: n.kaek, geometry: n.geometry_egsa }); });
     if(parcels.length){
       drawAllParcels(parcels); // κύριο έντονο, όμορα διακριτικά με δικό τους popup ΚΑΕΚ/εμβαδόν
-      try{ if(parcelLayer) map.fitBounds(parcelLayer.getBounds(), { padding:[60,60], maxZoom:19 }); }catch(e){}
+      try{ if(parcelLayer){ map.fitBounds(parcelLayer.getBounds(), { padding:[60,60], maxZoom:19 }); parcelLayer.openPopup(); } }catch(e){}
     } else {
       clearParcel();
       map.setView([p.lat, p.lon], 18);
@@ -607,7 +680,13 @@ function drawAllParcels(parcels){
     const g = geomToLatLngs(parcels[i].geometry);
     if(!g.latlngs.length) continue;
     const lyr = L.polygon(g.latlngs, { color:"#67e8f9", weight:1.5, opacity:.7, fillColor:"#67e8f9", fillOpacity:.06, dashArray:"4,4" }).addTo(map);
-    lyr.bindPopup(`<b>${parcels[i].kaek||"ΚΑΕΚ"}</b><br>${Math.round(g.area)} m² <span style="opacity:.6">(όμορο)</span>`);
+    const nk = parcels[i].kaek || "";
+    // v: κλικ σε όμορο = γίνεται ΑΥΤΟ το νέο κύριο (αυτόματη ανανέωση με τη δική του γειτονιά)
+    lyr.on("click", (ev)=>{
+      L.DomEvent.stopPropagation(ev);
+      if(measuring || drawing) return;
+      if(nk && typeof selectByKaek === "function") selectByKaek(nk);
+    });
     parcelLayers.push(lyr);
   }
   // Κύριο (στην πινέζα) — έντονο νέον
@@ -625,6 +704,7 @@ function drawParcel(parcel){
     color:"#22d3ee", weight:3, opacity:1, fillColor:"#22d3ee", fillOpacity:.2
   }).addTo(map);
   parcelLayer.bindPopup(`<b>${parcel.kaek||"ΚΑΕΚ ;"}</b><br>${g.area.toFixed(1)} m²`);
+  parcelLayer.on("click", (ev)=>{ L.DomEvent.stopPropagation(ev); parcelLayer.openPopup(ev.latlng); });
   set("area",  el=> el.textContent = Math.round(g.area).toLocaleString("el-GR")+" m²");
   set("perim", el=> el.textContent = Math.round(g.perim)+" m");
   set("verts", el=> el.textContent = g.verts);
