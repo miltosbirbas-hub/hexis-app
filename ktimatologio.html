@@ -684,8 +684,8 @@ function drawAllParcels(parcels){
     const nk = parcels[i].kaek || "";
     // v: κλικ σε όμορο = γίνεται ΑΥΤΟ το νέο κύριο (αυτόματη ανανέωση με τη δική του γειτονιά)
     lyr.on("click", (ev)=>{
+      if(measuring || drawing) return; // το κλικ περνάει στο εργαλείο (snap σε κορυφές παντού)
       L.DomEvent.stopPropagation(ev);
-      if(measuring || drawing) return;
       if(nk && typeof selectByKaek === "function") selectByKaek(nk);
     });
     parcelLayers.push(lyr);
@@ -705,7 +705,7 @@ function drawParcel(parcel){
     color:"#22d3ee", weight:3, opacity:1, fillColor:"#22d3ee", fillOpacity:.2
   }).addTo(map);
   parcelLayer.bindPopup(`<b>${parcel.kaek||"ΚΑΕΚ ;"}</b><br>${g.area.toFixed(1)} m²`);
-  parcelLayer.on("click", (ev)=>{ L.DomEvent.stopPropagation(ev); parcelLayer.openPopup(ev.latlng); });
+  parcelLayer.on("click", (ev)=>{ if(measuring || drawing) return; L.DomEvent.stopPropagation(ev); parcelLayer.openPopup(ev.latlng); });
   set("area",  el=> el.textContent = Math.round(g.area).toLocaleString("el-GR")+" m²");
   set("perim", el=> el.textContent = Math.round(g.perim)+" m");
   set("verts", el=> el.textContent = g.verts);
@@ -781,7 +781,7 @@ function snapToVertex(latlng){
   if(typeof parcelLayers !== "undefined") parcelLayers.forEach(l=>layers.push(l));
   if(!layers.length) return null;
   const p0 = map.latLngToContainerPoint(latlng);
-  let best = null, bd = 16; // απόσταση κουμπώματος: 16 px
+  let best = null, bd = 20; // απόσταση κουμπώματος: 20 px
   const walk = (arr)=>{ arr.forEach(v=>{
     if(Array.isArray(v)) walk(v);
     else { const pp = map.latLngToContainerPoint(v);
