@@ -224,6 +224,7 @@
   <div class="gear" id="polyBtn" style="top:60px;left:14px;right:auto;font-size:18px" title="Σχεδίαση πολυγώνου / εμβαδόν">✏️</div>
   <div class="gear" id="ktimWmsBtn" style="top:106px;left:14px;right:auto;font-size:16px;font-weight:800" title="Όρια κτηματογράφησης (on/off)" onclick="toggleKtim()">ΚΤ</div>
   <div id="measureInfo" style="position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:600;background:var(--panel);border:1px solid var(--neon);border-radius:10px;padding:8px 14px;font-size:14px;font-weight:700;color:var(--neon);box-shadow:0 0 12px var(--neon-glow);display:none">📏 Μέτρηση: πάτα σημεία</div>
+  <div id="sidePanel" style="position:absolute;top:64px;right:10px;z-index:640;width:196px;max-height:52%;overflow-y:auto;background:rgba(5,16,32,.90);border:1px solid var(--neon);border-radius:10px;padding:8px 10px;font-size:11.5px;line-height:1.5;color:#cfeefc;box-shadow:0 0 10px var(--neon-glow);display:none;font-variant-numeric:tabular-nums"></div>
 </div>
 
 <div class="sheet">
@@ -771,6 +772,75 @@ $("gpsBtn").onclick = () => {
 
 if($("findBtn")) $("findBtn").onclick = findKaek;
 
+/* ── v: Snapping σε κορυφές τεμαχίων + πλευρικό panel μετρήσεων ─────────
+   Πλησιάζοντας κορυφή σχεδιασμένου γεωτεμαχίου (κύριου ή όμορου) εμφανίζεται πράσινος
+   δακτύλιος και το κλικ «κουμπώνει» ακριβώς πάνω της (ακρίβεια κορυφής, όχι ματιού). */
+function snapToVertex(latlng){
+  const layers = [];
+  if(typeof parcelLayer !== "undefined" && parcelLayer) layers.push(parcelLayer);
+  if(typeof parcelLayers !== "undefined") parcelLayers.forEach(l=>layers.push(l));
+  if(!layers.length) return null;
+  const p0 = map.latLngToContainerPoint(latlng);
+  let best = null, bd = 16; // απόσταση κουμπώματος: 16 px
+  const walk = (arr)=>{ arr.forEach(v=>{
+    if(Array.isArray(v)) walk(v);
+    else { const pp = map.latLngToContainerPoint(v);
+      const d = Math.hypot(pp.x-p0.x, pp.y-p0.y);
+      if(d < bd){ bd = d; best = v; } }
+  }); };
+  for(const lyr of layers){ try{ walk(lyr.getLatLngs()); }catch(e){} }
+  return best;
+}
+let SNAPMK = null;
+map.on("mousemove", (e)=>{
+  if(!(typeof measuring!=="undefined" && measuring) && !(typeof drawing!=="undefined" && drawing)){
+    if(SNAPMK){ map.removeLayer(SNAPMK); SNAPMK = null; } return;
+  }
+  const s = snapToVertex(e.latlng);
+  if(s){
+    if(!SNAPMK) SNAPMK = L.circleMarker(s, { radius:9, color:"#22c55e", weight:3, fill:false, opacity:.95 }).addTo(map);
+    else SNAPMK.setLatLng(s);
+  } else if(SNAPMK){ map.removeLayer(SNAPMK); SNAPMK = null; }
+});
+
+function hideSidePanel(){ const sp = $("sidePanel"); if(sp) sp.style.display = "none"; }
+function renderSidePanel(closed){
+  const sp = $("sidePanel"); if(!sp) return;
+  const fmt = m => m >= 1000 ? (m/1000).toFixed(3)+" km" : m.toFixed(2)+" m";
+  const rowV = (i, ll)=>{ const [E,N] = toEGSA(ll[0], ll[1]);
+    return `<div><b style="color:#22d3ee">K${i+1}</b> ${E.toFixed(2)} · ${N.toFixed(2)}</div>`; };
+  let html = "";
+  if(typeof measuring!=="undefined" && measuring && measurePts.length){
+    let total = 0; html = `<div style="font-weight:800;color:var(--neon);margin-bottom:4px">📏 Μέτρηση</div>`;
+    for(let i=0;i<measurePts.length;i++){
+      html += rowV(i, measurePts[i]);
+      if(i>0){ const [e1,n1]=toEGSA(measurePts[i-1][0],measurePts[i-1][1]); const [e2,n2]=toEGSA(measurePts[i][0],measurePts[i][1]);
+        const d = Math.hypot(e2-e1,n2-n1); total += d;
+        html += `<div style="opacity:.75;padding-left:14px">↳ ${fmt(d)}</div>`; }
+    }
+    if(measurePts.length>=2) html += `<div style="margin-top:5px;border-top:1px solid rgba(103,232,249,.3);padding-top:4px;font-weight:800">Σύνολο: ${fmt(total)}</div>`;
+  } else if(typeof drawing!=="undefined" && drawing && polyPts.length){
+    html = `<div style="font-weight:800;color:var(--neon);margin-bottom:4px">✏️ Πολύγωνο${closed?" (κλειστό)":""}</div>`;
+    for(let i=0;i<polyPts.length;i++){
+      html += rowV(i, polyPts[i]);
+      const j = i+1;
+      if(j < polyPts.length || closed){
+        const nx = polyPts[j % polyPts.length];
+        const [e1,n1]=toEGSA(polyPts[i][0],polyPts[i][1]); const [e2,n2]=toEGSA(nx[0],nx[1]);
+        html += `<div style="opacity:.75;padding-left:14px">↳ ${fmt(Math.hypot(e2-e1,n2-n1))}</div>`;
+      }
+    }
+    if(polyPts.length>=3){
+      const { area, perim } = polyArea(polyPts);
+      html += `<div style="margin-top:5px;border-top:1px solid rgba(103,232,249,.3);padding-top:4px">`+
+              `<div style="font-weight:800">Εμβαδόν: ${Math.round(area).toLocaleString("el-GR")} m²</div>`+
+              `<div>Περίμετρος: ${Math.round(perim)} m · Κορυφές: ${polyPts.length}</div></div>`;
+    }
+  }
+  if(html){ sp.innerHTML = html; sp.style.display = "block"; sp.scrollTop = sp.scrollHeight; }
+  else hideSidePanel();
+}
+
 // ───────── Μέτρηση απόστασης (ΕΓΣΑ'87) ─────────
 let measuring = false;
 let measurePts = [];      // [lat,lng]
@@ -803,19 +873,22 @@ function toggleMeasure(){
     info.style.display = "none";
     map.getContainer().style.cursor = "";
     clearMeasure();
+    hideSidePanel();
   }
 }
 $("measureBtn").onclick = toggleMeasure;
 // διπλό κλικ καθαρίζει τα σημεία (αλλά μένει σε λειτουργία μέτρησης)
-map.on("dblclick", (e) => { if(measuring){ clearMeasure(); $("measureInfo").textContent = "📏 Πάτα σημεία στον χάρτη"; } });
+map.on("dblclick", (e) => { if(measuring){ clearMeasure(); $("measureInfo").textContent = "📏 Πάτα σημεία στον χάρτη"; renderSidePanel(); } });
 
 map.on("click", (e) => {
   if(!measuring) return;
-  const ll = [e.latlng.lat, e.latlng.lng];
+  const snap = snapToVertex(e.latlng);                      // v: κούμπωμα σε κορυφή τεμαχίου
+  const ll = snap ? [snap.lat, snap.lng] : [e.latlng.lat, e.latlng.lng];
   measurePts.push(ll);
 
-  // marker στο σημείο
-  const mk = L.circleMarker(ll, { radius:5, color:"#ff3b3b", fillColor:"#ff3b3b", fillOpacity:1, weight:2 }).addTo(map);
+  // marker στο σημείο (πράσινο = κουμπωμένο σε κορυφή)
+  const col = snap ? "#22c55e" : "#ff3b3b";
+  const mk = L.circleMarker(ll, { radius:5, color:col, fillColor:col, fillOpacity:1, weight:2 }).addTo(map);
   measureMarkers.push(mk);
 
   // γραμμή
@@ -845,6 +918,7 @@ map.on("click", (e) => {
     })}).addTo(map);
     measureLabels.push(lbl);
   }
+  renderSidePanel();
 });
 
 // ───────── Σχεδίαση πολυγώνου + εμβαδόν (ΕΓΣΑ'87) ─────────
@@ -877,6 +951,7 @@ function togglePoly(){
     info.style.display = "none";
     map.getContainer().style.cursor = "";
     clearPoly();
+    hideSidePanel();
   }
 }
 $("polyBtn").onclick = togglePoly;
@@ -895,7 +970,8 @@ function polyArea(pts){
 
 map.on("click", (e) => {
   if(!drawing) return;
-  const ll = [e.latlng.lat, e.latlng.lng];
+  const snap = snapToVertex(e.latlng);                      // v: κούμπωμα σε κορυφή τεμαχίου
+  const ll = snap ? [snap.lat, snap.lng] : [e.latlng.lat, e.latlng.lng];
 
   // Αν πατήσει κοντά στο πρώτο σημείο (& έχει ≥3) → κλείσε το πολύγωνο
   if(polyPts.length >= 3){
@@ -911,12 +987,14 @@ map.on("click", (e) => {
       const fmtA = Math.round(area).toLocaleString("el-GR")+" m²";
       $("measureInfo").innerHTML = "✏️ Εμβαδόν: <b>"+fmtA+"</b>  ·  Περίμετρος: "+Math.round(perim)+" m  ·  Κορυφές: "+polyPts.length;
       polyShape.bindPopup("Εμβαδόν: "+fmtA+"<br>Περίμετρος: "+Math.round(perim)+" m").openPopup();
+      renderSidePanel(true);
       return;
     }
   }
 
   polyPts.push(ll);
-  const mk = L.circleMarker(ll, { radius:5, color:"#ff3b3b", fillColor:"#ff3b3b", fillOpacity:1, weight:2 }).addTo(map);
+  const colP = snap ? "#22c55e" : "#ff3b3b";
+  const mk = L.circleMarker(ll, { radius:5, color:colP, fillColor:colP, fillOpacity:1, weight:2 }).addTo(map);
   polyMarkers.push(mk);
   if(polyLine) map.removeLayer(polyLine);
   polyLine = L.polyline(polyPts, { color:"#22d3ee", weight:2.5, opacity:.9, dashArray:"6,4" }).addTo(map);
@@ -926,6 +1004,7 @@ map.on("click", (e) => {
     const fmtA = Math.round(area).toLocaleString("el-GR")+" m²";
     $("measureInfo").innerHTML = "✏️ Τρέχον εμβαδόν: <b>"+fmtA+"</b>  ·  πάτα στην αρχή για κλείσιμο";
   }
+  renderSidePanel();
 });
 map.on("dblclick", (e) => {
   if(drawing){ clearPoly(); $("measureInfo").textContent = "✏️ Πάτα κορυφές · 2 κλικ στην αρχή = κλείσιμο"; }
