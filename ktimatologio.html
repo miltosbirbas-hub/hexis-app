@@ -113,6 +113,12 @@
   .hint.ok{color:var(--good)}
 
   /* settings drawer */
+  /* v: λειτουργία πλήρους χάρτη (κινητό): κρύβει panel & εργαλεία, μένει μόνο το ⛶ */
+  body.mapfull .sheet{ display:none !important; }
+  body.mapfull #measureBtn, body.mapfull #polyBtn, body.mapfull #ktimWmsBtn,
+  body.mapfull #gear, body.mapfull #sidePanel{ display:none !important; }
+  body.mapfull #map{ bottom:0 !important; height:100% !important; }
+  body.mapfull #fullBtn{ background:var(--neon); color:#04101f; }
   .gear{
     position:absolute;right:14px;top:14px;z-index:700;
     width:36px;height:36px;border-radius:50%;background:rgba(14,31,46,.85);
@@ -223,6 +229,7 @@
   <div class="gear" id="measureBtn" style="top:14px;left:14px;right:auto;font-size:18px" title="Μέτρηση απόστασης">📏</div>
   <div class="gear" id="polyBtn" style="top:60px;left:14px;right:auto;font-size:18px" title="Σχεδίαση πολυγώνου / εμβαδόν">✏️</div>
   <div class="gear" id="ktimWmsBtn" style="top:106px;left:14px;right:auto;font-size:16px;font-weight:800" title="Όρια κτηματογράφησης (on/off)" onclick="toggleKtim()">ΚΤ</div>
+  <div class="gear" id="fullBtn" style="top:60px;right:14px;left:auto;font-size:18px" title="Πλήρης χάρτης — απόκρυψη panel & κουμπιών" onclick="toggleFull()">⛶</div>
   <div id="measureInfo" style="position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:600;background:var(--panel);border:1px solid var(--neon);border-radius:10px;padding:8px 14px;font-size:14px;font-weight:700;color:var(--neon);box-shadow:0 0 12px var(--neon-glow);display:none">📏 Μέτρηση: πάτα σημεία</div>
   <div id="sidePanel" style="position:absolute;top:64px;right:10px;z-index:640;width:196px;max-height:52%;overflow-y:auto;background:rgba(5,16,32,.90);border:1px solid var(--neon);border-radius:10px;padding:8px 10px;font-size:11.5px;line-height:1.5;color:#cfeefc;box-shadow:0 0 10px var(--neon-glow);display:none;font-variant-numeric:tabular-nums"></div>
 </div>
@@ -605,6 +612,10 @@ map.on("click", (e)=>{
   kaekAtPoint(e.latlng.lat, e.latlng.lng);
 });
 
+function toggleFull(){
+  document.body.classList.toggle("mapfull");
+  setTimeout(()=>{ try{ map.invalidateSize(); }catch(e){} }, 120);
+}
 function toggleHelp(){ const o = $("helpOvl"); if(o) o.style.display = (o.style.display==="none"||!o.style.display) ? "block" : "none"; }
 function kaekDisp(txt, cls){ const el = $("kaek"); if(el){ el.textContent = txt; el.className = "kaek-value" + (cls?" "+cls:""); } }
 async function findByKaek(){
