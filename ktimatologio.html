@@ -472,6 +472,28 @@ const KAEK_GEO_API = "https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/kaek
 /* ── Εξαγωγή DXF (ΕΓΣΑ'87): κύριο + όμορα + ΕΚ (δρόμοι/ρέματα) σε layers ── */
 let LASTP = null; // {main:{kaek,area_m2,geometry_egsa}, neighbors:[...]}
 function isEK(k){ return /[ΕΚEK]/.test(String(k).slice(4,8)) && /[^0-9]/.test(String(k)); }
+/* ── Έλεγχος επαφής πολυγώνων σε ΕΓΣΑ'87 (για αυστηρά όμορα στο DXF) ── */
+function _rings(g){ return g.type==="Polygon" ? g.coordinates : g.type==="MultiPolygon" ? g.coordinates.flat() : []; }
+function _segDist(px,py, ax,ay, bx,by){
+  const dx=bx-ax, dy=by-ay, L2=dx*dx+dy*dy;
+  if(!L2) return Math.hypot(px-ax, py-ay);
+  let t=((px-ax)*dx+(py-ay)*dy)/L2; t=Math.max(0,Math.min(1,t));
+  return Math.hypot(px-(ax+t*dx), py-(ay+t*dy));
+}
+function _minVertToEdges(gA, gB, tol){ // ελάχ. απόσταση κορυφών του A από πλευρές του B (early exit)
+  const RA=_rings(gA), RB=_rings(gB);
+  for(const ra of RA) for(const [px,py] of ra)
+    for(const rb of RB) for(let i=0;i<rb.length;i++){
+      const a=rb[i], b=rb[(i+1)%rb.length];
+      if(_segDist(px,py,a[0],a[1],b[0],b[1]) <= tol) return true;
+    }
+  return false;
+}
+function touchesEgsa(g1, g2, tol){
+  tol = tol || 0.6; // 0,6 μ — καλύπτει την απλοποίηση 0,5 μ των περιγραμμάτων
+  return _minVertToEdges(g1,g2,tol) || _minVertToEdges(g2,g1,tol);
+}
+
 function dxfRing(out, ring, layer){
   out.push("0","POLYLINE","8",layer,"66","1","70","1");
   for(const pt of ring){ out.push("0","VERTEX","8",layer,"10",String(pt[0]),"20",String(pt[1]),"30","0"); }
@@ -495,7 +517,10 @@ function downloadDXF(){
     out.push("0","LAYER","2",n,"70","0","62",c,"6","CONTINUOUS");
   });
   out.push("0","ENDTAB","0","ENDSEC","0","SECTION","2","ENTITIES");
-  const items = [{p:LASTP.main, main:true}].concat((LASTP.neighbors||[]).map(n=>({p:n, main:false})));
+  // v: στο DXF ΜΟΝΟ τα πραγματικά εφαπτόμενα (κοινό όριο με το κύριο) — οικόπεδα, δρόμοι, ρέματα
+  const mg = LASTP.main.geometry_egsa;
+  const touching = (LASTP.neighbors||[]).filter(n => n.geometry_egsa && mg && touchesEgsa(mg, n.geometry_egsa));
+  const items = [{p:LASTP.main, main:true}].concat(touching.map(n=>({p:n, main:false})));
   for(const {p, main} of items){
     if(!p.geometry_egsa) continue;
     const layer = main? L1 : (isEK(p.kaek)? L3 : L2);
@@ -511,7 +536,7 @@ function downloadDXF(){
   a.download = "KAEK_" + LASTP.main.kaek + ".dxf";
   a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
   const nEK = items.filter(x=>!x.main && isEK(x.p.kaek)).length;
-  setHint(`⬇ DXF: κύριο + ${items.length-1} όμορα${nEK?` (${nEK} ΕΚ)`:""} σε ΕΓΣΑ'87 — layers KAEK_MAIN/OMORA/EK/TEXT.`, "ok");
+  setHint(`⬇ DXF: κύριο + ${items.length-1} εφαπτόμενα${nEK?` (${nEK} ΕΚ/δρόμοι)`:""} σε ΕΓΣΑ'87 — layers KAEK_MAIN/OMORA/EK/TEXT.`, "ok");
 }
 
 /* ── Επιλογή γεωτεμαχίου με ΚΑΕΚ (από κλικ σε όμορο) — ήπια ανανέωση χωρίς άλμα χάρτη ── */
