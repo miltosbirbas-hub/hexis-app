@@ -304,7 +304,7 @@
       </div>
       <p><b style="color:#22d3ee">🖱 Κλικ οπουδήποτε → ΚΑΕΚ.</b> Πάτα πάνω σε γεωτεμάχιο: εμφανίζεται με έντονο περίγραμμα, ανοιχτό καρτελάκι (ΚΑΕΚ · εμβαδόν) και τα όμορά του γύρω-γύρω με διακεκομμένη γραμμή. <b>Κλικ σε όμορο</b> = γίνεται αυτό το επιλεγμένο, με δική του γειτονιά — «περπατάς» τα οικόπεδα κλικ-κλικ. Πιάνει και κοινόχρηστα ΕΚ (δρόμους, ρέματα, αιγιαλούς).</p>
       <p><b style="color:#22d3ee">🔎 Αναζήτηση ΚΑΕΚ.</b> Ξέρεις τον αριθμό; Γράψ' τον στο πεδίο (12 ψηφία, δέχεται και ΕΚ) και το 🔎 σε πηγαίνει πάνω του με zoom.</p>
-      <p><b style="color:#22d3ee">⬇ DXF.</b> Με επιλεγμένο γεωτεμάχιο, κατεβάζει σχέδιο σε ΕΓΣΑ'87: κύριο + όμορα + κοινόχρηστα σε layers (KAEK_MAIN / KAEK_OMORA / KAEK_EK) με ετικέτες ΚΑΕΚ — ανοίγει κατευθείαν στο CAD πάνω στο τοπογραφικό.</p>
+      <p><b style="color:#22d3ee">⬇ DXF.</b> Με επιλεγμένο γεωτεμάχιο, κατεβάζει σχέδιο σε ΕΓΣΑ'87: κύριο + όμορα + κοινόχρηστα σε layers (KAEK_MAIN / KAEK_OMORA / KAEK_EK) με ετικέτες ΚΑΕΚ. Αν έχεις εισάγει δασικό χάρτη (🌲), κάθε δασικό πολύγωνο που πραγματικά επικαλύπτεται με το κύριο ή τα όμορα μπαίνει κι αυτό στο DXF σε ξεχωριστά layers (DASIKOS_XARTIS / DASIKOS_TEXT) — ανοίγει κατευθείαν στο CAD πάνω στο τοπογραφικό.</p>
       <p><b style="color:#22d3ee">📏 Χάρακας & ✏️ Πολύγωνο με κούμπωμα.</b> Πλησιάζοντας κορυφή γεωτεμαχίου εμφανίζεται πράσινος δακτύλιος και το κλικ κουμπώνει ακριβώς πάνω της (πράσινη κουκκίδα = δεμένο σε κορυφή ΚΤ). Δεξιά ανοίγει παράθυρο με κάθε κορυφή σε ΕΓΣΑ'87, μήκη πλευρών και — στο πολύγωνο — εμβαδόν, περίμετρο, κορυφές. Διπλό κλικ καθαρίζει, ξαναπάτημα του εργαλείου το κλείνει.</p>
       <p><b style="color:#22d3ee">ΚΤ · 📍 · 🗺️.</b> Το «ΚΤ» ανάβει το επίσημο υπόβαθρο ορίων Κτηματολογίου (από zoom ~16). Το «Θέση μου» σε κεντράρει με GPS. Το «Άνοιγμα Κτηματολογίου» ανοίγει τον επίσημο θεατή με τις τρέχουσες συντεταγμένες.</p>
       <p><b style="color:#22d3ee">🕐 Χρονικό υπόβαθρο.</b> Άνοιξε παλιές δορυφορικές λήψεις Esri Wayback (2014-σήμερα) από dropdown, ή πάτα «📅 Ημ/νία λήψης εδώ» για να δεις πότε τραβήχτηκε το τρέχον δορυφορικό στο σημείο-στόχο. Για ακόμα παλιότερες λήψεις (1945-1960, 2007-09, 2010-11, 2015-16) ανοίγει τον επίσημο θεατή του Κτηματολογίου σε νέα καρτέλα.</p>
@@ -585,6 +585,71 @@ function cpgToEncoding(cpgText){
   if(t.includes('1253')) return 'windows-1253';
   if(t.includes('ansi') || t.includes('1252')) return 'windows-1252';
   return 'utf-8'; // v: default — τα σύγχρονα exports Κτηματολογίου έρχονται σε UTF-8
+}
+
+// ── ίδιο heuristic με reprojectXY, αλλά προορισμός ΕΓΣΑ'87 (για ενσωμάτωση δασικών πολυγώνων στο DXF, που είναι ήδη σε ΕΓΣΑ'87) ──
+function toEGSA87(x, y){
+  if(Math.abs(x) <= 180.5 && Math.abs(y) <= 90.5){
+    return proj4("EPSG:4326", "EPSG:2100", [x, y]); // ήταν lon/lat
+  }
+  if(x > 50000 && x < 950000 && y > 3800000 && y < 4700000){
+    return [x, y]; // ήδη ΕΓΣΑ'87
+  }
+  if(Math.abs(x) > 1e6 && Math.abs(y) > 1e6){
+    const [lon, lat] = proj4("EPSG:3857", "EPSG:4326", [x, y]);
+    return proj4("EPSG:4326", "EPSG:2100", [lon, lat]);
+  }
+  return [x, y]; // fallback: υπόθεσε ήδη ΕΓΣΑ'87
+}
+
+// ── γεωμετρικά βοηθητικά για επικάλυψη τεμαχίου/δασικού πολυγώνου (χρησιμοποιούνται στο downloadDXF) ──
+function bboxOfRing(ring){
+  let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+  for(const [x,y] of ring){ if(x<minx)minx=x; if(x>maxx)maxx=x; if(y<miny)miny=y; if(y>maxy)maxy=y; }
+  return [minx,miny,maxx,maxy];
+}
+function bboxOfRings(rings){
+  let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+  for(const r of rings){ const [a,b,c,d]=bboxOfRing(r); if(a<minx)minx=a; if(c>maxx)maxx=c; if(b<miny)miny=b; if(d>maxy)maxy=d; }
+  return [minx,miny,maxx,maxy];
+}
+function bboxOverlap(a,b){ return a[0]<=b[2] && a[2]>=b[0] && a[1]<=b[3] && a[3]>=b[1]; }
+function pointInRing(pt, ring){
+  const [px,py] = pt;
+  let inside = false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const [xi,yi]=ring[i], [xj,yj]=ring[j];
+    const cross = ((yi>py) !== (yj>py)) && (px < (xj-xi)*(py-yi)/(yj-yi)+xi);
+    if(cross) inside = !inside;
+  }
+  return inside;
+}
+function pointInRings(pt, rings){ // even-odd — first ring εξωτερικό, τα υπόλοιπα τρύπες
+  let c = false;
+  for(const r of rings) if(pointInRing(pt, r)) c = !c;
+  return c;
+}
+function segCross(p1,p2,p3,p4){
+  function ccw(a,b,c){ return (c[1]-a[1])*(b[0]-a[0]) - (b[1]-a[1])*(c[0]-a[0]); }
+  const d1=ccw(p3,p4,p1), d2=ccw(p3,p4,p2), d3=ccw(p1,p2,p3), d4=ccw(p1,p2,p4);
+  return ((d1>0&&d2<0)||(d1<0&&d2>0)) && ((d3>0&&d4<0)||(d3<0&&d4>0));
+}
+function ringsEdgesIntersect(ringsA, ringsB){
+  for(const ra of ringsA) for(let i=0;i<ra.length-1;i++){
+    const a1=ra[i], a2=ra[i+1];
+    for(const rb of ringsB) for(let j=0;j<rb.length-1;j++){
+      if(segCross(a1,a2,rb[j],rb[j+1])) return true;
+    }
+  }
+  return false;
+}
+// v: true αν τα δύο σύνολα rings (πολύγωνο με ενδεχόμενες τρύπες) επικαλύπτονται έστω μερικώς
+function polygonsIntersect(ringsA, ringsB){
+  const bA = bboxOfRings(ringsA), bB = bboxOfRings(ringsB);
+  if(!bboxOverlap(bA,bB)) return false;
+  for(const r of ringsA) for(const pt of r) if(pointInRings(pt, ringsB)) return true;
+  for(const r of ringsB) for(const pt of r) if(pointInRings(pt, ringsA)) return true;
+  return ringsEdgesIntersect(ringsA, ringsB);
 }
 
 async function handleForestFiles(fileList){
@@ -894,10 +959,10 @@ function dxfCentroid(geom){
 }
 function downloadDXF(){
   if(!LASTP || !LASTP.main){ setHint("Κάνε πρώτα κλικ σε γεωτεμάχιο ή αναζήτηση ΚΑΕΚ.", "err"); return; }
-  const L1="KAEK_MAIN", L2="KAEK_OMORA", L3="KAEK_EK", L4="KAEK_TEXT";
+  const L1="KAEK_MAIN", L2="KAEK_OMORA", L3="KAEK_EK", L4="KAEK_TEXT", L5="DASIKOS_XARTIS", L6="DASIKOS_TEXT";
   const out = ["0","SECTION","2","HEADER","9","$INSUNITS","70","6","0","ENDSEC",
-   "0","SECTION","2","TABLES","0","TABLE","2","LAYER","70","4"];
-  [[L1,"1"],[L2,"4"],[L3,"3"],[L4,"7"]].forEach(([n,c])=>{
+   "0","SECTION","2","TABLES","0","TABLE","2","LAYER","70","6"];
+  [[L1,"1"],[L2,"4"],[L3,"3"],[L4,"7"],[L5,"30"],[L6,"30"]].forEach(([n,c])=>{
     out.push("0","LAYER","2",n,"70","0","62",c,"6","CONTINUOUS");
   });
   out.push("0","ENDTAB","0","ENDSEC","0","SECTION","2","ENTITIES");
@@ -913,6 +978,34 @@ function downloadDXF(){
     const h = Math.max(1, Math.min(6, Math.sqrt(+p.area_m2||400)/18));
     out.push("0","TEXT","8",L4,"10",String(cx),"20",String(cy),"30","0","40",h.toFixed(2),"1",String(p.kaek),"72","1","11",String(cx),"21",String(cy));
   }
+  // v: επικάλυψη με εισαγμένους δασικούς χάρτες — ό,τι πραγματικά τέμνει το κύριο/όμορα μπαίνει σε ξεχωριστό layer
+  const forestMatches = [];
+  if(forestLayers.length){
+    const parcelRingsList = items.map(({p}) => p.geometry_egsa ? _rings(p.geometry_egsa) : []).filter(r => r.length);
+    const parcelBBoxes = parcelRingsList.map(bboxOfRings);
+    forestLayers.forEach(fl => {
+      (fl.shapes||[]).forEach((rec, i) => {
+        if(!rec || !rec.parts || !rec.parts.length || rec.isLine) return;
+        const ringsE = rec.parts.map(ring => ring.map(([x,y]) => toEGSA87(x,y)));
+        const fBBox = bboxOfRings(ringsE);
+        for(let k=0;k<parcelRingsList.length;k++){
+          if(!bboxOverlap(fBBox, parcelBBoxes[k])) continue;
+          if(polygonsIntersect(parcelRingsList[k], ringsE)){
+            forestMatches.push({ ringsE, attrs:(fl.attrs||[])[i]||{}, layerName: fl.name });
+            break;
+          }
+        }
+      });
+    });
+  }
+  forestMatches.forEach(m => {
+    m.ringsE.forEach(ring => dxfRing(out, ring, L5));
+    const ring0 = m.ringsE[0];
+    let sx=0, sy=0; ring0.forEach(p=>{ sx+=p[0]; sy+=p[1]; });
+    const cx = sx/ring0.length, cy = sy/ring0.length;
+    const label = m.attrs.KATHGORDX || m.attrs.LANDTYPE || m.layerName || 'ΔΑΣΙΚΟ';
+    out.push("0","TEXT","8",L6,"10",String(cx),"20",String(cy),"30","0","40","3.00","1",String(label),"72","1","11",String(cx),"21",String(cy));
+  });
   out.push("0","ENDSEC","0","EOF");
   const blob = new Blob([out.join("\r\n")], {type:"application/dxf"});
   const a = document.createElement("a");
@@ -920,7 +1013,8 @@ function downloadDXF(){
   a.download = "KAEK_" + LASTP.main.kaek + ".dxf";
   a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
   const nEK = items.filter(x=>!x.main && isEK(x.p.kaek)).length;
-  setHint(`⬇ DXF: κύριο + ${items.length-1} εφαπτόμενα${nEK?` (${nEK} ΕΚ/δρόμοι)`:""} σε ΕΓΣΑ'87 — layers KAEK_MAIN/OMORA/EK/TEXT.`, "ok");
+  const nDasos = forestMatches.length;
+  setHint(`⬇ DXF: κύριο + ${items.length-1} εφαπτόμενα${nEK?` (${nEK} ΕΚ/δρόμοι)`:""}${nDasos?` + ${nDasos} δασικά πολύγωνα`:""} σε ΕΓΣΑ'87 — layers KAEK_MAIN/OMORA/EK/TEXT${nDasos?"/DASIKOS_XARTIS/DASIKOS_TEXT":""}.`, "ok");
 }
 
 /* ── Επιλογή γεωτεμαχίου με ΚΑΕΚ (από κλικ σε όμορο) — ήπια ανανέωση χωρίς άλμα χάρτη ── */
