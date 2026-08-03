@@ -284,7 +284,7 @@ footer{text-align:center}
       </div>
     </div>
     <div class="optrow" id="ktimaOptRow">
-      <input type="checkbox" id="ktimaOn" checked>
+      <input type="checkbox" id="ktimaOn">
       <label for="ktimaOn">Το ακίνητο βρίσκεται σε περιοχή <b>λειτουργούντος Κτηματολογίου</b> (απαιτείται layer PST_KAEK)</label>
     </div>
     <div class="optrow" id="zoneOptRow" title="Χρησιμοποιείται στον έλεγχο αποδεκτής απόκλισης εμβαδού (άρθ. 13α ν.2664/98)">
@@ -1014,7 +1014,7 @@ function validate(doc, file, dgType, ktimaOn){
    UI
 ===================================================================== */
 const $=s=>document.querySelector(s);
-let dgType=null, ktimaOn=true, lastDXF=null, lastCheck=null;
+let dgType=null, ktimaOn=false, lastDXF=null, lastCheck=null;
 
 document.querySelectorAll('#typeCards .card').forEach(c=>{
   c.addEventListener('click',()=>{
@@ -1053,6 +1053,10 @@ async function runCheck(){
   }
   try{ text=new TextDecoder('utf-8',{fatal:false}).decode(buf); }catch{ text=''; }
   const doc=parseDXF(text);
+  // auto-detect λειτουργούντος Κτηματολογίου από ύπαρξη PST_KAEK layer
+  const hasPstKaek=Object.keys(doc.tables&&doc.tables.layer&&doc.tables.layer.layers||{}).some(l=>l.toUpperCase()==='PST_KAEK')
+    || (doc.header&&doc.blocks&&Object.values(doc.blocks).some(b=>(b.entities||[]).some(e=>e.layer&&e.layer.toUpperCase()==='PST_KAEK')));
+  if(hasPstKaek && !ktimaOn){ ktimaOn=true; $('#ktimaOn').checked=true; }
   lastCheck=validate(doc,lastDXF,dgType,ktimaOn);
   lastCheck.doc=doc;
   render(lastCheck);
@@ -1179,15 +1183,15 @@ function initMapView(check){
   if(hxMap){ try{ hxMap.remove(); }catch(e){} hxMap=null; }
   hxGroups={};
 
-  hxMap = L.map('hxmap',{ zoomControl:true, attributionControl:false, maxZoom:20 });
+  hxMap = L.map('hxmap',{ zoomControl:true, attributionControl:false, maxZoom:21 });
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    { maxZoom:20, maxNativeZoom:19 }).addTo(hxMap);
+    { maxZoom:21, maxNativeZoom:18 }).addTo(hxMap);
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
     { maxZoom:20, maxNativeZoom:19, opacity:.9 }).addTo(hxMap);
 
   hxKtWMS = L.tileLayer.wms(
     'https://gis.ktimanet.gr/inspire/rest/services/cadastralparcels/CadastralParcelWMS/MapServer/exts/InspireView/service',
-    { layers:'0', format:'image/png', transparent:true, version:'1.3.0', opacity:.9, maxZoom:20, attribution:'Ελληνικό Κτηματολόγιο' });
+    { layers:'0', format:'image/png', transparent:true, version:'1.3.0', opacity:.9, maxZoom:21, attribution:'Ελληνικό Κτηματολόγιο' });
   const ktBtn=document.getElementById('hxmapKT');
   hxKtOn=false;
   if(ktBtn) ktBtn.onclick=()=>{
