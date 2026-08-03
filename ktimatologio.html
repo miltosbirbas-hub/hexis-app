@@ -350,12 +350,37 @@ const $ = id => document.getElementById(id);
 // ───────── Map με ESRI δορυφόρο ─────────
 // Διάβασε lat/lon από το URL (αν ανοίξει από έργο του hexis)
 const _qp = new URLSearchParams(location.search);
-const _lat = parseFloat(_qp.get('lat')) || 37.97528;
-const _lon = parseFloat(_qp.get('lon')) || 23.73639;
+const _lat = parseFloat(_qp.get('lat')) || 37.97529;
+const _lon = parseFloat(_qp.get('lon')) || 23.73619;
 const map = L.map('map', { zoomControl:false, attributionControl:false, maxZoom:21, doubleClickZoom:false })
   .setView([_lat, _lon], 18); // κέντρο: σημείο έργου ή Μνημείο Αγνώστου Στρατιώτη (Σύνταγμα) default
 
 L.control.zoom({ position:'bottomright' }).addTo(map);
+
+// v: αν δεν δόθηκε lat/lon στο URL, δοκίμασε να κεντράρεις κατά προσέγγιση μέσω IP —
+//    ΠΡΟΣΟΧΗ: ακρίβεια επιπέδου πόλης/παρόχου, όχι ακριβής διεύθυνση. Αν αποτύχει, μένει το default (Μνημείο Αγνώστου Στρατιώτη).
+if(!_qp.get('lat') && !_qp.get('lon')){
+  (async function locateByIP(){
+    const sources = [
+      { url:'https://ipapi.co/json/', lat:j=>j.latitude, lon:j=>j.longitude, label:j=>[j.city,j.country_name].filter(Boolean).join(', ') },
+      { url:'https://get.geojs.io/v1/ip/geo.json', lat:j=>parseFloat(j.latitude), lon:j=>parseFloat(j.longitude), label:j=>[j.city,j.country].filter(Boolean).join(', ') }
+    ];
+    for(const src of sources){
+      try{
+        const r = await fetch(src.url);
+        if(!r.ok) continue;
+        const j = await r.json();
+        const lat = src.lat(j), lon = src.lon(j);
+        if(Number.isFinite(lat) && Number.isFinite(lon)){
+          map.setView([lat, lon], 14);
+          setHint('📍 Κέντραρε κατά προσέγγιση στην περιοχή σου (' + src.label(j) + ') μέσω IP — όχι ακριβές GPS, μετακίνησε τον χάρτη αν χρειάζεται.', '');
+          return;
+        }
+      }catch(err){ /* δοκίμασε την επόμενη πηγή */ }
+    }
+    // αποτυχία σε όλες τις πηγές — μένει το default center
+  })();
+}
 
 const esriSat = L.tileLayer(
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
