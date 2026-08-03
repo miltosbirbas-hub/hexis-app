@@ -116,6 +116,7 @@
   /* v: λειτουργία πλήρους χάρτη (κινητό): κρύβει panel & εργαλεία, μένει μόνο το ⛶ */
   body.mapfull .sheet{ display:none !important; }
   body.mapfull #measureBtn, body.mapfull #polyBtn, body.mapfull #ktimWmsBtn,
+  body.mapfull #timeBtn, body.mapfull #timePanel,
   body.mapfull #gear, body.mapfull #sidePanel{ display:none !important; }
   body.mapfull #map{ bottom:0 !important; height:100% !important; }
   body.mapfull #fullBtn{ background:var(--neon); color:#04101f; }
@@ -229,6 +230,17 @@
   <div class="gear" id="measureBtn" style="top:14px;left:14px;right:auto;font-size:18px" title="Μέτρηση απόστασης">📏</div>
   <div class="gear" id="polyBtn" style="top:60px;left:14px;right:auto;font-size:18px" title="Σχεδίαση πολυγώνου / εμβαδόν">✏️</div>
   <div class="gear" id="ktimWmsBtn" style="top:106px;left:14px;right:auto;font-size:16px;font-weight:800" title="Όρια κτηματογράφησης (on/off)" onclick="toggleKtim()">ΚΤ</div>
+  <div class="gear" id="timeBtn" style="top:152px;left:14px;right:auto;font-size:17px" title="Χρονικό υπόβαθρο — ιστορικές αεροφωτογραφίες" onclick="toggleTimePanel()">🕐</div>
+  <div id="timePanel" style="display:none;position:absolute;top:152px;left:58px;z-index:700;background:rgba(5,16,32,.96);border:1px solid var(--neon);border-radius:10px;padding:10px;width:230px;box-shadow:0 0 12px var(--neon-glow)">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px;letter-spacing:.5px">ΧΡΟΝΙΚΟ ΥΠΟΒΑΘΡΟ</div>
+    <select id="timeSelect" onchange="onTimeSelect()" style="width:100%;padding:8px;background:var(--panel2);border:1px solid var(--neon);border-radius:8px;color:var(--text);font-size:12.5px;margin-bottom:8px">
+      <option value="current">🛰 Δορυφόρος (τρέχον)</option>
+      <option value="_loading" disabled>⏳ Wayback — άνοιξε για φόρτωση</option>
+    </select>
+    <button onclick="fetchImageryDate()" style="width:100%;padding:8px;background:var(--panel2);border:1px solid #f5a623;color:#f5a623;border-radius:8px;font-weight:800;font-size:12px;cursor:pointer;margin-bottom:6px">📅 Ημ/νία λήψης εδώ</button>
+    <div id="imgDateOut" style="font-size:11.5px;color:var(--olive-bright);min-height:14px;margin-bottom:6px"></div>
+    <button onclick="openKtimatologioHistoric()" style="width:100%;padding:8px;background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;font-size:11.5px;cursor:pointer">↗ Ιστορικό Κτηματολογίου (1945-2016)</button>
+  </div>
   <div class="gear" id="fullBtn" style="top:60px;right:14px;left:auto;font-size:18px" title="Πλήρης χάρτης — απόκρυψη panel & κουμπιών" onclick="toggleFull()">⛶</div>
   <div id="measureInfo" style="position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:600;background:var(--panel);border:1px solid var(--neon);border-radius:10px;padding:8px 14px;font-size:14px;font-weight:700;color:var(--neon);box-shadow:0 0 12px var(--neon-glow);display:none">📏 Μέτρηση: πάτα σημεία</div>
   <div id="sidePanel" style="position:absolute;top:64px;right:10px;z-index:640;width:196px;max-height:52%;overflow-y:auto;background:rgba(5,16,32,.90);border:1px solid var(--neon);border-radius:10px;padding:8px 10px;font-size:11.5px;line-height:1.5;color:#cfeefc;box-shadow:0 0 10px var(--neon-glow);display:none;font-variant-numeric:tabular-nums"></div>
@@ -282,6 +294,7 @@
       <p><b style="color:#22d3ee">⬇ DXF.</b> Με επιλεγμένο γεωτεμάχιο, κατεβάζει σχέδιο σε ΕΓΣΑ'87: κύριο + όμορα + κοινόχρηστα σε layers (KAEK_MAIN / KAEK_OMORA / KAEK_EK) με ετικέτες ΚΑΕΚ — ανοίγει κατευθείαν στο CAD πάνω στο τοπογραφικό.</p>
       <p><b style="color:#22d3ee">📏 Χάρακας & ✏️ Πολύγωνο με κούμπωμα.</b> Πλησιάζοντας κορυφή γεωτεμαχίου εμφανίζεται πράσινος δακτύλιος και το κλικ κουμπώνει ακριβώς πάνω της (πράσινη κουκκίδα = δεμένο σε κορυφή ΚΤ). Δεξιά ανοίγει παράθυρο με κάθε κορυφή σε ΕΓΣΑ'87, μήκη πλευρών και — στο πολύγωνο — εμβαδόν, περίμετρο, κορυφές. Διπλό κλικ καθαρίζει, ξαναπάτημα του εργαλείου το κλείνει.</p>
       <p><b style="color:#22d3ee">ΚΤ · 📍 · 🗺️.</b> Το «ΚΤ» ανάβει το επίσημο υπόβαθρο ορίων Κτηματολογίου (από zoom ~16). Το «Θέση μου» σε κεντράρει με GPS. Το «Άνοιγμα Κτηματολογίου» ανοίγει τον επίσημο θεατή με τις τρέχουσες συντεταγμένες.</p>
+      <p><b style="color:#22d3ee">🕐 Χρονικό υπόβαθρο.</b> Άνοιξε παλιές δορυφορικές λήψεις Esri Wayback (2014-σήμερα) από dropdown, ή πάτα «📅 Ημ/νία λήψης εδώ» για να δεις πότε τραβήχτηκε το τρέχον δορυφορικό στο σημείο-στόχο. Για ακόμα παλιότερες λήψεις (1945-1960, 2007-09, 2010-11, 2015-16) ανοίγει τον επίσημο θεατή του Κτηματολογίου σε νέα καρτέλα.</p>
       <p style="opacity:.75;font-size:12px;margin-bottom:0">Ο κόκκινος στόχος στο κέντρο δίνει τις συντεταγμένες ΕΓΣΑ'87/WGS84 του panel — σύρε τον χάρτη ώστε να πέσει στο σημείο και αντέγραψέ τες με τα 📋.</p>
     </div>
   </div>
@@ -355,6 +368,91 @@ const ktimWMS = L.tileLayer.wms(
     attribution: 'Ελληνικό Κτηματολόγιο'
   }
 );
+// ── Χρονικό υπόβαθρο: Esri Wayback (2014-σήμερα) + query ημερομηνίας λήψης ──
+let waybackLayer = null, waybackList = null;
+const WAYBACK_CFG = 'https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json';
+
+function toggleTimePanel(){
+  const p = $('timePanel');
+  const willOpen = p.style.display === 'none';
+  p.style.display = willOpen ? 'block' : 'none';
+  if(willOpen && !waybackList) loadWaybackList();
+}
+
+async function loadWaybackList(){
+  const sel = $('timeSelect');
+  try{
+    const r = await fetch(WAYBACK_CFG);
+    const cfg = await r.json();
+    waybackList = Object.values(cfg)
+      .map(it => ({ releaseNum: it.releaseNum, label: it.releaseDateLabel, url: it.itemURL }))
+      .sort((a, b) => b.releaseNum - a.releaseNum);
+    sel.innerHTML = '<option value="current">🛰 Δορυφόρος (τρέχον)</option>';
+    const og = document.createElement('optgroup');
+    og.label = 'Wayback — ιστορικές λήψεις (2014-σήμερα)';
+    waybackList.forEach(it => {
+      const o = document.createElement('option');
+      o.value = String(it.releaseNum);
+      o.textContent = it.label;
+      og.appendChild(o);
+    });
+    sel.appendChild(og);
+  }catch(err){
+    sel.innerHTML = '<option value="current">🛰 Δορυφόρος (τρέχον)</option>';
+    setHint('Δεν φορτώθηκε η λίστα Wayback — έλεγξε σύνδεση.', 'err');
+  }
+}
+
+function onTimeSelect(){
+  const v = $('timeSelect').value;
+  if(waybackLayer){ map.removeLayer(waybackLayer); waybackLayer = null; }
+  if(v === 'current'){
+    if(!map.hasLayer(esriSat)) esriSat.addTo(map);
+    esriSat.bringToBack();
+    setHint('Υπόβαθρο: τρέχον δορυφορικό (Esri).', 'ok');
+    return;
+  }
+  const item = (waybackList || []).find(it => String(it.releaseNum) === v);
+  if(!item) return;
+  if(map.hasLayer(esriSat)) map.removeLayer(esriSat);
+  const url = item.url.replace('{level}', '{z}').replace('{row}', '{y}').replace('{col}', '{x}');
+  waybackLayer = L.tileLayer(url, { maxZoom: 21, maxNativeZoom: 18 }).addTo(map);
+  waybackLayer.bringToBack();
+  setHint('Υπόβαθρο: Wayback ' + item.label + '.', 'ok');
+}
+
+// v: ημερομηνία λήψης (SRC_DATE2) στο σημείο-στόχο — μόνο για το τρέχον Esri (το Wayback έχει ήδη γνωστή ημ/νία από το label)
+async function fetchImageryDate(){
+  const out = $('imgDateOut');
+  if(waybackLayer){ out.textContent = 'Ήδη γνωστή: ' + $('timeSelect').selectedOptions[0].textContent; return; }
+  out.textContent = 'Αναζήτηση…';
+  const c = map.getCenter();
+  const b = map.getBounds();
+  try{
+    const url = 'https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/identify'
+      + '?f=json&geometry=' + encodeURIComponent(c.lng + ',' + c.lat)
+      + '&geometryType=esriGeometryPoint&sr=4326&layers=all'
+      + '&tolerance=3&imageDisplay=400,400,96&returnGeometry=false'
+      + '&mapExtent=' + encodeURIComponent(b.getWest() + ',' + b.getSouth() + ',' + b.getEast() + ',' + b.getNorth());
+    const r = await fetch(url);
+    const j = await r.json();
+    const res = (j.results || []).find(x => x.attributes && (x.attributes.SRC_DATE2 || x.attributes.SRC_DATE));
+    if(!res){ out.textContent = 'Χωρίς μεταδεδομένα εδώ.'; return; }
+    const a = res.attributes;
+    const date = a.SRC_DATE2 || a.SRC_DATE || '—';
+    const src = a.NICE_DESC || a.NICE_NAME || '';
+    out.textContent = '📅 ' + date + (src ? ' · ' + src : '');
+  }catch(err){
+    out.textContent = 'Σφάλμα δικτύου.';
+  }
+}
+
+// v: το gis.ktimanet.gr μπλοκάρει αυτοματοποιημένη πρόσβαση (robots) — ανοίγουμε τον επίσημο θεατή σε νέα καρτέλα αντί για ενσωμάτωση WMS layer (τα ονόματα layers δεν επαληθεύτηκαν)
+function openKtimatologioHistoric(){
+  window.open('https://gis.ktimanet.gr/wms/ktbasemap/default.aspx', '_blank');
+  setHint('Άνοιξε ο επίσημος θεατής — επίλεξε υπόβαθρο 1945-1960 / 2007-09 / 2010-11 / 2015-16 πάνω αριστερά, με βάση τις συντεταγμένες X/Y του panel.', '');
+}
+
 let ktimOn = false;
 function toggleKtim(){
   ktimOn = !ktimOn;
