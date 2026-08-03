@@ -10,6 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.11.0/proj4.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4leaflet/1.0.2/proj4leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
 <style>
   :root{
@@ -116,7 +117,7 @@
   /* v: λειτουργία πλήρους χάρτη (κινητό): κρύβει panel & εργαλεία, μένει μόνο το ⛶ */
   body.mapfull .sheet{ display:none !important; }
   body.mapfull #measureBtn, body.mapfull #polyBtn, body.mapfull #ktimWmsBtn,
-  body.mapfull #timeBtn, body.mapfull #timePanel,
+  body.mapfull #timeBtn, body.mapfull #timePanel, body.mapfull #forestBtn, body.mapfull #forestPanel,
   body.mapfull #gear, body.mapfull #sidePanel{ display:none !important; }
   body.mapfull #map{ bottom:0 !important; height:100% !important; }
   body.mapfull #fullBtn{ background:var(--neon); color:#04101f; }
@@ -231,6 +232,18 @@
   <div class="gear" id="polyBtn" style="top:60px;left:14px;right:auto;font-size:18px" title="Σχεδίαση πολυγώνου / εμβαδόν">✏️</div>
   <div class="gear" id="ktimWmsBtn" style="top:106px;left:14px;right:auto;font-size:16px;font-weight:800" title="Όρια κτηματογράφησης (on/off)" onclick="toggleKtim()">ΚΤ</div>
   <div class="gear" id="timeBtn" style="top:152px;left:14px;right:auto;font-size:17px" title="Χρονικό υπόβαθρο — ιστορικές αεροφωτογραφίες" onclick="toggleTimePanel()">🕐</div>
+  <div class="gear" id="forestBtn" style="top:198px;left:14px;right:auto;font-size:17px" title="Δασικός χάρτης — εισαγωγή SHP & θεατής" onclick="toggleForestPanel()">🌲</div>
+  <div id="forestPanel" style="display:none;position:absolute;top:198px;left:58px;z-index:700;background:rgba(5,16,32,.96);border:1px solid var(--neon);border-radius:10px;padding:10px;width:250px;max-height:60vh;overflow-y:auto;box-shadow:0 0 12px var(--neon-glow)">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px;letter-spacing:.5px">ΔΑΣΙΚΟΣ ΧΑΡΤΗΣ</div>
+    <button onclick="openForestMap()" style="width:100%;padding:8px;background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:8px;font-size:11.5px;cursor:pointer;margin-bottom:8px">↗ Επίσημος θεατής (download SHP)</button>
+    <label style="display:block;width:100%;padding:8px;background:var(--panel2);border:1px dashed #34d399;color:#34d399;border-radius:8px;font-weight:800;font-size:12px;cursor:pointer;text-align:center;margin-bottom:4px">
+      📂 Εισαγωγή SHP (.zip)
+      <input id="forestFileInput" type="file" accept=".zip" multiple style="display:none" onchange="handleForestFiles(this.files)">
+    </label>
+    <div id="forestImportHint" style="font-size:11px;color:var(--muted);min-height:14px;margin-bottom:8px"></div>
+    <div id="forestLayerList" style="display:flex;flex-direction:column;gap:6px"></div>
+    <button id="forestClearAllBtn" onclick="clearAllForestLayers()" style="display:none;width:100%;padding:7px;margin-top:8px;background:none;border:1px solid var(--bad);color:var(--bad);border-radius:8px;font-size:11px;cursor:pointer">🗑 Καθαρισμός όλων</button>
+  </div>
   <div id="timePanel" style="display:none;position:absolute;top:152px;left:58px;z-index:700;background:rgba(5,16,32,.96);border:1px solid var(--neon);border-radius:10px;padding:10px;width:230px;box-shadow:0 0 12px var(--neon-glow)">
     <div style="font-size:11px;color:var(--muted);margin-bottom:6px;letter-spacing:.5px">ΧΡΟΝΙΚΟ ΥΠΟΒΑΘΡΟ</div>
     <select id="timeSelect" onchange="onTimeSelect()" style="width:100%;padding:8px;background:var(--panel2);border:1px solid var(--neon);border-radius:8px;color:var(--text);font-size:12.5px;margin-bottom:8px">
@@ -295,6 +308,7 @@
       <p><b style="color:#22d3ee">📏 Χάρακας & ✏️ Πολύγωνο με κούμπωμα.</b> Πλησιάζοντας κορυφή γεωτεμαχίου εμφανίζεται πράσινος δακτύλιος και το κλικ κουμπώνει ακριβώς πάνω της (πράσινη κουκκίδα = δεμένο σε κορυφή ΚΤ). Δεξιά ανοίγει παράθυρο με κάθε κορυφή σε ΕΓΣΑ'87, μήκη πλευρών και — στο πολύγωνο — εμβαδόν, περίμετρο, κορυφές. Διπλό κλικ καθαρίζει, ξαναπάτημα του εργαλείου το κλείνει.</p>
       <p><b style="color:#22d3ee">ΚΤ · 📍 · 🗺️.</b> Το «ΚΤ» ανάβει το επίσημο υπόβαθρο ορίων Κτηματολογίου (από zoom ~16). Το «Θέση μου» σε κεντράρει με GPS. Το «Άνοιγμα Κτηματολογίου» ανοίγει τον επίσημο θεατή με τις τρέχουσες συντεταγμένες.</p>
       <p><b style="color:#22d3ee">🕐 Χρονικό υπόβαθρο.</b> Άνοιξε παλιές δορυφορικές λήψεις Esri Wayback (2014-σήμερα) από dropdown, ή πάτα «📅 Ημ/νία λήψης εδώ» για να δεις πότε τραβήχτηκε το τρέχον δορυφορικό στο σημείο-στόχο. Για ακόμα παλιότερες λήψεις (1945-1960, 2007-09, 2010-11, 2015-16) ανοίγει τον επίσημο θεατή του Κτηματολογίου σε νέα καρτέλα.</p>
+      <p><b style="color:#22d3ee">🌲 Δασικός χάρτης.</b> Ανοίγει τον επίσημο θεατή κυρωμένων/αναρτημένων δασικών χαρτών σε νέα καρτέλα — εκεί κατεβάζεις SHP για την ορατή περιοχή (χρειάζεται manual βήμα στο δικό τους UI, δεν είναι ενσωματωμένο layer).</p>
       <p style="opacity:.75;font-size:12px;margin-bottom:0">Ο κόκκινος στόχος στο κέντρο δίνει τις συντεταγμένες ΕΓΣΑ'87/WGS84 του panel — σύρε τον χάρτη ώστε να πέσει στο σημείο και αντέγραψέ τες με τα 📋.</p>
     </div>
   </div>
@@ -446,6 +460,271 @@ async function fetchImageryDate(){
     out.textContent = 'Σφάλμα δικτύου.';
   }
 }
+
+// v: δασικοί χάρτες — ελεύθερα αλλά μέσω manual download στο επίσημο UI (SHP για την ορατή περιοχή, όχι per-ΚΑΕΚ API· gis.ktimanet.gr μπλοκάρει robots οπότε δεν επαληθεύτηκε σταθερό REST/WMS endpoint για ενσωμάτωση)
+function openForestMap(){
+  window.open('https://gis.ktimanet.gr/gis/forestfinal', '_blank');
+  setHint('Άνοιξε ο δασικός χάρτης (κυρωμένος/μερικώς κυρωμένος). Ζούμαρε στην περιοχή (κλίμακα >1:20.000) και πάτα «Κατέβασμα πληροφορίας Κυρωμένου Δασικού Χάρτη» στη γραμμή εργαλείων για SHP. Αν η περιοχή δεν έχει ακόμα κύρωση, δες τον αναρτημένο χάρτη: gis.ktimanet.gr/gis/forestsuspension', '');
+}
+
+function toggleForestPanel(){
+  const p = $('forestPanel');
+  p.style.display = (p.style.display === 'none') ? 'block' : 'none';
+}
+
+// ═══════ Εισαγωγή SHP (.zip) — δασικοί χάρτες / οποιοδήποτε shapefile πολυγώνων ═══════
+// v: parser γραμμένος από το μηδέν (χωρίς shpjs) ώστε να ελέγχουμε πλήρως το reprojection —
+//    το ίδιο proj4/EPSG:2100 που ήδη χρησιμοποιεί η εφαρμογή για ΕΓΣΑ'87.
+const FOREST_LS_KEY = 'hx_forest_layers_v1';
+let forestLayers = [];      // [{id, name, color, visible, leafletLayer, count, persisted}]
+const FOREST_PALETTE = ['#22c55e','#f59e0b','#38bdf8','#f472b6','#a78bfa','#fb923c','#4ade80','#facc15'];
+let forestColorIdx = 0;
+
+function nextForestColor(){ return FOREST_PALETTE[(forestColorIdx++) % FOREST_PALETTE.length]; }
+
+// ── .dbf (dBase III) → array of attribute objects, ίδια σειρά με τα records του .shp ──
+// v: encoding — πραγματικά αρχεία του Κτηματολογίου έρχονται με συνοδευτικό .cpg που δηλώνει UTF-8·
+//    windows-1253 κρατιέται ως fallback για παλιότερα/άλλης προέλευσης shapefiles χωρίς .cpg.
+function parseDbf(buf, encoding){
+  const dv = new DataView(buf);
+  const headerLen = dv.getUint16(8, true);
+  const recordLen = dv.getUint16(10, true);
+  const numRecords = dv.getUint32(4, true);
+  const fields = [];
+  let off = 32;
+  while(off < headerLen - 1 && dv.getUint8(off) !== 0x0D){
+    let name = '';
+    for(let i=0;i<11;i++){ const c = dv.getUint8(off+i); if(c) name += String.fromCharCode(c); }
+    const len = dv.getUint8(off+16);
+    fields.push({ name: name.trim(), len });
+    off += 32;
+  }
+  const records = [];
+  const primary = encoding || 'utf-8';
+  let dec, decFallback;
+  try{ dec = new TextDecoder(primary); }catch(e){ dec = new TextDecoder('utf-8'); }
+  try{ decFallback = new TextDecoder(primary === 'windows-1253' ? 'utf-8' : 'windows-1253'); }catch(e){ decFallback = new TextDecoder('utf-8'); }
+  let recOff = headerLen;
+  for(let r=0; r<numRecords; r++){
+    const attrs = {};
+    let fOff = recOff + 1; // 1 byte deletion flag
+    for(const f of fields){
+      const bytes = new Uint8Array(buf, fOff, f.len);
+      let txt;
+      try{ txt = dec.decode(bytes); }catch(e){ try{ txt = decFallback.decode(bytes); }catch(e2){ txt = new TextDecoder('utf-8').decode(bytes); } }
+      attrs[f.name] = txt.trim();
+      fOff += f.len;
+    }
+    records.push(attrs);
+    recOff += recordLen;
+  }
+  return records;
+}
+
+// ── .shp → array of {parts:[[ [x,y],... ], ...]} για shape types Polygon/PolygonZ/PolygonM (5/15/25) και PolyLine (3/13/23) ──
+function parseShp(buf){
+  const dv = new DataView(buf);
+  const shapeType = dv.getInt32(32, true);
+  const isPolyish = [3,5,13,15,23,25].includes(shapeType);
+  const isPoint = [1,11,21].includes(shapeType);
+  const records = [];
+  let off = 100;
+  while(off < buf.byteLength){
+    off += 4; // record number
+    const contentLenWords = dv.getInt32(off, false); off += 4;
+    const contentEnd = off + contentLenWords * 2;
+    const st = dv.getInt32(off, true);
+    if(st === 0){ records.push(null); off = contentEnd; continue; }
+    if(isPolyish){
+      const numParts = dv.getInt32(off + 36, true);
+      const numPoints = dv.getInt32(off + 40, true);
+      const partsIdx = [];
+      let p = off + 44;
+      for(let i=0;i<numParts;i++){ partsIdx.push(dv.getInt32(p, true)); p += 4; }
+      const pts = [];
+      for(let i=0;i<numPoints;i++){
+        pts.push([dv.getFloat64(p, true), dv.getFloat64(p+8, true)]);
+        p += 16;
+      }
+      const parts = partsIdx.map((start, i) => {
+        const end = (i+1 < partsIdx.length) ? partsIdx[i+1] : numPoints;
+        return pts.slice(start, end);
+      });
+      records.push({ parts, isLine: (shapeType===3||shapeType===13||shapeType===23) });
+    }else if(isPoint){
+      records.push({ point: [dv.getFloat64(off+4, true), dv.getFloat64(off+12, true)] });
+    }else{
+      records.push(null); // v: shape type μη υποστηριζόμενο (π.χ. MultiPoint) — αγνοείται
+    }
+    off = contentEnd;
+  }
+  return records;
+}
+
+// ── heuristic reprojection: ΕΓΣΑ'87 (EPSG:2100) / Web Mercator (3857) / ήδη WGS84 ──
+function reprojectXY(x, y){
+  if(Math.abs(x) <= 180.5 && Math.abs(y) <= 90.5) return [x, y]; // ήδη lon/lat
+  if(x > 50000 && x < 950000 && y > 3800000 && y < 4700000){
+    const [lon, lat] = proj4("EPSG:2100", "EPSG:4326", [x, y]);
+    return [lon, lat];
+  }
+  if(Math.abs(x) > 1e6 && Math.abs(y) > 1e6){
+    const [lon, lat] = proj4("EPSG:3857", "EPSG:4326", [x, y]);
+    return [lon, lat];
+  }
+  // fallback: δοκίμασε ΕΓΣΑ'87 έστω κι αν είναι οριακά εκτός εύρους
+  const [lon, lat] = proj4("EPSG:2100", "EPSG:4326", [x, y]);
+  return [lon, lat];
+}
+
+// v: χαρτογράφηση περιεχομένου .cpg → όνομα codepage αποδεκτό από TextDecoder
+function cpgToEncoding(cpgText){
+  const t = (cpgText || '').trim().toLowerCase();
+  if(!t) return 'utf-8';
+  if(t.includes('65001') || t.includes('utf-8') || t.includes('utf8')) return 'utf-8';
+  if(t.includes('1253')) return 'windows-1253';
+  if(t.includes('ansi') || t.includes('1252')) return 'windows-1252';
+  return 'utf-8'; // v: default — τα σύγχρονα exports Κτηματολογίου έρχονται σε UTF-8
+}
+
+async function handleForestFiles(fileList){
+  const hint = $('forestImportHint');
+  const files = Array.from(fileList || []);
+  if(!files.length) return;
+  for(const file of files){
+    hint.textContent = 'Άνοιγμα ' + file.name + '…';
+    try{
+      const zip = await JSZip.loadAsync(file);
+      const entries = Object.keys(zip.files).filter(n => !zip.files[n].dir);
+      const shpNames = entries.filter(n => /\.shp$/i.test(n));
+      if(!shpNames.length){ hint.textContent = 'Δεν βρέθηκε .shp μέσα στο ' + file.name; continue; }
+      for(const shpName of shpNames){
+        const base = shpName.replace(/\.shp$/i, '');
+        const dbfName = entries.find(n => n.toLowerCase() === (base + '.dbf').toLowerCase());
+        const cpgName = entries.find(n => n.toLowerCase() === (base + '.cpg').toLowerCase());
+        const shpBuf = await zip.files[shpName].async('arraybuffer');
+        const dbfBuf = dbfName ? await zip.files[dbfName].async('arraybuffer') : null;
+        const cpgText = cpgName ? await zip.files[cpgName].async('text') : '';
+        const encoding = cpgToEncoding(cpgText);
+        const shapes = parseShp(shpBuf);
+        const attrs = dbfBuf ? parseDbf(dbfBuf, encoding) : [];
+        addForestLayer(base.split('/').pop(), shapes, attrs);
+      }
+      hint.textContent = '✔ Φορτώθηκε: ' + file.name;
+    }catch(err){
+      hint.textContent = '✖ Σφάλμα στο ' + file.name + ': ' + err.message;
+    }
+  }
+  $('forestFileInput').value = '';
+  saveForestLayersToStorage();
+}
+
+function shapesToLeafletLayer(shapes, attrs, color){
+  const group = L.featureGroup();
+  let count = 0;
+  shapes.forEach((rec, i) => {
+    if(!rec) return;
+    const props = attrs[i] || {};
+    const popupHtml = Object.keys(props).length
+      ? '<b>Χαρακτηριστικά</b><br>' + Object.entries(props).filter(([k,v])=>v).map(([k,v]) => k + ': ' + v).join('<br>')
+      : '';
+    if(rec.point){
+      const [lon, lat] = reprojectXY(rec.point[0], rec.point[1]);
+      const m = L.circleMarker([lat, lon], { radius: 5, color, weight: 2, fillOpacity: .7 });
+      if(popupHtml) m.bindPopup(popupHtml);
+      group.addLayer(m); count++;
+      return;
+    }
+    if(!rec.parts || !rec.parts.length) return;
+    const rings = rec.parts.map(ring => ring.map(([x,y]) => { const [lon,lat] = reprojectXY(x,y); return [lat, lon]; }));
+    const shape = rec.isLine
+      ? L.polyline(rings, { color, weight: 2 })
+      : L.polygon(rings, { color, weight: 1.5, fillColor: color, fillOpacity: .35 });
+    if(popupHtml) shape.bindPopup(popupHtml);
+    group.addLayer(shape); count++;
+  });
+  return { group, count };
+}
+
+function addForestLayer(name, shapes, attrs, opts){
+  opts = opts || {};
+  const color = opts.color || nextForestColor();
+  const { group, count } = shapesToLeafletLayer(shapes, attrs, color);
+  const id = opts.id || ('fl_' + Date.now() + '_' + Math.random().toString(36).slice(2,7));
+  const visible = opts.visible !== false;
+  if(visible) group.addTo(map);
+  const entry = { id, name, color, visible, leafletLayer: group, count, shapes, attrs };
+  forestLayers.push(entry);
+  renderForestLayerList();
+  if(visible && count){ try{ map.fitBounds(group.getBounds(), { maxZoom: 17, padding:[20,20] }); }catch(e){} }
+  return entry;
+}
+
+function toggleForestLayerVisibility(id){
+  const e = forestLayers.find(x => x.id === id);
+  if(!e) return;
+  e.visible = !e.visible;
+  if(e.visible) e.leafletLayer.addTo(map); else map.removeLayer(e.leafletLayer);
+  renderForestLayerList();
+  saveForestLayersToStorage();
+}
+
+function removeForestLayer(id){
+  const idx = forestLayers.findIndex(x => x.id === id);
+  if(idx === -1) return;
+  map.removeLayer(forestLayers[idx].leafletLayer);
+  forestLayers.splice(idx, 1);
+  renderForestLayerList();
+  saveForestLayersToStorage();
+}
+
+function clearAllForestLayers(){
+  forestLayers.forEach(e => map.removeLayer(e.leafletLayer));
+  forestLayers = [];
+  renderForestLayerList();
+  try{ localStorage.removeItem(FOREST_LS_KEY); }catch(e){}
+  setHint('Καθαρίστηκαν όλα τα εισαγμένα πολύγωνα.', '');
+}
+
+function renderForestLayerList(){
+  const list = $('forestLayerList');
+  list.innerHTML = '';
+  forestLayers.forEach(e => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:6px;background:var(--panel2);border-radius:8px;padding:6px 8px;font-size:11.5px';
+    row.innerHTML =
+      '<input type="checkbox" ' + (e.visible?'checked':'') + ' style="accent-color:'+e.color+'" onchange="toggleForestLayerVisibility(\'' + e.id + '\')">' +
+      '<span style="width:10px;height:10px;border-radius:50%;background:' + e.color + ';flex:none"></span>' +
+      '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)" title="' + e.name + '">' + e.name + '</span>' +
+      '<span style="color:var(--muted);font-size:10px">' + e.count + '</span>' +
+      '<span style="cursor:pointer;color:var(--bad);font-weight:800" onclick="removeForestLayer(\'' + e.id + '\')">✕</span>';
+    list.appendChild(row);
+  });
+  $('forestClearAllBtn').style.display = forestLayers.length ? 'block' : 'none';
+}
+
+// ── Persistence: localStorage (raw shapes+attrs, ήδη μικρά αριθμητικά arrays· fallback σε session-only αν γεμίσει ο χώρος) ──
+function saveForestLayersToStorage(){
+  try{
+    const data = forestLayers.map(e => ({ id:e.id, name:e.name, color:e.color, visible:e.visible, shapes:e.shapes, attrs:e.attrs }));
+    localStorage.setItem(FOREST_LS_KEY, JSON.stringify(data));
+  }catch(err){
+    setHint('⚠ Ο χώρος αποθήκευσης γέμισε — τα πολύγωνα θα μείνουν μόνο για αυτή τη συνεδρία (φεύγουν με ανανέωση).', '');
+  }
+}
+
+function loadForestLayersFromStorage(){
+  let raw = null;
+  try{ raw = localStorage.getItem(FOREST_LS_KEY); }catch(e){}
+  if(!raw) return;
+  try{
+    const data = JSON.parse(raw);
+    data.forEach(d => addForestLayer(d.name, d.shapes, d.attrs, { id:d.id, color:d.color, visible:d.visible }));
+  }catch(err){
+    setHint('Αποτυχία επαναφοράς αποθηκευμένων δασικών πολυγώνων.', 'err');
+  }
+}
+loadForestLayersFromStorage();
 
 // v: το gis.ktimanet.gr μπλοκάρει αυτοματοποιημένη πρόσβαση (robots) — ανοίγουμε τον επίσημο θεατή σε νέα καρτέλα αντί για ενσωμάτωση WMS layer (τα ονόματα layers δεν επαληθεύτηκαν)
 function openKtimatologioHistoric(){
