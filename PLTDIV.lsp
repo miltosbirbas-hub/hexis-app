@@ -153,13 +153,101 @@
   (entmake dxfList)
 )
 
+;; βρίσκει τα σημεία όπου μια ευθεία (linePt, κάθετη στο dir) τέμνει τις
+;; πλευρές του πολυγώνου. Επιστρέφει λίστα (edgeIndex . point).
+(defun KT:crossingsIdx (poly linePt dir / n i a b da db pts)
+  (setq pts nil n (length poly) i 0)
+  (while (< i n)
+    (setq a (nth i poly) b (nth (rem (1+ i) n) poly))
+    (setq da (KT:sd a linePt dir))
+    (setq db (KT:sd b linePt dir))
+    (if (< (* da db) 0.0)
+      (setq pts (cons (cons i (KT:lineX a b linePt dir)) pts))
+    )
+    (setq i (1+ i))
+  )
+  (reverse pts)
+)
+
+;; το σημείο με τη μικρότερη απόσταση από refPt μέσα σε μια λίστα σημείων
+(defun KT:minByDist (pts refPt / best bestD p)
+  (setq best (car pts) bestD (distance refPt (car pts)))
+  (foreach p (cdr pts)
+    (if (< (distance refPt p) bestD) (progn (setq best p) (setq bestD (distance refPt p))))
+  )
+  best
+)
+
+;; αφαιρεί ένα σημείο (με ανοχή) από λίστα σημείων
+(defun KT:removeItem (lst item / result p)
+  (setq result nil)
+  (foreach p lst (if (not (equal p item 1e-6)) (setq result (cons p result))))
+  (reverse result)
+)
+
+;; ταξινομεί σημεία κατά αύξουσα απόσταση από refPt
+(defun KT:sortByDist (pts refPt / remaining result best)
+  (setq remaining pts result nil)
+  (while remaining
+    (setq best (KT:minByDist remaining refPt))
+    (setq result (cons best result))
+    (setq remaining (KT:removeItem remaining best))
+  )
+  (reverse result)
+)
+
+;; χτίζει τη νέα πλήρη λίστα κορυφών του αρχικού πολυγώνου, εισάγοντας τα
+;; νέα σημεία τομής στη σωστή θέση πάνω σε κάθε πλευρά
+(defun KT:buildNewVertList (verts allCross / n i result grp)
+  (setq n (length verts) result nil i 0)
+  (while (< i n)
+    (setq result (cons (nth i verts) result))
+    (setq grp nil)
+    (foreach c allCross (if (= (car c) i) (setq grp (cons (cdr c) grp))))
+    (if grp
+      (progn
+        (setq grp (KT:sortByDist grp (nth i verts)))
+        (foreach g grp (setq result (cons g result)))
+      )
+    )
+    (setq i (1+ i))
+  )
+  (reverse result)
+)
+
+;; ξαναφτιάχνει τη λίστα DXF μιας LWPOLYLINE με νέα λίστα κορυφών,
+;; κρατώντας layer/χρώμα/κλειστό κλπ ίδια
+(defun KT:rebuildEntity (edata newVerts / preList postList found pr)
+  (setq preList nil postList nil found nil)
+  (foreach pr edata
+    (cond
+      ((member (car pr) '(10 40 41 42 91)) nil)
+      ((= (car pr) 90)
+        (setq preList (cons (cons 90 (length newVerts)) preList))
+        (setq found T)
+      )
+      ((and found (member (car pr) '(70 43 38 39)))
+        (setq preList (cons pr preList))
+      )
+      (found (setq postList (cons pr postList)))
+      (T (setq preList (cons pr preList)))
+    )
+  )
+  (setq preList (reverse preList))
+  (setq postList (reverse postList))
+  (append preList (mapcar (function (lambda (p) (cons 10 p))) newVerts) postList)
+)
+
 ;; ---------- ΚΥΡΙΟΣ ΑΛΓΟΡΙΘΜΟΣ ΚΑΤΑΤΜΗΣΗΣ ----------
-;; Επιστρέφει λίστα από (piece frontageLen pieceArea), Ν στοιχεία.
+;; Επιστρέφει (list results allCross):
+;;  results  = λίστα από (piece frontageLen pieceArea), Ν στοιχεία
+;;  allCross = λίστα (edgeIndex . point) - σημεία τομής πάνω στο ΑΡΧΙΚΟ όριο
 ;; minSide = nil -> χωρίς περιορισμό ελάχιστου μήκους.
 (defun KT:split (poly totalArea nParts F1 F2 minSide /
                   dirV dirLen dirU projs pmin pmax originPt sweepLen
                   remaining remArea remParts prevT k target
-                  loT hiT lo hi mid areaMid tCut linePt piece frLen results v proj)
+                  loT hiT lo hi mid areaMid tCut linePt piece frLen results v proj
+                  allCross)
 
   (setq dirV (list (- (car F2) (car F1)) (- (cadr F2) (cadr F1))))
   (setq dirLen (distance F1 F2))
@@ -180,6 +268,7 @@
   (setq remParts nParts)
   (setq prevT 0.0)
   (setq results nil)
+  (setq allCross nil)
   (setq k 1)
   (while (< k nParts)
     (setq target (/ remArea remParts))
@@ -195,6 +284,8 @@
     )
     (setq tCut (/ (+ lo hi) 2.0))
     (setq linePt (list (+ (car originPt) (* tCut (car dirU))) (+ (cadr originPt) (* tCut (cadr dirU)))))
+    ;; σημεία όπου η ΤΟΜΗ αγγίζει το ΑΡΧΙΚΟ όριο (για vertex insertion)
+    (setq allCross (append allCross (KT:crossingsIdx poly linePt dirU)))
     (setq piece (KT:clip remaining linePt dirU T))
     (setq remaining (KT:clip remaining linePt dirU nil))
     (setq frLen (- tCut prevT))
@@ -206,7 +297,7 @@
   )
   (setq frLen (- sweepLen prevT))
   (setq results (cons (list remaining frLen (KT:area remaining)) results))
-  (reverse results)
+  (list (reverse results) allCross)
 )
 
 ;; ================================================================
@@ -216,7 +307,7 @@
                        sel ent edata verts totalArea nParts
                        roadAns pk1 pk2 edgeAB F1 F2 minSide
                        sweepCheck pieces layName idx item piece frLen ar
-                       cen txtH txt totCheck )
+                       cen txtH txt totCheck splitResult newCross newVertList )
 
   (defun *error* (msg)
     (if oldosmode (setvar "OSMODE" oldosmode))
@@ -301,7 +392,23 @@
   )
 
   ;; ---------------- ΚΑΤΑΤΜΗΣΗ ----------------
-  (setq pieces (KT:split verts totalArea nParts F1 F2 minSide))
+  (setq splitResult (KT:split verts totalArea nParts F1 F2 minSide))
+  (setq pieces   (nth 0 splitResult))
+  (setq newCross (nth 1 splitResult))
+
+  ;; ---------------- ΕΝΗΜΕΡΩΣΗ ΑΡΧΙΚΟΥ ΠΟΛΥΓΩΝΟΥ ΜΕ ΝΕΕΣ ΚΟΡΥΦΕΣ ----------------
+  ;; Τα σημεία όπου δημιουργείται κάθε κοινό όριο μπαίνουν ως πραγματικές
+  ;; vertices στο ΑΡΧΙΚΟ πολύγωνο, ώστε να συμμετέχουν σε μελλοντικό
+  ;; υπολογισμό εμβαδού/λίστα συντεταγμένων του.
+  (if newCross
+    (progn
+      (setq newVertList (KT:buildNewVertList verts newCross))
+      (entmod (KT:rebuildEntity edata newVertList))
+      (entupd ent)
+      (princ (strcat "\n\U+03A0\U+03C1\U+03BF\U+03C3\U+03C4\U+03AD\U+03B8\U+03B7\U+03BA\U+03B1\U+03BD " (itoa (length newCross))
+                      " \U+03BD\U+03AD\U+03B5\U+03C2 \U+03BA\U+03BF\U+03C1\U+03C5\U+03C6\U+03AD\U+03C2 \U+03C3\U+03C4\U+03BF \U+03B1\U+03C1\U+03C7\U+03B9\U+03BA\U+03CC \U+03C0\U+03BF\U+03BB\U+03CD\U+03B3\U+03C9\U+03BD\U+03BF."))
+    )
+  )
 
   ;; ---------------- LAYER ----------------
   (setq layName (KT:layer))
