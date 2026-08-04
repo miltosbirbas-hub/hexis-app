@@ -312,8 +312,14 @@
   (setq originPt (list (+ (car F1) (* pmin (car dirU))) (+ (cadr F1) (* pmin (cadr dirU)))))
   (setq sweepLen (- pmax pmin))
 
-  ;; γωνίες κλίσης της τομής να δοκιμαστούν (μοίρες), απο μικρή προς μεγάλη αποκλιση
-  (setq angleList (list 0.0 -5.0 5.0 -10.0 10.0 -15.0 15.0 -20.0 20.0 -25.0 25.0 -30.0 30.0 -35.0 35.0 -40.0 40.0))
+  ;; γωνίες κλίσης της τομής να δοκιμαστούν (μοίρες), απο μικρή προς μεγάλη αποκλιση.
+  ;; Χωρίς απαίτηση ελάχιστου πλάτους δοκιμάζεται ΜΟΝΟ η κάθετη (γρήγορο, όπως πριν).
+  (setq angleList
+    (if (and minWidth (> minWidth 0.0))
+      (list 0.0 -5.0 5.0 -10.0 10.0 -15.0 15.0 -20.0 20.0 -25.0 25.0 -30.0 30.0 -35.0 35.0 -40.0 40.0)
+      (list 0.0)
+    )
+  )
 
   (setq remaining poly)
   (setq remArea totalArea)
@@ -328,13 +334,16 @@
     (setq hiT (- sweepLen (* (if minSide minSide 0.0) (1- remParts))))
     (if (> loT hiT) (setq loT hiT))
 
+    (princ (strcat "\n\U+03A5\U+03C0\U+03BF\U+03BB\U+03BF\U+03B3\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2 \U+03C4\U+03BF\U+03BC\U+03AE\U+03C2 " (itoa k) "/" (itoa (1- nParts)) " "))
+
     (setq satPiece nil fbPiece nil fbWidth -1.0)
 
     (foreach angDeg angleList
+      (princ ".")
       (setq angRad (* pi (/ angDeg 180.0)))
       (setq cutNormal (KT:rotVec dirU angRad))
       (setq lo loT hi hiT)
-      (repeat 40
+      (repeat 25
         (setq mid (/ (+ lo hi) 2.0))
         (setq linePt (list (+ (car originPt) (* mid (car dirU))) (+ (cadr originPt) (* mid (cadr dirU)))))
         (setq areaMid (KT:area (KT:clip remaining linePt cutNormal T)))
@@ -365,6 +374,7 @@
       (setq chosenPiece fbPiece chosenRemaining fbRemaining chosenTCut fbTCut
             chosenLinePt fbLinePt chosenNormal fbNormal chosenWidth fbWidth)
     )
+    (princ " OK")
 
     ;; σημεία όπου η ΤΟΜΗ αγγίζει το ΑΡΧΙΚΟ όριο (για vertex insertion)
     (setq allCross (append allCross (KT:crossingsIdx poly chosenLinePt chosenNormal)))
