@@ -318,12 +318,51 @@
   (list chosenPiece chosenRemaining allCross)
 )
 
+;; ελεγχος αν το σημειο pt βρισκεται μεσα στο πολυγωνο poly (ray casting)
+(defun KT:pointInPoly (pt poly / n i j inside xi yi xj yj px py c1 c2)
+  (setq inside nil n (length poly))
+  (setq px (car pt) py (cadr pt))
+  (setq j (1- n) i 0)
+  (while (< i n)
+    (setq xi (car (nth i poly)) yi (cadr (nth i poly)))
+    (setq xj (car (nth j poly)) yj (cadr (nth j poly)))
+    (setq c1 (> yi py) c2 (> yj py))
+    (if (and (or (and c1 (not c2)) (and (not c1) c2))
+             (< px (+ xi (/ (* (- xj xi) (- py yi)) (- yj yi)))))
+      (setq inside (not inside))
+    )
+    (setq j i)
+    (setq i (1+ i))
+  )
+  inside
+)
+
+;; ιδιο με KT:cutOne, αλλα εγγυαται οτι το σημειο-ενδειξη indPt καταληγει
+;; μεσα στο ΝΕΟ ΤΕΜΑΧΙΟ (οχι στο υπολοιπο) - δοκιμαζει και τις 2 πλευρες.
+(defun KT:cutOriented (poly totalArea targetArea F1 F2 minSide minWidth indPt /
+                        res1 piece1 rem1 cross1 res2 piece2 rem2 cross2)
+  (setq res1 (KT:cutOne poly totalArea targetArea F1 F2 minSide minWidth))
+  (setq piece1 (nth 0 res1) rem1 (nth 1 res1) cross1 (nth 2 res1))
+  (cond
+    ((KT:pointInPoly indPt piece1) (list piece1 rem1 cross1))
+    ((KT:pointInPoly indPt rem1)
+      (setq res2 (KT:cutOne poly totalArea (- totalArea targetArea) F1 F2 minSide minWidth))
+      (setq piece2 (nth 0 res2) rem2 (nth 1 res2) cross2 (nth 2 res2))
+      (list rem2 piece2 cross2)
+    )
+    (T
+      (princ "\n\U+03A0\U+03A1\U+039F\U+03A3\U+039F\U+03A7\U+0397: \U+03C4\U+03BF \U+03C3\U+03B7\U+03BC\U+03B5\U+03AF\U+03BF-\U+03AD\U+03BD\U+03B4\U+03B5\U+03B9\U+03BE\U+03B7 \U+03B4\U+03B5\U+03BD \U+03B2\U+03C1\U+03AD\U+03B8\U+03B7\U+03BA\U+03B5 \U+03BA\U+03B1\U+03B8\U+03B1\U+03C1\U+03AC \U+03C3\U+03B5 \U+03BA\U+03B1\U+03BC\U+03AF\U+03B1 \U+03C0\U+03BB\U+03B5\U+03C5\U+03C1\U+03AC - \U+03BA\U+03C1\U+03B1\U+03C4\U+03AE\U+03B8\U+03B7\U+03BA\U+03B5 \U+03B7 \U+03C0\U+03C1\U+03BF\U+03B5\U+03C0\U+03B9\U+03BB\U+03BF\U+03B3\U+03AE.")
+      (list piece1 rem1 cross1)
+    )
+  )
+)
+
 ;; ================================================================
 ;; ΕΝΤΟΛΗ PLTCUT — αποκοπή τμήματος συγκεκριμένου εμβαδού από πλευρά
 ;; ================================================================
 (defun c:PLTCUT ( / *error* oldosmode oldcmdecho oldlayer
                      sel ent edata verts totalArea targetArea
-                     roadAns pk1 pk2 edgeAB F1 F2 minSide minWidth rawW
+                     roadAns pk1 pk2 edgeAB F1 F2 minSide minWidth rawW indPt
                      cutRes newPiece remPiece newCross newVertList
                      layName txtH cen txt )
 
@@ -389,6 +428,14 @@
     )
   )
 
+  ;; ---------------- ΣΗΜΕΙΟ-ΕΝΔΕΙΞΗ ΝΕΟΥ ΤΕΜΑΧΙΟΥ ----------------
+  ;; Υποχρεωτικο: δειχνεις ενα σημειο που πρεπει να καταληξει ΜΕΣΑ στο
+  ;; νεο τεμαχιο (π.χ. υπαρχον δεντρο, πασσαλος, ή απλα προς τα που θες
+  ;; να "κοιταει" το κομματι). Ετσι ο αλγοριθμος ξερει ΠΟΙΑ απο τις 2
+  ;; πλευρες του πολυγωνου να κρατησει ως νεο τεμαχιο.
+  (setq indPt (getpoint "\n\U+03A3\U+03B7\U+03BC\U+03B5\U+03AF\U+03BF \U+03BC\U+03AD\U+03C3\U+03B1 \U+03C3\U+03C4\U+03BF \U+039D\U+0395\U+039F \U+03C4\U+03B5\U+03BC\U+03AC\U+03C7\U+03B9\U+03BF - \U+03C0.\U+03C7. \U+03B4\U+03AF\U+03C0\U+03BB\U+03B1 \U+03C3\U+03B5 \U+03B4\U+03AD\U+03BD\U+03C4\U+03C1\U+03BF, \U+03C0\U+03AC\U+03C3\U+03C3\U+03B1\U+03BB\U+03BF \U+03AE \U+03CC\U+03C1\U+03B9\U+03BF \U+03C0\U+03BF\U+03C5 \U+03BE\U+03AD\U+03C1\U+03B5\U+03B9\U+03C2 (\U+03B4\U+03B5\U+03AF\U+03C7\U+03BD\U+03B5\U+03B9 \U+03A0\U+039F\U+0399\U+0391 \U+03C0\U+03BB\U+03B5\U+03C5\U+03C1\U+03AC \U+03BA\U+03C1\U+03B1\U+03C4\U+03AC\U+03BC\U+03B5): "))
+  (if (not indPt) (progn (setvar "OSMODE" oldosmode) (setvar "CMDECHO" oldcmdecho) (exit)))
+
   ;; ---------------- ΕΛΑΧΙΣΤΟ ΠΛΑΤΟΣ ΤΕΜΑΧΙΟΥ ----------------
   (initget "E K")
   (setq rawW (getreal "\n\U+0395\U+03BB\U+03AC\U+03C7\U+03B9\U+03C3\U+03C4\U+03BF \U+03C0\U+03BB\U+03AC\U+03C4\U+03BF\U+03C2 \U+03C4\U+03B5\U+03BC\U+03B1\U+03C7\U+03AF\U+03BF\U+03C5 (\U+03BC.) \U+03AE [E=\U+0395\U+03BD\U+03C4\U+03CC\U+03C2 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5=5/K=\U+0395\U+03BA\U+03C4\U+03CC\U+03C2 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5=15] <0=\U+03C7\U+03C9\U+03C1\U+03AF\U+03C2 \U+03AD\U+03BB\U+03B5\U+03B3\U+03C7\U+03BF>: "))
@@ -399,8 +446,8 @@
     (T (setq minWidth rawW))
   )
 
-  ;; ---------------- ΑΠΟΚΟΠΗ ----------------
-  (setq cutRes (KT:cutOne verts totalArea targetArea F1 F2 minSide minWidth))
+  ;; ---------------- ΑΠΟΚΟΠΗ (σεβεται το σημειο-ενδειξη) ----------------
+  (setq cutRes (KT:cutOriented verts totalArea targetArea F1 F2 minSide minWidth indPt))
   (setq newPiece (nth 0 cutRes) remPiece (nth 1 cutRes) newCross (nth 2 cutRes))
 
   ;; ---------------- ΕΝΗΜΕΡΩΣΗ ΑΡΧΙΚΟΥ ΠΟΛΥΓΩΝΟΥ ΜΕ ΝΕΕΣ ΚΟΡΥΦΕΣ ----------------
