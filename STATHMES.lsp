@@ -27,24 +27,22 @@
   )
 )
 
-;; ---------- ΚΟΙΝΟ: ΕΠΙΛΟΓΗ ΚΛΙΜΑΚΑΣ + ΜΟΝΑΔΩΝ -> factor ----------
-(defun ST:getFactor ( / scaleList sel scaleDen unitMode)
+;; ---------- ΚΟΙΝΟ: ΕΠΙΛΟΓΗ ΚΛΙΜΑΚΑΣ -> factor (παντα σε μετρα) ----------
+(defun ST:getFactor ( / scaleList sel scaleDen)
   (setq scaleList (list 50 100 200 500 1000))
   (initget "1 2 3 4 5")
   (setq sel (getkword "\n\U+039A\U+03BB\U+03B9\U+03BC\U+03B1\U+03BA\U+03B1 \U+03B5\U+03BA\U+03C4\U+03C5\U+03C0\U+03C9\U+03C3\U+03B7\U+03C2 [1=1:50/2=1:100/3=1:200/4=1:500/5=1:1000] <2>: "))
   (if (not sel) (setq sel "2"))
   (setq scaleDen (nth (1- (atoi sel)) scaleList))
-  (initget "M X")
-  (setq unitMode (getkword "\n\U+039C\U+03BF\U+03BD\U+03B1\U+03B4\U+03B5\U+03C2 \U+03C3\U+03C7\U+03B5\U+03B4\U+03B9\U+03BF\U+03C5 - \U+039C\U+03B5\U+03C4\U+03C1\U+03B1/\U+03A7\U+03B9\U+03BB\U+03B9\U+03BF\U+03C3\U+03C4\U+03B1 [M/X] <M>: "))
-  (if (not unitMode) (setq unitMode "M"))
-  (if (= unitMode "M") (/ scaleDen 1000.0) (float scaleDen))
+  (/ scaleDen 1000.0)
 )
 
 ;; ================================================================
 ;; 1. ΣΤΑΘΜΗ ΚΑΤΟΨΗΣ (Σ.Τ.Δ. / Σ.Μ.)
 ;; ================================================================
 (defun ST:doKatopsi ( / typ prefix lvl lvlStr factor insPt
-                        w h textH gap layName p1 p2 p3 tp )
+                        R crossExt textH gap layName
+                        p1 p2 p3 top bottom left crL crR crT crB tp )
 
   ;; ---------------- ΤΥΠΟΣ ΣΤΑΘΜΗΣ ----------------
   (initget "D B")
@@ -65,10 +63,10 @@
   (if (not insPt) (exit))
 
   ;; ---------------- ΔΙΑΣΤΑΣΕΙΣ (mm χαρτιου -> μοναδες σχεδιου) ----------------
-  (setq w      (* 2.4 factor))
-  (setq h      (* 1.8 factor))
-  (setq textH  (* 2.5 factor))
-  (setq gap    (* 1.0 factor))
+  (setq R        (* 1.5 factor))   ; ακτινα κυκλου
+  (setq crossExt (* 1.95 factor))  ; μηκος σταυρονηματος (ακρη προς ακρη)
+  (setq textH    (* 2.5 factor))
+  (setq gap      (* 1.0 factor))
 
   ;; ---------------- LAYER ----------------
   (setq layName (ST:layer))
@@ -77,12 +75,27 @@
 
   ;; ---------------- ΣΧΕΔΙΑΣΗ ----------------
   (command "_.UNDO" "_BEGIN")
-  (setq p1 insPt)
-  (setq p2 (list (- (car insPt) (/ w 2.0)) (+ (cadr insPt) h)))
-  (setq p3 (list (+ (car insPt) (/ w 2.0)) (+ (cadr insPt) h)))
-  (command "_.SOLID" p1 p2 p3 p3 "")
-  (command "_.PLINE" p1 p2 p3 "_C")
-  (setq tp (list (+ (car insPt) (/ w 2.0) gap) (+ (cadr insPt) (/ h 2.0))))
+
+  ;; σημεια
+  (setq top    (list (car insPt) (+ (cadr insPt) R)))
+  (setq bottom (list (car insPt) (- (cadr insPt) R)))
+  (setq left   (list (- (car insPt) R) (cadr insPt)))
+  (setq crL (list (- (car insPt) crossExt) (cadr insPt)))
+  (setq crR (list (+ (car insPt) crossExt) (cadr insPt)))
+  (setq crT (list (car insPt) (+ (cadr insPt) crossExt)))
+  (setq crB (list (car insPt) (- (cadr insPt) crossExt)))
+
+  ;; κυκλος + σταυρονημα
+  (command "_.CIRCLE" insPt R)
+  (command "_.LINE" crL crR "")
+  (command "_.LINE" crT crB "")
+
+  ;; αριστερο μισο του κυκλου γεματο (D-σχημα μεσω τοξου)
+  (command "_.PLINE" top "_A" "_S" left bottom "_L" top "")
+  (command "_.HATCH" "_S" (entlast) "" "_SOLID" "")
+
+  ;; κειμενο δεξια απο το σταυρονημα
+  (setq tp (list (+ (car insPt) crossExt gap) (cadr insPt)))
   (command "_.TEXT" "_J" "_ML" tp textH 0 (strcat prefix " " lvlStr))
   (command "_.UNDO" "_END")
 
