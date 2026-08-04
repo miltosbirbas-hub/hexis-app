@@ -127,6 +127,48 @@
   (list (nth bestI poly) (nth (rem (1+ bestI) n) poly))
 )
 
+;; περιστρέφει διάνυσμα κατά γωνία ang (rad)
+(defun KT:rotVec (v ang / c s)
+  (setq c (cos ang) s (sin ang))
+  (list (- (* (car v) c) (* (cadr v) s)) (+ (* (car v) s) (* (cadr v) c)))
+)
+
+;; μέγιστη απόσταση ανάμεσα σε ζεύγη σημείων μιας λίστας
+(defun KT:maxPairDist (pts / m a b)
+  (setq m 0.0)
+  (foreach a pts (foreach b pts (if (> (distance a b) m) (setq m (distance a b)))))
+  m
+)
+
+;; προσεγγιστικό ελάχιστο πλάτος ενός τμήματος: δειγματοληψία nSamples
+;; διατομών κάθετων στο dirU κατά μήκος του τμήματος, κρατάει το μικρότερο
+;; μήκος διατομής (= το πιο "στενό" σημείο του τμήματος)
+(defun KT:pieceWidth (piece dirU nSamples / pmin pmax i tt linePt cross widths v proj refPt)
+  (if (< (length piece) 3)
+    0.0
+    (progn
+      (setq refPt (car piece))
+      (setq pmin nil pmax nil)
+      (foreach v piece
+        (setq proj (KT:sd v refPt dirU))
+        (if (or (not pmin) (< proj pmin)) (setq pmin proj))
+        (if (or (not pmax) (> proj pmax)) (setq pmax proj))
+      )
+      (setq widths nil i 1)
+      (while (<= i nSamples)
+        (setq tt (+ pmin (* (/ (float i) (1+ nSamples)) (- pmax pmin))))
+        (setq linePt (list (+ (car refPt) (* tt (car dirU))) (+ (cadr refPt) (* tt (cadr dirU)))))
+        (setq cross (KT:crossingsIdx piece linePt dirU))
+        (if (>= (length cross) 2)
+          (setq widths (cons (KT:maxPairDist (mapcar (function cdr) cross)) widths))
+        )
+        (setq i (1+ i))
+      )
+      (if widths (apply 'min widths) 0.0)
+    )
+  )
+)
+
 ;; εξαγωγή κορυφών LWPOLYLINE (κωδικός 10) από entget list
 (defun KT:getVerts (edata / verts)
   (setq verts nil)
@@ -242,13 +284,20 @@
 ;; Επιστρέφει (list results allCross):
 ;;  results  = λίστα από (piece frontageLen pieceArea), Ν στοιχεία
 ;;  allCross = λίστα (edgeIndex . point) - σημεία τομής πάνω στο ΑΡΧΙΚΟ όριο
-;; minSide = nil -> χωρίς περιορισμό ελάχιστου μήκους.
-(defun KT:split (poly totalArea nParts F1 F2 minSide /
+;; minSide  = nil -> χωρίς περιορισμό ελάχιστου μήκους προσοψης.
+;; minWidth = nil ή 0 -> χωρίς έλεγχο ελάχιστου πλάτους (κάθετες τομές, όπως πριν).
+;;            Αν δοθεί, για κάθε τομή δοκιμάζονται κλίσεις (όχι μόνο κάθετη)
+;;            ώστε το τμήμα να έχει ελάχιστο πλάτος >= minWidth όπου γίνεται.
+(defun KT:split (poly totalArea nParts F1 F2 minSide minWidth /
                   dirV dirLen dirU projs pmin pmax originPt sweepLen
                   remaining remArea remParts prevT k target
                   loT hiT lo hi mid areaMid tCut linePt piece frLen results v proj
-                  allCross)
+                  allCross nSamples angleList angDeg angRad cutNormal
+                  wid satPiece satRemaining satTCut satLinePt satNormal satWidth
+                  fbPiece fbRemaining fbTCut fbLinePt fbNormal fbWidth
+                  chosenPiece chosenRemaining chosenTCut chosenLinePt chosenNormal chosenWidth)
 
+  (setq nSamples 7)
   (setq dirV (list (- (car F2) (car F1)) (- (cadr F2) (cadr F1))))
   (setq dirLen (distance F1 F2))
   (setq dirU (list (/ (car dirV) dirLen) (/ (cadr dirV) dirLen)))
@@ -263,6 +312,9 @@
   (setq originPt (list (+ (car F1) (* pmin (car dirU))) (+ (cadr F1) (* pmin (cadr dirU)))))
   (setq sweepLen (- pmax pmin))
 
+  ;; γωνίες κλίσης της τομής να δοκιμαστούν (μοίρες), απο μικρή προς μεγάλη αποκλιση
+  (setq angleList (list 0.0 -5.0 5.0 -10.0 10.0 -15.0 15.0 -20.0 20.0 -25.0 25.0 -30.0 30.0 -35.0 35.0 -40.0 40.0))
+
   (setq remaining poly)
   (setq remArea totalArea)
   (setq remParts nParts)
@@ -275,24 +327,60 @@
     (setq loT (+ prevT (if minSide minSide 0.0)))
     (setq hiT (- sweepLen (* (if minSide minSide 0.0) (1- remParts))))
     (if (> loT hiT) (setq loT hiT))
-    (setq lo loT hi hiT)
-    (repeat 40
-      (setq mid (/ (+ lo hi) 2.0))
-      (setq linePt (list (+ (car originPt) (* mid (car dirU))) (+ (cadr originPt) (* mid (cadr dirU)))))
-      (setq areaMid (KT:area (KT:clip remaining linePt dirU T)))
-      (if (< areaMid target) (setq lo mid) (setq hi mid))
+
+    (setq satPiece nil fbPiece nil fbWidth -1.0)
+
+    (foreach angDeg angleList
+      (setq angRad (* pi (/ angDeg 180.0)))
+      (setq cutNormal (KT:rotVec dirU angRad))
+      (setq lo loT hi hiT)
+      (repeat 40
+        (setq mid (/ (+ lo hi) 2.0))
+        (setq linePt (list (+ (car originPt) (* mid (car dirU))) (+ (cadr originPt) (* mid (cadr dirU)))))
+        (setq areaMid (KT:area (KT:clip remaining linePt cutNormal T)))
+        (if (< areaMid target) (setq lo mid) (setq hi mid))
+      )
+      (setq tCut (/ (+ lo hi) 2.0))
+      (setq linePt (list (+ (car originPt) (* tCut (car dirU))) (+ (cadr originPt) (* tCut (cadr dirU)))))
+      (setq piece (KT:clip remaining linePt cutNormal T))
+      (setq wid (if (and minWidth (> minWidth 0.0)) (KT:pieceWidth piece dirU nSamples) 1e9))
+
+      (if (> wid fbWidth)
+        (progn
+          (setq fbWidth wid fbPiece piece fbTCut tCut fbLinePt linePt fbNormal cutNormal)
+          (setq fbRemaining (KT:clip remaining linePt cutNormal nil))
+        )
+      )
+      (if (and (not satPiece) minWidth (> minWidth 0.0) (>= wid minWidth))
+        (progn
+          (setq satPiece piece satTCut tCut satLinePt linePt satNormal cutNormal satWidth wid)
+          (setq satRemaining (KT:clip remaining linePt cutNormal nil))
+        )
+      )
     )
-    (setq tCut (/ (+ lo hi) 2.0))
-    (setq linePt (list (+ (car originPt) (* tCut (car dirU))) (+ (cadr originPt) (* tCut (cadr dirU)))))
+
+    (if satPiece
+      (setq chosenPiece satPiece chosenRemaining satRemaining chosenTCut satTCut
+            chosenLinePt satLinePt chosenNormal satNormal chosenWidth satWidth)
+      (setq chosenPiece fbPiece chosenRemaining fbRemaining chosenTCut fbTCut
+            chosenLinePt fbLinePt chosenNormal fbNormal chosenWidth fbWidth)
+    )
+
     ;; σημεία όπου η ΤΟΜΗ αγγίζει το ΑΡΧΙΚΟ όριο (για vertex insertion)
-    (setq allCross (append allCross (KT:crossingsIdx poly linePt dirU)))
-    (setq piece (KT:clip remaining linePt dirU T))
-    (setq remaining (KT:clip remaining linePt dirU nil))
+    (setq allCross (append allCross (KT:crossingsIdx poly chosenLinePt chosenNormal)))
+    (setq piece chosenPiece)
+    (setq remaining chosenRemaining)
+    (setq tCut chosenTCut)
     (setq frLen (- tCut prevT))
     (setq results (cons (list piece frLen (KT:area piece)) results))
     (setq remArea (- remArea (KT:area piece)))
     (setq remParts (1- remParts))
     (setq prevT tCut)
+    (if (and minWidth (> minWidth 0.0) (< chosenWidth minWidth))
+      (princ (strcat "\n\U+03A0\U+03A1\U+039F\U+03A3\U+039F\U+03A7\U+0397: \U+03C4\U+03BC\U+03AE\U+03BC\U+03B1 " (itoa k)
+                      " \U+03B4\U+03B5\U+03BD \U+03C0\U+03B5\U+03C4\U+03C5\U+03C7\U+03B1\U+03AF\U+03BD\U+03B5\U+03B9 \U+03C4\U+03BF \U+03B5\U+03BB\U+03AC\U+03C7\U+03B9\U+03C3\U+03C4\U+03BF \U+03C0\U+03BB\U+03AC\U+03C4\U+03BF\U+03C2 \U+03C3\U+03B5 \U+03CC\U+03BB\U+03BF \U+03C4\U+03BF \U+03BC\U+03AE\U+03BA\U+03BF\U+03C2 \U+03C4\U+03BF\U+03C5 ("
+                      (rtos chosenWidth 2 2) " \U+03BC. \U+03B1\U+03BD\U+03C4\U+03AF " (rtos minWidth 2 2) " \U+03BC. \U+03B6\U+03B7\U+03C4\U+03BF\U+03CD\U+03BC\U+03B5\U+03BD\U+03B1)."))
+    )
     (setq k (1+ k))
   )
   (setq frLen (- sweepLen prevT))
@@ -305,7 +393,7 @@
 ;; ================================================================
 (defun c:PLTDIV ( / *error* oldosmode oldcmdecho oldlayer
                        sel ent edata verts totalArea nParts
-                       roadAns pk1 pk2 edgeAB F1 F2 minSide
+                       roadAns pk1 pk2 edgeAB F1 F2 minSide minWidth rawW
                        sweepCheck pieces layName idx item piece frLen ar
                        cen txtH txt totCheck splitResult newCross newVertList )
 
@@ -371,6 +459,18 @@
     )
   )
 
+  ;; ---------------- ΕΛΑΧΙΣΤΟ ΠΛΑΤΟΣ ΤΜΗΜΑΤΟΣ ----------------
+  ;; Αν δοθεί, ο αλγόριθμος δοκιμάζει κλίση στην τομή (όχι μόνο κάθετη)
+  ;; ώστε κάθε τμήμα να έχει τουλάχιστον αυτό το πλάτος στο πιο στενό του σημείο.
+  (initget "E K")
+  (setq rawW (getreal "\n\U+0395\U+03BB\U+03AC\U+03C7\U+03B9\U+03C3\U+03C4\U+03BF \U+03C0\U+03BB\U+03AC\U+03C4\U+03BF\U+03C2 \U+03C4\U+03BC\U+03AE\U+03BC\U+03B1\U+03C4\U+03BF\U+03C2 (\U+03BC.) \U+03AE [E=\U+0395\U+03BD\U+03C4\U+03CC\U+03C2 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5=5/K=\U+0395\U+03BA\U+03C4\U+03CC\U+03C2 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5=15] <0=\U+03C7\U+03C9\U+03C1\U+03AF\U+03C2 \U+03AD\U+03BB\U+03B5\U+03B3\U+03C7\U+03BF>: "))
+  (cond
+    ((= rawW "E") (setq minWidth 5.0))
+    ((= rawW "K") (setq minWidth 15.0))
+    ((not rawW) (setq minWidth 0.0))
+    (T (setq minWidth rawW))
+  )
+
   ;; ---------------- ΕΛΕΓΧΟΣ ΕΦΙΚΤΟΤΗΤΑΣ ΕΛΑΧΙΣΤΗΣ ΠΡΟΣΟΨΗΣ ----------------
   (if (and minSide (> minSide 0.0))
     (progn
@@ -392,7 +492,7 @@
   )
 
   ;; ---------------- ΚΑΤΑΤΜΗΣΗ ----------------
-  (setq splitResult (KT:split verts totalArea nParts F1 F2 minSide))
+  (setq splitResult (KT:split verts totalArea nParts F1 F2 minSide minWidth))
   (setq pieces   (nth 0 splitResult))
   (setq newCross (nth 1 splitResult))
 
