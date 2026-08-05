@@ -757,8 +757,8 @@ try { const s = localStorage.getItem('hexis_forest'); if(s) forestLayers = JSON.
 function saveForest(){ try{ localStorage.setItem('hexis_forest', JSON.stringify(
   Object.fromEntries(Object.entries(forestLayers).map(([k,v])=>[k,{name:v.name,color:v.color,visible:v.visible,geojson:v.geojson}]))
 )); }catch(e){} }
-function toggleForestPanel(){ const p=$('forestPanel'); if(p) p.style.display = p.style.display==='none'?'block':'none'; renderForestList(); }
-function toggleTimePanel(){ const p=$('timePanel'); if(p) p.style.display = p.style.display==='none'?'block':'none'; if(p&&p.style.display!=='none') loadWayback(); }
+function toggleForestPanel(){ const p=$('forestPanel'), t=$('timePanel'); const open=p.style.display==='none'||!p.style.display; if(t) t.style.display='none'; p.style.display=open?'block':'none'; if(open) renderForestList(); }
+function toggleTimePanel(){ const p=$('timePanel'), f=$('forestPanel'); const open=p.style.display==='none'||!p.style.display; if(f) f.style.display='none'; p.style.display=open?'block':'none'; if(open) loadWayback(); }
 function renderForestList(){
   const el=$('forestLayers'); if(!el) return;
   const keys=Object.keys(forestLayers);
