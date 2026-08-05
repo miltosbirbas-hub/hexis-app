@@ -847,12 +847,18 @@ function addForestLayer(name,geojson){
       lyr.on('click',e=>{
         L.DomEvent.stopPropagation(e);
         const bb=lyr.getBounds();
+        // Lazy: διαβάζουμε properties ΤΗΝ ΩΡΑ ΤΟΥ ΚΛΙΚ (μετά το DBF parse)
+        const fp=feat.properties||{};
+        const fc=(fp.KATHGORDX||fp.KATHGOR||fp.XARAKT||fp.CHARACTER||fp.CHAR||'').trim();
+        const fd=DASIKA_CHAR[fc]||'';
+        const fa=parseFloat(fp.SHAPE_AREA||0);
+        const faStr=fa>0?`<br>Εμβαδόν: ${fa.toLocaleString('el-GR',{maximumFractionDigits:0})} m²`:'';
         const popHtml=
           `<b style="color:#22c55e">${name}</b>`+
-          (code?`<br><span style="font-size:20px;font-weight:800;color:#f0f9ff">${code}</span>`+
-                (desc?` <span style="color:#22c55e;font-size:12px">${desc}</span>`:''):'') +
-          area+
-          `<br><button id="${popId}" onclick="kaekInBbox(${bb.getSouth()},${bb.getNorth()},${bb.getWest()},${bb.getEast()})"
+          (fc?`<br><span style="font-size:22px;font-weight:900;color:#ffffff">${fc}</span>`+
+              (fd?` <span style="color:#22c55e;font-size:13px">${fd}</span>`:''):'<br><i style="opacity:.6">Χωρίς χαρακτήρα</i>')+
+          faStr+
+          `<br><button onclick="kaekInBbox(${bb.getSouth()},${bb.getNorth()},${bb.getWest()},${bb.getEast()})"
             style="margin-top:8px;width:100%;background:#0d2a1a;border:1px solid #22c55e;color:#22c55e;
             border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12.5px;font-weight:700">
             🔎 Εμφάνιση ΚΑΕΚ στην περιοχή</button>`;
