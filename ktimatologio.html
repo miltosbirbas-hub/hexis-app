@@ -721,10 +721,13 @@ function importShpZip(ev){
       const {shpBuf,dbfBuf,cpgText}=await extractSHP(ab);
       const enc=/1253|greek/i.test(cpgText)?'cp1253':'utf-8';
       const geojson=parseSHP(shpBuf);
-      // Προσθήκη attributes από DBF
+      // Προσθήκη attributes από DBF ΠΡΙΝ το addForestLayer
       if(dbfBuf){
-        const rows=parseDBF(dbfBuf, enc);
-        geojson.features.forEach((f,i)=>{ if(rows[i]) f.properties=rows[i]; });
+        try{
+          const rows=parseDBF(dbfBuf, enc);
+          geojson.features.forEach((f,i)=>{ if(rows[i]) Object.assign(f.properties, rows[i]); });
+          console.log('[DBF] sample:', geojson.features[0]?.properties);
+        }catch(dbfErr){ console.warn('DBF parse error:', dbfErr); }
       }
       addForestLayer(file.name.replace(/\.zip$/i,''), geojson);
       setHint('✔ Φορτώθηκαν '+geojson.features.length+' αντικείμενα από '+file.name,'ok');
@@ -806,10 +809,20 @@ function addForestLayer(name,geojson){
     style:{color,weight:1.5,fillColor:color,fillOpacity:.18},
     onEachFeature:(feat,lyr)=>{
       const p=feat.properties||{};
-      const code=p.KATHGORDX||p.XARAKT||p.CHARACTER||p.char||'';
-      const desc=DASIKA_CHAR[code]||code||'';
-      const area=p.SHAPE_AREA>0?`<br>Εμβαδόν: ${(+p.SHAPE_AREA).toLocaleString('el-GR',{maximumFractionDigits:0})} m²`:'';
-      lyr.bindPopup(`<b style="color:#22c55e">${name}</b><br><b style="font-size:16px">${code}</b>${desc?` — ${desc}`:''} ${area}`);
+      // Δοκίμασε όλα τα γνωστά ονόματα πεδίου χαρακτήρα
+      const code=(p.KATHGORDX||p.KATHGOR||p.XARAKT||p.CHARACTER||p.CHAR||p.char||'').trim();
+      const desc=DASIKA_CHAR[code]||'';
+      const areaVal=parseFloat(p.SHAPE_AREA||p.Area||0);
+      const area=areaVal>0?`<br>Εμβαδόν: ${areaVal.toLocaleString('el-GR',{maximumFractionDigits:0})} m²`:'';
+      const allProps=Object.entries(p).filter(([k,v])=>v&&String(v).trim()).map(([k,v])=>`<tr><td style="color:#7ea8cc;padding-right:8px">${k}</td><td>${v}</td></tr>`).join('');
+      lyr.bindPopup(
+        `<b style="color:#22c55e">${name}</b>`+
+        (code?`<br><span style="font-size:18px;font-weight:800;color:#f0f9ff">${code}</span>`+
+              (desc?` <span style="color:#22c55e">${desc}</span>`:''): '')+
+        area+
+        (allProps?`<hr style="border-color:#1d4a7a;margin:6px 0"><table style="font-size:11px">${allProps}</table>`:'')+
+        `<br><small style="opacity:.5">Πάτα Χ για κλείσιμο</small>`
+      );
     }
   }).addTo(map);
   forestLayers[id]={name,color,visible:true,layer,geojson};
@@ -822,24 +835,37 @@ let waybackCfg=null, waybackLayer=null;
 async function loadWayback(){
   const sel=$('waybackSel'); if(!sel||sel.options.length>1) return;
   try{
-    const r=await fetch('https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json');
-    waybackCfg=await r.json();
-    const years=[...new Set(Object.values(waybackCfg).map(v=>v.releaseDateLabel.slice(0,4)))].sort().reverse();
-    sel.innerHTML='<option value="">— Επιλογή χρονολογίας —</option>'+
-      years.map(y=>`<option value="${y}">${y}</option>`).join('');
-  }catch(e){setHint('Σφάλμα φόρτωσης Wayback: '+e.message,'err');}
+    // Νέο API: WMTS Capabilities XML (το παλιό S3 JSON δεν ισχύει)
+    const r=await fetch('https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/WMTS/1.0.0/WMTSCapabilities.xml');
+    const txt=await r.text();
+    // Παίρνουμε τα Titles: "World Imagery (Wayback 2023-12-07)"
+    const matches=[...txt.matchAll(/<ows:Title>World Imagery \(Wayback ([^)]+)\)<\/ows:Title>/g)].map(m=>m[1]);
+    if(!matches.length) throw new Error('no releases');
+    waybackCfg=matches.map(d=>({label:d}));
+    sel.innerHTML='<option value="">— Επιλογή ημερομηνίας —</option>'+
+      matches.map((d,i)=>`<option value="${i}">${d}</option>`).join('');
+  }catch(e){
+    setHint('Wayback: '+e.message+' — ανοίγω εναλλακτικά livingatlas.arcgis.com/wayback','');
+    const s=$('waybackSel');
+    if(s) s.innerHTML='<option value="">—</option><option value="ext">🔗 Άνοιγμα Esri Wayback App</option>';
+    waybackCfg=[null,{label:'ext'}];
+  }
 }
-function setWayback(year){
+function setWayback(val){
   if(waybackLayer){map.removeLayer(waybackLayer);waybackLayer=null;}
   const d=$('waybackDate'); if(d) d.textContent='';
-  if(!year||!waybackCfg) return;
-  const entries=Object.values(waybackCfg).filter(v=>v.releaseDateLabel.startsWith(year)).sort((a,b)=>b.releaseDateLabel.localeCompare(a.releaseDateLabel));
-  if(!entries.length) return;
-  const en=entries[0];
-  waybackLayer=L.tileLayer(`https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${en.itemId}/{z}/{y}/{x}`,{maxZoom:21,maxNativeZoom:18,opacity:1}).addTo(map);
-  if(d) d.textContent=en.releaseDateLabel;
+  if(!val) return;
+  if(val==='ext'||!waybackCfg){ window.open('https://livingatlas.arcgis.com/wayback/','_blank'); return; }
+  const en=waybackCfg[+val]; if(!en) return;
+  // layer name: WB_YYYY-MM-DD
+  const layerName='WB_'+en.label.replace(/\s/g,'-');
+  waybackLayer=L.tileLayer(
+    `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${layerName}/{z}/{y}/{x}`,
+    {maxZoom:21,maxNativeZoom:18,opacity:1,errorTileUrl:''}
+  ).addTo(map);
+  if(d) d.textContent=en.label;
+  setHint('Ιστορική αεροφωτογραφία: '+en.label,'ok');
 }
-
 function toggleFull(){
   document.body.classList.toggle("mapfull");
   setTimeout(()=>{ try{ map.invalidateSize(); }catch(e){} }, 120);
