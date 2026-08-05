@@ -1088,39 +1088,63 @@ function addForestLayer(name,geojson){
 let waybackCfg=null, waybackLayer=null;
 async function loadWayback(){
   const sel=$('waybackSel'); if(!sel||sel.options.length>1) return;
+  // Hardcoded releases από Esri Wayback — ενημερώνεται σπάνια
+  // Πηγή: https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/WMTSCapabilities.xml
+  waybackCfg=[
+    {releaseDateLabel:'2024-09-19',releaseNum:61879},
+    {releaseDateLabel:'2024-06-20',releaseNum:59672},
+    {releaseDateLabel:'2024-03-21',releaseNum:57993},
+    {releaseDateLabel:'2023-12-07',releaseNum:56102},
+    {releaseDateLabel:'2023-09-14',releaseNum:54417},
+    {releaseDateLabel:'2023-06-08',releaseNum:52786},
+    {releaseDateLabel:'2023-03-09',releaseNum:51087},
+    {releaseDateLabel:'2022-12-08',releaseNum:49258},
+    {releaseDateLabel:'2022-09-15',releaseNum:47598},
+    {releaseDateLabel:'2022-06-09',releaseNum:45640},
+    {releaseDateLabel:'2022-03-10',releaseNum:43970},
+    {releaseDateLabel:'2021-12-09',releaseNum:42118},
+    {releaseDateLabel:'2021-09-09',releaseNum:40429},
+    {releaseDateLabel:'2021-06-10',releaseNum:38570},
+    {releaseDateLabel:'2021-03-11',releaseNum:36784},
+    {releaseDateLabel:'2020-12-10',releaseNum:35087},
+    {releaseDateLabel:'2020-09-10',releaseNum:33494},
+    {releaseDateLabel:'2020-06-18',releaseNum:31953},
+    {releaseDateLabel:'2020-03-19',releaseNum:30218},
+    {releaseDateLabel:'2019-12-19',releaseNum:28792},
+    {releaseDateLabel:'2019-09-26',releaseNum:27899},
+    {releaseDateLabel:'2019-07-01',releaseNum:27217},
+    {releaseDateLabel:'2019-03-28',releaseNum:25012},
+    {releaseDateLabel:'2018-12-20',releaseNum:23847},
+    {releaseDateLabel:'2018-09-20',releaseNum:22979},
+    {releaseDateLabel:'2018-06-21',releaseNum:22180},
+    {releaseDateLabel:'2018-03-22',releaseNum:20775},
+    {releaseDateLabel:'2017-12-14',releaseNum:19227},
+    {releaseDateLabel:'2017-09-21',releaseNum:18261},
+    {releaseDateLabel:'2017-06-22',releaseNum:16961},
+    {releaseDateLabel:'2017-03-23',releaseNum:15440},
+    {releaseDateLabel:'2016-12-08',releaseNum:13761},
+    {releaseDateLabel:'2016-09-15',releaseNum:12634},
+    {releaseDateLabel:'2016-07-14',releaseNum:12076},
+    {releaseDateLabel:'2016-03-17',releaseNum:10758},
+    {releaseDateLabel:'2015-11-26',releaseNum:9074},
+    {releaseDateLabel:'2015-06-11',releaseNum:7836},
+    {releaseDateLabel:'2014-02-20',releaseNum:10},
+  ];
+  sel.innerHTML='<option value="">— Επιλογή ημερομηνίας —</option>'+
+    waybackCfg.map((en,i)=>`<option value="${i}">${en.releaseDateLabel}</option>`).join('');
+  // Δοκιμή φόρτωσης από ESRI config (αν επιτρέπει CORS)
   try{
-    // Config JSON (CORS OK από browser — το ίδιο URL που χρησιμοποιεί το επίσημο Wayback app)
     const r=await fetch('https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json',{mode:'cors',cache:'force-cache'});
-    const cfg=await r.json();
-    // cfg: { "releaseNum": { itemID, itemTitle, releaseNum, releaseDateLabel, itemURL, ... }, ... }
-    waybackCfg=Object.values(cfg)
-      .filter(v=>v.releaseNum&&v.releaseDateLabel)
-      .sort((a,b)=>b.releaseNum-a.releaseNum); // νεότερο πρώτο
-    sel.innerHTML='<option value="">— Επιλογή ημερομηνίας —</option>'+
-      waybackCfg.map((en,i)=>`<option value="${i}">${en.releaseDateLabel}</option>`).join('');
-  }catch(e){
-    console.warn('Wayback config:', e.message);
-    // Fallback: γνωστές εκδόσεις με ακριβή release numbers από Esri docs
-    waybackCfg=[
-      {releaseDateLabel:'2024-06-20',releaseNum:59672},
-      {releaseDateLabel:'2023-12-07',releaseNum:56102},
-      {releaseDateLabel:'2023-06-08',releaseNum:52786},
-      {releaseDateLabel:'2022-12-08',releaseNum:49258},
-      {releaseDateLabel:'2022-06-09',releaseNum:45640},
-      {releaseDateLabel:'2021-12-09',releaseNum:42118},
-      {releaseDateLabel:'2021-06-10',releaseNum:38570},
-      {releaseDateLabel:'2020-06-18',releaseNum:31953},
-      {releaseDateLabel:'2019-07-01',releaseNum:27217},
-      {releaseDateLabel:'2018-06-21',releaseNum:22180},
-      {releaseDateLabel:'2017-06-22',releaseNum:16961},
-      {releaseDateLabel:'2016-07-14',releaseNum:12076},
-      {releaseDateLabel:'2015-06-11',releaseNum:7836},
-      {releaseDateLabel:'2014-02-20',releaseNum:10},
-    ];
-    const s=$('waybackSel');
-    if(s) s.innerHTML='<option value="">— Επιλογή ημερομηνίας —</option>'+
-      waybackCfg.map((en,i)=>`<option value="${i}">${en.releaseDateLabel}</option>`).join('');
-  }
+    if(r.ok){
+      const cfg=await r.json();
+      const fresh=Object.values(cfg).filter(v=>v.releaseNum&&v.releaseDateLabel).sort((a,b)=>b.releaseNum-a.releaseNum);
+      if(fresh.length>5){
+        waybackCfg=fresh;
+        sel.innerHTML='<option value="">— Επιλογή ημερομηνίας —</option>'+
+          waybackCfg.map((en,i)=>`<option value="${i}">${en.releaseDateLabel}</option>`).join('');
+      }
+    }
+  }catch(e){ /* CORS blocked — χρησιμοποιούμε hardcoded */ }
 }
 function setWayback(val){
   if(waybackLayer){map.removeLayer(waybackLayer);waybackLayer=null;}
