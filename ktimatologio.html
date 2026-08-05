@@ -745,7 +745,7 @@ function importShpZip(ev){
           const rows=parseDBF(dbfBuf, enc);
           console.log('[DBF] rows:', rows.length, 'sample:', rows[0]);
           geojson.features.forEach((f,i)=>{
-            if(rows[i]) f.properties = {...(f.properties||{}), ...rows[i]};
+            if(rows[i]){ f.properties=f.properties||{}; const r=rows[i]; Object.keys(r).forEach(k=>f.properties[k]=r[k]); }
           });
           console.log('[DBF] feature[0] props:', geojson.features[0]?.properties);
         }catch(dbfErr){ console.warn('DBF parse error:', dbfErr); }
@@ -875,7 +875,7 @@ async function loadWayback(){
   const sel=$('waybackSel'); if(!sel||sel.options.length>1) return;
   try{
     // Config JSON (CORS OK από browser — το ίδιο URL που χρησιμοποιεί το επίσημο Wayback app)
-    const r=await fetch('https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json');
+    const r=await fetch('https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json',{mode:'cors',cache:'force-cache'});
     const cfg=await r.json();
     // cfg: { "releaseNum": { itemID, itemTitle, releaseNum, releaseDateLabel, itemURL, ... }, ... }
     waybackCfg=Object.values(cfg)
