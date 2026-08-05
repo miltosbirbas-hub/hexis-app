@@ -272,10 +272,17 @@ if('serviceWorker' in navigator){
   </div>
   <div id="timePanel">
     <h4>🕐 Ιστορικές αεροφωτογραφίες</h4>
-    <select id="waybackSel" onchange="setWayback(this.value)"><option value="">— Επιλογή χρονολογίας —</option></select>
+    <div style="font-size:11.5px;font-weight:700;color:var(--neon);margin-bottom:4px">Κτηματολόγιο ΑΕ</div>
+    <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">
+      <button onclick="setKtimPhoto('1945')" style="width:100%;background:#0a1e35;border:1px solid #f59e0b;color:#f59e0b;border-radius:7px;padding:5px 8px;cursor:pointer;font-size:12px;text-align:left">📷 1945–1960 (ΑΣΠ/Β, 5μ)</button>
+      <button onclick="setKtimPhoto('2007')" style="width:100%;background:#0a1e35;border:1px solid #f59e0b;color:#f59e0b;border-radius:7px;padding:5px 8px;cursor:pointer;font-size:12px;text-align:left">📷 2007–2009 (έγχρωμη)</button>
+      <button onclick="setKtimPhoto('2015')" style="width:100%;background:#0a1e35;border:1px solid #f59e0b;color:#f59e0b;border-radius:7px;padding:5px 8px;cursor:pointer;font-size:12px;text-align:left">📷 2015–2016 (50εκ.)</button>
+      <button onclick="setKtimPhoto('')" style="width:100%;background:#0a1e35;border:1px solid #6b7280;color:#9ca3af;border-radius:7px;padding:5px 8px;cursor:pointer;font-size:12px">↩ Επιστροφή KT</button>
+    </div>
+    <div style="font-size:11.5px;font-weight:700;color:var(--neon);margin-bottom:4px">Esri Wayback</div>
+    <select id="waybackSel" onchange="setWayback(this.value)"><option value="">— Επιλογή ημερομηνίας —</option></select>
     <div id="waybackDate" style="font-size:11px;opacity:.7;margin-bottom:6px"></div>
-    <button onclick="setWayback('')" style="width:100%;background:#0a1e35;border:1px solid var(--neon);color:var(--neon);border-radius:7px;padding:5px;cursor:pointer;font-size:11.5px">↩ Επιστροφή σε τρέχουσα</button>
-    <div style="margin-top:8px;font-size:11px;opacity:.65">Πηγή: Esri Wayback (παγκόσμιο αρχείο δορυφορικών). Για ιστορικά ΚΤ: <a href="https://gis.ktimanet.gr/gis/oldktimatologio" target="_blank" style="color:var(--neon)">gis.ktimanet.gr</a></div>
+    <button onclick="setWayback('')" style="width:100%;background:#0a1e35;border:1px solid var(--neon);color:var(--neon);border-radius:7px;padding:5px;cursor:pointer;font-size:11.5px">↩ Επιστροφή Esri</button>
   </div>
   <div id="measureInfo" style="position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:600;background:var(--panel);border:1px solid var(--neon);border-radius:10px;padding:8px 14px;font-size:14px;font-weight:700;color:var(--neon);box-shadow:0 0 12px var(--neon-glow);display:none">📏 Μέτρηση: πάτα σημεία</div>
   <div id="sidePanel" style="position:absolute;top:64px;right:10px;z-index:640;width:196px;max-height:52%;overflow-y:auto;background:rgba(5,16,32,.90);border:1px solid var(--neon);border-radius:10px;padding:8px 10px;font-size:11.5px;line-height:1.5;color:#cfeefc;box-shadow:0 0 10px var(--neon-glow);display:none;font-variant-numeric:tabular-nums"></div>
@@ -1146,8 +1153,45 @@ async function loadWayback(){
     }
   }catch(e){ /* CORS blocked — χρησιμοποιούμε hardcoded */ }
 }
+let ktimPhotoLayer = null;
+const KTIM_WMS = 'http://gis.ktimanet.gr/wms/wmsopen/wmsserver.aspx';
+const KTIM_LAYERS = {
+  '1945': 'KTBASEMAP1945',
+  '2007': 'ORTHOPHOTO_2007',
+  '2015': 'KTBASEMAP',
+};
+function setKtimPhoto(era){
+  // Αφαιρώ τυχόν προηγούμενο KT layer
+  if(ktimPhotoLayer){ map.removeLayer(ktimPhotoLayer); ktimPhotoLayer=null; }
+  // Αφαιρώ και wayback αν είναι ενεργό
+  if(waybackLayer){ map.removeLayer(waybackLayer); waybackLayer=null; }
+  const d=$('waybackDate'); if(d) d.textContent='';
+  if(!era){
+    // Επαναφορά esriSat
+    if(!map.hasLayer(esriSat)) esriSat.addTo(map);
+    esriSat.bringToBack();
+    setHint('Τρέχουσα αεροφωτογραφία (ESRI)','ok');
+    return;
+  }
+  const layerName = KTIM_LAYERS[era]; if(!layerName) return;
+  // Κρύβω esriSat
+  if(map.hasLayer(esriSat)) map.removeLayer(esriSat);
+  ktimPhotoLayer = L.tileLayer.wms(KTIM_WMS, {
+    layers: layerName,
+    format: 'image/jpeg',
+    transparent: false,
+    version: '1.1.1',
+    maxZoom: 21,
+    maxNativeZoom: 19,
+    zIndex: 1,
+  }).addTo(map);
+  ktimPhotoLayer.bringToBack();
+  const labels = {'1945':'1945–1960 (Κτηματολόγιο ΑΕ)','2007':'2007–2009 (Κτηματολόγιο ΑΕ)','2015':'2015–2016 (Κτηματολόγιο ΑΕ)'};
+  setHint('📷 '+labels[era],'ok');
+}
 function setWayback(val){
   if(waybackLayer){map.removeLayer(waybackLayer);waybackLayer=null;}
+  if(ktimPhotoLayer){map.removeLayer(ktimPhotoLayer);ktimPhotoLayer=null;}
   const d=$('waybackDate'); if(d) d.textContent='';
   if(val===''||val===null||val===undefined){
     // Επιστροφή σε τρέχουσα — επαναφέρω esriSat
