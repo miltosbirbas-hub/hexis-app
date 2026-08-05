@@ -272,13 +272,10 @@ if('serviceWorker' in navigator){
   </div>
   <div id="timePanel">
     <h4>🕐 Ιστορικές αεροφωτογραφίες</h4>
-    <div style="font-size:11px;color:#f59e0b;font-weight:700;margin-bottom:5px">📡 Κτηματολόγιο ΑΕ (WMS)</div>
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <button onclick="setKtimPhoto('1945')" style="width:100%;background:#0a1e35;border:1px solid #f59e0b;color:#f59e0b;border-radius:7px;padding:5px 8px;cursor:pointer;font-size:12px;text-align:left">📷 1945–1960 (ΑΣΠ/Β, ~5μ)</button>
-      <button onclick="setKtimPhoto('2007')" style="width:100%;background:#0a1e35;border:1px solid #f59e0b;color:#f59e0b;border-radius:7px;padding:5px 8px;cursor:pointer;font-size:12px;text-align:left">📷 2007–2009 (έγχρωμη)</button>
-      <button onclick="setKtimPhoto('2015')" style="width:100%;background:#0a1e35;border:1px solid #f59e0b;color:#f59e0b;border-radius:7px;padding:5px 8px;cursor:pointer;font-size:12px;text-align:left">📷 2015–2016 (50εκ.)</button>
-      <button onclick="setKtimPhoto('')" style="width:100%;background:#0a1e35;border:1px solid #6b7280;color:#9ca3af;border-radius:7px;padding:5px 8px;cursor:pointer;font-size:11.5px;margin-top:2px">↩ Τρέχουσα (ESRI)</button>
-    </div>
+    <div style="font-size:11px;opacity:.7;margin-bottom:8px;line-height:1.4">Ο WMS του Κτηματολογίου δεν επιτρέπει ενσωμάτωση σε εξωτερικές εφαρμογές. Άνοιξε τον επίσημο viewer:</div>
+    <button onclick="openKtimViewer('current')" style="width:100%;background:#0a1e35;border:1px solid var(--neon);color:var(--neon);border-radius:7px;padding:6px 8px;cursor:pointer;font-size:12px;margin-bottom:4px">🗺 Τρέχουσα (2015–2016)</button>
+    <button onclick="openKtimViewer('1945')" style="width:100%;background:#0a1e35;border:1px solid #f59e0b;color:#f59e0b;border-radius:7px;padding:6px 8px;cursor:pointer;font-size:12px;margin-bottom:4px">📷 1945–1960 (ΑΣΠ/Β)</button>
+    <button onclick="openKtimViewer('2007')" style="width:100%;background:#0a1e35;border:1px solid #f59e0b;color:#f59e0b;border-radius:7px;padding:6px 8px;cursor:pointer;font-size:12px">📷 2007–2009 (έγχρωμη)</button>
   </div>
   <div id="measureInfo" style="position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:600;background:var(--panel);border:1px solid var(--neon);border-radius:10px;padding:8px 14px;font-size:14px;font-weight:700;color:var(--neon);box-shadow:0 0 12px var(--neon-glow);display:none">📏 Μέτρηση: πάτα σημεία</div>
   <div id="sidePanel" style="position:absolute;top:64px;right:10px;z-index:640;width:196px;max-height:52%;overflow-y:auto;background:rgba(5,16,32,.90);border:1px solid var(--neon);border-radius:10px;padding:8px 10px;font-size:11.5px;line-height:1.5;color:#cfeefc;box-shadow:0 0 10px var(--neon-glow);display:none;font-variant-numeric:tabular-nums"></div>
@@ -1089,27 +1086,18 @@ function addForestLayer(name,geojson){
 
 // ═══════ ΕSRI WAYBACK — αφαιρέθηκε (απαιτεί API key) ═══════
 
-// ═══════ ΚΤΗΜΑΤΟΛΟΓΙΟ ΑΕ ορθοφωτογραφίες ═══════
-let ktimPhotoLayer = null;
-const KTIM_WMS = 'https://gis.ktimanet.gr/wms/wmsopen/wmsserver.aspx';
-const KTIM_LAYERS = { '1945':'KTBASEMAP1945', '2007':'ORTHOPHOTO_2007', '2015':'KTBASEMAP' };
-function setKtimPhoto(era){
-  if(ktimPhotoLayer){ map.removeLayer(ktimPhotoLayer); ktimPhotoLayer=null; }
-  if(!era){
-    if(!map.hasLayer(esriSat)) esriSat.addTo(map);
-    esriSat.bringToBack();
-    setHint('Τρέχουσα αεροφωτογραφία (ESRI)','ok');
-    return;
-  }
-  const layerName = KTIM_LAYERS[era]; if(!layerName) return;
-  if(map.hasLayer(esriSat)) map.removeLayer(esriSat);
-  ktimPhotoLayer = L.tileLayer.wms(KTIM_WMS, {
-    layers: layerName, format:'image/jpeg', transparent:false,
-    version:'1.1.1', maxZoom:21, maxNativeZoom:19, zIndex:1
-  }).addTo(map);
-  ktimPhotoLayer.bringToBack();
-  const lbl = {'1945':'1945–1960','2007':'2007–2009','2015':'2015–2016'};
-  setHint('📷 '+lbl[era]+' (Κτηματολόγιο ΑΕ)','ok');
+// ═══════ ΚΤΗΜΑΤΟΛΟΓΙΟ ΑΕ ορθοφωτογραφίες — link στον επίσημο viewer ═══════
+function openKtimViewer(era){
+  const c = map.getCenter();
+  const z = map.getZoom();
+  // Ο viewer του Κτηματολογίου δέχεται lat/lon/zoom ως hash params
+  const base = 'https://gis.ktimanet.gr/wms/ktbasemap/default.aspx';
+  // Χτίζω URL με position — ο viewer θα κεντράρει στο ίδιο σημείο
+  let url = `${base}#lat=${c.lat.toFixed(6)}&lon=${c.lng.toFixed(6)}&zoom=${z}`;
+  if(era==='1945') url += '&basemap=1945';
+  else if(era==='2007') url += '&basemap=2007';
+  window.open(url, '_blank');
+  setHint('Άνοιξε ο viewer Κτηματολογίου σε νέο tab','ok');
 }
 
 function toggleFull(){
