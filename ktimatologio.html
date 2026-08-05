@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0e1f2e">
-<title>Hexis-app Cadastral — ΚΑΕΚ & Όρια</title>
+<title>Hexis-app Cadastral v2.1 — ΚΑΕΚ & Όρια</title>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -167,6 +167,24 @@
   .leaflet-popup-content{margin:10px 12px;font-size:13px}
   .leaflet-popup-content b{color:var(--olive-bright)}
 </style>
+<script>
+// Mini SW για auto-update — κάθε φόρτωση ελέγχει αν υπάρχει νέα έκδοση
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/kt-sw.js').catch(()=>{});
+  // Force update αν υπάρχει waiting SW
+  navigator.serviceWorker.ready.then(reg=>{
+    reg.addEventListener('updatefound',()=>{
+      const nw=reg.installing;
+      nw.addEventListener('statechange',()=>{
+        if(nw.state==='installed'&&navigator.serviceWorker.controller){
+          nw.postMessage({type:'SKIP_WAITING'});
+          window.location.reload();
+        }
+      });
+    });
+  });
+}
+</script>
 </head>
 <body>
 <script>
