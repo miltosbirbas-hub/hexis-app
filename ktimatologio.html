@@ -614,21 +614,6 @@ function downloadDXF(){
     }
     return false;
   }
-  // WGS84 → ΕΓΣΑ'87 (αντίστροφο)
-  function wgsToEgsa(lon,lat){
-    const a=6378137,f=1/298.257222101,e2=f*(2-f),k0=0.9996,l0=24*Math.PI/180,FE=500000;
-    const fi=lat*Math.PI/180, la=lon*Math.PI/180;
-    const N=a/Math.sqrt(1-e2*Math.sin(fi)**2);
-    const ep2=e2/(1-e2), C=ep2*Math.cos(fi)**2, T=Math.tan(fi)**2, A=(la-l0)*Math.cos(fi);
-    const M=a*((1-e2/4-3*e2**2/64-5*e2**3/256)*fi
-               -(3*e2/8+3*e2**2/32+45*e2**3/1024)*Math.sin(2*fi)
-               +(15*e2**2/256+45*e2**3/1024)*Math.sin(4*fi)
-               -(35*e2**3/3072)*Math.sin(6*fi));
-    const E=FE+k0*N*(A+(1-T+C)*A**3/6+(5-18*T+T**2+72*C-58*ep2)*A**5/120);
-    const No=k0*(M+N*Math.tan(fi)*(A**2/2+(5-T+9*C+4*C**2)*A**4/24+(61-58*T+T**2+600*C-330*ep2)*A**6/720));
-    return[E,No];
-  }
-
   // Συλλογή δασικών polygons που πέφτουν στη σκηνή
   const forestFeats = [];
   if(Object.keys(forestLayers).length){
@@ -945,6 +930,20 @@ function parseSHP(ab){
     o+=clen;
   }
   return{type:'FeatureCollection',features:feats};
+}
+// WGS84 → ΕΓΣΑ'87 (global — χρησιμοποιείται από downloadDXF + kaekInBbox)
+function wgsToEgsa(lon,lat){
+  const a=6378137,f=1/298.257222101,e2=f*(2-f),k0=0.9996,l0=24*Math.PI/180,FE=500000;
+  const fi=lat*Math.PI/180, la=lon*Math.PI/180;
+  const N=a/Math.sqrt(1-e2*Math.sin(fi)**2);
+  const ep2=e2/(1-e2), C=ep2*Math.cos(fi)**2, T=Math.tan(fi)**2, A=(la-l0)*Math.cos(fi);
+  const M=a*((1-e2/4-3*e2**2/64-5*e2**3/256)*fi
+             -(3*e2/8+3*e2**2/32+45*e2**3/1024)*Math.sin(2*fi)
+             +(15*e2**2/256+45*e2**3/1024)*Math.sin(4*fi)
+             -(35*e2**3/3072)*Math.sin(6*fi));
+  const E2=FE+k0*N*(A+(1-T+C)*A**3/6+(5-18*T+T**2+72*C-58*ep2)*A**5/120);
+  const No=k0*(M+N*Math.tan(fi)*(A**2/2+(5-T+9*C+4*C**2)*A**4/24+(61-58*T+T**2+600*C-330*ep2)*A**6/720));
+  return[E2,No];
 }
 function egsaToWgs(E,N){ // ΕΓΣΑ'87 → WGS84
   const a=6378137,f=1/298.257222101,e2=f*(2-f),k0=0.9996,l0=24*Math.PI/180,FE=500000;
