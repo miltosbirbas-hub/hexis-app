@@ -809,20 +809,31 @@ function addForestLayer(name,geojson){
     style:{color,weight:1.5,fillColor:color,fillOpacity:.18},
     onEachFeature:(feat,lyr)=>{
       const p=feat.properties||{};
-      // Δοκίμασε όλα τα γνωστά ονόματα πεδίου χαρακτήρα
       const code=(p.KATHGORDX||p.KATHGOR||p.XARAKT||p.CHARACTER||p.CHAR||p.char||'').trim();
       const desc=DASIKA_CHAR[code]||'';
       const areaVal=parseFloat(p.SHAPE_AREA||p.Area||0);
       const area=areaVal>0?`<br>Εμβαδόν: ${areaVal.toLocaleString('el-GR',{maximumFractionDigits:0})} m²`:'';
-      const allProps=Object.entries(p).filter(([k,v])=>v&&String(v).trim()).map(([k,v])=>`<tr><td style="color:#7ea8cc;padding-right:8px">${k}</td><td>${v}</td></tr>`).join('');
-      lyr.bindPopup(
-        `<b style="color:#22c55e">${name}</b>`+
-        (code?`<br><span style="font-size:18px;font-weight:800;color:#f0f9ff">${code}</span>`+
-              (desc?` <span style="color:#22c55e">${desc}</span>`:''): '')+
-        area+
-        (allProps?`<hr style="border-color:#1d4a7a;margin:6px 0"><table style="font-size:11px">${allProps}</table>`:'')+
-        `<br><small style="opacity:.5">Πάτα Χ για κλείσιμο</small>`
-      );
+      // Hover highlight: έντονο περίγραμμα όταν περνάς πάνω
+      const defStyle={color,weight:1.5,fillColor:color,fillOpacity:.18};
+      const hiStyle ={color:'#ffffff',weight:3,  fillColor:color,fillOpacity:.4};
+      lyr.on('mouseover',()=>{ lyr.setStyle(hiStyle); lyr.bringToFront(); });
+      lyr.on('mouseout', ()=>{ lyr.setStyle(defStyle); });
+      // Popup με κουμπί «ΚΑΕΚ στην περιοχή»
+      const popId='fp_'+Math.random().toString(36).slice(2);
+      lyr.on('click',e=>{
+        L.DomEvent.stopPropagation(e);
+        const bb=lyr.getBounds();
+        const popHtml=
+          `<b style="color:#22c55e">${name}</b>`+
+          (code?`<br><span style="font-size:20px;font-weight:800;color:#f0f9ff">${code}</span>`+
+                (desc?` <span style="color:#22c55e;font-size:12px">${desc}</span>`:''):'') +
+          area+
+          `<br><button id="${popId}" onclick="kaekInBbox(${bb.getSouth()},${bb.getNorth()},${bb.getWest()},${bb.getEast()})"
+            style="margin-top:8px;width:100%;background:#0d2a1a;border:1px solid #22c55e;color:#22c55e;
+            border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12.5px;font-weight:700">
+            🔎 Εμφάνιση ΚΑΕΚ στην περιοχή</button>`;
+        map.openPopup(popHtml, e.latlng);
+      });
     }
   }).addTo(map);
   forestLayers[id]={name,color,visible:true,layer,geojson};
@@ -882,6 +893,26 @@ function setWayback(val){
   if(d) d.textContent=en.label;
   setHint('Ιστορική αεροφωτογραφία: '+en.label,'ok');
 }
+/* Εμφάνιση ΚΑΕΚ μέσα σε bbox δασικού πολυγώνου */
+async function kaekInBbox(s,n,w,e){
+  map.closePopup();
+  setHint('Αναζήτηση γεωτεμαχίων στην περιοχή…');
+  const dLat=(n-s)/2, cLat=(n+s)/2, dLon=(e-w)/2, cLon=(e+w)/2;
+  const r=await fetch(KAEK_GEO_API+'?lat='+cLat.toFixed(6)+'&lon='+cLon.toFixed(6)+'&neighbors=1&r='+Math.round(Math.max(dLat,dLon)*111320+50));
+  const p=await r.json().catch(()=>({}));
+  if(!r.ok||p.error){ setHint('Δεν βρέθηκαν γεωτεμάχια στην περιοχή','err'); return; }
+  LASTP={main:p, neighbors:p.neighbors||[]};
+  const parcels=[];
+  if(p.geometry_egsa) parcels.push({kaek:p.kaek,geometry:p.geometry_egsa});
+  (p.neighbors||[]).forEach(n2=>{ if(n2.geometry_egsa) parcels.push({kaek:n2.kaek,geometry:n2.geometry_egsa}); });
+  if(parcels.length){
+    drawAllParcels(parcels);
+    try{ if(parcelLayer) map.fitBounds(parcelLayer.getBounds(),{padding:[40,40],maxZoom:18}); }catch(_){}
+  }
+  const nb=(p.neighbors||[]).length;
+  setHint(`✔ ΚΑΕΚ ${p.kaek}${p.area_m2?` · ${Math.round(p.area_m2)} m²`:''}${nb?`  (+${nb} γεωτεμάχια)`:''}  στην περιοχή`,'ok');
+}
+
 function toggleFull(){
   document.body.classList.toggle("mapfull");
   setTimeout(()=>{ try{ map.invalidateSize(); }catch(e){} }, 120);
