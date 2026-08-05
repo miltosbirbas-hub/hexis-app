@@ -789,6 +789,35 @@ function toggleForestLayer(id,vis){
   else if(!vis&&f.layer){ map.removeLayer(f.layer); f.layer=null; }
   saveForest();
 }
+// Εμφάνιση ΚΑΕΚ γεωτεμαχίων μέσα σε bbox δασικού polygon (WGS84)
+async function kaekInBbox(south, north, west, east){
+  map.closePopup();
+  setHint('🔎 Αναζήτηση ΚΑΕΚ στην περιοχή δασικού…');
+  // Μετατροπή γωνιών bbox σε ΕΓΣΑ'87
+  const [x1,y1] = wgsToEgsa(west, south);
+  const [x2,y2] = wgsToEgsa(east, north);
+  const cx = (x1+x2)/2, cy = (y1+y2)/2;
+  try{
+    // Χρησιμοποιούμε το κέντρο του bbox για αναζήτηση με μεγάλο radius
+    const r = Math.max(Math.abs(x2-x1), Math.abs(y2-y1)) * 0.7;
+    const resp = await fetch(`${KAEK_GEO_API}?x=${cx.toFixed(1)}&y=${cy.toFixed(1)}&r=${Math.round(r)}&neighbors=1`);
+    if(!resp.ok){ setHint('Δεν βρέθηκαν γεωτεμάχια στην περιοχή.','err'); return; }
+    const p = await resp.json();
+    if(p.error){ setHint('Δεν βρέθηκαν γεωτεμάχια στην περιοχή.','err'); return; }
+    kaekDisp(p.kaek,'');
+    LASTP = { main: p, neighbors: p.neighbors||[] };
+    const q = $('kaekQ'); if(q) q.value = p.kaek;
+    const parcels = [];
+    if(p.geometry_egsa) parcels.push({ kaek: p.kaek, geometry: p.geometry_egsa });
+    (p.neighbors||[]).forEach(n=>{ if(n.geometry_egsa) parcels.push({ kaek: n.kaek, geometry: n.geometry_egsa }); });
+    if(parcels.length){ drawAllParcels(parcels); try{ if(parcelLayer) parcelLayer.openPopup(); }catch(e){} }
+    const nb = (p.neighbors||[]).length;
+    setHint(`✔ ΚΑΕΚ ${p.kaek}${p.area_m2?` · ${Math.round(p.area_m2)} m²`:''}${nb?`  (+${nb} όμορα)`:''}`, 'ok');
+  }catch(err){
+    setHint('Σφάλμα δικτύου: '+err.message,'err');
+  }
+}
+
 function clearAllForest(){
   Object.values(forestLayers).forEach(f=>{ if(f.layer) try{map.removeLayer(f.layer);}catch(e){} });
   forestLayers={};
