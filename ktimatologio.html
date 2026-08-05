@@ -993,9 +993,11 @@ function addForestLayer(name,geojson){
         const faKey=fpkeys.find(k=>/^(SHAPE_AREA|AREA|EMVADON|Area)$/i.test(k));
         const fa=parseFloat(faKey?fp[faKey]:0);
         const faStr=fa>0?`<br>Εμβαδόν: ${fa.toLocaleString('el-GR',{maximumFractionDigits:0})} m²`:'';
-        // Εμφάνιση όλων των DBF attributes (για debugging / πληροφορία)
-        const allAttrs=fpkeys.filter(k=>fp[k]!==''&&fp[k]!==null&&fp[k]!==undefined)
-          .map(k=>`<tr><td style="opacity:.6;padding-right:6px">${k}</td><td style="color:#fff">${fp[k]}</td></tr>`).join('');
+        // Εμφάνιση μόνο non-numeric, non-empty attributes
+        const allAttrs=fpkeys.filter(k=>{
+          const v=String(fp[k]||'').trim();
+          return k&&v&&!/^[-\d.e+]+$/i.test(v); // εξαιρεί αριθμούς τύπου 0.000e+000
+        }).map(k=>`<tr><td style="opacity:.6;padding-right:6px">${k}</td><td style="color:#fff">${fp[k]}</td></tr>`).join('');
         const attrsHtml=allAttrs?`<table style="font-size:11px;margin-top:4px;border-collapse:collapse">${allAttrs}</table>`:'';
         const popHtml=
           `<b style="color:#22c55e">${name}</b>`+
