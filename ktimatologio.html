@@ -826,8 +826,8 @@ function parseDBF(ab, enc){
   const fields=[];
   let o=32;
   while(o<hsize-1&&b[o]!==0x0D){
-    const nm=new TextDecoder('latin1').decode(b.slice(o,o+11)).replace(/.*$/,'');
-    fields.push({name:nm, len:b[o+16]});
+    const nm=new TextDecoder('latin1').decode(b.slice(o,o+11)).replace(/\0.*$/,'').trim();
+    if(nm) fields.push({name:nm, len:b[o+16]});  // skip κενά ονόματα
     o+=32;
   }
   const rows=[];
