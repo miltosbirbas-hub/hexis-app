@@ -706,7 +706,7 @@ function parseDBF(ab, enc){
   const fields=[];
   let o=32;
   while(o<hsize-1&&b[o]!==0x0D){
-    const nm=new TextDecoder('latin1').decode(b.slice(o,o+11)).replace(/ .*$/,'');
+    const nm=new TextDecoder('latin1').decode(b.slice(o,o+11)).replace(/.*$/,'');
     fields.push({name:nm, len:b[o+16]});
     o+=32;
   }
@@ -745,10 +745,7 @@ function importShpZip(ev){
           const rows=parseDBF(dbfBuf, enc);
           console.log('[DBF] rows:', rows.length, 'sample:', rows[0]);
           geojson.features.forEach((f,i)=>{
-            if(rows[i]){
-              f.properties = f.properties || {};
-              Object.keys(rows[i]).forEach(k=>{ f.properties[k]=rows[i][k]; });
-            }
+            if(rows[i]) f.properties = {...(f.properties||{}), ...rows[i]};
           });
           console.log('[DBF] feature[0] props:', geojson.features[0]?.properties);
         }catch(dbfErr){ console.warn('DBF parse error:', dbfErr); }
@@ -809,7 +806,7 @@ function parseSHP(ab){
     const coords=[]; let po=o+44+nparts*4;
     for(let i=0;i<npts;i++){ const x=v.getFloat64(po+i*16,true),y=v.getFloat64(po+i*16+8,true); coords.push([x,y]); }
     const rings=parts.map((s,i)=>{ const e=i+1<parts.length?parts[i+1]:npts; return coords.slice(s,e).map(c=>egsaToWgs(c[0],c[1])); });
-    feats.push({type:'Feature',properties:Object.create(null),geometry:{type:st===5?'Polygon':'LineString',coordinates:st===5?rings:rings[0]}});
+    feats.push({type:'Feature',properties:{},geometry:{type:st===5?'Polygon':'LineString',coordinates:st===5?rings:rings[0]}});
     o+=clen;
   }
   return{type:'FeatureCollection',features:feats};
@@ -849,6 +846,7 @@ function addForestLayer(name,geojson){
         const bb=lyr.getBounds();
         // Lazy: διαβάζουμε properties ΤΗΝ ΩΡΑ ΤΟΥ ΚΛΙΚ (μετά το DBF parse)
         const fp=feat.properties||{};
+        console.log('[CLICK] props:', JSON.stringify(fp).slice(0,200));
         const fc=(fp.KATHGORDX||fp.KATHGOR||fp.XARAKT||fp.CHARACTER||fp.CHAR||'').trim();
         const fd=DASIKA_CHAR[fc]||'';
         const fa=parseFloat(fp.SHAPE_AREA||0);
