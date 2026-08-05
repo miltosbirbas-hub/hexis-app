@@ -698,31 +698,41 @@ function importShpZip(ev){
   fr.readAsArrayBuffer(file);
 }
 async function extractSHP(ab){
-  // v2: robust ZIP — χειρίζεται stored (0) ΚΑΙ deflate (8) μέσω pako
+  // v3: clean ZIP parser — flags 0x0002 (csize στον header, deflate -15 μέσω pako.inflateRaw)
   const v=new DataView(ab); let shpBuf=null,dbfBuf=null,cpgText='';
-  for(let o=0;o<ab.byteLength-30;){
+  let o=0;
+  while(o<ab.byteLength-30){
+    // βρες το επόμενο PK local header
     if(v.getUint32(o,true)!==0x04034b50){o++;continue;}
     const method=v.getUint16(o+8,true);
-    const csize=v.getUint32(o+18,true), usize=v.getUint32(o+22,true);
-    const nmlen=v.getUint16(o+26,true), exlen=v.getUint16(o+28,true);
-    const name=new TextDecoder('utf-8',{fatal:false}).decode(new Uint8Array(ab,o+30,nmlen)).toLowerCase();
-    const doff=o+30+nmlen+exlen;
-    const ac=csize||usize||0;
+    const csize =v.getUint32(o+18,true);
+    const usize =v.getUint32(o+22,true);
+    const nmlen =v.getUint16(o+26,true);
+    const exlen =v.getUint16(o+28,true);
+    const name  =new TextDecoder('utf-8',{fatal:false}).decode(new Uint8Array(ab,o+30,nmlen)).toLowerCase().split('/').pop();
+    const doff  =o+30+nmlen+exlen;
     let raw=null;
     try{
-      const ch=new Uint8Array(ab,doff,ac||Math.min(ab.byteLength-doff,8000000));
-      if(method===8&&typeof pako!=='undefined') raw=pako.inflateRaw(ch).buffer;
-      else raw=ch.buffer.slice(ch.byteOffset,ch.byteOffset+(usize||ac));
-    }catch(e){}
+      if(method===8){
+        // deflate — raw deflate stream (wbits=-15), ίδιο με zlib.decompress(data,-15)
+        const compressed=new Uint8Array(ab,doff,csize);
+        raw=pako.inflateRaw(compressed).buffer;
+      } else if(method===0){
+        // stored — αντιγραφή
+        raw=ab.slice(doff,doff+usize);
+      }
+    }catch(err){
+      console.warn('ZIP entry error:',name,err.message);
+    }
     if(raw){
       const ext=name.split('.').pop();
       if(ext==='shp') shpBuf=raw;
       else if(ext==='dbf') dbfBuf=raw;
       else if(ext==='cpg') cpgText=new TextDecoder('utf-8',{fatal:false}).decode(raw).trim();
     }
-    o=doff+Math.max(csize||0,usize||0,1);
+    o=doff+csize; // επόμενο entry
   }
-  if(!shpBuf) throw new Error('Δεν βρέθηκε .shp — ελέγξε ότι το zip περιέχει shapefile (.shp/.dbf)');
+  if(!shpBuf) throw new Error('Δεν βρέθηκε .shp μέσα στο zip');
   return{shpBuf,dbfBuf,cpgText};
 }
 function parseSHP(ab){
