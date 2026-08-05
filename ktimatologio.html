@@ -8,6 +8,7 @@
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.11.0/proj4.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4leaflet/1.0.2/proj4leaflet.min.js"></script>
 
@@ -697,27 +698,33 @@ function importShpZip(ev){
   fr.readAsArrayBuffer(file);
 }
 async function extractSHP(ab){
-  // minimal ZIP parser — βρίσκει .shp, .dbf, .cpg
+  // v2: robust ZIP — χειρίζεται stored (0) ΚΑΙ deflate (8) μέσω pako
   const v=new DataView(ab); let shpBuf=null,dbfBuf=null,cpgText='';
-  let o=0;
-  while(o<ab.byteLength-4){
-    if(v.getUint32(o,true)!==0x04034b50) break;
-    const flags=v.getUint16(o+6,true),nmlen=v.getUint16(o+26,true),exlen=v.getUint16(o+28,true);
-    const nameBytes=new Uint8Array(ab,o+30,nmlen);
-    const name=new TextDecoder().decode(nameBytes).toLowerCase();
-    const dataStart=o+30+nmlen+exlen;
-    const csize=v.getUint32(o+18,true),usize=v.getUint32(o+22,true);
-    const payload=csize>0&&flags&8?new Uint8Array(ab,dataStart,csize):new Uint8Array(ab,dataStart,usize);
-    const raw=((flags&8)&&csize>0)?inflateRaw(payload):payload.buffer.slice(payload.byteOffset,payload.byteOffset+payload.byteLength);
-    if(name.endsWith('.shp')) shpBuf=raw;
-    else if(name.endsWith('.dbf')) dbfBuf=raw;
-    else if(name.endsWith('.cpg')) cpgText=new TextDecoder().decode(raw).trim();
-    o=dataStart+(csize>0?csize:usize);
+  for(let o=0;o<ab.byteLength-30;){
+    if(v.getUint32(o,true)!==0x04034b50){o++;continue;}
+    const method=v.getUint16(o+8,true);
+    const csize=v.getUint32(o+18,true), usize=v.getUint32(o+22,true);
+    const nmlen=v.getUint16(o+26,true), exlen=v.getUint16(o+28,true);
+    const name=new TextDecoder('utf-8',{fatal:false}).decode(new Uint8Array(ab,o+30,nmlen)).toLowerCase();
+    const doff=o+30+nmlen+exlen;
+    const ac=csize||usize||0;
+    let raw=null;
+    try{
+      const ch=new Uint8Array(ab,doff,ac||Math.min(ab.byteLength-doff,8000000));
+      if(method===8&&typeof pako!=='undefined') raw=pako.inflateRaw(ch).buffer;
+      else raw=ch.buffer.slice(ch.byteOffset,ch.byteOffset+(usize||ac));
+    }catch(e){}
+    if(raw){
+      const ext=name.split('.').pop();
+      if(ext==='shp') shpBuf=raw;
+      else if(ext==='dbf') dbfBuf=raw;
+      else if(ext==='cpg') cpgText=new TextDecoder('utf-8',{fatal:false}).decode(raw).trim();
+    }
+    o=doff+Math.max(csize||0,usize||0,1);
   }
-  if(!shpBuf) throw new Error('Δεν βρέθηκε .shp μέσα στο zip');
+  if(!shpBuf) throw new Error('Δεν βρέθηκε .shp — ελέγξε ότι το zip περιέχει shapefile (.shp/.dbf)');
   return{shpBuf,dbfBuf,cpgText};
 }
-function inflateRaw(data){ try{ return pako.inflateRaw(data).buffer; }catch(e){ return data.buffer||data; } }
 function parseSHP(ab){
   // SHP polygon/polyline → GeoJSON + ΕΓΣΑ'87→WGS84
   const v=new DataView(ab), type=v.getInt32(32,true);
