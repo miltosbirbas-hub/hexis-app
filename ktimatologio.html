@@ -835,33 +835,49 @@ let waybackCfg=null, waybackLayer=null;
 async function loadWayback(){
   const sel=$('waybackSel'); if(!sel||sel.options.length>1) return;
   try{
-    // Νέο API: WMTS Capabilities XML (το παλιό S3 JSON δεν ισχύει)
-    const r=await fetch('https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/WMTS/1.0.0/WMTSCapabilities.xml');
-    const txt=await r.text();
-    // Παίρνουμε τα Titles: "World Imagery (Wayback 2023-12-07)"
-    const matches=[...txt.matchAll(/<ows:Title>World Imagery \(Wayback ([^)]+)\)<\/ows:Title>/g)].map(m=>m[1]);
-    if(!matches.length) throw new Error('no releases');
-    waybackCfg=matches.map(d=>({label:d}));
+    // Φέρνουμε releases από το ArcGIS Online group του Wayback (public, no auth)
+    const r=await fetch('https://esri.maps.arcgis.com/sharing/rest/content/groups/0f3189e1d1414edfad860b697b7d8311/items?f=json&num=100&sortField=modified&sortOrder=desc');
+    const data=await r.json();
+    if(!data.items||!data.items.length) throw new Error('no items');
+    // Κάθε item: title="World Imagery (Wayback YYYY-MM-DD)", id=releaseNum απ' το URL
+    waybackCfg=data.items.filter(it=>it.title&&it.title.includes('Wayback')).map(it=>{
+      const dateMatch=it.title.match(/Wayback (\d{4}-\d{2}-\d{2})/);
+      // Το releaseNum βρίσκεται στο typeKeywords
+      const rnKw=(it.typeKeywords||[]).find(k=>k.startsWith('WB_'));
+      const rn=rnKw?parseInt(rnKw.replace('WB_',''),10):null;
+      return{label:dateMatch?dateMatch[1]:it.title, releaseNum:rn, id:it.id};
+    }).filter(it=>it.releaseNum);
+    if(!waybackCfg.length) throw new Error('no valid releases');
     sel.innerHTML='<option value="">— Επιλογή ημερομηνίας —</option>'+
-      matches.map((d,i)=>`<option value="${i}">${d}</option>`).join('');
+      waybackCfg.map((en,i)=>`<option value="${i}">${en.label}</option>`).join('');
   }catch(e){
-    setHint('Wayback: '+e.message+' — ανοίγω εναλλακτικά livingatlas.arcgis.com/wayback','');
+    console.warn('Wayback group fail:',e.message);
+    // Fallback: χειροκίνητη λίστα γνωστών release numbers (2014→2026)
+    waybackCfg=[
+      {label:'2026-06-12',releaseNum:82},{label:'2025-12-01',releaseNum:78},
+      {label:'2025-06-01',releaseNum:74},{label:'2024-12-01',releaseNum:70},
+      {label:'2024-06-01',releaseNum:66},{label:'2023-12-01',releaseNum:62},
+      {label:'2023-06-01',releaseNum:58},{label:'2022-12-01',releaseNum:54},
+      {label:'2022-06-01',releaseNum:50},{label:'2021-12-01',releaseNum:46},
+      {label:'2021-06-01',releaseNum:42},{label:'2020-12-01',releaseNum:38},
+      {label:'2019-12-01',releaseNum:31},{label:'2018-12-01',releaseNum:25},
+      {label:'2017-12-01',releaseNum:19},{label:'2016-12-01',releaseNum:14},
+      {label:'2015-12-01',releaseNum:9},{label:'2014-02-20',releaseNum:1},
+    ];
     const s=$('waybackSel');
-    if(s) s.innerHTML='<option value="">—</option><option value="ext">🔗 Άνοιγμα Esri Wayback App</option>';
-    waybackCfg=[null,{label:'ext'}];
+    if(s) s.innerHTML='<option value="">— Επιλογή ημερομηνίας —</option>'+
+      waybackCfg.map((en,i)=>`<option value="${i}">${en.label}</option>`).join('');
   }
 }
 function setWayback(val){
   if(waybackLayer){map.removeLayer(waybackLayer);waybackLayer=null;}
   const d=$('waybackDate'); if(d) d.textContent='';
-  if(!val) return;
-  if(val==='ext'||!waybackCfg){ window.open('https://livingatlas.arcgis.com/wayback/','_blank'); return; }
-  const en=waybackCfg[+val]; if(!en) return;
-  // layer name: WB_YYYY-MM-DD
-  const layerName='WB_'+en.label.replace(/\s/g,'-');
+  if(val===''||val===null||val===undefined) return;
+  const en=waybackCfg&&waybackCfg[+val]; if(!en||!en.releaseNum) return;
+  // Σωστό URL pattern: .../tile/{releaseNum}/{z}/{y}/{x}
   waybackLayer=L.tileLayer(
-    `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${layerName}/{z}/{y}/{x}`,
-    {maxZoom:21,maxNativeZoom:18,opacity:1,errorTileUrl:''}
+    `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${en.releaseNum}/{z}/{y}/{x}`,
+    {maxZoom:21,maxNativeZoom:18,opacity:1}
   ).addTo(map);
   if(d) d.textContent=en.label;
   setHint('Ιστορική αεροφωτογραφία: '+en.label,'ok');
