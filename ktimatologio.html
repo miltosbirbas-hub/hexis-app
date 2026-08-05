@@ -840,9 +840,23 @@ function parseDBF(ab, enc){
   return rows;
 }
 const DASIKA_CHAR = {
-  'ΔΔ':'Δάσος Δημόσιο','ΔΑ':'Δάσος Αντικ/κό','ΔΙ':'Δάσος Ιδιωτικό',
-  'ΧΔ':'Χορτολιβαδική Δασ.','ΑΔ':'Αναδασωτέα','ΑΓ':'Αγρ/τική',
-  'ΟΙ':'Οικισμός','ΥΔ':'Υδάτινη','ΑΣ':'Αστική','ΤΕ':'Τεχνητή',
+  // Κύριες κατηγορίες κυρωμένου δασικού χάρτη (Κτηματολόγιο)
+  'ΔΔ':'Δάσος Δημόσιο',
+  'ΔΙ':'Δάσος Ιδιωτικό',
+  'ΔΑ':'Δάσος Αντικ/κό',
+  'ΠΔ':'Δασική έκταση Δημόσια',
+  'ΠΙ':'Δασική έκταση Ιδιωτική',
+  'ΠΑ':'Δασική έκταση Αντικ/κή',
+  'ΠΧ':'Δασική έκταση Χορτολιβαδική',
+  'ΧΔ':'Χορτολιβαδική Δημόσια',
+  'ΧΙ':'Χορτολιβαδική Ιδιωτική',
+  'ΑΔ':'Αναδασωτέα',
+  'ΑΑ':'Αγροτική / Μη δασική',
+  'ΑΓ':'Αγροτική',
+  'ΟΙ':'Οικισμός',
+  'ΥΔ':'Υδάτινη',
+  'ΑΣ':'Αστική',
+  'ΤΕ':'Τεχνητή',
 };
 function importShpZip(ev){
   const file=ev.target.files[0]; ev.target.value=''; if(!file) return;
@@ -852,7 +866,8 @@ function importShpZip(ev){
     try{
       const ab=e.target.result;
       const {shpBuf,dbfBuf,cpgText}=await extractSHP(ab);
-      const enc=/1253|greek/i.test(cpgText)?'cp1253':'utf-8';
+      // CPG: το Κτηματολόγιο δίνει πάντα UTF-8 για KATHGORDX — αγνοούμε cp1253
+      const enc='utf-8';
       const geojson=parseSHP(shpBuf);
       // Προσθήκη attributes από DBF ΠΡΙΝ το addForestLayer
       if(dbfBuf){
@@ -865,8 +880,8 @@ function importShpZip(ev){
           console.log('[DBF] feature[0] props:', geojson.features[0]?.properties);
         }catch(dbfErr){ console.warn('DBF parse error:', dbfErr); }
       }
-      addForestLayer(file.name.replace(/\.zip$/i,''), geojson);
-      setHint('✔ Φορτώθηκαν '+geojson.features.length+' αντικείμενα από '+file.name,'ok');
+      const finalName = addForestLayer(file.name.replace(/\.zip$/i,''), geojson);
+      setHint(`✔ Φορτώθηκαν ${geojson.features.length} αντικείμενα ως "${finalName}"`, 'ok');
     }catch(er){ setHint('✖ Σφάλμα: '+er.message,'err'); console.error(er); }
   };
   fr.readAsArrayBuffer(file);
@@ -975,20 +990,40 @@ function wgsToEgsa(lon,lat){
   const No=k0*(M+N*Math.tan(fi)*(A**2/2+(5-T+9*C+4*C**2)*A**4/24+(61-58*T+T**2+600*C-330*ep2)*A**6/720));
   return[E2,No];
 }
-function egsaToWgs(E,N){ // ΕΓΣΑ'87 → WGS84
-  const a=6378137,f=1/298.257222101,e2=f*(2-f),k0=0.9996,l0=24*Math.PI/180,FE=500000;
-  const M=N/k0,mu=M/(a*(1-e2/4-3*e2*e2/64-5*Math.pow(e2,3)/256));
-  const ep2=e2/(1-e2),e1=(1-Math.sqrt(1-e2))/(1+Math.sqrt(1-e2));
-  const p1=3*e1/2-27*Math.pow(e1,3)/32,p2=21*e1*e1/16-55*Math.pow(e1,4)/32,p3=151*Math.pow(e1,3)/96;
-  const fi1=mu+p1*Math.sin(2*mu)+p2*Math.sin(4*mu)+p3*Math.sin(6*mu);
-  const Nf=a/Math.sqrt(1-e2*Math.sin(fi1)**2),Tf=Math.tan(fi1)**2,Cf=ep2*Math.cos(fi1)**2,Rf=a*(1-e2)/Math.pow(1-e2*Math.sin(fi1)**2,1.5);
-  const D=(E-FE)/(Nf*k0);
-  const lat=fi1-(Nf*Math.tan(fi1)/Rf)*(D*D/2-(5+3*Tf+10*Cf-4*Cf*Cf-9*ep2)*Math.pow(D,4)/24+(61+90*Tf+298*Cf+45*Tf*Tf-252*ep2-3*Cf*Cf)*Math.pow(D,6)/720);
-  const lon=l0+(D-(1+2*Tf+Cf)*Math.pow(D,3)/6+(5-2*Cf+28*Tf-3*Cf*Cf+8*ep2+24*Tf*Tf)*Math.pow(D,5)/120)/Math.cos(fi1);
-  return[lon*180/Math.PI, lat*180/Math.PI];
+function egsaToWgs(E,N){ // ΕΓΣΑ'87 (EPSG:2100) → WGS84 — Helmert dX=-199.87 dY=74.79 dZ=246.62
+  const k0=0.9996,a=6378137.0,f=1/298.257222101,e2=2*f-f*f,ep2=e2/(1-e2);
+  const FE=500000,l0=24*Math.PI/180;
+  const x=E-FE,y=N,M=y/k0;
+  const mu=M/(a*(1-e2/4-3*e2**2/64-5*e2**3/256));
+  const e1=(1-Math.sqrt(1-e2))/(1+Math.sqrt(1-e2));
+  const fi1=mu+(3*e1/2-27*e1**3/32)*Math.sin(2*mu)+(21*e1**2/16-55*e1**4/32)*Math.sin(4*mu)+(151*e1**3/96)*Math.sin(6*mu)+(1097*e1**4/512)*Math.sin(8*mu);
+  const N1=a/Math.sqrt(1-e2*Math.sin(fi1)**2);
+  const T1=Math.tan(fi1)**2,C1=ep2*Math.cos(fi1)**2,R1=a*(1-e2)/(1-e2*Math.sin(fi1)**2)**1.5;
+  const D=x/(N1*k0);
+  const fi=fi1-(N1*Math.tan(fi1)/R1)*(D**2/2-(5+3*T1+10*C1-4*C1**2-9*ep2)*D**4/24+(61+90*T1+298*C1+45*T1**2-252*ep2-3*C1**2)*D**6/720);
+  const la=l0+(D-(1+2*T1+C1)*D**3/6+(5-2*C1+28*T1-3*C1**2+8*ep2+24*T1**2)*D**5/120)/Math.cos(fi1);
+  // → Cartesian GGRS87
+  const Nv=a/Math.sqrt(1-e2*Math.sin(fi)**2);
+  const Xc=Nv*Math.cos(fi)*Math.cos(la),Yc=Nv*Math.cos(fi)*Math.sin(la),Zc=Nv*(1-e2)*Math.sin(fi);
+  // Helmert shift → WGS84 Cartesian
+  const Xw=Xc-199.87,Yw=Yc+74.79,Zw=Zc+246.62;
+  // → Geographic WGS84 (iterative Bowring)
+  const a84=6378137.0,f84=1/298.257223563,e2_84=2*f84-f84*f84;
+  const p=Math.sqrt(Xw**2+Yw**2),lon=Math.atan2(Yw,Xw);
+  let lat=Math.atan2(Zw,p*(1-e2_84));
+  for(let i=0;i<10;i++){const Nv2=a84/Math.sqrt(1-e2_84*Math.sin(lat)**2);lat=Math.atan2(Zw+e2_84*Nv2*Math.sin(lat),p);}
+  return[lon*180/Math.PI,lat*180/Math.PI];
 }
 const FOREST_COLORS=['#22c55e','#f59e0b','#3b82f6','#a855f7','#ef4444','#06b6d4'];
 function addForestLayer(name,geojson){
+  // Αυτόματη αρίθμηση αν υπάρχει ήδη layer με το ίδιο όνομα
+  const existingNames = Object.values(forestLayers).map(f=>f.name);
+  let finalName = name;
+  if(existingNames.includes(name)){
+    let n=2;
+    while(existingNames.includes(`${name} (${n})`)) n++;
+    finalName = `${name} (${n})`;
+  }
   const id='f'+Date.now(), color=FOREST_COLORS[Object.keys(forestLayers).length%FOREST_COLORS.length];
   const layer=L.geoJSON(geojson,{
     style:{color,weight:1.5,fillColor:color,fillOpacity:.18},
@@ -1030,7 +1065,7 @@ function addForestLayer(name,geojson){
         }).map(k=>`<tr><td style="opacity:.6;padding-right:6px">${k}</td><td style="color:#fff">${fp[k]}</td></tr>`).join('');
         const attrsHtml=allAttrs?`<table style="font-size:11px;margin-top:4px;border-collapse:collapse">${allAttrs}</table>`:'';
         const popHtml=
-          `<b style="color:#22c55e">${name}</b>`+
+          `<b style="color:#22c55e">${finalName}</b>`+
           (fc?`<br><span style="font-size:20px;font-weight:900;color:#ffffff">${fc}</span>`+
               (fd&&fd!==fc?` <span style="color:#22c55e;font-size:13px">${fd}</span>`:'')
             :'<br><i style="opacity:.6">Χωρίς χαρακτήρα</i>')+
@@ -1043,9 +1078,10 @@ function addForestLayer(name,geojson){
       });
     }
   }).addTo(map);
-  forestLayers[id]={name,color,visible:true,layer,geojson};
+  forestLayers[id]={name:finalName,color,visible:true,layer,geojson};
   saveForest(); renderForestList();
   try{map.fitBounds(layer.getBounds(),{padding:[40,40],maxZoom:17});}catch(e){}
+  return finalName;
 }
 
 // ═══════ ΕSRI WAYBACK (ιστορικές αεροφωτογραφίες) ═══════
