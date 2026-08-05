@@ -965,9 +965,14 @@ function addForestLayer(name,geojson){
     style:{color,weight:1.5,fillColor:color,fillOpacity:.18},
     onEachFeature:(feat,lyr)=>{
       const p=feat.properties||{};
-      const code=(p.KATHGORDX||p.KATHGOR||p.XARAKT||p.CHARACTER||p.CHAR||p.char||'').trim();
-      const desc=DASIKA_CHAR[code]||'';
-      const areaVal=parseFloat(p.SHAPE_AREA||p.Area||0);
+      // Ψάχνουμε τον χαρακτήρα σε όλα τα γνωστά field names (case-insensitive)
+      const pfkeys = Object.keys(p);
+      const codeKey = pfkeys.find(k=>/^(KATHGORDX|KATHGOR|XARAKT|CHARACTER|CHAR|KAT|CHARAK|CHARACT)$/i.test(k));
+      const code = (codeKey ? p[codeKey] : '') + '';
+      const codeTrim = code.trim();
+      const desc=DASIKA_CHAR[codeTrim]||codeTrim||'';
+      const areaKey = pfkeys.find(k=>/^(SHAPE_AREA|AREA|EMVADON|Area)$/i.test(k));
+      const areaVal=parseFloat(areaKey ? p[areaKey] : 0);
       const area=areaVal>0?`<br>Εμβαδόν: ${areaVal.toLocaleString('el-GR',{maximumFractionDigits:0})} m²`:'';
       // Hover highlight: έντονο περίγραμμα όταν περνάς πάνω
       const defStyle={color,weight:1.5,fillColor:color,fillOpacity:.18};
@@ -981,16 +986,24 @@ function addForestLayer(name,geojson){
         const bb=lyr.getBounds();
         // Lazy: διαβάζουμε properties ΤΗΝ ΩΡΑ ΤΟΥ ΚΛΙΚ (μετά το DBF parse)
         const fp=feat.properties||{};
-        console.log('[CLICK] props:', JSON.stringify(fp).slice(0,200));
-        const fc=(fp.KATHGORDX||fp.KATHGOR||fp.XARAKT||fp.CHARACTER||fp.CHAR||'').trim();
-        const fd=DASIKA_CHAR[fc]||'';
-        const fa=parseFloat(fp.SHAPE_AREA||0);
+        console.log('[CLICK] props:', JSON.stringify(fp).slice(0,300));
+        const fpkeys=Object.keys(fp);
+        const fcKey=fpkeys.find(k=>/^(KATHGORDX|KATHGOR|XARAKT|CHARACTER|CHAR|KAT|CHARAK|CHARACT)$/i.test(k));
+        const fc=(fcKey?fp[fcKey]:'').toString().trim();
+        const fd=DASIKA_CHAR[fc]||fc||'';
+        const faKey=fpkeys.find(k=>/^(SHAPE_AREA|AREA|EMVADON|Area)$/i.test(k));
+        const fa=parseFloat(faKey?fp[faKey]:0);
         const faStr=fa>0?`<br>Εμβαδόν: ${fa.toLocaleString('el-GR',{maximumFractionDigits:0})} m²`:'';
+        // Εμφάνιση όλων των DBF attributes (για debugging / πληροφορία)
+        const allAttrs=fpkeys.filter(k=>fp[k]!==''&&fp[k]!==null&&fp[k]!==undefined)
+          .map(k=>`<tr><td style="opacity:.6;padding-right:6px">${k}</td><td style="color:#fff">${fp[k]}</td></tr>`).join('');
+        const attrsHtml=allAttrs?`<table style="font-size:11px;margin-top:4px;border-collapse:collapse">${allAttrs}</table>`:'';
         const popHtml=
           `<b style="color:#22c55e">${name}</b>`+
-          (fc?`<br><span style="font-size:22px;font-weight:900;color:#ffffff">${fc}</span>`+
-              (fd?` <span style="color:#22c55e;font-size:13px">${fd}</span>`:''):'<br><i style="opacity:.6">Χωρίς χαρακτήρα</i>')+
-          faStr+
+          (fc?`<br><span style="font-size:20px;font-weight:900;color:#ffffff">${fc}</span>`+
+              (fd&&fd!==fc?` <span style="color:#22c55e;font-size:13px">${fd}</span>`:'')
+            :'<br><i style="opacity:.6">Χωρίς χαρακτήρα</i>')+
+          faStr+attrsHtml+
           `<br><button onclick="kaekInBbox(${bb.getSouth()},${bb.getNorth()},${bb.getWest()},${bb.getEast()})"
             style="margin-top:8px;width:100%;background:#0d2a1a;border:1px solid #22c55e;color:#22c55e;
             border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12.5px;font-weight:700">
