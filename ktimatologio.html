@@ -1149,13 +1149,20 @@ async function loadWayback(){
 function setWayback(val){
   if(waybackLayer){map.removeLayer(waybackLayer);waybackLayer=null;}
   const d=$('waybackDate'); if(d) d.textContent='';
-  if(val===''||val===null||val===undefined) return;
+  if(val===''||val===null||val===undefined){
+    // Επιστροφή σε τρέχουσα — επαναφέρω esriSat
+    if(!map.hasLayer(esriSat)) esriSat.addTo(map); esriSat.bringToBack();
+    setHint('Τρέχουσα αεροφωτογραφία (ESRI)','ok');
+    return;
+  }
   const en=waybackCfg&&waybackCfg[+val]; if(!en) return;
-  // Σωστό URL: tile/{releaseNum}/{z}/{y}/{x}
+  // Κρύβω τον esriSat για να φαίνεται το wayback
+  if(map.hasLayer(esriSat)) map.removeLayer(esriSat);
   waybackLayer=L.tileLayer(
     `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${en.releaseNum}/{z}/{y}/{x}`,
-    {maxZoom:21,maxNativeZoom:18,opacity:1}
+    {maxZoom:21,maxNativeZoom:18,opacity:1,zIndex:1}
   ).addTo(map);
+  waybackLayer.bringToBack();
   if(d) d.textContent=en.releaseDateLabel;
   setHint('Ιστορική αεροφωτογραφία: '+en.releaseDateLabel,'ok');
 }
