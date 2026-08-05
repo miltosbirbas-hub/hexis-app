@@ -910,19 +910,54 @@ async function extractSHP(ab){
   return{shpBuf,dbfBuf,cpgText};
 }
 function parseSHP(ab){
-  // SHP polygon/polyline → GeoJSON + ΕΓΣΑ'87→WGS84
-  const v=new DataView(ab), type=v.getInt32(32,true);
+  // SHP → GeoJSON + ΕΓΣΑ'87→WGS84
+  // Υποστηριζόμενοι τύποι: 5=Polygon, 15=PolygonZ, 25=PolygonM, 3=Polyline, 13=PolylineZ, 23=PolylineM
+  const v=new DataView(ab);
   const feats=[]; let o=100;
   while(o<ab.byteLength-8){
-    const clen=v.getInt32(o+4,false)*2; o+=8;
-    const st=v.getInt32(o,true); if(st===0){o+=clen;continue;}
-    const nparts=v.getInt32(o+36,true),npts=v.getInt32(o+40,true);
-    const parts=[]; for(let i=0;i<nparts;i++) parts.push(v.getInt32(o+44+i*4,true));
-    const coords=[]; let po=o+44+nparts*4;
-    for(let i=0;i<npts;i++){ const x=v.getFloat64(po+i*16,true),y=v.getFloat64(po+i*16+8,true); coords.push([x,y]); }
-    const rings=parts.map((s,i)=>{ const e=i+1<parts.length?parts[i+1]:npts; return coords.slice(s,e).map(c=>egsaToWgs(c[0],c[1])); });
-    feats.push({type:'Feature',properties:{},geometry:{type:st===5?'Polygon':'LineString',coordinates:st===5?rings:rings[0]}});
-    o+=clen;
+    const clen=v.getInt32(o+4,false)*2;
+    const recEnd=o+8+clen;
+    o+=8;
+    if(o+4>ab.byteLength) break;
+    const st=v.getInt32(o,true);
+    if(st===0){ o=recEnd; continue; } // Null shape
+
+    const isPolyType = (st===3||st===5||st===13||st===15||st===23||st===25);
+    if(!isPolyType){ o=recEnd; continue; }
+
+    if(o+44>ab.byteLength){ break; }
+    const nparts=v.getInt32(o+36,true);
+    const npts  =v.getInt32(o+40,true);
+    if(nparts<=0||npts<=0||nparts>10000||npts>500000){ o=recEnd; continue; }
+
+    const partsOff=o+44;
+    const ptsOff  =partsOff+nparts*4;
+    if(ptsOff+npts*16>ab.byteLength){ o=recEnd; continue; }
+
+    const parts=[];
+    for(let i=0;i<nparts;i++) parts.push(v.getInt32(partsOff+i*4,true));
+
+    const coords=[];
+    for(let i=0;i<npts;i++){
+      const x=v.getFloat64(ptsOff+i*16,  true);
+      const y=v.getFloat64(ptsOff+i*16+8,true);
+      coords.push([x,y]);
+    }
+
+    const rings=parts.map((s,i)=>{
+      const e=i+1<parts.length?parts[i+1]:npts;
+      return coords.slice(s,e).map(c=>egsaToWgs(c[0],c[1]));
+    });
+
+    const isPoly=(st===5||st===15||st===25);
+    feats.push({
+      type:'Feature',properties:{},
+      geometry:{
+        type: isPoly?'Polygon':'LineString',
+        coordinates: isPoly?rings:rings[0]
+      }
+    });
+    o=recEnd;
   }
   return{type:'FeatureCollection',features:feats};
 }
