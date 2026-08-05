@@ -565,17 +565,95 @@ function dxfCentroid(geom){
 function downloadDXF(){
   if(!LASTP || !LASTP.main){ setHint("Κάνε πρώτα κλικ σε γεωτεμάχιο ή αναζήτηση ΚΑΕΚ.", "err"); return; }
   const L1="KAEK_MAIN", L2="KAEK_OMORA", L3="KAEK_EK", L4="KAEK_TEXT";
+  const L5="DASIKOS_XARTIS", L6="DASIKOS_TEXT";
   const dxfStr = (s)=> s.replace(/Ε/g,'E').replace(/Κ/g,'K'); // ΕΚ→EK (λατινικά): αναγνώσιμο από κάθε CAD font
-  const out = ["0","SECTION","2","HEADER","9","$INSUNITS","70","6","0","ENDSEC",
-   "0","SECTION","2","TABLES","0","TABLE","2","LAYER","70","4"];
-  [[L1,"1"],[L2,"4"],[L3,"3"],[L4,"7"]].forEach(([n,c])=>{
-    out.push("0","LAYER","2",n,"70","0","62",c,"6","CONTINUOUS");
-  });
-  out.push("0","ENDTAB","0","ENDSEC","0","SECTION","2","ENTITIES");
-  // v: στο DXF ΜΟΝΟ τα πραγματικά εφαπτόμενα (κοινό όριο με το κύριο) — οικόπεδα, δρόμοι, ρέματα
+
+  // ── Εντοπισμός δασικών polygons που τέμνονται με κύριο ή εφαπτόμενα ──
   const mg = LASTP.main.geometry_egsa;
   const touching = (LASTP.neighbors||[]).filter(n => n.geometry_egsa && mg && touchesEgsa(mg, n.geometry_egsa));
   const items = [{p:LASTP.main, main:true}].concat(touching.map(n=>({p:n, main:false})));
+
+  // Bbox των παρελών για prefilter δασικών
+  function geomBbox(g){
+    const pts = (g.coordinates||[]).flat(3);
+    let mnx=Infinity,mxx=-Infinity,mny=Infinity,mxy=-Infinity;
+    for(let i=0;i<pts.length;i+=2){mnx=Math.min(mnx,pts[i]);mxx=Math.max(mxx,pts[i]);mny=Math.min(mny,pts[i+1]);mxy=Math.max(mxy,pts[i+1]);}
+    return{mnx,mxx,mny,mxy};
+  }
+  // Bbox ολόκληρης της σκηνής (κύριο + εφαπτόμενα)
+  let sx1=Infinity,sx2=-Infinity,sy1=Infinity,sy2=-Infinity;
+  items.forEach(({p})=>{
+    if(!p.geometry_egsa) return;
+    const b=geomBbox(p.geometry_egsa);
+    sx1=Math.min(sx1,b.mnx);sx2=Math.max(sx2,b.mxx);sy1=Math.min(sy1,b.mny);sy2=Math.max(sy2,b.mxy);
+  });
+
+  // Point-in-ring (even-odd) — για ΕΓΣΑ'87 xy arrays
+  function pointInRingEgsa(px,py,ring){
+    let inside=false;
+    for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+      const [xi,yi]=ring[i],[xj,yj]=ring[j];
+      if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi)) inside=!inside;
+    }
+    return inside;
+  }
+  // Έλεγχος αν GeoJSON feature (WGS84) επικαλύπτεται με ΕΓΣΑ'87 bbox
+  function forestOverlapsScene(feat){
+    if(!feat||!feat.geometry) return false;
+    const rings = feat.geometry.type==='Polygon'
+      ? feat.geometry.coordinates
+      : feat.geometry.type==='MultiPolygon'
+        ? feat.geometry.coordinates.flat(1)
+        : [];
+    for(const ring of rings){
+      // Μετατροπή WGS84 → ΕΓΣΑ'87 για bbox check
+      for(const [lon,lat] of ring){
+        const [ex,ny] = wgsToEgsa(lon,lat);
+        if(ex>=sx1&&ex<=sx2&&ny>=sy1&&ny<=sy2) return true;
+      }
+    }
+    return false;
+  }
+  // WGS84 → ΕΓΣΑ'87 (αντίστροφο)
+  function wgsToEgsa(lon,lat){
+    const a=6378137,f=1/298.257222101,e2=f*(2-f),k0=0.9996,l0=24*Math.PI/180,FE=500000;
+    const fi=lat*Math.PI/180, la=lon*Math.PI/180;
+    const N=a/Math.sqrt(1-e2*Math.sin(fi)**2);
+    const ep2=e2/(1-e2), C=ep2*Math.cos(fi)**2, T=Math.tan(fi)**2, A=(la-l0)*Math.cos(fi);
+    const M=a*((1-e2/4-3*e2**2/64-5*e2**3/256)*fi
+               -(3*e2/8+3*e2**2/32+45*e2**3/1024)*Math.sin(2*fi)
+               +(15*e2**2/256+45*e2**3/1024)*Math.sin(4*fi)
+               -(35*e2**3/3072)*Math.sin(6*fi));
+    const E=FE+k0*N*(A+(1-T+C)*A**3/6+(5-18*T+T**2+72*C-58*ep2)*A**5/120);
+    const No=k0*(M+N*Math.tan(fi)*(A**2/2+(5-T+9*C+4*C**2)*A**4/24+(61-58*T+T**2+600*C-330*ep2)*A**6/720));
+    return[E,No];
+  }
+
+  // Συλλογή δασικών polygons που πέφτουν στη σκηνή
+  const forestFeats = [];
+  if(Object.keys(forestLayers).length){
+    Object.values(forestLayers).forEach(fl=>{
+      if(!fl.geojson||!fl.visible) return;
+      fl.geojson.features.forEach(feat=>{
+        if(forestOverlapsScene(feat)) forestFeats.push({feat, name:fl.name});
+      });
+    });
+  }
+
+  const hasDasika = forestFeats.length > 0;
+  const nlayers = 4 + (hasDasika ? 2 : 0);
+  const out = ["0","SECTION","2","HEADER","9","$INSUNITS","70","6","0","ENDSEC",
+   "0","SECTION","2","TABLES","0","TABLE","2","LAYER","70",String(nlayers)];
+  [[L1,"1"],[L2,"4"],[L3,"3"],[L4,"7"]].forEach(([n,c])=>{
+    out.push("0","LAYER","2",n,"70","0","62",c,"6","CONTINUOUS");
+  });
+  if(hasDasika){
+    out.push("0","LAYER","2",L5,"70","0","62","3","6","CONTINUOUS"); // πράσινο
+    out.push("0","LAYER","2",L6,"70","0","62","3","6","CONTINUOUS");
+  }
+  out.push("0","ENDTAB","0","ENDSEC","0","SECTION","2","ENTITIES");
+
+  // Κτηματολογικά τεμάχια
   for(const {p, main} of items){
     if(!p.geometry_egsa) continue;
     const layer = main? L1 : (isEK(p.kaek)? L3 : L2);
@@ -584,6 +662,33 @@ function downloadDXF(){
     const h = Math.max(1, Math.min(6, Math.sqrt(+p.area_m2||400)/18));
     out.push("0","TEXT","8",L4,"10",String(cx),"20",String(cy),"30","0","40",h.toFixed(2),"1",dxfStr(String(p.kaek)),"72","1","11",String(cx),"21",String(cy));
   }
+
+  // Δασικοί χάρτες → DASIKOS_XARTIS + DASIKOS_TEXT
+  if(hasDasika){
+    forestFeats.forEach(({feat,name})=>{
+      const g=feat.geometry;
+      const rings = g.type==='Polygon' ? [g.coordinates] : g.type==='MultiPolygon' ? g.coordinates : [];
+      rings.forEach(polyRings=>{
+        // Μετατροπή WGS84 → ΕΓΣΑ'87 και export ως LWPOLYLINE
+        const egsa = polyRings.map(ring=> ring.map(([lon,lat])=>wgsToEgsa(lon,lat)));
+        // dxfPoly-style: LWPOLYLINE ανά ring
+        egsa.forEach(ring=>{
+          out.push("0","LWPOLYLINE","8",L5,"70","1","90",String(ring.length));
+          ring.forEach(([x,y])=>out.push("10",x.toFixed(3),"20",y.toFixed(3)));
+        });
+      });
+      // Label: χαρακτήρας δασικού + ονομα layer
+      const fp=feat.properties||{};
+      const code=(fp.KATHGORDX||fp.KATHGOR||fp.XARAKT||fp.CHARACTER||fp.CHAR||'').trim();
+      const desc=code?(DASIKA_CHAR[code]||code):name;
+      if(g.coordinates&&g.coordinates[0]&&g.coordinates[0][0]){
+        const [lon0,lat0]=g.coordinates[0][0];
+        const [tx,ty]=wgsToEgsa(lon0,lat0);
+        out.push("0","TEXT","8",L6,"10",tx.toFixed(3),"20",ty.toFixed(3),"30","0","40","2.5","1",desc,"72","0");
+      }
+    });
+  }
+
   out.push("0","ENDSEC","0","EOF");
   const blob = new Blob([out.join("\r\n")], {type:"application/dxf"});
   const a = document.createElement("a");
@@ -591,7 +696,8 @@ function downloadDXF(){
   a.download = "KAEK_" + LASTP.main.kaek + ".dxf";
   a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
   const nEK = items.filter(x=>!x.main && isEK(x.p.kaek)).length;
-  setHint(`⬇ DXF: κύριο + ${items.length-1} εφαπτόμενα${nEK?` (${nEK} ΕΚ/δρόμοι)`:""} σε ΕΓΣΑ'87 — layers KAEK_MAIN/OMORA/EK/TEXT.`, "ok");
+  const dasikaMsg = hasDasika ? ` + ${forestFeats.length} δασικά πολύγωνα (DASIKOS_XARTIS/TEXT)` : "";
+  setHint(`⬇ DXF: κύριο + ${items.length-1} εφαπτόμενα${nEK?` (${nEK} ΕΚ/δρόμοι)`:""}${dasikaMsg} — ΕΓΣΑ'87.`, "ok");
 }
 
 /* ── Επιλογή γεωτεμαχίου με ΚΑΕΚ (από κλικ σε όμορο) — ήπια ανανέωση χωρίς άλμα χάρτη ── */
