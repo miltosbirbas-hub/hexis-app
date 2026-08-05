@@ -725,8 +725,14 @@ function importShpZip(ev){
       if(dbfBuf){
         try{
           const rows=parseDBF(dbfBuf, enc);
-          geojson.features.forEach((f,i)=>{ if(rows[i]) Object.assign(f.properties, rows[i]); });
-          console.log('[DBF] sample:', geojson.features[0]?.properties);
+          console.log('[DBF] rows:', rows.length, 'sample:', rows[0]);
+          geojson.features.forEach((f,i)=>{
+            if(rows[i]){
+              f.properties = f.properties || {};
+              Object.keys(rows[i]).forEach(k=>{ f.properties[k]=rows[i][k]; });
+            }
+          });
+          console.log('[DBF] feature[0] props:', geojson.features[0]?.properties);
         }catch(dbfErr){ console.warn('DBF parse error:', dbfErr); }
       }
       addForestLayer(file.name.replace(/\.zip$/i,''), geojson);
@@ -785,7 +791,7 @@ function parseSHP(ab){
     const coords=[]; let po=o+44+nparts*4;
     for(let i=0;i<npts;i++){ const x=v.getFloat64(po+i*16,true),y=v.getFloat64(po+i*16+8,true); coords.push([x,y]); }
     const rings=parts.map((s,i)=>{ const e=i+1<parts.length?parts[i+1]:npts; return coords.slice(s,e).map(c=>egsaToWgs(c[0],c[1])); });
-    feats.push({type:'Feature',properties:{},geometry:{type:st===5?'Polygon':'LineString',coordinates:st===5?rings:rings[0]}});
+    feats.push({type:'Feature',properties:Object.create(null),geometry:{type:st===5?'Polygon':'LineString',coordinates:st===5?rings:rings[0]}});
     o+=clen;
   }
   return{type:'FeatureCollection',features:feats};
@@ -846,73 +852,52 @@ let waybackCfg=null, waybackLayer=null;
 async function loadWayback(){
   const sel=$('waybackSel'); if(!sel||sel.options.length>1) return;
   try{
-    // Φέρνουμε releases από το ArcGIS Online group του Wayback (public, no auth)
-    const r=await fetch('https://esri.maps.arcgis.com/sharing/rest/content/groups/0f3189e1d1414edfad860b697b7d8311/items?f=json&num=100&sortField=modified&sortOrder=desc');
-    const data=await r.json();
-    if(!data.items||!data.items.length) throw new Error('no items');
-    // Κάθε item: title="World Imagery (Wayback YYYY-MM-DD)", id=releaseNum απ' το URL
-    waybackCfg=data.items.filter(it=>it.title&&it.title.includes('Wayback')).map(it=>{
-      const dateMatch=it.title.match(/Wayback (\d{4}-\d{2}-\d{2})/);
-      // Το releaseNum βρίσκεται στο typeKeywords
-      const rnKw=(it.typeKeywords||[]).find(k=>k.startsWith('WB_'));
-      const rn=rnKw?parseInt(rnKw.replace('WB_',''),10):null;
-      return{label:dateMatch?dateMatch[1]:it.title, releaseNum:rn, id:it.id};
-    }).filter(it=>it.releaseNum);
-    if(!waybackCfg.length) throw new Error('no valid releases');
+    // Config JSON (CORS OK από browser — το ίδιο URL που χρησιμοποιεί το επίσημο Wayback app)
+    const r=await fetch('https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json');
+    const cfg=await r.json();
+    // cfg: { "releaseNum": { itemID, itemTitle, releaseNum, releaseDateLabel, itemURL, ... }, ... }
+    waybackCfg=Object.values(cfg)
+      .filter(v=>v.releaseNum&&v.releaseDateLabel)
+      .sort((a,b)=>b.releaseNum-a.releaseNum); // νεότερο πρώτο
     sel.innerHTML='<option value="">— Επιλογή ημερομηνίας —</option>'+
-      waybackCfg.map((en,i)=>`<option value="${i}">${en.label}</option>`).join('');
+      waybackCfg.map((en,i)=>`<option value="${i}">${en.releaseDateLabel}</option>`).join('');
   }catch(e){
-    console.warn('Wayback group fail:',e.message);
-    // Fallback: χειροκίνητη λίστα γνωστών release numbers (2014→2026)
+    console.warn('Wayback config:', e.message);
+    // Fallback: γνωστές εκδόσεις με ακριβή release numbers από Esri docs
     waybackCfg=[
-      {label:'2026-06-12',releaseNum:82},{label:'2025-12-01',releaseNum:78},
-      {label:'2025-06-01',releaseNum:74},{label:'2024-12-01',releaseNum:70},
-      {label:'2024-06-01',releaseNum:66},{label:'2023-12-01',releaseNum:62},
-      {label:'2023-06-01',releaseNum:58},{label:'2022-12-01',releaseNum:54},
-      {label:'2022-06-01',releaseNum:50},{label:'2021-12-01',releaseNum:46},
-      {label:'2021-06-01',releaseNum:42},{label:'2020-12-01',releaseNum:38},
-      {label:'2019-12-01',releaseNum:31},{label:'2018-12-01',releaseNum:25},
-      {label:'2017-12-01',releaseNum:19},{label:'2016-12-01',releaseNum:14},
-      {label:'2015-12-01',releaseNum:9},{label:'2014-02-20',releaseNum:1},
+      {releaseDateLabel:'2024-06-20',releaseNum:59672},
+      {releaseDateLabel:'2023-12-07',releaseNum:56102},
+      {releaseDateLabel:'2023-06-08',releaseNum:52786},
+      {releaseDateLabel:'2022-12-08',releaseNum:49258},
+      {releaseDateLabel:'2022-06-09',releaseNum:45640},
+      {releaseDateLabel:'2021-12-09',releaseNum:42118},
+      {releaseDateLabel:'2021-06-10',releaseNum:38570},
+      {releaseDateLabel:'2020-06-18',releaseNum:31953},
+      {releaseDateLabel:'2019-07-01',releaseNum:27217},
+      {releaseDateLabel:'2018-06-21',releaseNum:22180},
+      {releaseDateLabel:'2017-06-22',releaseNum:16961},
+      {releaseDateLabel:'2016-07-14',releaseNum:12076},
+      {releaseDateLabel:'2015-06-11',releaseNum:7836},
+      {releaseDateLabel:'2014-02-20',releaseNum:10},
     ];
     const s=$('waybackSel');
     if(s) s.innerHTML='<option value="">— Επιλογή ημερομηνίας —</option>'+
-      waybackCfg.map((en,i)=>`<option value="${i}">${en.label}</option>`).join('');
+      waybackCfg.map((en,i)=>`<option value="${i}">${en.releaseDateLabel}</option>`).join('');
   }
 }
 function setWayback(val){
   if(waybackLayer){map.removeLayer(waybackLayer);waybackLayer=null;}
   const d=$('waybackDate'); if(d) d.textContent='';
   if(val===''||val===null||val===undefined) return;
-  const en=waybackCfg&&waybackCfg[+val]; if(!en||!en.releaseNum) return;
-  // Σωστό URL pattern: .../tile/{releaseNum}/{z}/{y}/{x}
+  const en=waybackCfg&&waybackCfg[+val]; if(!en) return;
+  // Σωστό URL: tile/{releaseNum}/{z}/{y}/{x}
   waybackLayer=L.tileLayer(
     `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/${en.releaseNum}/{z}/{y}/{x}`,
     {maxZoom:21,maxNativeZoom:18,opacity:1}
   ).addTo(map);
-  if(d) d.textContent=en.label;
-  setHint('Ιστορική αεροφωτογραφία: '+en.label,'ok');
+  if(d) d.textContent=en.releaseDateLabel;
+  setHint('Ιστορική αεροφωτογραφία: '+en.releaseDateLabel,'ok');
 }
-/* Εμφάνιση ΚΑΕΚ μέσα σε bbox δασικού πολυγώνου */
-async function kaekInBbox(s,n,w,e){
-  map.closePopup();
-  setHint('Αναζήτηση γεωτεμαχίων στην περιοχή…');
-  const dLat=(n-s)/2, cLat=(n+s)/2, dLon=(e-w)/2, cLon=(e+w)/2;
-  const r=await fetch(KAEK_GEO_API+'?lat='+cLat.toFixed(6)+'&lon='+cLon.toFixed(6)+'&neighbors=1&r='+Math.round(Math.max(dLat,dLon)*111320+50));
-  const p=await r.json().catch(()=>({}));
-  if(!r.ok||p.error){ setHint('Δεν βρέθηκαν γεωτεμάχια στην περιοχή','err'); return; }
-  LASTP={main:p, neighbors:p.neighbors||[]};
-  const parcels=[];
-  if(p.geometry_egsa) parcels.push({kaek:p.kaek,geometry:p.geometry_egsa});
-  (p.neighbors||[]).forEach(n2=>{ if(n2.geometry_egsa) parcels.push({kaek:n2.kaek,geometry:n2.geometry_egsa}); });
-  if(parcels.length){
-    drawAllParcels(parcels);
-    try{ if(parcelLayer) map.fitBounds(parcelLayer.getBounds(),{padding:[40,40],maxZoom:18}); }catch(_){}
-  }
-  const nb=(p.neighbors||[]).length;
-  setHint(`✔ ΚΑΕΚ ${p.kaek}${p.area_m2?` · ${Math.round(p.area_m2)} m²`:''}${nb?`  (+${nb} γεωτεμάχια)`:''}  στην περιοχή`,'ok');
-}
-
 function toggleFull(){
   document.body.classList.toggle("mapfull");
   setTimeout(()=>{ try{ map.invalidateSize(); }catch(e){} }, 120);
