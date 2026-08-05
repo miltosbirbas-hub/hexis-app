@@ -777,18 +777,13 @@ function toggleForestLayer(id,vis){
 // Εμφάνιση ΚΑΕΚ γεωτεμαχίων μέσα σε bbox δασικού polygon (WGS84)
 async function kaekInBbox(south, north, west, east){
   map.closePopup();
+  const clat = (south+north)/2, clon = (west+east)/2;
   setHint('🔎 Αναζήτηση ΚΑΕΚ στην περιοχή δασικού…');
-  // Μετατροπή γωνιών bbox σε ΕΓΣΑ'87
-  const [x1,y1] = wgsToEgsa(west, south);
-  const [x2,y2] = wgsToEgsa(east, north);
-  const cx = (x1+x2)/2, cy = (y1+y2)/2;
   try{
-    // Χρησιμοποιούμε το κέντρο του bbox για αναζήτηση με μεγάλο radius
-    const r = Math.max(Math.abs(x2-x1), Math.abs(y2-y1)) * 0.7;
-    const resp = await fetch(`${KAEK_GEO_API}?x=${cx.toFixed(1)}&y=${cy.toFixed(1)}&r=${Math.round(r)}&neighbors=1`);
+    const resp = await fetch(`${KAEK_GEO_API}?lat=${clat.toFixed(7)}&lon=${clon.toFixed(7)}&neighbors=1&r=150`);
     if(!resp.ok){ setHint('Δεν βρέθηκαν γεωτεμάχια στην περιοχή.','err'); return; }
     const p = await resp.json();
-    if(p.error){ setHint('Δεν βρέθηκαν γεωτεμάχια στην περιοχή.','err'); return; }
+    if(p.error){ setHint('Δεν βρέθηκαν γεωτεμάχια: '+p.error,'err'); return; }
     kaekDisp(p.kaek,'');
     LASTP = { main: p, neighbors: p.neighbors||[] };
     const q = $('kaekQ'); if(q) q.value = p.kaek;
