@@ -1,206 +1,149 @@
-;;; OROIDOM.LSP  v2.0
-;;; Πίνακας Όρων Δόμησης σε CAD
-;;; Βάση νομοθεσίας:
-;;;   - ΠΔ 24.4/3.5.1985 ΦΕΚ Δ'181 (οικισμοί <2000 κατ.)
-;;;   - ΠΔ 4.11.2011 ΦΕΚ 289/ΑΑΠ (τροποποίηση ΣΔ/κάλυψης)
-;;;   - ν.5306/2026 (Ταγαράς) άρθρα 237-243, 247§3, 249-251
-;;; Εντολή: OROIDOM
-;;; HEXIS Platform - BRB DEVELOPMENT MON. I.K.E.
+;;; OROIDOM.LSP  v3.1 \U+2014 \U+03A0\U+03AF\U+03BD\U+03B1\U+03BA\U+03B1\U+03C2 \U+038C\U+03C1\U+03C9\U+03BD \U+0394\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7\U+03C2
+;;; \U+03BD.5306/2026 (\U+03A4\U+03B1\U+03B3\U+03B1\U+03C1\U+03AC\U+03C2) \U+00B7 \U+03A0\U+0394 24.4/1985 \U+00B7 \U+03A6\U+0395\U+039A 289/\U+0391\U+0391\U+03A0/2011
+;;; \U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AE: OROIDOM  |  HEXIS Platform \U+2014 BRB DEVELOPMENT
 
-(defun C:OROIDOM ( / *error* od-layer od-rect od-vline od-txt
-                     mode fek onom
-                     emin epros emin-par epros-par
-                     sd-txt kaly ypsos aposta gramd stegi
-                     pt h rh cw1 cw2 px py cy tit rows row )
+(defun C:OROIDOM ( / *error* od-txt od-hline od-len
+                     mode fek onom subt rows
+                     pt h y lblw valw totw rowh lineh row2 lbl vals v maxl )
 
   (defun *error* (msg)
-    (if (not (member msg '("Function cancelled" "quit / exit abort")))
-      (princ (strcat "\n\U+03A3\U+03C6\U+03AC\U+03BB\U+03BC\U+03B1: " msg)))
+    (if (not (member msg (list "Function cancelled" "quit / exit abort")))
+      (princ (strcat "\n" "\U+03A3\U+03C6\U+03AC\U+03BB\U+03BC\U+03B1: " msg)))
     (princ))
 
-  (defun od-layer (nm col)
-    (if (null (tblsearch "LAYER" nm))
-      (entmake (list '(0 . "LAYER") '(100 . "AcDbSymbolTableRecord")
-                     '(100 . "AcDbLayerTableRecord") (cons 2 nm)
-                     '(70 . 0) (cons 62 col) '(6 . "Continuous")))))
+  (defun od-len (s / i n)
+    (setq i 1 n 0)
+    (while (<= i (strlen s))
+      (if (and (<= (+ i 6) (strlen s)) (= (substr s i 3) "\\U+"))
+        (setq i (+ i 7) n (1+ n))
+        (setq i (1+ i) n (1+ n))))
+    n)
 
-  (defun od-rect (x1 y1 x2 y2 lyr)
-    (entmake (list '(0 . "LWPOLYLINE") '(100 . "AcDbEntity") (cons 8 lyr)
-                   '(100 . "AcDbPolyline") '(90 . 4) '(70 . 1)
-                   (cons 10 (list x1 y1)) (cons 10 (list x2 y1))
-                   (cons 10 (list x2 y2)) (cons 10 (list x1 y2)))))
+  (defun od-txt (x y th str)
+    (entmake (list (cons 0 "TEXT") (cons 100 "AcDbEntity") (cons 8 "OD-PIN")
+                   (cons 10 (list x y 0.0)) (cons 40 th) (cons 1 str) (cons 72 0))))
 
-  (defun od-vline (x y1 y2 lyr)
-    (entmake (list '(0 . "LINE") '(100 . "AcDbEntity") (cons 8 lyr)
-                   (cons 10 (list x y1 0.0)) (cons 11 (list x y2 0.0)))))
-
-  (defun od-txt (x y h lyr str)
-    (entmake (list '(0 . "TEXT") '(100 . "AcDbEntity") (cons 8 lyr)
-                   (cons 10 (list x y 0.0)) (cons 40 h) (cons 1 str) '(72 . 0))))
-
-  ;; ════ ΕΡΩΤΗΜΑΤΑ ════════════════════════════════════
+  (defun od-hline (x1 x2 y w)
+    (entmake (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 "OD-PIN")
+                   (cons 100 "AcDbPolyline") (cons 90 2) (cons 70 0) (cons 43 w)
+                   (cons 10 (list x1 y)) (cons 10 (list x2 y)))))
 
   (initget 1 "1 2 3 4")
-  (setq mode
-    (getkword
-      (strcat
-        "\n\U+0395\U+03AF\U+03B4\U+03BF\U+03C2:"
-        "\n  1  \U+03B5\U+03BD\U+03C4\U+03CC\U+03C2 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5 \U+03C0\U+03CC\U+03BB\U+03B7\U+03C2"
-        "\n  2  \U+03BF\U+03B9\U+03BA\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2 <2000 \U+03BA\U+03B1\U+03C4. (\U+03A0\U+0394 24.4/1985 + \U+03A6\U+0395\U+039A 289\U+0391\U+0391\U+03A0/2011)"
-        "\n  3  \U+03BF\U+03B9\U+03BA\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2 \U+03C0\U+03C1\U+03BF '23 (\U+03AF\U+03B4\U+03B9\U+03BF\U+03B9 \U+03CC\U+03C1\U+03BF\U+03B9 \U+03BC\U+03B5 mode 2)"
-        "\n  4  \U+03B5\U+03BA\U+03C4\U+03CC\U+03C2 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5"
-        "\n[1/2/3/4]: ")))
+  (setq mode (getkword (strcat
+    "\n" "\U+0395\U+03AF\U+03B4\U+03BF\U+03C2 \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7\U+03C2:"
+    "\n" "  1  \U+03B5\U+03BD\U+03C4\U+03CC\U+03C2 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5 \U+03C0\U+03CC\U+03BB\U+03B7\U+03C2"
+    "\n" "  2  \U+03BF\U+03B9\U+03BA\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2 <2000 \U+03BA\U+03B1\U+03C4."
+    "\n" "  3  \U+03BF\U+03B9\U+03BA\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2 \U+03C0\U+03C1\U+03BF '23"
+    "\n" "  4  \U+03B5\U+03BA\U+03C4\U+03CC\U+03C2 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5"
+    "\n[1/2/3/4]: ")))
 
-  (if (member mode '("2" "3"))
-    (progn
-      (setq fek (getstring T
-        "\n\U+03A6\U+0395\U+039A \U+03B1\U+03C0\U+03CC\U+03C6. \U+039D\U+03BF\U+03BC\U+03AC\U+03C1\U+03C7\U+03B7 (Enter=\U+03BA\U+03B1\U+03BD\U+03AD\U+03BD\U+03B1\U+03C2): "))
-      (if (= fek "") (setq fek "")))
+  (if (member mode (list "2" "3"))
+    (setq fek (getstring T (strcat "\n" "\U+03A6\U+0395\U+039A \U+03B1\U+03C0\U+03CC\U+03C6. \U+039D\U+03BF\U+03BC\U+03AC\U+03C1\U+03C7\U+03B7 (Enter=\U+03BA\U+03B1\U+03BD\U+03AD\U+03BD\U+03B1): ")))
     (setq fek ""))
 
-  (setq onom (getstring T "\n\U+039F\U+03B9\U+03BA\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2/\U+03A0\U+03B5\U+03C1\U+03B9\U+03BF\U+03C7\U+03AE: "))
+  (setq onom (getstring T (strcat "\n" "\U+039F\U+03B9\U+03BA\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2/\U+03A0\U+03B5\U+03C1\U+03B9\U+03BF\U+03C7\U+03AE: ")))
   (if (= onom "") (setq onom "---"))
 
-  ;; ════ ΤΙΜΕΣ ΑΝΑ MODE ═══════════════════════════════
-
+  ;; === ROWS ana mode ===
   (cond
 
-    ;; ── 1: ΕΝΤΟΣ ΣΧΕΔΙΟΥ ──────────────────────────
+    ;; -- 1: ENTOS SXEDIOU --
     ((= mode "1")
-      (setq emin      "\U+03B2\U+03AC\U+03C3\U+03B5\U+03B9 \U+03CC\U+03C1\U+03C9\U+03BD \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7\U+03C2 (\U+03A1\U+03A3\U+0395)")
-      (setq epros     "\U+03B2\U+03AC\U+03C3\U+03B5\U+03B9 \U+03CC\U+03C1\U+03C9\U+03BD \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7\U+03C2 (\U+03A1\U+03A3\U+0395)")
-      (setq emin-par  "---")
-      (setq epros-par "---")
-      (setq sd-txt    "\U+03B2\U+03AC\U+03C3\U+03B5\U+03B9 \U+03A1\U+03A3\U+0395")
-      (setq kaly      "\U+03B2\U+03AC\U+03C3\U+03B5\U+03B9 \U+03A1\U+03A3\U+0395")
-      (setq ypsos     "\U+03B2\U+03AC\U+03C3\U+03B5\U+03B9 \U+03A1\U+03A3\U+0395")
-      (setq aposta    "\U+03B2\U+03AC\U+03C3\U+03B5\U+03B9 \U+03A1\U+03A3\U+0395")
-      (setq gramd     "\U+03B5\U+03C0\U+03AF \U+03C1\U+03C5\U+03BC\U+03BF\U+03C4\U+03BF\U+03BC\U+03B9\U+03BA\U+03AE\U+03C2 \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03AE\U+03C2")
-      (setq stegi     "\U+03B2\U+03AC\U+03C3\U+03B5\U+03B9 \U+03A1\U+03A3\U+0395"))
+      (setq subt "\U+0395\U+03BD\U+03C4\U+03CC\U+03C2 \U+03B5\U+03B3\U+03BA\U+03B5\U+03BA\U+03C1\U+03B9\U+03BC\U+03AD\U+03BD\U+03BF\U+03C5 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5 \U+03C0\U+03CC\U+03BB\U+03B7\U+03C2 \U+2014 \U+039D\U+039F\U+039A \U+03BD.4067/2012 \U+00B7 \U+03BD.5306/2026")
+      (setq rows (list
+    (cons "\U+0391\U+03A1\U+03A4\U+0399\U+039F\U+03A4\U+0397\U+03A4\U+0391" (list "\U+03B2\U+03AC\U+03C3\U+03B5\U+03B9 \U+03CC\U+03C1\U+03C9\U+03BD \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7\U+03C2 \U+03B5\U+03B3\U+03BA\U+03B5\U+03BA\U+03C1\U+03B9\U+03BC\U+03AD\U+03BD\U+03BF\U+03C5 \U+03A1\U+03A3\U+0395"))
+    (cons "\U+03A3\U+0394 / \U+039A\U+0391\U+039B\U+03A5\U+03A8\U+0397 / \U+03A5\U+03A8\U+039F\U+03A3" (list "\U+03B2\U+03AC\U+03C3\U+03B5\U+03B9 \U+03A1\U+03A3\U+0395 / \U+0393\U+03A0\U+03A3 \U+03C0\U+03B5\U+03C1\U+03B9\U+03BF\U+03C7\U+03AE\U+03C2"))
+    (cons "\U+0393\U+03A1\U+0391\U+039C\U+039C\U+0397 \U+0394\U+039F\U+039C\U+0397\U+03A3\U+0397\U+03A3" (list "\U+03B5\U+03C0\U+03AF \U+03C1\U+03C5\U+03BC\U+03BF\U+03C4\U+03BF\U+03BC\U+03B9\U+03BA\U+03AE\U+03C2 \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03AE\U+03C2")))))
 
-    ;; ── 2 & 3: ΟΙΚΙΣΜΟΣ <2000 / ΠΡΟ '23 ──────────
-    ;; ΣΔ βάσει ΦΕΚ 289/ΑΑΠ/4-11-2011:
-    ;;   Ε < 200 m²  → ΣΔ=1,0  (κάλυψη έως 70%)
-    ;;   200 ≤ Ε < 700 m²  → μέγ. δόμηση 240 m² (+40 m² πατάρι)
-    ;;   Ε ≥ 700 m²  → μέγ. δόμηση 400 m²
-    ;; Κάλυψη γενικά 60% (εκτός <200 m²)
-    ;; Ύψος 7,50 m (ΦΕΚ 289/ΑΑΠ αρ.1§4α)
-    ;; Πρόσωπο: ≥10 m για Ε≤500, ≥15 m για Ε>500 (ΦΕΚ 289 αρ.1§1)
-    ;; (νέα γήπεδα μετά 4-11-2011· παλαιά: ό,τι έχουν)
-    ((member mode '("2" "3"))
-      (setq emin      "2.000 m\U+00B2")
-      (setq epros     "25 m")
-      (setq emin-par  "\U+03CC\U+03C0\U+03BF\U+03B9\U+03BF \U+03B5\U+03BC\U+03B2\U+03B1\U+03B4\U+03CC\U+03BD \U+03AD\U+03C7\U+03BF\U+03C5\U+03BD (\U+03B3\U+03AE\U+03C0\U+03B5\U+03B4\U+03B1 \U+03C0\U+03C1\U+03B9\U+03BD 4.11.2011)")
-      (setq epros-par "4 m \U+03C3\U+03B5 \U+03BA\U+03BF\U+03B9\U+03BD\U+03CC\U+03C7\U+03C1\U+03B7\U+03C3\U+03C4\U+03BF (\U+03B3\U+03AE\U+03C0\U+03B5\U+03B4\U+03B1 \U+03C0\U+03C1\U+03B9\U+03BD 4.11.2011)")
-      (setq sd-txt
-        (strcat
-          "\U+0395<200\U+03BC\U+00B2 \U+2192 \U+03A3\U+0394=1,0 (max 200\U+03BC\U+00B2, \U+03BA\U+03AC\U+03BB.\U+03AD\U+03C9\U+03C2 70%)  |  "
-          "200-699\U+03BC\U+00B2 \U+2192 max \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7 240\U+03BC\U+00B2 (+40\U+03BC\U+00B2 \U+03C0\U+03B1\U+03C4\U+03AC\U+03C1\U+03B9)  |  "
-          "\U+0395\U+226A700\U+03BC\U+00B2 \U+2192 max \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7 400\U+03BC\U+00B2"))
-      (setq kaly      "60%  (\U+03B5\U+03BA\U+03C4\U+03CC\U+03C2 \U+03B1\U+03BD \U+0395<200\U+03BC\U+00B2: \U+03AD\U+03C9\U+03C2 70%)")
-      (setq ypsos     "7,50 m  (+2,00 m \U+03B3\U+03B9\U+03B1 \U+03C3\U+03C4\U+03AD\U+03B3\U+03B7)")
-      (setq aposta    "\U+22652,50 m \U+03B1\U+03C0\U+03CC \U+03C0\U+03BB\U+03AC\U+03B3\U+03B9\U+03B1 & \U+03BF\U+03C0\U+03AF\U+03C3\U+03B8\U+03B9\U+03B1 \U+03CC\U+03C1\U+03B9\U+03B1 (\U+03AE \U+03B5\U+03C0\U+03B1\U+03C6\U+03AE)")
-      (setq gramd     "\U+03B5\U+03C0\U+03AF \U+03C1\U+03C5\U+03BC/\U+03BA\U+03AE\U+03C2 \U+03AE \U+03BF\U+03C1\U+03AF\U+03BF\U+03C5 \U+03BA\U+03BF\U+03B9\U+03BD\U+03CC\U+03C7\U+03C1\U+03B7\U+03C3\U+03C4\U+03BF\U+03C5 \U+03C7\U+03CE\U+03C1\U+03BF\U+03C5")
-      (setq stegi     "\U+03C5\U+03C0\U+03BF\U+03C7\U+03C1. \U+03C3\U+03B5 2\U+03C9\U+03C1\U+03BF\U+03C6\U+03B1 \U+03AE \U+03BC\U+03B5 \U+03B5\U+03BE\U+03AC\U+03BD\U+03C4\U+03BB\U+03B7\U+03C3\U+03B7 \U+03A3\U+0394"))
+    ;; -- 2 & 3: OIKISMOS <2000 / PRO 23 --
+    ((member mode (list "2" "3"))
+      (setq subt (strcat
+        "\U+039F\U+03B9\U+03BA\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2 <2000 \U+03BA\U+03B1\U+03C4. \U+2014 \U+03A0\U+0394 24.4/1985 (\U+0394 181) \U+00B7 \U+03A6\U+0395\U+039A 289/\U+0391\U+0391\U+03A0/2011 \U+00B7 \U+03BD.5306/2026 \U+03AC\U+03C1.247\U+00A73"
+        (if (= fek "") "" (strcat "  \U+00B7  " "\U+0391\U+03C0\U+03CC\U+03C6. \U+039D\U+03BF\U+03BC\U+03AC\U+03C1\U+03C7\U+03B7: " fek))))
+      (setq rows (list
+    (cons "\U+0391\U+03A1\U+03A4\U+0399\U+039F\U+03A4\U+0397\U+03A4\U+0391 \U+039A\U+0391\U+03A4\U+0391 \U+039A\U+0391\U+039D\U+039F\U+039D\U+0391" (list "2.000 m2  /  \U+03C0\U+03C1\U+03CC\U+03C3\U+03C9\U+03C0\U+03BF 25 m"))
+    (cons "\U+0391\U+03A1\U+03A4\U+0399\U+039F\U+03A4\U+0397\U+03A4\U+0391 \U+03A0\U+0391\U+03A1\U+0395\U+039A\U+039A\U+039B\U+0399\U+03A3\U+0397\U+03A3" (list "\U+03CC\U+03C0\U+03BF\U+03B9\U+03BF \U+03B5\U+03BC\U+03B2\U+03B1\U+03B4\U+03CC\U+03BD \U+03AD\U+03C7\U+03BF\U+03C5\U+03BD  /  4 m \U+03C3\U+03B5 \U+03BA\U+03BF\U+03B9\U+03BD\U+03CC\U+03C7\U+03C1\U+03B7\U+03C3\U+03C4\U+03BF (\U+03B3\U+03AE\U+03C0\U+03B5\U+03B4\U+03B1 \U+03C0\U+03C1\U+03BF 4.11.2011)"))
+    (cons "\U+03A0\U+03A1\U+039F\U+03A3\U+03A9\U+03A0\U+039F \U+039D\U+0395\U+03A9\U+039D \U+0393\U+0397\U+03A0\U+0395\U+0394\U+03A9\U+039D" (list ">= 10 m (\U+0395<=500 \U+03BC2)  \U+00B7  >= 15 m (\U+0395>500 \U+03BC2) \U+2014 \U+03BC\U+03B5\U+03C4\U+03AC 4.11.2011"))
+    (cons "\U+0394\U+039F\U+039C\U+0397\U+03A3\U+0397 (\U+03A6\U+0395\U+039A 289/\U+0391\U+0391\U+03A0/2011)" (list "\U+0395 < 200 \U+03BC2 : \U+03A3\U+0394 1,0 \U+2014 max 200 \U+03BC2 (\U+03BA\U+03AC\U+03BB\U+03C5\U+03C8\U+03B7 \U+03AD\U+03C9\U+03C2 70%)" "200\U+2013699 \U+03BC2 : \U+03BC\U+03AD\U+03B3. \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7 240 \U+03BC2 (+40 \U+03BC2 \U+03C0\U+03B1\U+03C4\U+03AC\U+03C1\U+03B9)" "\U+0395 >= 700 \U+03BC2 : \U+03BC\U+03AD\U+03B3. \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7 400 \U+03BC2"))
+    (cons "\U+039A\U+0391\U+039B\U+03A5\U+03A8\U+0397" (list "60%  (\U+0395<200 \U+03BC2: \U+03AD\U+03C9\U+03C2 70%)"))
+    (cons "\U+03A5\U+03A8\U+039F\U+03A3 / \U+039F\U+03A1\U+039F\U+03A6\U+039F\U+0399" (list "7,50 m \U+2014 2 \U+03CC\U+03C1\U+03BF\U+03C6\U+03BF\U+03B9 (+1,20 m \U+03C3\U+03C4\U+03AD\U+03B3\U+03B7 \U+03BA\U+03B1\U+03C4\U+03AC \U+039D\U+039F\U+039A)"))
+    (cons "\U+0391\U+03A0\U+039F\U+03A3\U+03A4\U+0391\U+03A3\U+0395\U+0399\U+03A3 \U+0391\U+03A0\U+039F \U+039F\U+03A1\U+0399\U+0391" (list ">= 2,50 m \U+03B1\U+03C0\U+03CC \U+03C0\U+03BB\U+03AC\U+03B3\U+03B9\U+03B1 & \U+03BF\U+03C0\U+03AF\U+03C3\U+03B8\U+03B9\U+03B1 \U+03CC\U+03C1\U+03B9\U+03B1"))
+    (cons "\U+03A3\U+03A4\U+0395\U+0393\U+0397" (list "\U+03C5\U+03C0\U+03BF\U+03C7\U+03C1\U+03B5\U+03C9\U+03C4\U+03B9\U+03BA\U+03AE \U+03C3\U+03B5 2\U+03CE\U+03C1\U+03BF\U+03C6\U+03B1 \U+03AE \U+03BC\U+03B5 \U+03B5\U+03BE\U+03AC\U+03BD\U+03C4\U+03BB\U+03B7\U+03C3\U+03B7 \U+03A3\U+0394")))))
 
-    ;; ── 4: ΕΚΤΟΣ ΣΧΕΔΙΟΥ ──────────────────────────
+    ;; -- 4: EKTOS SXEDIOU (ar.250-256 n.5306/2026, proin 32-33 n.4759/2020) --
     ((= mode "4")
-      (setq emin      "4.000 m\U+00B2")
-      (setq epros     "45 m")
-      (setq emin-par  "2.000 m\U+00B2")
-      (setq epros-par "25 m")
-      (setq sd-txt    "0,20  (max 200 m\U+00B2)")
-      (setq kaly      "20%")
-      (setq ypsos     "7,50 m  (+2,00 m \U+03B3\U+03B9\U+03B1 \U+03C3\U+03C4\U+03AD\U+03B3\U+03B7)")
-      (setq aposta    "\U+03B2\U+03BB. \U+03BD.5306/2026 \U+03AC\U+03C1.251")
-      (setq gramd     "\U+03B2\U+03BB. \U+03BD.5306/2026 \U+03AC\U+03C1.251")
-      (setq stegi     "\U+03B5\U+03C0\U+03B9\U+03C4\U+03C1\U+03AD\U+03C0\U+03B5\U+03C4\U+03B1\U+03B9"))
+      (setq subt "\U+0395\U+03BA\U+03C4\U+03CC\U+03C2 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5 \U+2014 \U+03AC\U+03C1.250-251 & 256 \U+03BD.5306/2026 (\U+03A6\U+0395\U+039A \U+0391 88/08-06-2026) \U+00B7 \U+03C0\U+03C1\U+03CE\U+03B7\U+03BD \U+03AC\U+03C1.32-33 \U+03BD.4759/2020")
+      (setq rows (list
+    (cons "\U+0391\U+03A1\U+03A4\U+0399\U+039F\U+03A4\U+0397\U+03A4\U+0391 \U+039A\U+0391\U+03A4\U+0391 \U+039A\U+0391\U+039D\U+039F\U+039D\U+0391 (\U+03AC\U+03C1.251\U+00A71)" (list "\U+0395 >= 4.000 \U+03BC2  &  \U+03C0\U+03C1\U+03CC\U+03C3\U+03C9\U+03C0\U+03BF >= 25,00 m \U+03C3\U+03B5 \U+03BA\U+03BF\U+03B9\U+03BD\U+03CC\U+03C7\U+03C1\U+03B7\U+03C3\U+03C4\U+03BF \U+03B4\U+03C1\U+03CC\U+03BC\U+03BF"))
+    (cons "\U+0391\U+03A1\U+03A4\U+0399\U+039F\U+03A4\U+0397\U+03A4\U+0391 \U+0395\U+03A0\U+0399 \U+039F\U+0394\U+039F\U+03A5" (list "\U+03C0\U+03C1\U+03CC\U+03C3\U+03C9\U+03C0\U+03BF >= 45,00 m \U+00B7 \U+03B2\U+03AC\U+03B8\U+03BF\U+03C2 >= 50,00 m \U+00B7 \U+0395 >= 4.000 \U+03BC2 (\U+03B4\U+03B9\U+03B5\U+03B8\U+03BD\U+03AE/\U+03B5\U+03B8\U+03BD\U+03B9\U+03BA\U+03AE/\U+03B5\U+03C0\U+03B1\U+03C1\U+03C7./\U+03B4\U+03B7\U+03BC\U+03BF\U+03C4\U+03B9\U+03BA\U+03AE \U+03BF\U+03B4\U+03CC)"))
+    (cons "\U+0391\U+03A0\U+039F\U+039C\U+0395\U+0399\U+03A9\U+03A3\U+0397 (\U+03AC\U+03C1.251\U+00A71\U+03B2 \U+03C4\U+03B5\U+03BB.\U+03B5\U+03B4.)" (list "\U+03B1\U+03C1\U+03C7\U+03B9\U+03BA\U+03CC \U+0395 >= 4.000 \U+03BC2 \U+03B1\U+03C0\U+03BF\U+03BC\U+03B5\U+03B9\U+03C9\U+03B8\U+03AD\U+03BD \U+03BB\U+03CC\U+03B3\U+03C9 \U+03B1\U+03C0\U+03B1\U+03BB\U+03BB\U+03BF\U+03C4\U+03C1\U+03AF\U+03C9\U+03C3\U+03B7\U+03C2/\U+03B4\U+03B9\U+03AC\U+03BD\U+03BF\U+03B9\U+03BE\U+03B7\U+03C2 \U+03BF\U+03B4\U+03BF\U+03CD/\U+03B1\U+03BD\U+03B1\U+03B4\U+03B1\U+03C3\U+03BC\U+03BF\U+03CD:" "\U+0391\U+03A1\U+03A4\U+0399\U+039F \U+03B1\U+03BD \U+03B5\U+03BD\U+03B1\U+03C0\U+03BF\U+03BC\U+03AD\U+03BD\U+03BF\U+03BD \U+0395 >= 2.000 \U+03BC2 & \U+03C0\U+03C1\U+03CC\U+03C3\U+03C9\U+03C0\U+03BF >= 25,00 m \U+03C3\U+03B5 \U+03B4\U+03B9\U+03B5\U+03B8\U+03BD\U+03AE/\U+03B5\U+03B8\U+03BD\U+03B9\U+03BA\U+03AE/\U+03B5\U+03C0\U+03B1\U+03C1\U+03C7./\U+03B4\U+03B7\U+03BC\U+03BF\U+03C4. \U+03BF\U+03B4\U+03CC"))
+    (cons "\U+0393\U+0395\U+039D\U+0399\U+039A\U+039F\U+0399 \U+039F\U+03A1\U+039F\U+0399 (\U+03AC\U+03C1.251\U+00A72-5)" (list "\U+03A3\U+0394 0,18  \U+00B7  \U+039A\U+03AC\U+03BB\U+03C5\U+03C8\U+03B7 10%  \U+00B7  \U+038C\U+03C1\U+03BF\U+03C6\U+03BF\U+03B9 2"))
+    (cons "\U+03A5\U+03A8\U+039F\U+03A3" (list "7,50 m  (+1,20 m \U+03C3\U+03C4\U+03AD\U+03B3\U+03B7)"))
+    (cons "\U+0391\U+03A0\U+039F\U+03A3\U+03A4\U+0391\U+03A3\U+0395\U+0399\U+03A3 \U+0391\U+03A0\U+039F \U+039F\U+03A1\U+0399\U+0391" (list "\U+0394 >= 15,00 m" "\U+03B5\U+03BE\U+03B1\U+03AF\U+03C1\U+03B5\U+03C3\U+03B7: 7,50 m \U+03B3\U+03B9\U+03B1 \U+03BA\U+03B1\U+03C4\U+03BF\U+03B9\U+03BA\U+03AF\U+03B1 \U+03C3\U+03B5 \U+03B3\U+03AE\U+03C0\U+03B5\U+03B4\U+03B1 \U+03C0\U+03C1\U+03BF 15.4.1981 (\U+03BC\U+03AD\U+03B3. \U+03C0\U+03BB\U+03AC\U+03C4\U+03BF\U+03C2 \U+03BA\U+03C4\U+03B9\U+03C1\U+03AF\U+03BF\U+03C5 10,00 m)"))
+    (cons "\U+039C\U+0395\U+0393. \U+0394\U+039F\U+039C\U+0397\U+03A3\U+0397 \U+039A\U+0391\U+03A4\U+039F\U+0399\U+039A\U+0399\U+0391\U+03A3 (\U+03AC\U+03C1.256)" (list "\U+0395 4.000\U+20138.000 \U+03BC2 :  186 + (\U+0395\U+22124.000) x 0,018  \U+03BC2" "\U+0395 > 8.000 \U+03BC2 :  258 + (\U+0395\U+22128.000) x 0,009  \U+03BC2 \U+2014 \U+03BC\U+03AD\U+03B3\U+03B9\U+03C3\U+03C4\U+03BF 360 \U+03BC2"))
+    (cons "\U+03A4\U+039F\U+03A5\U+03A1\U+0399\U+03A3\U+03A4\U+0399\U+039A\U+0391 (\U+03AC\U+03C1.263)" (list "\U+03B1\U+03C1\U+03C4\U+03B9\U+03CC\U+03C4\U+03B7\U+03C4\U+03B1 \U+0395 >= 8.000 \U+03BC2 (\U+03B5\U+03BE\U+03B1\U+03AF\U+03C1\U+03B5\U+03C3\U+03B7 4.000-8.000 \U+03BC2 \U+03BC\U+03CC\U+03BD\U+03BF \U+03BE\U+03B5\U+03BD\U+03BF\U+03B4\U+03BF\U+03C7. \U+03BA\U+03B1\U+03C4\U+03B1\U+03BB\U+03CD\U+03BC\U+03B1\U+03C4\U+03B1 \U+03BC\U+03B5 \U+03BA\U+03C1\U+03B9\U+03C4\U+03AE\U+03C1\U+03B9\U+03B1 \U+03A5\U+03A0\U+0395\U+039D)" "\U+03BA\U+03AC\U+03BB\U+03C5\U+03C8\U+03B7 20% \U+00B7 \U+03A3\U+0394: 0,18 \U+03AD\U+03C9\U+03C2 50 \U+03C3\U+03C4\U+03C1 \U+00B7 0,15 \U+03C4\U+03B1 50-100 \U+03C3\U+03C4\U+03C1 \U+00B7 0,10 \U+03AC\U+03BD\U+03C9 \U+03C4\U+03C9\U+03BD 100 \U+03C3\U+03C4\U+03C1" "\U+03B1\U+03BD\U+03B1\U+03B2\U+03B1\U+03B8\U+03BC\U+03B9\U+03C3\U+03BC\U+03AD\U+03BD\U+03B1: \U+03A3\U+0394 0,18 (>=4 \U+03BA\U+03C1\U+03B9\U+03C4\U+03AE\U+03C1\U+03B9\U+03B1) \U+03AE 0,20 (>=6 \U+03BA\U+03C1\U+03B9\U+03C4\U+03AE\U+03C1\U+03B9\U+03B1) \U+00B7 \U+03BC\U+03AD\U+03B3. \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7 8.000 \U+03BC2"))
+    (cons "\U+0392\U+0399\U+039F\U+039C\U+0397\U+03A7\U+0391\U+039D\U+0399\U+039A\U+0391 (\U+03AC\U+03C1.254)" (list "\U+03A3\U+0394 0,6  \U+00B7  \U+03C3\U+03C5\U+03BD\U+03C4. \U+03BA\U+03B1\U+03C4 \U+03CC\U+03B3\U+03BA\U+03BF\U+03BD \U+03B5\U+03BA\U+03BC\U+03B5\U+03C4\U+03AC\U+03BB\U+03BB\U+03B5\U+03C5\U+03C3\U+03B7\U+03C2 4"))
+    (cons "\U+0393\U+0395\U+03A9\U+03A1\U+0393\U+039F\U+039A\U+03A4\U+0397\U+039D\U+039F\U+03A4\U+03A1\U+039F\U+03A6\U+0399\U+039A\U+0391 (\U+03AC\U+03C1.252-253)" (list "\U+03CC\U+03C1\U+03BF\U+03B9 \U+03C0\U+03C1\U+03CE\U+03B7\U+03BD \U+03AC\U+03C1.2 \U+03A0\U+0394 24.5.1985 (\U+0394 270) \U+00B7 \U+03C0\U+03B1\U+03C1\U+03AD\U+03BA\U+03BA\U+03BB\U+03B9\U+03C3\U+03B7 \U+03A3\U+0394 \U+03AD\U+03C9\U+03C2 0,8" "\U+03C7\U+03C9\U+03C1\U+03AF\U+03C2 \U+03B5\U+03BB\U+03AC\U+03C7. \U+03C0\U+03C1\U+03CC\U+03C3\U+03C9\U+03C0\U+03BF \U+03B1\U+03BD \U+03B5\U+03BE\U+03C5\U+03C0\U+03B7\U+03C1\U+03B5\U+03C4\U+03B5\U+03AF\U+03C4\U+03B1\U+03B9 \U+03B1\U+03C0\U+03CC \U+03B1\U+03B3\U+03C1\U+03BF\U+03C4\U+03B9\U+03BA\U+03BF\U+03CD\U+03C2/\U+03B4\U+03B1\U+03C3\U+03B9\U+03BA\U+03BF\U+03CD\U+03C2 \U+03B4\U+03C1\U+03CC\U+03BC\U+03BF\U+03C5\U+03C2 (\U+03AC\U+03C1.251\U+00A71\U+03B1)"))
+    (cons "\U+03A5\U+03A0\U+039F\U+03A3\U+039A\U+0391\U+03A6\U+0391 (\U+03AC\U+03C1.197, 206\U+00A76\U+03BA\U+03B4, 207)" (list "\U+03B4\U+03B5\U+03BD \U+03C0\U+03C1\U+03BF\U+03C3\U+03BC\U+03B5\U+03C4\U+03C1\U+03AC\U+03C4\U+03B1\U+03B9 \U+03C3\U+03B5 \U+03A3\U+0394 & \U+03BA\U+03AC\U+03BB\U+03C5\U+03C8\U+03B7: 50% \U+03B5\U+03C0\U+03B9\U+03C6\U+03AC\U+03BD\U+03B5\U+03B9\U+03B1\U+03C2 \U+03B3\U+03B9\U+03B1 \U+03BA\U+03B1\U+03C4\U+03BF\U+03B9\U+03BA\U+03AF\U+03B1 \U+00B7 20% \U+03BB\U+03BF\U+03B9\U+03C0\U+03AD\U+03C2 \U+03C7\U+03C1\U+03AE\U+03C3\U+03B5\U+03B9\U+03C2" "\U+03C0\U+03C1\U+03BF\U+03CB\U+03C0.: \U+03BC\U+03AF\U+03B1 \U+03CC\U+03C8\U+03B7 \U+00B7 \U+03BA\U+03B1\U+03BD\U+03AD\U+03BD\U+03B1 \U+03AF\U+03C7\U+03BD\U+03BF\U+03C2 \U+03C3\U+03B5 \U+03BA\U+03AC\U+03C4\U+03BF\U+03C8\U+03B7 \U+00B7 \U+03C0\U+03C1\U+03BF\U+03C3\U+03B2\U+03AC\U+03C3\U+03B9\U+03BC\U+03B7 \U+03C6\U+03C5\U+03C4\U+03B5\U+03BC\U+03AD\U+03BD\U+03B7 \U+03BF\U+03C1\U+03BF\U+03C6\U+03AE \U+00B7 \U+03AD\U+03B3\U+03BA\U+03C1\U+03B9\U+03C3\U+03B7 \U+03A3\U+0391" "\U+03BA\U+03AC\U+03BB\U+03C5\U+03C8\U+03B7 \U+03B4\U+03CD\U+03BD\U+03B1\U+03C4\U+03B1\U+03B9 \U+03AD\U+03C9\U+03C2 70% max")))))
   )
 
-  ;; ════ ΣΗΜΕΙΟ & ΥΨΟΣ ════════════════════════════════
-
-  (setq pt (getpoint "\n\U+03A3\U+03B7\U+03BC\U+03B5\U+03AF\U+03BF \U+03B5\U+03B9\U+03C3\U+03B1\U+03B3\U+03C9\U+03B3\U+03AE\U+03C2: "))
+  (setq pt (getpoint (strcat "\n" "\U+03A3\U+03B7\U+03BC\U+03B5\U+03AF\U+03BF \U+03B5\U+03B9\U+03C3\U+03B1\U+03B3\U+03C9\U+03B3\U+03AE\U+03C2 (\U+03C0\U+03AC\U+03BD\U+03C9-\U+03B1\U+03C1\U+03B9\U+03C3\U+03C4\U+03B5\U+03C1\U+03AE \U+03B3\U+03C9\U+03BD\U+03AF\U+03B1): ")))
   (if (null pt) (exit))
-  (setq h (getdist pt "\n\U+038D\U+03C8\U+03BF\U+03C2 \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03B1\U+03C4\U+03BF\U+03C3\U+03B5\U+03B9\U+03C1\U+03AC\U+03C2 <2.5>: "))
+  (setq h (getdist pt (strcat "\n" "\U+038E\U+03C8\U+03BF\U+03C2 \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03B1\U+03C4\U+03BF\U+03C3\U+03B5\U+03B9\U+03C1\U+03AC\U+03C2 <2.5>: ")))
   (if (null h) (setq h 2.5))
 
-  ;; ════ ΓΕΩΜΕΤΡΙΑ ════════════════════════════════════
+  (if (null (tblsearch "LAYER" "OD-PIN"))
+    (entmake (list (cons 0 "LAYER") (cons 100 "AcDbSymbolTableRecord")
+                   (cons 100 "AcDbLayerTableRecord") (cons 2 "OD-PIN")
+                   (cons 70 0) (cons 62 7) (cons 6 "Continuous"))))
 
-  (setq rh  (* h 2.2))
-  (setq cw1 (* h 14.0))
-  (setq cw2 (* h 24.0))
-  (setq px  (* h 0.4))
-  (setq py  (* h 0.35))
+  ;; Auto column widths
+  (setq maxl 0)
+  (foreach row2 rows
+    (if (> (od-len (car row2)) maxl) (setq maxl (od-len (car row2)))))
+  (setq lblw (+ (* maxl h 0.95) (* h 3.0)))
+  (setq valw 0)
+  (foreach row2 rows
+    (foreach v (cdr row2)
+      (if (> (od-len v) valw) (setq valw (od-len v)))))
+  (setq valw (* valw h 0.95))
+  (setq totw (+ lblw valw))
+  (setq rowh  (* h 2.0))
+  (setq lineh (* h 1.55))
 
-  ;; ════ LAYERS ═══════════════════════════════════════
+  (setq y (cadr pt))
 
-  (od-layer "OD-FRAME" 5)
-  (od-layer "OD-TXT"   2)
-  (od-layer "OD-HDR"   3)
+  ;; Titlos
+  (setq y (- y (* h 1.6)))
+  (od-txt (car pt) y (* h 1.5) (strcat "\U+039F\U+03A1\U+039F\U+0399 \U+0394\U+039F\U+039C\U+0397\U+03A3\U+0397\U+03A3" "  \U+2014  " onom))
 
-  ;; ════ ΤΙΤΛΟΣ ═══════════════════════════════════════
+  ;; Ypotitlos
+  (setq y (- y (* h 1.5)))
+  (od-txt (car pt) y (* h 0.85) subt)
 
-  (setq tit
-    (strcat
-      "\U+039F\U+03A1\U+039F\U+0399 \U+0394\U+039F\U+039C\U+0397\U+03A3\U+0397\U+03A3  "
-      (cond
-        ((= mode "1") "\U+03B5\U+03BD\U+03C4\U+03CC\U+03C2 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5 \U+03C0\U+03CC\U+03BB\U+03B7\U+03C2 | \U+03BD.5306/2026")
-        ((= mode "2")
-          (if (= fek "")
-            "\U+03BF\U+03B9\U+03BA\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2 <2000 \U+03BA\U+03B1\U+03C4. | \U+03A0\U+0394 24.4/1985 + \U+03A6\U+0395\U+039A 289\U+0391\U+0391\U+03A0/2011"
-            (strcat "\U+03BF\U+03B9\U+03BA\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2 <2000 \U+03BA\U+03B1\U+03C4. | \U+03A0\U+0394 24.4/1985 + \U+03A6\U+0395\U+039A 289\U+0391\U+0391\U+03A0/2011 | \U+03B1\U+03C0\U+03CC\U+03C6. \U+039D\U+03BF\U+03BC.: " fek)))
-        ((= mode "3")
-          (if (= fek "")
-            "\U+03BF\U+03B9\U+03BA\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2 \U+03C0\U+03C1\U+03BF '23 | \U+03BD.5306/2026 \U+03AC\U+03C1.226\U+03B5\U+03C0."
-            (strcat "\U+03BF\U+03B9\U+03BA\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2 \U+03C0\U+03C1\U+03BF '23 | \U+03BD.5306/2026 \U+03AC\U+03C1.226\U+03B5\U+03C0. | \U+03B1\U+03C0\U+03CC\U+03C6. \U+039D\U+03BF\U+03BC.: " fek)))
-        ((= mode "4") "\U+03B5\U+03BA\U+03C4\U+03CC\U+03C2 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5 | \U+03BD.5306/2026 \U+03AC\U+03C1.249-251"))))
+  (setq y (- y (* h 0.8)))
+  (od-hline (car pt) (+ (car pt) totw) y (* h 0.18))
 
-  (setq cy (cadr pt))
+  (foreach row2 rows
+    (setq lbl (car row2) vals (cdr row2))
+    (setq y (- y rowh))
+    (od-txt (car pt) y h lbl)
+    (od-txt (+ (car pt) lblw) y h (car vals))
+    (foreach v (cdr vals)
+      (setq y (- y lineh))
+      (od-txt (+ (car pt) lblw) y h v)))
 
-  ;; τίτλος
-  (od-rect (car pt) cy (+ (car pt) cw1 cw2) (+ cy rh) "OD-FRAME")
-  (od-txt  (+ (car pt) px) (+ cy py) (* h 1.1) "OD-HDR" tit)
-  (setq cy (+ cy rh))
+  (setq y (- y (* h 1.1)))
+  (od-hline (car pt) (+ (car pt) totw) y (* h 0.06))
 
-  ;; γραμμή ονόματος
-  (od-rect (car pt) cy (+ (car pt) cw1 cw2) (+ cy rh) "OD-FRAME")
-  (od-vline (+ (car pt) cw1) cy (+ cy rh) "OD-FRAME")
-  (od-txt (+ (car pt) px) (+ cy py) h "OD-TXT" "\U+039F\U+0399\U+039A\U+0399\U+03A3\U+039C\U+039F\U+03A3 / \U+03A0\U+0395\U+03A1\U+0399\U+039F\U+03A7\U+0397")
-  (od-txt (+ (car pt) cw1 px) (+ cy py) h "OD-TXT" onom)
-  (setq cy (+ cy rh))
+  (if (member mode (list "2" "3"))
+    (progn
+      (setq y (- y (* h 1.3)))
+      (od-txt (car pt) y (* h 0.75)
+        "\U+03A4\U+03BF \U+03A0\U+0394 24.4/1985 \U+03B9\U+03C3\U+03C7\U+03CD\U+03B5\U+03B9 \U+03BC\U+03B5\U+03C4\U+03B1\U+03B2\U+03B1\U+03C4\U+03B9\U+03BA\U+03AC (\U+03BD.5306/2026 \U+03AC\U+03C1.247\U+00A73) \U+03AD\U+03C9\U+03C2 \U+03C4\U+03B7\U+03BD \U+03BF\U+03C1\U+03B9\U+03BF\U+03B8\U+03AD\U+03C4\U+03B7\U+03C3\U+03B7 \U+03C4\U+03BF\U+03C5 \U+03BF\U+03B9\U+03BA\U+03B9\U+03C3\U+03BC\U+03BF\U+03CD \U+03BC\U+03B5 \U+03BD\U+03AD\U+03BF \U+03A0\U+0394.")))
 
-  ;; γραμμές παραμέτρων
-  (setq rows
-    (list
-      (cons "\U+0391\U+03A1\U+03A4\U+0399\U+039F\U+03A4\U+0397\U+03A4\U+0391 \U+039A\U+0391\U+03A4\U+0391 \U+039A\U+0391\U+039D\U+039F\U+039D\U+0391"
-            (strcat emin "  /  " epros " \U+03C0\U+03C1\U+03CC\U+03C3\U+03C9\U+03C0\U+03BF"))
-      (cons "\U+0391\U+03A1\U+03A4\U+0399\U+039F\U+03A4\U+0397\U+03A4\U+0391 \U+039A\U+0391\U+03A4. \U+03A0\U+0391\U+03A1\U+0395\U+039A\U+039A\U+039B\U+0399\U+03A3\U+0397"
-            (strcat emin-par "  /  " epros-par " \U+03C0\U+03C1\U+03CC\U+03C3\U+03C9\U+03C0\U+03BF"))
-      (cons "\U+03A3\U+03A5\U+039D\U+03A4. \U+0394\U+039F\U+039C\U+0397\U+03A3\U+0397\U+03A3 / \U+039C\U+0395\U+0393. \U+0394\U+039F\U+039C\U+0397\U+03A3\U+0397" sd-txt)
-      (cons "\U+039C\U+0395\U+0393. \U+03A0\U+039F\U+03A3\U+039F\U+03A3\U+03A4\U+039F \U+039A\U+0391\U+039B\U+03A5\U+03A8\U+0397\U+03A3" kaly)
-      (cons "\U+039C\U+0395\U+0393. \U+03A5\U+03A8\U+039F\U+03A3 \U+039A\U+03A4\U+0399\U+03A1\U+0399\U+039F\U+03A5" ypsos)
-      (cons "\U+0391\U+03A0\U+039F\U+03A3\U+03A4\U+0391\U+03A3\U+0395\U+0399\U+03A3 \U+0391\U+03A0\U+039F \U+039F\U+03A1\U+0399\U+0391" aposta)
-      (cons "\U+0393\U+03A1\U+0391\U+039C\U+039C\U+0397 \U+0394\U+039F\U+039C\U+0397\U+03A3\U+0397\U+03A3" gramd)
-      (cons "\U+03A3\U+03A4\U+0395\U+0393\U+0397" stegi)))
-
-  (foreach row rows
-    (od-rect (car pt) cy (+ (car pt) cw1 cw2) (+ cy rh) "OD-FRAME")
-    (od-vline (+ (car pt) cw1) cy (+ cy rh) "OD-FRAME")
-    (od-txt (+ (car pt) px) (+ cy py) h "OD-TXT" (car row))
-    (od-txt (+ (car pt) cw1 px) (+ cy py) h "OD-TXT" (cdr row))
-    (setq cy (+ cy rh)))
-
-  ;; υποσημείωση
-  (od-txt (car pt) (+ cy (* h 0.25)) (* h 0.8) "OD-TXT"
-    (cond
-      ((= mode "1") "\U+039D\U+039F\U+039A \U+03BD.4067/2012 \U+03C9\U+03C2 \U+03B9\U+03C3\U+03C7. | \U+03BD.5306/2026")
-      ((member mode '("2" "3"))
-        "\U+03A0\U+0394 24.4/1985 \U+03BC\U+03B5\U+03C4\U+03B1\U+03B2. \U+03B9\U+03C3\U+03C7\U+03CD\U+03B5\U+03B9 \U+03B2\U+03AC\U+03C3\U+03B5\U+03B9 \U+03BD.5306/2026 \U+03AC\U+03C1.247\U+00A73 | \U+03A4\U+03C1\U+03BF\U+03C0. \U+03A3\U+0394: \U+03A6\U+0395\U+039A 289/\U+0391\U+0391\U+03A0/4-11-2011")
-      ((= mode "4")
-        "\U+03BD.5306/2026 \U+03AC\U+03C1.249-251 | \U+03A0\U+0394 6/17.10.1978 \U+03A6\U+0395\U+039A \U+0394'538")))
-
-  (princ "\n\U+2714 OROIDOM v2.0: \U+03A0\U+03AF\U+03BD\U+03B1\U+03BA\U+03B1\U+03C2 \U+03B5\U+03B9\U+03C3\U+03AE\U+03C7\U+03B8\U+03B7\U+03BA\U+03B5. Layers: OD-FRAME / OD-HDR / OD-TXT")
+  (princ (strcat "\n" "OROIDOM v3.1 \U+2014 \U+039F \U+03C0\U+03AF\U+03BD\U+03B1\U+03BA\U+03B1\U+03C2 \U+03B5\U+03B9\U+03C3\U+03AE\U+03C7\U+03B8\U+03B7 (layer OD-PIN, \U+03BB\U+03B5\U+03C5\U+03BA\U+03AC)."))
   (princ))
 
-(princ "\n\U+039F\U+03A1\U+039F\U+0399\U+0394\U+039F\U+039C v2.0 \U+03C6\U+03BF\U+03C1\U+03C4\U+03CE\U+03B8\U+03B7\U+03BA\U+03B5. \U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AE: OROIDOM")
+(princ (strcat "\n" "OROIDOM v3.1 \U+03C6\U+03BF\U+03C1\U+03C4\U+03CE\U+03B8\U+03B7\U+03BA\U+03B5. \U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AE: OROIDOM"))
 (princ)
