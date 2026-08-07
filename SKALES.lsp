@@ -4,7 +4,7 @@
 ;;; Neufert: 62<2υ+π<65 . υ 14-20 . π 27-32 / >=25 / >=23
 ;;; Εντολή: SKALES | HEXIS — BRB DEVELOPMENT
 
-(setq *sk-L* nil *sk-H* 3.00 *sk-W* 1.20 *sk-PMIN* 27.0 *sk-RMIN* 0.10
+(setq *sk-L* nil *sk-H* 3.00 *sk-W* 1.20 *sk-PMIN* 27.0 *sk-RMIN* 0.0
       *sk-CANDS* nil *sk-SEL* -1 *sk-N* nil)
 
 (defun sk-layer (nm col)
@@ -156,8 +156,8 @@
     (setq r (/ (* *sk-H* 100.0) n))
     (setq g (/ (* *sk-L* 100.0) (1- n)))
     (setq chk (+ (* 2.0 r) g))
-    (setq dev (abs (- chk 63.0)))
-    (setq ok (and (> chk 62.0) (< chk 65.0)
+    (setq dev (abs (- chk 62.0)))
+    (setq ok (and (>= chk 61.0) (<= chk 63.0)
                   (>= r 14.0) (<= r 20.0)
                   (>= g *sk-PMIN*) (<= g 32.0)))
     (setq lst (append lst (list (list n r g chk dev ok))))
@@ -197,7 +197,7 @@
       (set_tile "res1" (strcat "Ρίχτυα: " (itoa (car c)) "   Πατήματα: " (itoa (1- (car c)))))
       (set_tile "res2" (strcat "Ανύψωμα υ = " (rtos r 2 1) " cm   Πάτημα π = " (rtos g 2 1) " cm"))
       (set_tile "res3" (strcat "Blondel 2υ+π = " (rtos chk 2 1) " cm  "
-        (if (nth 5 c) "-> ΕΝΤΟΣ ΚΑΝΟΝΙΣΜΟΥ" "-> ΕΚΤΟΣ!")))
+        (if (nth 5 c) "-> ΕΝΤΟΣ (61-63)" "-> ΕΚΤΟΣ (61-63)!")))
       (set_tile "res4" (strcat "Άνεση π-υ = " (rtos (- g r) 2 1)
         "   Ασφάλεια π+υ = " (rtos (+ g r) 2 1)))
       (set_tile "res5"
@@ -244,7 +244,7 @@
   (write-line "    : column {" f)
   (write-line "      : text { key = \"info_l\"; width = 44; }" f)
   (write-line "      : edit_box { key = \"h\"; label = \"Ύψος ορόφου (m):\"; edit_width = 8; }" f)
-  (write-line "      : edit_box { key = \"rmin\"; label = \"Φανάρι - ελάχ. σφήνα (cm):\"; edit_width = 8; }" f)
+  (write-line "      : edit_box { key = \"rmin\"; label = \"Απόσταση σφηνών από φανάρι (cm, 0=ακουμπούν):\"; edit_width = 8; }" f)
   (write-line "      : radio_column { key = \"typ\"; label = \"Τύπος σκάλας\";" f)
   (write-line "        : radio_button { key = \"t_norm\"; label = \"Κανονική (π 27-32 cm)\"; value = \"1\"; }" f)
   (write-line "        : radio_button { key = \"t_hard\"; label = \"Δύσκολη (π >= 25 cm)\"; }" f)
@@ -268,7 +268,7 @@
   path)
 
 ;; ========== ΚΥΡΙΑ ΕΝΤΟΛΗ ==========
-(defun C:SKALES ( / *error* inpt pstart pside cross a0
+(defun C:SKALES ( / *error* inpt pstart pside cross a0 pt1 pt2
     dclpath dclid status n going-m i dist res pt ang pv
     outer-pt inner-pt phi far hit1 hit2 vi mid-pts mp
     asc-draw pc ph txt-h arrow-sz cutres cut-c cut-a cut-b
@@ -284,9 +284,23 @@
   ;; 1. Polyline εξωτερικού βαθμιδοφόρου
   (princ "\nΕπίλεξε polyline ΕΞΩΤΕΡΙΚΟΥ βαθμιδοφόρου:")
   (setq inpt (entsel))
-  (if (null inpt) (progn (princ "\nΑκύρωση.") (exit)))
-  (setq *sk-PTS* (sk-getpts (car inpt)))
-  (if (< (length *sk-PTS*) 2) (progn (princ "\nΜη έγκυρη polyline.") (exit)))
+  (if inpt
+    (progn
+      (setq *sk-PTS* (sk-getpts (car inpt)))
+      (if (< (length *sk-PTS*) 2) (progn (princ "\nΜη έγκυρη polyline.") (exit))))
+    (progn
+      ;; Pick σημείων διαδρομής — σχεδιάζει τη σκάλα από αυτά
+      (princ "\nΔώσε τα σημεία από όπου περνά η σκάλα (εξωτ. βαθμιδοφόρος):")
+      (setq *sk-PTS* (list))
+      (setq pt1 (getpoint "\n1ο σημείο: "))
+      (if (null pt1) (progn (princ "\nΑκύρωση.") (exit)))
+      (setq *sk-PTS* (list pt1))
+      (while (setq pt2 (getpoint pt1 "\nΕπόμενο σημείο (Enter=τέλος): "))
+        (setq *sk-PTS* (append *sk-PTS* (list pt2)))
+        (setq pt1 pt2))
+      (if (< (length *sk-PTS*) 2) (progn (princ "\nΧρειάζονται 2+ σημεία.") (exit)))
+      ;; Σχεδιάζει και τον εξωτερικό βαθμιδοφόρο αφού δεν υπάρχει
+      (sk-plinedraw *sk-PTS*)))
 
   ;; 2. Αρχή σκάλας — pick κοντά στο άκρο εκκίνησης
   (setq pstart (getpoint "\nΔείξε κοντά στην ΑΡΧΗ της σκάλας (από πού ξεκινά): "))
@@ -347,7 +361,7 @@
 
   ;; βαθμίδες
   (setq mid-pts (list))
-  (setq i 1)
+  (setq i 0)
   (while (< i n)
     (setq dist (* i going-m))
     (if (> dist *sk-L*) (setq dist *sk-L*))
@@ -371,7 +385,10 @@
           (if hit1 (setq outer-pt hit1))
           (setq vi (1+ vi)))
         (if (null outer-pt) (setq outer-pt (polar pv phi *sk-W*)))
-        (setq inner-pt (polar pv phi *sk-RMIN*))
+        ;; Η σφήνα ακουμπά το φανάρι (pivot) — RMIN>0 μόνο αν δοθεί
+        (if (> *sk-RMIN* 0.001)
+          (setq inner-pt (polar pv phi *sk-RMIN*))
+          (setq inner-pt pv))
         (sk-line inner-pt outer-pt)))
     (setq mid-pts (append mid-pts (list pt)))
     (setq i (1+ i)))
@@ -396,11 +413,12 @@
   (entmake (list (cons 0 "CIRCLE") (cons 100 "AcDbEntity") (cons 8 "STAIRS")
                  (cons 10 (car asc-draw)) (cons 40 (* *sk-W* 0.05))))
 
-  ;; αρίθμηση
+  ;; αρίθμηση: στο μέσο κάθε πατήματος (i-0.5)*π
   (setq txt-h (* *sk-W* 0.09))
   (setq i 1)
-  (foreach mp mid-pts
-    (sk-txt (polar mp 0.0 (* txt-h 0.3)) txt-h (itoa i))
+  (while (< i n)
+    (setq res (sk-at (* (- i 0.5) going-m)))
+    (sk-txt (cadr res) txt-h (itoa i))
     (setq i (1+ i)))
 
   ;; γραμμή τομής στο μέσο
