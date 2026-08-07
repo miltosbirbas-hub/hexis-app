@@ -1,7 +1,7 @@
-;;; STEGH.LSP v6.0 -- ΜΕΘΟΔΟΣ ΔΙΧΟΤΟΜΩΝ
-;;; Ο κλασικός κανόνας χάραξης: διχοτόμοι γωνιών -> μαχιές/ντερέδες
-;;; Τομές διχοτόμων -> κόμβοι -> ένωση -> κορφιάδες
-;;; Ισοκλινής / Δίρριχτη / Μονόρριχτη · στάθμες σε κάθε κόμβο
+;;; STEGH.LSP v7.0 -- ΜΕΘΟΔΟΣ ΔΙΑΣΠΑΣΗΣ ΣΕ ΟΡΘΟΓΩΝΙΑ
+;;; 1. Διάσπαση κάτοψης στις εσοχές -> απλά ορθογώνια
+;;; 2. Καθε ορθογωνιο: 4 μαχιες 45 μοιρων + κορφιας στη μεση
+;;; 3. Φιλτραρισμα τεχνητων γραμμων
 ;;; Εντολή: STEGH | HEXIS -- BRB DEVELOPMENT
 
 (setq *st-PIT* 35.0 *st-PMODE* "PCT" *st-OVH* 0.50 *st-TYP* "ISO")
@@ -16,6 +16,12 @@
   (entmake (list (cons 0 "LINE") (cons 100 "AcDbEntity") (cons 8 lyr)
                  (cons 10 (list (car p1) (cadr p1) 0.0))
                  (cons 11 (list (car p2) (cadr p2) 0.0)))))
+
+(defun st-pline (pts lyr / el)
+  (setq el (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 lyr)
+                 (cons 100 "AcDbPolyline") (cons 90 (length pts)) (cons 70 1)))
+  (foreach p pts (setq el (append el (list (cons 10 (list (car p) (cadr p)))))))
+  (entmake el))
 
 (defun st-txt (p h str lyr)
   (entmake (list (cons 0 "TEXT") (cons 100 "AcDbEntity") (cons 8 lyr)
@@ -35,138 +41,154 @@
   (while (< i n) (setq p (nth i pts) q (nth (rem (1+ i) n) pts))
     (setq a (+ a (- (* (car p) (cadr q)) (* (car q) (cadr p))))) (setq i (1+ i))) a)
 
-; ΔΙΧΟΤΟΜΟΣ γωνίας i -> (list dirx diry sin_half)
-(defun st-bis (pts i / n pp p pn v1 v2 l1 l2 bx by lb cosa)
-  (setq n (length pts) p (nth i pts))
-  (setq pp (nth (rem (+ i (1- n)) n) pts) pn (nth (rem (1+ i) n) pts))
-  (setq v1 (list (- (car pp) (car p)) (- (cadr pp) (cadr p))))
-  (setq v2 (list (- (car pn) (car p)) (- (cadr pn) (cadr p))))
-  (setq l1 (sqrt (+ (* (car v1) (car v1)) (* (cadr v1) (cadr v1)))))
-  (setq l2 (sqrt (+ (* (car v2) (car v2)) (* (cadr v2) (cadr v2)))))
-  (if (or (< l1 1e-9) (< l2 1e-9)) nil
-    (progn
-      (setq v1 (list (/ (car v1) l1) (/ (cadr v1) l1)))
-      (setq v2 (list (/ (car v2) l2) (/ (cadr v2) l2)))
-      (setq bx (+ (car v1) (car v2)) by (+ (cadr v1) (cadr v2)))
-      (setq lb (sqrt (+ (* bx bx) (* by by))))
-      (if (< lb 1e-9) nil
-        (progn
-          (setq cosa (+ (* (car v1) (car v2)) (* (cadr v1) (cadr v2))))
-          (if (> cosa 1.0) (setq cosa 1.0))
-          (if (< cosa -1.0) (setq cosa -1.0))
-          (list (/ bx lb) (/ by lb) (sin (/ (atan (sqrt (- 1.0 (* cosa cosa))) cosa) 2.0))))))))
+(defun st-mid (a b) (list (/ (+ (car a) (car b)) 2.0) (/ (+ (cadr a) (cadr b)) 2.0)))
 
-; τομή 2 ημιευθειών -> (x y t s) ή nil
-(defun st-isect (p1 d1 p2 d2 / det dx dy tt ss)
+; υπολίστα από index a έως index b κυκλικά
+(defun st-sub (pts a b / n out k cnt)
+  (setq n (length pts) out (list) k a cnt 0)
+  (while (and (< cnt (1+ n)))
+    (setq out (append out (list (nth k pts))))
+    (if (= k b) (setq cnt (+ n 5)) (progn (setq k (rem (1+ k) n)) (setq cnt (1+ cnt)))))
+  out)
+
+(defun st-clean (pts / out n i a c b cr la lb res)
+  (setq out (list))
+  (foreach p pts
+    (if (or (null out) (> (distance p (last out)) 1e-6))
+      (setq out (append out (list p)))))
+  (if (and (> (length out) 1) (< (distance (car out) (last out)) 1e-6))
+    (setq out (reverse (cdr (reverse out)))))
+  (setq n (length out) res (list) i 0)
+  (while (< i n)
+    (setq a (nth (rem (+ i (1- n)) n) out) c (nth i out) b (nth (rem (1+ i) n) out))
+    (setq cr (- (* (- (car c) (car a)) (- (cadr b) (cadr c)))
+               (* (- (cadr c) (cadr a)) (- (car b) (car c)))))
+    (setq la (distance a c) lb (distance c b))
+    (if (and (> la 1e-9) (> lb 1e-9) (> (/ (abs cr) (* la lb)) 1e-6))
+      (setq res (append res (list c))))
+    (setq i (1+ i)))
+  (if (>= (length res) 3) res out))
+
+(defun st-reflex (pts i / n a c b)
+  (setq n (length pts))
+  (setq a (nth (rem (+ i (1- n)) n) pts) c (nth i pts) b (nth (rem (1+ i) n) pts))
+  (< (- (* (- (car c) (car a)) (- (cadr b) (cadr c)))
+        (* (- (cadr c) (cadr a)) (- (car b) (car c)))) -1e-9))
+
+(defun st-sisect (p1 p2 p3 p4 / d1 d2 det dx dy tt ss)
+  (setq d1 (list (- (car p2) (car p1)) (- (cadr p2) (cadr p1))))
+  (setq d2 (list (- (car p4) (car p3)) (- (cadr p4) (cadr p3))))
   (setq det (- (* (car d1) (cadr d2)) (* (cadr d1) (car d2))))
   (if (< (abs det) 1e-9) nil
-    (progn (setq dx (- (car p2) (car p1)) dy (- (cadr p2) (cadr p1)))
+    (progn (setq dx (- (car p3) (car p1)) dy (- (cadr p3) (cadr p1)))
       (setq tt (/ (- (* dx (cadr d2)) (* dy (car d2))) det))
       (setq ss (/ (- (* dx (cadr d1)) (* dy (car d1))) det))
-      (list (+ (car p1) (* tt (car d1))) (+ (cadr p1) (* tt (cadr d1))) tt ss))))
+      (if (and (> tt -1e-9) (< tt 1.000001) (> ss -1e-9) (< ss 1.000001))
+        (list (+ (car p1) (* tt (car d1))) (+ (cadr p1) (* tt (cadr d1))) tt ss)))))
 
-; κάθετη απόσταση σημείου από ακμή a-b
-(defun st-d2e (pt a b / ex ey el)
-  (setq ex (- (car b) (car a)) ey (- (cadr b) (cadr a)))
-  (setq el (sqrt (+ (* ex ex) (* ey ey))))
-  (if (< el 1e-9) 0.0
-    (/ (abs (- (* (- (car pt) (car a)) ey) (* (- (cadr pt) (cadr a)) ex))) el)))
+; -- διάσπαση: επιστρέφει (list poly1 poly2) ή nil --
+(defun st-split (pts / n i j c aa d l dv far best h hit je p1 p2)
+  (setq n (length pts) i 0 best nil)
+  (while (and (< i n) (null best))
+    (if (st-reflex pts i)
+      (progn
+        (setq c (nth i pts))
+        (foreach aa (list (nth (rem (+ i (1- n)) n) pts) (nth (rem (1+ i) n) pts))
+          (if (null best)
+            (progn
+              (setq d (list (- (car c) (car aa)) (- (cadr c) (cadr aa))))
+              (setq l (sqrt (+ (* (car d) (car d)) (* (cadr d) (cadr d)))))
+              (if (> l 1e-9)
+                (progn
+                  (setq dv (list (/ (car d) l) (/ (cadr d) l)))
+                  (setq far (list (+ (car c) (* (car dv) 100000.0))
+                                  (+ (cadr c) (* (cadr dv) 100000.0))))
+                  (setq j 0)
+                  (while (< j n)
+                    (if (and (/= j i) (/= (rem (1+ j) n) i))
+                      (progn
+                        (setq h (st-sisect c far (nth j pts) (nth (rem (1+ j) n) pts)))
+                        (if (and h (> (caddr h) 1e-6)
+                                 (or (null best) (< (caddr h) (car best))))
+                          (setq best (list (caddr h) (list (car h) (cadr h)) j i)))))
+                    (setq j (1+ j))))))))))
+    (setq i (1+ i)))
+  (if best
+    (progn
+      (setq hit (cadr best) je (caddr best) i (nth 3 best))
+      (setq p1 (st-clean (append (st-sub pts i je) (list hit))))
+      (setq p2 (st-clean (append (list hit) (st-sub pts (rem (1+ je) n) i))))
+      (if (and (>= (length p1) 3) (>= (length p2) 3)
+               (> (abs (st-area2 p1)) 1e-6) (> (abs (st-area2 p2)) 1e-6))
+        (list p1 p2)))))
+
+; -- αναδρομική διάσπαση --
+(defun st-decomp (pts dep / r)
+  (if (> dep 10) (list pts)
+    (progn
+      (if (< (st-area2 pts) 0.0) (setq pts (reverse pts)))
+      (setq pts (st-clean pts))
+      (setq r (st-split pts))
+      (if (null r) (list pts)
+        (append (st-decomp (car r) (1+ dep)) (st-decomp (cadr r) (1+ dep)))))))
+
+; -- λύση ορθογωνίου: 4 μαχιές + κορφιάς --
+(defun st-quad (pts th / p0 p1 p2 p3 d01 d12 w m1 m2 e1 e2 e3 e4 LL u h r1 r2 lines)
+  (if (/= (length pts) 4) (list nil nil)
+    (progn
+      (setq p0 (nth 0 pts) p1 (nth 1 pts) p2 (nth 2 pts) p3 (nth 3 pts))
+      (setq d01 (distance p0 p1) d12 (distance p1 p2))
+      (if (>= d01 d12)
+        (progn (setq w d12 m1 (st-mid p0 p3) m2 (st-mid p1 p2))
+               (setq e1 p0 e2 p3 e3 p1 e4 p2))
+        (progn (setq w d01 m1 (st-mid p0 p1) m2 (st-mid p2 p3))
+               (setq e1 p0 e2 p1 e3 p2 e4 p3)))
+      (setq LL (distance m1 m2))
+      (if (< LL 1e-9) (list nil nil)
+        (progn
+          (setq u (list (/ (- (car m2) (car m1)) LL) (/ (- (cadr m2) (cadr m1)) LL)))
+          (setq h (/ w 2.0))
+          (setq r1 (list (+ (car m1) (* (car u) h)) (+ (cadr m1) (* (cadr u) h))))
+          (setq r2 (list (- (car m2) (* (car u) h)) (- (cadr m2) (* (cadr u) h))))
+          (setq lines (list (list e1 r1) (list e2 r1) (list e3 r2) (list e4 r2)))
+          (if (> (distance r1 r2) 1e-4)
+            (setq lines (append lines (list (list r1 r2)))))
+          (list lines (list (list r1 (* h th)) (list r2 (* h th)))))))))
 
 (defun st-slope ( )
   (if (= *st-PMODE* "PCT") (/ *st-PIT* 100.0)
     (/ (sin (* *st-PIT* (/ pi 180.0))) (cos (* *st-PIT* (/ pi 180.0))))))
 
-; ===== ΕΠΙΛΥΣΗ ΜΕ ΔΙΧΟΤΟΜΟΥΣ =====
-(defun st-solve (pts0 / pts th lines heights lav dacc it n i j
-                       cur bd cands best dmin ei ej node k d sh st new m)
-  (setq pts pts0)
-  (if (< (st-area2 pts) 0.0) (setq pts (reverse pts)))
-  (setq th (st-slope) lines (list) heights (list) dacc 0.0)
-  (foreach p pts (setq heights (append heights (list (list p 0.0)))))
-  (setq lav (mapcar (quote (lambda (p) (list p p))) pts))
-  (setq it 0)
-  (while (and (>= (length lav) 3) (< it 200))
-    (setq it (1+ it) n (length lav))
-    (setq cur (mapcar (quote car) lav))
-    (setq bd (list) i 0)
-    (while (< i n) (setq bd (append bd (list (st-bis cur i)))) (setq i (1+ i)))
-    ;; υποψήφια events: τομές διχοτόμων γειτονικών κορυφών
-    (setq cands (list) i 0)
-    (while (< i n)
-      (setq j (rem (1+ i) n))
-      (if (and (nth i bd) (nth j bd))
-        (progn
-          (setq best (st-isect (nth i cur) (nth i bd) (nth j cur) (nth j bd)))
-          (if (and best (> (caddr best) 1e-6) (> (cadddr best) 1e-6))
-            (setq cands (append cands (list (list
-              (st-d2e (list (car best) (cadr best)) (nth i cur) (nth j cur))
-              i j (list (car best) (cadr best)))))))))
-      (setq i (1+ i)))
-    (if (null cands) (setq it 200)
+; -- ΚΥΡΙΑ ΕΠΙΛΥΣΗ --
+(defun st-solve (poly / th orig parts allL allN res keep a b io inn dup)
+  (setq th (st-slope))
+  (if (< (st-area2 poly) 0.0) (setq poly (reverse poly)))
+  (setq orig (st-clean poly))
+  (setq parts (st-decomp poly 0))
+  (setq allL (list) allN (list))
+  (foreach pp parts
+    (setq res (st-quad pp th))
+    (if (car res) (setq allL (append allL (car res))))
+    (if (cadr res) (setq allN (append allN (cadr res)))))
+  ;; φίλτρο: κρατά γραμμές με άκρα σε πραγματικές κορυφές ή κόμβους
+  (setq keep (list))
+  (foreach ln allL
+    (setq a (car ln) b (cadr ln))
+    (setq io nil)
+    (foreach o orig (if (< (distance a o) 1e-4) (setq io T)))
+    (foreach nd allN (if (< (distance a (car nd)) 1e-3) (setq io T)))
+    (setq inn nil)
+    (foreach o orig (if (< (distance b o) 1e-4) (setq inn T)))
+    (foreach nd allN (if (< (distance b (car nd)) 1e-3) (setq inn T)))
+    (if (and io inn)
       (progn
-        ;; ελάχιστη απόσταση
-        (setq best (car cands))
-        (foreach c cands (if (< (car c) (car best)) (setq best c)))
-        (setq dmin (car best) ei (cadr best) ej (caddr best) node (cadddr best))
-        (setq dacc (+ dacc dmin))
-        ;; γραμμές των 2 που συγχωνεύονται
-        (foreach k (list ei ej)
-          (if (> (distance (cadr (nth k lav)) node) 1e-4)
-            (setq lines (append lines (list (list (cadr (nth k lav)) node))))))
-        (setq heights (append heights (list (list node (* dacc th)))))
-        ;; νέο lav
-        (setq new (list) k 0)
-        (while (< k n)
-          (cond
-            ((= k ei) (setq new (append new (list (list node node)))))
-            ((= k ej) nil)
-            (T (setq d (nth k bd))
-               (if (and d (> (caddr d) 1e-6))
-                 (progn (setq st (/ dmin (caddr d)))
-                   (setq new (append new (list (list
-                     (list (+ (car (nth k cur)) (* st (car d)))
-                           (+ (cadr (nth k cur)) (* st (cadr d))))
-                     (cadr (nth k lav)))))))
-                 (setq new (append new (list (nth k lav)))))))
-          (setq k (1+ k)))
-        (setq lav new))))
-  ;; τελικές: born -> current + ένωση μεταξύ τους (κορφιάς)
-  (setq m (length lav) k 0)
-  (while (< k m)
-    (if (> (distance (cadr (nth k lav)) (car (nth k lav))) 1e-4)
-      (setq lines (append lines (list (list (cadr (nth k lav)) (car (nth k lav)))))))
-    (setq k (1+ k)))
-  (if (>= m 2)
-    (progn (setq k 0)
-      (while (< k (if (= m 2) 1 m))
-        (if (> (distance (car (nth k lav)) (car (nth (rem (1+ k) m) lav))) 1e-4)
-          (setq lines (append lines (list (list (car (nth k lav))
-                                                (car (nth (rem (1+ k) m) lav)))))))
-        (setq k (1+ k)))))
-  (list lines heights))
-
-(defun st-pline (pts lyr / el)
-  (setq el (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 lyr)
-                 (cons 100 "AcDbPolyline") (cons 90 (length pts)) (cons 70 1)))
-  (foreach p pts
-    (setq el (append el (list (cons 10 (list (car p) (cadr p)))))))
-  (entmake el))
-
-;; Offset πολυγώνου προς τα ΕΞΩ κατά d -> κλειστό πολύγωνο
-(defun st-offset-out (pts d / n i b out p st)
-  (setq n (length pts) out (list) i 0)
-  (while (< i n)
-    (setq b (st-bis pts i))
-    (setq p (nth i pts))
-    (if (and b (> (caddr b) 1e-6))
-      (progn
-        (setq st (/ d (caddr b)))
-        ;; ΕΞΩ = αντίθετα από τη διχοτόμο (που δείχνει μέσα)
-        (setq out (append out (list
-          (list (- (car p) (* st (car b))) (- (cadr p) (* st (cadr b))))))))
-      (setq out (append out (list p))))
-    (setq i (1+ i)))
-  out)
+        (setq dup nil)
+        (foreach kk keep
+          (if (or (and (< (distance a (car kk)) 1e-4) (< (distance b (cadr kk)) 1e-4))
+                  (and (< (distance a (cadr kk)) 1e-4) (< (distance b (car kk)) 1e-4)))
+            (setq dup T)))
+        (if (not dup) (setq keep (append keep (list ln)))))))
+  (list keep allN parts))
 
 (defun st-prev ( / w h x0 x1 y0 y1 ym xw)
   (setq w (dimx_tile "prev") h (dimy_tile "prev"))
@@ -193,7 +215,7 @@
   (st-prev))
 
 (defun C:STEGH ( / *error* ent pts orig dclpath dclid status f
-    res lines heights th ovh luk lab n0 i
+    res lines nodes parts th ovh luk lab n0 i
     d01 d12 ra rb hh hipt bi bd pm dd eang pa pb p0 p1 nx ny el dx dy)
 
   (defun *error* (msg)
@@ -207,12 +229,12 @@
   (setq pts (st-getpts (car ent)))
   (if (< (length pts) 3) (progn (princ "\n\U+03A7\U+03C1\U+03B5\U+03B9\U+03AC\U+03B6\U+03B5\U+03C4\U+03B1\U+03B9 >=3 \U+03BA\U+03BF\U+03C1\U+03C5\U+03C6\U+03AD\U+03C2.") (exit)))
   (if (< (st-area2 pts) 0.0) (setq pts (reverse pts)))
-  (setq orig pts n0 (length pts))
+  (setq orig (st-clean pts) n0 (length orig))
 
-  (setq dclpath (strcat (getvar "TEMPPREFIX") "stegh6.dcl"))
+  (setq dclpath (strcat (getvar "TEMPPREFIX") "stegh7.dcl"))
   (setq f (open dclpath "w"))
-  (write-line "stegh6_dlg : dialog {" f)
-  (write-line "  label = \"STEGH v6 \U+2014 \U+039C\U+03AD\U+03B8\U+03BF\U+03B4\U+03BF\U+03C2 \U+0394\U+03B9\U+03C7\U+03BF\U+03C4\U+03CC\U+03BC\U+03C9\U+03BD (HEXIS)\";" f)
+  (write-line "stegh7_dlg : dialog {" f)
+  (write-line "  label = \"STEGH v7 \U+2014 \U+0395\U+03C0\U+03AF\U+03BB\U+03C5\U+03C3\U+03B7 \U+03A3\U+03C4\U+03AD\U+03B3\U+03B7\U+03C2 (HEXIS)\";" f)
   (write-line "  : row {" f)
   (write-line "  : column {" f)
   (write-line "    : radio_column { key = \"typ\"; label = \"\U+03A4\U+03CD\U+03C0\U+03BF\U+03C2\";" f)
@@ -226,7 +248,7 @@
   (write-line "    }" f)
   (write-line "    : edit_box { key = \"pit\"; label = \"\U+039A\U+03BB\U+03AF\U+03C3\U+03B7:\"; edit_width = 7; }" f)
   (write-line "    : edit_box { key = \"ovh\"; label = \"\U+03A0\U+03C1\U+03BF\U+03B5\U+03BE\U+03BF\U+03C7\U+03AE (m):\"; edit_width = 7; }" f)
-  (write-line "    : toggle { key = \"luk\"; label = \"\U+039B\U+03BF\U+03CD\U+03BA\U+03B9\U+03B1 / \U+03B3\U+03B5\U+03AF\U+03C3\U+03BF\"; value = \"1\"; }" f)
+  (write-line "    : toggle { key = \"luk\"; label = \"\U+0393\U+03B5\U+03AF\U+03C3\U+03BF (\U+03BA\U+03BB\U+03B5\U+03B9\U+03C3\U+03C4\U+03AE polyline)\"; value = \"1\"; }" f)
   (write-line "  }" f)
   (write-line "  : column {" f)
   (write-line "    : image { key = \"prev\"; width = 26; aspect_ratio = 0.7; color = 0; }" f)
@@ -237,7 +259,7 @@
   (write-line "}" f) (close f)
   (setq dclid (load_dialog dclpath))
   (if (< dclid 0) (progn (princ "\nDCL error.") (exit)))
-  (if (not (new_dialog "stegh6_dlg" dclid)) (progn (princ "\nDialog error.") (exit)))
+  (if (not (new_dialog "stegh7_dlg" dclid)) (progn (princ "\nDialog error.") (exit)))
   (set_tile "pit" (rtos *st-PIT* 2 1))
   (set_tile "ovh" (rtos *st-OVH* 2 2))
   (st-prev)
@@ -252,70 +274,81 @@
   (setq status (start_dialog)) (unload_dialog dclid)
   (if (/= status 1) (progn (princ "\n\U+0391\U+03BA\U+03CD\U+03C1\U+03C9\U+03C3\U+03B7.") (exit)))
   (setq th (st-slope) ovh *st-OVH*)
-  (setq lines (list) heights (list))
+  (setq lines (list) nodes (list))
 
   (cond
     ((= *st-TYP* "GAB")
       (if (/= n0 4) (princ "\n\U+0394\U+03AF\U+03C1\U+03C1\U+03B9\U+03C7\U+03C4\U+03B7: \U+03B8\U+03AD\U+03BB\U+03B5\U+03B9 \U+03BF\U+03C1\U+03B8\U+03BF\U+03B3\U+03CE\U+03BD\U+03B9\U+03BF.")
         (progn
-          (setq d01 (distance (nth 0 orig) (nth 1 orig)))
-          (setq d12 (distance (nth 1 orig) (nth 2 orig)))
-          (if (>= d01 d12)
-            (progn
-              (setq ra (list (/ (+ (car (nth 0 orig)) (car (nth 3 orig))) 2.0)
-                             (/ (+ (cadr (nth 0 orig)) (cadr (nth 3 orig))) 2.0)))
-              (setq rb (list (/ (+ (car (nth 1 orig)) (car (nth 2 orig))) 2.0)
-                             (/ (+ (cadr (nth 1 orig)) (cadr (nth 2 orig))) 2.0)))
-              (setq hh (* (/ d12 2.0) th)))
-            (progn
-              (setq ra (list (/ (+ (car (nth 0 orig)) (car (nth 1 orig))) 2.0)
-                             (/ (+ (cadr (nth 0 orig)) (cadr (nth 1 orig))) 2.0)))
-              (setq rb (list (/ (+ (car (nth 2 orig)) (car (nth 3 orig))) 2.0)
-                             (/ (+ (cadr (nth 2 orig)) (cadr (nth 3 orig))) 2.0)))
-              (setq hh (* (/ d01 2.0) th))))
-          (setq lines (list (list ra rb)))
-          (foreach p orig (setq heights (append heights (list (list p 0.0)))))
-          (setq heights (append heights (list (list ra hh) (list rb hh)))))))
+          (setq res (st-quad orig th))
+          ;; μόνο ο κορφιάς (τελευταία γραμμή)
+          (setq lines (list (last (car res))))
+          (setq nodes (cadr res)))))
 
     ((= *st-TYP* "MON")
       (setq hipt (getpoint "\n\U+0394\U+03B5\U+03AF\U+03BE\U+03B5 \U+03C0\U+03C1\U+03BF\U+03C2 \U+03C4\U+03B7\U+03BD \U+03A8\U+0397\U+039B\U+0397 \U+03C0\U+03BB\U+03B5\U+03C5\U+03C1\U+03AC: "))
       (if (null hipt) (setq hipt (nth 0 orig)))
       (setq bi 0 bd nil i 0)
       (while (< i n0)
-        (setq pm (list (/ (+ (car (nth i orig)) (car (nth (rem (1+ i) n0) orig))) 2.0)
-                       (/ (+ (cadr (nth i orig)) (cadr (nth (rem (1+ i) n0) orig))) 2.0)))
+        (setq pm (st-mid (nth i orig) (nth (rem (1+ i) n0) orig)))
         (setq dd (distance (list (car hipt) (cadr hipt)) pm))
         (if (or (null bd) (< dd bd)) (progn (setq bd dd) (setq bi i)))
         (setq i (1+ i)))
       (setq pa (nth bi orig) pb (nth (rem (1+ bi) n0) orig))
-      (setq eang (angle pa pb))
-      (setq i 0)
+      (setq eang (angle pa pb) i 0)
       (while (< i n0)
         (setq p0 (nth i orig))
         (setq dd (abs (- (* (- (car p0) (car pa)) (sin eang))
                          (* (- (cadr p0) (cadr pa)) (cos eang)))))
-        (setq heights (append heights (list (list p0 (* dd th)))))
+        (setq nodes (append nodes (list (list p0 (* dd th)))))
         (setq i (1+ i)))
       (setq lines (list (list pa pb))))
 
     (T
-      (princ (strcat "\n" "\U+0395\U+03C0\U+03AF\U+03BB\U+03C5\U+03C3\U+03B7 \U+03BC\U+03B5 \U+03B4\U+03B9\U+03C7\U+03BF\U+03C4\U+03CC\U+03BC\U+03BF\U+03C5\U+03C2..."))
+      (princ (strcat "\n" "\U+0394\U+03B9\U+03AC\U+03C3\U+03C0\U+03B1\U+03C3\U+03B7 \U+03C3\U+03B5 \U+03BF\U+03C1\U+03B8\U+03BF\U+03B3\U+03CE\U+03BD\U+03B9\U+03B1..."))
       (setq res (st-solve orig))
-      (setq lines (car res) heights (cadr res))))
+      (setq lines (car res) nodes (cadr res) parts (caddr res))
+      (princ (strcat " " (itoa (length parts)) " \U+03C4\U+03BC\U+03AE\U+03BC\U+03B1\U+03C4\U+03B1"))))
 
   ;; ΣΧΕΔΙΑΣΗ
   (foreach ln lines (st-line (car ln) (cadr ln) "STEGH-SKL"))
-  ;; ΓΕΙΣΟ: κλειστή polyline offset προς τα έξω
-  (if (and (= luk "1") (> ovh 0.001))
-    (st-pline (st-offset-out orig ovh) "STEGH-LUK"))
-  ;; Περίγραμμα γέννησης ως κλειστή polyline
   (st-pline orig "STEGH-SKL")
+  (if (and (= luk "1") (> ovh 0.001))
+    (progn
+      (setq oldF (getvar "FILLETRAD") oldC (getvar "CMDECHO"))
+      (setvar "CMDECHO" 0) (setvar "FILLETRAD" 0.0)
+      (setq gents (list) i 0)
+      (while (< i n0)
+        (setq p0 (nth i orig) p1 (nth (rem (1+ i) n0) orig))
+        (setq dx (- (car p1) (car p0)) dy (- (cadr p1) (cadr p0))
+              el (sqrt (+ (* dx dx) (* dy dy))))
+        (if (> el 1e-9)
+          (progn (setq nx (/ dy el) ny (/ (- dx) el))
+            (st-line (list (- (+ (car p0) (* ovh nx)) (* (/ dx el) ovh 2.0))
+                           (- (+ (cadr p0) (* ovh ny)) (* (/ dy el) ovh 2.0)))
+                     (list (+ (car p1) (* ovh nx) (* (/ dx el) ovh 2.0))
+                           (+ (cadr p1) (* ovh ny) (* (/ dy el) ovh 2.0))) "STEGH-LUK")
+            (setq gents (append gents (list (entlast))))))
+        (setq i (1+ i)))
+      (setq i 0)
+      (while (< i (length gents))
+        (setq e1 (nth i gents) e2 (nth (rem (1+ i) (length gents)) gents))
+        (if (and e1 e2 (entget e1) (entget e2))
+          (command "_.FILLET"
+            (list e1 (st-mid (cdr (assoc 10 (entget e1))) (cdr (assoc 11 (entget e1)))))
+            (list e2 (st-mid (cdr (assoc 10 (entget e2))) (cdr (assoc 11 (entget e2)))))))
+        (setq i (1+ i)))
+      (setvar "FILLETRAD" oldF) (setvar "CMDECHO" oldC)))
+
   (setq lab 0.25)
-  (foreach hh heights
-    (st-txt (list (car (car hh)) (+ (cadr (car hh)) (* lab 0.4)))
-      lab (strcat "+" (rtos (cadr hh) 2 2)) "STEGH-TXT"))
-  (princ (strcat "\nSTEGH v6.1: " (itoa (length lines)) " \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03AD\U+03C2"))
+  (foreach p orig
+    (st-txt (list (car p) (+ (cadr p) (* lab 0.4))) lab "+0.00" "STEGH-TXT"))
+  (foreach nd nodes
+    (st-txt (list (car (car nd)) (+ (cadr (car nd)) (* lab 0.4)))
+      lab (strcat "+" (rtos (cadr nd) 2 2)) "STEGH-TXT"))
+
+  (princ (strcat "\nSTEGH v7.0: " (itoa (length lines)) " \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03AD\U+03C2"))
   (princ))
 
-(princ "\nSTEGH v6.1 (\U+03BC\U+03AD\U+03B8\U+03BF\U+03B4\U+03BF\U+03C2 \U+03B4\U+03B9\U+03C7\U+03BF\U+03C4\U+03CC\U+03BC\U+03C9\U+03BD) \U+03C6\U+03BF\U+03C1\U+03C4\U+03CE\U+03B8\U+03B7\U+03BA\U+03B5. \U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AE: STEGH")
+(princ "\nSTEGH v7.0 \U+03C6\U+03BF\U+03C1\U+03C4\U+03CE\U+03B8\U+03B7\U+03BA\U+03B5. \U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AE: STEGH")
 (princ)
