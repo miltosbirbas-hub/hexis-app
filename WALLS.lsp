@@ -5,7 +5,7 @@
 ;;; HEXIS Platform - BRB DEVELOPMENT
 
 (setq *wl-W* 0.20 *wl-H* 3.00 *wl-MAT* "BETON" *wl-TYP* "BATIKOS"
-      *wl-EXT* "0" *wl-ETICS* 0.08 *wl-SIDE* 1.0)
+      *wl-EXT* "0" *wl-ETICS* 0.08 *wl-SIDE* 1.0 *wl-ALIGN* "CENTER")
 
 (defun wl-layer (nm col)
   (if (null (tblsearch "LAYER" nm))
@@ -83,6 +83,11 @@
   (write-line "      : edit_box { key = \"ww\"; label = \"\U+03A0\U+03AC\U+03C7\U+03BF\U+03C2 (m):\"; edit_width = 7; }" f)
   (write-line "      : edit_box { key = \"ins\"; label = \"\U+039C\U+03CC\U+03BD\U+03C9\U+03C3\U+03B7 \U+03B4\U+03B9\U+03C0\U+03BB\U+03BF\U+03CD (cm):\"; edit_width = 7; }" f)
   (write-line "      : edit_box { key = \"hh\"; label = \"\U+038E\U+03C8\U+03BF\U+03C2 (m):\"; edit_width = 7; }" f)
+  (write-line "  : radio_row { key = \"aln\"; label = \"\U+0386\U+03BE\U+03BF\U+03BD\U+03B1\U+03C2 \U+03C9\U+03C2 \U+03C0\U+03C1\U+03BF\U+03C2 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03B1\U+03C3\U+03B7\";" f)
+  (write-line "    : radio_button { key = \"a_cen\"; label = \"\U+039A\U+03AD\U+03BD\U+03C4\U+03C1\U+03BF (\U+03B1\U+03BE. \U+03C3\U+03C4\U+03B7 \U+03BC\U+03AD\U+03C3\U+03B7)\"; value = \"1\"; }" f)
+  (write-line "    : radio_button { key = \"a_in\"; label = \"\U+039C\U+03AD\U+03C3\U+03B1 (\U+03B1\U+03BE. \U+03C3\U+03C4\U+03B7\U+03BD \U+03B5\U+03C3\U+03C9\U+03C4.)\"; }" f)
+  (write-line "    : radio_button { key = \"a_out\"; label = \"\U+0388\U+03BE\U+03C9 (\U+03B1\U+03BE. \U+03C3\U+03C4\U+03B7\U+03BD \U+03B5\U+03BE\U+03C9\U+03C4.)\"; }" f)
+  (write-line "  }" f)
   (write-line "      : toggle { key = \"ext\"; label = \"\U+0395\U+03BE\U+03C9\U+03C4\U+03B5\U+03C1\U+03B9\U+03BA\U+03CC\U+03C2 \U+03C4\U+03BF\U+03AF\U+03C7\U+03BF\U+03C2\"; }" f)
   (write-line "      : edit_box { key = \"etics\"; label = \"ETICS (cm):\"; edit_width = 7; }" f)
   (write-line "    }" f)
@@ -122,8 +127,11 @@
       (fill_image (+ cx thick) y0 (fix (* w 0.12)) (- y1 y0) 3)
       (vector_image (+ cx thick (fix (* w 0.12))) y0
                     (+ cx thick (fix (* w 0.12))) y1 7)))
+  (setq axline (cond ((= *wl-ALIGN* "CENTER") cx) ((= *wl-ALIGN* "INSIDE") (- cx thick)) (T (+ cx thick))))
+  (vector_image axline y0 axline y1 1)
   (set_tile "winfo" (strcat "\U+03A0\U+03AC\U+03C7\U+03BF\U+03C2: " (rtos *wl-W* 2 3) " m"
-    (if (= *wl-EXT* "1") (strcat " + ETICS " (rtos *wl-ETICS* 2 2) "m") "")))
+    (if (= *wl-EXT* "1") (strcat " + ETICS " (rtos *wl-ETICS* 2 2) "m") "")
+    (strcat "  [" (cond ((= *wl-ALIGN* "CENTER") "\U+03BA\U+03AD\U+03BD\U+03C4\U+03C1\U+03BF") ((= *wl-ALIGN* "INSIDE") "\U+03BC\U+03AD\U+03C3\U+03B1") (T "\U+03AD\U+03BE\U+03C9")) "]")))
   (end_image))
 
 (defun wl-preset (typ ins / w)
@@ -139,7 +147,7 @@
   (wl-dcl-prev))
 
 (defun C:WALL ( / *error* dclpath dclid status f
-    ww hh mat typ ext etics ins lyr col ang
+    ww hh mat typ ext etics ins lyr col ang off1 off2
     p1 p2 s pa pb pc pd xd keyinput)
 
   (defun *error* (msg)
@@ -157,6 +165,9 @@
   (set_tile "etics" (rtos (* *wl-ETICS* 100.0) 2 0))
   (if (= *wl-EXT* "1") (set_tile "ext" "1"))
   (wl-dcl-prev)
+  (action_tile "a_cen" "(setq *wl-ALIGN* \"CENTER\") (wl-dcl-prev)")
+  (action_tile "a_in"  "(setq *wl-ALIGN* \"INSIDE\") (wl-dcl-prev)")
+  (action_tile "a_out" "(setq *wl-ALIGN* \"OUTSIDE\") (wl-dcl-prev)")
   (action_tile "t_bat"  "(wl-preset \"BATIKOS\"  (get_tile \"ins\"))")
   (action_tile "t_dro"  "(wl-preset \"DROMIKOS\" (get_tile \"ins\"))")
   (action_tile "t_dip"  "(wl-preset \"DIPLOS\"   (get_tile \"ins\"))")
@@ -194,10 +205,17 @@
       (progn
         (setq ang (angle p1 p2))
         ;; s=+1: αριστερά, s=-1: δεξιά
-        (setq pa (wl-perp p1 ang (* s (/ ww 2.0))))
-        (setq pb (wl-perp p2 ang (* s (/ ww 2.0))))
-        (setq pc (wl-perp p1 ang (* s (/ ww -2.0))))
-        (setq pd (wl-perp p2 ang (* s (/ ww -2.0))))
+        ;; align: CENTER/INSIDE/OUTSIDE
+        (setq off1 (cond ((= *wl-ALIGN* "CENTER")  (* s (/ ww  2.0)))
+                         ((= *wl-ALIGN* "INSIDE")  (* s ww))
+                         (T                         0.0)))
+        (setq off2 (cond ((= *wl-ALIGN* "CENTER")  (* s (/ ww -2.0)))
+                         ((= *wl-ALIGN* "INSIDE")  0.0)
+                         (T                        (* s (- ww)))))
+        (setq pa (wl-perp p1 ang off1))
+        (setq pb (wl-perp p2 ang off1))
+        (setq pc (wl-perp p1 ang off2))
+        (setq pd (wl-perp p2 ang off2))
         ;; 2 πλαϊνές + 2 καπάκια
         (setq e1 (wl-line pa pb lyr))
         (setq e2 (wl-line pc pd lyr))
