@@ -241,48 +241,75 @@
   (princ (strcat "\n" "WALL: \U+03A4\U+03C1\U+03AD\U+03BE\U+03B5 WALLJOIN \U+03B3\U+03B9\U+03B1 trim \U+03B3\U+03C9\U+03BD\U+03B9\U+03CE\U+03BD, WALLROOM \U+03B3\U+03B9\U+03B1 \U+03B5\U+03BC\U+03B2\U+03B1\U+03B4\U+03AC."))
   (princ))
 
-(defun C:TOIXOSJOIN ( / *error* ss n segs i j e ed s1 s2
-    p1 q1 p2 q2 v1 v2 ang1 ang2 hit d11 d12 d21 d22 snapR njoins)
+(defun C:TOIXOSJOIN ( / *error* ss n i j e1 e2 ed1 ed2
+    p1 q1 p2 q2 a1 a2 v1 v2 hit
+    d11 d12 d21 d22 snapR nj oldF oldC oldR)
 
   (defun *error* (msg)
+    (if oldF (setvar "FILLETRAD" oldF))
+    (if oldC (setvar "CMDECHO" oldC))
     (if (not (member msg (list "Function cancelled" "quit / exit abort")))
-      (princ (strcat "\n" "\U+03A3\U+03C6\U+03AC\U+03BB\U+03BC\U+03B1 TOIXOSJOIN: " msg)))
+      (princ (strcat "\n\U+03A3\U+03C6\U+03AC\U+03BB\U+03BC\U+03B1 TOIXOSJOIN: " msg)))
     (princ))
 
-  (setq snapR 0.08 njoins 0)
-  (setq ss (ssget "X" (list (cons 0 "LINE") (cons 8 "*WALL*"))))
-  (if (null ss) (progn (princ "\n\U+0394\U+03B5\U+03BD \U+03B2\U+03C1\U+03AD\U+03B8\U+03B7\U+03BA\U+03B1\U+03BD \U+03C4\U+03BF\U+03AF\U+03C7\U+03BF\U+03B9.") (exit)))
-  (setq segs (list) i 0 n (sslength ss))
-  (while (< i n)
-    (setq e (ssname ss i) ed (entget e))
-    (setq segs (append segs (list (list e
-      (list (cadr (assoc 10 ed)) (caddr (assoc 10 ed)) 0.0)
-      (list (cadr (assoc 11 ed)) (caddr (assoc 11 ed)) 0.0)))))
-    (setq i (1+ i)))
-  (princ (strcat "\n" "\U+0395\U+03C0\U+03B5\U+03BE\U+03B5\U+03C1\U+03B3\U+03AC\U+03B6\U+03BF\U+03BC\U+03B1\U+03B9 " (itoa n) " \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03AD\U+03C2..."))
+  (setq oldF (getvar "FILLETRAD") oldC (getvar "CMDECHO"))
+  (setvar "CMDECHO" 0)
+  (setvar "FILLETRAD" 0.0)
+
+  (princ "\n\U+0395\U+03C0\U+03AF\U+03BB\U+03B5\U+03BE\U+03B5 \U+03BC\U+03B5 WINDOW \U+03C4\U+03B9\U+03C2 \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03AD\U+03C2 \U+03C4\U+03BF\U+03AF\U+03C7\U+03C9\U+03BD \U+03B3\U+03B9\U+03B1 \U+03AD\U+03BD\U+03C9\U+03C3\U+03B7:")
+  (setq ss (ssget (list (cons 0 "LINE"))))
+  (if (null ss)
+    (progn (setvar "FILLETRAD" oldF) (setvar "CMDECHO" oldC)
+           (princ "\n\U+039A\U+03B1\U+03BC\U+03AF\U+03B1 \U+03B5\U+03C0\U+03B9\U+03BB\U+03BF\U+03B3\U+03AE.") (exit)))
+
+  (setq n (sslength ss) nj 0 snapR 0.50)
+  (princ (strcat "\n\U+0395\U+03C0\U+03B5\U+03BE\U+03B5\U+03C1\U+03B3\U+03AC\U+03B6\U+03BF\U+03BC\U+03B1\U+03B9 " (itoa n) " \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03AD\U+03C2 \U+03BC\U+03B5 FILLET r=0..."))
+
+  ;; Για κάθε ζεύγος που τέμνεται ή σχεδόν τέμνεται -> FILLET
   (setq i 0)
   (while (< i n)
-    (setq s1 (nth i segs) p1 (cadr s1) q1 (caddr s1))
-    (setq ang1 (angle p1 q1) v1 (list (cos ang1) (sin ang1)))
-    (setq j (1+ i))
-    (while (< j n)
-      (setq s2 (nth j segs) p2 (cadr s2) q2 (caddr s2))
-      (setq ang2 (angle p2 q2))
-      (if (> (abs (sin (- ang1 ang2))) 0.03)
-        (progn
-          (setq v2 (list (cos ang2) (sin ang2)))
-          (setq hit (wl-isect p1 v1 p2 v2))
-          (if hit
+    (setq e1 (ssname ss i))
+    (if (and e1 (entget e1))
+      (progn
+        (setq ed1 (entget e1))
+        (setq p1 (list (cadr (assoc 10 ed1)) (caddr (assoc 10 ed1)) 0.0))
+        (setq q1 (list (cadr (assoc 11 ed1)) (caddr (assoc 11 ed1)) 0.0))
+        (setq a1 (angle p1 q1))
+        (setq v1 (list (cos a1) (sin a1)))
+        (setq j (1+ i))
+        (while (< j n)
+          (setq e2 (ssname ss j))
+          (if (and e2 (entget e2))
             (progn
-              (setq d11 (distance hit p1) d12 (distance hit q1))
-              (setq d21 (distance hit p2) d22 (distance hit q2))
-              (if (< d11 snapR) (progn (wl-set10 (car s1) hit) (setq njoins (1+ njoins))))
-              (if (< d12 snapR) (progn (wl-set11 (car s1) hit) (setq njoins (1+ njoins))))
-              (if (< d21 snapR) (progn (wl-set10 (car s2) hit) (setq njoins (1+ njoins))))
-              (if (< d22 snapR) (progn (wl-set11 (car s2) hit) (setq njoins (1+ njoins))))))))
-      (setq j (1+ j)))
+              (setq ed2 (entget e2))
+              (setq p2 (list (cadr (assoc 10 ed2)) (caddr (assoc 10 ed2)) 0.0))
+              (setq q2 (list (cadr (assoc 11 ed2)) (caddr (assoc 11 ed2)) 0.0))
+              (setq a2 (angle p2 q2))
+              ;; μόνο μη-παράλληλες
+              (if (> (abs (sin (- a1 a2))) 0.03)
+                (progn
+                  (setq v2 (list (cos a2) (sin a2)))
+                  (setq hit (wl-isect p1 v1 p2 v2))
+                  (if hit
+                    (progn
+                      (setq d11 (distance hit p1) d12 (distance hit q1))
+                      (setq d21 (distance hit p2) d22 (distance hit q2))
+                      ;; αν κάποιο άκρο είναι κοντά στην τομή -> FILLET
+                      (if (and (or (< d11 snapR) (< d12 snapR))
+                               (or (< d21 snapR) (< d22 snapR)))
+                        (progn
+                          ;; FILLET: pick κοντά στο άκρο που κρατάμε
+                          (command "_.FILLET"
+                            (list e1 (if (< d11 d12) p1 q1))
+                            (list e2 (if (< d21 d22) p2 q2)))
+                          (setq nj (1+ nj)))))))))
+            )
+          (setq j (1+ j)))))
     (setq i (1+ i)))
-  (princ (strcat "\nTOIXOSJOIN: " (itoa njoins) " snaps."))
+
+  (setvar "FILLETRAD" oldF)
+  (setvar "CMDECHO" oldC)
+  (princ (strcat "\nTOIXOSJOIN: " (itoa nj) " fillets."))
   (princ))
 
 (defun C:TOIXOSROOM ( / *error* lab pt bnd ed pts ar pr cn)
