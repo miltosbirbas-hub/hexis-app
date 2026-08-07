@@ -1,11 +1,11 @@
-;;; SKALES.LSP v4.0 — Σχεδιασμός κλίμακας με σφήνες (DCL)
+;;; SKALES.LSP v5.0 — Σχεδιασμός κλίμακας με σφήνες (DCL)
 ;;; Επιλογή polyline βαθμιδοφόρου -> pick αρχής -> pick εσωτερικής πλευράς
 ;;; Ευθείες βαθμίδες + σφηνοειδείς στις στροφές γύρω από το φανάρι
 ;;; Neufert: 62<2υ+π<65 . υ 14-20 . π 27-32 / >=25 / >=23
 ;;; Εντολή: SKALES | HEXIS — BRB DEVELOPMENT
 
 (setq *sk-L* nil *sk-H* 3.00 *sk-W* 1.20 *sk-PMIN* 27.0 *sk-RMIN* 0.0
-      *sk-CANDS* nil *sk-SEL* -1 *sk-N* nil)
+      *sk-CANDS* nil *sk-SEL* -1 *sk-N* nil *sk-3D* "0" *sk-SEC* "0")
 
 (defun sk-layer (nm col)
   (if (null (tblsearch "LAYER" nm))
@@ -250,6 +250,8 @@
   (write-line "        : radio_button { key = \"t_hard\"; label = \"Δύσκολη (π >= 25 cm)\"; }" f)
   (write-line "        : radio_button { key = \"t_metal\"; label = \"Μεταλλική ευθύγραμμη (π >= 23 cm)\"; }" f)
   (write-line "      }" f)
+  (write-line "      : toggle { key = \"do3d\"; label = \"Δημιουργία 3D μοντέλου (3DFACE)\"; }" f)
+  (write-line "      : toggle { key = \"dosec\"; label = \"Σχεδίαση τομής (2D)\"; }" f)
   (write-line "      : button { key = \"calc\"; label = \"Επανυπολογισμός\"; }" f)
   (write-line "      : list_box { key = \"cands\"; label = \"Λύσεις:\"; height = 9; width = 44; }" f)
   (write-line "    }" f)
@@ -272,7 +274,7 @@
     dclpath dclid status n going-m i dist res pt ang pv
     outer-pt inner-pt phi far hit1 hit2 vi mid-pts mp
     asc-draw pc ph txt-h arrow-sz cutres cut-c cut-a cut-b
-    riser going seg-n)
+    riser going seg-n j z z0 re1 re2 riser-ends riser-m secp sx sy)
 
   (defun *error* (msg)
     (if (not (member msg (list "Function cancelled" "quit / exit abort")))
@@ -344,7 +346,7 @@
   (action_tile "t_hard"  "(setq *sk-PMIN* 25.0) (sk-recalc)")
   (action_tile "t_metal" "(setq *sk-PMIN* 23.0) (sk-recalc)")
   (action_tile "cands" "(setq *sk-SEL* (atoi $value)) (sk-show-sel)")
-  (action_tile "accept" "(done_dialog 1)")
+  (action_tile "accept" "(setq *sk-3D* (get_tile \"do3d\")) (setq *sk-SEC* (get_tile \"dosec\")) (done_dialog 1)")
   (action_tile "cancel" "(done_dialog 0)")
   (setq status (start_dialog))
   (unload_dialog dclid)
@@ -360,7 +362,7 @@
   (sk-plinedraw *sk-INNER*)
 
   ;; βαθμίδες
-  (setq mid-pts (list))
+  (setq mid-pts (list) riser-ends (list))
   (setq i 0)
   (while (< i n)
     (setq dist (* i going-m))
@@ -372,7 +374,8 @@
       (progn
         (setq outer-pt (polar pt (- ang (* *sk-SIDE* (/ pi 2))) (/ *sk-W* 2.0)))
         (setq inner-pt (polar pt (+ ang (* *sk-SIDE* (/ pi 2))) (/ *sk-W* 2.0)))
-        (sk-line outer-pt inner-pt))
+        (sk-line outer-pt inner-pt)
+        (setq riser-ends (append riser-ends (list (list outer-pt inner-pt)))))
       ;; σφηνοειδής: ακτίνα από pivot(+φανάρι) έως εξωτερικό βαθμιδοφόρο
       (progn
         (setq pv (cadddr res))
@@ -389,7 +392,8 @@
         (if (> *sk-RMIN* 0.001)
           (setq inner-pt (polar pv phi *sk-RMIN*))
           (setq inner-pt pv))
-        (sk-line inner-pt outer-pt)))
+        (sk-line inner-pt outer-pt)
+        (setq riser-ends (append riser-ends (list (list outer-pt inner-pt))))))
     (setq mid-pts (append mid-pts (list pt)))
     (setq i (1+ i)))
 
@@ -428,9 +432,77 @@
   (setq cut-b (polar cut-c (+ (caddr cutres) (* 5.0 (/ pi 4.0))) (* *sk-W* 0.75)))
   (sk-line cut-a cut-b)
 
-  (princ (strcat "\nSKALES v4.0 — n=" (itoa n)
+  ;; ==== 3D ΜΟΝΤΕΛΟ (3DFACE) ====
+  (setq riser-m (/ *sk-H* (float n)))
+  (if (= *sk-3D* "1")
+    (progn
+      (setq j 1)
+      (while (< j n)
+        ;; πάτημα j: μεταξύ ριχτιών j-1 και j σε ύψος j*υ
+        (setq re1 (nth (1- j) riser-ends) re2 (nth j riser-ends))
+        (if (and re1 re2)
+          (progn
+            (setq z (* j riser-m))
+            (entmake (list (cons 0 "3DFACE") (cons 100 "AcDbEntity") (cons 8 "STAIRS-3D")
+              (cons 10 (list (car (car re1)) (cadr (car re1)) z))
+              (cons 11 (list (car (car re2)) (cadr (car re2)) z))
+              (cons 12 (list (car (cadr re2)) (cadr (cadr re2)) z))
+              (cons 13 (list (car (cadr re1)) (cadr (cadr re1)) z))))
+            ;; ρίχτυ j: κατακόρυφη όψη στο ρίχτυ j-1 από (j-1)υ έως jυ
+            (setq z0 (* (1- j) riser-m))
+            (entmake (list (cons 0 "3DFACE") (cons 100 "AcDbEntity") (cons 8 "STAIRS-3D")
+              (cons 10 (list (car (car re1)) (cadr (car re1)) z0))
+              (cons 11 (list (car (cadr re1)) (cadr (cadr re1)) z0))
+              (cons 12 (list (car (cadr re1)) (cadr (cadr re1)) z))
+              (cons 13 (list (car (car re1)) (cadr (car re1)) z))))))
+        (setq j (1+ j)))
+      ;; τελευταίο ρίχτυ έως τη στάθμη ορόφου
+      (setq re1 (last riser-ends))
+      (setq z0 (* (1- n) riser-m) z (* n riser-m))
+      (entmake (list (cons 0 "3DFACE") (cons 100 "AcDbEntity") (cons 8 "STAIRS-3D")
+        (cons 10 (list (car (car re1)) (cadr (car re1)) z0))
+        (cons 11 (list (car (cadr re1)) (cadr (cadr re1)) z0))
+        (cons 12 (list (car (cadr re1)) (cadr (cadr re1)) z))
+        (cons 13 (list (car (car re1)) (cadr (car re1)) z))))
+      (sk-layer "STAIRS-3D" 4)
+      (princ "\n3D μοντέλο: layer STAIRS-3D (δες με 3DORBIT/SHADE).")))
+
+  ;; ==== ΤΟΜΗ 2D ====
+  (if (= *sk-SEC* "1")
+    (progn
+      (setq secp (getpoint "\nΣημείο εισαγωγής τομής (κάτω-αριστερά): "))
+      (if secp
+        (progn
+          (sk-layer "STAIRS-SEC" 7)
+          ;; γραμμή εδάφους
+          (sk-line (list (- (car secp) (* going-m 1.0)) (cadr secp) 0.0)
+                   (list (+ (car secp) (* going-m (float n)) going-m) (cadr secp) 0.0))
+          ;; ζιγκ-ζαγκ βαθμίδων
+          (setq sx (car secp) sy (cadr secp))
+          (setq j 1)
+          (while (<= j n)
+            ;; ρίχτυ πάνω
+            (sk-line (list sx sy 0.0) (list sx (+ sy riser-m) 0.0))
+            (setq sy (+ sy riser-m))
+            ;; πάτημα δεξιά (εκτός από το τελευταίο που είναι ο όροφος)
+            (if (< j n)
+              (progn
+                (sk-line (list sx sy 0.0) (list (+ sx going-m) sy 0.0))
+                (setq sx (+ sx going-m))))
+            (setq j (1+ j)))
+          ;; γραμμή στάθμης ορόφου
+          (sk-line (list sx sy 0.0) (list (+ sx (* going-m 2.0)) sy 0.0))
+          ;; στάθμες κείμενο
+          (sk-txt (list (+ sx (* going-m 0.3)) (+ sy (* riser-m 0.3)) 0.0)
+                  (* going-m 0.35)
+                  (strcat "+" (rtos *sk-H* 2 2)))
+          (sk-txt (list (- (car secp) (* going-m 0.8)) (+ (cadr secp) (* riser-m 0.3)) 0.0)
+                  (* going-m 0.35) "+0.00")
+          (princ "\nΤομή: layer STAIRS-SEC.")))))
+
+  (princ (strcat "\nSKALES v5.0 — n=" (itoa n)
     " υ=" (rtos riser 2 1) " π=" (rtos going 2 1) " cm — layer STAIRS."))
   (princ))
 
-(princ "\nSKALES v4.0 φορτώθηκε. Εντολή: SKALES")
+(princ "\nSKALES v5.0 φορτώθηκε. Εντολή: SKALES")
 (princ)
