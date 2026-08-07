@@ -379,7 +379,7 @@
 ;;                                (ενώνει εξωτ.-με-εξωτ. και εσωτ.-με-εσωτ.)
 ;;   αλλιώς ΤΑΥ -> min t = Η ΠΡΩΤΗ παρειά που συναντά η γραμμή  <-- ΚΡΙΣΙΜΟ
 ;; Επιστρέφει (x y idxΣτόχου isTee) ή nil.
-(defun wl-jsnap (L i wh tol / a p o va n k b vb pb LB I d best bd sIn sPar
+(defun wl-jsnap (L i wh tol / a p o va n k b vb pb LB hit d best bd sIn sPar
                             dt bestT btT bestL bdL Lp Lo)
   (setq a (nth i L))
   (setq p (if (= wh 0) (wl-jp1 a) (wl-jp2 a)))
@@ -398,29 +398,29 @@
             (if (and vb (> LB 1e-9)
                      (> (abs (- (* (car va) (cadr vb)) (* (cadr va) (car vb)))) 0.17))
               (progn
-                (setq I (wl-jisect o va pb vb))
-                (if I
+                (setq hit (wl-jisect o va pb vb))
+                (if hit
                   (progn
-                    (setq sPar (nth 3 I))
-                    (setq d (distance p (list (car I) (cadr I))))
+                    (setq sPar (nth 3 hit))
+                    (setq d (distance p (list (car hit) (cadr hit))))
                     ;; (α) εντός/κοντά στο τμήμα-στόχο, (β) κοντά στο άκρο μου,
                     ;; (γ) να μην αντιστραφεί η γραμμή μου
                     (if (and (> sPar (- 0.0 tol)) (< sPar (+ LB tol))
                              (<= d tol)
-                             (> (nth 2 I) (* 0.25 Lo)))
+                             (> (nth 2 hit) (* 0.25 Lo)))
                       (progn
                         ;; μετατόπιση του ΣΤΟΧΟΥ (0 αν η τομή είναι εσωτερική)
                         (setq dt (min (abs sPar) (abs (- sPar LB))))
                         (setq sIn (if (and (> sPar tol) (< sPar (- LB tol))) 1 0))
                         (if (= sIn 1)
                           ;; --- ΤΑΥ: κράτα το ΜΙΚΡΟΤΕΡΟ t (πρώτη παρειά) ---
-                          (if (or (null btT) (< (nth 2 I) btT))
-                            (setq btT (nth 2 I)
-                                  bestT (list (car I) (cadr I) k 1)))
+                          (if (or (null btT) (< (nth 2 hit) btT))
+                            (setq btT (nth 2 hit)
+                                  bestT (list (car hit) (cadr hit) k 1)))
                           ;; --- ΓΩΝΙΑ: κράτα το μικρότερο άθροισμα μετατοπίσεων ---
                           (if (or (null bdL) (< (+ d dt) bdL))
                             (setq bdL (+ d dt)
-                                  bestL (list (car I) (cadr I) k 0)))))))))))
+                                  bestL (list (car hit) (cadr hit) k 0)))))))))))
           )
         (setq k (1+ k)))
       (if bestL bestL bestT))))

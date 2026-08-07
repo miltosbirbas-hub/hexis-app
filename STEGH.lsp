@@ -351,7 +351,7 @@
 
 ;; ===================== ΕΛΕΓΧΟΙ ΕΓΚΥΡΟΤΗΤΑΣ =====================
 ;; --- έλεγχος αυτοτομής περιγράμματος -> σημείο τομής ή nil ---
-(defun st-selfx (pts / n i j a b c d I r)
+(defun st-selfx (pts / n i j a b c d hit r)
   (setq n (length pts) i 0 r nil)
   (while (and (< i n) (null r))
     (setq j (+ i 1))
@@ -360,8 +360,8 @@
         (progn
           (setq a (nth i pts) b (nth (rem (1+ i) n) pts)
                 c (nth j pts) d (nth (rem (1+ j) n) pts))
-          (setq I (st-sx a b c d))
-          (if I (setq r I))))
+          (setq hit (st-sx a b c d))
+          (if hit (setq r hit))))
       (setq j (1+ j)))
     (setq i (1+ i)))
   r)
@@ -393,7 +393,7 @@
   out)
 
 ;; --- συνεκτικότητα γράφου τόξων ---
-(defun st-conn (arcs / pts seen stack k found n a)
+(defun st-conn (arcs / pts seen stack k found n a p q)
   (if (null arcs) 0
     (progn
       (setq pts (list))
@@ -487,7 +487,7 @@
 ;; ===================== ΕΝΤΟΛΗ STEGH =====================
 (defun C:STEGH ( / *error* ent pts orig n dclpath dclid status
                    th ovh res arcs nodes lab gpts hmax i j
-                   a b ia ib lyr txh P hh cnt1 cnt2 cnt3
+                   a b ia ib lyr txh hh cnt1 cnt2 cnt3
                    lowp bi bd pm dd pa pb eang p0 nds sumA nd p
                    xchk badv conn bv)
 
