@@ -113,9 +113,9 @@
 
 ; πρόθεμα κωδικού ανά τύπο
 (defun wd-prefix (typ)
-  (cond ((member typ (list "DIN" "DEX")) "Π")
-        ((member typ (list "BAL" "SLB")) "Μ")
-        (T "ΠΑ")))
+  (cond ((member typ (list "DIN" "DEX")) "\U+03A0")
+        ((member typ (list "BAL" "SLB")) "\U+039C")
+        (T "\U+03A0\U+0391")))
 
 ; επόμενος αριθμός για πρόθεμα (χωρίς αύξηση)
 (defun wd-next (pfx / a)
@@ -157,7 +157,7 @@
   (entmake (list (cons 0 "TEXT") (cons 100 "AcDbEntity") (cons 8 "WINDOORS")
                  (cons 10 (list (- (car tp) (* th 2.0)) (- (cadr tp) r (* th 2.6)) 0.0))
                  (cons 40 (* th 0.8))
-                 (cons 1 (strcat "πρ. +" (rtos zprek 2 2) "  ποδ. +" (rtos sill 2 2)))
+                 (cons 1 (strcat "\U+03C0\U+03C1. +" (rtos zprek 2 2) "  \U+03C0\U+03BF\U+03B4. +" (rtos sill 2 2)))
                  (cons 72 0))))
 
 ;; -- Preview κάτοψης τύπου στο image tile --
@@ -180,8 +180,8 @@
       (vector_image ja gy1 jb gy1 4)
       (vector_image ja gy2 jb gy2 4)
       (set_tile "pinfo"
-        (if (= *wd-TYP* "WIN") "Παράθυρο: τζάμι + ποδιά 0.90"
-                               "Μπαλκονόπορτα: τζάμι έως δάπεδο")))
+        (if (= *wd-TYP* "WIN") "\U+03A0\U+03B1\U+03C1\U+03AC\U+03B8\U+03C5\U+03C1\U+03BF: \U+03C4\U+03B6\U+03AC\U+03BC\U+03B9 + \U+03C0\U+03BF\U+03B4\U+03B9\U+03AC 0.90"
+                               "\U+039C\U+03C0\U+03B1\U+03BB\U+03BA\U+03BF\U+03BD\U+03CC\U+03C0\U+03BF\U+03C1\U+03C4\U+03B1: \U+03C4\U+03B6\U+03AC\U+03BC\U+03B9 \U+03AD\U+03C9\U+03C2 \U+03B4\U+03AC\U+03C0\U+03B5\U+03B4\U+03BF")))
     ;; συρόμενα: 2 επάλληλα φύλλα
     ((member *wd-TYP* (list "SLW" "SLB"))
       (setq mx (fix (/ (+ ja jb) 2)))
@@ -193,7 +193,7 @@
       (vector_image (- mx 4) (fix (* h 0.56)) jb (fix (* h 0.56)) 4)
       (vector_image (- mx 4) (fix (* h 0.53)) (- mx 4) (fix (* h 0.56)) 4)
       (vector_image jb (fix (* h 0.53)) jb (fix (* h 0.56)) 4)
-      (set_tile "pinfo" "Συρόμενο επάλληλο: 2 φύλλα με επικάλυψη"))
+      (set_tile "pinfo" "\U+03A3\U+03C5\U+03C1\U+03CC\U+03BC\U+03B5\U+03BD\U+03BF \U+03B5\U+03C0\U+03AC\U+03BB\U+03BB\U+03B7\U+03BB\U+03BF: 2 \U+03C6\U+03CD\U+03BB\U+03BB\U+03B1 \U+03BC\U+03B5 \U+03B5\U+03C0\U+03B9\U+03BA\U+03AC\U+03BB\U+03C5\U+03C8\U+03B7"))
     ;; πόρτες: φύλλο + τόξο
     ((member *wd-TYP* (list "DIN" "DEX"))
       ;; φύλλο κατακόρυφο από τον μεντεσέ (ja) προς τα πάνω
@@ -211,8 +211,8 @@
         (setq qx hx qy hy)
         (setq i (1+ i)))
       (set_tile "pinfo"
-        (if (= *wd-TYP* "DIN") "Πόρτα εσωτερική: φύλλο + τόξο 90"
-                               "Πόρτα εξωτερική: φύλλο + τόξο 90"))))
+        (if (= *wd-TYP* "DIN") "\U+03A0\U+03CC\U+03C1\U+03C4\U+03B1 \U+03B5\U+03C3\U+03C9\U+03C4\U+03B5\U+03C1\U+03B9\U+03BA\U+03AE: \U+03C6\U+03CD\U+03BB\U+03BB\U+03BF + \U+03C4\U+03CC\U+03BE\U+03BF 90"
+                               "\U+03A0\U+03CC\U+03C1\U+03C4\U+03B1 \U+03B5\U+03BE\U+03C9\U+03C4\U+03B5\U+03C1\U+03B9\U+03BA\U+03AE: \U+03C6\U+03CD\U+03BB\U+03BB\U+03BF + \U+03C4\U+03CC\U+03BE\U+03BF 90"))))
   (end_image))
 
 ;; ========== ΚΥΡΙΑ ΕΝΤΟΛΗ ==========
@@ -222,7 +222,7 @@
 
   (defun *error* (msg)
     (if (not (member msg (list "Function cancelled" "quit / exit abort")))
-      (princ (strcat "\nΣφάλμα WINDOORS: " msg)))
+      (princ (strcat "\n\U+03A3\U+03C6\U+03AC\U+03BB\U+03BC\U+03B1 WINDOORS: " msg)))
     (princ))
 
   (wd-layer "WINDOORS" 4)
@@ -231,24 +231,24 @@
   (setq dclpath (strcat (getvar "TEMPPREFIX") "windoors.dcl"))
   (setq f (open dclpath "w"))
   (write-line "windoors_dlg : dialog {" f)
-  (write-line "  label = \"WINDOORS — Κουφώματα (HEXIS)\";" f)
+  (write-line "  label = \"WINDOORS \U+2014 \U+039A\U+03BF\U+03C5\U+03C6\U+03CE\U+03BC\U+03B1\U+03C4\U+03B1 (HEXIS)\";" f)
   (write-line "  : row {" f)
   (write-line "  : column {" f)
-  (write-line "  : radio_column { key = \"typ\"; label = \"Τύπος κουφώματος\";" f)
-  (write-line "    : radio_button { key = \"t_win\"; label = \"Παράθυρο ανοιγόμενο\"; value = \"1\"; }" f)
-  (write-line "    : radio_button { key = \"t_bal\"; label = \"Μπαλκονόπορτα ανοιγόμενη\"; }" f)
-  (write-line "    : radio_button { key = \"t_din\"; label = \"Πόρτα εσωτερική\"; }" f)
-  (write-line "    : radio_button { key = \"t_dex\"; label = \"Πόρτα εξωτερική / εισόδου\"; }" f)
-  (write-line "    : radio_button { key = \"t_slw\"; label = \"Συρόμενο επάλληλο παράθυρο\"; }" f)
-  (write-line "    : radio_button { key = \"t_slb\"; label = \"Συρόμενη επάλληλη μπαλκονόπορτα\"; }" f)
+  (write-line "  : radio_column { key = \"typ\"; label = \"\U+03A4\U+03CD\U+03C0\U+03BF\U+03C2 \U+03BA\U+03BF\U+03C5\U+03C6\U+03CE\U+03BC\U+03B1\U+03C4\U+03BF\U+03C2\";" f)
+  (write-line "    : radio_button { key = \"t_win\"; label = \"\U+03A0\U+03B1\U+03C1\U+03AC\U+03B8\U+03C5\U+03C1\U+03BF \U+03B1\U+03BD\U+03BF\U+03B9\U+03B3\U+03CC\U+03BC\U+03B5\U+03BD\U+03BF\"; value = \"1\"; }" f)
+  (write-line "    : radio_button { key = \"t_bal\"; label = \"\U+039C\U+03C0\U+03B1\U+03BB\U+03BA\U+03BF\U+03BD\U+03CC\U+03C0\U+03BF\U+03C1\U+03C4\U+03B1 \U+03B1\U+03BD\U+03BF\U+03B9\U+03B3\U+03CC\U+03BC\U+03B5\U+03BD\U+03B7\"; }" f)
+  (write-line "    : radio_button { key = \"t_din\"; label = \"\U+03A0\U+03CC\U+03C1\U+03C4\U+03B1 \U+03B5\U+03C3\U+03C9\U+03C4\U+03B5\U+03C1\U+03B9\U+03BA\U+03AE\"; }" f)
+  (write-line "    : radio_button { key = \"t_dex\"; label = \"\U+03A0\U+03CC\U+03C1\U+03C4\U+03B1 \U+03B5\U+03BE\U+03C9\U+03C4\U+03B5\U+03C1\U+03B9\U+03BA\U+03AE / \U+03B5\U+03B9\U+03C3\U+03CC\U+03B4\U+03BF\U+03C5\"; }" f)
+  (write-line "    : radio_button { key = \"t_slw\"; label = \"\U+03A3\U+03C5\U+03C1\U+03CC\U+03BC\U+03B5\U+03BD\U+03BF \U+03B5\U+03C0\U+03AC\U+03BB\U+03BB\U+03B7\U+03BB\U+03BF \U+03C0\U+03B1\U+03C1\U+03AC\U+03B8\U+03C5\U+03C1\U+03BF\"; }" f)
+  (write-line "    : radio_button { key = \"t_slb\"; label = \"\U+03A3\U+03C5\U+03C1\U+03CC\U+03BC\U+03B5\U+03BD\U+03B7 \U+03B5\U+03C0\U+03AC\U+03BB\U+03BB\U+03B7\U+03BB\U+03B7 \U+03BC\U+03C0\U+03B1\U+03BB\U+03BA\U+03BF\U+03BD\U+03CC\U+03C0\U+03BF\U+03C1\U+03C4\U+03B1\"; }" f)
   (write-line "  }" f)
-  (write-line "  : edit_box { key = \"w\"; label = \"Πλάτος ανοίγματος (m):\"; edit_width = 8; }" f)
-  (write-line "  : edit_box { key = \"t\"; label = \"Πάχος τοίχου (m):\"; edit_width = 8; }" f)
-  (write-line "  : edit_box { key = \"hop\"; label = \"Ύψος κουφώματος (m):\"; edit_width = 8; }" f)
-  (write-line "  : edit_box { key = \"sill\"; label = \"Ποδιά - στάθμη κάτω (m):\"; edit_width = 8; }" f)
-  (write-line "  : edit_box { key = \"code\"; label = \"Κωδικός κουφώματος:\"; edit_width = 8; }" f)
-  (write-line "  : edit_box { key = \"txh\"; label = \"Ύψος κειμένου πίνακα (m):\"; edit_width = 8; }" f)
-  (write-line "  : toggle { key = \"tag\"; label = \"Πινακάκι διαστάσεων + κωδικός\"; value = \"1\"; }" f)
+  (write-line "  : edit_box { key = \"w\"; label = \"\U+03A0\U+03BB\U+03AC\U+03C4\U+03BF\U+03C2 \U+03B1\U+03BD\U+03BF\U+03AF\U+03B3\U+03BC\U+03B1\U+03C4\U+03BF\U+03C2 (m):\"; edit_width = 8; }" f)
+  (write-line "  : edit_box { key = \"t\"; label = \"\U+03A0\U+03AC\U+03C7\U+03BF\U+03C2 \U+03C4\U+03BF\U+03AF\U+03C7\U+03BF\U+03C5 (m):\"; edit_width = 8; }" f)
+  (write-line "  : edit_box { key = \"hop\"; label = \"\U+038E\U+03C8\U+03BF\U+03C2 \U+03BA\U+03BF\U+03C5\U+03C6\U+03CE\U+03BC\U+03B1\U+03C4\U+03BF\U+03C2 (m):\"; edit_width = 8; }" f)
+  (write-line "  : edit_box { key = \"sill\"; label = \"\U+03A0\U+03BF\U+03B4\U+03B9\U+03AC - \U+03C3\U+03C4\U+03AC\U+03B8\U+03BC\U+03B7 \U+03BA\U+03AC\U+03C4\U+03C9 (m):\"; edit_width = 8; }" f)
+  (write-line "  : edit_box { key = \"code\"; label = \"\U+039A\U+03C9\U+03B4\U+03B9\U+03BA\U+03CC\U+03C2 \U+03BA\U+03BF\U+03C5\U+03C6\U+03CE\U+03BC\U+03B1\U+03C4\U+03BF\U+03C2:\"; edit_width = 8; }" f)
+  (write-line "  : edit_box { key = \"txh\"; label = \"\U+038E\U+03C8\U+03BF\U+03C2 \U+03BA\U+03B5\U+03B9\U+03BC\U+03AD\U+03BD\U+03BF\U+03C5 \U+03C0\U+03AF\U+03BD\U+03B1\U+03BA\U+03B1 (m):\"; edit_width = 8; }" f)
+  (write-line "  : toggle { key = \"tag\"; label = \"\U+03A0\U+03B9\U+03BD\U+03B1\U+03BA\U+03AC\U+03BA\U+03B9 \U+03B4\U+03B9\U+03B1\U+03C3\U+03C4\U+03AC\U+03C3\U+03B5\U+03C9\U+03BD + \U+03BA\U+03C9\U+03B4\U+03B9\U+03BA\U+03CC\U+03C2\"; value = \"1\"; }" f)
   (write-line "  }" f)
   (write-line "  : column {" f)
   (write-line "  : image { key = \"prev\"; width = 34; aspect_ratio = 0.65; color = 0; }" f)
@@ -260,8 +260,8 @@
   (close f)
 
   (setq dclid (load_dialog dclpath))
-  (if (< dclid 0) (progn (princ "\nΑποτυχία DCL.") (exit)))
-  (if (not (new_dialog "windoors_dlg" dclid)) (progn (princ "\nΑποτυχία διαλόγου.") (exit)))
+  (if (< dclid 0) (progn (princ "\n\U+0391\U+03C0\U+03BF\U+03C4\U+03C5\U+03C7\U+03AF\U+03B1 DCL.") (exit)))
+  (if (not (new_dialog "windoors_dlg" dclid)) (progn (princ "\n\U+0391\U+03C0\U+03BF\U+03C4\U+03C5\U+03C7\U+03AF\U+03B1 \U+03B4\U+03B9\U+03B1\U+03BB\U+03CC\U+03B3\U+03BF\U+03C5.") (exit)))
 
   (set_tile "w" (rtos *wd-W* 2 2))
   (set_tile "t" (rtos *wd-T* 2 2))
@@ -282,17 +282,17 @@
   (action_tile "cancel" "(done_dialog 0)")
   (setq status (start_dialog))
   (unload_dialog dclid)
-  (if (/= status 1) (progn (princ "\nΑκύρωση.") (exit)))
+  (if (/= status 1) (progn (princ "\n\U+0391\U+03BA\U+03CD\U+03C1\U+03C9\U+03C3\U+03B7.") (exit)))
 
   (setq w *wd-W* wt *wd-T* hop *wd-HOP* sill *wd-SILL* typ *wd-TYP*)
 
   ;; -- Τοποθέτηση --
-  (setq p1 (getpoint "\nΑρχή ανοίγματος (πάνω στην παρειά τοίχου): "))
+  (setq p1 (getpoint "\n\U+0391\U+03C1\U+03C7\U+03AE \U+03B1\U+03BD\U+03BF\U+03AF\U+03B3\U+03BC\U+03B1\U+03C4\U+03BF\U+03C2 (\U+03C0\U+03AC\U+03BD\U+03C9 \U+03C3\U+03C4\U+03B7\U+03BD \U+03C0\U+03B1\U+03C1\U+03B5\U+03B9\U+03AC \U+03C4\U+03BF\U+03AF\U+03C7\U+03BF\U+03C5): "))
   (if (null p1) (exit))
-  (setq pdir (getpoint p1 "\nΚατεύθυνση κατά μήκος του τοίχου: "))
+  (setq pdir (getpoint p1 "\n\U+039A\U+03B1\U+03C4\U+03B5\U+03CD\U+03B8\U+03C5\U+03BD\U+03C3\U+03B7 \U+03BA\U+03B1\U+03C4\U+03AC \U+03BC\U+03AE\U+03BA\U+03BF\U+03C2 \U+03C4\U+03BF\U+03C5 \U+03C4\U+03BF\U+03AF\U+03C7\U+03BF\U+03C5: "))
   (if (null pdir) (exit))
   (setq ang (angle p1 pdir))
-  (setq pside (getpoint "\nΔείξε προς το ΕΣΩΤΕΡΙΚΟ (μέσα στον τοίχο/δωμάτιο): "))
+  (setq pside (getpoint "\n\U+0394\U+03B5\U+03AF\U+03BE\U+03B5 \U+03C0\U+03C1\U+03BF\U+03C2 \U+03C4\U+03BF \U+0395\U+03A3\U+03A9\U+03A4\U+0395\U+03A1\U+0399\U+039A\U+039F (\U+03BC\U+03AD\U+03C3\U+03B1 \U+03C3\U+03C4\U+03BF\U+03BD \U+03C4\U+03BF\U+03AF\U+03C7\U+03BF/\U+03B4\U+03C9\U+03BC\U+03AC\U+03C4\U+03B9\U+03BF): "))
   (if (null pside) (exit))
   (setq cross (- (* (cos ang) (- (cadr pside) (cadr p1)))
                  (* (sin ang) (- (car pside) (car p1)))))
@@ -305,38 +305,35 @@
       (wd-slide p1 ang w wt s typ hop sill))
     ((member typ (list "DIN" "DEX"))
       ;; μεντεσές: pick κοντά στο άκρο
-      (setq hingep (getpoint "\nΔείξε κοντά στο άκρο με τον ΜΕΝΤΕΣΕ: "))
+      (setq hingep (getpoint "\n\U+0394\U+03B5\U+03AF\U+03BE\U+03B5 \U+03BA\U+03BF\U+03BD\U+03C4\U+03AC \U+03C3\U+03C4\U+03BF \U+03AC\U+03BA\U+03C1\U+03BF \U+03BC\U+03B5 \U+03C4\U+03BF\U+03BD \U+039C\U+0395\U+039D\U+03A4\U+0395\U+03A3\U+0395: "))
       (setq hinge1 (or (null hingep)
                        (< (distance hingep p1)
                           (distance hingep (polar p1 ang w)))))
       ;; φορά ανοίγματος
-      (setq swp (getpoint "\nΔείξε προς τα ΠΟΥ ανοίγει η πόρτα: "))
+      (setq swp (getpoint "\n\U+0394\U+03B5\U+03AF\U+03BE\U+03B5 \U+03C0\U+03C1\U+03BF\U+03C2 \U+03C4\U+03B1 \U+03A0\U+039F\U+03A5 \U+03B1\U+03BD\U+03BF\U+03AF\U+03B3\U+03B5\U+03B9 \U+03B7 \U+03C0\U+03CC\U+03C1\U+03C4\U+03B1: "))
       (if (null swp) (setq swp pside))
       (setq cross (- (* (cos ang) (- (cadr swp) (cadr p1)))
                      (* (sin ang) (- (car swp) (car p1)))))
       (setq sw (if (>= (* cross s) 0.0) 1.0 -1.0))
       (wd-door p1 ang w wt s typ hinge1 sw)))
 
-  ;; -- Κόψιμο τοίχου (αν είναι φορτωμένο το WALLS.lsp) --
-  (if (and (fboundp (quote wd-cut-wall)) pside)
-    (progn
-      ;; t1/t2 = t-παράμετρος αρχής/τέλους ανοίγματος κατά τον άξονα τοίχου
-      (setq v-ang ang)
-      (setq p-ref (wl-2d p1 nil))
-      ;; fallback: p-ref = p1, t1=0, t2=w
-      (setq wl2d-p1 (list (car p1) (cadr p1) 0.0))
-      (wd-cut-wall 0.0 w wl2d-p1 v-ang "*WALL*")))
+  ;; -- Κόψιμο τοίχου (αν είναι φορτωμένο το TOIXOS.lsp) --
+  ;; ΔΙΟΡΘΩΣΗ v3.2 — δύο σφάλματα που έσπαγαν εντελώς την κοπή:
+  ;;   (α) χρήση συνάρτησης που ΔΕΝ υπάρχει σε AutoLISP (Common Lisp only)
+  ;;   (β) κλήση βοηθητικής που δεν ορίστηκε ποτέ σε κανένα αρχείο
+  (if (and wd-cut-wall pside)
+    (wd-cut-wall 0.0 w (list (car p1) (cadr p1) 0.0) ang 0.60))
 
-  ;; -- Πινακάκι διαστάσεων --
+;; -- Πινακάκι διαστάσεων --
   (if (= *wd-TAG* "1")
     (progn
       (wd-tag (polar p1 ang (/ w 2.0)) ang s wt *wd-CODE* w hop sill)
       (wd-bump (wd-prefix typ))))
 
-  (princ (strcat "\nWINDOORS: " *wd-CODE* " " typ " πλάτος " (rtos w 2 2)
-    " m, ύψος " (rtos hop 2 2) ", ποδιά " (rtos sill 2 2)
-    " — layer WINDOORS (+XData για TOMES)."))
+  (princ (strcat "\nWINDOORS: " *wd-CODE* " " typ " \U+03C0\U+03BB\U+03AC\U+03C4\U+03BF\U+03C2 " (rtos w 2 2)
+    " m, \U+03CD\U+03C8\U+03BF\U+03C2 " (rtos hop 2 2) ", \U+03C0\U+03BF\U+03B4\U+03B9\U+03AC " (rtos sill 2 2)
+    " \U+2014 layer WINDOORS (+XData \U+03B3\U+03B9\U+03B1 TOMES)."))
   (princ))
 
-(princ "\nWINDOORS v3.1 φορτώθηκε. Εντολή: WINDOORS")
+(princ "\nWINDOORS v3.2 \U+03C6\U+03BF\U+03C1\U+03C4\U+03CE\U+03B8\U+03B7\U+03BA\U+03B5. \U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AE: WINDOORS")
 (princ)
