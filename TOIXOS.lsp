@@ -242,12 +242,14 @@
   (princ))
 
 (defun C:TOIXOSJOIN ( / *error* ss n i j e1 e2 ed1 ed2
-    p1 q1 p2 q2 a1 a2 v1 v2 hit
-    d11 d12 d21 d22 snapR nj oldF oldC oldR)
+    p1 q1 p2 q2 a1 a2 v1 v2 hit L1 L2
+    t1p t1q t2p t2q dmin1 dmin2 pk1 pk2
+    tol nj oldF oldC done)
 
   (defun *error* (msg)
     (if oldF (setvar "FILLETRAD" oldF))
     (if oldC (setvar "CMDECHO" oldC))
+    (command "_.UNDO" "_End")
     (if (not (member msg (list "Function cancelled" "quit / exit abort")))
       (princ (strcat "\n\U+03A3\U+03C6\U+03AC\U+03BB\U+03BC\U+03B1 TOIXOSJOIN: " msg)))
     (princ))
@@ -255,17 +257,23 @@
   (setq oldF (getvar "FILLETRAD") oldC (getvar "CMDECHO"))
   (setvar "CMDECHO" 0)
   (setvar "FILLETRAD" 0.0)
+  (command "_.UNDO" "_Begin")
 
-  (princ "\n\U+0395\U+03C0\U+03AF\U+03BB\U+03B5\U+03BE\U+03B5 \U+03BC\U+03B5 WINDOW \U+03C4\U+03B9\U+03C2 \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03AD\U+03C2 \U+03C4\U+03BF\U+03AF\U+03C7\U+03C9\U+03BD \U+03B3\U+03B9\U+03B1 \U+03AD\U+03BD\U+03C9\U+03C3\U+03B7:")
+  ;; ΑΝΟΧΗ: μόνο άκρα που σχεδόν αγγίζονται (default 5cm)
+  (setq tol (getreal "\n\U+0391\U+03BD\U+03BF\U+03C7\U+03AE \U+03AD\U+03BD\U+03C9\U+03C3\U+03B7\U+03C2 (m) <0.05>: "))
+  (if (null tol) (setq tol 0.05))
+
+  (princ "\n\U+0395\U+03C0\U+03AF\U+03BB\U+03B5\U+03BE\U+03B5 \U+03BC\U+03B5 WINDOW \U+03C4\U+03B9\U+03C2 \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03AD\U+03C2 \U+03C0\U+03BF\U+03C5 \U+03B8\U+03AD\U+03BB\U+03B5\U+03B9\U+03C2 \U+03BD\U+03B1 \U+03B5\U+03BD\U+03C9\U+03B8\U+03BF\U+03CD\U+03BD:")
   (setq ss (ssget (list (cons 0 "LINE"))))
   (if (null ss)
     (progn (setvar "FILLETRAD" oldF) (setvar "CMDECHO" oldC)
+           (command "_.UNDO" "_End")
            (princ "\n\U+039A\U+03B1\U+03BC\U+03AF\U+03B1 \U+03B5\U+03C0\U+03B9\U+03BB\U+03BF\U+03B3\U+03AE.") (exit)))
 
-  (setq n (sslength ss) nj 0 snapR 0.50)
-  (princ (strcat "\n\U+0395\U+03C0\U+03B5\U+03BE\U+03B5\U+03C1\U+03B3\U+03AC\U+03B6\U+03BF\U+03BC\U+03B1\U+03B9 " (itoa n) " \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03AD\U+03C2 \U+03BC\U+03B5 FILLET r=0..."))
+  (setq n (sslength ss) nj 0)
+  (princ (strcat "\n\U+0388\U+03BB\U+03B5\U+03B3\U+03C7\U+03BF\U+03C2 " (itoa n) " \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03CE\U+03BD (\U+03B1\U+03BD\U+03BF\U+03C7\U+03AE "
+    (rtos tol 2 2) " m)..."))
 
-  ;; Για κάθε ζεύγος που τέμνεται ή σχεδόν τέμνεται -> FILLET
   (setq i 0)
   (while (< i n)
     (setq e1 (ssname ss i))
@@ -274,8 +282,8 @@
         (setq ed1 (entget e1))
         (setq p1 (list (cadr (assoc 10 ed1)) (caddr (assoc 10 ed1)) 0.0))
         (setq q1 (list (cadr (assoc 11 ed1)) (caddr (assoc 11 ed1)) 0.0))
-        (setq a1 (angle p1 q1))
-        (setq v1 (list (cos a1) (sin a1)))
+        (setq L1 (distance p1 q1))
+        (setq a1 (angle p1 q1) v1 (list (cos a1) (sin a1)))
         (setq j (1+ i))
         (while (< j n)
           (setq e2 (ssname ss j))
@@ -284,24 +292,32 @@
               (setq ed2 (entget e2))
               (setq p2 (list (cadr (assoc 10 ed2)) (caddr (assoc 10 ed2)) 0.0))
               (setq q2 (list (cadr (assoc 11 ed2)) (caddr (assoc 11 ed2)) 0.0))
-              (setq a2 (angle p2 q2))
-              ;; μόνο μη-παράλληλες
-              (if (> (abs (sin (- a1 a2))) 0.03)
+              (setq L2 (distance p2 q2))
+              (setq a2 (angle p2 q2) v2 (list (cos a2) (sin a2)))
+              ;; ΦΙΛΤΡΑ:
+              ;; 1) μη παράλληλες (>10 μοίρες)
+              (if (> (abs (sin (- a1 a2))) 0.17)
                 (progn
-                  (setq v2 (list (cos a2) (sin a2)))
                   (setq hit (wl-isect p1 v1 p2 v2))
                   (if hit
                     (progn
-                      (setq d11 (distance hit p1) d12 (distance hit q1))
-                      (setq d21 (distance hit p2) d22 (distance hit q2))
-                      ;; αν κάποιο άκρο είναι κοντά στην τομή -> FILLET
-                      (if (and (or (< d11 snapR) (< d12 snapR))
-                               (or (< d21 snapR) (< d22 snapR)))
+                      ;; t-παράμετροι της τομής σε κάθε γραμμή
+                      (setq t1p (distance hit p1) t1q (distance hit q1))
+                      (setq t2p (distance hit p2) t2q (distance hit q2))
+                      (setq dmin1 (min t1p t1q))
+                      (setq dmin2 (min t2p t2q))
+                      ;; 2) η τομή να είναι ΚΟΝΤΑ σε άκρο ΚΑΙ ΤΩΝ ΔΥΟ (εντός tol)
+                      ;; 3) ΟΧΙ σταυρός: η τομή να ΜΗΝ είναι στο εσωτερικό και των δύο
+                      (if (and (< dmin1 tol) (< dmin2 tol)
+                               (not (and (> t1p tol) (> t1q tol)
+                                         (< t1p L1) (< t1q L1)))
+                               (not (and (> t2p tol) (> t2q tol)
+                                         (< t2p L2) (< t2q L2))))
                         (progn
-                          ;; FILLET: pick κοντά στο άκρο που κρατάμε
-                          (command "_.FILLET"
-                            (list e1 (if (< d11 d12) p1 q1))
-                            (list e2 (if (< d21 d22) p2 q2)))
+                          ;; pick στο ΜΑΚΡΙΝΟ άκρο (αυτό που κρατάμε)
+                          (setq pk1 (if (> t1p t1q) p1 q1))
+                          (setq pk2 (if (> t2p t2q) p2 q2))
+                          (command "_.FILLET" (list e1 pk1) (list e2 pk2))
                           (setq nj (1+ nj)))))))))
             )
           (setq j (1+ j)))))
@@ -309,7 +325,8 @@
 
   (setvar "FILLETRAD" oldF)
   (setvar "CMDECHO" oldC)
-  (princ (strcat "\nTOIXOSJOIN: " (itoa nj) " fillets."))
+  (command "_.UNDO" "_End")
+  (princ (strcat "\nTOIXOSJOIN: " (itoa nj) " \U+03B5\U+03BD\U+03CE\U+03C3\U+03B5\U+03B9\U+03C2. (UNDO \U+03B1\U+03BD \U+03B4\U+03B5\U+03BD \U+03C3\U+03B5 \U+03B2\U+03BF\U+03BB\U+03B5\U+03CD\U+03B5\U+03B9)"))
   (princ))
 
 (defun C:TOIXOSROOM ( / *error* lab pt bnd ed pts ar pr cn)
