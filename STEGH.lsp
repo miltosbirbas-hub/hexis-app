@@ -349,6 +349,74 @@
       (setq r (* (cadr nd) th))))
   r)
 
+;; ===================== ΕΛΕΓΧΟΙ ΕΓΚΥΡΟΤΗΤΑΣ =====================
+;; --- έλεγχος αυτοτομής περιγράμματος -> σημείο τομής ή nil ---
+(defun st-selfx (pts / n i j a b c d I r)
+  (setq n (length pts) i 0 r nil)
+  (while (and (< i n) (null r))
+    (setq j (+ i 1))
+    (while (and (< j n) (null r))
+      (if (not (or (= j i) (= (rem (1+ i) n) j) (= (rem (1+ j) n) i)))
+        (progn
+          (setq a (nth i pts) b (nth (rem (1+ i) n) pts)
+                c (nth j pts) d (nth (rem (1+ j) n) pts))
+          (setq I (st-sx a b c d))
+          (if I (setq r I))))
+      (setq j (1+ j)))
+    (setq i (1+ i)))
+  r)
+
+(defun st-sx (p1 p2 p3 p4 / d1x d1y d2x d2y det dx dy tt ss)
+  (setq d1x (- (car p2) (car p1)) d1y (- (cadr p2) (cadr p1))
+        d2x (- (car p4) (car p3)) d2y (- (cadr p4) (cadr p3)))
+  (setq det (- (* d1x d2y) (* d1y d2x)))
+  (if (< (abs det) 1e-12) nil
+    (progn
+      (setq dx (- (car p3) (car p1)) dy (- (cadr p3) (cadr p1)))
+      (setq tt (/ (- (* dx d2y) (* dy d2x)) det))
+      (setq ss (/ (- (* dx d1y) (* dy d1x)) det))
+      (if (and (> tt 1e-9) (< tt (- 1.0 1e-9))
+               (> ss 1e-9) (< ss (- 1.0 1e-9)))
+        (list (+ (car p1) (* tt d1x)) (+ (cadr p1) (* tt d1y)))
+        nil))))
+
+;; --- αυτοέλεγχος αποτελέσματος: κορυφές χωρίς ΑΚΡΙΒΩΣ μία μαχιά ---
+(defun st-badv (pts arcs / n i p c out)
+  (setq n (length pts) i 0 out (list))
+  (while (< i n)
+    (setq p (nth i pts) c 0)
+    (foreach a arcs
+      (if (or (< (distance p (car a)) 1e-6) (< (distance p (cadr a)) 1e-6))
+        (setq c (1+ c))))
+    (if (/= c 1) (setq out (append out (list (list i c)))))
+    (setq i (1+ i)))
+  out)
+
+;; --- συνεκτικότητα γράφου τόξων ---
+(defun st-conn (arcs / pts seen stack k found n a)
+  (if (null arcs) 0
+    (progn
+      (setq pts (list))
+      (foreach a arcs
+        (foreach p (list (car a) (cadr a))
+          (setq found nil)
+          (foreach q pts (if (< (distance p q) 1e-6) (setq found T)))
+          (if (null found) (setq pts (append pts (list p))))))
+      (setq seen (list (car pts)) stack (list (car pts)))
+      (while stack
+        (setq k (car stack) stack (cdr stack))
+        (foreach a arcs
+          (setq n nil)
+          (if (< (distance k (car a)) 1e-6) (setq n (cadr a)))
+          (if (< (distance k (cadr a)) 1e-6) (setq n (car a)))
+          (if n
+            (progn
+              (setq found nil)
+              (foreach q seen (if (< (distance n q) 1e-6) (setq found T)))
+              (if (null found)
+                (setq seen (append seen (list n)) stack (cons n stack)))))))
+      (list (length seen) (length pts)))))
+
 ;; ===================== DCL =====================
 (defun st-dcl ( / f path)
   (setq path (strcat (getvar "TEMPPREFIX") "stegh8.dcl"))
@@ -420,7 +488,8 @@
 (defun C:STEGH ( / *error* ent pts orig n dclpath dclid status
                    th ovh res arcs nodes lab gpts hmax i j
                    a b ia ib lyr txh P hh cnt1 cnt2 cnt3
-                   lowp bi bd pm dd pa pb eang p0 nds sumA nd p)
+                   lowp bi bd pm dd pa pb eang p0 nds sumA nd p
+                   xchk badv conn bv)
 
   (defun *error* (msg)
     (if (not (member msg (list "Function cancelled" "quit / exit abort")))
@@ -442,6 +511,17 @@
     (progn (princ "\n\U+03A7\U+03C1\U+03B5\U+03B9\U+03AC\U+03B6\U+03BF\U+03BD\U+03C4\U+03B1\U+03B9 \U+03C4\U+03BF\U+03C5\U+03BB\U+03AC\U+03C7\U+03B9\U+03C3\U+03C4\U+03BF\U+03BD 3 \U+03BA\U+03BF\U+03C1\U+03C5\U+03C6\U+03AD\U+03C2.") (exit)))
   (if (< (st-area2 pts) 0.0) (setq pts (reverse pts)))
   (setq orig (st-clean pts) n (length orig))
+
+  ;; --- ΕΛΕΓΧΟΣ 1: αυτοτέμνεται το περίγραμμα; ---
+  (setq xchk (st-selfx orig))
+  (if xchk
+    (progn
+      (st-layer "STEGH-TXT" 6)
+      (st-txt (list (car xchk) (cadr xchk)) (/ (st-span orig) 40.0) "X" "STEGH-TXT")
+      (princ (strcat "\n*** \U+03A3\U+03A6\U+0391\U+039B\U+039C\U+0391: \U+03C4\U+03BF \U+03C0\U+03B5\U+03C1\U+03AF\U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03B1 \U+0391\U+03A5\U+03A4\U+039F\U+03A4\U+0395\U+039C\U+039D\U+0395\U+03A4\U+0391\U+0399 \U+03C3\U+03C4\U+03BF ("
+        (rtos (car xchk) 2 3) ", " (rtos (cadr xchk) 2 3) ")"
+        "\n    \U+03A3\U+03B7\U+03BC\U+03B5\U+03B9\U+03CE\U+03B8\U+03B7\U+03BA\U+03B5 \U+03BC\U+03B5 X. \U+0394\U+03B9\U+03CC\U+03C1\U+03B8\U+03C9\U+03C3\U+03B5 \U+03C4\U+03B7\U+03BD polyline \U+03BA\U+03B1\U+03B9 \U+03BE\U+03B1\U+03BD\U+03B1\U+03C4\U+03C1\U+03AD\U+03BE\U+03B5.\n"))
+      (exit)))
 
   (setq dclpath (st-dcl))
   (setq dclid (load_dialog dclpath))
@@ -516,6 +596,26 @@
         (setq i (1+ i)))
       (setq nodes nds)
       (setq arcs (list (list pa pb)))))
+
+  ;; --- ΕΛΕΓΧΟΣ 2: αυτοέλεγχος αποτελέσματος ---
+  (if (= *st-TYP* "ISO")
+    (progn
+      (setq badv (st-badv orig arcs))
+      (setq conn (st-conn arcs))
+      (if (or badv (and conn (/= (car conn) (cadr conn))))
+        (progn
+          (princ "\n*** \U+03A0\U+03A1\U+039F\U+03A3\U+039F\U+03A7\U+0397: \U+03BF \U+03B1\U+03C5\U+03C4\U+03BF\U+03AD\U+03BB\U+03B5\U+03B3\U+03C7\U+03BF\U+03C2 \U+03B2\U+03C1\U+03AE\U+03BA\U+03B5 \U+03C0\U+03C1\U+03CC\U+03B2\U+03BB\U+03B7\U+03BC\U+03B1 ***")
+          (if badv
+            (foreach bv badv
+              (princ (strcat "\n    \U+039A\U+03BF\U+03C1\U+03C5\U+03C6\U+03AE " (itoa (1+ (car bv)))
+                " ("  (rtos (car (nth (car bv) orig)) 2 3) ", "
+                (rtos (cadr (nth (car bv) orig)) 2 3) "): "
+                (itoa (cadr bv)) " \U+03BC\U+03B1\U+03C7\U+03B9\U+03AD\U+03C2 \U+03B1\U+03BD\U+03C4\U+03AF \U+03B3\U+03B9\U+03B1 1"))))
+          (if (and conn (/= (car conn) (cadr conn)))
+            (princ (strcat "\n    \U+0391\U+03C3\U+03CD\U+03BD\U+03B4\U+03B5\U+03C4\U+03BF\U+03C2 \U+03C3\U+03BA\U+03B5\U+03BB\U+03B5\U+03C4\U+03CC\U+03C2: " (itoa (car conn))
+                           " \U+03B1\U+03C0\U+03CC " (itoa (cadr conn)) " \U+03BA\U+03CC\U+03BC\U+03B2\U+03BF\U+03C5\U+03C2")))
+          (princ "\n    \U+03A0\U+03B9\U+03B8\U+03B1\U+03BD\U+03AD\U+03C2 \U+03B1\U+03B9\U+03C4\U+03AF\U+03B5\U+03C2: \U+03C3\U+03C7\U+03B5\U+03B4\U+03CC\U+03BD \U+03C3\U+03C5\U+03BD\U+03B5\U+03C5\U+03B8\U+03B5\U+03B9\U+03B1\U+03BA\U+03AD\U+03C2 \U+03BA\U+03BF\U+03C1\U+03C5\U+03C6\U+03AD\U+03C2, \U+03B4\U+03B9\U+03C0\U+03BB\U+03AC \U+03C3\U+03B7\U+03BC\U+03B5\U+03AF\U+03B1,")
+          (princ "\n    \U+03AE \U+03C0\U+03BF\U+03BB\U+03CD \U+03BB\U+03B5\U+03C0\U+03C4\U+03AD\U+03C2 \U+03B1\U+03C0\U+03BF\U+03BB\U+03AE\U+03BE\U+03B5\U+03B9\U+03C2. \U+03A3\U+03C4\U+03B5\U+03AF\U+03BB\U+03B5 \U+03C4\U+03BF \U+03C0\U+03B5\U+03C1\U+03AF\U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03B1 \U+03B3\U+03B9\U+03B1 \U+03AD\U+03BB\U+03B5\U+03B3\U+03C7\U+03BF.\n")))))
 
   ;; ---------- ΣΧΕΔΙΑΣΗ ----------
   (setq cnt1 0 cnt2 0 cnt3 0)
