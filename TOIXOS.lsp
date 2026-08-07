@@ -1,5 +1,5 @@
-;;; TOIXOS.LSP v2.0
-;;; WALL: σχεδίαση τοίχου με flip φοράς · WALLJOIN: T/L/X · WALLROOM: εμβαδόν
+;;; TOIXOS.LSP v2.2
+;;; WALL: σχεδίαση τοίχου με flip φοράς · TOIXOSJOIN: T/L/X · WALLROOM: εμβαδόν
 ;;; Τύποι τοίχου: μπατικός/δρομικός/διπλός δρομικός/Φ.Σ. · ETICS flag
 ;;; WINDOORS v3+ διαβάζει XData HEXIS_WD και κόβει τον τοίχο αυτόματα
 ;;; HEXIS Platform - BRB DEVELOPMENT
@@ -68,9 +68,9 @@
     (cons 1000 ext) (cons 1040 etics))))
 
 (defun wl-dcl-write ( / f path)
-  (setq path (strcat (getvar "TEMPPREFIX") "wall.dcl"))
+  (setq path (strcat (getvar "TEMPPREFIX") "toixos.dcl"))
   (setq f (open path "w"))
-  (write-line "wall_dlg : dialog {" f)
+  (write-line "toixos_dlg : dialog {" f)
   (write-line "  label = \"WALL v2 \U+2014 \U+03A4\U+03BF\U+03AF\U+03C7\U+03BF\U+03C2 (HEXIS)\";" f)
   (write-line "  : row {" f)
   (write-line "    : column {" f)
@@ -146,7 +146,7 @@
   (setq *wl-TYP* typ)
   (wl-dcl-prev))
 
-(defun C:WALL ( / *error* dclpath dclid status f
+(defun C:TOIXOS ( / *error* dclpath dclid status f
     ww hh mat typ ext etics ins lyr col ang off1 off2
     p1 p2 s pa pb pc pd xd keyinput)
 
@@ -158,7 +158,7 @@
   (setq dclpath (wl-dcl-write))
   (setq dclid (load_dialog dclpath))
   (if (< dclid 0) (progn (princ "\nDCL error.") (exit)))
-  (if (not (new_dialog "wall_dlg" dclid)) (progn (princ "\nDialog error.") (exit)))
+  (if (not (new_dialog "toixos_dlg" dclid)) (progn (princ "\nDialog error.") (exit)))
   (set_tile "ww" (rtos *wl-W* 2 3))
   (set_tile "hh" (rtos *wl-H* 2 2))
   (set_tile "ins" "5")
@@ -241,12 +241,12 @@
   (princ (strcat "\n" "WALL: \U+03A4\U+03C1\U+03AD\U+03BE\U+03B5 WALLJOIN \U+03B3\U+03B9\U+03B1 trim \U+03B3\U+03C9\U+03BD\U+03B9\U+03CE\U+03BD, WALLROOM \U+03B3\U+03B9\U+03B1 \U+03B5\U+03BC\U+03B2\U+03B1\U+03B4\U+03AC."))
   (princ))
 
-(defun C:WALLJOIN ( / *error* ss n segs i j e ed s1 s2
+(defun C:TOIXOSJOIN ( / *error* ss n segs i j e ed s1 s2
     p1 q1 p2 q2 v1 v2 ang1 ang2 hit d11 d12 d21 d22 snapR njoins)
 
   (defun *error* (msg)
     (if (not (member msg (list "Function cancelled" "quit / exit abort")))
-      (princ (strcat "\n" "\U+03A3\U+03C6\U+03AC\U+03BB\U+03BC\U+03B1 WALLJOIN: " msg)))
+      (princ (strcat "\n" "\U+03A3\U+03C6\U+03AC\U+03BB\U+03BC\U+03B1 TOIXOSJOIN: " msg)))
     (princ))
 
   (setq snapR 0.08 njoins 0)
@@ -282,10 +282,10 @@
               (if (< d22 snapR) (progn (wl-set11 (car s2) hit) (setq njoins (1+ njoins))))))))
       (setq j (1+ j)))
     (setq i (1+ i)))
-  (princ (strcat "\nWALLJOIN: " (itoa njoins) " snaps."))
+  (princ (strcat "\nTOIXOSJOIN: " (itoa njoins) " snaps."))
   (princ))
 
-(defun C:WALLROOM ( / *error* lab pt bnd ed pts ar pr cn)
+(defun C:TOIXOSROOM ( / *error* lab pt bnd ed pts ar pr cn)
 
   (defun *error* (msg)
     (if (not (member msg (list "Function cancelled" "quit / exit abort")))
