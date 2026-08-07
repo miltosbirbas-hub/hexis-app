@@ -1,9 +1,10 @@
-;;; WINDOORS.LSP v2.0 — Κουφώματα κάτοψης
+;;; WINDOORS.LSP v3.0 — Κουφώματα κάτοψης
 ;;; Παράθυρα, μπαλκονόπορτες, πόρτες (εσωτ/εξωτ), συρόμενα επάλληλα
 ;;; Αποθηκεύει XData (τύπος, πλάτος, ύψος, ποδιά) για αυτόματες τομές (TOMES)
 ;;; Εντολή: WINDOORS | HEXIS — BRB DEVELOPMENT
 
-(setq *wd-TYP* "WIN" *wd-W* 1.20 *wd-T* 0.25 *wd-HOP* 1.20 *wd-SILL* 0.90)
+(setq *wd-TYP* "WIN" *wd-W* 1.20 *wd-T* 0.25 *wd-HOP* 1.20 *wd-SILL* 0.90
+      *wd-TXH* 0.15 *wd-CNT* nil *wd-CODE* "" *wd-TAG* "1")
 
 (defun wd-layer (nm col)
   (if (null (tblsearch "LAYER" nm))
@@ -110,6 +111,55 @@
             (polar (polar b ang leafw) (+ ang (* s (/ pi 2))) (* wt 0.13))
             (polar b (+ ang (* s (/ pi 2))) (* wt 0.13)) nil))
 
+; πρόθεμα κωδικού ανά τύπο
+(defun wd-prefix (typ)
+  (cond ((member typ (list "DIN" "DEX")) "Π")
+        ((member typ (list "BAL" "SLB")) "Μ")
+        (T "ΠΑ")))
+
+; επόμενος αριθμός για πρόθεμα (χωρίς αύξηση)
+(defun wd-next (pfx / a)
+  (setq a (assoc pfx *wd-CNT*))
+  (if a (1+ (cdr a)) 1))
+
+; αύξηση μετρητή
+(defun wd-bump (pfx / a)
+  (setq a (assoc pfx *wd-CNT*))
+  (if a
+    (setq *wd-CNT* (subst (cons pfx (1+ (cdr a))) a *wd-CNT*))
+    (setq *wd-CNT* (append *wd-CNT* (list (cons pfx 1))))))
+
+; ΠΙΝΑΚΑΚΙ: κύκλος με κωδικό + διαστάσεις + πρέκι/ποδιά
+(defun wd-tag (mid ang s wt code w hop sill / tp r th zprek)
+  (setq th *wd-TXH*)
+  (setq r (* th 1.4))
+  ;; θέση: έξω από τον τοίχο (αντίθετα από s), 0.6μ από την παρειά
+  (setq tp (polar mid (- ang (* s (/ pi 2))) 0.60))
+  ;; οδηγός από παρειά προς κύκλο
+  (wd-line mid (polar tp (+ ang (* s (/ pi 2))) r))
+  ;; κύκλος
+  (entmake (list (cons 0 "CIRCLE") (cons 100 "AcDbEntity") (cons 8 "WINDOORS")
+                 (cons 10 tp) (cons 40 r)))
+  ;; κωδικός στο κέντρο (περίπου κεντραρισμένος)
+  (entmake (list (cons 0 "TEXT") (cons 100 "AcDbEntity") (cons 8 "WINDOORS")
+                 (cons 10 (list (- (car tp) (* th 0.35 (strlen code) 0.5))
+                                (- (cadr tp) (* th 0.5)) 0.0))
+                 (cons 40 th) (cons 1 code) (cons 72 0)))
+  ;; στάθμη πρεκιού
+  (setq zprek (+ sill hop))
+  ;; γραμμή 1: πλάτος x ύψος
+  (entmake (list (cons 0 "TEXT") (cons 100 "AcDbEntity") (cons 8 "WINDOORS")
+                 (cons 10 (list (- (car tp) (* th 2.0)) (- (cadr tp) r (* th 1.4)) 0.0))
+                 (cons 40 (* th 0.8))
+                 (cons 1 (strcat (rtos w 2 2) " x " (rtos hop 2 2)))
+                 (cons 72 0)))
+  ;; γραμμή 2: πρέκι / ποδιά
+  (entmake (list (cons 0 "TEXT") (cons 100 "AcDbEntity") (cons 8 "WINDOORS")
+                 (cons 10 (list (- (car tp) (* th 2.0)) (- (cadr tp) r (* th 2.6)) 0.0))
+                 (cons 40 (* th 0.8))
+                 (cons 1 (strcat "πρ. +" (rtos zprek 2 2) "  ποδ. +" (rtos sill 2 2)))
+                 (cons 72 0))))
+
 ;; -- Preview κάτοψης τύπου στο image tile --
 (defun wd-prev ( / w h x0 x1 yw1 yw2 gy1 gy2 mx i aa px py qx qy hx hy)
   (setq w (dimx_tile "prev") h (dimy_tile "prev"))
@@ -196,6 +246,9 @@
   (write-line "  : edit_box { key = \"t\"; label = \"Πάχος τοίχου (m):\"; edit_width = 8; }" f)
   (write-line "  : edit_box { key = \"hop\"; label = \"Ύψος κουφώματος (m):\"; edit_width = 8; }" f)
   (write-line "  : edit_box { key = \"sill\"; label = \"Ποδιά - στάθμη κάτω (m):\"; edit_width = 8; }" f)
+  (write-line "  : edit_box { key = \"code\"; label = \"Κωδικός κουφώματος:\"; edit_width = 8; }" f)
+  (write-line "  : edit_box { key = \"txh\"; label = \"Ύψος κειμένου πίνακα (m):\"; edit_width = 8; }" f)
+  (write-line "  : toggle { key = \"tag\"; label = \"Πινακάκι διαστάσεων + κωδικός\"; value = \"1\"; }" f)
   (write-line "  }" f)
   (write-line "  : column {" f)
   (write-line "  : image { key = \"prev\"; width = 34; aspect_ratio = 0.65; color = 0; }" f)
@@ -214,16 +267,18 @@
   (set_tile "t" (rtos *wd-T* 2 2))
   (set_tile "hop" (rtos *wd-HOP* 2 2))
   (set_tile "sill" (rtos *wd-SILL* 2 2))
+  (set_tile "txh" (rtos *wd-TXH* 2 2))
+  (set_tile "code" (strcat (wd-prefix *wd-TYP*) (itoa (wd-next (wd-prefix *wd-TYP*)))))
   (wd-prev)
 
   ;; προεπιλογές ανά τύπο
-  (action_tile "t_win" "(setq *wd-TYP* \"WIN\") (wd-prev) (set_tile \"hop\" \"1.20\") (set_tile \"sill\" \"0.90\")")
-  (action_tile "t_bal" "(setq *wd-TYP* \"BAL\") (wd-prev) (set_tile \"hop\" \"2.20\") (set_tile \"sill\" \"0.00\")")
-  (action_tile "t_din" "(setq *wd-TYP* \"DIN\") (wd-prev) (set_tile \"hop\" \"2.20\") (set_tile \"sill\" \"0.00\") (set_tile \"w\" \"0.90\")")
-  (action_tile "t_dex" "(setq *wd-TYP* \"DEX\") (wd-prev) (set_tile \"hop\" \"2.20\") (set_tile \"sill\" \"0.00\") (set_tile \"w\" \"1.00\")")
-  (action_tile "t_slw" "(setq *wd-TYP* \"SLW\") (wd-prev) (set_tile \"hop\" \"1.20\") (set_tile \"sill\" \"0.90\") (set_tile \"w\" \"1.60\")")
-  (action_tile "t_slb" "(setq *wd-TYP* \"SLB\") (wd-prev) (set_tile \"hop\" \"2.20\") (set_tile \"sill\" \"0.00\") (set_tile \"w\" \"2.00\")")
-  (action_tile "accept" "(setq *wd-W* (atof (get_tile \"w\"))) (setq *wd-T* (atof (get_tile \"t\"))) (setq *wd-HOP* (atof (get_tile \"hop\"))) (setq *wd-SILL* (atof (get_tile \"sill\"))) (done_dialog 1)")
+  (action_tile "t_win" "(setq *wd-TYP* \"WIN\") (set_tile \"code\" (strcat (wd-prefix *wd-TYP*) (itoa (wd-next (wd-prefix *wd-TYP*))))) (wd-prev) (set_tile \"hop\" \"1.20\") (set_tile \"sill\" \"0.90\")")
+  (action_tile "t_bal" "(setq *wd-TYP* \"BAL\") (set_tile \"code\" (strcat (wd-prefix *wd-TYP*) (itoa (wd-next (wd-prefix *wd-TYP*))))) (wd-prev) (set_tile \"hop\" \"2.20\") (set_tile \"sill\" \"0.00\")")
+  (action_tile "t_din" "(setq *wd-TYP* \"DIN\") (set_tile \"code\" (strcat (wd-prefix *wd-TYP*) (itoa (wd-next (wd-prefix *wd-TYP*))))) (wd-prev) (set_tile \"hop\" \"2.20\") (set_tile \"sill\" \"0.00\") (set_tile \"w\" \"0.90\")")
+  (action_tile "t_dex" "(setq *wd-TYP* \"DEX\") (set_tile \"code\" (strcat (wd-prefix *wd-TYP*) (itoa (wd-next (wd-prefix *wd-TYP*))))) (wd-prev) (set_tile \"hop\" \"2.20\") (set_tile \"sill\" \"0.00\") (set_tile \"w\" \"1.00\")")
+  (action_tile "t_slw" "(setq *wd-TYP* \"SLW\") (set_tile \"code\" (strcat (wd-prefix *wd-TYP*) (itoa (wd-next (wd-prefix *wd-TYP*))))) (wd-prev) (set_tile \"hop\" \"1.20\") (set_tile \"sill\" \"0.90\") (set_tile \"w\" \"1.60\")")
+  (action_tile "t_slb" "(setq *wd-TYP* \"SLB\") (set_tile \"code\" (strcat (wd-prefix *wd-TYP*) (itoa (wd-next (wd-prefix *wd-TYP*))))) (wd-prev) (set_tile \"hop\" \"2.20\") (set_tile \"sill\" \"0.00\") (set_tile \"w\" \"2.00\")")
+  (action_tile "accept" "(setq *wd-W* (atof (get_tile \"w\"))) (setq *wd-T* (atof (get_tile \"t\"))) (setq *wd-HOP* (atof (get_tile \"hop\"))) (setq *wd-SILL* (atof (get_tile \"sill\"))) (setq *wd-CODE* (get_tile \"code\")) (setq *wd-TXH* (atof (get_tile \"txh\"))) (setq *wd-TAG* (get_tile \"tag\")) (done_dialog 1)")
   (action_tile "cancel" "(done_dialog 0)")
   (setq status (start_dialog))
   (unload_dialog dclid)
@@ -262,10 +317,16 @@
       (setq sw (if (>= (* cross s) 0.0) 1.0 -1.0))
       (wd-door p1 ang w wt s typ hinge1 sw)))
 
-  (princ (strcat "\nWINDOORS: " typ " πλάτος " (rtos w 2 2)
+  ;; -- Πινακάκι διαστάσεων --
+  (if (= *wd-TAG* "1")
+    (progn
+      (wd-tag (polar p1 ang (/ w 2.0)) ang s wt *wd-CODE* w hop sill)
+      (wd-bump (wd-prefix typ))))
+
+  (princ (strcat "\nWINDOORS: " *wd-CODE* " " typ " πλάτος " (rtos w 2 2)
     " m, ύψος " (rtos hop 2 2) ", ποδιά " (rtos sill 2 2)
     " — layer WINDOORS (+XData για TOMES)."))
   (princ))
 
-(princ "\nWINDOORS v2.0 φορτώθηκε. Εντολή: WINDOORS")
+(princ "\nWINDOORS v3.0 φορτώθηκε. Εντολή: WINDOORS")
 (princ)
