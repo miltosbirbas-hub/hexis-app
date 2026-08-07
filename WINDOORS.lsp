@@ -317,6 +317,16 @@
       (setq sw (if (>= (* cross s) 0.0) 1.0 -1.0))
       (wd-door p1 ang w wt s typ hinge1 sw)))
 
+  ;; -- Κόψιμο τοίχου (αν είναι φορτωμένο το WALLS.lsp) --
+  (if (and (fboundp (quote wd-cut-wall)) pside)
+    (progn
+      ;; t1/t2 = t-παράμετρος αρχής/τέλους ανοίγματος κατά τον άξονα τοίχου
+      (setq v-ang ang)
+      (setq p-ref (wl-2d p1 nil))
+      ;; fallback: p-ref = p1, t1=0, t2=w
+      (setq wl2d-p1 (list (car p1) (cadr p1) 0.0))
+      (wd-cut-wall 0.0 w wl2d-p1 v-ang "*WALL*")))
+
   ;; -- Πινακάκι διαστάσεων --
   (if (= *wd-TAG* "1")
     (progn
@@ -328,5 +338,5 @@
     " — layer WINDOORS (+XData για TOMES)."))
   (princ))
 
-(princ "\nWINDOORS v3.0 φορτώθηκε. Εντολή: WINDOORS")
+(princ "\nWINDOORS v3.1 φορτώθηκε. Εντολή: WINDOORS")
 (princ)
