@@ -166,6 +166,19 @@
   .leaflet-popup-tip{background:var(--navy2)}
   .leaflet-popup-content{margin:10px 12px;font-size:13px}
   .leaflet-popup-content b{color:var(--olive-bright)}
+  #gpsBtn.gps-live{ background:#c0392b !important; border-color:#c0392b !important; color:#fff !important; animation:gpsPulse 1.5s infinite; }
+  @keyframes gpsPulse{ 0%,100%{opacity:1} 50%{opacity:.7} }
+  #recenterBtn{ position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    z-index:10000; padding:10px 18px; border-radius:24px; border:none;
+    background:#1F4E9C; color:#fff; font-weight:600; font-size:14px;
+    box-shadow:0 4px 14px rgba(0,0,0,.35); cursor:pointer; }
+  #recenterBtn:active{ transform:translateX(-50%) scale(.96); }
+  #navPanel{ position:fixed; top:12px; left:50%; transform:translateX(-50%);
+    z-index:10000; display:flex; align-items:center; gap:10px;
+    background:rgba(6,16,32,.92); border:1px solid #e67e22; border-radius:22px;
+    padding:8px 14px; color:#fff; font-size:14px; box-shadow:0 4px 14px rgba(0,0,0,.4); }
+  #navPanel .nav-info b{ color:#f5b041; }
+  #navPanel #navStop{ background:none; border:none; color:#aaa; font-size:16px; cursor:pointer; padding:0 2px; }
 </style>
 <script>
 // Mini SW για auto-update — κάθε φόρτωση ελέγχει αν υπάρχει νέα έκδοση
@@ -315,6 +328,7 @@ if('serviceWorker' in navigator){
 
   <div class="actions">
     <button class="b-gps" id="gpsBtn" title="Κέντραρε στη θέση μου">📍 Θέση μου</button>
+    <button class="b-gps" id="navBtn" title="Πλοήγηση στο σημείο του σταυρονήματος">🧭 Πήγαινε στο σημείο</button>
     <button class="b-find" id="ktimBtn" onclick="openKtimatologio()">🗺️ Άνοιγμα Κτηματολογίου</button>
     <button class="b-gps" id="helpBtn" onclick="toggleHelp()" title="Οδηγίες χρήσης">❔ Οδηγίες</button>
   </div>
@@ -1148,6 +1162,7 @@ async function findByKaek(){
 
 // ───────── ΚΑΕΚ lookup ─────────
 async function findKaek(){
+  if(typeof gpsWatchId !== "undefined" && gpsWatchId !== null){ gpsFollow = false; showRecenterBtn(); }
   const url = "https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/kaek-lookup";
   const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8";
   const buffer = parseFloat($("buffer").value) || 6;
@@ -1261,6 +1276,7 @@ function drawParcel(parcel){
 
 // ───────── Πήγαινε σε ΚΑΕΚ ─────────
 async function gotoKaek(){
+  if(typeof gpsWatchId !== "undefined" && gpsWatchId !== null){ gpsFollow = false; showRecenterBtn(); }
   const k = ($("kaekInput").value || "").trim();
   if(!k){ setHint("Βάλε ένα ΚΑΕΚ.", "err"); return; }
   const url = "https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/kaek-lookup";
@@ -1295,24 +1311,198 @@ async function gotoKaek(){
 if($("gotoKaekBtn")) $("gotoKaekBtn").onclick = gotoKaek;
 if($("kaekInput")) $("kaekInput").addEventListener("keydown", e => { if(e.key==="Enter") gotoKaek(); });
 
-// ───────── GPS ─────────
+
+// ───────── Εμφάνιση GPS/Πλοήγησης μόνο σε κινητό/tablet ─────────
+// Σε desktop δεν υπάρχει πραγματικό GPS (η θέση βγαίνει από IP/WiFi, άχρηστη
+// για πεδίο), οπότε τα κουμπιά 📍 και 🧭 κρύβονται εντελώς.
+const IS_MOBILE = (window.matchMedia && window.matchMedia("(pointer: coarse)").matches)
+                  || ("ontouchstart" in window)
+                  || (navigator.maxTouchPoints > 0);
+if(!IS_MOBILE){
+  if($("gpsBtn")) $("gpsBtn").style.display = "none";
+  if($("navBtn")) $("navBtn").style.display = "none";
+}
+
+// ───────── GPS (real-time tracking με watchPosition) ─────────
+let gpsWatchId = null;        // id του watchPosition (null = ανενεργό)
+let gpsAccCircle = null;      // κύκλος ακρίβειας γύρω από την πινέζα
+let gpsFollow = true;         // ο χάρτης ακολουθεί τη θέση
+let gpsFirstFix = true;       // πρώτο fix → zoom 19
+
+function stopGpsTracking(){
+  if(gpsWatchId !== null){ navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
+  if(liveMarker){ map.removeLayer(liveMarker); liveMarker = null; }
+  if(gpsAccCircle){ map.removeLayer(gpsAccCircle); gpsAccCircle = null; }
+  $("accWrap").style.display = "none";
+  $("gpsBtn").textContent = "📍 Θέση μου";
+  $("gpsBtn").classList.remove("gps-live");
+  hideRecenterBtn();
+  if(navLine){ map.removeLayer(navLine); navLine = null; }
+  if(navPanel) navPanel.querySelector(".nav-info").textContent = "Άναψε το GPS (📍) για απόσταση/πορεία";
+  setHint("Το live tracking σταμάτησε.");
+}
+
 $("gpsBtn").onclick = () => {
   if(!navigator.geolocation){ return setHint("Δεν υποστηρίζεται GPS.", "err"); }
-  setHint("Εντοπισμός θέσης…");
-  navigator.geolocation.getCurrentPosition(pos=>{
+
+  // Toggle: αν είναι ήδη ενεργό, σταμάτα το
+  if(gpsWatchId !== null){ stopGpsTracking(); return; }
+
+  setHint("Εντοπισμός θέσης… (live)");
+  gpsFirstFix = true;
+  gpsFollow = true;
+
+  gpsWatchId = navigator.geolocation.watchPosition(pos=>{
     const {latitude,longitude,accuracy} = pos.coords;
-    map.setView([latitude,longitude], 19);
-    if(liveMarker) map.removeLayer(liveMarker);
-    liveMarker = L.circleMarker([latitude,longitude], {
-      radius:7, color:"#3fa3c4", fillColor:"#3fa3c4", fillOpacity:.9, weight:2
-    }).addTo(map);
-    $("accWrap").style.display="inline";
+    const ll = [latitude, longitude];
+
+    // Πινέζα: δημιουργία μία φορά, μετά μόνο setLatLng (ομαλή κίνηση)
+    if(!liveMarker){
+      liveMarker = L.circleMarker(ll, {
+        radius:7, color:"#3fa3c4", fillColor:"#3fa3c4", fillOpacity:.9, weight:2
+      }).addTo(map);
+    } else {
+      liveMarker.setLatLng(ll);
+    }
+
+    // Κύκλος ακρίβειας (σε μέτρα)
+    if(!gpsAccCircle){
+      gpsAccCircle = L.circle(ll, {
+        radius: accuracy, color:"#3fa3c4", weight:1, fillColor:"#3fa3c4", fillOpacity:.12, interactive:false
+      }).addTo(map);
+    } else {
+      gpsAccCircle.setLatLng(ll);
+      gpsAccCircle.setRadius(accuracy);
+    }
+
+    // Ο χάρτης ακολουθεί (εκτός αν ο χρήστης έκανε drag)
+    if(gpsFollow){
+      if(gpsFirstFix){ map.setView(ll, 19); gpsFirstFix = false; }
+      else map.panTo(ll, { animate:true, duration:0.5 });
+      hideRecenterBtn();
+    }
+
+    updateNav();
+    $("accWrap").style.display = "inline";
     $("acc").textContent = accuracy.toFixed(0);
-    setHint("Στη θέση σου. Διόρθωσε τον στόχο αν χρειάζεται.", accuracy<=10?"ok":"");
+    $("gpsBtn").textContent = "⏸ Stop tracking";
+    $("gpsBtn").classList.add("gps-live");
+    setHint("Live tracking ενεργό — η πινέζα ακολουθεί τη θέση σου.", accuracy<=10?"ok":"");
   }, err=>{
     setHint("Σφάλμα GPS: "+err.message, "err");
+    stopGpsTracking();
   }, { enableHighAccuracy:true, timeout:15000, maximumAge:0 });
 };
+
+// ───────── Κουμπί επανεστίασης (⌖) ─────────
+// Εμφανίζεται όταν το follow απενεργοποιηθεί (drag ή αναζήτηση ΚΑΕΚ)
+// ενώ το tracking είναι ενεργό. Πάτημα → πίσω στην πινέζα + follow ξανά.
+let recenterBtn = null;
+function showRecenterBtn(){
+  if(recenterBtn || gpsWatchId === null) return;
+  recenterBtn = document.createElement("button");
+  recenterBtn.id = "recenterBtn";
+  recenterBtn.textContent = "⌖ Επιστροφή στη θέση μου";
+  recenterBtn.onclick = ()=>{
+    gpsFollow = true;
+    if(liveMarker) map.setView(liveMarker.getLatLng(), 19);
+    hideRecenterBtn();
+  };
+  document.body.appendChild(recenterBtn);
+}
+function hideRecenterBtn(){
+  if(recenterBtn){ recenterBtn.remove(); recenterBtn = null; }
+}
+
+
+// ───────── Πλοήγηση σε σημείο (σταυρόνημα → στόχος) ─────────
+// Χρήση: κεντράρεις το σταυρόνημα στο σημείο που θες να πας, πατάς «🧭 Πήγαινε
+// στο σημείο». Μπαίνει σημαία στόχου, γραμμή από την πινέζα σου, και ζωντανή
+// ένδειξη απόστασης + πορείας (αζιμούθιο). Ενημερώνεται σε κάθε GPS fix.
+let navTarget = null;      // L.LatLng του στόχου
+let navMarker = null;      // marker σημαίας
+let navLine = null;        // γραμμή πινέζα→στόχος
+let navPanel = null;       // πάνελ απόστασης/πορείας
+
+// Απόσταση/αζιμούθιο σε ΕΓΣΑ'87 (επίπεδη γεωμετρία — σωστό για αποστάσεις πεδίου)
+function distBearingEGSA(fromLL, toLL){
+  const [x1,y1] = proj4("EPSG:4326","EPSG:2100",[fromLL.lng, fromLL.lat]);
+  const [x2,y2] = proj4("EPSG:4326","EPSG:2100",[toLL.lng, toLL.lat]);
+  const dx = x2-x1, dy = y2-y1;
+  const dist = Math.hypot(dx,dy);
+  let az = Math.atan2(dx,dy) * 180/Math.PI;   // αζιμούθιο από Βορρά, δεξιόστροφα
+  if(az < 0) az += 360;
+  return {dist, az};
+}
+function azToCompass(az){
+  const dirs = ["Β","ΒΒΑ","ΒΑ","ΑΒΑ","Α","ΑΝΑ","ΝΑ","ΝΝΑ","Ν","ΝΝΔ","ΝΔ","ΔΝΔ","Δ","ΔΒΔ","ΒΔ","ΒΒΔ"];
+  return dirs[Math.round(az/22.5) % 16];
+}
+function fmtDist(m){
+  return m >= 1000 ? (m/1000).toFixed(2)+" km" : m.toFixed(m<100?1:0)+" m";
+}
+
+function updateNav(){
+  if(!navTarget) return;
+  if(!liveMarker){
+    if(navPanel) navPanel.querySelector(".nav-info").textContent = "Άναψε το GPS (📍) για απόσταση/πορεία";
+    return;
+  }
+  const from = liveMarker.getLatLng();
+  const {dist, az} = distBearingEGSA(from, navTarget);
+  if(navLine) navLine.setLatLngs([from, navTarget]);
+  else {
+    navLine = L.polyline([from, navTarget], {color:"#e67e22", weight:3, dashArray:"8 6", opacity:.9}).addTo(map);
+  }
+  if(navPanel){
+    navPanel.querySelector(".nav-info").innerHTML =
+      "Απόσταση: <b>"+fmtDist(dist)+"</b> &nbsp;·&nbsp; Πορεία: <b>"+az.toFixed(0)+"°</b> ("+azToCompass(az)+")";
+    // Φτάσαμε;
+    if(dist <= 5) navPanel.querySelector(".nav-info").innerHTML += " &nbsp;✅ Έφτασες!";
+  }
+}
+
+function stopNav(){
+  navTarget = null;
+  if(navMarker){ map.removeLayer(navMarker); navMarker = null; }
+  if(navLine){ map.removeLayer(navLine); navLine = null; }
+  if(navPanel){ navPanel.remove(); navPanel = null; }
+  $("navBtn").textContent = "🧭 Πήγαινε στο σημείο";
+  $("navBtn").classList.remove("gps-live");
+}
+
+$("navBtn").onclick = () => {
+  // Toggle: αν υπάρχει ενεργή πλοήγηση, σταμάτα την
+  if(navTarget){ stopNav(); setHint("Η πλοήγηση σταμάτησε."); return; }
+
+  // Στόχος = τρέχον κέντρο χάρτη (εκεί που δείχνει το σταυρόνημα)
+  navTarget = map.getCenter();
+  navMarker = L.marker(navTarget, {
+    icon: L.divIcon({ className:"", html:"<div style='font-size:26px;line-height:26px;transform:translate(-4px,-24px)'>🚩</div>", iconSize:[26,26] })
+  }).addTo(map);
+
+  // Πάνελ πλοήγησης
+  navPanel = document.createElement("div");
+  navPanel.id = "navPanel";
+  navPanel.innerHTML = '<span class="nav-info">—</span><button id="navStop" title="Ακύρωση">✕</button>';
+  document.body.appendChild(navPanel);
+  navPanel.querySelector("#navStop").onclick = ()=>{ stopNav(); setHint("Η πλοήγηση σταμάτησε."); };
+
+  $("navBtn").textContent = "🧭 Ακύρωση πλοήγησης";
+  $("navBtn").classList.add("gps-live");
+
+  if(!liveMarker){
+    setHint("Στόχος ορίστηκε. Πάτα 📍 για live tracking και δες απόσταση/πορεία.", "");
+  } else {
+    setHint("Πλοήγηση ενεργή προς το σημείο.", "ok");
+  }
+  updateNav();
+};
+
+// Αν ο χρήστης σύρει τον χάρτη χειροκίνητα, σταματά το auto-follow
+map.on("dragstart", ()=>{
+  if(gpsWatchId !== null && gpsFollow){ gpsFollow = false; showRecenterBtn(); }
+});
 
 // ───────── εξωτερικό maps.gov.gr ─────────
 // (extBtn αφαιρέθηκε — χρησιμοποιείται openKtimatologio)
