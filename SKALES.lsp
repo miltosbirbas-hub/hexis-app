@@ -1,8 +1,10 @@
-;;; SKALES.LSP v3.0  Διάλογος σχεδιασμού κλίμακας (DCL)
-;;; Κανόνες Neufert: 62<2υ+π<65 · υ 14-20cm · π: 27-32 / >=25 δύσκολη / >=23 μεταλλική
+;;; SKALES.LSP v4.0  Σχεδιασμός κλίμακας με σφήνες (DCL)
+;;; Επιλογή polyline βαθμιδοφόρου -> pick αρχής -> pick εσωτερικής πλευράς
+;;; Ευθείες βαθμίδες + σφηνοειδείς στις στροφές γύρω από το φανάρι
+;;; Neufert: 62<2υ+π<65 . υ 14-20 . π 27-32 / >=25 / >=23
 ;;; Εντολή: SKALES | HEXIS  BRB DEVELOPMENT
 
-(setq *sk-L* nil *sk-H* 3.00 *sk-W* 1.20 *sk-PMIN* 27.0
+(setq *sk-L* nil *sk-H* 3.00 *sk-W* 1.20 *sk-PMIN* 27.0 *sk-RMIN* 0.10
       *sk-CANDS* nil *sk-SEL* -1 *sk-N* nil)
 
 (defun sk-layer (nm col)
@@ -19,24 +21,17 @@
   (entmake (list (cons 0 "TEXT") (cons 100 "AcDbEntity") (cons 8 "STAIRS")
                  (cons 10 p) (cons 40 h) (cons 1 str) (cons 72 0))))
 
-(defun sk-pline (pts)
+(defun sk-plinedraw (pts)
   (entmake (append
     (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 "STAIRS")
           (cons 100 "AcDbPolyline") (cons 90 (length pts)) (cons 70 0))
-    (mapcar (quote (lambda (p) (cons 10 p))) pts))))
+    (mapcar (quote (lambda (p) (cons 10 (list (car p) (cadr p))))) pts))))
 
 (defun sk-arrow (p1 p2 sz / ang lp)
   (setq ang (angle p1 p2))
   (setq lp (polar p2 (+ ang pi) sz))
   (sk-line p2 (polar lp (+ ang (/ pi 2)) (* sz 0.4)))
   (sk-line p2 (polar lp (- ang (/ pi 2)) (* sz 0.4))))
-
-(defun sk-plen (pts / tot i)
-  (setq tot 0.0 i 0)
-  (while (< i (1- (length pts)))
-    (setq tot (+ tot (distance (nth i pts) (nth (1+ i) pts))))
-    (setq i (1+ i)))
-  tot)
 
 (defun sk-getpts (ent / ed pts pr)
   (setq ed (entget ent) pts (list))
@@ -45,20 +40,112 @@
       (setq pts (append pts (list (list (cadr pr) (caddr pr) 0.0))))))
   pts)
 
-(defun sk-ptalong (pts dist / i seg d p0 p1 res)
-  (setq i 0 d dist res nil)
-  (while (and (< i (1- (length pts))) (null res))
-    (setq p0 (nth i pts) p1 (nth (1+ i) pts))
-    (setq seg (distance p0 p1))
-    (if (<= d seg)
-      (setq res (list (polar p0 (angle p0 p1) d) (angle p0 p1)))
-      (setq d (- d seg)))
+; προβολή σημείου P σε ευθεία (A, γωνία ang)
+(defun sk-proj (P A ang / u t2)
+  (setq u (list (cos ang) (sin ang)))
+  (setq t2 (+ (* (- (car P) (car A)) (car u))
+              (* (- (cadr P) (cadr A)) (cadr u))))
+  (list (+ (car A) (* t2 (car u))) (+ (cadr A) (* t2 (cadr u))) 0.0))
+
+; κανονικοποίηση γωνίας σε (-pi, pi]
+(defun sk-normang (a)
+  (while (> a pi) (setq a (- a (* 2 pi))))
+  (while (<= a (- pi)) (setq a (+ a (* 2 pi))))
+  a)
+
+;; -- Κατασκευή γεωμετρίας μονοπατιών --
+;; Επιστρέφει: (list walk-pieces inner-pts total-len)
+;; walk-piece line: (list 0 pstart pend ang len)
+;; walk-piece arc:  (list 1 center radius ang-start dang len corner-idx)
+(defun sk-build ( / m i a-list v0 v1 aa off-in off-w2
+                   pivots tins touts pieces inner-pts
+                   ang1 ang2 dturn pv t-in t-out arclen tot
+                   pcur pend seg)
+  ;; γωνίες τμημάτων
+  (setq m (1- (length *sk-PTS*)))
+  (setq a-list (list))
+  (setq i 0)
+  (while (< i m)
+    (setq a-list (append a-list (list (angle (nth i *sk-PTS*) (nth (1+ i) *sk-PTS*)))))
     (setq i (1+ i)))
+  ;; offset συναρτήσεις: εσωτερικό = side*90
+  ;; pivots στις εσωτερικές γωνίες (offset W, τομή γραμμών)
+  (setq pivots (list) tins (list) touts (list))
+  (setq i 1)
+  (while (< i m)
+    (setq ang1 (nth (1- i) a-list) ang2 (nth i a-list))
+    (setq v1 (nth i *sk-PTS*))
+    ;; pivot: τομή των 2 εσωτερικών offset γραμμών (W)
+    (setq pv (inters
+      (polar (nth (1- i) *sk-PTS*) (+ ang1 (* *sk-SIDE* (/ pi 2))) *sk-W*)
+      (polar v1                    (+ ang1 (* *sk-SIDE* (/ pi 2))) *sk-W*)
+      (polar v1                    (+ ang2 (* *sk-SIDE* (/ pi 2))) *sk-W*)
+      (polar (nth (1+ i) *sk-PTS*) (+ ang2 (* *sk-SIDE* (/ pi 2))) *sk-W*)
+      nil))
+    (if (null pv) (setq pv (polar v1 (+ ang1 (* *sk-SIDE* (/ pi 2))) *sk-W*)))
+    (setq pivots (append pivots (list pv)))
+    ;; tangent points στη γραμμή ανάβασης (offset W/2): προβολές του pivot
+    (setq t-in (sk-proj pv
+      (polar (nth (1- i) *sk-PTS*) (+ ang1 (* *sk-SIDE* (/ pi 2))) (/ *sk-W* 2.0)) ang1))
+    (setq t-out (sk-proj pv
+      (polar v1 (+ ang2 (* *sk-SIDE* (/ pi 2))) (/ *sk-W* 2.0)) ang2))
+    (setq tins (append tins (list t-in)))
+    (setq touts (append touts (list t-out)))
+    (setq i (1+ i)))
+  ;; pieces: εναλλάξ line / arc
+  (setq pieces (list) tot 0.0)
+  (setq pcur (polar (car *sk-PTS*) (+ (car a-list) (* *sk-SIDE* (/ pi 2))) (/ *sk-W* 2.0)))
+  (setq i 0)
+  (while (< i m)
+    (if (< i (1- m))
+      (setq pend (nth i tins))
+      (setq pend (polar (last *sk-PTS*) (+ (nth i a-list) (* *sk-SIDE* (/ pi 2))) (/ *sk-W* 2.0))))
+    (setq seg (distance pcur pend))
+    (if (> seg 0.001)
+      (progn
+        (setq pieces (append pieces (list (list 0 pcur pend (nth i a-list) seg))))
+        (setq tot (+ tot seg))))
+    ;; τόξο στη γωνία i (αν όχι τελευταίο τμήμα)
+    (if (< i (1- m))
+      (progn
+        (setq pv (nth i pivots))
+        (setq ang1 (angle pv (nth i tins)))
+        (setq ang2 (angle pv (nth i touts)))
+        (setq dturn (sk-normang (- ang2 ang1)))
+        (setq arclen (* (abs dturn) (/ *sk-W* 2.0)))
+        (setq pieces (append pieces (list (list 1 pv (/ *sk-W* 2.0) ang1 dturn arclen i))))
+        (setq tot (+ tot arclen))
+        (setq pcur (nth i touts))))
+    (setq i (1+ i)))
+  ;; εσωτερικός βαθμιδοφόρος: αρχή -> pivots -> τέλος
+  (setq inner-pts (append
+    (list (polar (car *sk-PTS*) (+ (car a-list) (* *sk-SIDE* (/ pi 2))) *sk-W*))
+    pivots
+    (list (polar (last *sk-PTS*) (+ (last a-list) (* *sk-SIDE* (/ pi 2))) *sk-W*))))
+  (setq *sk-PIECES* pieces *sk-INNER* inner-pts *sk-PIVOTS* pivots)
+  (setq *sk-L* tot)
+  tot)
+
+;; σημείο + πληροφορία σε απόσταση dist πάνω στη γραμμή ανάβασης
+;; επιστρέφει (list ptype pt ang pivot)  ptype 0=ευθεία 1=τόξο
+(defun sk-at (dist / d pc res phi)
+  (setq d dist res nil)
+  (foreach pc *sk-PIECES*
+    (if (null res)
+      (if (<= d (nth (if (= (car pc) 0) 4 5) pc))
+        (if (= (car pc) 0)
+          (setq res (list 0 (polar (cadr pc) (nth 3 pc) d) (nth 3 pc) nil))
+          (progn
+            (setq phi (+ (nth 3 pc) (* (/ d (nth 5 pc)) (nth 4 pc))))
+            (setq res (list 1 (polar (cadr pc) phi (caddr pc)) phi (cadr pc)))))
+        (setq d (- d (nth (if (= (car pc) 0) 4 5) pc))))))
   (if (null res)
-    (setq res (list (last pts) (angle (nth (- (length pts) 2) pts) (last pts)))))
+    (progn
+      (setq pc (last *sk-PIECES*))
+      (setq res (list 0 (caddr pc) (nth 3 pc) nil))))
   res)
 
-;; -- Υπολογισμός υποψήφιων λύσεων --
+;; -- Υπολογισμός λύσεων / DCL (όπως v3) --
 (defun sk-calc ( / nmin nmax n r g chk dev ok lst)
   (setq lst (list))
   (setq nmin (fix (/ (* *sk-H* 100.0) 20.0)))
@@ -77,7 +164,6 @@
     (setq n (1+ n)))
   (setq *sk-CANDS* lst))
 
-;; -- Γέμισμα list_box --
 (defun sk-fill-list ( / c s best-i i)
   (start_list "cands")
   (setq i 0 best-i -1)
@@ -92,7 +178,6 @@
     (if (and (nth 5 c) (< best-i 0)) (setq best-i i))
     (setq i (1+ i)))
   (end_list)
-  ;; προεπιλογή: πρώτη έγκυρη (ή καλύτερη dev αν καμία)
   (if (< best-i 0)
     (progn
       (setq best-i 0 i 0)
@@ -103,7 +188,6 @@
   (setq *sk-SEL* best-i)
   (sk-show-sel))
 
-;; -- Εμφάνιση επιλεγμένης λύσης + preview --
 (defun sk-show-sel ( / c r g chk)
   (if (and (>= *sk-SEL* 0) (< *sk-SEL* (length *sk-CANDS*)))
     (progn
@@ -120,63 +204,54 @@
         (if (> (car c) 18) "ΠΡΟΣΟΧΗ: >18 ρίχτυα  χρειάζεται πλατύσκαλο!" ""))
       (sk-preview))))
 
-;; -- Preview: κάτοψη στο image tile --
-(defun sk-preview ( / w h n i x0 y0 x1 y1 bw bh tx)
+(defun sk-preview ( / w h n i x0 y0 x1 y1 bh tx)
   (setq w (dimx_tile "prev") h (dimy_tile "prev"))
   (start_image "prev")
   (fill_image 0 0 w h 0)
   (setq n *sk-N*)
   (if (null n) (setq n 16))
-  ;; ζώνη σκάλας: οριζόντια μπάντα
   (setq x0 (fix (* w 0.08)) x1 (fix (* w 0.92)))
   (setq y0 (fix (* h 0.25)) y1 (fix (* h 0.75)))
-  ;; περίγραμμα
   (vector_image x0 y0 x1 y0 7)
   (vector_image x1 y0 x1 y1 7)
   (vector_image x1 y1 x0 y1 7)
   (vector_image x0 y1 x0 y0 7)
-  ;; βαθμίδες
   (setq i 1)
   (while (< i n)
     (setq tx (+ x0 (fix (* (- x1 x0) (/ (float i) n)))))
     (vector_image tx y0 tx y1 7)
     (setq i (1+ i)))
-  ;; γραμμή ανάβασης (κόκκινη) στο μέσο + βέλος
   (setq bh (fix (/ (+ y0 y1) 2)))
   (vector_image x0 bh (- x1 8) bh 1)
   (vector_image (- x1 8) bh (- x1 16) (- bh 4) 1)
   (vector_image (- x1 8) bh (- x1 16) (+ bh 4) 1)
-  ;; κύκλος αφετηρίας (τετραγωνάκι)
-  (vector_image (- x0 2) (- bh 2) (+ x0 2) (- bh 2) 1)
-  (vector_image (+ x0 2) (- bh 2) (+ x0 2) (+ bh 2) 1)
-  (vector_image (+ x0 2) (+ bh 2) (- x0 2) (+ bh 2) 1)
-  (vector_image (- x0 2) (+ bh 2) (- x0 2) (- bh 2) 1)
   (end_image))
 
-;; -- Ανανέωση από inputs --
-(defun sk-recalc ( / v)
+(defun sk-recalc ( / v v2)
   (setq v (atof (get_tile "h")))
   (if (> v 0.5) (setq *sk-H* v))
+  (setq v2 (atof (get_tile "rmin")))
+  (if (> v2 0.0) (setq *sk-RMIN* (/ v2 100.0)))
   (sk-calc)
   (sk-fill-list))
 
-;; -- Δημιουργία DCL αρχείου --
 (defun sk-write-dcl ( / f path)
-  (setq path (strcat (getvar "TEMPPREFIX") "skalos.dcl"))
+  (setq path (strcat (getvar "TEMPPREFIX") "skales.dcl"))
   (setq f (open path "w"))
-  (write-line "skalos_dlg : dialog {" f)
-  (write-line "  label = \"SKALES  Σχεδιασμός Κλίμακας (HEXIS)\";" f)
+  (write-line "skales_dlg : dialog {" f)
+  (write-line "  label = \"SKALES v4  Σχεδιασμός Κλίμακας (HEXIS)\";" f)
   (write-line "  : row {" f)
   (write-line "    : column {" f)
-  (write-line "      : text { key = \"info_l\"; width = 42; }" f)
+  (write-line "      : text { key = \"info_l\"; width = 44; }" f)
   (write-line "      : edit_box { key = \"h\"; label = \"Ύψος ορόφου (m):\"; edit_width = 8; }" f)
+  (write-line "      : edit_box { key = \"rmin\"; label = \"Φανάρι - ελάχ. σφήνα (cm):\"; edit_width = 8; }" f)
   (write-line "      : radio_column { key = \"typ\"; label = \"Τύπος σκάλας\";" f)
   (write-line "        : radio_button { key = \"t_norm\"; label = \"Κανονική (π 27-32 cm)\"; value = \"1\"; }" f)
   (write-line "        : radio_button { key = \"t_hard\"; label = \"Δύσκολη (π >= 25 cm)\"; }" f)
   (write-line "        : radio_button { key = \"t_metal\"; label = \"Μεταλλική ευθύγραμμη (π >= 23 cm)\"; }" f)
   (write-line "      }" f)
   (write-line "      : button { key = \"calc\"; label = \"Επανυπολογισμός\"; }" f)
-  (write-line "      : list_box { key = \"cands\"; label = \"Λύσεις:\"; height = 9; width = 42; }" f)
+  (write-line "      : list_box { key = \"cands\"; label = \"Λύσεις:\"; height = 9; width = 44; }" f)
   (write-line "    }" f)
   (write-line "    : column {" f)
   (write-line "      : image { key = \"prev\"; width = 38; aspect_ratio = 0.55; color = 0; }" f)
@@ -193,10 +268,11 @@
   path)
 
 ;; ========== ΚΥΡΙΑ ΕΝΤΟΛΗ ==========
-(defun C:SKALES ( / *error* inpt pts pa pb pc pd ang dx dy
-    dclpath dclid status n riser going going-m
-    i dist res perp p-in mid-pts mp asc-pts txt-h arrow-sz
-    cut-c cut-a cut-b total-len)
+(defun C:SKALES ( / *error* inpt pstart pside cross a0
+    dclpath dclid status n going-m i dist res pt ang pv
+    outer-pt inner-pt phi far hit1 hit2 vi mid-pts mp
+    asc-draw pc ph txt-h arrow-sz cutres cut-c cut-a cut-b
+    riser going seg-n)
 
   (defun *error* (msg)
     (if (not (member msg (list "Function cancelled" "quit / exit abort")))
@@ -205,44 +281,50 @@
 
   (sk-layer "STAIRS" 7)
 
-  ;; -- Επιλογή γεωμετρίας --
-  (princ "\nΕπίλεξε polyline βαθμιδοφόρου (Enter = pick 4 γωνίες):")
+  ;; 1. Polyline εξωτερικού βαθμιδοφόρου
+  (princ "\nΕπίλεξε polyline ΕΞΩΤΕΡΙΚΟΥ βαθμιδοφόρου:")
   (setq inpt (entsel))
-  (if inpt
-    (progn
-      (setq pts (sk-getpts (car inpt)))
-      (if (< (length pts) 2) (progn (princ "\nΜη έγκυρη polyline.") (exit)))
-      (setq *sk-W* (getreal "\nΠλάτος σκάλας (m) <1.20>: "))
-      (if (null *sk-W*) (setq *sk-W* 1.20)))
-    (progn
-      (setq pa (getpoint "\nΓωνία 1 (αρχή βαθμιδοφόρου): "))
-      (setq pb (getpoint pa "\nΓωνία 2 (τέλος βαθμιδοφόρου): "))
-      (setq pc (getpoint "\nΓωνία 3 (απέναντι πλευρά): "))
-      (setq pd (getpoint "\nΓωνία 4 (προαιρετική  Enter): "))
-      (setq pts (list pa pb))
-      (setq ang (angle pa pb))
-      (setq dx (- (car pc) (car pa)))
-      (setq dy (- (cadr pc) (cadr pa)))
-      (setq *sk-W* (abs (- (* dx (sin ang)) (* dy (cos ang)))))
-      (princ (strcat "\nΠλάτος σκάλας (υπολογίστηκε): " (rtos *sk-W* 2 2) " m"))))
+  (if (null inpt) (progn (princ "\nΑκύρωση.") (exit)))
+  (setq *sk-PTS* (sk-getpts (car inpt)))
+  (if (< (length *sk-PTS*) 2) (progn (princ "\nΜη έγκυρη polyline.") (exit)))
 
-  (setq *sk-L* (sk-plen pts))
-  (setq total-len *sk-L*)
+  ;; 2. Αρχή σκάλας  pick κοντά στο άκρο εκκίνησης
+  (setq pstart (getpoint "\nΔείξε κοντά στην ΑΡΧΗ της σκάλας (από πού ξεκινά): "))
+  (if (and pstart
+           (> (distance pstart (car *sk-PTS*))
+              (distance pstart (last *sk-PTS*))))
+    (setq *sk-PTS* (reverse *sk-PTS*)))
 
-  ;; -- Διάλογος --
+  ;; 3. Εσωτερική πλευρά  pick προς το σώμα της σκάλας
+  (setq pside (getpoint "\nΔείξε προς το ΕΣΩΤΕΡΙΚΟ της σκάλας (πλευρά πλάτους): "))
+  (if (null pside) (progn (princ "\nΑκύρωση.") (exit)))
+  (setq a0 (angle (car *sk-PTS*) (cadr *sk-PTS*)))
+  ;; πρόσημο εξωτερικού γινομένου: αριστερά=+1 δεξιά=-1
+  (setq cross (- (* (cos a0) (- (cadr pside) (cadr (car *sk-PTS*))))
+                 (* (sin a0) (- (car pside) (car (car *sk-PTS*))))))
+  (setq *sk-SIDE* (if (>= cross 0.0) 1.0 -1.0))
+
+  ;; 4. Πλάτος
+  (setq *sk-W* (getreal "\nΠλάτος σκάλας (m) <1.20>: "))
+  (if (null *sk-W*) (setq *sk-W* 1.20))
+
+  ;; 5. Γεωμετρία μονοπατιού (γραμμή ανάβασης με τόξα)
+  (sk-build)
+
+  ;; 6. Διάλογος
   (setq dclpath (sk-write-dcl))
   (setq dclid (load_dialog dclpath))
   (if (< dclid 0) (progn (princ "\nΑποτυχία DCL.") (exit)))
-  (if (not (new_dialog "skalos_dlg" dclid)) (progn (princ "\nΑποτυχία διαλόγου.") (exit)))
-
-  (set_tile "info_l" (strcat "Μήκος βαθμιδοφόρου L = " (rtos *sk-L* 2 2)
-    " m   ·   Πλάτος = " (rtos *sk-W* 2 2) " m"))
+  (if (not (new_dialog "skales_dlg" dclid)) (progn (princ "\nΑποτυχία διαλόγου.") (exit)))
+  (set_tile "info_l" (strcat "Μήκος γραμμής ανάβασης L = " (rtos *sk-L* 2 2)
+    " m   .   Πλάτος = " (rtos *sk-W* 2 2) " m"))
   (set_tile "h" (rtos *sk-H* 2 2))
+  (set_tile "rmin" (rtos (* *sk-RMIN* 100.0) 2 0))
   (setq *sk-PMIN* 27.0)
   (sk-calc)
   (sk-fill-list)
-
   (action_tile "h" "(sk-recalc)")
+  (action_tile "rmin" "(sk-recalc)")
   (action_tile "calc" "(sk-recalc)")
   (action_tile "t_norm"  "(setq *sk-PMIN* 27.0) (sk-recalc)")
   (action_tile "t_hard"  "(setq *sk-PMIN* 25.0) (sk-recalc)")
@@ -250,67 +332,87 @@
   (action_tile "cands" "(setq *sk-SEL* (atoi $value)) (sk-show-sel)")
   (action_tile "accept" "(done_dialog 1)")
   (action_tile "cancel" "(done_dialog 0)")
-
   (setq status (start_dialog))
   (unload_dialog dclid)
   (if (/= status 1) (progn (princ "\nΑκύρωση.") (exit)))
 
-  ;; -- Τιμές επιλεγμένης λύσης --
   (setq n *sk-N*)
   (setq riser (/ (* *sk-H* 100.0) n))
-  (setq going (/ (* total-len 100.0) (1- n)))
-  (setq going-m (/ going 100.0))
+  (setq going (/ (* *sk-L* 100.0) (1- n)))
+  (setq going-m (/ *sk-L* (float (1- n))))
 
-  ;; -- ΣΧΕΔΙΑΣΗ --
+  ;; 7. ΣΧΕΔΙΑΣΗ
+  ;; εσωτερικός βαθμιδοφόρος
+  (sk-plinedraw *sk-INNER*)
+
+  ;; βαθμίδες
   (setq mid-pts (list))
   (setq i 1)
   (while (< i n)
     (setq dist (* i going-m))
-    (if (> dist total-len) (setq dist total-len))
-    (setq res (sk-ptalong pts dist))
-    (setq pa (car res))
-    (setq ang (cadr res))
-    (setq perp (+ ang (/ pi 2.0)))
-    (setq p-in (polar pa perp *sk-W*))
-    (sk-line pa p-in)
-    (setq mid-pts (append mid-pts (list (polar pa perp (* *sk-W* 0.5)))))
+    (if (> dist *sk-L*) (setq dist *sk-L*))
+    (setq res (sk-at dist))
+    (setq pt (cadr res) ang (caddr res))
+    (if (= (car res) 0)
+      ;; ευθεία βαθμίδα: κάθετη, από εξωτερικό σε εσωτερικό
+      (progn
+        (setq outer-pt (polar pt (- ang (* *sk-SIDE* (/ pi 2))) (/ *sk-W* 2.0)))
+        (setq inner-pt (polar pt (+ ang (* *sk-SIDE* (/ pi 2))) (/ *sk-W* 2.0)))
+        (sk-line outer-pt inner-pt))
+      ;; σφηνοειδής: ακτίνα από pivot(+φανάρι) έως εξωτερικό βαθμιδοφόρο
+      (progn
+        (setq pv (cadddr res))
+        (setq phi (angle pv pt))
+        (setq far (polar pv phi (* *sk-W* 3.0)))
+        ;; τομή με τα τμήματα του εξωτερικού βαθμιδοφόρου
+        (setq outer-pt nil vi 0)
+        (while (and (< vi (1- (length *sk-PTS*))) (null outer-pt))
+          (setq hit1 (inters pv far (nth vi *sk-PTS*) (nth (1+ vi) *sk-PTS*)))
+          (if hit1 (setq outer-pt hit1))
+          (setq vi (1+ vi)))
+        (if (null outer-pt) (setq outer-pt (polar pv phi *sk-W*)))
+        (setq inner-pt (polar pv phi *sk-RMIN*))
+        (sk-line inner-pt outer-pt)))
+    (setq mid-pts (append mid-pts (list pt)))
     (setq i (1+ i)))
 
-  ;; γραμμή ανάβασης
-  (setq asc-pts (list))
-  (setq i 0)
-  (while (< i (length pts))
-    (setq pa (nth i pts))
-    (if (< i (1- (length pts)))
-      (setq ang (angle pa (nth (1+ i) pts)))
-      (setq ang (angle (nth (1- i) pts) pa)))
-    (setq perp (+ ang (/ pi 2.0)))
-    (setq asc-pts (append asc-pts (list (polar pa perp (* *sk-W* 0.5)))))
-    (setq i (1+ i)))
-  (sk-pline asc-pts)
+  ;; γραμμή ανάβασης: pieces -> σημεία (τόξα με 6 υποδιαιρέσεις)
+  (setq asc-draw (list))
+  (foreach pc *sk-PIECES*
+    (if (= (car pc) 0)
+      (progn
+        (if (null asc-draw) (setq asc-draw (list (cadr pc))))
+        (setq asc-draw (append asc-draw (list (caddr pc)))))
+      (progn
+        (setq i 1)
+        (while (<= i 6)
+          (setq ph (+ (nth 3 pc) (* (/ (float i) 6.0) (nth 4 pc))))
+          (setq asc-draw (append asc-draw (list (polar (cadr pc) ph (caddr pc)))))
+          (setq i (1+ i))))))
+  (sk-plinedraw asc-draw)
   (setq arrow-sz (* *sk-W* 0.15))
-  (if (>= (length asc-pts) 2)
-    (sk-arrow (nth (- (length asc-pts) 2) asc-pts) (last asc-pts) arrow-sz))
+  (if (>= (length asc-draw) 2)
+    (sk-arrow (nth (- (length asc-draw) 2) asc-draw) (last asc-draw) arrow-sz))
   (entmake (list (cons 0 "CIRCLE") (cons 100 "AcDbEntity") (cons 8 "STAIRS")
-                 (cons 10 (car asc-pts)) (cons 40 (* *sk-W* 0.05))))
+                 (cons 10 (car asc-draw)) (cons 40 (* *sk-W* 0.05))))
 
-  ;; αρίθμηση  TEXT με \U+ (δεν χρειάζεται εδώ, αριθμοί ASCII)
+  ;; αρίθμηση
   (setq txt-h (* *sk-W* 0.09))
   (setq i 1)
   (foreach mp mid-pts
     (sk-txt (polar mp 0.0 (* txt-h 0.3)) txt-h (itoa i))
     (setq i (1+ i)))
 
-  ;; γραμμή τομής
-  (setq res (sk-ptalong pts (/ total-len 2.0)))
-  (setq cut-c (polar (car res) (+ (cadr res) (/ pi 2.0)) (* *sk-W* 0.5)))
-  (setq cut-a (polar cut-c (+ (cadr res) (/ pi 4.0)) (* *sk-W* 0.75)))
-  (setq cut-b (polar cut-c (+ (cadr res) (* 5.0 (/ pi 4.0))) (* *sk-W* 0.75)))
+  ;; γραμμή τομής στο μέσο
+  (setq cutres (sk-at (/ *sk-L* 2.0)))
+  (setq cut-c (cadr cutres))
+  (setq cut-a (polar cut-c (+ (caddr cutres) (/ pi 4.0)) (* *sk-W* 0.75)))
+  (setq cut-b (polar cut-c (+ (caddr cutres) (* 5.0 (/ pi 4.0))) (* *sk-W* 0.75)))
   (sk-line cut-a cut-b)
 
-  (princ (strcat "\nSKALES v3.0  n=" (itoa n)
-    " υ=" (rtos riser 2 1) " π=" (rtos going 2 1) "  layer STAIRS."))
+  (princ (strcat "\nSKALES v4.0  n=" (itoa n)
+    " υ=" (rtos riser 2 1) " π=" (rtos going 2 1) " cm  layer STAIRS."))
   (princ))
 
-(princ "\nSKALES v3.0 (DCL) φορτώθηκε. Εντολή: SKALES")
+(princ "\nSKALES v4.0 φορτώθηκε. Εντολή: SKALES")
 (princ)
