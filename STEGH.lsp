@@ -1,8 +1,9 @@
-;;; STEGH.LSP v3.0 -- Ισοκλινής επίλυση (σωστός skeleton)
-;;; Μαχιές · ντερέδες · κορφιάδες · λούκια · στάθμες κορυφών
+;;; STEGH.LSP v4.0
+;;; Ισοκλινής επίλυση στέγης μέσω iterative offset
+;;; Μαχιές · ντερέδες · κορφιάδες · λούκια · στάθμες
 ;;; Εντολή: STEGH | HEXIS -- BRB DEVELOPMENT
 
-(setq *st-PIT* 35.0 *st-PMODE* "PCT" *st-OVH* 0.50)
+(setq *st-PIT* 35.0 *st-PMODE* "PCT" *st-OVH* 0.50 *st-STEP* 0.10)
 
 (defun st-layer (nm col)
   (if (null (tblsearch "LAYER" nm))
@@ -34,90 +35,43 @@
     (setq a (+ a (- (* (car p) (cadr q)) (* (car q) (cadr p)))))
     (setq i (1+ i))) a)
 
+; inward normal CCW
 (defun st-inorm (p q / dx dy l)
   (setq dx (- (car q) (car p)) dy (- (cadr q) (cadr p))
         l (sqrt (+ (* dx dx) (* dy dy))))
   (if (< l 1e-9) (list 0.0 0.0) (list (/ (- dy) l) (/ dx l))))
 
-(defun st-vel (n1 n2 / bx by l pp)
-  (setq bx (+ (car n1) (car n2)) by (+ (cadr n1) (cadr n2))
-        l (sqrt (+ (* bx bx) (* by by))))
-  (if (< l 1e-9) (list 0.0 0.0)
-    (progn (setq pp (+ (* (/ bx l) (car n1)) (* (/ by l) (cadr n1))))
-           (if (< (abs pp) 1e-9) (list 0.0 0.0)
-             (list (/ (/ bx l) pp) (/ (/ by l) pp))))))
+; offset κορυφής i κατά d: τομή δύο offset ακμών
+(defun st-off-vertex (pts i d / n n1 n2 p1 p2 bx by l pp)
+  (setq n (length pts))
+  (setq n1 (st-inorm (nth (rem (+ i (1- n)) n) pts) (nth i pts)))
+  (setq n2 (st-inorm (nth i pts) (nth (rem (1+ i) n) pts)))
+  (setq bx (+ (car n1) (car n2)) by (+ (cadr n1) (cadr n2)))
+  (setq l (sqrt (+ (* bx bx) (* by by))))
+  (if (< l 1e-9)
+    ;; εξωτερική γωνία (reflex): κινείται κατά ένα από τα normals
+    (list (+ (car (nth i pts)) (* d (car n1)))
+          (+ (cadr (nth i pts)) (* d (cadr n1))) 0.0)
+    (progn
+      (setq pp (+ (* (/ bx l) (car n1)) (* (/ by l) (cadr n1))))
+      (if (< (abs pp) 1e-9)
+        (list (car (nth i pts)) (cadr (nth i pts)) 0.0)
+        (list (+ (car (nth i pts)) (* d (/ bx l) (/ 1.0 pp)))
+              (+ (cadr (nth i pts)) (* d (/ by l) (/ 1.0 pp))) 0.0)))))
 
+; offset ολόκληρου πολυγώνου εσωτερικά κατά d
+(defun st-offset-poly (pts d / n i new-pts)
+  (setq n (length pts) new-pts (list) i 0)
+  (while (< i n)
+    (setq new-pts (append new-pts (list (st-off-vertex pts i d))))
+    (setq i (1+ i)))
+  new-pts)
+
+; pitch
 (defun st-pitch-rad ( )
   (if (= *st-PMODE* "PCT") (atan (/ *st-PIT* 100.0))
     (* *st-PIT* (/ pi 180.0))))
 
-;; -- SKELETON --
-(defun st-skel (pts0 / n a i j m lav V ins n1 n2 t t-min ev-i te
-                       px py qx qy vx vy wx wy ex ey el ux uy clos
-                       new-pts mid new-lav ii lines heights guard)
-  (setq n (length pts0))
-  (if (< (st-area2 pts0) 0.0) (setq pts0 (reverse pts0) n (length pts0)))
-  (setq lines (list) heights (list) t 0.0)
-  (setq lav (mapcar (quote (lambda (p) (list p p))) pts0))
-  (foreach p pts0 (setq heights (append heights (list (list p 0.0)))))
-  (setq guard 0)
-  (while (and (> (length lav) 2) (< guard 300))
-    (setq guard (1+ guard) m (length lav))
-    (setq ins (list) i 0)
-    (while (< i m)
-      (setq ins (append ins (list (st-inorm (car (nth i lav)) (car (nth (rem (1+ i) m) lav))))))
-      (setq i (1+ i)))
-    (setq V (list) i 0)
-    (while (< i m)
-      (setq n1 (nth (rem (+ i (1- m)) m) ins) n2 (nth i ins))
-      (setq V (append V (list (st-vel n1 n2)))) (setq i (1+ i)))
-    (setq t-min nil ev-i nil i 0)
-    (while (< i m)
-      (setq j (rem (1+ i) m))
-      (setq px (car (car (nth i lav))) py (cadr (car (nth i lav))))
-      (setq qx (car (car (nth j lav))) qy (cadr (car (nth j lav))))
-      (setq vx (car (nth i V)) vy (cadr (nth i V)))
-      (setq wx (car (nth j V)) wy (cadr (nth j V)))
-      (setq ex (- qx px) ey (- qy py) el (sqrt (+ (* ex ex) (* ey ey))))
-      (if (> el 1e-9)
-        (progn (setq ux (/ ex el) uy (/ ey el))
-               (setq clos (+ (* (- vx wx) ux) (* (- vy wy) uy)))
-               (if (> clos 1e-9)
-                 (progn (setq te (/ el clos))
-                        (if (> te 1e-9)
-                          (if (or (null t-min) (< te (- t-min 1e-9)))
-                            (progn (setq t-min te ev-i i))))))))
-      (setq i (1+ i)))
-    (if (or (null t-min) (> t-min 1e6))
-      (setq guard 300)
-      (progn
-        (setq new-pts (list) i 0)
-        (while (< i m)
-          (setq new-pts (append new-pts (list (list
-            (+ (car (car (nth i lav))) (* t-min (car (nth i V))))
-            (+ (cadr (car (nth i lav))) (* t-min (cadr (nth i V)))) 0.0))))
-          (setq i (1+ i)))
-        (setq i 0)
-        (while (< i m)
-          (if (> (distance (cadr (nth i lav)) (nth i new-pts)) 1e-6)
-            (setq lines (append lines (list (list (cadr (nth i lav)) (nth i new-pts))))))
-          (setq i (1+ i)))
-        (setq t (+ t t-min))
-        (setq j (rem (1+ ev-i) m) mid (nth ev-i new-pts))
-        (setq heights (append heights (list (list mid (* t (tan (st-pitch-rad)))))))
-        (setq new-lav (list) ii 0)
-        (while (< ii m)
-          (cond
-            ((= ii ev-i) (setq new-lav (append new-lav (list (list mid mid)))))
-            ((= ii j) nil)
-            (T (setq new-lav (append new-lav (list (list (nth ii new-pts) (cadr (nth ii lav))))))))
-          (setq ii (1+ ii)))
-        (setq lav new-lav))))
-  (if (= (length lav) 2)
-    (setq lines (append lines (list (list (cadr (nth 0 lav)) (cadr (nth 1 lav)))))))
-  (list lines heights t))
-
-;; -- Preview --
 (defun st-prev ( / w h x0 x1 y0 y1 xm ym xw)
   (setq w (dimx_tile "prev") h (dimy_tile "prev"))
   (start_image "prev") (fill_image 0 0 w h 0)
@@ -130,18 +84,47 @@
   (vector_image x0 y0 (+ x0 xw) ym 1) (vector_image x0 y1 (+ x0 xw) ym 1)
   (vector_image x1 y0 (- x1 xw) ym 1) (vector_image x1 y1 (- x1 xw) ym 1)
   (vector_image (+ x0 xw) ym (- x1 xw) ym 1)
-  (set_tile "sinfo" (strcat "\U+039A\U+03BB\U+03AF\U+03C3\U+03B7: " (rtos *st-PIT* 2 1)
+  (set_tile "sinfo" (strcat "\U+039A\U+03BB\U+03AF\U+03C3\U+03B7: "(rtos *st-PIT* 2 1)
     (if (= *st-PMODE* "PCT") "%" " \U+03BC\U+03BF\U+03AF\U+03C1\U+03B5\U+03C2")
-    " => " (rtos (* (st-pitch-rad) (/ 180.0 pi)) 2 1) "\U+00B0"))
+    " => " (rtos (* (st-pitch-rad) (/ 180.0 pi)) 2 1) "\U+00B0"
+    " | \U+0392\U+03AE\U+03BC\U+03B1: " (rtos *st-STEP* 2 2) "m"))
   (end_image))
 
 (defun st-upd ( / v)
   (setq v (atof (get_tile "pit"))) (if (> v 0.0) (setq *st-PIT* v))
   (setq v (atof (get_tile "ovh"))) (if (>= v 0.0) (setq *st-OVH* v))
+  (setq v (atof (get_tile "stp"))) (if (> v 0.0) (setq *st-STEP* v))
   (st-prev))
 
+(defun st-dcl ( / f path)
+  (setq path (strcat (getvar "TEMPPREFIX") "stegh4.dcl"))
+  (setq f (open path "w"))
+  (write-line "stegh4_dlg : dialog {" f)
+  (write-line "  label = \"STEGH v4 \U+2014 \U+0395\U+03C0\U+03AF\U+03BB\U+03C5\U+03C3\U+03B7 \U+0399\U+03C3\U+03BF\U+03BA\U+03BB\U+03B9\U+03BD\U+03BF\U+03CD\U+03C2 \U+03A3\U+03C4\U+03AD\U+03B3\U+03B7\U+03C2 (HEXIS)\";" f)
+  (write-line "  : row {" f)
+  (write-line "  : column {" f)
+  (write-line "    : radio_row { key = \"pm\";" f)
+  (write-line "      : radio_button { key = \"p_pct\"; label = \"%\"; value = \"1\"; }" f)
+  (write-line "      : radio_button { key = \"p_deg\"; label = \"\U+039C\U+03BF\U+03AF\U+03C1\U+03B5\U+03C2\"; }" f)
+  (write-line "    }" f)
+  (write-line "    : edit_box { key = \"pit\"; label = \"\U+039A\U+03BB\U+03AF\U+03C3\U+03B7:\"; edit_width = 7; }" f)
+  (write-line "    : edit_box { key = \"ovh\"; label = \"\U+03A0\U+03C1\U+03BF\U+03B5\U+03BE\U+03BF\U+03C7\U+03AE \U+03B3\U+03B5\U+03AF\U+03C3\U+03BF\U+03C5 (m):\"; edit_width = 7; }" f)
+  (write-line "    : edit_box { key = \"stp\"; label = \"\U+0392\U+03AE\U+03BC\U+03B1 \U+03B5\U+03C0\U+03AF\U+03BB\U+03C5\U+03C3\U+03B7\U+03C2 (m, \U+03BC\U+03B9\U+03BA\U+03C1\U+03CC\U+03C4\U+03B5\U+03C1\U+03BF=\U+03B1\U+03BA\U+03C1\U+03B9\U+03B2\U+03AD\U+03C3\U+03C4\U+03B5\U+03C1\U+03BF):\"; edit_width = 7; }" f)
+  (write-line "    : toggle { key = \"luk\"; label = \"\U+039B\U+03BF\U+03CD\U+03BA\U+03B9\U+03B1 / \U+03B3\U+03B5\U+03AF\U+03C3\U+03BF\"; value = \"1\"; }" f)
+  (write-line "    : toggle { key = \"det\"; label = \"\U+039B\U+03B5\U+03C0\U+03C4\U+03BF\U+03BC\U+03AD\U+03C1\U+03B5\U+03B9\U+03B1 \U+03C4\U+03BF\U+03BC\U+03AE\U+03C2\"; }" f)
+  (write-line "  }" f)
+  (write-line "  : column {" f)
+  (write-line "    : image { key = \"prev\"; width = 30; aspect_ratio = 0.7; color = 0; }" f)
+  (write-line "    : text { key = \"sinfo\"; width = 40; }" f)
+  (write-line "  }" f)
+  (write-line "  }" f)
+  (write-line "  ok_cancel;" f)
+  (write-line "}" f)
+  (close f) path)
+
 (defun C:STEGH ( / *error* ent pts dclpath dclid status f
-    res lines heights max-t luk det ovh i n th pt ht lab nx ny el dx dy p0 p1 pa pb)
+    luk det ovh step th i n iter-pts prev-pts
+    lines heights mid lab dx dy el nx ny pa pb)
 
   (defun *error* (msg)
     (if (not (member msg (list "Function cancelled" "quit / exit abort")))
@@ -155,58 +138,80 @@
   (if (null ent) (exit))
   (setq pts (st-getpts (car ent)))
   (if (< (length pts) 3) (progn (princ "\n\U+03A7\U+03C1\U+03B5\U+03B9\U+03AC\U+03B6\U+03B5\U+03C4\U+03B1\U+03B9 \U+03C0\U+03BF\U+03BB\U+03CD\U+03B3\U+03C9\U+03BD\U+03BF >=3 \U+03BA\U+03BF\U+03C1\U+03C5\U+03C6\U+03CE\U+03BD.") (exit)))
+  (if (< (st-area2 pts) 0.0) (setq pts (reverse pts)))
 
-  (setq dclpath (strcat (getvar "TEMPPREFIX") "stegh3.dcl"))
-  (setq f (open dclpath "w"))
-  (write-line "stegh3_dlg : dialog {" f)
-  (write-line "  label = \"STEGH v3 \U+2014 \U+0395\U+03C0\U+03AF\U+03BB\U+03C5\U+03C3\U+03B7 \U+03A3\U+03C4\U+03AD\U+03B3\U+03B7\U+03C2 (HEXIS)\";" f)
-  (write-line "  : row {" f)
-  (write-line "  : column {" f)
-  (write-line "    : radio_row { key = \"pm\";" f)
-  (write-line "      : radio_button { key = \"p_pct\"; label = \"%\"; value = \"1\"; }" f)
-  (write-line "      : radio_button { key = \"p_deg\"; label = \"\U+039C\U+03BF\U+03AF\U+03C1\U+03B5\U+03C2\"; }" f)
-  (write-line "    }" f)
-  (write-line "    : edit_box { key = \"pit\"; label = \"\U+039A\U+03BB\U+03AF\U+03C3\U+03B7:\"; edit_width = 7; }" f)
-  (write-line "    : edit_box { key = \"ovh\"; label = \"\U+03A0\U+03C1\U+03BF\U+03B5\U+03BE\U+03BF\U+03C7\U+03AE \U+03B3\U+03B5\U+03AF\U+03C3\U+03BF\U+03C5 (m):\"; edit_width = 7; }" f)
-  (write-line "    : toggle { key = \"luk\"; label = \"\U+039B\U+03BF\U+03CD\U+03BA\U+03B9\U+03B1 / \U+03B3\U+03B5\U+03AF\U+03C3\U+03BF (offset \U+03C0\U+03B5\U+03C1\U+03B9\U+03B3\U+03C1\U+03AC\U+03BC\U+03BC\U+03B1\U+03C4\U+03BF\U+03C2)\"; value = \"1\"; }" f)
-  (write-line "    : toggle { key = \"det\"; label = \"\U+039B\U+03B5\U+03C0\U+03C4\U+03BF\U+03BC\U+03AD\U+03C1\U+03B5\U+03B9\U+03B1 \U+03C4\U+03BF\U+03BC\U+03AE\U+03C2 (\U+03C0\U+03C1\U+03BF\U+03B1\U+03B9\U+03C1\U+03B5\U+03C4\U+03B9\U+03BA\U+03CC)\"; }" f)
-  (write-line "  }" f)
-  (write-line "  : column {" f)
-  (write-line "    : image { key = \"prev\"; width = 30; aspect_ratio = 0.7; color = 0; }" f)
-  (write-line "    : text { key = \"sinfo\"; width = 36; }" f)
-  (write-line "  }" f)
-  (write-line "  }" f)
-  (write-line "  ok_cancel;" f)
-  (write-line "}" f)
-  (close f)
+  (setq dclpath (st-dcl))
   (setq dclid (load_dialog dclpath))
   (if (< dclid 0) (progn (princ "\nDCL error.") (exit)))
-  (if (not (new_dialog "stegh3_dlg" dclid)) (progn (princ "\nDialog error.") (exit)))
+  (if (not (new_dialog "stegh4_dlg" dclid)) (progn (princ "\nDialog error.") (exit)))
   (set_tile "pit" (rtos *st-PIT* 2 1))
   (set_tile "ovh" (rtos *st-OVH* 2 2))
+  (set_tile "stp" (rtos *st-STEP* 2 2))
   (st-prev)
   (action_tile "p_pct" "(setq *st-PMODE* \"PCT\") (st-upd)")
   (action_tile "p_deg" "(setq *st-PMODE* \"DEG\") (st-upd)")
-  (action_tile "pit" "(st-upd)")
-  (action_tile "ovh" "(st-upd)")
+  (action_tile "pit" "(st-upd)") (action_tile "ovh" "(st-upd)") (action_tile "stp" "(st-upd)")
   (action_tile "accept"
     "(st-upd) (setq luk (get_tile \"luk\")) (setq det (get_tile \"det\")) (done_dialog 1)")
   (action_tile "cancel" "(done_dialog 0)")
   (setq status (start_dialog)) (unload_dialog dclid)
   (if (/= status 1) (progn (princ "\n\U+0391\U+03BA\U+03CD\U+03C1\U+03C9\U+03C3\U+03B7.") (exit)))
+  (setq th (st-pitch-rad) ovh *st-OVH* step *st-STEP*)
 
-  (setq th (st-pitch-rad) ovh *st-OVH*)
-  (princ (strcat "\n" "\U+0395\U+03C0\U+03AF\U+03BB\U+03C5\U+03C3\U+03B7..."))
-  (setq res (st-skel pts))
-  (setq lines (car res) heights (cadr res) max-t (caddr res))
+  ;; ===== ITERATIVE OFFSET SKELETON =====
+  ;; Κάθε iteration: offset εσωτερικά κατά step
+  ;; Σχεδίαση γραμμής: prev_i -> iter_i (μαχιά)
+  ;; Αν κορυφή "πέρασε" (area < 0 ή distance > threshold): event
+  (setq prev-pts pts)
+  (setq heights (list) lines (list))
+  (foreach p pts (setq heights (append heights (list (list p 0.0)))))
+  (setq t-acc 0.0 guard 0 n (length pts))
+  (setq iter-pts pts)
 
+  (while (and (> (length iter-pts) 2) (< guard 500))
+    (setq guard (1+ guard))
+    (setq prev-pts iter-pts)
+    (setq t-acc (+ t-acc step))
+    ;; Offset
+    (setq iter-pts (st-offset-poly prev-pts step))
+    ;; Σχεδίαση arcs: από prev -> iter
+    (setq i 0 m (min (length prev-pts) (length iter-pts)))
+    (while (< i m)
+      (if (> (distance (nth i prev-pts) (nth i iter-pts)) 1e-4)
+        (setq lines (append lines (list (list (nth i prev-pts) (nth i iter-pts))))))
+      (setq i (1+ i)))
+    ;; Έλεγχος convergence: αν πολύγωνο συρρικνώθηκε πολύ
+    (if (< (abs (st-area2 iter-pts)) (* (abs (st-area2 pts)) 0.001))
+      (progn
+        ;; Κορφιάς: centroid των εναπομεινουσών
+        (setq mid (list
+          (/ (apply (quote +) (mapcar (quote car) iter-pts)) (length iter-pts))
+          (/ (apply (quote +) (mapcar (quote cadr) iter-pts)) (length iter-pts)) 0.0))
+        (setq heights (append heights (list (list mid (* t-acc (tan th))))))
+        (foreach p prev-pts
+          (if (> (distance p mid) 1e-3)
+            (setq lines (append lines (list (list p mid))))))
+        (setq iter-pts (list)))))
+
+  ;; Αν ο αλγόριθμος σταμάτησε νωρίς: υπολόγισε events από τα τελευταία arcs
+  (if (> (length iter-pts) 0)
+    (progn
+      (setq mid (list
+        (/ (apply (quote +) (mapcar (quote car) iter-pts)) (length iter-pts))
+        (/ (apply (quote +) (mapcar (quote cadr) iter-pts)) (length iter-pts)) 0.0))
+      (setq heights (append heights (list (list mid (* t-acc (tan th))))))
+      (foreach p iter-pts
+        (if (> (distance p mid) 1e-3)
+          (setq lines (append lines (list (list p mid))))))))
+
+  ;; ===== ΣΧΕΔΙΑΣΗ =====
   ;; 1. Μαχιές / ντερέδες / κορφιάδες
   (foreach ln lines
-    (if (not (equal (car ln) (cadr ln) 1e-6))
+    (if (not (equal (car ln) (cadr ln) 1e-4))
       (st-line (list (car (car ln)) (cadr (car ln)) 0.0)
                (list (car (cadr ln)) (cadr (cadr ln)) 0.0) "STEGH-SKL")))
 
-  ;; 2. Λούκια: offset εξωτερικά κατά ovh
+  ;; 2. Λούκια
   (if (= luk "1")
     (progn
       (setq n (length pts) i 0)
@@ -222,15 +227,16 @@
             (st-line pa pb "STEGH-LUK")))
         (setq i (1+ i)))))
 
-  ;; 3. Στάθμες σε κάθε κόμβο
+  ;; 3. Στάθμες
   (setq lab 0.25)
   (foreach hh heights
-    (setq pt (car hh) ht (cadr hh))
-    (st-txt (list (car pt) (+ (cadr pt) (* lab 0.4)) 0.0)
-      lab (strcat "+" (rtos ht 2 2) "m") "STEGH-TXT"))
+    (setq hp (car hh) hv (cadr hh))
+    (st-txt (list (car hp) (+ (cadr hp) (* lab 0.4)) 0.0)
+      lab (strcat "+" (rtos hv 2 2) "m") "STEGH-TXT"))
 
-  (princ (strcat "\n" "STEGH v3.0 \U+2014 "(itoa (length lines)) " \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03AD\U+03C2, \U+03BC\U+03AD\U+03B3. +" (rtos (* max-t (tan th)) 2 2) "m"))
+  (setq max-h (apply (quote max) (mapcar (quote cadr) heights)))
+  (princ (strcat "\n" "STEGH v4.0 \U+2014 "(itoa (length lines)) " \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03AD\U+03C2, \U+03BC\U+03AD\U+03B3. +" (rtos max-h 2 2) "m"))
   (princ))
 
-(princ "\nSTEGH v3.0 \U+03C6\U+03BF\U+03C1\U+03C4\U+03CE\U+03B8\U+03B7\U+03BA\U+03B5. \U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AE: STEGH")
+(princ "\nSTEGH v4.0 \U+03C6\U+03BF\U+03C1\U+03C4\U+03CE\U+03B8\U+03B7\U+03BA\U+03B5. \U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AE: STEGH")
 (princ)
