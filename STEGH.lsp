@@ -289,6 +289,26 @@
   (foreach p pts (setq el (append el (list (cons 10 (list (car p) (cadr p)))))))
   (entmake el))
 
+(defun st-style ( / )
+  ;; στυλ σταθερού πλάτους για στοιχισμένους πίνακες
+  (if (null (tblsearch "STYLE" "HEXIS_MONO"))
+    (entmake (list (cons 0 "STYLE") (cons 100 "AcDbSymbolTableRecord")
+                   (cons 100 "AcDbTextStyleTableRecord") (cons 2 "HEXIS_MONO")
+                   (cons 70 0) (cons 40 0.0) (cons 41 1.0) (cons 50 0.0)
+                   (cons 71 0) (cons 42 2.5) (cons 3 "consola.ttf") (cons 4 "")))))
+
+;; MTEXT - ένα αντικείμενο, αλλαγή γραμμής με \\P
+(defun st-mtext (p h wid str lyr sty / el)
+  (setq el (list (cons 0 "MTEXT") (cons 100 "AcDbEntity") (cons 8 lyr)
+                 (cons 100 "AcDbMText")
+                 (cons 10 (list (car p) (cadr p) 0.0))
+                 (cons 40 h) (cons 41 wid) (cons 71 1) (cons 72 5)
+                 (cons 7 (if sty sty "Standard"))))
+  (while (> (strlen str) 250)
+    (setq el (append el (list (cons 3 (substr str 1 250)))))
+    (setq str (substr str 251)))
+  (entmake (append el (list (cons 1 str)))))
+
 (defun st-txt (p h str lyr)
   (entmake (list (cons 0 "TEXT") (cons 100 "AcDbEntity") (cons 8 lyr)
                  (cons 100 "AcDbText")
@@ -345,6 +365,49 @@
     (if (< (distance p (nth i pts)) 1e-6) (setq r i))
     (setq i (1+ i)))
   r)
+
+;; ελάχιστη απόσταση σημείου από τις ΑΚΜΕΣ πολυγώνου
+(defun st-dedge (p pts / n i a b dm d dx dy L2 tt)
+  (setq n (length pts) i 0 dm nil)
+  (while (< i n)
+    (setq a (nth i pts) b (nth (rem (1+ i) n) pts))
+    (setq dx (- (car b) (car a)) dy (- (cadr b) (cadr a)))
+    (setq L2 (+ (* dx dx) (* dy dy)))
+    (if (< L2 1e-12)
+      (setq d (distance p a))
+      (progn
+        (setq tt (/ (+ (* (- (car p) (car a)) dx)
+                       (* (- (cadr p) (cadr a)) dy)) L2))
+        (if (< tt 0.0) (setq tt 0.0))
+        (if (> tt 1.0) (setq tt 1.0))
+        (setq d (distance p (list (+ (car a) (* tt dx)) (+ (cadr a) (* tt dy)))))))
+    (if (or (null dm) (< d dm)) (setq dm d))
+    (setq i (1+ i)))
+  dm)
+
+;; ΜΕΓΙΣΤΗ απόσταση του χείλους τρύπας από το περίγραμμα (δειγματοληψία)
+;; -> εκεί η στέγη θα ήταν ΨΗΛΟΤΕΡΑ αν δεν υπήρχε η τρύπα
+(defun st-holemax (hp pts step / n i a b LL k np d dm)
+  (setq n (length hp) i 0 dm 0.0)
+  (while (< i n)
+    (setq a (nth i hp) b (nth (rem (1+ i) n) hp))
+    (setq LL (distance a b) k 0)
+    (setq np (max 1 (fix (/ LL step))))
+    (while (<= k np)
+      (setq d (st-dedge
+                (list (+ (car a) (* (/ (float k) np) (- (car b) (car a))))
+                      (+ (cadr a) (* (/ (float k) np) (- (cadr b) (cadr a)))))
+                pts))
+      (if (> d dm) (setq dm d))
+      (setq k (1+ k)))
+    (setq i (1+ i)))
+  dm)
+
+;; κέντρο βάρους πολυγώνου
+(defun st-cen (pts / n cx cy q)
+  (setq n (length pts) cx 0.0 cy 0.0)
+  (foreach q pts (setq cx (+ cx (car q)) cy (+ cy (cadr q))))
+  (list (/ cx n) (/ cy n)))
 
 ;; ΧΕΙΡΟΚΙΝΗΤΗ επιλογή τρυπών (με έλεγχο ότι είναι εντός περιγράμματος)
 (defun st-pickholes (mainent pts / ss i e hp out nsk)
@@ -620,7 +683,7 @@
                    lowp bi bd pm dd pa pb eang p0 nds sumA nd p
                    xchk badv conn bv usedcl kw v pa2 pb2 lmx lnt lkr
                    t1 t2 ll kk ff holes hss hi he hp ha hb cnt4 ltr
-                   hcand hed hkw)
+                   hcand hed hkw bldup hmarg hn hdm hstru hsti hc)
 
   (defun *error* (msg)
     (if (not (member msg (list "Function cancelled" "quit / exit abort")))
@@ -920,6 +983,39 @@
     (if gpts (strcat "\n\U+03A5\U+03C8\U+03CC\U+03BC\U+03B5\U+03C4\U+03C1\U+03BF \U+03C5\U+03B4\U+03C1\U+03BF\U+03C1\U+03C1\U+03BF\U+03AE\U+03C2: " (st-elev (- 0.0 (* ovh th))) " m") "")
     "\n\U+0395\U+03C0\U+03B9\U+03C6\U+03AC\U+03BD\U+03B5\U+03B9\U+03B1 \U+03C3\U+03C4\U+03AD\U+03B3\U+03B7\U+03C2 (\U+03BC\U+03B5 \U+03B3\U+03B5\U+03AF\U+03C3\U+03BF): " (rtos sumA 2 2) " m2"
     "\nLayers: STEGH-MAXIA / STEGH-NTERES / STEGH-KORFIAS / STEGH-GEISO / STEGH-PERIGR / STEGH-TXT"))
+  ;; --- ΕΛΑΧΙΣΤΟ ΣΤΗΘΑΙΟ ΤΡΥΠΩΝ ---
+  ;; Ύψος στο οποίο θα έφτανε η στέγη αν ΔΕΝ υπήρχε η τρύπα, στο ψηλότερο
+  ;; σημείο του χείλους, + πάχος στρώσεων + περιθώριο στεγάνωσης.
+  (if holes
+    (progn
+      (setq bldup (/ (/ (+ *tm-AM* *tm-PET* *tm-TTH* *tm-EPI* *tm-TEG* *tm-KER*) 100.0)
+                     (cos (atan th))))
+      (setq hmarg 0.15)
+      (princ "\n\n>>> \U+0395\U+039B\U+0391\U+03A7\U+0399\U+03A3\U+03A4\U+039F \U+03A3\U+03A4\U+0397\U+0398\U+0391\U+0399\U+039F \U+0393\U+03A5\U+03A1\U+03A9 \U+0391\U+03A0\U+039F \U+03A4\U+0399\U+03A3 \U+03A4\U+03A1\U+03A5\U+03A0\U+0395\U+03A3")
+      (princ (strcat "\n    (\U+03CD\U+03C8\U+03BF\U+03C2 \U+03C3\U+03BA\U+03B5\U+03BB\U+03B5\U+03C4\U+03BF\U+03CD + \U+03C3\U+03C4\U+03C1\U+03CE\U+03C3\U+03B5\U+03B9\U+03C2 " (rtos bldup 2 3)
+                     " m + \U+03C0\U+03B5\U+03C1\U+03B9\U+03B8\U+03CE\U+03C1\U+03B9\U+03BF " (rtos hmarg 2 2) " m)"))
+      (setq hn 1)
+      (foreach hp holes
+        (setq hdm (st-holemax hp orig 0.20))
+        (setq hstru (* hdm th))
+        (setq hsti (+ hstru bldup hmarg))
+        (setq hc (st-cen hp))
+        (princ (strcat "\n    \U+03A4\U+03C1\U+03CD\U+03C0\U+03B1 " (itoa hn)
+          ":  \U+03B1\U+03C0\U+03CC\U+03C3\U+03C4\U+03B1\U+03C3\U+03B7 \U+03B1\U+03C0\U+03CC \U+03C0\U+03B5\U+03C1\U+03AF\U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03B1 " (rtos hdm 2 2) " m"
+          "  ->  \U+03C3\U+03C4\U+03AD\U+03B3\U+03B7 +" (rtos hstru 2 3)
+          "  ->  \U+03A3\U+03A4\U+0397\U+0398\U+0391\U+0399\U+039F >= " (st-elev hsti) " m  (h=" (rtos hsti 2 2) " m)"))
+        (if (= *st-LAB* "1")
+          (progn
+            (st-txt (list (car hc) (+ (cadr hc) (* txh 0.8))) txh
+              (strcat "\U+03A3\U+03A4\U+0397\U+0398\U+0391\U+0399\U+039F >= " (rtos hsti 2 2)) "STEGH-TRYPA")
+            (st-txt (list (car hc) (- (cadr hc) (* txh 0.8))) (* txh 0.85)
+              (strcat "(" (st-elev hsti) ")") "STEGH-TRYPA")))
+        (setq hn (1+ hn)))
+      (princ "\n    \U+0399\U+03C3\U+03C7\U+03CD\U+03B5\U+03B9 \U+03B3\U+03B9\U+03B1 \U+039A\U+039B\U+0395\U+0399\U+03A3\U+03A4\U+039F \U+03BA\U+03BF\U+03C5\U+03C4\U+03AF (\U+03B1\U+03C0\U+03CC\U+03BB\U+03B7\U+03BE\U+03B7 \U+03BA\U+03BB\U+03B9\U+03BC\U+03B1\U+03BA\U+03BF\U+03C3\U+03C4\U+03B1\U+03C3\U+03AF\U+03BF\U+03C5).")
+      (princ "\n    \U+0393\U+03B9\U+03B1 \U+03B1\U+03BD\U+03BF\U+03B9\U+03C7\U+03C4\U+03CC \U+03B1\U+03AF\U+03B8\U+03C1\U+03B9\U+03BF: \U+03C4\U+03BF \U+03C7\U+03B5\U+03AF\U+03BB\U+03BF\U+03C2 \U+03B5\U+03B9\U+03BD\U+03B1\U+03B9 \U+03C5\U+03B4\U+03C1\U+03BF\U+03C1\U+03C1\U+03BF\U+03AE \U+03C3\U+03C4\U+03BF "
+             )
+      (princ (strcat (st-elev 0.0) " - \U+03C7\U+03C1\U+03B5\U+03B9\U+03AC\U+03B6\U+03B5\U+03C4\U+03B1\U+03B9 \U+03BB\U+03BF\U+03CD\U+03BA\U+03B9."))))
+
   ;; --- ΠΡΟΓΡΑΜΜΑ ΖΕΥΚΤΩΝ: κατά μήκος κάθε κορφιά, άνοιγμα = 2t ---
   (setq *st-TR* (list))
   (if (and (= *st-TYP* "ISO") (> *tm-DIST* 0.05))
@@ -1123,24 +1219,24 @@ PLACEHOLDER
       (close g)))
   (and f g))
 
-;; ---- ΑΠΟΔΟΣΗ ΣΤΟ ΣΧΕΔΙΟ ----
-(defun tm-drawrows (px py lh / r ty h)
-  (setq h (* lh 0.85))
+;; ---- ΑΠΟΔΟΣΗ ΣΤΟ ΣΧΕΔΙΟ: ΕΝΑ MTEXT ----
+(defun tm-drawrows (px py lh / r ty txt ln)
+  (st-style)
+  (setq txt "")
   (foreach r *tm-ROWS*
     (setq ty (nth 0 r))
     (cond
-      ((= ty "B") (setq py (- py (* lh 1.0))))
-      ((= ty "T")
-        (setq py (- py (* lh 1.2)))
-        (tm-txtl (list px py) (* lh 1.2) (nth 1 r) "TOMI-TXT")
-        (setq py (- py (* lh 2.0))))
-      ((= ty "N")
-        (tm-txtl (list px py) (* lh 0.75) (nth 1 r) "TOMI-TXT")
-        (setq py (- py (* lh 1.2))))
+      ((= ty "B") (setq ln " "))
+      ((= ty "T") (setq ln (strcat "{\\C1;" (nth 1 r) "}")))
+      ((= ty "N") (setq ln (strcat "  " (nth 1 r))))
       (T
-        (tm-row7 px py h (nth 1 r) (nth 2 r) (nth 3 r) (nth 4 r)
-                 (nth 5 r) (nth 6 r) (nth 7 r) "TOMI-TXT")
-        (setq py (- py (* lh 1.5))))))
+        (setq ln (strcat (rpad (nth 1 r) 34) (rpad (nth 2 r) 11)
+                         (lpad (nth 3 r) 7) (lpad (nth 4 r) 12)
+                         (lpad (nth 5 r) 12) (lpad (nth 6 r) 12)
+                         (lpad (nth 7 r) 14)))
+        (if (or (= ty "H") (= ty "S")) (setq ln (strcat "{\\C2;" ln "}")))))
+    (setq txt (if (= txt "") ln (strcat txt "\\P" ln))))
+  (st-mtext (list px py) (* lh 0.85) (* lh 0.85 95.0) txt "TOMI-TXT" "HEXIS_MONO")
   py)
 
 ;; γραμμή πίνακα: 7 στήλες
@@ -1570,10 +1666,10 @@ PLACEHOLDER
           (list (- (car ins) 0.75) (- (cadr ins) 0.75))
           16 lh "TOMI-TXT")
 
-  ;; --- ΥΠΟΜΝΗΜΑ ---
+  ;; --- ΥΠΟΜΝΗΜΑ: ΕΝΑ MTEXT ---
+  (st-style)
   (setq lx (+ (car ins) S 1.30) ly (+ (cadr A0) (* lh 4.0)))
-  (st-txt (list (+ lx (* lh 9.0)) (+ ly (* lh 2.6))) (* lh 1.25)
-          "\U+03A5\U+03A0\U+039F\U+039C\U+039D\U+0397\U+039C\U+0391 \U+03A5\U+039B\U+0399\U+039A\U+03A9\U+039D" "TOMI-TXT")
+  (setq ltxt "{\\C1;\\L \U+03A5\U+03A0\U+039F\U+039C\U+039D\U+0397\U+039C\U+0391 \U+03A5\U+039B\U+0399\U+039A\U+03A9\U+039D\\l}\\P ")
   (setq nteg 1)
   (foreach ln (list
     (strcat "\U+039A\U+0395\U+03A1\U+0391\U+039C\U+0399\U+0394\U+0399\U+0391 " (rtos *tm-KER* 2 1) " cm")
@@ -1593,11 +1689,9 @@ PLACEHOLDER
     (strcat "\U+0395\U+039B\U+039A\U+03A5\U+03A3\U+03A4\U+0397\U+03A1\U+0391\U+03A3 (\U+03A0\U+0395\U+039B\U+039C\U+0391) " (rtos *tm-EL* 2 1) "x" (rtos *tm-EL* 2 1) " cm")
     (strcat "\U+03A3\U+03A4\U+03A1\U+03A9\U+03A4\U+0397\U+03A1\U+0391\U+03A3 / \U+039C\U+0397\U+039A\U+0399\U+0394\U+0391 " (rtos *tm-STR* 2 1) " cm")
     (strcat "\U+03A4\U+039F\U+0399\U+03A7\U+039F\U+03A0\U+039F\U+0399\U+0399\U+0391 " (rtos ww 2 2) " m"))
-    (tm-circ (list lx ly) (* lh 1.05) "TOMI-TXT")
-    (st-txt (list lx ly) lh (itoa nteg) "TOMI-TXT")
-    (tm-txtl (list (+ lx (* lh 1.9)) (- ly (* lh 0.5))) lh ln "TOMI-TXT")
-    (setq nteg (1+ nteg))
-    (setq ly (- ly (* lh 2.4))))
+    (setq ltxt (strcat ltxt "\\P" (lpad (itoa nteg) 2) ".  " ln))
+    (setq nteg (1+ nteg)))
+  (st-mtext (list lx ly) lh (* lh 42.0) ltxt "TOMI-TXT" "HEXIS_MONO")
 
   ;; ================= ΜΗΚΗ ΞΥΛΩΝ + ΠΡΟΜΕΤΡΗΣΗ =================
   (setq hh (* half th) nteg (fix (+ 1.0 (/ kbot dz))))
@@ -1800,11 +1894,18 @@ PLACEHOLDER
           (tm-drawrows px py lh)))
       (if (/= *tm-OUT* "SXEDIO")
         (progn
-          (setq fbase (getvar "DWGPREFIX"))
-          (if (or (null fbase) (not (= (type fbase) (quote STR))) (= fbase ""))
-            (setq fbase (getvar "TEMPPREFIX")))
-          (if (or (null fbase) (not (= (type fbase) (quote STR)))) (setq fbase ""))
-          (setq fbase (strcat fbase "PROMETRISI_STEGIS"))
+          ;; ΔΙΑΛΟΓΟΣ ΑΠΟΘΗΚΕΥΣΗΣ - διαλέγεις ΕΣΥ πού θα πάει
+          (setq fbase (getfiled "\U+0391\U+03C0\U+03BF\U+03B8\U+03AE\U+03BA\U+03B5\U+03C5\U+03C3\U+03B7 \U+03C0\U+03C1\U+03BF\U+03BC\U+03AD\U+03C4\U+03C1\U+03B7\U+03C3\U+03B7\U+03C2 \U+03C3\U+03C4\U+03AD\U+03B3\U+03B7\U+03C2"
+                                "PROMETRISI_STEGIS" "rtf" 1))
+          (if fbase
+            (if (> (strlen fbase) 4)
+              (setq fbase (substr fbase 1 (- (strlen fbase) 4))))
+            (progn
+              (setq fbase (getvar "DWGPREFIX"))
+              (if (or (null fbase) (not (= (type fbase) (quote STR))) (= fbase ""))
+                (setq fbase (getvar "TEMPPREFIX")))
+              (if (or (null fbase) (not (= (type fbase) (quote STR)))) (setq fbase ""))
+              (setq fbase (strcat fbase "PROMETRISI_STEGIS"))))
           (if (tm-writefiles fbase)
             (princ (strcat "\n\n>>> \U+03A0\U+03A1\U+039F\U+039C\U+0395\U+03A4\U+03A1\U+0397\U+03A3\U+0397 \U+0393\U+03A1\U+0391\U+03A6\U+03A4\U+0397\U+039A\U+0395:"
               "\n    " fbase ".rtf   <-- \U+03B1\U+03BD\U+03BF\U+03B9\U+03B3\U+03B5\U+03B9 \U+03B1\U+03C0\U+03B5\U+03C5\U+03B8\U+03B5\U+03B9\U+03B1\U+03C2 \U+03C3\U+03B5 WORD"
