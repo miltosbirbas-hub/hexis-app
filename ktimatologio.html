@@ -198,6 +198,12 @@
     0%,100%{ transform:translateY(0) rotate(-4deg); }
     50%{ transform:translateY(-3px) rotate(4deg); }
   }
+  #navPanel .xte-ok b{ color:#7bd88f; }
+  #navPanel .xte-bad b{ color:#ef4444; }
+  #navPanel .xte-bad{ animation:gpsPulse 1s infinite; }
+  /* Στοιχεία πλοήγησης/tracking μόνο σε πλήρη χάρτη — καθαρή μισή οθόνη */
+  body:not(.mapfull) #navPanel{ display:none !important; }
+  body:not(.mapfull) #recenterBtn{ display:none !important; }
 </style>
 <script>
 // Mini SW για auto-update — κάθε φόρτωση ελέγχει αν υπάρχει νέα έκδοση
@@ -377,7 +383,7 @@ if('serviceWorker' in navigator){
       <p><b style="color:#22d3ee">📏 Χάρακας & ✏️ Πολύγωνο με κούμπωμα.</b> Πλησιάζοντας κορυφή γεωτεμαχίου εμφανίζεται πράσινος δακτύλιος και το κλικ κουμπώνει ακριβώς πάνω της (πράσινη κουκκίδα = δεμένο σε κορυφή ΚΤ). Δεξιά ανοίγει παράθυρο με κάθε κορυφή σε ΕΓΣΑ'87, μήκη πλευρών και — στο πολύγωνο — εμβαδόν, περίμετρο, κορυφές. Διπλό κλικ καθαρίζει, ξαναπάτημα του εργαλείου το κλείνει.</p>
       <p><b style="color:#22d3ee">🗑 Καθαρισμός επιλογών.</b> Όταν έχεις επιλεγμένα γεωτεμάχια, εμφανίζεται κουμπί «Καθαρισμός» στο κάτω μέρος του χάρτη — ένα πάτημα σβήνει κύριο, όμορα, ΕΚ, καρτελάκια και στατιστικά.</p>
       <p><b style="color:#22d3ee">📍 Live tracking (κινητό/tablet).</b> Το «Θέση μου» ξεκινά συνεχή παρακολούθηση: η πινέζα σου κινείται σε πραγματικό χρόνο με κύκλο ακρίβειας (±μ) και ο χάρτης σε ακολουθεί. Αν σύρεις τον χάρτη ή ψάξεις ΚΑΕΚ, το follow παύει και εμφανίζεται κουμπί «⌖ Επιστροφή στη θέση μου» — πάτα το για να ξαναγυρίσει πάνω σου. Ξαναπάτημα του 📍 (⏸ Stop) τερματίζει το tracking. <i style="opacity:.8">Σημ.: το GPS κινητού δίνει ±3–10 μ — για αναγνώριση στο πεδίο, όχι για χάραξη ακριβείας.</i></p>
-      <p><b style="color:#22d3ee">🧭 Πλοήγηση σε σημείο.</b> Κεντράρισε το σταυρόνημα στο σημείο που θες να πας (ή βρες το με ΚΑΕΚ) και πάτα «Στο σημείο»: μπαίνει σημαία 🚩, πορτοκαλί γραμμή πορείας από τη θέση σου, και πάνελ με ζωντανή <b>απόσταση</b> και <b>πορεία</b> (αζιμούθιο σε μοίρες + πυξίδα, υπολογισμένα σε ΕΓΣΑ'87). Στη θέση σου εμφανίζεται ανθρωπάκι που περπατάει 🚶 όσο κινείσαι και στέκεται 🧍 όταν σταματάς. Κάτω από 5 μ: «✅ Έφτασες!». Λειτουργεί σαν stakeout αναγνώρισης — σε πάει στο σωστό χωράφι, η ακριβής χάραξη γίνεται με RTK. Ακύρωση με ✕ ή ξαναπάτημα του 🧭.</p>
+      <p><b style="color:#22d3ee">🧭 Πλοήγηση σε σημείο.</b> Κεντράρισε το σταυρόνημα στο σημείο που θες να πας (ή βρες το με ΚΑΕΚ) και πάτα «Στο σημείο»: μπαίνει σημαία 🚩, πορτοκαλί γραμμή πορείας από τη θέση σου, και πάνελ με ζωντανή <b>απόσταση</b> και <b>πορεία</b> (αζιμούθιο σε μοίρες + πυξίδα, υπολογισμένα σε ΕΓΣΑ'87). Στη θέση σου εμφανίζεται ανθρωπάκι που περπατάει 🚶 όσο κινείσαι και στέκεται 🧍 όταν σταματάς. Μόλις ξεκινήσεις να κινείσαι, η αρχική ευθεία εκκίνηση→στόχος «κλειδώνει» και εμφανίζονται δύο παράλληλες διακεκομμένες εκατέρωθέν της (διάδρομος ±10 μ, όπως στο Navionics)· το πάνελ δείχνει και την <b>εκτροπή</b> σου από την πορεία (μέτρα, ◀ αριστερά / ▶ δεξιά) — πράσινη εντός διαδρόμου, κόκκινη που αναβοσβήνει αν βγεις έξω. Όλα τα στοιχεία πλοήγησης εμφανίζονται μόνο σε <b>πλήρη χάρτη (⛶)</b> — με το που ορίζεις στόχο, η εφαρμογή περνά αυτόματα σε πλήρη χάρτη· κλείνοντάς τον (⛶ ξανά) ο χάρτης καθαρίζει, ενώ η πλοήγηση συνεχίζει στο παρασκήνιο και επανεμφανίζεται όταν ξανανοίξεις. Κάτω από 5 μ: «✅ Έφτασες!». Λειτουργεί σαν stakeout αναγνώρισης — σε πάει στο σωστό χωράφι, η ακριβής χάραξη γίνεται με RTK. Ακύρωση με ✕ ή ξαναπάτημα του 🧭.</p>
       <p><b style="color:#22d3ee">⌨ ΧΥ σημείο — εισαγωγή συντεταγμένων.</b> Όταν έχεις τις συντεταγμένες από τοπογραφικό, απόσπασμα ΚΤ ή πίνακα κορυφών, δεν χρειάζεται να «στρώνεις» τον χάρτη με το χέρι. Πάτα «⌨ ΧΥ σημείο», δώσε το ζεύγος και διάλεξε:</p>
       <p style="margin-left:12px"><b>🎯 Μετάβαση</b> — ο χάρτης κεντράρει στο σημείο με πλήρες zoom. Το σταυρόνημα πέφτει ακριβώς πάνω του, οπότε με ένα κλικ βλέπεις και το ΚΑΕΚ του γεωτεμαχίου εκεί.<br>
       <b>🧭 Ορισμός στόχου</b> — μπαίνει κατευθείαν η σημαία 🚩 στο σημείο και ξεκινά η πλοήγηση (γραμμή πορείας, απόσταση, αζιμούθιο, ανθρωπάκι) — ιδανικό όταν πηγαίνεις σε κορυφή ή σημείο ελέγχου που ξέρεις μόνο από συντεταγμένες.</p>
@@ -1161,6 +1167,7 @@ function openKtimViewer(era){
 
 function toggleFull(){
   document.body.classList.toggle("mapfull");
+  try{ syncNavVisibility(); }catch(e){}
   setTimeout(()=>{ try{ map.invalidateSize(); }catch(e){} }, 120);
 }
 function toggleHelp(){ const o = $("helpOvl"); if(o) o.style.display = (o.style.display==="none"||!o.style.display) ? "block" : "none"; }
@@ -1547,6 +1554,7 @@ function goToXY(asTarget){
     if(liveMarker){ setHint("Πλοήγηση ενεργή προς το σημείο.", "ok"); updateWalker(liveMarker.getLatLng(), {speed:0}); }
     else setHint("Στόχος ορίστηκε. Πάτα 📍 για live tracking και δες απόσταση/πορεία.", "");
     updateNav();
+    if(!document.body.classList.contains("mapfull")) toggleFull();
   } else {
     setHint("Ο χάρτης κεντράρισε στο σημείο.", "ok");
   }
@@ -1558,6 +1566,9 @@ function goToXY(asTarget){
 // στο σημείο». Μπαίνει σημαία στόχου, γραμμή από την πινέζα σου, και ζωντανή
 // ένδειξη απόστασης + πορείας (αζιμούθιο). Ενημερώνεται σε κάθε GPS fix.
 let navTarget = null;      // L.LatLng του στόχου
+let navOrigin = null;      // σημείο εκκίνησης (πρώτο fix με ενεργό στόχο) — ορίζει την πορεία
+let navCorridor = [];      // 2 παράλληλες διακεκομμένες (όρια εκτροπής, XTE)
+const NAV_XTE_W = 10;      // ημιπλάτος διαδρόμου σε μέτρα
 let navMarker = null;      // marker σημαίας
 let navLine = null;        // γραμμή πινέζα→στόχος
 let navPanel = null;       // πάνελ απόστασης/πορείας
@@ -1620,6 +1631,53 @@ function updateWalker(ll, coords){
   }
   // Η κουκκίδα GPS γίνεται διακριτική κάτω από το ανθρωπάκι
   if(liveMarker) liveMarker.setStyle({opacity:.4, fillOpacity:.3});
+  syncNavVisibility();
+}
+
+
+// ── Διάδρομος πορείας (Navionics-style): 2 παράλληλες διακεκομμένες ±NAV_XTE_W μ
+//    εκατέρωθεν της αρχικής ευθείας εκκίνηση→στόχος. Η εκτροπή (XTE) μετριέται
+//    από αυτή την ευθεία, όχι από την τρέχουσα θέση.
+function egsaOf(ll){ return proj4("EPSG:4326","EPSG:2100",[ll.lng, ll.lat]); }
+function wgsOf(xy){ const [lon,lat] = proj4("EPSG:2100","EPSG:4326",xy); return L.latLng(lat,lon); }
+
+function drawCorridor(){
+  navCorridor.forEach(l=>{ try{ map.removeLayer(l); }catch(e){} });
+  navCorridor = [];
+  if(!navOrigin || !navTarget) return;
+  const [x1,y1] = egsaOf(navOrigin), [x2,y2] = egsaOf(navTarget);
+  const dx = x2-x1, dy = y2-y1, L2 = Math.hypot(dx,dy);
+  if(L2 < 1) return;
+  const px = -dy/L2, py = dx/L2;               // μοναδιαίο κάθετο
+  for(const s of [+1,-1]){
+    const a = wgsOf([x1 + s*px*NAV_XTE_W, y1 + s*py*NAV_XTE_W]);
+    const b = wgsOf([x2 + s*px*NAV_XTE_W, y2 + s*py*NAV_XTE_W]);
+    navCorridor.push(L.polyline([a,b], {color:"#f5b041", weight:1.5, dashArray:"4 6", opacity:.7, interactive:false}).addTo(map));
+  }
+  syncNavVisibility();
+}
+
+// Εκτροπή από την πορεία: + = δεξιά της γραμμής (κοιτώντας προς στόχο), - = αριστερά
+function crossTrack(fromLL){
+  if(!navOrigin || !navTarget) return null;
+  const [x1,y1] = egsaOf(navOrigin), [x2,y2] = egsaOf(navTarget), [x,y] = egsaOf(fromLL);
+  const dx = x2-x1, dy = y2-y1, L2 = Math.hypot(dx,dy);
+  if(L2 < 1) return null;
+  return ((x-x1)*dy - (y-y1)*dx) / L2;   // προσημασμένη κάθετη απόσταση
+}
+
+
+// ── Ορατότητα στοιχείων πλοήγησης: μόνο σε πλήρη χάρτη (⛶) ──
+// Σε μισή οθόνη ο χάρτης μένει καθαρός· η κατάσταση πλοήγησης διατηρείται
+// και επανεμφανίζεται μόλις ανοίξεις πλήρη χάρτη.
+function syncNavVisibility(){
+  const on = document.body.classList.contains("mapfull");
+  const layers = [navMarker, navLine, walkerMarker, ...navCorridor];
+  layers.forEach(l=>{
+    if(!l) return;
+    if(on){ if(!map.hasLayer(l)) l.addTo(map); }
+    else  { if(map.hasLayer(l)) map.removeLayer(l); }
+  });
 }
 
 function updateNav(){
@@ -1629,21 +1687,35 @@ function updateNav(){
     return;
   }
   const from = liveMarker.getLatLng();
+
+  // Πρώτο fix με ενεργό στόχο → κλείδωσε την πορεία και σχεδίασε τον διάδρομο
+  if(!navOrigin){ navOrigin = from; drawCorridor(); }
+
   const {dist, az} = distBearingEGSA(from, navTarget);
   if(navLine) navLine.setLatLngs([from, navTarget]);
   else {
     navLine = L.polyline([from, navTarget], {color:"#e67e22", weight:3, dashArray:"8 6", opacity:.9}).addTo(map);
   }
+  syncNavVisibility();
   if(navPanel){
-    navPanel.querySelector(".nav-info").innerHTML =
-      "Απόσταση: <b>"+fmtDist(dist)+"</b> &nbsp;·&nbsp; Πορεία: <b>"+az.toFixed(0)+"°</b> ("+azToCompass(az)+")";
-    // Φτάσαμε;
-    if(dist <= 5) navPanel.querySelector(".nav-info").innerHTML += " &nbsp;✅ Έφτασες!";
+    let html = "Απόσταση: <b>"+fmtDist(dist)+"</b> &nbsp;·&nbsp; Πορεία: <b>"+az.toFixed(0)+"°</b> ("+azToCompass(az)+")";
+    const xte = crossTrack(from);
+    if(xte !== null && dist > 5){
+      const ax = Math.abs(xte);
+      const side = xte > 0 ? "▶ δεξιά" : "◀ αριστερά";
+      const cls = ax > NAV_XTE_W ? "xte-bad" : "xte-ok";
+      html += ' &nbsp;·&nbsp; <span class="'+cls+'">Εκτροπή: <b>'+ax.toFixed(1)+' μ</b> '+side+'</span>';
+    }
+    if(dist <= 5) html += " &nbsp;✅ Έφτασες!";
+    navPanel.querySelector(".nav-info").innerHTML = html;
   }
 }
 
 function stopNav(){
   navTarget = null;
+  navOrigin = null;
+  navCorridor.forEach(l=>{ try{ map.removeLayer(l); }catch(e){} });
+  navCorridor = [];
   if(walkerMarker){ map.removeLayer(walkerMarker); walkerMarker = null; }
   if(liveMarker) liveMarker.setStyle({opacity:1, fillOpacity:.9});
   if(navMarker){ map.removeLayer(navMarker); navMarker = null; }
@@ -1680,6 +1752,7 @@ $("navBtn").onclick = () => {
     updateWalker(liveMarker.getLatLng(), {speed:0});
   }
   updateNav();
+  if(!document.body.classList.contains("mapfull")) toggleFull();
 };
 
 // Αν ο χρήστης σύρει τον χάρτη χειροκίνητα, σταματά το auto-follow
