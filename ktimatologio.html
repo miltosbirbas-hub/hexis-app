@@ -96,7 +96,7 @@
   .coords{display:flex;gap:8px;margin-top:6px;font-size:11px;color:var(--muted)}
   .coords b{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
 
-  .actions{display:grid;grid-template-columns:1fr 1fr 1.4fr 1fr;gap:6px;margin-top:8px}
+  .actions{display:grid;grid-template-columns:1fr 1fr 1fr 1.25fr 1fr;gap:5px;margin-top:8px}
   .b-act{background:var(--navy2);border:1px solid rgba(120,180,220,.25);border-radius:10px;
     padding:6px 2px !important;display:flex;flex-direction:column;align-items:center;gap:2px;
     font-size:11px !important;font-weight:600;line-height:1.15}
@@ -185,6 +185,19 @@
     padding:8px 14px; color:#fff; font-size:14px; box-shadow:0 4px 14px rgba(0,0,0,.4); }
   #navPanel .nav-info b{ color:#f5b041; }
   #navPanel #navStop{ background:none; border:none; color:#aaa; font-size:16px; cursor:pointer; padding:0 2px; }
+  #clearSelBtn{ display:none; position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+    z-index:640; align-items:center; gap:5px; padding:7px 14px; border-radius:20px;
+    background:rgba(5,16,32,.92); border:1px solid #ef4444; color:#ef4444;
+    font-size:12px; font-weight:700; cursor:pointer; box-shadow:0 2px 10px rgba(0,0,0,.4);
+    flex:none; width:auto; }
+  #clearSelBtn:active{ transform:translateX(-50%) scale(.95); }
+  .walker{ font-size:26px; line-height:30px; text-align:center;
+    filter:drop-shadow(0 2px 3px rgba(0,0,0,.5)); transition:transform .2s; }
+  .walker.walking{ animation:walkBounce .6s infinite; }
+  @keyframes walkBounce{
+    0%,100%{ transform:translateY(0) rotate(-4deg); }
+    50%{ transform:translateY(-3px) rotate(4deg); }
+  }
 </style>
 <script>
 // Mini SW για auto-update — κάθε φόρτωση ελέγχει αν υπάρχει νέα έκδοση
@@ -296,6 +309,7 @@ if('serviceWorker' in navigator){
     <button onclick="openKtimViewer('1945')" style="width:100%;background:#0a1e35;border:1px solid #f59e0b;color:#f59e0b;border-radius:7px;padding:6px 8px;cursor:pointer;font-size:12px;margin-bottom:4px">📷 1945–1960 (ΑΣΠ/Β)</button>
     <button onclick="openKtimViewer('2007')" style="width:100%;background:#0a1e35;border:1px solid #f59e0b;color:#f59e0b;border-radius:7px;padding:6px 8px;cursor:pointer;font-size:12px">📷 2007–2009 (έγχρωμη)</button>
   </div>
+  <button id="clearSelBtn" onclick="clearSelection()" title="Καθαρισμός επιλογών">🗑 Καθαρισμός</button>
   <div id="measureInfo" style="position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:600;background:var(--panel);border:1px solid var(--neon);border-radius:10px;padding:8px 14px;font-size:14px;font-weight:700;color:var(--neon);box-shadow:0 0 12px var(--neon-glow);display:none">📏 Μέτρηση: πάτα σημεία</div>
   <div id="sidePanel" style="position:absolute;top:64px;right:10px;z-index:640;width:196px;max-height:52%;overflow-y:auto;background:rgba(5,16,32,.90);border:1px solid var(--neon);border-radius:10px;padding:8px 10px;font-size:11.5px;line-height:1.5;color:#cfeefc;box-shadow:0 0 10px var(--neon-glow);display:none;font-variant-numeric:tabular-nums"></div>
 </div>
@@ -335,10 +349,23 @@ if('serviceWorker' in navigator){
   <div class="actions">
     <button class="b-act" id="gpsBtn" title="Κέντραρε στη θέση μου"><span class="a-ico">📍</span><span class="a-lbl">Θέση μου</span></button>
     <button class="b-act" id="navBtn" title="Πλοήγηση στο σημείο του σταυρονήματος"><span class="a-ico">🧭</span><span class="a-lbl">Στο σημείο</span></button>
+    <button class="b-act" id="xyBtn" onclick="toggleXY()" title="Εισαγωγή συντεταγμένων σημείου"><span class="a-ico">⌨</span><span class="a-lbl">ΧΥ σημείο</span></button>
     <button class="b-act b-act-main" id="ktimBtn" onclick="openKtimatologio()"><span class="a-ico">🗺️</span><span class="a-lbl">Κτηματολόγιο</span></button>
     <button class="b-act" id="helpBtn" onclick="toggleHelp()" title="Οδηγίες χρήσης"><span class="a-ico">❔</span><span class="a-lbl">Οδηγίες</span></button>
   </div>
-  <div id="helpOvl" style="display:none;position:fixed;inset:0;z-index:900;background:rgba(2,8,18,.82);backdrop-filter:blur(3px)" onclick="if(event.target===this)toggleHelp()">
+  <div id="xyPanel" style="display:none;margin-top:6px;background:var(--panel2);border:1px solid var(--neon);border-radius:10px;padding:8px 10px">
+    <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Συντεταγμένες σημείου — ΕΓΣΑ'87 (Χ,Υ) ή WGS84 (lon,lat / lat,lon)</div>
+    <div style="display:flex;gap:6px">
+      <input id="xyX" type="text" inputmode="decimal" placeholder="Χ / lon" style="flex:1;min-width:0;padding:8px 10px;background:var(--panel);border:1px solid var(--neon);border-radius:8px;color:var(--neon);font-weight:700;font-size:13px;font-variant-numeric:tabular-nums">
+      <input id="xyY" type="text" inputmode="decimal" placeholder="Υ / lat" style="flex:1;min-width:0;padding:8px 10px;background:var(--panel);border:1px solid var(--neon);border-radius:8px;color:var(--neon);font-weight:700;font-size:13px;font-variant-numeric:tabular-nums"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();goToXY(false);}">
+    </div>
+    <div style="display:flex;gap:6px;margin-top:6px">
+      <button onclick="goToXY(false)" style="flex:1;padding:8px 0;background:var(--panel);border:1px solid var(--neon);color:var(--neon);border-radius:8px;font-weight:700;font-size:12px;cursor:pointer">🎯 Μετάβαση</button>
+      <button onclick="goToXY(true)" style="flex:1;padding:8px 0;background:var(--panel);border:1px solid #e67e22;color:#e67e22;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer">🧭 Ορισμός στόχου</button>
+    </div>
+  </div>
+  <div id="helpOvl" style"display:none;position:fixed;inset:0;z-index:900;background:rgba(2,8,18,.82);backdrop-filter:blur(3px)" onclick="if(event.target===this)toggleHelp()">
     <div style="max-width:560px;margin:5vh auto;max-height:88vh;overflow-y:auto;background:var(--panel);border:1px solid var(--neon);border-radius:14px;padding:18px 20px;font-size:13.5px;line-height:1.65;color:#d9f2fc;box-shadow:0 0 24px var(--neon-glow)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <b style="color:var(--neon);font-size:16px">❔ Οδηγίες — Hexis Cadastral</b>
@@ -348,7 +375,19 @@ if('serviceWorker' in navigator){
       <p><b style="color:#22d3ee">🔎 Αναζήτηση ΚΑΕΚ.</b> Ξέρεις τον αριθμό; Γράψ' τον στο πεδίο (12 ψηφία, δέχεται και ΕΚ) και το 🔎 σε πηγαίνει πάνω του με zoom.</p>
       <p><b style="color:#22d3ee">⬇ DXF.</b> Με επιλεγμένο γεωτεμάχιο, κατεβάζει σχέδιο σε ΕΓΣΑ'87: κύριο + όμορα + κοινόχρηστα σε layers (KAEK_MAIN / KAEK_OMORA / KAEK_EK) με ετικέτες ΚΑΕΚ — ανοίγει κατευθείαν στο CAD πάνω στο τοπογραφικό.</p>
       <p><b style="color:#22d3ee">📏 Χάρακας & ✏️ Πολύγωνο με κούμπωμα.</b> Πλησιάζοντας κορυφή γεωτεμαχίου εμφανίζεται πράσινος δακτύλιος και το κλικ κουμπώνει ακριβώς πάνω της (πράσινη κουκκίδα = δεμένο σε κορυφή ΚΤ). Δεξιά ανοίγει παράθυρο με κάθε κορυφή σε ΕΓΣΑ'87, μήκη πλευρών και — στο πολύγωνο — εμβαδόν, περίμετρο, κορυφές. Διπλό κλικ καθαρίζει, ξαναπάτημα του εργαλείου το κλείνει.</p>
-      <p><b style="color:#22d3ee">ΚΤ · 📍 · 🗺️.</b> Το «ΚΤ» ανάβει το επίσημο υπόβαθρο ορίων Κτηματολογίου (από zoom ~16). Το «Θέση μου» σε κεντράρει με GPS. Το «Άνοιγμα Κτηματολογίου» ανοίγει τον επίσημο θεατή με τις τρέχουσες συντεταγμένες.</p>
+      <p><b style="color:#22d3ee">🗑 Καθαρισμός επιλογών.</b> Όταν έχεις επιλεγμένα γεωτεμάχια, εμφανίζεται κουμπί «Καθαρισμός» στο κάτω μέρος του χάρτη — ένα πάτημα σβήνει κύριο, όμορα, ΕΚ, καρτελάκια και στατιστικά.</p>
+      <p><b style="color:#22d3ee">📍 Live tracking (κινητό/tablet).</b> Το «Θέση μου» ξεκινά συνεχή παρακολούθηση: η πινέζα σου κινείται σε πραγματικό χρόνο με κύκλο ακρίβειας (±μ) και ο χάρτης σε ακολουθεί. Αν σύρεις τον χάρτη ή ψάξεις ΚΑΕΚ, το follow παύει και εμφανίζεται κουμπί «⌖ Επιστροφή στη θέση μου» — πάτα το για να ξαναγυρίσει πάνω σου. Ξαναπάτημα του 📍 (⏸ Stop) τερματίζει το tracking. <i style="opacity:.8">Σημ.: το GPS κινητού δίνει ±3–10 μ — για αναγνώριση στο πεδίο, όχι για χάραξη ακριβείας.</i></p>
+      <p><b style="color:#22d3ee">🧭 Πλοήγηση σε σημείο.</b> Κεντράρισε το σταυρόνημα στο σημείο που θες να πας (ή βρες το με ΚΑΕΚ) και πάτα «Στο σημείο»: μπαίνει σημαία 🚩, πορτοκαλί γραμμή πορείας από τη θέση σου, και πάνελ με ζωντανή <b>απόσταση</b> και <b>πορεία</b> (αζιμούθιο σε μοίρες + πυξίδα, υπολογισμένα σε ΕΓΣΑ'87). Στη θέση σου εμφανίζεται ανθρωπάκι που περπατάει 🚶 όσο κινείσαι και στέκεται 🧍 όταν σταματάς. Κάτω από 5 μ: «✅ Έφτασες!». Λειτουργεί σαν stakeout αναγνώρισης — σε πάει στο σωστό χωράφι, η ακριβής χάραξη γίνεται με RTK. Ακύρωση με ✕ ή ξαναπάτημα του 🧭.</p>
+      <p><b style="color:#22d3ee">⌨ ΧΥ σημείο — εισαγωγή συντεταγμένων.</b> Όταν έχεις τις συντεταγμένες από τοπογραφικό, απόσπασμα ΚΤ ή πίνακα κορυφών, δεν χρειάζεται να «στρώνεις» τον χάρτη με το χέρι. Πάτα «⌨ ΧΥ σημείο», δώσε το ζεύγος και διάλεξε:</p>
+      <p style="margin-left:12px"><b>🎯 Μετάβαση</b> — ο χάρτης κεντράρει στο σημείο με πλήρες zoom. Το σταυρόνημα πέφτει ακριβώς πάνω του, οπότε με ένα κλικ βλέπεις και το ΚΑΕΚ του γεωτεμαχίου εκεί.<br>
+      <b>🧭 Ορισμός στόχου</b> — μπαίνει κατευθείαν η σημαία 🚩 στο σημείο και ξεκινά η πλοήγηση (γραμμή πορείας, απόσταση, αζιμούθιο, ανθρωπάκι) — ιδανικό όταν πηγαίνεις σε κορυφή ή σημείο ελέγχου που ξέρεις μόνο από συντεταγμένες.</p>
+      <p style="margin-left:12px;font-size:12.5px;opacity:.9">Τι δέχονται τα πεδία — η αναγνώριση είναι αυτόματη:<br>
+      • <b>ΕΓΣΑ'87</b> σε μέτρα: π.χ. Χ <span style="font-variant-numeric:tabular-nums">213815.25</span>, Υ <span style="font-variant-numeric:tabular-nums">4303326.02</span>. Αν τα βάλεις ανάποδα, τα διορθώνει μόνο του (το Υ είναι πάντα το μεγάλο, &gt;3.800.000).<br>
+      • <b>WGS84</b> δεκαδικές μοίρες: είτε lon,lat είτε lat,lon — για Ελλάδα ξεχωρίζει αυτόματα ποιο είναι ποιο.<br>
+      • <b>Επικολλημένο ζεύγος</b> σε ένα πεδίο («213815.25 4303326.02» ή με κόμμα) — σπάει μόνο του σε Χ και Υ.<br>
+      • Κόμμα ως υποδιαστολή γίνεται δεκτό· Enter στο πεδίο Υ = Μετάβαση.<br>
+      • Αν το σημείο βγαίνει εκτός Ελλάδας, απορρίπτεται ως λάθος εισαγωγή αντί να σε πάει «στη μέση του πουθενά».</p>
+      <p><b style="color:#22d3ee">ΚΤ · 🗺️.</b> Το «ΚΤ» ανάβει το επίσημο υπόβαθρο ορίων Κτηματολογίου (από zoom ~16). Το «Άνοιγμα Κτηματολογίου» ανοίγει τον επίσημο θεατή με τις τρέχουσες συντεταγμένες.</p>
       <p style="opacity:.75;font-size:12px;margin-bottom:0">Ο κόκκινος στόχος στο κέντρο δίνει τις συντεταγμένες ΕΓΣΑ'87/WGS84 του panel — σύρε τον χάρτη ώστε να πέσει στο σημείο και αντέγραψέ τες με τα 📋.</p>
     </div>
   </div>
@@ -1227,6 +1266,21 @@ function clearParcel(){
   if(parcelLayer){ map.removeLayer(parcelLayer); parcelLayer=null; }
   parcelLayers.forEach(l => { try{ map.removeLayer(l); }catch(e){} });
   parcelLayers = [];
+  updateClearBtn();
+}
+
+// ── Κουμπί καθαρισμού επιλογών ΚΑΕΚ (εμφανίζεται μόνο όταν υπάρχει επιλογή)
+function updateClearBtn(){
+  const has = !!parcelLayer || parcelLayers.length > 0;
+  const b = $("clearSelBtn");
+  if(b) b.style.display = has ? "flex" : "none";
+}
+function clearSelection(){
+  clearParcel();
+  map.closePopup();
+  const k = $("kaek"); if(k){ k.textContent = "—"; k.className = "kaek-value empty"; }
+  const st = $("stats"); if(st) st.style.display = "none";
+  setHint("Οι επιλογές καθαρίστηκαν.");
 }
 // Μετατροπή ΕΓΣΑ'87 geometry → latlngs + metrics
 function geomToLatLngs(geom){
@@ -1257,6 +1311,7 @@ function drawAllParcels(parcels){
       if(nk && typeof selectByKaek === "function") selectByKaek(nk);
     });
     parcelLayers.push(lyr);
+    updateClearBtn();
   }
   // Κύριο (στην πινέζα) — έντονο νέον
   drawParcel(parcels[0]);
@@ -1274,6 +1329,7 @@ function drawParcel(parcel){
   }).addTo(map);
   parcelLayer.bindPopup(`<b>${parcel.kaek||"ΚΑΕΚ ;"}</b><br>${g.area.toFixed(1)} m²`);
   parcelLayer.on("click", (ev)=>{ if(measuring || drawing) return; L.DomEvent.stopPropagation(ev); parcelLayer.openPopup(ev.latlng); });
+  updateClearBtn();
   set("area",  el=> el.textContent = Math.round(g.area).toLocaleString("el-GR")+" m²");
   set("perim", el=> el.textContent = Math.round(g.perim)+" m");
   set("verts", el=> el.textContent = g.verts);
@@ -1327,6 +1383,9 @@ const IS_MOBILE = (window.matchMedia && window.matchMedia("(pointer: coarse)").m
 if(!IS_MOBILE){
   if($("gpsBtn")) $("gpsBtn").style.display = "none";
   if($("navBtn")) $("navBtn").style.display = "none";
+  const tb = document.querySelector('#xyPanel button[onclick="goToXY(true)"]');
+  if(tb) tb.style.display = "none";
+  document.querySelector(".actions").style.gridTemplateColumns = "1fr 1.4fr 1fr";
 }
 
 // ───────── GPS (real-time tracking με watchPosition) ─────────
@@ -1344,6 +1403,8 @@ function stopGpsTracking(){
   $("gpsBtn").classList.remove("gps-live");
   hideRecenterBtn();
   if(navLine){ map.removeLayer(navLine); navLine = null; }
+  if(walkerMarker){ map.removeLayer(walkerMarker); walkerMarker = null; }
+  lastFixLL = null;
   if(navPanel) navPanel.querySelector(".nav-info").textContent = "Άναψε το GPS (📍) για απόσταση/πορεία";
   setHint("Το live tracking σταμάτησε.");
 }
@@ -1388,6 +1449,7 @@ $("gpsBtn").onclick = () => {
       hideRecenterBtn();
     }
 
+    updateWalker(ll, pos.coords);
     updateNav();
     $("accWrap").style.display = "inline";
     $("acc").textContent = accuracy.toFixed(0);
@@ -1421,6 +1483,76 @@ function hideRecenterBtn(){
 }
 
 
+
+// ───────── Εισαγωγή συντεταγμένων σημείου ─────────
+// Δέχεται ΕΓΣΑ'87 (Χ,Υ σε μέτρα) ή WGS84 (δεκαδικές μοίρες).
+// Αναγνώριση: τιμές ≤ 90/180 → μοίρες, αλλιώς ΕΓΣΑ'87. Δέχεται και κόμμα
+// ως υποδιαστολή και επικολλημένο ζεύγος "Χ Υ" ή "Χ,Υ" στο πρώτο πεδίο.
+function toggleXY(){
+  const p = $("xyPanel");
+  const show = p.style.display === "none";
+  p.style.display = show ? "block" : "none";
+  $("xyBtn").classList.toggle("gps-live", show);
+  if(show) $("xyX").focus();
+}
+
+function parseXYInput(){
+  let a = ($("xyX").value || "").trim();
+  let b = ($("xyY").value || "").trim();
+  // Επικολλημένο ζεύγος στο πρώτο πεδίο; (π.χ. "213815.25 4303326.02" ή "38.83, 20.70")
+  if(a && !b){
+    const parts = a.split(/[;\s]+|,(?=\s|\d{4,})/).filter(Boolean);
+    if(parts.length >= 2){ a = parts[0]; b = parts[1]; }
+  }
+  // Κόμμα ως υποδιαστολή (μόνο αν δεν υπάρχει τελεία)
+  const norm = s => (s.includes(",") && !s.includes(".")) ? s.replace(",", ".") : s.replace(/,/g,"");
+  const v1 = parseFloat(norm(a)), v2 = parseFloat(norm(b));
+  if(isNaN(v1) || isNaN(v2)) return null;
+
+  // Μοίρες ή ΕΓΣΑ'87;
+  if(Math.abs(v1) <= 180 && Math.abs(v2) <= 90){
+    // lon,lat (σύμβαση των πεδίων) — αλλά αν μοιάζει με lat,lon (Ελλάδα: lat 34–42, lon 19–30) διόρθωσε
+    let lon = v1, lat = v2;
+    if(v1 >= 33 && v1 <= 42 && v2 >= 19 && v2 <= 30){ lat = v1; lon = v2; }
+    return L.latLng(lat, lon);
+  }
+  // ΕΓΣΑ'87: Χ ~ 100000–900000, Υ ~ 3800000–4600000 — αν είναι ανάποδα, διόρθωσε
+  let X = v1, Y = v2;
+  if(v1 > 1000000 && v2 < 1000000){ X = v2; Y = v1; }
+  try{
+    const [lon, lat] = proj4("EPSG:2100","EPSG:4326",[X, Y]);
+    if(lat < 30 || lat > 45 || lon < 15 || lon > 35) return null;  // εκτός Ελλάδας → λάθος είσοδος
+    return L.latLng(lat, lon);
+  }catch(e){ return null; }
+}
+
+function goToXY(asTarget){
+  const ll = parseXYInput();
+  if(!ll){ setHint("Μη έγκυρες συντεταγμένες. Δώσε ΕΓΣΑ'87 (Χ Υ) ή WGS84 μοίρες.", "err"); return; }
+  if(typeof gpsWatchId !== "undefined" && gpsWatchId !== null){ gpsFollow = false; showRecenterBtn(); }
+  map.setView(ll, 19);
+  if(asTarget){
+    if(navTarget) stopNav();                 // αντικατάσταση τυχόν παλιού στόχου
+    navTarget = ll;
+    navMarker = L.marker(navTarget, {
+      icon: L.divIcon({ className:"", html:"<div style='font-size:26px;line-height:26px;transform:translate(-4px,-24px)'>🚩</div>", iconSize:[26,26] })
+    }).addTo(map);
+    navPanel = document.createElement("div");
+    navPanel.id = "navPanel";
+    navPanel.innerHTML = '<span class="nav-info">—</span><button id="navStop" title="Ακύρωση">✕</button>';
+    document.body.appendChild(navPanel);
+    navPanel.querySelector("#navStop").onclick = ()=>{ stopNav(); setHint("Η πλοήγηση σταμάτησε."); };
+    $("navBtn").querySelector(".a-ico").textContent="✕"; $("navBtn").querySelector(".a-lbl").textContent="Ακύρωση";
+    $("navBtn").classList.add("gps-live");
+    if(liveMarker){ setHint("Πλοήγηση ενεργή προς το σημείο.", "ok"); updateWalker(liveMarker.getLatLng(), {speed:0}); }
+    else setHint("Στόχος ορίστηκε. Πάτα 📍 για live tracking και δες απόσταση/πορεία.", "");
+    updateNav();
+  } else {
+    setHint("Ο χάρτης κεντράρισε στο σημείο.", "ok");
+  }
+  toggleXY();
+}
+
 // ───────── Πλοήγηση σε σημείο (σταυρόνημα → στόχος) ─────────
 // Χρήση: κεντράρεις το σταυρόνημα στο σημείο που θες να πας, πατάς «🧭 Πήγαινε
 // στο σημείο». Μπαίνει σημαία στόχου, γραμμή από την πινέζα σου, και ζωντανή
@@ -1448,6 +1580,48 @@ function fmtDist(m){
   return m >= 1000 ? (m/1000).toFixed(2)+" km" : m.toFixed(m<100?1:0)+" m";
 }
 
+
+// ── Ανθρωπάκι πλοήγησης: 🚶 όταν κινείσαι, 🧍 όταν στέκεσαι ──
+let walkerMarker = null;
+let lastFixLL = null, lastFixT = 0;
+
+function walkerIcon(moving){
+  return L.divIcon({
+    className: "",
+    html: '<div class="walker'+(moving?" walking":"")+'">'+(moving?"🚶":"🧍")+"</div>",
+    iconSize: [30,30], iconAnchor: [15,26]
+  });
+}
+
+function updateWalker(ll, coords){
+  // Μόνο με ενεργή πλοήγηση — αλλιώς μένει η απλή πινέζα
+  if(!navTarget){
+    if(walkerMarker){ map.removeLayer(walkerMarker); walkerMarker = null; }
+    if(liveMarker) liveMarker.setStyle({opacity:1, fillOpacity:.9});
+    return;
+  }
+  // Κινείσαι; speed από GPS αν υπάρχει, αλλιώς από διαδοχικά fixes
+  const now = Date.now();
+  let moving = false;
+  if(coords.speed != null && !isNaN(coords.speed)){
+    moving = coords.speed > 0.4;                     // > ~1.4 km/h
+  } else if(lastFixLL && now - lastFixT > 0){
+    const {dist} = distBearingEGSA(lastFixLL, L.latLng(ll));
+    const dt = (now - lastFixT) / 1000;
+    moving = (dist / dt) > 0.4;
+  }
+  lastFixLL = L.latLng(ll); lastFixT = now;
+
+  if(!walkerMarker){
+    walkerMarker = L.marker(ll, { icon: walkerIcon(moving), interactive:false, zIndexOffset:1000 }).addTo(map);
+  } else {
+    walkerMarker.setLatLng(ll);
+    walkerMarker.setIcon(walkerIcon(moving));
+  }
+  // Η κουκκίδα GPS γίνεται διακριτική κάτω από το ανθρωπάκι
+  if(liveMarker) liveMarker.setStyle({opacity:.4, fillOpacity:.3});
+}
+
 function updateNav(){
   if(!navTarget) return;
   if(!liveMarker){
@@ -1470,6 +1644,8 @@ function updateNav(){
 
 function stopNav(){
   navTarget = null;
+  if(walkerMarker){ map.removeLayer(walkerMarker); walkerMarker = null; }
+  if(liveMarker) liveMarker.setStyle({opacity:1, fillOpacity:.9});
   if(navMarker){ map.removeLayer(navMarker); navMarker = null; }
   if(navLine){ map.removeLayer(navLine); navLine = null; }
   if(navPanel){ navPanel.remove(); navPanel = null; }
@@ -1501,6 +1677,7 @@ $("navBtn").onclick = () => {
     setHint("Στόχος ορίστηκε. Πάτα 📍 για live tracking και δες απόσταση/πορεία.", "");
   } else {
     setHint("Πλοήγηση ενεργή προς το σημείο.", "ok");
+    updateWalker(liveMarker.getLatLng(), {speed:0});
   }
   updateNav();
 };
