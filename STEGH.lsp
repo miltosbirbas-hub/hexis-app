@@ -775,7 +775,8 @@ PLACEHOLDER
       *tm-KER* 5.0 *tm-TTH* 10.0 *tm-PET* 2.0 *tm-EPI* 4.0
       *tm-TEG* 5.0 *tm-DZ* 0.30 *tm-AM* 16.0 *tm-AMB* 10.0
       *tm-EL* 18.0 *tm-ORT* 12.0 *tm-ANT* 10.0 *tm-STR* 12.0
-      *tm-OVH* 0.60 *tm-WALL* 0.25 *tm-DIST* 0.80)
+      *tm-OVH* 0.60 *tm-WALL* 0.25 *tm-DIST* 0.80
+      *tm-KOR* 10.0 *tm-KORH* 20.0 *tm-KAV* 18.0 *tm-KAVH* 6.0)
 
 ;; ---- γεωμετρικά βοηθητικά ----
 (defun tm-adv (p ang d)
@@ -785,9 +786,16 @@ PLACEHOLDER
 (defun tm-q (a b c d lyr) (st-pline (list a b c d) lyr))
 
 ;; ζώνη κατά μήκος ang, μήκος LL, από offset o1 έως o2
-(defun tm-band (p ang LL o1 o2 lyr)
-  (tm-q (tm-off p ang o1) (tm-off (tm-adv p ang LL) ang o1)
-        (tm-off (tm-adv p ang LL) ang o2) (tm-off p ang o2) lyr))
+;; vc=1 -> ΚΑΤΑΚΟΡΥΦΗ κοπή στο μακρινό άκρο (κορφιάς): κάθε παρειά
+;;         επιμηκύνεται κατά o*tan(ang) ώστε να πέσουν στην ΙΔΙΑ κατακόρυφο
+(defun tm-band (p ang LL o1 o2 lyr vc / L1 L2 tn)
+  (if (= vc 1)
+    (progn
+      (setq tn (/ (sin ang) (cos ang)))
+      (setq L1 (+ LL (* o1 tn)) L2 (+ LL (* o2 tn))))
+    (setq L1 LL L2 LL))
+  (tm-q (tm-off p ang o1) (tm-off (tm-adv p ang L1) ang o1)
+        (tm-off (tm-adv p ang L2) ang o2) (tm-off p ang o2) lyr))
 
 ;; δοκός πλάτους w με άξονα p1->p2
 (defun tm-beam (p1 p2 w lyr / ang h)
@@ -897,41 +905,54 @@ PLACEHOLDER
   (setq v (atof (get_tile "dz"))) (if (> v 0.05) (setq *tm-DZ* v))
   (tm-info))
 
-;; ---- ΜΙΑ ΚΛΙΣΗ: αμείβοντας + στρώσεις + τεγίδες ----
-;; H0 = πόδι στη γραμμή του τοίχου, ang = γωνία ανόδου, LR = μήκος κλίσης
-(defun tm-slope (H0 ang LR ovh am pet tth epi tg ker dz / P0 LT o1 o2 o3 o4 o5 s)
+;; ---- ΜΙΑ ΚΛΙΣΗ ----
+;; LR  = μήκος ΣΤΡΩΣΕΩΝ (φτάνουν ως τον άξονα, περνούν πάνω από τον κορφιά)
+;; LRr = μήκος ΑΜΕΙΒΟΝΤΑ (ΣΚΑΕΙ στην παρειά του κορφιά - πιο κοντό)
+(defun tm-slope (H0 ang LR LRr ovh am pet tth epi tg ker dz / P0 LT LTr ext o1 o2 o3 o4 o5 s)
   ;; ΠΡΟΣΟΧΗ: στη δεξιά κλίση ang = pi-a, οπότε cos<0 -> abs
-  (setq P0 (tm-adv H0 ang (- 0.0 (/ ovh (abs (cos ang))))))
-  (setq LT (+ LR (/ ovh (abs (cos ang)))))
-  ;; αμείβοντας (ψαλίδι)
-  (tm-band P0 ang LT 0.0 am "TOMI-XYLO")
-  (setq o1 am)                 ; πάνω παρειά αμείβοντα
-  (setq o2 (+ o1 pet))         ; πέτσωμα
-  (setq o3 (+ o2 tth))         ; θερμομόνωση
-  (setq o4 (+ o3 epi))         ; επιτεγίδες
-  (setq o5 (+ o4 tg))          ; τεγίδες
-  (tm-band P0 ang LT o1 o2 "TOMI-PET")
-  ;; φράγμα υδρατμών (γραμμή)
-  (st-line (tm-off P0 ang o2) (tm-off (tm-adv P0 ang LT) ang o2) "TOMI-MEM")
-  (tm-band P0 ang LT o2 o3 "TOMI-MON")
-  ;; στεγανωτική διαπνέουσα μεμβράνη
-  (st-line (tm-off P0 ang o3) (tm-off (tm-adv P0 ang LT) ang o3) "TOMI-MEM")
-  ;; επιτεγίδες (κατά την κλίση -> συνεχής στην τομή)
-  (tm-band P0 ang LT o3 o4 "TOMI-XYLO")
-  ;; τεγίδες (εγκάρσιες -> διακριτές)
+  (setq ext (/ ovh (abs (cos ang))))
+  (setq P0 (tm-adv H0 ang (- 0.0 ext)))
+  (setq LT (+ LR ext) LTr (+ LRr ext))
+  ;; αμείβοντας (ψαλίδι) - σταματάει στον κορφιά
+  (tm-band P0 ang LTr 0.0 am "TOMI-XYLO" 1)
+  (setq o1 am)
+  (setq o2 (+ o1 pet))
+  (setq o3 (+ o2 tth))
+  (setq o4 (+ o3 epi))
+  (setq o5 (+ o4 tg))
+  ;; οι στρώσεις συνεχίζουν ΠΑΝΩ από τον κορφιά ως τον άξονα
+  (tm-band P0 ang LT o1 o2 "TOMI-PET" 1)
+  (st-line (tm-off P0 ang o2) (tm-off (tm-adv P0 ang (+ LT (* o2 (/ (sin ang) (cos ang))))) ang o2) "TOMI-MEM")
+  (tm-band P0 ang LT o2 o3 "TOMI-MON" 1)
+  (st-line (tm-off P0 ang o3) (tm-off (tm-adv P0 ang (+ LT (* o3 (/ (sin ang) (cos ang))))) ang o3) "TOMI-MEM")
+  (tm-band P0 ang LT o3 o4 "TOMI-XYLO" 1)
   (setq s 0.0)
   (while (< s LT)
     ;; το tg ερχεται ΑΡΝΗΤΙΚΟ στη δεξια κλιση (offset) - το ΜΗΚΟΣ θελει abs
-    (tm-band (tm-adv P0 ang s) ang (abs tg) o4 o5 "TOMI-XYLO")
+    (tm-band (tm-adv P0 ang s) ang (abs tg) o4 o5 "TOMI-XYLO" 0)
     (setq s (+ s dz)))
-  ;; κεραμίδια
-  (tm-band P0 ang LT o5 (+ o5 ker) "TOMI-KER")
+  (tm-band P0 ang LT o5 (+ o5 ker) "TOMI-KER" 1)
   (list o1 o2 o3 o4 o5))
+
+;; ---- ΚΑΒΑΛΛΑΡΗΣ (κορυφοκέραμο) ----
+;; τόξο πάνω από την κορυφή, εδράζεται στα κεραμίδια των δύο κλίσεων
+(defun tm-kav (cx cy0 th2 dk hk tk / n i x u yb yo out inn)
+  (setq n 8 out (list) inn (list) i 0)
+  (while (<= i n)
+    (setq x (+ (- cx dk) (* (/ (float i) n) (* 2.0 dk))))
+    (setq u (/ (- x cx) dk))
+    (setq yb (- cy0 (* (abs (- x cx)) th2)))          ; επιφάνεια κεραμιδιών
+    (setq yo (+ yb (* hk (- 1.0 (* u u)))))           ; παραβολικό τόξο
+    (setq out (append out (list (list x yo))))
+    (setq inn (append inn (list (list x (- yo tk)))))
+    (setq i (1+ i)))
+  (st-pline (append out (reverse inn)) "TOMI-KER"))
 
 ;; ---- ΕΝΤΟΛΗ ----
 (defun C:STEGHTOMI ( / *error* dclpath dclid status ins th S half ang LR
                        am amb el ort ant str pet tth epi tg ker ovh ww dz
                        H0 HR A0 AR TOPL o kp kbot at1 at2 hh lx ly lh usedcl kw v
+                       kor korh LRr
                        q1 q2 nteg wtot)
   (defun *error* (msg)
     (if (not (member msg (list "Function cancelled" "quit / exit abort")))
@@ -1037,10 +1058,15 @@ PLACEHOLDER
     (tm-q (list (car H0) (- (cadr H0) el)) (list (car HR) (- (cadr HR) el))
           HR H0 "TOMI-XYLO"))
 
+  ;; --- ΚΟΡΦΙΑΣ: διατομή & ελάχιστο ύψος ώστε να ΣΚΑΝΕ πλήρως τα ψαλίδια ---
+  (setq kor (/ *tm-KOR* 100.0))
+  (setq korh (max (/ *tm-KORH* 100.0) (+ (/ am (cos ang)) 0.03)))
+  (setq LRr (if (= *tm-TYP* "GAB") (/ (- half (/ kor 2.0)) (cos ang)) LR))
+
   ;; --- ΑΜΕΙΒΟΝΤΕΣ + ΣΤΡΩΣΕΙΣ ---
-  (setq o (tm-slope H0 ang LR ovh am pet tth epi tg ker dz))
+  (setq o (tm-slope H0 ang LR LRr ovh am pet tth epi tg ker dz))
   (if (= *tm-TYP* "GAB")
-    (tm-slope HR (- pi ang) LR ovh (- 0.0 am) (- 0.0 pet) (- 0.0 tth)
+    (tm-slope HR (- pi ang) LR LRr ovh (- 0.0 am) (- 0.0 pet) (- 0.0 tth)
               (- 0.0 epi) (- 0.0 tg) (- 0.0 ker) dz))
 
   ;; --- ΕΣΩΤΕΡΙΚΑ ΖΕΥΚΤΟΥ (μόνο δίρριχτη) ---
@@ -1074,78 +1100,92 @@ PLACEHOLDER
                 (list (+ (car at2) (/ ort 2.0)) (cadr at2))
                 (list (- (car at2) (/ ort 2.0)) (cadr at2)) "TOMI-XYLO")))))
 
-  ;; --- ΚΟΡΥΦΟΤΕΓΙΔΑ ---
+  ;; --- ΚΟΡΦΙΑΣ (ΚΟΡΥΦΟΤΕΓΙΔΑ) ---
+  ;; πεντάγωνο με φαλτσαρισμένη κορυφή: τα ψαλίδια σκάνε στις παρειές του
+  (setq q1 (+ (cadr H0) (* (- half (/ kor 2.0)) th) (/ am (cos ang))))  ; παρειά
+  (setq q2 (+ (cadr H0) (* half th) (/ am (cos ang))))                  ; κορυφή
   (if (= *tm-TYP* "GAB")
-    (tm-q (list (- (car A0) (/ tg 2.0)) (+ (cadr A0) (/ am (cos ang))))
-          (list (+ (car A0) (/ tg 2.0)) (+ (cadr A0) (/ am (cos ang))))
-          (list (+ (car A0) (/ tg 2.0)) (+ (cadr A0) (/ am (cos ang)) tg))
-          (list (- (car A0) (/ tg 2.0)) (+ (cadr A0) (/ am (cos ang)) tg)) "TOMI-XYLO"))
+    (st-pline (list
+        (list (- (car A0) (/ kor 2.0)) (- q1 korh))
+        (list (+ (car A0) (/ kor 2.0)) (- q1 korh))
+        (list (+ (car A0) (/ kor 2.0)) q1)
+        (list (car A0) q2)
+        (list (- (car A0) (/ kor 2.0)) q1)) "TOMI-XYLO"))
+
+  ;; --- ΚΑΒΑΛΛΑΡΗΣ (κορυφοκέραμο) πάνω από την κορυφή ---
+  (if (= *tm-TYP* "GAB")
+    (tm-kav (car A0)
+            (+ (cadr H0) (* half th)
+               (/ (+ am pet tth epi tg ker) (cos ang)))
+            th (/ *tm-KAV* 100.0) (/ *tm-KAVH* 100.0) (/ ker 2.0)))
 
   ;; --- ΜΠΑΛΕΣ ΑΝΑΦΟΡΑΣ ΜΕ LEADER ΠΑΝΩ ΣΤΑ ΣΤΟΙΧΕΙΑ ---
   (setq lh (/ S 70.0))
   (if (< lh 0.045) (setq lh 0.045))
-  (setq q1 (tm-adv H0 ang (- 0.0 (/ ovh (abs (cos ang))))))   ; εξωτ. άκρο γείσου
-  (setq q2 (+ LR (/ ovh (abs (cos ang)))))                    ; μήκος κλίσης
-  (setq o1 (nth 0 o) o2 (nth 1 o) kp (nth 2 o) at1 (nth 3 o) at2 (nth 4 o))
-  (setq wtot (+ at2 ker 0.55))                                ; ακτίνα μπαλών
-  ;; οι τεγίδες ειναι ΔΙΑΚΡΙΤΕΣ ανα dz -> κεντραρε το βελος ΠΑΝΩ σε τεγιδα
-  (setq nteg (/ (+ (* (fix (/ (* 0.70 q2) dz)) dz) (/ tg 2.0)) q2))
+  (setq kp (tm-adv H0 ang (- 0.0 (/ ovh (abs (cos ang))))))   ; εξωτ. άκρο γείσου
+  (setq kbot (+ LR (/ ovh (abs (cos ang)))))                  ; μήκος στρώσεων
+  (setq o1 (nth 0 o) o2 (nth 1 o) at1 (nth 3 o) at2 (nth 4 o))
+  (setq wtot (+ at2 ker 0.55))
+  (setq nteg (/ (+ (* (fix (/ (* 0.70 kbot) dz)) dz) (/ tg 2.0)) kbot))
 
-  ;; ΣΤΡΩΣΕΙΣ (1-8) — βεντάλια κατά μήκος της κλίσης
+  ;; ΣΤΡΩΣΕΙΣ — βεντάλια κατά μήκος της κλίσης
   (foreach it (list
-      (list 1 (+ at2 (/ ker 2.0)) 0.80)
-      (list 2 (/ (+ at1 at2) 2.0) nteg)
-      (list 3 (/ (+ kp at1) 2.0)  0.60)
-      (list 4 kp                  0.50)
-      (list 5 (/ (+ o2 kp) 2.0)   0.41)
-      (list 6 o2                  0.32)
-      (list 7 (/ (+ o1 o2) 2.0)   0.24)
-      (list 8 (/ o1 2.0)          0.16))
-    (tm-bub (tm-off (tm-adv q1 ang (* (caddr it) q2)) ang (cadr it))
-            (tm-off (tm-adv q1 ang (* (caddr it) q2)) ang wtot)
+      (list 1 (+ at2 (/ ker 2.0))      0.80)
+      (list 3 (/ (+ at1 at2) 2.0)      nteg)
+      (list 4 (/ (+ (nth 2 o) at1) 2.0) 0.60)
+      (list 5 (nth 2 o)                0.50)
+      (list 6 (/ (+ o2 (nth 2 o)) 2.0) 0.41)
+      (list 7 o2                       0.32)
+      (list 8 (/ (+ o1 o2) 2.0)        0.24)
+      (list 9 (/ o1 2.0)               0.16))
+    (tm-bub (tm-off (tm-adv kp ang (* (caddr it) kbot)) ang (cadr it))
+            (tm-off (tm-adv kp ang (* (caddr it) kbot)) ang wtot)
             (car it) lh "TOMI-TXT"))
 
-  ;; ΔΟΜΙΚΑ ΣΤΟΙΧΕΙΑ (9-15)
+  ;; 2 ΚΑΒΑΛΛΑΡΗΣ + 10 ΚΟΡΦΙΑΣ
+  (if (= *tm-TYP* "GAB")
+    (progn
+      (tm-bub (list (car A0)
+                    (+ (cadr H0) (* half th)
+                       (/ (+ am pet tth epi tg ker) (cos ang))
+                       (* (/ *tm-KAVH* 100.0) 0.5)))
+              (list (+ (car A0) (* half 0.42)) (+ (cadr A0) wtot))
+              2 lh "TOMI-TXT")
+      (tm-bub (list (+ (car A0) (/ kor 4.0)) (- q1 (/ korh 2.0)))
+              (list (+ (car A0) (* half 0.62)) (- q2 (* half th 0.18)))
+              10 lh "TOMI-TXT")))
+
+  ;; ΔΟΜΙΚΑ ΣΤΟΙΧΕΙΑ
   (if (and (= *tm-TYP* "GAB") (/= *tm-ZEV* "APLO"))
     (progn
-      ;; 9 αντηρίδα — μέσο της διαγωνίου
       (tm-bub (list (- (car A0) (/ half 4.0)) (+ (cadr H0) (* (/ half 4.0) th) 0.10))
               (list (- (car A0) (* half 0.55)) (+ (cadr H0) (* half th 0.42)))
-              9 lh "TOMI-TXT")
-      ;; 10 ορθοστάτης
-      (tm-bub (list (car A0) (+ (cadr H0) (* half th 0.55)))
-              (list (+ (car A0) (* half 0.30)) (+ (cadr H0) (* half th 0.62)))
-              10 lh "TOMI-TXT")
-      ;; 11 μεταλλική λάμα ανάρτησης
+              11 lh "TOMI-TXT")
+      (tm-bub (list (car A0) (+ (cadr H0) (* half th 0.50)))
+              (list (+ (car A0) (* half 0.30)) (+ (cadr H0) (* half th 0.58)))
+              12 lh "TOMI-TXT")
       (tm-bub (list (car A0) (+ (cadr H0) 0.10))
               (list (+ (car A0) (* half 0.34)) (- (cadr H0) 0.55))
-              11 lh "TOMI-TXT")))
-  ;; 12 ελκυστήρας
+              13 lh "TOMI-TXT")))
   (if (= *tm-TYP* "GAB")
     (tm-bub (list (+ (car H0) (* S 0.30)) (- (cadr H0) (/ el 2.0)))
             (list (+ (car H0) (* S 0.30)) (- (cadr H0) 0.75))
-            12 lh "TOMI-TXT"))
-  ;; 13 στρωτήρας / μηκίδα
+            14 lh "TOMI-TXT"))
   (tm-bub (list (+ (car ins) (/ str 2.0)) (+ (cadr ins) (/ str 2.0)))
           (list (- (car ins) 0.75) (- (cadr ins) 0.30))
-          13 lh "TOMI-TXT")
-  ;; 14 κορυφοτεγίδα
-  (if (= *tm-TYP* "GAB")
-    (tm-bub (list (car A0) (+ (cadr A0) (/ am (cos ang)) (/ tg 2.0)))
-            (list (car A0) (+ (cadr A0) (/ am (cos ang)) wtot))
-            14 lh "TOMI-TXT"))
-  ;; 15 τοιχοποιία
+          15 lh "TOMI-TXT")
   (tm-bub (list (+ (car ins) (/ ww 2.0)) (- (cadr ins) 0.45))
           (list (- (car ins) 0.75) (- (cadr ins) 0.75))
-          15 lh "TOMI-TXT")
+          16 lh "TOMI-TXT")
 
-  ;; --- ΥΠΟΜΝΗΜΑ (αριθμημένο, με μπάλες) ---
+  ;; --- ΥΠΟΜΝΗΜΑ ---
   (setq lx (+ (car ins) S 1.30) ly (+ (cadr A0) (* lh 4.0)))
   (st-txt (list (+ lx (* lh 9.0)) (+ ly (* lh 2.6))) (* lh 1.25)
           "\U+03A5\U+03A0\U+039F\U+039C\U+039D\U+0397\U+039C\U+0391 \U+03A5\U+039B\U+0399\U+039A\U+03A9\U+039D" "TOMI-TXT")
   (setq nteg 1)
   (foreach ln (list
     (strcat "\U+039A\U+0395\U+03A1\U+0391\U+039C\U+0399\U+0394\U+0399\U+0391 " (rtos *tm-KER* 2 1) " cm")
+    (strcat "\U+039A\U+0391\U+0392\U+0391\U+039B\U+039B\U+0391\U+03A1\U+0397\U+03A3 (\U+039A\U+039F\U+03A1\U+03A5\U+03A6\U+039F\U+039A\U+0395\U+03A1\U+0391\U+039C\U+039F) \U+03C0\U+03BB. " (rtos (* 2.0 *tm-KAV*) 2 0) " cm")
     (strcat "\U+03A4\U+0395\U+0393\U+0399\U+0394\U+0395\U+03A3 " (rtos *tm-TEG* 2 1) "x" (rtos *tm-TEG* 2 1) " cm \U+03B1\U+03BD\U+03AC " (rtos dz 2 2) " m")
     (strcat "\U+0395\U+03A0\U+0399\U+03A4\U+0395\U+0393\U+0399\U+0394\U+0395\U+03A3 " (rtos *tm-EPI* 2 1) " cm - \U+03B1\U+03B5\U+03C1\U+03B9\U+03B6\U+03CC\U+03BC\U+03B5\U+03BD\U+03BF \U+03B4\U+03B9\U+03AC\U+03BA\U+03B5\U+03BD\U+03BF")
     "\U+03A3\U+03A4\U+0395\U+0393\U+0391\U+039D\U+03A9\U+03A4\U+0399\U+039A\U+0397 \U+0394\U+0399\U+0391\U+03A0\U+039D\U+0395\U+039F\U+03A5\U+03A3\U+0391 \U+039C\U+0395\U+039C\U+0392\U+03A1\U+0391\U+039D\U+0397"
@@ -1153,12 +1193,13 @@ PLACEHOLDER
     "\U+03A6\U+03A1\U+0391\U+0393\U+039C\U+0391 \U+03A5\U+0394\U+03A1\U+0391\U+03A4\U+039C\U+03A9\U+039D"
     (strcat "\U+03A0\U+0395\U+03A4\U+03A3\U+03A9\U+039C\U+0391 / \U+03A0\U+0395\U+03A4\U+0391\U+03A5\U+03A1\U+03A9\U+03A3\U+0397 " (rtos *tm-PET* 2 1) " cm")
     (strcat "\U+0391\U+039C\U+0395\U+0399\U+0392\U+039F\U+039D\U+03A4\U+0395\U+03A3 (\U+03A8\U+0391\U+039B\U+0399\U+0394\U+0399\U+0391) " (rtos *tm-AMB* 2 1) "x" (rtos *tm-AM* 2 1) " cm")
+    (strcat "\U+039A\U+039F\U+03A1\U+03A6\U+0399\U+0391\U+03A3 (\U+039A\U+039F\U+03A1\U+03A5\U+03A6\U+039F\U+03A4\U+0395\U+0393\U+0399\U+0394\U+0391) " (rtos *tm-KOR* 2 1) "x"
+            (rtos (* korh 100.0) 2 1) " cm - \U+03C3\U+03BA\U+03AC\U+03BD\U+03B5 \U+03C4\U+03B1 \U+03C8\U+03B1\U+03BB\U+03AF\U+03B4\U+03B9\U+03B1")
     (strcat "\U+0391\U+039D\U+03A4\U+0397\U+03A1\U+0399\U+0394\U+0395\U+03A3 (\U+039D\U+03A4\U+0395\U+03A3\U+03A4\U+0395\U+039A\U+0399\U+0391) " (rtos *tm-ANT* 2 1) " cm")
     (strcat "\U+039F\U+03A1\U+0398\U+039F\U+03A3\U+03A4\U+0391\U+03A4\U+0397\U+03A3 (\U+039C\U+03A0\U+0391\U+039C\U+03A0\U+0391\U+03A3) " (rtos *tm-ORT* 2 1) " cm - \U+039A\U+03A1\U+0395\U+039C\U+0391\U+03A3\U+03A4\U+039F\U+03A3")
     "\U+039C\U+0395\U+03A4\U+0391\U+039B\U+039B\U+0399\U+039A\U+0397 \U+039B\U+0391\U+039C\U+0391 \U+0391\U+039D\U+0391\U+03A1\U+03A4\U+0397\U+03A3\U+0397\U+03A3"
     (strcat "\U+0395\U+039B\U+039A\U+03A5\U+03A3\U+03A4\U+0397\U+03A1\U+0391\U+03A3 (\U+03A0\U+0395\U+039B\U+039C\U+0391) " (rtos *tm-EL* 2 1) "x" (rtos *tm-EL* 2 1) " cm")
     (strcat "\U+03A3\U+03A4\U+03A1\U+03A9\U+03A4\U+0397\U+03A1\U+0391\U+03A3 / \U+039C\U+0397\U+039A\U+0399\U+0394\U+0391 " (rtos *tm-STR* 2 1) " cm")
-    (strcat "\U+039A\U+039F\U+03A1\U+03A5\U+03A6\U+039F\U+03A4\U+0395\U+0393\U+0399\U+0394\U+0391 " (rtos *tm-TEG* 2 1) " cm")
     (strcat "\U+03A4\U+039F\U+0399\U+03A7\U+039F\U+03A0\U+039F\U+0399\U+0399\U+0391 " (rtos ww 2 2) " m"))
     (tm-circ (list lx ly) (* lh 1.05) "TOMI-TXT")
     (st-txt (list lx ly) lh (itoa nteg) "TOMI-TXT")
@@ -1166,7 +1207,7 @@ PLACEHOLDER
     (setq nteg (1+ nteg))
     (setq ly (- ly (* lh 2.4))))
 
-  (setq hh (* half th) nteg (fix (+ 1.0 (/ q2 dz))))
+  (setq hh (* half th) nteg (fix (+ 1.0 (/ kbot dz))))
   (princ (strcat "\n--- STEGHTOMI v2 ---"
     "\n\U+0396\U+03B5\U+03C5\U+03BA\U+03C4\U+03CC: " (cond ((= *tm-ZEV* "APLO") "\U+03B1\U+03C0\U+03BB\U+03CC \U+03C8\U+03B1\U+03BB\U+03AF\U+03B4\U+03B9")
                        ((= *tm-ZEV* "QUEEN") "\U+03BC\U+03B5 \U+03BF\U+03C1\U+03B8\U+03BF\U+03C3\U+03C4\U+03AC\U+03C4\U+03B7 + \U+03C4\U+03B5\U+03B3\U+03BF\U+03C3\U+03C4\U+03AC\U+03C4\U+03B5\U+03C2")
@@ -1175,7 +1216,7 @@ PLACEHOLDER
     "\n\U+0386\U+03BD\U+03BF\U+03B9\U+03B3\U+03BC\U+03B1 " (rtos S 2 2) " m  \U+00B7  \U+03BA\U+03BB\U+03AF\U+03C3\U+03B7 "
     (rtos (/ ang (/ pi 180.0)) 2 1) "\U+00B0 (" (rtos (* th 100.0) 2 1) "%)"
     "\n\U+038E\U+03C8\U+03BF\U+03C2 \U+03BA\U+03BF\U+03C1\U+03C6\U+03B9\U+03AC +" (rtos hh 2 3) " m  \U+00B7  \U+03BC\U+03AE\U+03BA\U+03BF\U+03C2 \U+03B1\U+03BC\U+03B5\U+03AF\U+03B2\U+03BF\U+03BD\U+03C4\U+03B1 "
-    (rtos q2 2 3) " m"
+    (rtos kbot 2 3) " m"
     "\n\U+03A4\U+03B5\U+03B3\U+03AF\U+03B4\U+03B5\U+03C2 \U+03B1\U+03BD\U+03AC \U+03BA\U+03BB\U+03AF\U+03C3\U+03B7: " (itoa nteg) "  \U+00B7  \U+03B6\U+03B5\U+03C5\U+03BA\U+03C4\U+03AC \U+03B1\U+03BD\U+03AC " (rtos *tm-DIST* 2 2) " m"
     "\n\U+03A0\U+03B7\U+03B3\U+03AD\U+03C2: \U+03A4\U+0395\U+0399 \U+0397\U+03C0\U+03B5\U+03AF\U+03C1\U+03BF\U+03C5 \U+03A3\U+03C7.7.1 \U+00B7 \U+0395\U+039C\U+03A0 (\U+03BA\U+03C1\U+03B5\U+03BC\U+03B1\U+03C3\U+03C4\U+03AD\U+03C2 \U+03C3\U+03C4\U+03AD\U+03B3\U+03B5\U+03C2) \U+00B7 \U+0395\U+03C5\U+03C1\U+03C9\U+03BA\U+03CE\U+03B4\U+03B9\U+03BA\U+03B1\U+03C2 5"))
   (princ))
