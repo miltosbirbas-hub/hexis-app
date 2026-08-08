@@ -59,22 +59,28 @@
   a)
 
 ;; ===================== ΚΑΤΑΣΚΕΥΗ ΔΟΜΗΣ =====================
-(defun st-build (pts / n i ea eb b)
-  (setq n (length pts) *SK-E* (list) *SK-V* (list) i 0)
-  (while (< i n)
-    (setq *SK-E* (append *SK-E*
-      (list (st-mkedge (nth i pts) (nth (rem (1+ i) n) pts)))))
-    (setq i (1+ i)))
-  (setq i 0)
-  (while (< i n)
-    (setq ea (rem (+ i (1- n)) n) eb i)
-    (setq b (st-bisect (nth ea *SK-E*) (nth eb *SK-E*)))
-    (setq *SK-V* (append *SK-V* (list
-      (list (car (nth i pts)) (cadr (nth i pts)) 0.0 ea eb
-            (rem (+ i (1- n)) n) (rem (1+ i) n) 1 (car b) (cadr b)
-            (if (st-reflexp (nth ea *SK-E*) (nth eb *SK-E*)) 1 0)))))
-    (setq i (1+ i)))
-  n)
+(defun st-build (loops / n i ea eb b e0 v0 lp tot)
+  ;; loops = λίστα βρόχων: (εξωτερικό CCW  τρύπα1 CW  τρύπα2 CW ...)
+  ;; δέχεται και ΕΝΑ σκέτο περίγραμμα (το τυλίγει)
+  (if (numberp (car (car loops))) (setq loops (list loops)))
+  (setq *SK-E* (list) *SK-V* (list) tot 0)
+  (foreach lp loops
+    (setq n (length lp) e0 (length *SK-E*) v0 (length *SK-V*) i 0)
+    (while (< i n)
+      (setq *SK-E* (append *SK-E*
+        (list (st-mkedge (nth i lp) (nth (rem (1+ i) n) lp)))))
+      (setq i (1+ i)))
+    (setq i 0)
+    (while (< i n)
+      (setq ea (+ e0 (rem (+ i (1- n)) n)) eb (+ e0 i))
+      (setq b (st-bisect (nth ea *SK-E*) (nth eb *SK-E*)))
+      (setq *SK-V* (append *SK-V* (list
+        (list (car (nth i lp)) (cadr (nth i lp)) 0.0 ea eb
+              (+ v0 (rem (+ i (1- n)) n)) (+ v0 (rem (1+ i) n)) 1 (car b) (cadr b)
+              (if (st-reflexp (nth ea *SK-E*) (nth eb *SK-E*)) 1 0)))))
+      (setq i (1+ i)))
+    (setq tot (+ tot n)))
+  tot)
 
 (defun st-newv (P tt ea eb / b)
   (setq b (st-bisect (nth ea *SK-E*) (nth eb *SK-E*)))
@@ -125,33 +131,43 @@
                 nil
                 (list tt px py)))))))))
 
-(defun st-oppos (iv ie P tt / n cur guard best bestd AA BB ss LL dd go e c edx edy)
+(defun st-oppos (iv ie P tt / n cur best bestd AA BB ss LL dd e edx edy c)
+  ;; ΚΑΘΟΛΙΚΗ αναζήτηση: η ακμή ie μπορεί να ανήκει σε ΑΛΛΟ βρόχο (τρύπα)
+  ;; -> το split event γίνεται ΣΥΓΧΩΝΕΥΣΗ των δύο βρόχων
   (setq e (nth ie *SK-E*) edx (nth 4 e) edy (nth 5 e))
-  (setq n (length *SK-V*) cur (nth 6 (nth iv *SK-V*)) guard 0 best nil bestd nil go 1)
-  (while (and (= go 1) (>= cur 0) (< guard (+ (* 4 n) 8)))
-    (setq guard (1+ guard) c (nth cur *SK-V*))
-    (if (and (= (nth 7 c) 1) (= (nth 4 c) ie) (>= (nth 6 c) 0))
+  (setq n (length *SK-V*) cur 0 best nil bestd nil)
+  (while (< cur n)
+    (setq c (nth cur *SK-V*))
+    (if (and (/= cur iv) (= (nth 7 c) 1) (= (nth 4 c) ie) (>= (nth 6 c) 0)
+             (= (nth 7 (nth (nth 6 c) *SK-V*)) 1))
       (progn
         (setq AA (st-vpos cur tt) BB (st-vpos (nth 6 c) tt))
         (setq ss (+ (* (- (car P) (car AA)) edx) (* (- (cadr P) (cadr AA)) edy)))
         (setq LL (+ (* (- (car BB) (car AA)) edx) (* (- (cadr BB) (cadr AA)) edy)))
         (if (and (>= ss -1e-6) (<= ss (+ LL 1e-6)))
-          (setq best cur go 0)
+          (progn (setq best cur) (setq cur n))
           (progn
             (setq dd (min (abs ss) (abs (- ss LL))))
             (if (or (null bestd) (< dd bestd)) (setq bestd dd best cur))))))
-    (if (= go 1)
-      (progn
-        (setq cur (nth 6 c))
-        (if (or (< cur 0) (= cur iv)) (setq go 0)))))
+    (setq cur (1+ cur)))
   best)
 
 ;; ===================== ΚΥΡΙΟΣ ΒΡΟΧΟΣ =====================
 ;; -> (list arcs nodes)   arc = (p q)   node = (p t)
 (defun st-skel (pts / n it arcs nodes bt bk bia bib bP bie i j r vv nv2
-                     ip inx nv io iy v1 v2 o kk maxit)
-  (if (< (st-area2 pts) 0.0) (setq pts (reverse pts)))
-  (setq n (st-build pts) arcs (list) nodes (list) it 0 maxit (+ 40 (* 12 n)))
+                     ip inx nv io iy v1 v2 o kk maxit loops h)
+  ;; pts: είτε ένα περίγραμμα, είτε λίστα (περίγραμμα τρύπα1 τρύπα2 ...)
+  (if (numberp (car (car pts)))
+    (progn
+      (if (< (st-area2 pts) 0.0) (setq pts (reverse pts)))
+      (setq loops (list pts)))
+    (progn
+      (setq loops (list (if (> (st-area2 (car pts)) 0.0)
+                          (car pts) (reverse (car pts)))))
+      (foreach h (cdr pts)
+        (setq loops (append loops
+          (list (if (< (st-area2 h) 0.0) h (reverse h))))))))
+  (setq n (st-build loops) arcs (list) nodes (list) it 0 maxit (+ 60 (* 16 n)))
   (while (< it maxit)
     (setq it (1+ it) bt nil bk nil bia nil bib nil bP nil bie nil)
     (setq i 0 nv2 (length *SK-V*))
@@ -328,6 +344,14 @@
   (while (< i n)
     (if (< (distance p (nth i pts)) 1e-6) (setq r i))
     (setq i (1+ i)))
+  r)
+
+;; είναι το p κορυφή κάποιας ΤΡΥΠΑΣ;
+(defun st-hidx (p holes / r hp q)
+  (setq r nil)
+  (foreach hp holes
+    (foreach q hp
+      (if (and (null r) (< (distance p q) 1e-6)) (setq r T))))
   r)
 
 (defun st-isrfx (pts i / n a c b)
@@ -549,7 +573,7 @@
                    a b ia ib lyr txh hh cnt1 cnt2 cnt3
                    lowp bi bd pm dd pa pb eang p0 nds sumA nd p
                    xchk badv conn bv usedcl kw v pa2 pb2 lmx lnt lkr
-                   t1 t2 ll kk ff)
+                   t1 t2 ll kk ff holes hss hi he hp ha hb cnt4 ltr)
 
   (defun *error* (msg)
     (if (not (member msg (list "Function cancelled" "quit / exit abort")))
@@ -567,6 +591,7 @@
   (st-layer "STEGH-KORFIAS" 2)
   (st-layer "STEGH-GEISO"  3)
   (st-layer "STEGH-TXT"    6)
+  (st-layer "STEGH-TRYPA"  30)
 
   (setq *st-STEP* "2 - \U+03B5\U+03C0\U+03B9\U+03BB\U+03BF\U+03B3\U+03B7 polyline (entsel)")
   (princ "\n\U+0395\U+03C0\U+03AF\U+03BB\U+03B5\U+03BE\U+03B5 \U+039A\U+039B\U+0395\U+0399\U+03A3\U+03A4\U+0397 polyline \U+03C0\U+03B5\U+03C1\U+03B9\U+03B3\U+03C1\U+03AC\U+03BC\U+03BC\U+03B1\U+03C4\U+03BF\U+03C2 \U+03C3\U+03C4\U+03AD\U+03B3\U+03B7\U+03C2:")
@@ -576,6 +601,23 @@
   (setq pts (st-getpts (car ent)))
   (if (< (length pts) 3)
     (progn (princ "\n\U+03A7\U+03C1\U+03B5\U+03B9\U+03AC\U+03B6\U+03BF\U+03BD\U+03C4\U+03B1\U+03B9 \U+03C4\U+03BF\U+03C5\U+03BB\U+03AC\U+03C7\U+03B9\U+03C3\U+03C4\U+03BF\U+03BD 3 \U+03BA\U+03BF\U+03C1\U+03C5\U+03C6\U+03AD\U+03C2.") (exit)))
+  ;; --- ΤΡΥΠΕΣ: κλειστές polylines ΜΕΣΑ στο περίγραμμα ---
+  (setq *st-STEP* "3b - \U+03B5\U+03C0\U+03B9\U+03BB\U+03BF\U+03B3\U+03B7 \U+03C4\U+03C1\U+03C5\U+03C0\U+03C9\U+03BD (\U+03B1\U+03B9\U+03B8\U+03C1\U+03B9\U+03B1/\U+03BA\U+03BB\U+03B9\U+03BC\U+03B1\U+03BA\U+03BF\U+03C3\U+03C4\U+03B1\U+03C3\U+03B9\U+03B1)")
+  (setq holes (list))
+  (princ "\n\U+0395\U+03C0\U+03AF\U+03BB\U+03B5\U+03BE\U+03B5 \U+03A4\U+03A1\U+03A5\U+03A0\U+0395\U+03A3 (\U+03B1\U+03AF\U+03B8\U+03C1\U+03B9\U+03B1, \U+03B1\U+03C0\U+03BF\U+03BB\U+03AE\U+03BE\U+03B5\U+03B9\U+03C2 \U+03BA\U+03BB\U+03B9\U+03BC\U+03B1\U+03BA\U+03BF\U+03C3\U+03C4\U+03B1\U+03C3\U+03AF\U+03BF\U+03C5) - Enter \U+03B3\U+03B9\U+03B1 \U+03BA\U+03B1\U+03BC\U+03AF\U+03B1:")
+  (setq hss (ssget (list (cons 0 "LWPOLYLINE"))))
+  (if hss
+    (progn
+      (setq hi 0)
+      (while (< hi (sslength hss))
+        (setq he (ssname hss hi))
+        (if (and he (/= he (car ent)))
+          (progn
+            (setq hp (st-clean (st-getpts he)))
+            (if (>= (length hp) 3)
+              (setq holes (append holes (list hp))))))
+        (setq hi (1+ hi)))))
+
   (setq *st-STEP* "4 - \U+03BA\U+03B1\U+03B8\U+03B1\U+03C1\U+03B9\U+03C3\U+03BC\U+03BF\U+03C2 \U+03C0\U+03B5\U+03C1\U+03B9\U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03B1\U+03C4\U+03BF\U+03C2 (st-clean)")
   (if (< (st-area2 pts) 0.0) (setq pts (reverse pts)))
   (setq orig (st-clean pts) n (length orig))
@@ -668,8 +710,9 @@
   (cond
     ;; ---------- ΙΣΟΚΛΙΝΗΣ (straight skeleton) ----------
     ((= *st-TYP* "ISO")
-      (setq *st-STEP* "11 - \U+0395\U+03A0\U+0399\U+039B\U+03A5\U+03A3\U+0397 \U+03A3\U+03A4\U+0395\U+0393\U+0397\U+03A3 (st-skel)")
-      (setq res (st-skel orig))
+      (setq *st-STEP* (strcat "11 - \U+0395\U+03A0\U+0399\U+039B\U+03A5\U+03A3\U+0397 \U+03A3\U+03A4\U+0395\U+0393\U+0397\U+03A3 ("
+                              (itoa (length holes)) " \U+03C4\U+03C1\U+03C5\U+03C0\U+03B5\U+03C2)"))
+      (setq res (st-skel (if holes (append (list orig) holes) orig)))
       (setq arcs (st-arcclean (car res)) nodes (cadr res)))
 
     ;; ---------- ΔΙΡΡΙΧΤΗ ----------
@@ -744,29 +787,34 @@
   ;; ΑΝΤΙΣΤΟΙΧΗ κορυφή του γείσου. Είναι ακριβές: η κορυφή του γείσου
   ;; βρίσκεται πάνω στην ΙΔΙΑ διχοτόμο με τη μαχιά/τον ντερέ.
   (setq *st-STEP* "14 - \U+03C3\U+03C7\U+03B5\U+03B4\U+03B9\U+03B1\U+03C3\U+03B7 \U+03C4\U+03BF\U+03BE\U+03C9\U+03BD (\U+03BC\U+03B5 \U+03B5\U+03C0\U+03B5\U+03BA\U+03C4\U+03B1\U+03C3\U+03B7 \U+03C3\U+03C4\U+03BF \U+03B3\U+03B5\U+03B9\U+03C3\U+03BF)")
-  (setq cnt1 0 cnt2 0 cnt3 0 lmx 0.0 lnt 0.0 lkr 0.0)
+  (setq cnt1 0 cnt2 0 cnt3 0 cnt4 0 lmx 0.0 lnt 0.0 lkr 0.0 ltr 0.0)
   (foreach a arcs
     (setq ia (st-vidx (car a) orig) ib (st-vidx (cadr a) orig))
+    (setq ha (st-hidx (car a) holes) hb (st-hidx (cadr a) holes))
     (setq lyr
       (cond
         ((and ia (st-isrfx orig ia)) "STEGH-NTERES")
         ((and ib (st-isrfx orig ib)) "STEGH-NTERES")
+        ((or ha hb)                  "STEGH-TRYPA")
         ((or ia ib)                  "STEGH-MAXIA")
         (T                           "STEGH-KORFIAS")))
     (cond ((= lyr "STEGH-NTERES") (setq cnt2 (1+ cnt2)))
           ((= lyr "STEGH-MAXIA")  (setq cnt1 (1+ cnt1)))
+          ((= lyr "STEGH-TRYPA")  (setq cnt4 (1+ cnt4)))
           (T                      (setq cnt3 (1+ cnt3))))
     (setq pa (if (and ia gpts) (nth ia gpts) (car a)))
     (setq pb (if (and ib gpts) (nth ib gpts) (cadr a)))
     ;; μήκη ανά είδος -> προμέτρηση ειδικών τεμαχίων
     (cond ((= lyr "STEGH-NTERES") (setq lnt (+ lnt (distance pa pb))))
           ((= lyr "STEGH-MAXIA")  (setq lmx (+ lmx (distance pa pb))))
+          ((= lyr "STEGH-TRYPA")  (setq ltr (+ ltr (distance pa pb))))
           (T                      (setq lkr (+ lkr (distance pa pb)))))
     (st-line pa pb lyr))
 
   (setq *st-STEP* "15 - \U+03C0\U+03B5\U+03C1\U+03B9\U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03B1 + \U+03B3\U+03B5\U+03B9\U+03C3\U+03BF")
   (st-pline orig "STEGH-PERIGR")
   (if gpts (st-pline gpts "STEGH-GEISO"))
+  (foreach hp holes (st-pline hp "STEGH-TRYPA"))
 
   (setq *st-STEP* "16 - \U+03C5\U+03C8\U+03BF\U+03BC\U+03B5\U+03C4\U+03C1\U+03B1 / \U+03B5\U+03C4\U+03B9\U+03BA\U+03B5\U+03C4\U+03B5\U+03C2")
   (setq hmax 0.0)
@@ -796,7 +844,9 @@
     "\n\U+03A4\U+03CD\U+03C0\U+03BF\U+03C2: " (cond ((= *st-TYP* "ISO") "\U+0399\U+03C3\U+03BF\U+03BA\U+03BB\U+03B9\U+03BD\U+03AE\U+03C2") ((= *st-TYP* "GAB") "\U+0394\U+03AF\U+03C1\U+03C1\U+03B9\U+03C7\U+03C4\U+03B7") (T "\U+039C\U+03BF\U+03BD\U+03CC\U+03C1\U+03C1\U+03B9\U+03C7\U+03C4\U+03B7"))
     "  |  \U+039A\U+03BB\U+03AF\U+03C3\U+03B7: " (rtos *st-PIT* 2 1) (if (= *st-PMODE* "PCT") "%" "\U+00B0")
     " (= " (rtos (/ (atan th) (/ pi 180.0)) 2 1) "\U+00B0)"
-    "\n\U+039C\U+03B1\U+03C7\U+03B9\U+03AD\U+03C2: " (itoa cnt1) "  \U+039D\U+03C4\U+03B5\U+03C1\U+03AD\U+03B4\U+03B5\U+03C2: " (itoa cnt2) "  \U+039A\U+03BF\U+03C1\U+03C6\U+03B9\U+03AC\U+03B4\U+03B5\U+03C2: " (itoa cnt3)
+    "\n\U+039C\U+03B1\U+03C7\U+03B9\U+03AD\U+03C2: " (itoa cnt1) "  \U+039D\U+03C4\U+03B5\U+03C1\U+03AD\U+03B4\U+03B5\U+03C2: " (itoa cnt2)
+    "  \U+039A\U+03BF\U+03C1\U+03C6\U+03B9\U+03AC\U+03B4\U+03B5\U+03C2: " (itoa cnt3) "  \U+03A4\U+03C1\U+03CD\U+03C0\U+03B5\U+03C2: " (itoa (length holes))
+    " (" (itoa cnt4) " \U+03B1\U+03BA\U+03BC\U+03AD\U+03C2)"
     "\n\U+03A5\U+03C8\U+03CC\U+03BC\U+03B5\U+03C4\U+03C1\U+03BF \U+03B2\U+03AC\U+03C3\U+03B7\U+03C2: " (st-elev 0.0) " m"
     "\n\U+03A5\U+03C8\U+03CC\U+03BC\U+03B5\U+03C4\U+03C1\U+03BF \U+03BA\U+03BF\U+03C1\U+03C6\U+03B9\U+03AC: " (st-elev hmax) " m  (\U+03C3\U+03C7\U+03B5\U+03C4\U+03B9\U+03BA\U+03CC +" (rtos hmax 2 3) ")"
     (if gpts (strcat "\n\U+03A5\U+03C8\U+03CC\U+03BC\U+03B5\U+03C4\U+03C1\U+03BF \U+03C5\U+03B4\U+03C1\U+03BF\U+03C1\U+03C1\U+03BF\U+03AE\U+03C2: " (st-elev (- 0.0 (* ovh th))) " m") "")
@@ -821,6 +871,9 @@
   ;; --- ΔΕΔΟΜΕΝΑ ΓΙΑ ΤΗΝ ΤΟΜΗ (πραγματική γεωμετρία κάτοψης) ---
   (setq *st-AREA* (abs (/ (st-area2 (if gpts gpts orig)) 2.0)))
   (setq *st-PER*  (st-perim (if gpts gpts orig)))
+  (foreach hp holes
+    (setq *st-AREA* (- *st-AREA* (abs (/ (st-area2 hp) 2.0))))
+    (setq *st-PER*  (+ *st-PER* (st-perim hp))))
   (setq *st-EAVE* *st-PER*)
   (setq *st-HMAX* hmax *st-LMAX* lmx *st-LNT* lnt *st-LKOR* lkr)
   (princ (strcat "\n\n>>> \U+0394\U+03B5\U+03B4\U+03BF\U+03BC\U+03AD\U+03BD\U+03B1 \U+03B3\U+03B9\U+03B1 \U+03C0\U+03C1\U+03BF\U+03BC\U+03AD\U+03C4\U+03C1\U+03B7\U+03C3\U+03B7 (\U+03B1\U+03C0\U+03CC \U+03C4\U+03B7\U+03BD \U+03BA\U+03AC\U+03C4\U+03BF\U+03C8\U+03B7):"
