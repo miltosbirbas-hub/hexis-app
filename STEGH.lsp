@@ -1,4 +1,4 @@
-;;; STEGH.LSP v8.4 — ΠΡΑΓΜΑΤΙΚΟΣ STRAIGHT SKELETON (wavefront propagation)
+;;; STEGH.LSP v8.5 — ΠΡΑΓΜΑΤΙΚΟΣ STRAIGHT SKELETON (wavefront propagation)
 ;;; Edge events + Split events -> μαχιές, ντερέδες, κορφιάδες, υψόμετρα κόμβων.
 ;;; Εντολές:  STEGH (κάτοψη στέγης)  ·  STEGHTOMI (τομή στρώσεων)
 ;;; HEXIS Platform — BRB DEVELOPMENT MON. I.K.E.
@@ -896,11 +896,11 @@
 (defun st-dcl ( / f path tp)
   (setq tp (getvar "TEMPPREFIX"))
   (if (or (null tp) (not (= (type tp) (quote STR)))) (setq tp ""))
-  (setq path (strcat tp "stegh8.dcl"))
+  (setq path (strcat tp "stegh9.dcl"))
   (setq f (open path "w"))
   (if (null f) (setq path nil))
   (if (null f) nil (progn
-  (write-line "stegh8 : dialog {" f)
+  (write-line "stegh9 : dialog {" f)
   (write-line "  label = \"STEGH v8 \U+2014 \U+0395\U+03C0\U+03AF\U+03BB\U+03C5\U+03C3\U+03B7 \U+03A3\U+03C4\U+03AD\U+03B3\U+03B7\U+03C2 (HEXIS)\";" f)
   (write-line "  : row {" f)
   (write-line "    : column {" f)
@@ -918,7 +918,7 @@
   (write-line "      }" f)
   (write-line "      : edit_box { key = \"ovh\"; label = \"\U+03A0\U+03C1\U+03BF\U+03B5\U+03BE\U+03BF\U+03C7\U+03AE \U+03B3\U+03B5\U+03AF\U+03C3\U+03BF\U+03C5 (m):\"; edit_width = 8; }" f)
   (write-line "      : edit_box { key = \"base\"; label = \"\U+03A5\U+03C8\U+03CC\U+03BC\U+03B5\U+03C4\U+03C1\U+03BF \U+03B2\U+03AC\U+03C3\U+03B7\U+03C2 (m):\"; edit_width = 8; }" f)
-  (write-line "      : edit_box { key = \"hcap\"; label = \"\U+039C\U+03AD\U+03B3. \U+03C5\U+03C8\U+03CC\U+03BC. \U+03A4\U+0395\U+039B\U+0395\U+0399\U+03A9\U+039C. \U+03BA\U+03BF\U+03C1\U+03C6\U+03B9\U+03AC (0=\U+03C7\U+03C9\U+03C1\U+03AF\U+03C2):\"; edit_width = 8; }" f)
+  (write-line "      : edit_box { key = \"hcap\"; label = \"\U+039C\U+03B5\U+03B3. \U+03C5\U+03C8\U+03CC\U+03BC. \U+03C4\U+03B5\U+03BB. \U+03BA\U+03BF\U+03C1\U+03C6\U+03B9\U+03AC, 0 \U+03B5\U+03BB\U+03B5\U+03CD\U+03B8\U+03B5\U+03C1\U+03BF:\"; edit_width = 8; }" f)
   (write-line "      : toggle { key = \"gei\"; label = \"\U+03A3\U+03C7\U+03B5\U+03B4\U+03AF\U+03B1\U+03C3\U+03B7 \U+03B3\U+03B5\U+03AF\U+03C3\U+03BF\U+03C5\"; value = \"1\"; }" f)
   (write-line "      : toggle { key = \"lab\"; label = \"\U+03A5\U+03C8\U+03CC\U+03BC\U+03B5\U+03C4\U+03C1\U+03B1 \U+03BA\U+03CC\U+03BC\U+03B2\U+03C9\U+03BD\"; value = \"1\"; }" f)
   (write-line "      : toggle { key = \"tomi\"; label = \"\U+039A\U+03B1\U+03B9 \U+03BB\U+03B5\U+03C0\U+03C4\U+03BF\U+03BC\U+03AD\U+03C1\U+03B5\U+03B9\U+03B1 \U+03C4\U+03BF\U+03BC\U+03AE\U+03C2 (STEGHTOMI)\"; }" f)
@@ -958,8 +958,10 @@
   (setq deg (if (= *st-PMODE* "PCT")
               (strcat (rtos (/ (atan (/ *st-PIT* 100.0)) (/ pi 180.0)) 2 1) "\U+00B0")
               (strcat (rtos *st-PIT* 2 1) "%")))
-  (set_tile "i1" (strcat "\U+039A\U+03BB\U+03AF\U+03C3\U+03B7 " (rtos *st-PIT* 2 1)
-    (if (= *st-PMODE* "PCT") "%" "\U+00B0") "  (= " deg ")"))
+  (if (and *st-HCAP* (> *st-HCAP* 0.0))
+    (set_tile "i1" (strcat "\U+039A\U+03BB\U+03AF\U+03C3\U+03B7: \U+03B1\U+03C0\U+03CC \U+03CC\U+03C1\U+03B9\U+03BF \U+03BA\U+03BF\U+03C1\U+03C6\U+03B9\U+03AC +" (rtos *st-HCAP* 2 2)))
+    (set_tile "i1" (strcat "\U+039A\U+03BB\U+03AF\U+03C3\U+03B7 " (rtos *st-PIT* 2 1)
+      (if (= *st-PMODE* "PCT") "%" "\U+00B0") "  (= " deg ")")))
   (set_tile "i2" (strcat "\U+0393\U+03B5\U+03AF\U+03C3\U+03BF " (rtos *st-OVH* 2 2) " m  \U+00B7  \U+03B2\U+03AC\U+03C3\U+03B7 "
     (st-elev 0.0) " m"))
   (end_image))
@@ -969,7 +971,15 @@
   (setq v (atof (get_tile "ovh"))) (if (>= v 0.0) (setq *st-OVH* v))
   (setq *st-BASE* (atof (get_tile "base")))
   (setq *st-HCAP* (atof (get_tile "hcap")))
+  ;; οριο κορφια > 0 -> η κλιση ΚΛΕΙΔΩΝΕΙ (θα υπολογιστει απο το οριο)
+  (st-lockpit)
   (st-prev))
+
+(defun st-lockpit ( / on)
+  (setq on (if (and *st-HCAP* (> *st-HCAP* 0.0)) 1 0))
+  (mode_tile "pit"   on)
+  (mode_tile "p_pct" on)
+  (mode_tile "p_deg" on))
 
 ;; ===================== ΕΝΤΟΛΗ STEGH =====================
 (defun C:STEGH ( / *error* ent pts orig n dclpath dclid status
@@ -985,7 +995,7 @@
   (defun *error* (msg)
     (if (not (member msg (list "Function cancelled" "quit / exit abort")))
       (progn
-        (princ (strcat "\n*** \U+03A3\U+03A6\U+0391\U+039B\U+039C\U+0391 STEGH v8.4 ***"))
+        (princ (strcat "\n*** \U+03A3\U+03A6\U+0391\U+039B\U+039C\U+0391 STEGH v8.5 ***"))
         (princ (strcat "\n    \U+039C\U+03AE\U+03BD\U+03C5\U+03BC\U+03B1: " msg))
         (princ (strcat "\n    \U+0392\U+0397\U+039C\U+0391 \U+03A0\U+039F\U+03A5 \U+0391\U+03A0\U+0395\U+03A4\U+03A5\U+03A7\U+0395: " *st-STEP*))
         (princ "\n    \U+03A3\U+03C4\U+03B5\U+03B9\U+03BB\U+03B5 \U+03BC\U+03BF\U+03C5 \U+03B1\U+03C5\U+03C4\U+03B7 \U+03C4\U+03B7 \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03B7.\n")))
@@ -1072,7 +1082,7 @@
       (if (and dclid (= (type dclid) (quote INT)) (> dclid 0))
         (progn
           (setq *st-STEP* "8 - new_dialog")
-          (if (new_dialog "stegh8" dclid)
+          (if (new_dialog "stegh9" dclid)
             (setq usedcl 1)
             (progn (unload_dialog dclid) (setq usedcl 0)))))))
 
@@ -1083,6 +1093,7 @@
       (set_tile "ovh" (rtos *st-OVH* 2 2))
       (set_tile "base" (rtos *st-BASE* 2 2))
       (set_tile "hcap" (rtos (if *st-HCAP* *st-HCAP* 0.0) 2 2))
+      (st-lockpit)
       (set_tile (cond ((= *st-TYP* "GAB") "t_gab") ((= *st-TYP* "MON") "t_mon") (T "t_iso")) "1")
       (set_tile (if (= *st-PMODE* "DEG") "p_deg" "p_pct") "1")
       (st-prev)
@@ -1109,11 +1120,15 @@
       (initget "Isoklinis Dirrichti Monorrichti")
       (setq kw (getkword "\n\U+03A4\U+03C5\U+03C0\U+03BF\U+03C2 [Isoklinis/Dirrichti/Monorrichti] <Isoklinis>: "))
       (setq *st-TYP* (cond ((= kw "Dirrichti") "GAB") ((= kw "Monorrichti") "MON") (T "ISO")))
+      (setq v (getreal (strcat "\n\U+039C\U+03AD\U+03B3\U+03B9\U+03C3\U+03C4\U+03BF \U+03C5\U+03C8\U+03CC\U+03BC. \U+03A4\U+0395\U+039B\U+0395\U+0399\U+03A9\U+039C\U+0395\U+039D\U+039F\U+03A5 \U+03BA\U+03BF\U+03C1\U+03C6\U+03B9\U+03AC, 0 = \U+03B5\U+03BB\U+03B5\U+03CD\U+03B8\U+03B5\U+03C1\U+03B7 \U+03BA\U+03BB\U+03AF\U+03C3\U+03B7 <" (rtos (if *st-HCAP* *st-HCAP* 0.0) 2 2) ">: ")))
+      (if v (setq *st-HCAP* v))
+      (if (not (and *st-HCAP* (> *st-HCAP* 0.0)))
+        (progn
       (initget "Pososto Moires")
       (setq kw (getkword "\n\U+039C\U+03BF\U+03BD\U+03B1\U+03B4\U+03B1 \U+03BA\U+03BB\U+03B9\U+03C3\U+03B7\U+03C2 [Pososto/Moires] <Pososto>: "))
       (setq *st-PMODE* (if (= kw "Moires") "DEG" "PCT"))
       (setq v (getreal (strcat "\n\U+039A\U+03BB\U+03B9\U+03C3\U+03B7 <" (rtos *st-PIT* 2 1) ">: ")))
-      (if (and v (> v 0.0)) (setq *st-PIT* v))
+      (if (and v (> v 0.0)) (setq *st-PIT* v))))
       (setq v (getreal (strcat "\n\U+03A0\U+03C1\U+03BF\U+03B5\U+03BE\U+03BF\U+03C7\U+03B7 \U+03B3\U+03B5\U+03B9\U+03C3\U+03BF\U+03C5 \U+03C3\U+03B5 m <" (rtos *st-OVH* 2 2) ">: ")))
       (if (and v (>= v 0.0)) (setq *st-OVH* v))
       (initget "Nai Ochi")
@@ -1121,8 +1136,7 @@
       (setq *st-GEI* (if (= kw "Ochi") "0" "1"))
       (setq v (getreal (strcat "\n\U+03A5\U+03C8\U+03BF\U+03BC\U+03B5\U+03C4\U+03C1\U+03BF \U+03B2\U+03B1\U+03C3\U+03B7\U+03C2 \U+03C3\U+03C4\U+03B5\U+03B3\U+03B7\U+03C2 \U+03C3\U+03B5 m <" (rtos *st-BASE* 2 2) ">: ")))
       (if v (setq *st-BASE* v))
-      (setq v (getreal (strcat "\n\U+039C\U+03AD\U+03B3\U+03B9\U+03C3\U+03C4\U+03BF \U+03C5\U+03C8\U+03CC\U+03BC\U+03B5\U+03C4\U+03C1\U+03BF \U+03A4\U+0395\U+039B\U+0395\U+0399\U+03A9\U+039C\U+0395\U+039D\U+039F\U+03A5 \U+03BA\U+03BF\U+03C1\U+03C6\U+03B9\U+03AC (0 = \U+03C7\U+03C9\U+03C1\U+03AF\U+03C2 \U+03CC\U+03C1\U+03B9\U+03BF) <" (rtos (if *st-HCAP* *st-HCAP* 0.0) 2 2) ">: ")))
-      (if v (setq *st-HCAP* v))
+
       (initget "Nai Ochi")
       (setq kw (getkword "\n\U+03A5\U+03C8\U+03BF\U+03BC\U+03B5\U+03C4\U+03C1\U+03B1 \U+03BA\U+03BF\U+03BC\U+03B2\U+03C9\U+03BD [Nai/Ochi] <Nai>: "))
       (setq *st-LAB* (if (= kw "Ochi") "0" "1"))
@@ -1194,12 +1208,12 @@
       (setq nodes nds)
       (setq arcs (list (list pa pb)))))
 
-  ;; --- ΜΕΓΙΣΤΟ ΥΨΟΣ ΤΕΛΕΙΩΜΕΝΟΥ ΚΟΡΦΙΑ: ελεύθερη προσαρμογή κλίσης ---
-  ;; Τελειωμένος κορφιάς = ΒΑΣΗ + tmax*κλίση + 0.42/συν(α), όπου 0.42 m η
-  ;; επικάλυψη κάθετα στην έδρα (ίδια παραδοχή με τα στηθαία). Το tmax
-  ;; (απόσταση κορφιά-υδρορροής στην κάτοψη) εξαρτάται ΜΟΝΟ από τη
-  ;; γεωμετρία, όχι από την κλίση -> η μέγιστη κλίση λύνεται με διχοτόμηση
-  ;; και στρογγυλεύεται ΠΡΟΣ ΤΑ ΚΑΤΩ στο 0.1% ώστε να μην ξεπερνιέται ποτέ.
+    ;; --- ΟΡΙΟ ΤΕΛΕΙΩΜΕΝΟΥ ΚΟΡΦΙΑ: η κλιση ΥΠΟΛΟΓΙΖΕΤΑΙ απο το οριο ---
+  ;; Οταν δινεται *st-HCAP* > 0, η κλιση του χρηστη ΑΓΝΟΕΙΤΑΙ και λυνεται:
+  ;;   tmax*κλιση + 0.42*sqrt(1+κλιση^2) = HCAP - ΒΑΣΗ   (διχοτομηση)
+  ;; Το 0.42 m ειναι η επικαλυψη καθετα στην εδρα, ιδια παραδοχη με τα
+  ;; στηθαια. Το tmax εξαρταται ΜΟΝΟ απο τη γεωμετρια της κατοψης.
+  ;; Στρογγυλευση ΠΡΟΣ ΤΑ ΚΑΤΩ στο 0.1% ωστε το οριο να μην ξεπερνιεται.
   (if (and *st-HCAP* (> *st-HCAP* 0.0) nodes)
     (progn
       (setq htmx 0.0)
@@ -1208,22 +1222,22 @@
       (if (<= havl (+ (* htmx 0.02) (* 0.42 (sqrt 1.0004))))
         (progn
           (princ (strcat "\n*** \U+03A3\U+03A6\U+0391\U+039B\U+039C\U+0391: \U+03C4\U+03BF \U+03CC\U+03C1\U+03B9\U+03BF \U+03BA\U+03BF\U+03C1\U+03C6\U+03B9\U+03AC " (rtos *st-HCAP* 2 2)
-                         " \U+03B4\U+03B5\U+03BD \U+03B5\U+03C0\U+03B1\U+03C1\U+03BA\U+03B5\U+03AF \U+03BF\U+03CD\U+03C4\U+03B5 \U+03B3\U+03B9\U+03B1 \U+03B5\U+03BB\U+03AC\U+03C7\U+03B9\U+03C3\U+03C4\U+03B7 \U+03BA\U+03BB\U+03AF\U+03C3\U+03B7 \U+2014 \U+03BC\U+03CC\U+03BD\U+03BF \U+03B7 \U+03B5\U+03C0\U+03B9\U+03BA\U+03AC\U+03BB\U+03C5\U+03C8\U+03B7 \U+03B8\U+03AD\U+03BB\U+03B5\U+03B9 ~0.42 m. \U+0391\U+03BD\U+03AD\U+03B2\U+03B1\U+03C3\U+03B5 \U+03C4\U+03BF \U+03CC\U+03C1\U+03B9\U+03BF \U+03AE \U+03AC\U+03BB\U+03BB\U+03B1\U+03BE\U+03B5 \U+03B3\U+03B5\U+03C9\U+03BC\U+03B5\U+03C4\U+03C1\U+03AF\U+03B1."))
-          (exit))
-        (if (> (+ (* htmx th) (* 0.42 (sqrt (+ 1.0 (* th th))))) (+ havl 1e-9))
-          (progn
-            (setq hlo 0.02 hhi th hkk 0)
-            (while (< hkk 60)
-              (setq hmm (/ (+ hlo hhi) 2.0))
-              (if (<= (+ (* htmx hmm) (* 0.42 (sqrt (+ 1.0 (* hmm hmm))))) havl)
-                (setq hlo hmm) (setq hhi hmm))
-              (setq hkk (1+ hkk)))
-            (setq th (/ (float (fix (* hlo 1000.0))) 1000.0))
-            (setq *st-PIT* (if (= *st-PMODE* "PCT") (* 100.0 th)
-                             (/ (atan th) (/ pi 180.0))))
-            (princ (strcat "\n>>> \U+039A\U+03BB\U+03AF\U+03C3\U+03B7 \U+03C0\U+03C1\U+03BF\U+03C3\U+03B1\U+03C1\U+03BC\U+03CC\U+03C3\U+03C4\U+03B7\U+03BA\U+03B5 \U+03C3\U+03B5 " (rtos (* 100.0 th) 2 1)
-                           "% \U+03CE\U+03C3\U+03C4\U+03B5 \U+03BF \U+03A4\U+0395\U+039B\U+0395\U+0399\U+03A9\U+039C\U+0395\U+039D\U+039F\U+03A3 \U+03BA\U+03BF\U+03C1\U+03C6\U+03B9\U+03AC\U+03C2 (\U+03B4\U+03BF\U+03BC\U+03B9\U+03BA\U+03CC + \U+03B5\U+03C0\U+03B9\U+03BA\U+03AC\U+03BB\U+03C5\U+03C8\U+03B7 0.42/\U+03C3\U+03C5\U+03BD\U+03B1) \U+03BD\U+03B1 \U+03BC\U+03B7\U+03BD \U+03BE\U+03B5\U+03C0\U+03B5\U+03C1\U+03BD\U+03AC \U+03C4\U+03BF +"
-                           (rtos *st-HCAP* 2 2))))))))
+                         " \U+03B4\U+03B5\U+03BD \U+03B5\U+03C0\U+03B1\U+03C1\U+03BA\U+03B5\U+03AF \U+03BF\U+03CD\U+03C4\U+03B5 \U+03B3\U+03B9\U+03B1 \U+03B5\U+03BB\U+03AC\U+03C7\U+03B9\U+03C3\U+03C4\U+03B7 \U+03BA\U+03BB\U+03AF\U+03C3\U+03B7 2% \U+2014 \U+03BC\U+03CC\U+03BD\U+03BF \U+03B7 \U+03B5\U+03C0\U+03B9\U+03BA\U+03AC\U+03BB\U+03C5\U+03C8\U+03B7 \U+03B8\U+03AD\U+03BB\U+03B5\U+03B9 ~0.42 m. \U+0391\U+03BD\U+03AD\U+03B2\U+03B1\U+03C3\U+03B5 \U+03C4\U+03BF \U+03CC\U+03C1\U+03B9\U+03BF \U+03AE \U+03AC\U+03BB\U+03BB\U+03B1\U+03BE\U+03B5 \U+03B3\U+03B5\U+03C9\U+03BC\U+03B5\U+03C4\U+03C1\U+03AF\U+03B1."))
+          (exit)))
+      (setq hlo 0.02 hhi 3.0 hkk 0)
+      (if (< (+ (* htmx hhi) (* 0.42 (sqrt (+ 1.0 (* hhi hhi))))) havl)
+        (progn (princ "\n>>> \U+03A0\U+03A1\U+039F\U+03A3\U+039F\U+03A7\U+0397: \U+03C4\U+03BF \U+03CC\U+03C1\U+03B9\U+03BF \U+03BA\U+03BF\U+03C1\U+03C6\U+03B9\U+03AC \U+03B5\U+03AF\U+03BD\U+03B1\U+03B9 \U+03C0\U+03BF\U+03BB\U+03CD \U+03C8\U+03B7\U+03BB\U+03AC \U+2014 \U+03B7 \U+03BA\U+03BB\U+03AF\U+03C3\U+03B7 \U+03C0\U+03B5\U+03C1\U+03B9\U+03BF\U+03C1\U+03AF\U+03C3\U+03C4\U+03B7\U+03BA\U+03B5 \U+03C3\U+03C4\U+03BF 300% (71.6 \U+03BC\U+03BF\U+03AF\U+03C1\U+03B5\U+03C2).") (setq hlo hhi))
+        (progn
+          (while (< hkk 60)
+            (setq hmm (/ (+ hlo hhi) 2.0))
+            (if (<= (+ (* htmx hmm) (* 0.42 (sqrt (+ 1.0 (* hmm hmm))))) havl)
+              (setq hlo hmm) (setq hhi hmm))
+            (setq hkk (1+ hkk)))))
+      (setq th (/ (float (fix (* hlo 1000.0))) 1000.0))
+      (setq *st-PIT* (if (= *st-PMODE* "PCT") (* 100.0 th)
+                       (/ (atan th) (/ pi 180.0))))
+      (princ (strcat "\n>>> \U+039A\U+03BB\U+03AF\U+03C3\U+03B7 \U+03B1\U+03C0\U+03CC \U+03CC\U+03C1\U+03B9\U+03BF \U+03BA\U+03BF\U+03C1\U+03C6\U+03B9\U+03AC: " (rtos (* 100.0 th) 2 1)
+                     "% \U+03CE\U+03C3\U+03C4\U+03B5 \U+03BF \U+03A4\U+0395\U+039B\U+0395\U+0399\U+03A9\U+039C\U+0395\U+039D\U+039F\U+03A3 \U+03BA\U+03BF\U+03C1\U+03C6\U+03B9\U+03AC\U+03C2, \U+03B4\U+03BF\U+03BC\U+03B9\U+03BA\U+03CC + \U+03B5\U+03C0\U+03B9\U+03BA\U+03AC\U+03BB\U+03C5\U+03C8\U+03B7 0.42/\U+03C3\U+03C5\U+03BD\U+03B1, \U+03BD\U+03B1 \U+03C6\U+03C4\U+03AC\U+03BD\U+03B5\U+03B9 \U+03C4\U+03BF +" (rtos *st-HCAP* 2 2)))))
 
   ;; --- ΕΛΕΓΧΟΣ 2: αυτοέλεγχος αποτελέσματος ---
   (if (= *st-TYP* "ISO")
@@ -1313,7 +1327,7 @@
   (setq sumA (/ (abs (/ (st-area2 (if (and (= *st-GEI* "1") (> ovh 0.001))
                                      (st-geiso orig ovh) orig)) 2.0))
                 (cos (atan th))))
-  (princ (strcat "\n--- STEGH v8.4 ---"
+  (princ (strcat "\n--- STEGH v8.5 ---"
     "\n\U+03A4\U+03CD\U+03C0\U+03BF\U+03C2: " (cond ((= *st-TYP* "ISO") "\U+0399\U+03C3\U+03BF\U+03BA\U+03BB\U+03B9\U+03BD\U+03AE\U+03C2") ((= *st-TYP* "GAB") "\U+0394\U+03AF\U+03C1\U+03C1\U+03B9\U+03C7\U+03C4\U+03B7") (T "\U+039C\U+03BF\U+03BD\U+03CC\U+03C1\U+03C1\U+03B9\U+03C7\U+03C4\U+03B7"))
     "  |  \U+039A\U+03BB\U+03AF\U+03C3\U+03B7: " (rtos *st-PIT* 2 1) (if (= *st-PMODE* "PCT") "%" "\U+00B0")
     " (= " (rtos (/ (atan th) (/ pi 180.0)) 2 1) "\U+00B0)"
@@ -2695,6 +2709,6 @@ PLACEHOLDER
     "\n\n*** \U+0395\U+039A\U+03A4\U+0399\U+039C\U+0397\U+03A3\U+0397 / \U+03A0\U+03A1\U+039F\U+039C\U+0395\U+03A4\U+03A1\U+0397\U+03A3\U+0397 - \U+0394\U+0395\U+039D \U+03A5\U+03A0\U+039F\U+039A\U+0391\U+0398\U+0399\U+03A3\U+03A4\U+0391 \U+03A3\U+03A4\U+0391\U+03A4\U+0399\U+039A\U+0397 \U+039C\U+0395\U+039B\U+0395\U+03A4\U+0397 ***"))
   (princ))
 
-(princ "\nSTEGH v8.4 \U+03C6\U+03BF\U+03C1\U+03C4\U+03CE\U+03B8\U+03B7\U+03BA\U+03B5 (\U+03B3\U+03B5\U+03B9\U+03C3\U+03BF + \U+03C5\U+03C8\U+03BF\U+03BC\U+03B5\U+03C4\U+03C1\U+03BF \U+03B2\U+03B1\U+03C3\U+03B7\U+03C2 + \U+03C4\U+03BF\U+03BC\U+03B7).")
+(princ "\nSTEGH v8.5 \U+03C6\U+03BF\U+03C1\U+03C4\U+03CE\U+03B8\U+03B7\U+03BA\U+03B5 (\U+03B3\U+03B5\U+03B9\U+03C3\U+03BF + \U+03C5\U+03C8\U+03BF\U+03BC\U+03B5\U+03C4\U+03C1\U+03BF \U+03B2\U+03B1\U+03C3\U+03B7\U+03C2 + \U+03C4\U+03BF\U+03BC\U+03B7).")
 (princ "\n\U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AD\U+03C2: STEGH \U+00B7 STEGHXYLO \U+00B7 STEGHANAPT \U+00B7 STEGHTOMI")
 (princ)
