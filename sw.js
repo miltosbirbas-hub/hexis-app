@@ -76,11 +76,15 @@ self.addEventListener('fetch', (e) => {
   // + navigations + sw.js -> ΠΑΝΤΑ network-first, ώστε κάθε νέα έκδοση
   // να φορτώνει αμέσως. Πριν, το app.html ήταν cache-first και το PWA
   // κολλούσε σε παλιές εκδόσεις.
+  // ΔΙΟΡΘΩΣΗ v4.39: και το hexis-catalog.js network-first. Ήταν cache-first,
+  // οπότε μετά από update το app ξαναδιάβαζε ΠΑΛΙΑ έκδοση από την HTTP cache
+  // (GitHub Pages max-age=600) και το banner ενημέρωσης έμπαινε σε loop.
   const isAppShell =
     e.request.mode === 'navigate' ||
     url.pathname.endsWith('/') ||
     url.pathname.endsWith('.html') ||
-    url.pathname.endsWith('sw.js');
+    url.pathname.endsWith('sw.js') ||
+    url.pathname.endsWith('hexis-catalog.js');
 
   if (isAppShell) {
     // HTML + sw.js -> ΠΑΝΤΑ φρέσκα (network-first, cache μόνο ως fallback offline)

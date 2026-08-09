@@ -5134,9 +5134,9 @@ function hexisShowUpdateBanner(newVer) {
   d.id = 'upd-banner';
   d.style.cssText = 'position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%);z-index:99999;'
     + 'background:#0A1730;color:#fff;border:2px solid #E8772E;border-radius:14px;'
-    + 'padding:12px 16px;display:flex;gap:12px;align-items:center;box-shadow:0 6px 20px rgba(0,0,0,.45);'
+    + 'padding:12px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;box-shadow:0 6px 20px rgba(0,0,0,.45);'
     + 'font-size:13px;max-width:92vw';
-  d.innerHTML = '<span>🔄 Διαθέσιμη νέα έκδοση <b>' + newVer + '</b> (έχεις ' + APP_VERSION + ')</span>'
+  d.innerHTML = '<span style="flex:1 1 160px;min-width:0">🔄 Διαθέσιμη νέα έκδοση <b>' + newVer + '</b> (έχεις ' + APP_VERSION + ')</span>'
     + '<button onclick="hexisApplyUpdate()" style="background:#E8772E;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;white-space:nowrap">Ενημέρωση τώρα</button>'
     + '<button onclick="this.parentNode.remove()" style="background:none;border:none;color:#aaa;font-size:16px;cursor:pointer;padding:2px">✕</button>';
   document.body.appendChild(d);
@@ -6346,7 +6346,9 @@ function consumeScanResult(){
 init();
 // PWA service worker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(e => console.log('SW:', e));
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(e => console.log('SW:', e));
+  // updateViaCache 'none': αλλιώς το importScripts('hexis-catalog.js') του SW
+  // σερβίρεται από την HTTP cache και ο νέος SW χτίζεται με ΠΑΛΙΟ κατάλογο.
 }
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => {
