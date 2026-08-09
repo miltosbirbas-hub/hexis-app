@@ -43,7 +43,8 @@ button:active{transform:translateY(1px)}
 button:disabled{opacity:.38}
 button.pri{background:var(--brb);border-color:var(--brb);color:#fff}
 button.gh{flex:0 0 auto;padding:11px 14px}
-.fields{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.fields{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+.fields input{font-size:15px;padding:8px 4px}
 label{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);margin-bottom:3px}
 input{width:100%;font-family:var(--num);font-size:16px;font-weight:600;padding:8px 6px;text-align:center;
   border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink)}
@@ -121,6 +122,7 @@ button.tg.on{background:var(--brb);border-color:var(--brb);color:#fff}
     <div><label>Γείσο m</label><input id="ovh" type="number" inputmode="decimal" value="0.60" step="0.05"></div>
     <div><label>Βάση m</label><input id="base" type="number" inputmode="decimal" value="3.20" step="0.05"></div>
     <div><label>Κερ/m²</label><input id="km2" type="number" inputmode="decimal" value="13"></div>
+    <div><label>Μεγ.κορφ</label><input id="hcap" type="number" inputmode="decimal" placeholder="—" step="0.05" title="Μέγιστο υψόμετρο ΤΕΛΕΙΩΜΕΝΟΥ κορφιά (ίδιο μηδενικό με τη Βάση). Κενό = χωρίς όριο."></div>
   </div>
   <div class="row" style="margin-top:9px">
     <button class="tg on" id="ortho" title="Κλείδωμα σε ορθές γωνίες">90°</button>
@@ -910,6 +912,33 @@ function finish(){
   /* Το γείσο χτίζεται στο sol.pts (περιλαμβάνει τα άκρα κορφιά της
      δίρριχτης/μονόρριχτης) — αλλιώς gp[i] και sol.pts[i] ξεσυγχρονίζονται
      και οι Ποσότητες σκάνε. Για τετράρριχτη sol.pts === p. */
+  /* ── ΜΕΓΙΣΤΟ ΥΨΟΣ ΤΕΛΕΙΩΜΕΝΟΥ ΚΟΡΦΙΑ: ελεύθερη προσαρμογή κλίσης ──
+     Τελειωμένος κορφιάς = Βάση + tmax·κλίση + 0,42/cos (επικάλυψη κάθετα,
+     ίδια παραδοχή με τα στηθαία). Το tmax εξαρτάται ΜΟΝΟ από τη γεωμετρία
+     της κάτοψης, όχι από την κλίση — άρα η κλίση λύνεται με διχοτόμηση. */
+  const hcap=+document.getElementById('hcap').value||0;
+  if(hcap>0){
+    const base2=+document.getElementById('base').value||0;
+    let tmax=0; for(const [P2,t2] of sol.nodes)tmax=Math.max(tmax,t2);
+    const BLD=0.42;                       /* πάχος επικάλυψης κάθετα στην έδρα */
+    const fin=x=>tmax*x+BLD*Math.sqrt(1+x*x);   /* ύψος πάνω από τη βάση */
+    const avail=hcap-base2;
+    if(avail<=fin(0.02)){
+      showErr('Το όριο +'+hcap.toFixed(2)+' δεν επαρκεί ούτε για ελάχιστη κλίση '+
+        '(μόνο η επικάλυψη θέλει ~'+BLD.toFixed(2)+' m). Ανέβασέ το ή άλλαξε γεωμετρία.');
+      closed=false;sol=null;return;
+    }
+    let curTh=(+document.getElementById('pit').value||35)/100;
+    if(fin(curTh)>avail+1e-9){
+      let lo=0.02,hi=curTh;
+      for(let k=0;k<60;k++){const m=(lo+hi)/2;if(fin(m)<=avail)lo=m;else hi=m;}
+      const thNew=Math.floor(lo*1000)/1000;    /* στρογγύλευση ΠΡΟΣ ΤΑ ΚΑΤΩ 0,1% */
+      document.getElementById('pit').value=(thNew*100).toFixed(1);
+      hint('Κλίση προσαρμόστηκε σε '+(thNew*100).toFixed(1)+
+           '% ώστε ο τελειωμένος κορφιάς ≤ +'+hcap.toFixed(2));
+    }
+  }
+
   gp=ovh>0.001?offsetPoly(sol.pts,ovh):null;
   fit();
   anim=0;const t0=performance.now();
@@ -985,7 +1014,8 @@ function quantities(){
   }
   const rafLen=fr.raf.reduce((t,x)=>t+dist(x[0],x[1]),0)/ca;   /* κεκλιμένο μήκος */
   const purlLen=fr.purl.reduce((t,x)=>t+dist(x[0],x[1]),0);     /* οριζόντιες -> ίδιο */
-  return {th,a,ca,adeg,base,plan,per,roof,hmax,lmax,lnt,lkr,km2,E,F,fr,unf,eav,arcsE,rafLen,purlLen,parapet,rtype,
+  const hfin=base+hmax+bldup;   /* τελειωμένος κορφιάς: δομικό + επικάλυψη */
+  return {th,a,ca,adeg,base,plan,per,roof,hmax,hfin,lmax,lnt,lkr,km2,E,F,fr,unf,eav,arcsE,rafLen,purlLen,parapet,rtype,
     tiles:Math.ceil(roof*km2), kav:Math.ceil(lkr/0.33), kavm:Math.ceil(lmax/0.33),
     akro:Math.ceil(per/0.25), aer:Math.max(2,Math.ceil(roof/25)),
     boards:roof};
@@ -1190,7 +1220,7 @@ function report(){
   <div class="kpi">
     <div><span>Επιφάνεια στέγης</span><b>${N(q.roof)}</b><span>m² πραγματική</span></div>
     <div><span>Κεραμίδια</span><b>${q.tiles}</b><span>τεμ · ${N(q.km2,0)}/m²</span></div>
-    <div><span>Υψόμετρο κορφιά</span><b>+${N(q.base+q.hmax)}</b><span>m · κλίση ${N(q.adeg,1)}°</span></div>
+    <div><span>Κορφιάς τελειωμένος</span><b>+${N(q.hfin)}</b><span>δομικός +${N(q.base+q.hmax)} · ${N(q.adeg,1)}°</span></div>
     <div><span>Ξυλεία</span><b>${N((q.rafLen*0.10*0.16+q.purlLen*0.05*0.05+q.boards*0.02),2)}</b><span>m³ περίπου</span></div>
   </div>
 
@@ -1201,6 +1231,8 @@ function report(){
     <tr><td>Κορφιάδες</td><td>${N(q.lkr)} m</td></tr>
     <tr><td>Μαχιές</td><td>${N(q.lmax)} m</td></tr>
     <tr><td>Ντερέδες (λούκια)</td><td>${N(q.lnt)} m</td></tr>
+    <tr><td>Υψόμετρο κορφιά (δομικό)</td><td>+${N(q.base+q.hmax)} m</td></tr>
+    <tr><td>Κορφιάς τελειωμένος (με επικάλυψη)</td><td>+${N(q.hfin)} m</td></tr>
   </table>
 
   <h3>Ξυλότυπος</h3>
@@ -1343,7 +1375,8 @@ function makePDF(){
   R('Επιφάνεια στέγης',N(q.roof)+' m²');
   R('Περίμετρος υδρορροής',N(q.per)+' m');
   R('Κορφιάδες / μαχιές / ντερέδες',`${N(q.lkr)} / ${N(q.lmax)} / ${N(q.lnt)} m`);
-  R('Υψόμετρο κορφιά',`+${N(q.base+q.hmax)} m`);
+  R('Υψόμετρο κορφιά (δομικό)',`+${N(q.base+q.hmax)} m`);
+  R('Κορφιάς τελειωμένος (με επικάλυψη)',`+${N(q.hfin)} m`);
   y+=6*S;
   H3('Επικάλυψη');
   R('Κεραμίδια',q.tiles+' τεμ');
@@ -1507,7 +1540,7 @@ document.getElementById('dlgNo').onclick=()=>document.getElementById('mask').cla
 document.getElementById('dlgVal').addEventListener('keydown',e=>{if(e.key==='Enter')applyLen();});
 document.getElementById('mask').addEventListener('click',e=>{
   if(e.target.id==='mask')document.getElementById('mask').classList.remove('on');});
-for(const id of ['pit','ovh','base','km2'])
+for(const id of ['pit','ovh','base','km2','hcap'])
   document.getElementById(id).addEventListener('change',()=>{if(closed){finish();}});
 
 resize();
