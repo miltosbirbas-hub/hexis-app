@@ -1,28 +1,31 @@
 // ============================================
 //  HEXIS SERVICE WORKER
-//  ΑΛΛΑΖΕΙΣ ΜΟΝΟ ΤΟΝ ΑΡΙΘΜΟ VERSION ΣΕ ΚΑΘΕ ΝΕΑ ΕΚΔΟΣΗ
-//  (πρέπει να ταιριάζει με την έκδοση του app.html)
+//  ΜΗΝ γράφεις έκδοση εδώ. Η έκδοση ορίζεται ΜΟΝΟ στο hexis-catalog.js
+//  και τη διαβάζουν αυτόματα και το sw.js και το app.html.
 // ============================================
-const VERSION = 'v4.37';
-const CACHE_NAME = 'hexis-' + VERSION;
+// Ο κατάλογος φορτώνεται ΠΡΩΤΟΣ: από εκεί έρχεται και η έκδοση.
+importScripts('hexis-catalog.js'); // κοινός κατάλογος + HEXIS_VERSION
 
-// Αρχεία που προ-κατεβαίνουν στο install (παίζουν και offline)
-importScripts('hexis-catalog.js'); // κοινός κατάλογος εργαλείων
+// ΔΕΝ γράφεται έκδοση εδώ. Αλλάζεις ΜΟΝΟ το VERSION στο hexis-catalog.js.
+const VERSION = self.HEXIS_VERSION || 'v0';
+const CACHE_NAME = 'hexis-' + VERSION;
 
 // Στατικά αρχεία + ΟΛΑ τα .html των εργαλείων από τον κατάλογο (αυτόματα)
 const PRECACHE_STATIC = [
   'hub.html', 'tool.html', 'admin.html', 'manual.html', 'login.html',
   'hexis-catalog.js',
+  'manifest.json', 'icon-192.png', 'icon-512.png', 'icon-512-maskable.png',
+  'apple-touch-icon.png',
   'admin-manifest.json', 'admin-icon-192.png',
   'intro.mp4',
   'nomothesia-manifest.json', 'nomothesia-icon-192.png',
   'nomothesia-icon-512.png', 'nomothesia-icon-maskable.png',
   'hexis_check_my_dxf.lsp',
-  // --- ΣΤΕΓΗ (v4.37) ---
+  // --- ΣΤΕΓΗ ---
   // το stegh.html ΔΕΝ μπαίνει εδώ: έρχεται αυτόματα από τον κατάλογο
   'stegh-manifest.json',
   'stegh-icon-192.png', 'stegh-icon-512.png', 'stegh-icon-maskable.png',
-  'jspdf.umd.min.js', 'STEGH.lsp'
+  'STEGH.lsp'
 ];
 
 const PRECACHE = [...new Set([...PRECACHE_STATIC, ...(self.HEXIS_PRECACHE_HTML || [])])];

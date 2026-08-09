@@ -30,6 +30,13 @@
 (function (g) {
 'use strict';
 
+/* ============================================================
+   ΕΚΔΟΣΗ — ΤΟ ΜΟΝΟ ΣΗΜΕΙΟ ΠΟΥ ΑΛΛΑΖΕΙΣ
+   Το sw.js (importScripts) και το app.html τη διαβάζουν από εδώ.
+   ΔΕΝ γράφεται πουθενά αλλού.
+   ============================================================ */
+var VERSION = 'v4.37';
+
 var BRB_TERRAIN_URL = 'https://miltosbirbas-hub.github.io/BRB-contour-live/';
 
 var CATALOG = [
@@ -139,6 +146,7 @@ g.HEXIS_PRECACHE_HTML = CATALOG
   .filter(function (t) { return !t.external && t.href && /\.html$/.test(t.href); })
   .map(function (t) { return t.href; });
 
+g.HEXIS_VERSION = VERSION;
 g.HEXIS_CATALOG = CATALOG;
 g.HEXIS_ICONS = ICONS;
 g.HEXIS_TERRAIN_URL = BRB_TERRAIN_URL;

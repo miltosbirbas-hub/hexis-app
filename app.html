@@ -1750,7 +1750,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
 // ⚠️ ΣΥΜΠΛΗΡΩΣΕ: URL & anon key από το ΝΕΟ Supabase project (Settings → API)
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
-const APP_VERSION = 'v4.36'; // πρέπει να ταιριάζει με το VERSION του sw.js
+const APP_VERSION = (self.HEXIS_VERSION || 'v0'); // ορίζεται ΜΟΝΟ στο hexis-catalog.js
 // Η έκδοση εμφανίζεται παντού δυναμικά — ΕΝΑ σημείο αλλαγής (+ sw.js)
 ['ver-mobile','ver-sub','ver-footer'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = APP_VERSION; });
 // Μετράει το πραγματικό ύψος του topbar (μπορεί να τυλιχτεί σε 2 σειρές σε κινητό)
@@ -5094,7 +5094,7 @@ async function printReport() {
 }
 
 // ── UPDATE CHECK ──────────────────────────────────────
-// Ελέγχει το sw.js στον server (2KB, no-store) και συγκρίνει με το APP_VERSION.
+// Ελέγχει το hexis-catalog.js στον server (no-store) και συγκρίνει με το APP_VERSION.
 // Τρέχει αυτόματα: στο άνοιγμα, όταν επανέρχεται η σύνδεση, όταν το PWA ξαναγίνεται ορατό.
 let _updLastCheck = 0, _updBannerShown = false;
 
@@ -5103,7 +5103,7 @@ async function hexisCheckUpdate(silent) {
   if (!navigator.onLine) { if (!silent) alert('Δεν υπάρχει σύνδεση στο internet.'); return; }
   _updLastCheck = Date.now();
   try {
-    const r = await fetch('sw.js?upd=' + Date.now(), { cache: 'no-store' });
+    const r = await fetch('hexis-catalog.js?upd=' + Date.now(), { cache: 'no-store' });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const txt = await r.text();
     const m = txt.match(/VERSION\s*=\s*'([^']+)'/);
@@ -5117,7 +5117,7 @@ async function hexisCheckUpdate(silent) {
     } else {
       _updBannerShown = false;
       const b = document.getElementById('upd-banner'); if (b) b.remove();
-      if (verNum(remote) < verNum(APP_VERSION)) console.warn('[update check] ο server έχει παλιότερο sw.js (' + remote + ') από το app (' + APP_VERSION + ') — χρειάζεται bump στο sw.js');
+      if (verNum(remote) < verNum(APP_VERSION)) console.warn('[update check] ο server έχει παλιότερο hexis-catalog.js (' + remote + ') από το app (' + APP_VERSION + ') — χρειάζεται bump στο hexis-catalog.js');
       if (!silent) alert('✅ Έχεις την τελευταία έκδοση (' + APP_VERSION + ').');
     }
   } catch (err) {

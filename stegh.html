@@ -122,7 +122,6 @@ button.tg.on{background:var(--brb);border-color:var(--brb);color:#fff}
   <div class="pad" id="out"></div>
 </div>
 
-<script src="jspdf.umd.min.js"></script>
 <script>
 /* ============================================================
    STRAIGHT SKELETON — port του τεσταρισμένου πυρήνα (40/40 σχήματα)
@@ -687,6 +686,46 @@ function quantities(){
     boards:roof};
 }
 
+/* ---------- Ελάχιστος PDF writer (χωρίς εξωτερική βιβλιοθήκη) ----------
+   Σελίδες A4 με ενσωματωμένα JPEG. Καμία εξωτερική βιβλιοθήκη. */
+function b64bytes(dataURL){
+  const b=atob(dataURL.split(',')[1]), u=new Uint8Array(b.length);
+  for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
+  return u;
+}
+function savePdf(canvases,W,H,name){
+  const jp=canvases.map(c=>({bytes:b64bytes(c.toDataURL('image/jpeg',0.92)),
+                             w:c.width,h:c.height}));
+  const enc=new TextEncoder(), parts=[], off=[]; let len=0;
+  const push=u=>{parts.push(u);len+=u.length;}, txt=t=>push(enc.encode(t));
+  const N2=jp.length, nObj=2+N2*3;
+  txt('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+  const mark=i=>{off[i]=len;};
+  mark(1);txt('1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n');
+  const kids=[];for(let i=0;i<N2;i++)kids.push((3+i*3)+' 0 R');
+  mark(2);txt('2 0 obj\n<</Type/Pages/Kids['+kids.join(' ')+']/Count '+N2+'>>\nendobj\n');
+  for(let i=0;i<N2;i++){
+    const pg=3+i*3, co=pg+1, im=pg+2, j=jp[i];
+    mark(pg);txt(pg+' 0 obj\n<</Type/Page/Parent 2 0 R/MediaBox[0 0 '+W+' '+H+']'+
+      '/Resources<</XObject<</Im0 '+im+' 0 R>>>>/Contents '+co+' 0 R>>\nendobj\n');
+    const cs='q '+W+' 0 0 '+H+' 0 0 cm /Im0 Do Q\n';
+    mark(co);txt(co+' 0 obj\n<</Length '+cs.length+'>>\nstream\n'+cs+'endstream\nendobj\n');
+    mark(im);txt(im+' 0 obj\n<</Type/XObject/Subtype/Image/Width '+j.w+'/Height '+j.h+
+      '/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length '+j.bytes.length+
+      '>>\nstream\n');
+    push(j.bytes);txt('\nendstream\nendobj\n');
+  }
+  const xr=len;
+  let x='xref\n0 '+(nObj+1)+'\n0000000000 65535 f \n';
+  for(let i=1;i<=nObj;i++)x+=String(off[i]).padStart(10,'0')+' 00000 n \n';
+  txt(x+'trailer\n<</Size '+(nObj+1)+'/Root 1 0 R>>\nstartxref\n'+xr+'\n%%EOF\n');
+  const out=new Uint8Array(len);let o=0;
+  for(const q of parts){out.set(q,o);o+=q.length;}
+  const url=URL.createObjectURL(new Blob([out],{type:'application/pdf'}));
+  const a=document.createElement('a');a.href=url;a.download=name;a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+
 const N=(v,d=2)=>v.toFixed(d).replace('.',',');
 /* στοιχεία χρήστη — μένουν στη συσκευή του, δεν φεύγουν πουθενά */
 function me(k){ const el=document.getElementById(k);
@@ -1093,14 +1132,7 @@ function makePDF(){
   y3.fillStyle='#9AA7B2';y3.font=F(6.5,500);y3.textAlign='right';
   y3.fillText('HEXIS APP',555*S,h-26*S);y3.textAlign='left';
 
-  const {jsPDF}=window.jspdf;
-  const pdf=new jsPDF({unit:'pt',format:'a4'});
-  pdf.addImage(c.toDataURL('image/jpeg',0.94),'JPEG',0,0,595,842);
-  pdf.addPage();
-  pdf.addImage(c2.toDataURL('image/jpeg',0.94),'JPEG',0,0,595,842);
-  pdf.addPage();
-  pdf.addImage(c3.toDataURL('image/jpeg',0.94),'JPEG',0,0,595,842);
-  pdf.save('prometrisi-stegis.pdf');
+  savePdf([c,c2,c3],595,842,'prometrisi-stegis.pdf');
 }
 
 /* ---------- κουμπιά ---------- */
