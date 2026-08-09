@@ -1015,7 +1015,14 @@ function quantities(){
   const rafLen=fr.raf.reduce((t,x)=>t+dist(x[0],x[1]),0)/ca;   /* κεκλιμένο μήκος */
   const purlLen=fr.purl.reduce((t,x)=>t+dist(x[0],x[1]),0);     /* οριζόντιες -> ίδιο */
   const hfin=base+hmax+bldup;   /* τελειωμένος κορφιάς: δομικό + επικάλυψη */
-  return {th,a,ca,adeg,base,plan,per,roof,hmax,hfin,lmax,lnt,lkr,km2,E,F,fr,unf,eav,arcsE,rafLen,purlLen,parapet,rtype,
+  /* εξωτερικές διαστάσεις (περιβάλλον ορθογώνιο): κτίριο = τοίχοι, στέγη = γείσο */
+  let bX0=1e9,bY0=1e9,bX1=-1e9,bY1=-1e9,rX0=1e9,rY0=1e9,rX1=-1e9,rY1=-1e9;
+  for(const p2 of sol.pts){bX0=Math.min(bX0,p2[0]);bY0=Math.min(bY0,p2[1]);
+    bX1=Math.max(bX1,p2[0]);bY1=Math.max(bY1,p2[1]);}
+  for(const p2 of eav){rX0=Math.min(rX0,p2[0]);rY0=Math.min(rY0,p2[1]);
+    rX1=Math.max(rX1,p2[0]);rY1=Math.max(rY1,p2[1]);}
+  const bdim=[bX1-bX0,bY1-bY0], rdim=[rX1-rX0,rY1-rY0];
+  return {th,a,ca,adeg,base,plan,per,roof,hmax,hfin,bdim,rdim,lmax,lnt,lkr,km2,E,F,fr,unf,eav,arcsE,rafLen,purlLen,parapet,rtype,
     tiles:Math.ceil(roof*km2), kav:Math.ceil(lkr/0.33), kavm:Math.ceil(lmax/0.33),
     akro:Math.ceil(per/0.25), aer:Math.max(2,Math.ceil(roof/25)),
     boards:roof};
@@ -1226,6 +1233,8 @@ function report(){
 
   <h3>Γεωμετρία</h3><table>
     <tr><td>Εμβαδόν κάτοψης (με γείσο)</td><td>${N(q.plan)} m²</td></tr>
+    <tr><td>Διαστάσεις κτιρίου (περίγραμμα)</td><td>${N(q.bdim[0])} × ${N(q.bdim[1])} m</td></tr>
+    <tr><td>Εξωτ. διαστάσεις τελειωμένης στέγης</td><td>${N(q.rdim[0])} × ${N(q.rdim[1])} m</td></tr>
     <tr><td>Επιφάνεια στέγης ÷ cos ${N(q.adeg,1)}°</td><td>${N(q.roof)} m²</td></tr>
     <tr><td>Περίμετρος υδρορροής</td><td>${N(q.per)} m</td></tr>
     <tr><td>Κορφιάδες</td><td>${N(q.lkr)} m</td></tr>
@@ -1352,6 +1361,29 @@ function makePDF(){
     seg((ia!==null&&gp)?gp[ia]:arc[0],(ib!==null&&gp)?gp[ib]:arc[1],col,1.8);}
   x.font=M(7);x.textAlign='center';x.fillStyle='#C08A2E';
   for(const [P,t] of sol.nodes){const A=T(P);x.fillText('+'+N(q.base+t*q.th),A[0],A[1]-4*S);}
+  /* ---- διαστάσεις πλευρών: κτίριο μέσα, τελειωμένη στέγη έξω ---- */
+  const mergeCol=P=>{const out=[],m2=P.length;
+    for(let i=0;i<m2;i++){const a2=P[(i-1+m2)%m2],c2=P[i],b2=P[(i+1)%m2];
+      const cr=(c2[0]-a2[0])*(b2[1]-c2[1])-(c2[1]-a2[1])*(b2[0]-c2[0]);
+      if(Math.abs(cr)>1e-7)out.push(c2);}
+    return out.length>=3?out:P;};
+  const dimSide=(a2,b2,col,off)=>{
+    const L2=dist(a2,b2); if(L2<0.45)return;
+    const d2=[(b2[0]-a2[0])/L2,(b2[1]-a2[1])/L2], nv2=[-d2[1],d2[0]];
+    const m2=[(a2[0]+b2[0])/2+nv2[0]*off,(a2[1]+b2[1])/2+nv2[1]*off];
+    const A2=T(a2),B2=T(b2),M2=T(m2);
+    let ag=Math.atan2(B2[1]-A2[1],B2[0]-A2[0]);
+    if(ag>Math.PI/2)ag-=Math.PI; if(ag<-Math.PI/2)ag+=Math.PI;
+    x.save();x.translate(M2[0],M2[1]);x.rotate(ag);
+    x.fillStyle=col;x.fillText(N(L2),0,2.4*S);x.restore();};
+  x.font=M(6.5);
+  const offm=11*S/sc;                       /* απόσταση κειμένου σε μέτρα */
+  const wallP=mergeCol(sol.pts);
+  for(let i=0;i<wallP.length;i++)
+    dimSide(wallP[i],wallP[(i+1)%wallP.length],'#16202B',offm);
+  if(gp){const eavP=mergeCol(gp);
+    for(let i=0;i<eavP.length;i++)
+      dimSide(eavP[i],eavP[(i+1)%eavP.length],'#3E6B3E',-offm);}
   x.textAlign='left';
   y=cy+bh/2+16*S;
   x.font=F(7.5,500);
@@ -1372,6 +1404,8 @@ function makePDF(){
 
   H3('Γεωμετρία');
   R('Εμβαδόν κάτοψης (με γείσο)',N(q.plan)+' m²');
+  R('Διαστάσεις κτιρίου (περίγραμμα)',N(q.bdim[0])+' × '+N(q.bdim[1])+' m');
+  R('Εξωτ. διαστάσεις τελειωμένης στέγης',N(q.rdim[0])+' × '+N(q.rdim[1])+' m');
   R('Επιφάνεια στέγης',N(q.roof)+' m²');
   R('Περίμετρος υδρορροής',N(q.per)+' m');
   R('Κορφιάδες / μαχιές / ντερέδες',`${N(q.lkr)} / ${N(q.lmax)} / ${N(q.lnt)} m`);
