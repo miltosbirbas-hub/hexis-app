@@ -7,7 +7,8 @@
 (setq *st-STEP* "0 - \U+03B1\U+03C6\U+03CC\U+03C1\U+03C4\U+03B9\U+03C3\U+03C4\U+03BF")
 (setq *st-BASE* 0.00 *st-TOMI* "0")
 ;; --- δεδομένα που περνά η ΚΑΤΟΨΗ (STEGH) στην ΤΟΜΗ (STEGHTOMI) ---
-(setq *ec-ON* "1" *ec-ZONE* 3 *ec-ALT* 100.0 *ec-VB0* 33.0 *ec-TERR* 2
+(setq *st-ENG* "" *st-CONT* "" *st-PROJ* ""
+      *ec-ON* "1" *ec-ZONE* 3 *ec-ALT* 100.0 *ec-VB0* 33.0 *ec-TERR* 2
       *ec-H* 8.0 *ec-CE* 1.0 *ec-CT* 1.0 *ec-SC* 2 *ec-FMK* 24.0
       *ec-GEXT* 0.15 *ec-RES* nil)
 (setq *st-XYL* "0" *st-XMK* "1" *st-XSCH* nil *st-TRP* nil *st-DARCS* nil
@@ -1637,6 +1638,11 @@ PLACEHOLDER
       (write-line "      : edit_box { key = \"lroof\"; label = \"\U+039C\U+03AE\U+03BA\U+03BF\U+03C2 \U+03C3\U+03C4\U+03AD\U+03B3\U+03B7\U+03C2 (m):\"; edit_width = 7; }" f)
       (write-line "      : edit_box { key = \"txth\"; label = \"\U+038E\U+03C8\U+03BF\U+03C2 \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03AC\U+03C4\U+03C9\U+03BD (m, 0=auto):\"; edit_width = 7; }" f)
       (write-line "      : edit_box { key = \"km2\"; label = \"\U+039A\U+03B5\U+03C1\U+03B1\U+03BC\U+03AF\U+03B4\U+03B9\U+03B1 (\U+03C4\U+03B5\U+03BC/m2):\"; edit_width = 7; }" f)
+      (write-line "      : boxed_column { label = \"\U+03A3\U+03C4\U+03BF\U+03B9\U+03C7\U+03B5\U+03AF\U+03B1 \U+03B3\U+03B9\U+03B1 \U+03C4\U+03B7\U+03BD \U+03B1\U+03BD\U+03B1\U+03C6\U+03BF\U+03C1\U+03AC\";" f)
+      (write-line "        : edit_box { key = \"eng\";  label = \"\U+039C\U+03B7\U+03C7\U+03B1\U+03BD\U+03B9\U+03BA\U+03CC\U+03C2:\"; edit_width = 26; }" f)
+      (write-line "        : edit_box { key = \"cont\"; label = \"\U+0395\U+03C0\U+03B9\U+03BA\U+03BF\U+03B9\U+03BD\U+03C9\U+03BD\U+03AF\U+03B1:\"; edit_width = 26; }" f)
+      (write-line "        : edit_box { key = \"proj\"; label = \"\U+0388\U+03C1\U+03B3\U+03BF:\"; edit_width = 26; }" f)
+      (write-line "      }" f)
   (write-line "      : boxed_column { label = \"\U+0395\U+03C5\U+03C1\U+03C9\U+03BA\U+03CE\U+03B4\U+03B9\U+03BA\U+03B1\U+03C2 1 - \U+03C6\U+03BF\U+03C1\U+03C4\U+03AF\U+03B1\";" f)
   (write-line "        : toggle { key = \"ec\"; label = \"\U+03A5\U+03C0\U+03BF\U+03BB\U+03BF\U+03B3\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2 \U+03C6\U+03BF\U+03C1\U+03C4\U+03AF\U+03C9\U+03BD EC1 + \U+03AD\U+03BB\U+03B5\U+03B3\U+03C7\U+03BF\U+03C2 EC5\"; value = \"1\"; }" f)
   (write-line "        : radio_row { key = \"zn\";" f)
@@ -1808,6 +1814,9 @@ PLACEHOLDER
       (set_tile "terr" (itoa *ec-TERR*))
       (set_tile "hb"   (rtos *ec-H* 2 2))
       (set_tile "fmk"  (rtos *ec-FMK* 2 1))
+      (set_tile "eng"  *st-ENG*)
+      (set_tile "cont" *st-CONT*)
+      (set_tile "proj" *st-PROJ*)
       (if (= *ec-ON* "1") (set_tile "ec" "1"))
       (set_tile (cond ((= *ec-ZONE* 1) "z1") ((= *ec-ZONE* 2) "z2") (T "z3")) "1")
       (set_tile (if (< *ec-VB0* 30.0) "v27" "v33") "1")
@@ -1844,7 +1853,7 @@ PLACEHOLDER
                        "alt" "terr" "hb" "fmk")
         (action_tile k "(tm-upd)"))
       (action_tile "accept"
-        "(tm-upd) (setq *tm-MK* (get_tile \"mk\")) (setq *tm-PM* (get_tile \"pm\")) (setq *tm-KAT* (get_tile \"kat\")) (setq *tm-GLUE* (get_tile \"glue\")) (setq *ec-ON* (get_tile \"ec\")) (done_dialog 1)")
+        "(tm-upd) (setq *tm-MK* (get_tile \"mk\")) (setq *tm-PM* (get_tile \"pm\")) (setq *tm-KAT* (get_tile \"kat\")) (setq *tm-GLUE* (get_tile \"glue\")) (setq *ec-ON* (get_tile \"ec\")) (setq *st-ENG* (get_tile \"eng\")) (setq *st-CONT* (get_tile \"cont\")) (setq *st-PROJ* (get_tile \"proj\")) (done_dialog 1)")
       (action_tile "cancel" "(done_dialog 0)")
       (setq status (start_dialog))
       (unload_dialog dclid))
@@ -2114,6 +2123,10 @@ PLACEHOLDER
             (rtos tot 2 2) (rtos v 2 3) ""))
 
       (rr "T" "\U+03A0\U+0399\U+039D\U+0391\U+039A\U+0391\U+03A3 \U+03A0\U+03A1\U+039F\U+039C\U+0395\U+03A4\U+03A1\U+0397\U+03A3\U+0397\U+03A3 \U+03A3\U+03A4\U+0395\U+0393\U+0397\U+03A3" "" "" "" "" "" "")
+      (if (/= *st-ENG* "")  (rr "N" *st-ENG* "" "" "" "" "" ""))
+      (if (/= *st-CONT* "") (rr "N" *st-CONT* "" "" "" "" "" ""))
+      (if (/= *st-PROJ* "") (rr "N" (strcat "\U+0395\U+03C1\U+03B3\U+03BF: " *st-PROJ*) "" "" "" "" "" ""))
+      (if (or (/= *st-ENG* "") (/= *st-PROJ* "")) (rr "B" "" "" "" "" "" "" ""))
       (rr "N" "*** \U+0395\U+039A\U+03A4\U+0399\U+039C\U+0397\U+03A3\U+0397 - \U+03A0\U+03A1\U+039F\U+039C\U+0395\U+03A4\U+03A1\U+0397\U+03A3\U+0397 ***" "" "" "" "" "" "")
       (rr "N" "\U+039F \U+03C0\U+03B1\U+03C1\U+03C9\U+03BD \U+03C0\U+03B9\U+03BD\U+03B1\U+03BA\U+03B1\U+03C2 \U+03B1\U+03C0\U+03BF\U+03C4\U+03B5\U+03BB\U+03B5\U+03B9 \U+0395\U+039A\U+03A4\U+0399\U+039C\U+0397\U+03A3\U+0397 \U+03A0\U+039F\U+03A3\U+039F\U+03A4\U+0397\U+03A4\U+03A9\U+039D \U+03BA\U+03B1\U+03B9 \U+03A0\U+03A1\U+039F\U+039A\U+0391\U+03A4\U+0391\U+03A1\U+039A\U+03A4\U+0399\U+039A\U+0397"
           "" "" "" "" "" "")
@@ -2369,8 +2382,7 @@ PLACEHOLDER
           "" "" "" "" "" "")
       (rr "N" "   \U+03C3\U+03B5 \U+03BC\U+03B5\U+03BB\U+03B5\U+03C4\U+03B7, \U+03C0\U+03C1\U+03BF\U+03C3\U+03C6\U+03BF\U+03C1\U+03B1 \U+03AE \U+03BA\U+03B1\U+03C4\U+03B1\U+03C3\U+03BA\U+03B5\U+03C5\U+03B7." "" "" "" "" "" "")
       (rr "B" "" "" "" "" "" "" "")
-      (rr "N" "\U+03A0\U+03B1\U+03C1\U+03B1\U+03C7\U+03B8\U+03B7\U+03BA\U+03B5 \U+03BC\U+03B5 HEXIS STEGH - BRB DEVELOPMENT MON. I.K.E. - www.birbas.gr"
-          "" "" "" "" "" "")
+      (rr "N" "\U+03A0\U+03B1\U+03C1\U+03B1\U+03C7\U+03B8\U+03B7\U+03BA\U+03B5 \U+03BC\U+03B5 HEXIS STEGH" "" "" "" "" "" "")
 
       ;; ---------- ΑΠΟΔΟΣΗ ----------
       (if (/= *tm-OUT* "ARXEIO")
