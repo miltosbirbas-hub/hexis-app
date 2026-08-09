@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#16202B">
+<title>HEXIS APP — προμέτρηση πεδίου</title>
+<link rel="manifest" href="stegh-manifest.json">
+<link rel="apple-touch-icon" href="stegh-icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="HEXIS">
+<style>
+:root{
+  --paper:#EDF0F2; --ink:#16202B; --ink-2:#5A6875; --line:#C8D2DA;
+  --brb:#1F4E9C; --maxia:#C0562F; --nteres:#2E7FA8; --korf:#C08A2E; --geiso:#4A7A4A;
+  --num:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --ui:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--paper);color:var(--ink);font-family:var(--ui)}
+#board{position:fixed;inset:0;touch-action:none;display:block}
+
+.hud{position:fixed;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 10px) 12px 10px;
+  display:flex;align-items:center;gap:10px;pointer-events:none}
+.mark{font-weight:700;font-size:13px;letter-spacing:.14em;color:var(--brb)}
+.mark small{display:block;font-weight:500;font-size:10px;letter-spacing:.08em;color:var(--ink-2)}
+.hint{margin-left:auto;font-size:12px;color:var(--ink-2);background:#fffc;border:1px solid var(--line);
+  border-radius:999px;padding:5px 11px;pointer-events:none;max-width:60vw;text-align:right}
+
+.dock{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);
+  padding:10px 12px calc(env(safe-area-inset-bottom) + 10px);box-shadow:0 -8px 24px #16202b12}
+.row{display:flex;gap:8px}
+.row + .row{margin-top:8px}
+button{font-family:var(--ui);font-size:14px;font-weight:600;border:1px solid var(--line);background:#fff;
+  color:var(--ink);border-radius:10px;padding:11px 12px;flex:1;min-height:46px}
+button:active{transform:translateY(1px)}
+button:disabled{opacity:.38}
+button.pri{background:var(--brb);border-color:var(--brb);color:#fff}
+button.gh{flex:0 0 auto;padding:11px 14px}
+.fields{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+label{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);margin-bottom:3px}
+input{width:100%;font-family:var(--num);font-size:16px;font-weight:600;padding:8px 6px;text-align:center;
+  border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink)}
+input:focus{outline:2px solid var(--brb);outline-offset:-1px}
+
+.sheet{position:fixed;inset:0;background:var(--paper);transform:translateY(100%);
+  transition:transform .32s cubic-bezier(.32,.72,0,1);overflow-y:auto;-webkit-overflow-scrolling:touch;z-index:20}
+.sheet.on{transform:none}
+.sheet-hd{position:sticky;top:0;background:var(--paper);border-bottom:1px solid var(--line);
+  padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;display:flex;align-items:baseline;gap:10px}
+.sheet-hd h2{margin:0;font-size:17px;letter-spacing:-.01em}
+.sheet-hd button{flex:0 0 auto;margin-left:auto;min-height:36px;padding:7px 12px;font-size:13px}
+.pad{padding:14px 16px 26px}
+.kpi{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+.kpi div{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px}
+.kpi b{display:block;font-family:var(--num);font-size:26px;font-weight:700;letter-spacing:-.02em}
+.kpi span{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+h3{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--brb);
+  margin:22px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td{padding:6px 0;border-bottom:1px solid #E4E9ED;vertical-align:baseline}
+td:last-child{text-align:right;font-family:var(--num);font-weight:600;white-space:nowrap;padding-left:10px}
+.note{font-size:11px;line-height:1.55;color:var(--ink-2);background:#fff;border:1px solid var(--line);
+  border-left:3px solid var(--maxia);border-radius:8px;padding:11px 12px;margin-top:20px}
+.note b{color:var(--ink)}
+.warn{color:var(--maxia);font-weight:700}
+</style>
+</head>
+<body>
+<canvas id="board"></canvas>
+
+<div class="hud">
+  <div class="mark">HEXIS APP<small>προμέτρηση πεδίου</small></div>
+  <div class="hint" id="hint">Πάτα για κορυφές</div>
+</div>
+
+<div class="dock">
+  <div class="fields">
+    <div><label>Κλίση %</label><input id="pit" type="number" inputmode="decimal" value="35"></div>
+    <div><label>Γείσο m</label><input id="ovh" type="number" inputmode="decimal" value="0.60" step="0.05"></div>
+    <div><label>Βάση m</label><input id="base" type="number" inputmode="decimal" value="3.20" step="0.05"></div>
+    <div><label>Κερ/m²</label><input id="km2" type="number" inputmode="decimal" value="13"></div>
+  </div>
+  <div class="row" style="margin-top:9px">
+    <button class="gh" id="undo">Αναίρεση</button>
+    <button class="gh" id="clear">Νέο</button>
+    <button class="pri" id="solve" disabled>Κλείσε &amp; λύσε</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheet">
+  <div class="sheet-hd"><h2>Προμέτρηση</h2><button id="close">Πίσω</button></div>
+  <div class="pad" id="out"></div>
+</div>
+
+<script src="jspdf.umd.min.js"></script>
+<script>
+/* ============================================================
+   STRAIGHT SKELETON — port του τεσταρισμένου πυρήνα (40/40 σχήματα)
+   Wavefront propagation: edge events + split events.
+   ============================================================ */
+const PX=0,PY=1,VT=2,EA=3,EB=4,PRV=5,NXT=6,ACT=7,BX=8,BY=9,RFX=10;
+const QPX=0,QPY=1,QQX=2,QQY=3,EDX=4,EDY=5,ENX=6,ENY=7,ECC=8;
+const dist=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
+function area2(p){let s=0;for(let i=0;i<p.length;i++){const q=p[(i+1)%p.length];s+=p[i][0]*q[1]-q[0]*p[i][1];}return s;}
+
+function mkedge(p,q){let dx=q[0]-p[0],dy=q[1]-p[1],L=Math.hypot(dx,dy)||1;dx/=L;dy/=L;
+  const nx=-dy,ny=dx;return [p[0],p[1],q[0],q[1],dx,dy,nx,ny,nx*p[0]+ny*p[1]];}
+function bisect(ea,eb){const n1x=ea[ENX],n1y=ea[ENY],n2x=eb[ENX],n2y=eb[ENY];
+  const det=n1x*n2y-n1y*n2x;if(Math.abs(det)<1e-12)return[n1x,n1y];
+  return [(n2y-n1y)/det,(n1x-n2x)/det];}
+function reflexp(ea,eb){return ea[EDX]*eb[EDY]-ea[EDY]*eb[EDX] < -1e-12;}
+function vpos(v,t){const d=t-v[VT];return [v[PX]+v[BX]*d, v[PY]+v[BY]*d];}
+
+function build(pts){const n=pts.length,E=[],V=[];
+  for(let i=0;i<n;i++)E.push(mkedge(pts[i],pts[(i+1)%n]));
+  for(let i=0;i<n;i++){const ea=(i-1+n)%n,eb=i,b=bisect(E[ea],E[eb]);
+    V.push([pts[i][0],pts[i][1],0,ea,eb,(i-1+n)%n,(i+1)%n,1,b[0],b[1],reflexp(E[ea],E[eb])?1:0]);}
+  return [V,E];}
+
+function evEdge(V,ia,ib){const a=V[ia],b=V[ib];
+  const ax=a[PX]-a[BX]*a[VT],ay=a[PY]-a[BY]*a[VT];
+  const bx=b[PX]-b[BX]*b[VT],by=b[PY]-b[BY]*b[VT];
+  const ddx=a[BX]-b[BX],ddy=a[BY]-b[BY],den=ddx*ddx+ddy*ddy;
+  if(den<1e-16)return null;
+  const t=((bx-ax)*ddx+(by-ay)*ddy)/den;
+  const px=ax+a[BX]*t,py=ay+a[BY]*t,qx=bx+b[BX]*t,qy=by+b[BY]*t;
+  if(Math.hypot(px-qx,py-qy)>1e-6)return null;
+  if(t<Math.max(a[VT],b[VT])-1e-9)return null;
+  return [t,[px,py]];}
+
+function evSplit(V,E,iv,ie){const v=V[iv],e=E[ie];
+  const den=e[ENX]*v[BX]+e[ENY]*v[BY]-1;
+  if(Math.abs(den)<1e-12)return null;
+  const bx=v[PX]-v[BX]*v[VT],by=v[PY]-v[BY]*v[VT];
+  const t=(e[ECC]-(e[ENX]*bx+e[ENY]*by))/den;
+  if(t<v[VT]+1e-9)return null;
+  const px=bx+v[BX]*t,py=by+v[BY]*t;
+  if(e[ENX]*px+e[ENY]*py-e[ECC] < -1e-6)return null;
+  const s=(px-e[QPX])*e[EDX]+(py-e[QPY])*e[EDY];
+  const L=(e[QQX]-e[QPX])*e[EDX]+(e[QQY]-e[QPY])*e[EDY];
+  if(s < -t-1e-6 || s > L+t+1e-6)return null;
+  return [t,[px,py]];}
+
+function opposite(V,E,iv,ie,P,t){let best=null,bd=null;const e=E[ie];
+  for(let cur=0;cur<V.length;cur++){const c=V[cur];
+    if(cur===iv||!c[ACT]||c[EB]!==ie||c[NXT]<0||!V[c[NXT]][ACT])continue;
+    const A=vpos(c,t),B=vpos(V[c[NXT]],t);
+    const s=(P[0]-A[0])*e[EDX]+(P[1]-A[1])*e[EDY];
+    const L=(B[0]-A[0])*e[EDX]+(B[1]-A[1])*e[EDY];
+    if(s>=-1e-6&&s<=L+1e-6)return cur;
+    const d=Math.min(Math.abs(s),Math.abs(s-L));
+    if(bd===null||d<bd){bd=d;best=cur;}}
+  return best;}
+
+function newvert(V,E,P,t,ea,eb){const b=bisect(E[ea],E[eb]);
+  V.push([P[0],P[1],t,ea,eb,-1,-1,1,b[0],b[1],reflexp(E[ea],E[eb])?1:0]);return V.length-1;}
+
+function skeleton(pts){
+  if(area2(pts)<0)pts=pts.slice().reverse();
+  const [V,E]=build(pts);const arcs=[],nodes=[];
+  const maxit=60+16*pts.length;
+  for(let it=0;it<maxit;it++){
+    let best=null;
+    for(let i=0;i<V.length;i++){const v=V[i];if(!v[ACT])continue;
+      const j=v[NXT];if(j<0||j===i||!V[j][ACT])continue;
+      const r=evEdge(V,i,j);
+      if(r&&(!best||r[0]<best[0]-1e-9))best=[r[0],'E',i,j,r[1],-1];}
+    for(let i=0;i<V.length;i++){const v=V[i];if(!v[ACT]||!v[RFX])continue;
+      for(let k=0;k<E.length;k++){if(k===v[EA]||k===v[EB])continue;
+        const r=evSplit(V,E,i,k);if(!r)continue;
+        if(best&&r[0]>=best[0]-1e-9)continue;
+        if(opposite(V,E,i,k,r[1],r[0])===null)continue;
+        best=[r[0],'S',i,-1,r[1],k];}}
+    if(!best)break;
+    const [t,kind,ia,ib,P,ie]=best;
+    if(kind==='E'){const a=V[ia],b=V[ib];
+      arcs.push([[a[PX],a[PY]],P]);arcs.push([[b[PX],b[PY]],P]);nodes.push([P,t]);
+      const ip=a[PRV],inx=b[NXT];a[ACT]=0;b[ACT]=0;
+      if(ip===ib||inx===ia)continue;
+      const nv=newvert(V,E,P,t,a[EA],b[EB]);
+      V[nv][PRV]=ip;V[nv][NXT]=inx;V[ip][NXT]=nv;V[inx][PRV]=nv;
+      if(V[nv][PRV]===V[nv][NXT]){const o=V[nv][PRV];
+        arcs.push([P,[V[o][PX],V[o][PY]]]);V[nv][ACT]=0;V[o][ACT]=0;}
+    }else{
+      const io=opposite(V,E,ia,ie,P,t);if(io===null)continue;
+      const v=V[ia];arcs.push([[v[PX],v[PY]],P]);nodes.push([P,t]);
+      const iy=V[io][NXT],ip=v[PRV],inx=v[NXT];v[ACT]=0;
+      const v1=newvert(V,E,P,t,v[EA],ie),v2=newvert(V,E,P,t,ie,v[EB]);
+      V[v1][PRV]=ip;V[v1][NXT]=iy;V[ip][NXT]=v1;V[iy][PRV]=v1;
+      V[v2][PRV]=io;V[v2][NXT]=inx;V[io][NXT]=v2;V[inx][PRV]=v2;
+      for(const nv of [v1,v2]){
+        if(V[nv][PRV]===V[nv][NXT]&&V[nv][PRV]>=0){const o=V[nv][PRV];
+          arcs.push([[V[nv][PX],V[nv][PY]],[V[o][PX],V[o][PY]]]);V[nv][ACT]=0;V[o][ACT]=0;}}
+    }
+    if(!V.some(v=>v[ACT]))break;
+  }
+  const clean=[];
+  for(const a of arcs){if(dist(a[0],a[1])<1e-7)continue;
+    if(!clean.some(x=>(dist(a[0],x[0])<1e-6&&dist(a[1],x[1])<1e-6)||(dist(a[0],x[1])<1e-6&&dist(a[1],x[0])<1e-6)))clean.push(a);}
+  return {arcs:clean,nodes,pts};
+}
+
+/* γείσο: κάθε κορυφή -> P - ovh*διχοτόμος (σωστό και σε ανακλαστικές) */
+function offsetPoly(pts,d){const [V]=build(pts);
+  return V.map(v=>[v[PX]-v[BX]*d, v[PY]-v[BY]*d]);}
+function perim(p){let s=0;for(let i=0;i<p.length;i++)s+=dist(p[i],p[(i+1)%p.length]);return s;}
+
+/* ============================================================
+   ΕΥΡΩΚΩΔΙΚΑΣ 1 — Ελληνικό Εθνικό Προσάρτημα
+   ============================================================ */
+function ec1(adeg,zone,alt,vb0,terr,z){
+  const sk0=zone===1?0.4:zone===2?1.7:0.8;
+  const sk=sk0*(1+Math.pow(alt/917,2));
+  const mu=adeg<=30?0.8:adeg<60?0.8*(60-adeg)/30:0;
+  const T=[[0.003,1],[0.01,1],[0.05,2],[0.30,5],[1.0,10]][terr];
+  const ze=Math.max(z,T[1]);
+  const kr=0.19*Math.pow(T[0]/0.05,0.07), cr=kr*Math.log(ze/T[0]);
+  const vm=cr*vb0, iv=1/Math.log(ze/T[0]);
+  const qp=(1+7*iv)*0.5*1.25*vm*vm/1000;
+  const ip=(a,tb)=>{if(a>=tb[tb.length-1][0])return tb[tb.length-1][1];
+    for(let i=0;i<tb.length-1;i++){if(a>=tb[i][0]&&a<=tb[i+1][0])
+      return tb[i][1]+(tb[i+1][1]-tb[i][1])*(a-tb[i][0])/(tb[i+1][0]-tb[i][0]);}return tb[0][1];};
+  const cF=ip(adeg,[[5,-1.7],[15,-.9],[30,-.5],[45,0],[60,.7],[75,.8]]);
+  return {sk,mu,s:mu*sk,qp,vm,wF:qp*cF};
+}
+
+/* ============================================================
+   ΚΑΤΑΣΤΑΣΗ + ΚΑΜΒΑΣ
+   ============================================================ */
+const cv=document.getElementById('board'), ctx=cv.getContext('2d');
+let DPR=1, W=0, H=0;
+let verts=[], closed=false, sol=null, gp=null, anim=0;
+let cell=48, ox=0, oy=0;               // px ανά μέτρο, μετατόπιση
+const G=v=>Math.round(v*2)/2;          // κάνναβος 0.5 m
+
+function resize(){DPR=Math.min(devicePixelRatio||1,2.5);
+  W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;
+  cv.style.width=W+'px';cv.style.height=H+'px';ctx.setTransform(DPR,0,0,DPR,0,0);
+  if(!verts.length){ox=W/2;oy=H/2;}draw();}
+addEventListener('resize',resize);
+
+const s2w=(x,y)=>[(x-ox)/cell, (oy-y)/cell];
+const w2s=p=>[ox+p[0]*cell, oy-p[1]*cell];
+
+function fit(){
+  const all=(gp||verts); if(all.length<2)return;
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const p of all){x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1]);}
+  const pad=90, availW=W-2*pad, availH=H-260;
+  cell=Math.max(8,Math.min(availW/Math.max(.5,x1-x0), availH/Math.max(.5,y1-y0)));
+  ox=W/2-(x0+x1)/2*cell; oy=(H-150)/2+(y0+y1)/2*cell;
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  /* κάνναβος */
+  const step=cell>=26?1:cell>=13?2:5;
+  ctx.lineWidth=1;
+  const wx0=Math.floor(s2w(0,0)[0]/step)*step, wx1=s2w(W,0)[0];
+  const wy1=s2w(0,0)[1], wy0=Math.floor(s2w(0,H)[1]/step)*step;
+  for(let x=wx0;x<=wx1;x+=step){const sx=w2s([x,0])[0];
+    ctx.strokeStyle=(Math.abs(x%(step*5))<1e-6)?'#D3DCE3':'#E3E9ED';
+    ctx.beginPath();ctx.moveTo(sx,0);ctx.lineTo(sx,H);ctx.stroke();}
+  for(let y=wy0;y<=wy1;y+=step){const sy=w2s([0,y])[1];
+    ctx.strokeStyle=(Math.abs(y%(step*5))<1e-6)?'#D3DCE3':'#E3E9ED';
+    ctx.beginPath();ctx.moveTo(0,sy);ctx.lineTo(W,sy);ctx.stroke();}
+
+  const line=(a,b,c,w,dash)=>{ctx.strokeStyle=c;ctx.lineWidth=w;ctx.setLineDash(dash||[]);
+    const A=w2s(a),B=w2s(b);ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);ctx.stroke();ctx.setLineDash([]);};
+
+  if(sol&&gp){ /* γείσο */
+    ctx.strokeStyle='var(--geiso)';
+    for(let i=0;i<gp.length;i++)line(gp[i],gp[(i+1)%gp.length],'#4A7A4A',1.5,[7,4]);
+  }
+
+  /* περίγραμμα */
+  if(verts.length){
+    ctx.lineWidth=2.5;ctx.strokeStyle='#16202B';ctx.beginPath();
+    const P=w2s(verts[0]);ctx.moveTo(P[0],P[1]);
+    for(let i=1;i<verts.length;i++){const q=w2s(verts[i]);ctx.lineTo(q[0],q[1]);}
+    if(closed)ctx.closePath();
+    ctx.stroke();
+  }
+
+  /* σκελετός με σταδιακή εμφάνιση */
+  if(sol){
+    const n=Math.ceil(sol.arcs.length*anim);
+    for(let i=0;i<n;i++){
+      const a=sol.arcs[i];
+      const at=vidx(a[0]), bt=vidx(a[1]);
+      const rf=(t)=>t!==null&&isReflex(sol.pts,t);
+      const col=(rf(at)||rf(bt))?'#2E7FA8':(at!==null||bt!==null)?'#C0562F':'#C08A2E';
+      const A=(at!==null&&gp)?gp[at]:a[0], B=(bt!==null&&gp)?gp[bt]:a[1];
+      line(A,B,col,2.5);
+    }
+    if(anim>=1){ /* υψόμετρα */
+      const base=+document.getElementById('base').value||0;
+      const th=(+document.getElementById('pit').value||0)/100;
+      ctx.font='600 11px '+getComputedStyle(document.body).getPropertyValue('--num');
+      ctx.textAlign='center';ctx.fillStyle='#16202B';
+      for(const [P,t] of sol.nodes){const S=w2s(P);
+        ctx.fillStyle='#fff';ctx.fillRect(S[0]-21,S[1]-16,42,13);
+        ctx.fillStyle='#C08A2E';ctx.fillText('+'+(base+t*th).toFixed(2),S[0],S[1]-6);}
+    }
+  }
+
+  /* κορυφές */
+  for(let i=0;i<verts.length;i++){const S=w2s(verts[i]);
+    ctx.fillStyle='#fff';ctx.strokeStyle='#1F4E9C';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(S[0],S[1],closed?4:6,0,7);ctx.fill();ctx.stroke();}
+
+  /* μήκη πλευρών */
+  if(verts.length>1){
+    ctx.font='600 11px '+getComputedStyle(document.body).getPropertyValue('--num');
+    ctx.textAlign='center';
+    const lim=closed?verts.length:verts.length-1;
+    for(let i=0;i<lim;i++){
+      const a=verts[i],b=verts[(i+1)%verts.length],L=dist(a,b);
+      if(L<.4)continue;
+      const M=w2s([(a[0]+b[0])/2,(a[1]+b[1])/2]);
+      ctx.fillStyle='#fff';ctx.fillRect(M[0]-17,M[1]-8,34,15);
+      ctx.fillStyle='#5A6875';ctx.fillText(L.toFixed(2),M[0],M[1]+3);}
+  }
+}
+function vidx(p){for(let i=0;i<sol.pts.length;i++)if(dist(p,sol.pts[i])<1e-6)return i;return null;}
+function isReflex(p,i){const n=p.length,a=p[(i-1+n)%n],c=p[i],b=p[(i+1)%n];
+  return (c[0]-a[0])*(b[1]-c[1])-(c[1]-a[1])*(b[0]-c[0]) < -1e-9;}
+
+/* ---------- είσοδος ---------- */
+let down=null,moved=false,panned=false;
+cv.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];moved=false;panned=false;});
+cv.addEventListener('pointermove',e=>{
+  if(!down)return;
+  if(Math.hypot(e.clientX-down[0],e.clientY-down[1])>7){moved=true;
+    ox+=e.clientX-down[0];oy+=e.clientY-down[1];down=[e.clientX,e.clientY];panned=true;draw();}
+});
+cv.addEventListener('pointerup',e=>{
+  if(!moved&&!closed){
+    let w=s2w(e.clientX,e.clientY);
+    let p=[G(w[0]),G(w[1])];
+    /* ορθογωνικό κούμπωμα στην προηγούμενη κορυφή */
+    if(verts.length){const L=verts[verts.length-1];
+      if(Math.abs(p[0]-L[0])<Math.abs(p[1]-L[1]))p[0]=L[0];else p[1]=L[1];}
+    if(verts.length>2&&dist(p,verts[0])<0.8){finish();down=null;return;}
+    if(!verts.length||dist(p,verts[verts.length-1])>1e-6)verts.push(p);
+    document.getElementById('solve').disabled=verts.length<3;
+    hint(verts.length<3?'Πάτα για κορυφές':'Πάτα την πρώτη κορυφή ή «Κλείσε & λύσε»');
+    draw();
+  }
+  down=null;
+});
+let pinch=null;
+cv.addEventListener('touchstart',e=>{if(e.touches.length===2){
+  pinch=[Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY),cell];}},{passive:true});
+cv.addEventListener('touchmove',e=>{if(e.touches.length===2&&pinch){
+  const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+  cell=Math.max(8,Math.min(220,pinch[1]*d/pinch[0]));draw();}},{passive:true});
+cv.addEventListener('touchend',()=>{pinch=null;});
+
+const hint=t=>document.getElementById('hint').textContent=t;
+
+/* ---------- λύση ---------- */
+function finish(){
+  if(verts.length<3)return;
+  /* καθάρισμα διπλών & συνευθειακών */
+  let p=verts.filter((v,i)=>i===0||dist(v,verts[i-1])>1e-6);
+  if(p.length>1&&dist(p[0],p[p.length-1])<1e-6)p.pop();
+  const cl=[];
+  for(let i=0;i<p.length;i++){const a=p[(i-1+p.length)%p.length],c=p[i],b=p[(i+1)%p.length];
+    const la=dist(a,c),lb=dist(c,b);if(la<1e-9||lb<1e-9)continue;
+    const cr=Math.abs((c[0]-a[0])*(b[1]-c[1])-(c[1]-a[1])*(b[0]-c[0]))/(la*lb);
+    if(cr>1e-6)cl.push(c);}
+  p=cl.length>=3?cl:p;
+  if(area2(p)<0)p.reverse();
+  verts=p;closed=true;
+
+  const ovh=+document.getElementById('ovh').value||0;
+  sol=skeleton(p);
+  gp=ovh>0.001?offsetPoly(p,ovh):null;   // +ovh = προς τα ΕΞΩ
+  fit();
+  anim=0;const t0=performance.now();
+  (function step(){anim=Math.min(1,(performance.now()-t0)/520);draw();
+    if(anim<1)requestAnimationFrame(step);else report();})();
+  hint('Λύθηκε');
+  document.getElementById('solve').textContent='Ποσότητες';
+  document.getElementById('solve').disabled=false;
+}
+
+function quantities(){
+  const th=(+document.getElementById('pit').value||35)/100;
+  const a=Math.atan(th), ca=Math.cos(a), adeg=a*180/Math.PI;
+  const base=+document.getElementById('base').value||0;
+  const km2=+document.getElementById('km2').value||13;
+  const eav=gp||sol.pts;
+  const plan=Math.abs(area2(eav)/2), per=perim(eav);
+  const roof=plan/ca;
+  let lmax=0,lnt=0,lkr=0,hmax=0;
+  for(const [P,t] of sol.nodes)hmax=Math.max(hmax,t*th);
+  for(const arc of sol.arcs){
+    const ia=vidx(arc[0]), ib=vidx(arc[1]);
+    const A=(ia!==null&&gp)?gp[ia]:arc[0], B=(ib!==null&&gp)?gp[ib]:arc[1];
+    const L=dist(A,B);
+    if((ia!==null&&isReflex(sol.pts,ia))||(ib!==null&&isReflex(sol.pts,ib)))lnt+=L;
+    else if(ia!==null||ib!==null)lmax+=L;else lkr+=L;
+  }
+  const E=ec1(adeg,3,100,33,2,Math.max(3,base+hmax));
+  return {th,a,ca,adeg,base,plan,per,roof,hmax,lmax,lnt,lkr,km2,E,
+    tiles:Math.ceil(roof*km2), kav:Math.ceil(lkr/0.33), kavm:Math.ceil(lmax/0.33),
+    akro:Math.ceil(per/0.25), aer:Math.max(2,Math.ceil(roof/25)),
+    raf:roof/0.80, purl:roof/0.30, boards:roof};
+}
+
+const N=(v,d=2)=>v.toFixed(d).replace('.',',');
+function report(){
+  const q=quantities();
+  document.getElementById('out').innerHTML=`
+  <div class="kpi">
+    <div><span>Επιφάνεια στέγης</span><b>${N(q.roof)}</b><span>m² πραγματική</span></div>
+    <div><span>Κεραμίδια</span><b>${q.tiles}</b><span>τεμ · ${N(q.km2,0)}/m²</span></div>
+    <div><span>Υψόμετρο κορφιά</span><b>+${N(q.base+q.hmax)}</b><span>m · κλίση ${N(q.adeg,1)}°</span></div>
+    <div><span>Ξυλεία</span><b>${N((q.raf*0.10*0.16+q.purl*0.05*0.05+q.boards*0.02),2)}</b><span>m³ περίπου</span></div>
+  </div>
+
+  <h3>Γεωμετρία</h3><table>
+    <tr><td>Εμβαδόν κάτοψης (με γείσο)</td><td>${N(q.plan)} m²</td></tr>
+    <tr><td>Επιφάνεια στέγης ÷ cos ${N(q.adeg,1)}°</td><td>${N(q.roof)} m²</td></tr>
+    <tr><td>Περίμετρος υδρορροής</td><td>${N(q.per)} m</td></tr>
+    <tr><td>Κορφιάδες</td><td>${N(q.lkr)} m</td></tr>
+    <tr><td>Μαχιές</td><td>${N(q.lmax)} m</td></tr>
+    <tr><td>Ντερέδες (λούκια)</td><td>${N(q.lnt)} m</td></tr>
+  </table>
+
+  <h3>Επικάλυψη</h3><table>
+    <tr><td>Κεραμίδια</td><td>${q.tiles} τεμ</td></tr>
+    <tr><td>Καβαλλάρηδες κορφιά</td><td>${q.kav} τεμ</td></tr>
+    <tr><td>Καβαλλάρηδες μαχιών</td><td>${q.kavm||'—'} τεμ</td></tr>
+    <tr><td>Ακροκέραμα υδρορροής</td><td>${q.akro} τεμ</td></tr>
+    <tr><td>Αεριστήρες</td><td>${q.aer} τεμ</td></tr>
+    <tr><td>Λαμαρίνα ντερέδων (+10%)</td><td>${q.lnt>0?N(q.lnt*1.1)+' m':'—'}</td></tr>
+  </table>
+
+  <h3>Ξυλεία &amp; στρώσεις</h3><table>
+    <tr><td>Αμείβοντες 10×16 ανά 0,80</td><td>${N(q.raf)} m</td></tr>
+    <tr><td>Τεγίδες 5×5 ανά 0,30</td><td>${N(q.purl)} m</td></tr>
+    <tr><td>Πέτσωμα</td><td>${N(q.boards)} m²</td></tr>
+    <tr><td>Θερμομόνωση</td><td>${N(q.roof)} m²</td></tr>
+    <tr><td>Μεμβράνες (+10% επικάλυψη)</td><td>${N(q.roof*2.2)} m²</td></tr>
+  </table>
+
+  <h3>Φορτία — Ευρωκώδικας 1</h3><table>
+    <tr><td>Χιόνι ζώνη III, 100 m · s</td><td>${N(q.E.s,3)} kN/m²</td></tr>
+    <tr><td>Άνεμος 33 m/s, εδ. II · q<sub>p</sub></td><td>${N(q.E.qp,3)} kN/m²</td></tr>
+    <tr><td>Υποπίεση ζώνη F</td><td class="${q.E.wF<-0.8?'warn':''}">${N(q.E.wF,3)} kN/m²</td></tr>
+  </table>
+
+  <div class="note"><b>Εκτίμηση — προμέτρηση.</b> Τα παραπάνω αφορούν ποσότητες και
+  προκαταρκτικές τιμές φορτίων. Δεν υποκαθιστούν τη στατική μελέτη, η οποία εκπονείται
+  και υπογράφεται από εξουσιοδοτημένο Πολιτικό Μηχανικό, μέλος Τ.Ε.Ε., κατά
+  EN 1990/1991/1995. Έλεγξε τις τιμές πριν από χρήση σε μελέτη, προσφορά ή κατασκευή.</div>
+
+  <div class="row" style="margin-top:18px"><button class="pri" id="pdf">Αποθήκευση PDF</button></div>`;
+  document.getElementById('pdf').onclick=makePDF;
+}
+
+/* ---------- PDF: σελίδα A4 σε καμβά (τα ελληνικά περνούν σωστά) ---------- */
+function makePDF(){
+  const q=quantities(), S=3, w=595*S, h=842*S;
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const x=c.getContext('2d');
+  x.fillStyle='#fff';x.fillRect(0,0,w,h);
+  const F=(s,wt)=>`${wt||600} ${s*S}px -apple-system,Segoe UI,Roboto,sans-serif`;
+  const M=(s)=>`600 ${s*S}px ui-monospace,Menlo,Consolas,monospace`;
+  let y=46*S;
+  x.fillStyle='#1F4E9C';x.font=F(17,700);x.fillText('HEXIS APP — ΠΡΟΜΕΤΡΗΣΗ ΠΕΔΙΟΥ',40*S,y);
+  x.fillStyle='#5A6875';x.font=F(8.5,500);y+=15*S;
+  x.fillText('Προμέτρηση στέγης · BRB DEVELOPMENT MON. I.K.E. · www.birbas.gr · '+new Date().toLocaleDateString('el-GR'),40*S,y);
+  x.strokeStyle='#1F4E9C';x.lineWidth=1.4*S;y+=8*S;
+  x.beginPath();x.moveTo(40*S,y);x.lineTo(555*S,y);x.stroke();
+
+  /* σχέδιο κάτοψης */
+  const eav=gp||sol.pts;
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const p of eav){x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1]);}
+  const bw=505*S, bh=210*S, sc=Math.min(bw/Math.max(.5,x1-x0), bh/Math.max(.5,y1-y0))*0.86;
+  const cx=297*S, cy=y+22*S+bh/2;
+  const T=p=>[cx+(p[0]-(x0+x1)/2)*sc, cy-(p[1]-(y0+y1)/2)*sc];
+  const seg=(a,b,col,lw,dash)=>{x.strokeStyle=col;x.lineWidth=lw*S;x.setLineDash(dash||[]);
+    const A=T(a),B=T(b);x.beginPath();x.moveTo(A[0],A[1]);x.lineTo(B[0],B[1]);x.stroke();x.setLineDash([]);};
+  if(gp)for(let i=0;i<gp.length;i++)seg(gp[i],gp[(i+1)%gp.length],'#4A7A4A',1,[6*S,3*S]);
+  for(let i=0;i<sol.pts.length;i++)seg(sol.pts[i],sol.pts[(i+1)%sol.pts.length],'#16202B',1.6);
+  for(const arc of sol.arcs){
+    const ia=vidx(arc[0]),ib=vidx(arc[1]);
+    const rf=t=>t!==null&&isReflex(sol.pts,t);
+    const col=(rf(ia)||rf(ib))?'#2E7FA8':(ia!==null||ib!==null)?'#C0562F':'#C08A2E';
+    seg((ia!==null&&gp)?gp[ia]:arc[0],(ib!==null&&gp)?gp[ib]:arc[1],col,1.8);}
+  x.font=M(7);x.textAlign='center';x.fillStyle='#C08A2E';
+  for(const [P,t] of sol.nodes){const A=T(P);x.fillText('+'+N(q.base+t*q.th),A[0],A[1]-4*S);}
+  x.textAlign='left';
+  y=cy+bh/2+16*S;
+  x.font=F(7.5,500);x.fillStyle='#5A6875';
+  x.fillText('■ μαχιές',40*S,y);x.fillStyle='#C0562F';x.fillRect(40*S,y-6*S,6*S,6*S);
+  x.fillStyle='#2E7FA8';x.fillRect(95*S,y-6*S,6*S,6*S);x.fillStyle='#5A6875';x.fillText('  ντερέδες',95*S,y);
+  x.fillStyle='#C08A2E';x.fillRect(165*S,y-6*S,6*S,6*S);x.fillStyle='#5A6875';x.fillText('  κορφιάδες',165*S,y);
+  x.fillStyle='#4A7A4A';x.fillRect(235*S,y-6*S,6*S,6*S);x.fillStyle='#5A6875';x.fillText('  γείσο',235*S,y);
+  y+=22*S;
+
+  const H3=t=>{x.fillStyle='#1F4E9C';x.font=F(9,700);x.fillText(t.toUpperCase(),40*S,y);
+    x.strokeStyle='#C8D2DA';x.lineWidth=S;x.beginPath();x.moveTo(40*S,y+5*S);x.lineTo(555*S,y+5*S);x.stroke();y+=17*S;};
+  const R=(k,v,warn)=>{x.fillStyle='#16202B';x.font=F(9,500);x.fillText(k,44*S,y);
+    x.font=M(9);x.textAlign='right';x.fillStyle=warn?'#C0562F':'#16202B';x.fillText(v,551*S,y);
+    x.textAlign='left';x.strokeStyle='#E8EDF0';x.lineWidth=S;
+    x.beginPath();x.moveTo(40*S,y+4*S);x.lineTo(555*S,y+4*S);x.stroke();y+=15*S;};
+
+  H3('Γεωμετρία');
+  R('Εμβαδόν κάτοψης (με γείσο)',N(q.plan)+' m²');
+  R('Επιφάνεια στέγης',N(q.roof)+' m²');
+  R('Περίμετρος υδρορροής',N(q.per)+' m');
+  R('Κορφιάδες / μαχιές / ντερέδες',`${N(q.lkr)} / ${N(q.lmax)} / ${N(q.lnt)} m`);
+  R('Υψόμετρο κορφιά',`+${N(q.base+q.hmax)} m`);
+  y+=6*S;
+  H3('Επικάλυψη');
+  R('Κεραμίδια',q.tiles+' τεμ');
+  R('Καβαλλάρηδες κορφιά / μαχιών',`${q.kav} / ${q.kavm} τεμ`);
+  R('Ακροκέραμα υδρορροής',q.akro+' τεμ');
+  R('Αεριστήρες',q.aer+' τεμ');
+  y+=6*S;
+  H3('Ξυλεία και στρώσεις');
+  R('Αμείβοντες 10×16 ανά 0,80 m',N(q.raf)+' m');
+  R('Τεγίδες 5×5 ανά 0,30 m',N(q.purl)+' m');
+  R('Πέτσωμα / θερμομόνωση',N(q.roof)+' m²');
+  R('Μεμβράνες (+10%)',N(q.roof*2.2)+' m²');
+  y+=6*S;
+  H3('Φορτία — Ευρωκώδικας 1');
+  R('Χιόνι s (ζώνη III, 100 m)',N(q.E.s,3)+' kN/m²');
+  R('Πίεση αιχμής qp (33 m/s, εδ. II)',N(q.E.qp,3)+' kN/m²');
+  R('Υποπίεση ανέμου ζώνη F',N(q.E.wF,3)+' kN/m²',q.E.wF<-0.8);
+
+  y+=14*S;
+  x.fillStyle='#FAFBFC';x.fillRect(40*S,y-4*S,515*S,54*S);
+  x.fillStyle='#C0562F';x.fillRect(40*S,y-4*S,2.5*S,54*S);
+  x.fillStyle='#16202B';x.font=F(8,700);x.fillText('ΕΚΤΙΜΗΣΗ — ΠΡΟΜΕΤΡΗΣΗ',50*S,y+9*S);
+  x.fillStyle='#5A6875';x.font=F(7.5,500);
+  ['Τα ανωτέρω αφορούν ποσότητες και προκαταρκτικές τιμές φορτίων βάσει της γεωμετρίας που σχεδίασε ο χρήστης.',
+   'ΔΕΝ ΥΠΟΚΑΘΙΣΤΟΥΝ ΤΗ ΣΤΑΤΙΚΗ ΜΕΛΕΤΗ. Η μελέτη του φέροντος οργανισμού εκπονείται, υπογράφεται και',
+   'σφραγίζεται από εξουσιοδοτημένο Πολιτικό Μηχανικό, μέλος Τ.Ε.Ε., κατά EN 1990 / 1991 / 1995.']
+   .forEach((t,i)=>x.fillText(t,50*S,y+22*S+i*10*S));
+
+  const {jsPDF}=window.jspdf;
+  const pdf=new jsPDF({unit:'pt',format:'a4'});
+  pdf.addImage(c.toDataURL('image/jpeg',0.94),'JPEG',0,0,595,842);
+  pdf.save('prometrisi-stegis.pdf');
+}
+
+/* ---------- κουμπιά ---------- */
+document.getElementById('solve').onclick=()=>{
+  if(!closed)finish();
+  else{document.getElementById('sheet').classList.add('on');}
+};
+document.getElementById('undo').onclick=()=>{
+  if(closed){closed=false;sol=null;gp=null;
+    document.getElementById('solve').textContent='Κλείσε & λύσε';}
+  else verts.pop();
+  document.getElementById('solve').disabled=verts.length<3;
+  hint(verts.length<3?'Πάτα για κορυφές':'Πάτα την πρώτη κορυφή ή «Κλείσε & λύσε»');draw();};
+document.getElementById('clear').onclick=()=>{verts=[];closed=false;sol=null;gp=null;
+  document.getElementById('solve').disabled=true;
+  document.getElementById('solve').textContent='Κλείσε & λύσε';
+  ox=W/2;oy=H/2;cell=48;hint('Πάτα για κορυφές');draw();};
+document.getElementById('close').onclick=()=>document.getElementById('sheet').classList.remove('on');
+for(const id of ['pit','ovh','base','km2'])
+  document.getElementById(id).addEventListener('change',()=>{if(closed){finish();}});
+
+resize();
+
+/* Το offline το αναλαμβάνει το ΥΠΑΡΧΟΝ sw.js της ρίζας του HEXIS.
+   Δεν καταχωρείται δεύτερος service worker. */
+const APP_VERSION='1.0.0';
+</script>
+</body>
+</html>

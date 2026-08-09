@@ -10,16 +10,39 @@ const CACHE_NAME = 'hexis-' + VERSION;
 importScripts('hexis-catalog.js'); // κοινός κατάλογος εργαλείων
 
 // Στατικά αρχεία + ΟΛΑ τα .html των εργαλείων από τον κατάλογο (αυτόματα)
-const PRECACHE_STATIC = ['hub.html', ... , 'hexis_check_my_dxf.lsp',
+const PRECACHE_STATIC = [
+  'hub.html', 'tool.html', 'admin.html', 'manual.html', 'login.html',
+  'hexis-catalog.js',
+  'admin-manifest.json', 'admin-icon-192.png',
+  'intro.mp4',
+  'nomothesia-manifest.json', 'nomothesia-icon-192.png',
+  'nomothesia-icon-512.png', 'nomothesia-icon-maskable.png',
+  'hexis_check_my_dxf.lsp',
+  // --- ΣΤΕΓΗ (v4.37) ---
   'stegh.html', 'stegh-manifest.json',
   'stegh-icon-192.png', 'stegh-icon-512.png', 'stegh-icon-maskable.png',
-  'jspdf.umd.min.js', 'STEGH.lsp'];
+  'jspdf.umd.min.js', 'STEGH.lsp'
+];
+
+const PRECACHE = [...new Set([...PRECACHE_STATIC, ...(self.HEXIS_PRECACHE_HTML || [])])];
+
 // Άμεση ενεργοποίηση νέας έκδοσης
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME)
-      .then((c) => c.addAll(PRECACHE))
-      .catch(() => {}) // αν αποτύχει (offline install), δεν μπλοκάρει την εγκατάσταση
+      // ΠΡΟΣΟΧΗ: το addAll είναι all-or-nothing. Ένα λάθος όνομα αρχείου
+      // ακυρώνει ΟΛΟ το precache. Γι' αυτό κατεβάζουμε ένα-ένα και
+      // αναφέρουμε όσα απέτυχαν, αντί να τα καταπίνουμε σιωπηλά.
+      .then((c) =>
+        Promise.all(
+          PRECACHE.map((u) =>
+            c.add(u).catch(() => {
+              console.warn('[HEXIS SW] δεν βρέθηκε στο precache:', u);
+            })
+          )
+        )
+      )
+      .catch(() => {}) // αν αποτύχει τελείως (offline install), δεν μπλοκάρει
   );
   self.skipWaiting();
 });
