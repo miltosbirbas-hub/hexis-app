@@ -73,6 +73,17 @@ canvas.plan{width:100%;height:auto;background:#fff;border:1px solid var(--line);
 .note b{color:var(--ink)}
 .warn{color:var(--maxia);font-weight:700}
 button.tg{flex:0 0 auto;padding:11px 12px;font-size:13px}
+.seg{display:flex;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:8px}
+.seg button{border:none;border-radius:0;flex:1;min-height:40px;font-size:12.5px;font-weight:600;
+  background:#fff;color:var(--ink-2);border-right:1px solid var(--line)}
+.seg button:last-child{border-right:none}
+.seg button.on{background:var(--brb);color:#fff}
+.err{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 170px);
+  background:#fff;border:1px solid var(--maxia);border-left:4px solid var(--maxia);
+  border-radius:12px;padding:12px 14px;box-shadow:0 8px 28px #16202b22;z-index:15;display:none}
+.err.on{display:block}
+.err b{display:block;font-size:13px;color:var(--maxia);margin-bottom:3px}
+.err span{font-size:12.5px;line-height:1.5;color:var(--ink)}
 button.tg.on{background:var(--brb);border-color:var(--brb);color:#fff}
 .mask{position:fixed;inset:0;background:#16202b66;display:none;align-items:center;
   justify-content:center;z-index:40;padding:20px}
@@ -94,6 +105,11 @@ button.tg.on{background:var(--brb);border-color:var(--brb);color:#fff}
 </div>
 
 <div class="dock">
+  <div class="seg">
+    <button id="t_hip" class="on">Τετράρριχτη</button>
+    <button id="t_gable">Δίρριχτη</button>
+    <button id="t_mono">Μονόρριχτη</button>
+  </div>
   <div class="fields">
     <div><label>Κλίση %</label><input id="pit" type="number" inputmode="decimal" value="35"></div>
     <div><label>Γείσο m</label><input id="ovh" type="number" inputmode="decimal" value="0.60" step="0.05"></div>
@@ -102,11 +118,15 @@ button.tg.on{background:var(--brb);border-color:var(--brb);color:#fff}
   </div>
   <div class="row" style="margin-top:9px">
     <button class="tg on" id="ortho" title="Κλείδωμα σε ορθές γωνίες">90°</button>
+    <button class="tg" id="hole" title="Αίθριο ή κλιμακοστάσιο">Τρύπα</button>
+    <button class="tg" id="refside" style="display:none">Πλευρά 1</button>
     <button class="gh" id="undo">Αναίρεση</button>
     <button class="gh" id="clear">Νέο</button>
     <button class="pri" id="solve" disabled>Κλείσε &amp; λύσε</button>
   </div>
 </div>
+
+<div class="err" id="err"><b>Δεν λύνεται</b><span id="errTxt"></span></div>
 
 <div class="mask" id="mask">
   <div class="dlg">
@@ -140,10 +160,16 @@ function bisect(ea,eb){const n1x=ea[ENX],n1y=ea[ENY],n2x=eb[ENX],n2y=eb[ENY];
 function reflexp(ea,eb){return ea[EDX]*eb[EDY]-ea[EDY]*eb[EDX] < -1e-12;}
 function vpos(v,t){const d=t-v[VT];return [v[PX]+v[BX]*d, v[PY]+v[BY]*d];}
 
-function build(pts){const n=pts.length,E=[],V=[];
-  for(let i=0;i<n;i++)E.push(mkedge(pts[i],pts[(i+1)%n]));
-  for(let i=0;i<n;i++){const ea=(i-1+n)%n,eb=i,b=bisect(E[ea],E[eb]);
-    V.push([pts[i][0],pts[i][1],0,ea,eb,(i-1+n)%n,(i+1)%n,1,b[0],b[1],reflexp(E[ea],E[eb])?1:0]);}
+function build(loops){
+  /* loops: εξωτερικό (CCW) + τρύπες (CW). Δέχεται και σκέτο περίγραμμα. */
+  if(typeof loops[0][0]==='number') loops=[loops];
+  const E=[],V=[];
+  for(const lp of loops){
+    const n=lp.length, e0=E.length, v0=V.length;
+    for(let i=0;i<n;i++)E.push(mkedge(lp[i],lp[(i+1)%n]));
+    for(let i=0;i<n;i++){const ea=e0+(i-1+n)%n, eb=e0+i, b=bisect(E[ea],E[eb]);
+      V.push([lp[i][0],lp[i][1],0,ea,eb,v0+(i-1+n)%n,v0+(i+1)%n,1,b[0],b[1],reflexp(E[ea],E[eb])?1:0]);}
+  }
   return [V,E];}
 
 function evEdge(V,ia,ib){const a=V[ia],b=V[ib];
@@ -184,10 +210,20 @@ function opposite(V,E,iv,ie,P,t){let best=null,bd=null;const e=E[ie];
 function newvert(V,E,P,t,ea,eb){const b=bisect(E[ea],E[eb]);
   V.push([P[0],P[1],t,ea,eb,-1,-1,1,b[0],b[1],reflexp(E[ea],E[eb])?1:0]);return V.length-1;}
 
-function skeleton(pts){
-  if(area2(pts)<0)pts=pts.slice().reverse();
-  const [V,E]=build(pts);const arcs=[],nodes=[];
-  const maxit=60+16*pts.length;
+function skeleton(pts,holes){
+  let loops;
+  if(typeof pts[0][0]==='number'){
+    if(area2(pts)<0)pts=pts.slice().reverse();
+    loops=[pts];
+  } else { loops=pts; pts=loops[0]; }
+  if(holes&&holes.length){
+    loops=[area2(pts)<0?pts.slice().reverse():pts];
+    for(const h of holes) loops.push(area2(h)>0?h.slice().reverse():h);  /* τρύπες ΔΕΞΙΟΣΤΡΟΦΑ */
+    pts=loops[0];
+  }
+  const nAll=loops.reduce((s,l)=>s+l.length,0);
+  const [V,E]=build(loops);const arcs=[],nodes=[];
+  const maxit=60+16*nAll;
   for(let it=0;it<maxit;it++){
     let best=null;
     for(let i=0;i<V.length;i++){const v=V[i];if(!v[ACT])continue;
@@ -226,13 +262,128 @@ function skeleton(pts){
   const clean=[];
   for(const a of arcs){if(dist(a[0],a[1])<1e-7)continue;
     if(!clean.some(x=>(dist(a[0],x[0])<1e-6&&dist(a[1],x[1])<1e-6)||(dist(a[0],x[1])<1e-6&&dist(a[1],x[0])<1e-6)))clean.push(a);}
-  return {arcs:clean,nodes,pts};
+  return {arcs:clean,nodes,pts,loops};
 }
 
 /* γείσο: κάθε κορυφή -> P - ovh*διχοτόμος (σωστό και σε ανακλαστικές) */
 function offsetPoly(pts,d){const [V]=build(pts);
   return V.map(v=>[v[PX]-v[BX]*d, v[PY]-v[BY]*d]);}
 function perim(p){let s=0;for(let i=0;i<p.length;i++)s+=dist(p[i],p[(i+1)%p.length]);return s;}
+
+/* ============================================================
+   ΕΛΕΓΧΟΣ ΓΕΩΜΕΤΡΙΑΣ — τι δεν λύνεται και γιατί
+   ============================================================ */
+function segX(a,b,c,d){                       /* τέμνονται τα τμήματα; */
+  const o=(p,q,r)=>{const v=(q[1]-p[1])*(r[0]-q[0])-(q[0]-p[0])*(r[1]-q[1]);
+    return Math.abs(v)<1e-12?0:(v>0?1:2);};
+  const on=(p,q,r)=>Math.min(p[0],r[0])-1e-9<=q[0]&&q[0]<=Math.max(p[0],r[0])+1e-9&&
+                    Math.min(p[1],r[1])-1e-9<=q[1]&&q[1]<=Math.max(p[1],r[1])+1e-9;
+  const o1=o(a,b,c),o2=o(a,b,d),o3=o(c,d,a),o4=o(c,d,b);
+  if(o1!==o2&&o3!==o4)return true;
+  if(!o1&&on(a,c,b))return true; if(!o2&&on(a,d,b))return true;
+  if(!o3&&on(c,a,d))return true; if(!o4&&on(c,b,d))return true;
+  return false;
+}
+function checkGeom(P){
+  if(P.length<3) return 'Χρειάζονται τουλάχιστον 3 κορυφές.';
+  const n=P.length;
+  for(let i=0;i<n;i++) if(dist(P[i],P[(i+1)%n])<0.05)
+    return 'Η πλευρά '+(i+1)+' είναι σχεδόν μηδενική. Σβήσε τη διπλή κορυφή.';
+  for(let i=0;i<n;i++)for(let j=i+2;j<n;j++){
+    if(i===0&&j===n-1)continue;
+    if(segX(P[i],P[(i+1)%n],P[j],P[(j+1)%n]))
+      return 'Οι πλευρές '+(i+1)+' και '+(j+1)+' τέμνονται. Το περίγραμμα δεν επιτρέπεται να διασταυρώνεται.';
+  }
+  const A=Math.abs(area2(P)/2);
+  if(A<0.5) return 'Το σχήμα είναι πολύ μικρό ή εκφυλισμένο (εμβαδόν '+A.toFixed(2)+' m²).';
+  for(let i=0;i<n;i++){
+    const a=P[(i-1+n)%n],c=P[i],b=P[(i+1)%n];
+    const u=[a[0]-c[0],a[1]-c[1]],w=[b[0]-c[0],b[1]-c[1]];
+    const ang=Math.acos(Math.max(-1,Math.min(1,(u[0]*w[0]+u[1]*w[1])/(Math.hypot(...u)*Math.hypot(...w)))))*180/Math.PI;
+    if(ang<8) return 'Η γωνία στην κορυφή '+(i+1)+' είναι '+ang.toFixed(0)+'° — πολύ οξεία για να λυθεί στέγη.';
+  }
+  return null;
+}
+function checkSolution(sol,P){
+  for(const v of P){
+    const c=sol.arcs.filter(a=>dist(a[0],v)<1e-6||dist(a[1],v)<1e-6).length;
+    if(c!==1) return 'Ο επιλύτης δεν κατέληξε σε έγκυρη στέγη σε αυτό το σχήμα.';
+  }
+  const K=p=>p[0].toFixed(5)+','+p[1].toFixed(5), adj={};
+  for(const [a,b] of sol.arcs){(adj[K(a)]=adj[K(a)]||[]).push(K(b));(adj[K(b)]=adj[K(b)]||[]).push(K(a));}
+  const ks=Object.keys(adj);
+  if(ks.length){const seen=new Set(),st=[ks[0]];
+    while(st.length){const k=st.pop(); if(seen.has(k))continue; seen.add(k); for(const w of adj[k])st.push(w);}
+    if(seen.size!==ks.length) return 'Ο σκελετός βγήκε ασύνδετος — δοκίμασε απλούστερο περίγραμμα.';}
+  return null;
+}
+
+/* ============================================================
+   ΤΥΠΟΙ ΣΤΕΓΗΣ — τετράρριχτη (σκελετός) · δίρριχτη · μονόρριχτη
+   Για δίρριχτη/μονόρριχτη το ύψος ορίζεται από την ΑΠΟΣΤΑΣΗ
+   από μια πλευρά αναφοράς, όχι από τον σκελετό.
+   ============================================================ */
+function clipLine(P,p0,dir){                  /* διαστήματα της ευθείας μέσα στο πολύγωνο */
+  const ts=[], n=P.length;
+  for(let i=0;i<n;i++){
+    const a=P[i],b=P[(i+1)%n];
+    const ex=b[0]-a[0], ey=b[1]-a[1];
+    const den=dir[0]*ey-dir[1]*ex; if(Math.abs(den)<1e-12)continue;
+    const ax=a[0]-p0[0], ay=a[1]-p0[1];
+    const t=(ax*ey-ay*ex)/den, ss=(ax*dir[1]-ay*dir[0])/den;
+    if(ss>=-1e-9&&ss<=1+1e-9) ts.push(t);
+  }
+  ts.sort((x,y)=>x-y);
+  const out=[];
+  for(let i=0;i+1<ts.length;i+=2) if(ts[i+1]-ts[i]>1e-6) out.push([ts[i],ts[i+1]]);
+  return out;
+}
+function splitAt(P,pts){
+  /* βάζει τα σημεία pts ως κορυφές πάνω στις ακμές — αλλιώς ο κορφιάς
+     δεν συνδέεται με το περίγραμμα και οι έδρες βγαίνουν λάθος */
+  let Q=P.map(p=>p.slice());
+  for(const q of pts){
+    let bi=-1,bt=0,bd=1e9;
+    for(let i=0;i<Q.length;i++){
+      const a=Q[i],b=Q[(i+1)%Q.length];
+      const dx=b[0]-a[0],dy=b[1]-a[1],L2=dx*dx+dy*dy; if(L2<1e-12)continue;
+      const t=Math.max(0,Math.min(1,((q[0]-a[0])*dx+(q[1]-a[1])*dy)/L2));
+      const d=Math.hypot(q[0]-a[0]-t*dx,q[1]-a[1]-t*dy);
+      if(d<bd){bd=d;bi=i;bt=t;}
+    }
+    if(bi>=0&&bd<1e-6&&bt>1e-6&&bt<1-1e-6) Q.splice(bi+1,0,q.slice());
+  }
+  return Q;
+}
+function refFrame(P,ei){                      /* πλαίσιο πλευράς αναφοράς */
+  const n=P.length, a=P[ei], b=P[(ei+1)%n], L=dist(a,b);
+  const d=[(b[0]-a[0])/L,(b[1]-a[1])/L], nv=[-d[1],d[0]];
+  let umax=0;
+  for(const p of P) umax=Math.max(umax,(p[0]-a[0])*nv[0]+(p[1]-a[1])*nv[1]);
+  return {a,d,nv,umax};
+}
+/* συνθέτει sol {arcs,nodes,pts} συμβατό με τα υπόλοιπα */
+function buildSimpleRoof(P,type,ei,th){
+  const F=refFrame(P,ei), arcs=[], nodes=[];
+  if(type==='gable'){
+    const u=F.umax/2;
+    const p0=[F.a[0]+F.nv[0]*u, F.a[1]+F.nv[1]*u];
+    for(const [t0,t1] of clipLine(P,p0,F.d)){
+      const A=[p0[0]+F.d[0]*t0,p0[1]+F.d[1]*t0], B=[p0[0]+F.d[0]*t1,p0[1]+F.d[1]*t1];
+      arcs.push([A,B]); nodes.push([A,u]); nodes.push([B,u]);
+    }
+  } else {                                     /* μονόρριχτη: κορφιάς = η απέναντι ακμή */
+    const u=F.umax;
+    const p0=[F.a[0]+F.nv[0]*u, F.a[1]+F.nv[1]*u];
+    for(const [t0,t1] of clipLine(P,p0,F.d)){
+      const A=[p0[0]+F.d[0]*t0,p0[1]+F.d[1]*t0], B=[p0[0]+F.d[0]*t1,p0[1]+F.d[1]*t1];
+      nodes.push([A,u]); nodes.push([B,u]);
+    }
+  }
+  const ends=[]; for(const ar of arcs){ends.push(ar[0],ar[1]);}
+  for(const nd of nodes) ends.push(nd[0]);
+  return {arcs,nodes,pts:splitAt(P,ends),frame:F,type};
+}
 
 /* ============================================================
    ΕΔΡΕΣ ΑΠΟ ΤΟΝ ΓΡΑΦΟ — μία έδρα ανά πλευρά, άθροισμα = εμβαδόν
@@ -344,6 +495,10 @@ let DPR=1, W=0, H=0;
 let verts=[], closed=false, sol=null, gp=null, anim=0;
 let cell=48, ox=0, oy=0;               // px ανά μέτρο, μετατόπιση
 let ortho=true, dragIdx=-1, edgeIdx=-1, dragOrig=null, downW=null;
+let rtype='hip', refEdge=0, holes=[], holeMode=false, curHole=null;
+const showErr=t=>{const e=document.getElementById('err');
+  document.getElementById('errTxt').textContent=t; e.classList.add('on');};
+const hideErr=()=>document.getElementById('err').classList.remove('on');
 const G=v=>Math.round(v*20)/20;        // ψιλός κάνναβος 5 cm
 
 function resize(){DPR=Math.min(devicePixelRatio||1,2.5);
@@ -390,6 +545,25 @@ function draw(){
   if(edgeIdx>=0&&verts.length>1){
     const A=w2s(verts[edgeIdx]),B=w2s(verts[(edgeIdx+1)%verts.length]);
     ctx.strokeStyle='#1F4E9C';ctx.lineWidth=7;ctx.globalAlpha=.22;
+    ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);ctx.stroke();ctx.globalAlpha=1;
+  }
+
+  /* τρύπες */
+  for(const h of holes.concat(curHole&&curHole.length?[curHole]:[])){
+    if(h.length<2)continue;
+    ctx.strokeStyle='#7A4DB0';ctx.lineWidth=2.2;ctx.setLineDash(h===curHole?[6,4]:[]);
+    ctx.beginPath();
+    h.forEach((q,i)=>{const S=w2s(q);i?ctx.lineTo(S[0],S[1]):ctx.moveTo(S[0],S[1]);});
+    if(h!==curHole)ctx.closePath();
+    ctx.stroke();ctx.setLineDash([]);
+    for(const q of h){const S=w2s(q);ctx.fillStyle='#7A4DB0';
+      ctx.beginPath();ctx.arc(S[0],S[1],4,0,7);ctx.fill();}
+  }
+
+  /* πλευρά αναφοράς σε δίρριχτη / μονόρριχτη */
+  if(rtype!=='hip'&&verts.length>1){
+    const A=w2s(verts[refEdge]),B=w2s(verts[(refEdge+1)%verts.length]);
+    ctx.strokeStyle='#1F4E9C';ctx.lineWidth=6;ctx.globalAlpha=.3;
     ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);ctx.stroke();ctx.globalAlpha=1;
   }
 
@@ -549,6 +723,18 @@ cv.addEventListener('pointerup',e=>{
         askLen(d.i);down=null;return;}
     }
   }
+  if(!moved&&holeMode){
+    const w=s2w(e.clientX,e.clientY);
+    let q=[G(w[0]),G(w[1])];
+    if(ortho&&curHole.length){const L=curHole[curHole.length-1];
+      if(Math.abs(q[0]-L[0])<Math.abs(q[1]-L[1]))q[0]=L[0];else q[1]=L[1];}
+    if(curHole.length>2&&dist(q,curHole[0])<0.6){
+      holes.push(curHole);curHole=[];holeMode=false;
+      document.getElementById('hole').classList.remove('on');
+      hint('Τρύπα '+holes.length+' προστέθηκε');
+      closed=false;sol=null;gp=null;finish();down=null;return;}
+    curHole.push(q);draw();down=null;return;
+  }
   if(!moved&&!closed){
     let w=s2w(e.clientX,e.clientY);
     let p=[G(w[0]),G(w[1])];
@@ -623,8 +809,8 @@ const hint=t=>document.getElementById('hint').textContent=t;
 
 /* ---------- λύση ---------- */
 function finish(){
-  if(verts.length<3)return;
-  /* καθάρισμα διπλών & συνευθειακών */
+  hideErr();
+  if(verts.length<3){showErr('Χρειάζονται τουλάχιστον 3 κορυφές.');return;}
   let p=verts.filter((v,i)=>i===0||dist(v,verts[i-1])>1e-6);
   if(p.length>1&&dist(p[0],p[p.length-1])<1e-6)p.pop();
   const cl=[];
@@ -634,19 +820,53 @@ function finish(){
     if(cr>1e-6)cl.push(c);}
   p=cl.length>=3?cl:p;
   if(area2(p)<0)p.reverse();
-  verts=p;closed=true;
 
+  const e=checkGeom(p);
+  if(e){showErr(e+' Διόρθωσε το περίγραμμα και δοκίμασε ξανά.');return;}
+
+  /* οι τρύπες πρέπει να είναι ΕΝΤΟΣ και να μην τέμνονται */
+  for(let k=0;k<holes.length;k++){
+    const h=holes[k];
+    const eh=checkGeom(h.slice());
+    if(eh){showErr('Τρύπα '+(k+1)+': '+eh);return;}
+    for(const q of h) if(!inPoly(q,p)){
+      showErr('Η τρύπα '+(k+1)+' βγαίνει εκτός περιγράμματος.');return;}
+    if(Math.abs(area2(h)/2) > Math.abs(area2(p)/2)*0.75){
+      showErr('Η τρύπα '+(k+1)+' είναι πολύ μεγάλη σε σχέση με τη στέγη.');return;}
+  }
+
+  verts=p;closed=true;refEdge=Math.min(refEdge,p.length-1);
   const ovh=+document.getElementById('ovh').value||0;
-  sol=skeleton(p);
-  gp=ovh>0.001?offsetPoly(p,ovh):null;   // +ovh = προς τα ΕΞΩ
+  const th=(+document.getElementById('pit').value||35)/100;
+  const H=holes.map(h=>h.map(q=>q.slice()));
+
+  try{
+    if(rtype==='hip') sol=skeleton(p,H);
+    else{
+      if(H.length){showErr('Οι τρύπες υποστηρίζονται μόνο σε τετράρριχτη στέγη.');closed=false;return;}
+      sol=buildSimpleRoof(p,rtype,refEdge,th);
+    }
+  }catch(err){showErr('Ο επιλύτης απέτυχε σε αυτό το σχήμα. Δοκίμασε απλούστερο περίγραμμα.');
+    closed=false;sol=null;return;}
+
+  if(rtype==='hip'){
+    const bad=checkSolution(sol,p);
+    if(bad){showErr(bad+' Δώσε νέα γεωμετρία.');closed=false;sol=null;return;}
+  }
+
+  gp=ovh>0.001?offsetPoly(p,ovh):null;
   fit();
   anim=0;const t0=performance.now();
   (function step(){anim=Math.min(1,(performance.now()-t0)/520);draw();
     if(anim<1)requestAnimationFrame(step);else report();})();
-  hint('Λύθηκε');
+  hint('Λύθηκε · '+({hip:'τετράρριχτη',gable:'δίρριχτη',mono:'μονόρριχτη'})[rtype]);
   document.getElementById('solve').textContent='Ποσότητες';
   document.getElementById('solve').disabled=false;
 }
+function inPoly(P,ps){let c=false,j=ps.length-1;
+  for(let i=0;i<ps.length;i++){const xi=ps[i][0],yi=ps[i][1],xj=ps[j][0],yj=ps[j][1];
+    if(((yi>P[1])!==(yj>P[1]))&&(P[0]<(xj-xi)*(P[1]-yi)/(yj-yi+1e-30)+xi))c=!c;j=i;}
+  return c;}
 
 function quantities(){
   const th=(+document.getElementById('pit').value||35)/100;
@@ -654,7 +874,29 @@ function quantities(){
   const base=+document.getElementById('base').value||0;
   const km2=+document.getElementById('km2').value||13;
   const eav=gp||sol.pts;
-  const plan=Math.abs(area2(eav)/2), per=perim(eav);
+  let plan=Math.abs(area2(eav)/2), per=perim(eav);
+  /* οι τρύπες αφαιρούν εμβαδόν και προσθέτουν υδρορροή */
+  const parapet=[];
+  const bldup=(0.16+0.02+0.10+0.04+0.05+0.05)/ca;
+  for(const h of holes){
+    plan-=Math.abs(area2(h)/2); per+=perim(h);
+    let dmax=0;
+    for(let i=0;i<h.length;i++){
+      const a2=h[i],b2=h[(i+1)%h.length],L2=dist(a2,b2),np=Math.max(1,Math.ceil(L2/0.2));
+      for(let k=0;k<=np;k++){
+        const q=[a2[0]+(b2[0]-a2[0])*k/np, a2[1]+(b2[1]-a2[1])*k/np];
+        let d=1e9;
+        for(let j=0;j<sol.pts.length;j++){
+          const u=sol.pts[j],v=sol.pts[(j+1)%sol.pts.length];
+          const dx=v[0]-u[0],dy=v[1]-u[1],L3=dx*dx+dy*dy;
+          const t=L3<1e-12?0:Math.max(0,Math.min(1,((q[0]-u[0])*dx+(q[1]-u[1])*dy)/L3));
+          d=Math.min(d,Math.hypot(q[0]-u[0]-t*dx,q[1]-u[1]-t*dy));
+        }
+        dmax=Math.max(dmax,d);
+      }
+    }
+    parapet.push({d:dmax, hStruct:dmax*th, h:dmax*th+bldup+0.15});
+  }
   const roof=plan/ca;
   let lmax=0,lnt=0,lkr=0,hmax=0;
   for(const [P,t] of sol.nodes)hmax=Math.max(hmax,t*th);
@@ -680,7 +922,7 @@ function quantities(){
   }
   const rafLen=fr.raf.reduce((t,x)=>t+dist(x[0],x[1]),0)/ca;   /* κεκλιμένο μήκος */
   const purlLen=fr.purl.reduce((t,x)=>t+dist(x[0],x[1]),0);     /* οριζόντιες -> ίδιο */
-  return {th,a,ca,adeg,base,plan,per,roof,hmax,lmax,lnt,lkr,km2,E,F,fr,unf,eav,arcsE,rafLen,purlLen,
+  return {th,a,ca,adeg,base,plan,per,roof,hmax,lmax,lnt,lkr,km2,E,F,fr,unf,eav,arcsE,rafLen,purlLen,parapet,rtype,
     tiles:Math.ceil(roof*km2), kav:Math.ceil(lkr/0.33), kavm:Math.ceil(lmax/0.33),
     akro:Math.ceil(per/0.25), aer:Math.max(2,Math.ceil(roof/25)),
     boards:roof};
@@ -923,6 +1165,12 @@ function report(){
   <p class="cap">${q.unf.length} έδρες · σύνολο ${N(q.unf.reduce((a,f)=>a+f.area,0))} m².
   Κόβεις μεμβράνη και μόνωση από αυτά, χωρίς 1/cos.</p>
 
+  ${q.parapet.length?`<h3>Στηθαία τρυπών</h3><table>`+
+    q.parapet.map((x,i)=>'<tr><td>Τρύπα '+(i+1)+' · απόσταση '+N(x.d)+' m</td><td>≥ '+N(x.h)+' m</td></tr>').join('')+
+    `</table><p class="cap">Ύψος από τη στάθμη βάσης, ώστε το κλειστό κουτί να ξεπερνά
+    τη στέγη. Περιλαμβάνει ${N(0.42/q.ca)} m στρώσεις και 0,15 m περιθώριο στεγάνωσης.
+    Για ανοιχτό αίθριο το χείλος είναι υδρορροή και θέλει λούκι.</p>`:''}
+
   <h3>Επικάλυψη</h3><table>
     <tr><td>Κεραμίδια</td><td>${q.tiles} τεμ</td></tr>
     <tr><td>Καβαλλάρηδες κορφιά</td><td>${q.kav} τεμ</td></tr>
@@ -1141,16 +1389,45 @@ document.getElementById('solve').onclick=()=>{
   else{document.getElementById('sheet').classList.add('on');}
 };
 document.getElementById('undo').onclick=()=>{
+  hideErr();
+  if(holeMode&&curHole&&curHole.length){curHole.pop();draw();return;}
+  if(holes.length&&closed){holes.pop();closed=false;sol=null;gp=null;finish();return;}
   if(closed){closed=false;sol=null;gp=null;
     document.getElementById('solve').textContent='Κλείσε & λύσε';}
   else verts.pop();
   document.getElementById('solve').disabled=verts.length<3;
   hint(verts.length<3?'Πάτα για κορυφές':'Πάτα μήκος για ακριβή τιμή · πρώτη κορυφή για κλείσιμο');draw();};
 document.getElementById('clear').onclick=()=>{verts=[];closed=false;sol=null;gp=null;
+  holes=[];curHole=null;holeMode=false;hideErr();
+  document.getElementById('hole').classList.remove('on');
   document.getElementById('solve').disabled=true;
   document.getElementById('solve').textContent='Κλείσε & λύσε';
   ox=W/2;oy=H/2;cell=48;hint('Πάτα για κορυφές');draw();};
 document.getElementById('close').onclick=()=>document.getElementById('sheet').classList.remove('on');
+for(const [id,t] of [['t_hip','hip'],['t_gable','gable'],['t_mono','mono']]){
+  document.getElementById(id).onclick=()=>{
+    rtype=t;
+    for(const x of ['t_hip','t_gable','t_mono'])
+      document.getElementById(x).classList.toggle('on',x===id);
+    document.getElementById('refside').style.display=(t==='hip')?'none':'';
+    if(closed){closed=false;sol=null;gp=null;finish();}else draw();
+  };
+}
+document.getElementById('refside').onclick=e=>{
+  if(!verts.length)return;
+  refEdge=(refEdge+1)%verts.length;
+  e.currentTarget.textContent='Πλευρά '+(refEdge+1);
+  if(closed){closed=false;sol=null;gp=null;finish();}else draw();
+};
+document.getElementById('hole').onclick=e=>{
+  if(!closed){showErr('Κλείσε πρώτα το περίγραμμα της στέγης.');return;}
+  holeMode=!holeMode; curHole=holeMode?[]:null;
+  e.currentTarget.classList.toggle('on',holeMode);
+  hint(holeMode?'Πάτα κορυφές της τρύπας · ξαναπάτα «Τρύπα» για τέλος'
+               :'Πάτα μήκος για ακριβή τιμή');
+  if(!holeMode&&curHole===null){closed=false;sol=null;gp=null;finish();}
+  draw();
+};
 document.getElementById('ortho').onclick=e=>{
   ortho=!ortho; e.currentTarget.classList.toggle('on',ortho);
   e.currentTarget.textContent=ortho?'90°':'λοξό';
