@@ -457,6 +457,38 @@ function framing(eav,F,step,dz){
   return R;
 }
 
+/* ---------- ΞΥΛΟΤΥΠΟΣ δίρριχτης/μονόρριχτης: ανά ΕΔΡΑ ----------
+   Οι αμείβοντες τρέχουν ΚΑΤΑ ΤΗΝ ΚΛΙΣΗ (κάθετα στην πλευρά αναφοράς),
+   οι τεγίδες παράλληλα σε αυτήν. Κάθε έδρα επεξεργάζεται ΜΙΑ φορά —
+   αλλιώς οι κοινές έδρες πολλών πλευρών διπλομετριούνται. */
+function framingSimple(F,FR,step,dz){
+  const R={raf:[],purl:[]};
+  for(const f of F){
+    let t0=1e9,t1=-1e9,u0=1e9,u1=-1e9;
+    for(const q of f){
+      const t=(q[0]-FR.a[0])*FR.d[0]+(q[1]-FR.a[1])*FR.d[1];
+      const u=(q[0]-FR.a[0])*FR.nv[0]+(q[1]-FR.a[1])*FR.nv[1];
+      t0=Math.min(t0,t);t1=Math.max(t1,t);u0=Math.min(u0,u);u1=Math.max(u1,u);
+    }
+    for(let t=t0+step/2;t<t1;t+=step){
+      const p0=[FR.a[0]+FR.d[0]*t, FR.a[1]+FR.d[1]*t];
+      for(const [a2,b2] of clipLine(f,p0,FR.nv))
+        if(b2-a2>0.01)R.raf.push([[p0[0]+FR.nv[0]*a2,p0[1]+FR.nv[1]*a2],
+                                  [p0[0]+FR.nv[0]*b2,p0[1]+FR.nv[1]*b2]]);
+    }
+    for(let u=u0+dz;u<u1-1e-6;u+=dz){
+      const p0=[FR.a[0]+FR.nv[0]*u, FR.a[1]+FR.nv[1]*u];
+      for(const [a2,b2] of clipLine(f,p0,FR.d))
+        if(b2-a2>0.01)R.purl.push([[p0[0]+FR.d[0]*a2,p0[1]+FR.d[1]*a2],
+                                   [p0[0]+FR.d[0]*b2,p0[1]+FR.d[1]*b2]]);
+    }
+  }
+  return R;
+}
+function unfoldSimple(fc,FR,ca){
+  return unfold(fc,FR.a,[FR.a[0]+FR.d[0],FR.a[1]+FR.d[1]],ca);
+}
+
 /* ---------- ΑΝΑΠΤΥΓΜΑ: u αμετάβλητο, v / cos(κλίσης) ---------- */
 function unfold(fc,a,b,ca){
   const L=dist(a,b);
@@ -491,10 +523,12 @@ function ec1(adeg,zone,alt,vb0,terr,z){
    ΚΑΤΑΣΤΑΣΗ + ΚΑΜΒΑΣ
    ============================================================ */
 const cv=document.getElementById('board'), ctx=cv.getContext('2d');
+if(!ctx.roundRect)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){
+  this.rect(x,y,w,h);return this;};
 let DPR=1, W=0, H=0;
 let verts=[], closed=false, sol=null, gp=null, anim=0;
 let cell=48, ox=0, oy=0;               // px ανά μέτρο, μετατόπιση
-let ortho=true, dragIdx=-1, edgeIdx=-1, dragOrig=null, downW=null;
+let ortho=true, dragIdx=-1, edgeIdx=-1, lastEdgeHit=-1, dragOrig=null, downW=null;
 let rtype='hip', refEdge=0, holes=[], holeMode=false, curHole=null;
 const showErr=t=>{const e=document.getElementById('err');
   document.getElementById('errTxt').textContent=t; e.classList.add('on');};
@@ -563,8 +597,15 @@ function draw(){
   /* πλευρά αναφοράς σε δίρριχτη / μονόρριχτη */
   if(rtype!=='hip'&&verts.length>1){
     const A=w2s(verts[refEdge]),B=w2s(verts[(refEdge+1)%verts.length]);
-    ctx.strokeStyle='#1F4E9C';ctx.lineWidth=6;ctx.globalAlpha=.3;
-    ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);ctx.stroke();ctx.globalAlpha=1;
+    ctx.strokeStyle='#1F4E9C';ctx.lineWidth=9;ctx.globalAlpha=.35;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);ctx.stroke();
+    ctx.globalAlpha=1;ctx.lineCap='butt';
+    const mx=(A[0]+B[0])/2,my=(A[1]+B[1])/2;
+    const tag=rtype==='mono'?'χαμηλή πλευρά':'υδρορροή';
+    ctx.font='700 11px system-ui';const tw=ctx.measureText(tag).width;
+    ctx.fillStyle='#1F4E9C';
+    ctx.beginPath();ctx.roundRect(mx-tw/2-7,my-24,tw+14,17,8);ctx.fill();
+    ctx.fillStyle='#fff';ctx.textAlign='center';ctx.fillText(tag,mx,my-11.5);
   }
 
   /* περίγραμμα */
@@ -643,7 +684,7 @@ cv.addEventListener('pointerdown',e=>{
       const dx=B[0]-A[0],dy=B[1]-A[1],L2=dx*dx+dy*dy; if(L2<400)continue;
       const t=Math.max(0,Math.min(1,((e.clientX-A[0])*dx+(e.clientY-A[1])*dy)/L2));
       if(Math.hypot(e.clientX-A[0]-t*dx, e.clientY-A[1]-t*dy)<20){
-        edgeIdx=i; dragOrig=verts.map(v=>v.slice());
+        edgeIdx=i; lastEdgeHit=i; dragOrig=verts.map(v=>v.slice());
         downW=s2w(e.clientX,e.clientY); break;}
     }
   }
@@ -705,6 +746,12 @@ cv.addEventListener('pointerup',e=>{
     /* απλό πάτημα πάνω σε ετικέτα -> ακριβές μήκος */
     for(const dh of dimHits)
       if(Math.abs(e.clientX-dh.x)<30&&Math.abs(e.clientY-dh.y)<20){askLen(dh.i);down=null;return;}
+    /* δίρριχτη/μονόρριχτη: πάτημα στην πλευρά = επιλογή πλευράς αναφοράς */
+    if(rtype!=='hip'&&lastEdgeHit>=0){
+      setRefEdge(lastEdgeHit);
+      hint('Πλευρά αναφοράς: '+(refEdge+1));
+      down=null;return;
+    }
     down=null;return;
   }
   if(dragIdx>=0){
@@ -854,7 +901,10 @@ function finish(){
     if(bad){showErr(bad+' Δώσε νέα γεωμετρία.');closed=false;sol=null;return;}
   }
 
-  gp=ovh>0.001?offsetPoly(p,ovh):null;
+  /* Το γείσο χτίζεται στο sol.pts (περιλαμβάνει τα άκρα κορφιά της
+     δίρριχτης/μονόρριχτης) — αλλιώς gp[i] και sol.pts[i] ξεσυγχρονίζονται
+     και οι Ποσότητες σκάνε. Για τετράρριχτη sol.pts === p. */
+  gp=ovh>0.001?offsetPoly(sol.pts,ovh):null;
   fit();
   anim=0;const t0=performance.now();
   (function step(){anim=Math.min(1,(performance.now()-t0)/520);draw();
@@ -904,7 +954,8 @@ function quantities(){
     const ia=vidx(arc[0]), ib=vidx(arc[1]);
     const A=(ia!==null&&gp)?gp[ia]:arc[0], B=(ib!==null&&gp)?gp[ib]:arc[1];
     const L=dist(A,B);
-    if((ia!==null&&isReflex(sol.pts,ia))||(ib!==null&&isReflex(sol.pts,ib)))lnt+=L;
+    if(rtype!=='hip')lkr+=L;   /* δίρριχτη: το τόξο είναι ο κορφιάς */
+    else if((ia!==null&&isReflex(sol.pts,ia))||(ib!==null&&isReflex(sol.pts,ib)))lnt+=L;
     else if(ia!==null||ib!==null)lmax+=L;else lkr+=L;
   }
   const E=ec1(adeg,3,100,33,2,Math.max(3,base+hmax));
@@ -914,11 +965,17 @@ function quantities(){
     const ia=vidx(ar[0]), ib=vidx(ar[1]);
     return [(ia!==null&&gp)?gp[ia]:ar[0], (ib!==null&&gp)?gp[ib]:ar[1]];});
   const F=faces(eav,arcsE);
-  const fr=framing(eav,F,0.80,0.30);
-  const unf=[];
-  for(let i=0;i<eav.length;i++){
-    const fc=faceFor(eav[i],eav[(i+1)%eav.length],F);
-    if(fc)unf.push(unfold(fc,eav[i],eav[(i+1)%eav.length],ca));
+  let fr, unf=[];
+  if(rtype==='hip'){
+    fr=framing(eav,F,0.80,0.30);
+    for(let i=0;i<eav.length;i++){
+      const fc=faceFor(eav[i],eav[(i+1)%eav.length],F);
+      if(fc)unf.push(unfold(fc,eav[i],eav[(i+1)%eav.length],ca));
+    }
+  }else{
+    /* δίρριχτη/μονόρριχτη: ανά ΕΔΡΑ με το πλαίσιο της πλευράς αναφοράς */
+    fr=framingSimple(F,sol.frame,0.80,0.30);
+    for(const fc of F)unf.push(unfoldSimple(fc,sol.frame,ca));
   }
   const rafLen=fr.raf.reduce((t,x)=>t+dist(x[0],x[1]),0)/ca;   /* κεκλιμένο μήκος */
   const purlLen=fr.purl.reduce((t,x)=>t+dist(x[0],x[1]),0);     /* οριζόντιες -> ίδιο */
@@ -1410,14 +1467,21 @@ for(const [id,t] of [['t_hip','hip'],['t_gable','gable'],['t_mono','mono']]){
     for(const x of ['t_hip','t_gable','t_mono'])
       document.getElementById(x).classList.toggle('on',x===id);
     document.getElementById('refside').style.display=(t==='hip')?'none':'';
+    document.getElementById('refside').textContent='Πλευρά '+(refEdge+1);
+    if(t!=='hip')hint(t==='mono'?'Πάτα την πλευρά που θα είναι η ΧΑΜΗΛΗ (υδρορροή)'
+                                :'Πάτα την πλευρά της υδρορροής — ο κορφιάς βγαίνει παράλληλα');
     if(closed){closed=false;sol=null;gp=null;finish();}else draw();
   };
 }
-document.getElementById('refside').onclick=e=>{
-  if(!verts.length)return;
-  refEdge=(refEdge+1)%verts.length;
-  e.currentTarget.textContent='Πλευρά '+(refEdge+1);
+function setRefEdge(i){
+  refEdge=((i%verts.length)+verts.length)%verts.length;
+  document.getElementById('refside').textContent='Πλευρά '+(refEdge+1);
   if(closed){closed=false;sol=null;gp=null;finish();}else draw();
+}
+/* εφεδρικά: το κουμπί κάνει κύκλο στις πλευρές */
+document.getElementById('refside').onclick=()=>{
+  if(!verts.length)return;
+  setRefEdge(refEdge+1);
 };
 document.getElementById('hole').onclick=e=>{
   if(!closed){showErr('Κλείσε πρώτα το περίγραμμα της στέγης.');return;}
@@ -1442,9 +1506,12 @@ for(const id of ['pit','ovh','base','km2'])
 
 resize();
 
-/* Το offline το αναλαμβάνει το ΥΠΑΡΧΟΝ sw.js της ρίζας του HEXIS.
-   Δεν καταχωρείται δεύτερος service worker. */
-const APP_VERSION='1.0.0';
+/* Καταχωρείται το ΙΔΙΟ sw.js της ρίζας του HEXIS (idempotent) —
+   ώστε να δουλεύει offline και όποιος εγκαθιστά ΜΟΝΟ το ΣΤΕΓΗ,
+   χωρίς να έχει ανοίξει ποτέ το app.html. Η έκδοση ορίζεται
+   ΜΟΝΟ στο hexis-catalog.js. */
+if('serviceWorker' in navigator)
+  addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script>
 </body>
 </html>
