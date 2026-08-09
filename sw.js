@@ -19,7 +19,8 @@ const PRECACHE_STATIC = [
   'nomothesia-icon-512.png', 'nomothesia-icon-maskable.png',
   'hexis_check_my_dxf.lsp',
   // --- ΣΤΕΓΗ (v4.37) ---
-  'stegh.html', 'stegh-manifest.json',
+  // το stegh.html ΔΕΝ μπαίνει εδώ: έρχεται αυτόματα από τον κατάλογο
+  'stegh-manifest.json',
   'stegh-icon-192.png', 'stegh-icon-512.png', 'stegh-icon-maskable.png',
   'jspdf.umd.min.js', 'STEGH.lsp'
 ];
