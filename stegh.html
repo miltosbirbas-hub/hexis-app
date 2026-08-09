@@ -667,17 +667,24 @@ function quantities(){
     else if(ia!==null||ib!==null)lmax+=L;else lkr+=L;
   }
   const E=ec1(adeg,3,100,33,2,Math.max(3,base+hmax));
-  const F=faces(sol.pts,sol.arcs);
+  /* ΤΑ ΤΟΞΑ ΕΠΕΚΤΕΙΝΟΝΤΑΙ ΣΤΟ ΓΕΙΣΟ, αλλιώς οι έδρες χτίζονται στο
+     περίγραμμα του τοίχου και καμία πλευρά του γείσου δεν βρίσκει έδρα. */
+  const arcsE=sol.arcs.map(ar=>{
+    const ia=vidx(ar[0]), ib=vidx(ar[1]);
+    return [(ia!==null&&gp)?gp[ia]:ar[0], (ib!==null&&gp)?gp[ib]:ar[1]];});
+  const F=faces(eav,arcsE);
   const fr=framing(eav,F,0.80,0.30);
   const unf=[];
-  for(let i=0;i<sol.pts.length;i++){
-    const fc=faceFor(sol.pts[i],sol.pts[(i+1)%sol.pts.length],F);
-    if(fc)unf.push(unfold(fc,sol.pts[i],sol.pts[(i+1)%sol.pts.length],ca));
+  for(let i=0;i<eav.length;i++){
+    const fc=faceFor(eav[i],eav[(i+1)%eav.length],F);
+    if(fc)unf.push(unfold(fc,eav[i],eav[(i+1)%eav.length],ca));
   }
-  return {th,a,ca,adeg,base,plan,per,roof,hmax,lmax,lnt,lkr,km2,E,F,fr,unf,eav,
+  const rafLen=fr.raf.reduce((t,x)=>t+dist(x[0],x[1]),0)/ca;   /* κεκλιμένο μήκος */
+  const purlLen=fr.purl.reduce((t,x)=>t+dist(x[0],x[1]),0);     /* οριζόντιες -> ίδιο */
+  return {th,a,ca,adeg,base,plan,per,roof,hmax,lmax,lnt,lkr,km2,E,F,fr,unf,eav,arcsE,rafLen,purlLen,
     tiles:Math.ceil(roof*km2), kav:Math.ceil(lkr/0.33), kavm:Math.ceil(lmax/0.33),
     akro:Math.ceil(per/0.25), aer:Math.max(2,Math.ceil(roof/25)),
-    raf:roof/0.80, purl:roof/0.30, boards:roof};
+    boards:roof};
 }
 
 const N=(v,d=2)=>v.toFixed(d).replace('.',',');
@@ -702,7 +709,11 @@ function markOf(len,g,step){
 }
 /* Κωδικοποιούνται ΜΟΝΟ οι αμείβοντες: κόβονται σε μοναδικά μήκη.
    Οι τεγίδες ματίζονται πάνω τους -> δίνονται ως συνολικά τρέχοντα μέτρα. */
-function schedule(q){ return {A:grp(q.fr.raf,0.05)}; }
+function schedule(q){
+  /* τα σχεδιασμένα μήκη είναι προβολές -> κεκλιμένο = προβολή / cos */
+  const g=grp(q.fr.raf,0.05*q.ca);
+  return {A:g.map(x=>[x[0]/q.ca,x[1]])};
+}
 
 /* ---------- ΞΥΛΟΤΥΠΟΣ σε καμβά ---------- */
 function drawFraming(c,q,marks){
@@ -716,8 +727,7 @@ function drawFraming(c,q,marks){
     x.beginPath();x.moveTo(A[0],A[1]);x.lineTo(B[0],B[1]);x.stroke();};
   for(const r of q.fr.purl) seg(r[0],r[1],'#4A93C4',1);
   for(const r of q.fr.raf)  seg(r[0],r[1],'#5FA85F',1.2);
-  for(const arc of sol.arcs){const ia=vidx(arc[0]),ib=vidx(arc[1]);
-    seg((ia!==null&&gp)?gp[ia]:arc[0],(ib!==null&&gp)?gp[ib]:arc[1],'#D0503A',2.4);}
+  for(const arc of q.arcsE) seg(arc[0],arc[1],'#D0503A',2.4);
   for(let i=0;i<all.length;i++) seg(all[i],all[(i+1)%all.length],'#16202B',1.8);
   if(marks){
     const sc2=schedule(q);
@@ -725,12 +735,12 @@ function drawFraming(c,q,marks){
     x.textAlign='center';
     const put=(list,g,pre,col)=>{
       for(const r of list){
-        const L=dist(r[0],r[1]); if(L*sc<34)continue;
+        const L=dist(r[0],r[1])/q.ca; if(dist(r[0],r[1])*sc<34)continue;
         const m=[(r[0][0]+r[1][0])/2,(r[0][1]+r[1][1])/2], P=T(m);
         let an=Math.atan2(-(r[1][1]-r[0][1]),r[1][0]-r[0][0]);
         if(an>Math.PI/2)an-=Math.PI; if(an<-Math.PI/2)an+=Math.PI;
         x.save();x.translate(P[0],P[1]);x.rotate(an);
-        x.fillStyle=col;x.fillText(pre+markOf(L,g,0.05),0,-3);x.restore();
+        x.fillStyle=col;x.fillText(pre+markOf(L,g,0.05/q.ca),0,-3);x.restore();
       }};
     put(q.fr.raf,sc2.A,'A','#2E6B2E');
   }
@@ -837,7 +847,7 @@ function report(){
     <div><span>Επιφάνεια στέγης</span><b>${N(q.roof)}</b><span>m² πραγματική</span></div>
     <div><span>Κεραμίδια</span><b>${q.tiles}</b><span>τεμ · ${N(q.km2,0)}/m²</span></div>
     <div><span>Υψόμετρο κορφιά</span><b>+${N(q.base+q.hmax)}</b><span>m · κλίση ${N(q.adeg,1)}°</span></div>
-    <div><span>Ξυλεία</span><b>${N((q.raf*0.10*0.16+q.purl*0.05*0.05+q.boards*0.02),2)}</b><span>m³ περίπου</span></div>
+    <div><span>Ξυλεία</span><b>${N((q.rafLen*0.10*0.16+q.purlLen*0.05*0.05+q.boards*0.02),2)}</b><span>m³ περίπου</span></div>
   </div>
 
   <h3>Γεωμετρία</h3><table>
@@ -851,8 +861,8 @@ function report(){
 
   <h3>Ξυλότυπος</h3>
   <canvas class="plan" id="cvFr" width="760" height="520"></canvas>
-  <p class="cap">${q.fr.raf.length} αμείβοντες ανά 0,80 m · ${q.fr.purl.length} τεγίδες ανά 0,30 m ·
-  ${q.F.length} έδρες. Κόκκινα: κορφιάδες, μαχιές, ντερέδες.</p>
+  <p class="cap">${q.fr.raf.length} αμείβοντες (${N(q.rafLen)} m) · ${q.fr.purl.length} τεγίδες
+  (${N(q.purlLen)} m) · ${q.F.length} έδρες. Κόκκινα: κορφιάδες, μαχιές, ντερέδες.</p>
 
   <h3>Τομή ζευκτού</h3>
   <canvas class="plan" id="cvSe" width="760" height="420"></canvas>
@@ -863,9 +873,8 @@ function report(){
   <table>${(()=>{const sc=schedule(q);let r='';
     sc.A.forEach((g,i)=>{r+='<tr><td>A'+(i+1)+' Αμείβοντας 10×16</td><td>'+g[1]+' × '+N(g[0])+' m</td></tr>';});
     r+='<tr><td><b>Σύνολο αμειβόντων</b></td><td><b>'+
-       q.fr.raf.length+' τεμ · '+N(q.fr.raf.reduce((t,x)=>t+dist(x[0],x[1]),0))+' m</b></td></tr>';
-    r+='<tr><td>Τεγίδες 5×5 (ματίζονται)</td><td>'+
-       N(q.fr.purl.reduce((t,x)=>t+dist(x[0],x[1]),0))+' m</td></tr>';
+       q.fr.raf.length+' τεμ · '+N(q.rafLen)+' m</b></td></tr>';
+    r+='<tr><td>Τεγίδες 5×5 (ματίζονται)</td><td>'+N(q.purlLen)+' m</td></tr>';
     return r;})()}</table>
   <p class="cap">Οι κωδικοί A αντιστοιχούν στη σήμανση του ξυλοτύπου στο PDF.
   Οι τεγίδες δίνονται σε τρέχοντα μέτρα γιατί ματίζονται πάνω στους αμείβοντες.</p>
@@ -885,8 +894,8 @@ function report(){
   </table>
 
   <h3>Ξυλεία &amp; στρώσεις</h3><table>
-    <tr><td>Αμείβοντες 10×16 ανά 0,80</td><td>${N(q.raf)} m</td></tr>
-    <tr><td>Τεγίδες 5×5 ανά 0,30</td><td>${N(q.purl)} m</td></tr>
+    <tr><td>Αμείβοντες 10×16 ανά 0,80</td><td>${q.fr.raf.length} τεμ · ${N(q.rafLen)} m</td></tr>
+    <tr><td>Τεγίδες 5×5 ανά 0,30</td><td>${N(q.purlLen)} m</td></tr>
     <tr><td>Πέτσωμα</td><td>${N(q.boards)} m²</td></tr>
     <tr><td>Θερμομόνωση</td><td>${N(q.roof)} m²</td></tr>
     <tr><td>Μεμβράνες (+10% επικάλυψη)</td><td>${N(q.roof*2.2)} m²</td></tr>
@@ -963,11 +972,13 @@ function makePDF(){
   for(const [P,t] of sol.nodes){const A=T(P);x.fillText('+'+N(q.base+t*q.th),A[0],A[1]-4*S);}
   x.textAlign='left';
   y=cy+bh/2+16*S;
-  x.font=F(7.5,500);x.fillStyle='#5A6875';
-  x.fillText('■ μαχιές',40*S,y);x.fillStyle='#C0562F';x.fillRect(40*S,y-6*S,6*S,6*S);
-  x.fillStyle='#2E7FA8';x.fillRect(95*S,y-6*S,6*S,6*S);x.fillStyle='#5A6875';x.fillText('  ντερέδες',95*S,y);
-  x.fillStyle='#C08A2E';x.fillRect(165*S,y-6*S,6*S,6*S);x.fillStyle='#5A6875';x.fillText('  κορφιάδες',165*S,y);
-  x.fillStyle='#4A7A4A';x.fillRect(235*S,y-6*S,6*S,6*S);x.fillStyle='#5A6875';x.fillText('  γείσο',235*S,y);
+  x.font=F(7.5,500);
+  let lx0=40*S;
+  for(const [col,txt] of [['#C0562F','μαχιές'],['#2E7FA8','ντερέδες'],
+                          ['#C08A2E','κορφιάδες'],['#4A7A4A','γείσο']]){
+    x.fillStyle=col;x.fillRect(lx0,y-6*S,7*S,7*S);
+    x.fillStyle='#5A6875';x.fillText(txt,lx0+11*S,y);
+    lx0+=(11+txt.length*4.6+16)*S;}
   y+=22*S;
 
   const H3=t=>{x.fillStyle='#1F4E9C';x.font=F(9,700);x.fillText(t.toUpperCase(),40*S,y);
@@ -991,8 +1002,8 @@ function makePDF(){
   R('Αεριστήρες',q.aer+' τεμ');
   y+=6*S;
   H3('Ξυλεία και στρώσεις');
-  R('Αμείβοντες 10×16 ανά 0,80 m',N(q.raf)+' m');
-  R('Τεγίδες 5×5 ανά 0,30 m',N(q.purl)+' m');
+  R('Αμείβοντες 10×16 ανά 0,80 m',q.fr.raf.length+' τεμ · '+N(q.rafLen)+' m');
+  R('Τεγίδες 5×5 ανά 0,30 m',N(q.purlLen)+' m');
   R('Πέτσωμα / θερμομόνωση',N(q.roof)+' m²');
   R('Μεμβράνες (+10%)',N(q.roof*2.2)+' m²');
   y+=6*S;
@@ -1030,8 +1041,8 @@ function makePDF(){
     y2.fillStyle='#5A6875';y2.font=F(7.5,500);y2.fillText(cap,40*S,py);py+=4*S;
   };
   mk((cc,qq)=>drawFraming(cc,qq,true),'Ξυλότυπος με σήμανση δοκών',
-     q.fr.raf.length+' αμείβοντες ανά 0,80 m · '+q.fr.purl.length+
-     ' τεγίδες ανά 0,30 m · '+q.F.length+' έδρες',330);
+     q.fr.raf.length+' αμείβοντες ('+N(q.rafLen)+' m) · '+q.fr.purl.length+
+     ' τεγίδες ('+N(q.purlLen)+' m) · '+q.F.length+' έδρες',330);
   mk(drawUnfold,'Ανάπτυγμα εδρών — πραγματικό μέγεθος',
      q.unf.length+' έδρες · σύνολο '+N(q.unf.reduce((a,f)=>a+f.area,0))+
      ' m² (κοπή μεμβράνης και μόνωσης χωρίς 1/cos)',230);
@@ -1073,10 +1084,8 @@ function makePDF(){
     y3.stroke();qy+=13.5*S;};
   sc3.A.forEach((g,i)=>rw('A'+(i+1)+'   Αμείβοντας 10×16 cm', g[1]+' τεμ × '+N(g[0])+' m'));
   qy+=2*S;
-  rw('ΣΥΝΟΛΟ ΑΜΕΙΒΟΝΤΩΝ', q.fr.raf.length+' τεμ · '+
-     N(q.fr.raf.reduce((t,x)=>t+dist(x[0],x[1]),0))+' m');
-  rw('Τεγίδες 5×5 cm (ματίζονται)',
-     N(q.fr.purl.reduce((t,x)=>t+dist(x[0],x[1]),0))+' m');
+  rw('ΣΥΝΟΛΟ ΑΜΕΙΒΟΝΤΩΝ', q.fr.raf.length+' τεμ · '+N(q.rafLen)+' m');
+  rw('Τεγίδες 5×5 cm (ματίζονται)', N(q.purlLen)+' m');
   qy+=6*S;
   y3.fillStyle='#5A6875';y3.font=F(7,500);
   y3.fillText('Οι κωδικοί A αντιστοιχούν στη σήμανση του ξυλοτύπου στη σελίδα 2.',44*S,qy);
