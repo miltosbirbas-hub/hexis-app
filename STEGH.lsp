@@ -7,7 +7,12 @@
 (setq *st-STEP* "0 - \U+03B1\U+03C6\U+03CC\U+03C1\U+03C4\U+03B9\U+03C3\U+03C4\U+03BF")
 (setq *st-BASE* 0.00 *st-TOMI* "0")
 ;; --- δεδομένα που περνά η ΚΑΤΟΨΗ (STEGH) στην ΤΟΜΗ (STEGHTOMI) ---
-(setq *st-AREA* 0.0 *st-PER* 0.0 *st-HMAX* 0.0 *st-LMAX* 0.0
+(setq *ec-ON* "1" *ec-ZONE* 3 *ec-ALT* 100.0 *ec-VB0* 33.0 *ec-TERR* 2
+      *ec-H* 8.0 *ec-CE* 1.0 *ec-CT* 1.0 *ec-SC* 2 *ec-FMK* 24.0
+      *ec-GEXT* 0.15 *ec-RES* nil)
+(setq *st-XYL* "0" *st-XMK* "1" *st-XSCH* nil *st-TRP* nil *st-DARCS* nil
+      *st-EAV* nil *st-HOLES* nil *st-TXH* 0.10
+      *st-AREA* 0.0 *st-PER* 0.0 *st-HMAX* 0.0 *st-LMAX* 0.0
       *st-LNT* 0.0 *st-LKOR* 0.0 *st-EAVE* 0.0 *st-TR* nil)
 (setq *st-PIT* 35.0 *st-PMODE* "PCT" *st-OVH* 0.50 *st-TYP* "ISO"
       *st-LAB* "1" *st-GEI* "1")
@@ -433,6 +438,291 @@
                  (if (> nsk 0) (strcat " (" (itoa nsk) " \U+03C0\U+03B1\U+03C1\U+03B1\U+03BB\U+03B5\U+03AF\U+03C6\U+03B8\U+03B7\U+03BA\U+03B1\U+03BD)") "")))
   out)
 
+;; ================= ΕΥΡΩΚΩΔΙΚΑΣ 1: ΦΟΡΤΙΑ =================
+;; ΕΛΟΤ EN 1991-1-3 (χιονι) + EN 1991-1-4 (ανεμος), Ελληνικο Εθνικο Προσαρτημα
+;; ΖΩΝΕΣ ΧΙΟΝΙΟΥ: I=0.4 (Αρκαδια/Ηλεια/Λακωνια/Μεσσηνια + νησια πλην
+;;   Σποραδων-Ευβοιας) · II=1.7 (Μαγνησια/Φθιωτιδα/Καρδιτσα/Τρικαλα/
+;;   Λαρισα/Σποραδες/Ευβοια) · III=0.8 (υπολοιπη χωρα)
+;; ΑΝΕΜΟΣ: vb,0 = 33 m/s νησια & παραλια <10km · 27 m/s υπολοιπη χωρα
+
+(defun ec-sk0 (z)
+  (cond ((= z 1) 0.4) ((= z 2) 1.7) (T 0.8)))
+
+(defun ec-sk (z alt) (* (ec-sk0 z) (+ 1.0 (* (/ alt 917.0) (/ alt 917.0)))))
+
+(defun ec-mu1 (adeg)
+  (cond ((<= adeg 30.0) 0.8)
+        ((< adeg 60.0) (* 0.8 (/ (- 60.0 adeg) 30.0)))
+        (T 0.0)))
+
+(defun ec-terr (k)
+  (cond ((= k 0) (list 0.003 1.0)) ((= k 1) (list 0.01 1.0))
+        ((= k 2) (list 0.05 2.0))  ((= k 3) (list 0.30 5.0))
+        (T (list 1.0 10.0))))
+
+(defun ec-qp (vb0 terr z / tp z0 zmn ze kr cr vm iv)
+  (setq tp (ec-terr terr) z0 (car tp) zmn (cadr tp))
+  (setq ze (max z zmn))
+  (setq kr (* 0.19 (expt (/ z0 0.05) 0.07)))
+  (setq cr (* kr (log (/ ze z0))))
+  (setq vm (* cr 1.0 vb0))
+  (setq iv (/ 1.0 (log (/ ze z0))))
+  (list (/ (* (+ 1.0 (* 7.0 iv)) 0.5 1.25 vm vm) 1000.0) vm cr iv))
+
+(defun ec-interp (a tbl / i n a1 a2 v1 v2 r)
+  (setq n (length tbl) i 0 r (cadr (nth 0 tbl)))
+  (if (>= a (car (nth (1- n) tbl))) (setq r (cadr (nth (1- n) tbl)))
+    (while (< i (1- n))
+      (setq a1 (car (nth i tbl)) a2 (car (nth (1+ i) tbl)))
+      (if (and (>= a a1) (<= a a2))
+        (progn
+          (setq v1 (cadr (nth i tbl)) v2 (cadr (nth (1+ i) tbl)))
+          (setq r (+ v1 (* (- v2 v1) (if (> (- a2 a1) 1e-9) (/ (- a a1) (- a2 a1)) 0.0))))
+          (setq i n)))
+      (setq i (1+ i))))
+  r)
+
+;; cpe,10 δικλινους στεγης, θ=0 (EN 1991-1-4 Πιν.7.4a) - ζωνες F/G/H
+(defun ec-cpe (adeg)
+  (list
+    (ec-interp adeg (list (list 5.0 -1.7) (list 15.0 -0.9) (list 30.0 -0.5)
+                          (list 45.0 0.0) (list 60.0 0.7) (list 75.0 0.8)))
+    (ec-interp adeg (list (list 5.0 -1.2) (list 15.0 -0.8) (list 30.0 -0.5)
+                          (list 45.0 0.0) (list 60.0 0.7) (list 75.0 0.8)))
+    (ec-interp adeg (list (list 5.0 -0.6) (list 15.0 -0.3) (list 30.0 -0.2)
+                          (list 45.0 0.0) (list 60.0 0.7) (list 75.0 0.8)))
+    (ec-interp adeg (list (list 5.0 0.0) (list 15.0 0.2) (list 30.0 0.4)
+                          (list 45.0 0.6) (list 60.0 0.7) (list 75.0 0.8)))))
+
+;; ---- ΙΔΙΟ ΒΑΡΟΣ ΣΤΕΓΗΣ απο τις ΠΡΑΓΜΑΤΙΚΕΣ στρωσεις (kN/m2) ----
+(defun ec-gk (adeg / g)
+  (setq g 0.0)
+  (setq g (+ g (* 0.11 *tm-KER*)))
+  (setq g (+ g (* (/ (* (/ *tm-TEG* 100.0) (/ *tm-TEG* 100.0)) *tm-DZ*) 4.2)))
+  (setq g (+ g (* (/ (* (/ *tm-EPI* 100.0) (/ *tm-EPI* 100.0)) *tm-DIST*) 4.2)))
+  (setq g (+ g (* (/ *tm-TTH* 100.0) 1.2)))
+  (setq g (+ g (* (/ *tm-PET* 100.0) 4.2)))
+  (setq g (+ g (* (/ (* (/ *tm-AMB* 100.0) (/ *tm-AM* 100.0)) *tm-DIST*) 4.2)))
+  (setq g (+ g *ec-GEXT*))
+  g)
+
+;; ---- EC1 φορτια + ΠΡΟΚΑΤΑΡΚΤΙΚΟΣ ελεγχος EC5 ----
+(defun ec-calc (adeg Lraf e dz / ca sk mu s qpr qp cpe wF wH wHp gk
+                 qd qup MEd W sig kmod fmk fmd util Iy defl dlim
+                 qtg Mtg Wtg sigtg utiltg)
+  (setq ca (cos (* adeg (/ pi 180.0))))
+  (setq sk (ec-sk *ec-ZONE* *ec-ALT*))
+  (setq mu (ec-mu1 adeg))
+  (setq s (* mu *ec-CE* *ec-CT* sk))
+  (setq qpr (ec-qp *ec-VB0* *ec-TERR* *ec-H*))
+  (setq qp (car qpr))
+  (setq cpe (ec-cpe adeg))
+  (setq wF (* qp (nth 0 cpe)) wH (* qp (nth 2 cpe)) wHp (* qp (nth 3 cpe)))
+  (setq gk (ec-gk adeg))
+  (setq qd (* e (+ (* (* 1.35 gk) ca) (* (* 1.5 s) ca ca) (* 1.5 0.6 (max 0.0 wHp)))))
+  (setq qup (* e (+ (* (* 1.0 gk) ca) (* 1.5 wF))))
+  (setq MEd (/ (* qd Lraf Lraf) 8.0))
+  (setq W (/ (* (/ *tm-AMB* 100.0) (/ *tm-AM* 100.0) (/ *tm-AM* 100.0)) 6.0))
+  (setq sig (/ (/ MEd W) 1000.0))
+  (setq kmod 0.90)
+  (setq fmk *ec-FMK*)
+  (setq fmd (/ (* kmod fmk) 1.30))
+  (setq util (/ sig fmd))
+  (setq Iy (/ (* (/ *tm-AMB* 100.0) (expt (/ *tm-AM* 100.0) 3)) 12.0))
+  (setq defl (/ (* 5.0 (* e (+ (* gk ca) (* s ca ca))) (expt Lraf 4))
+                (* 384.0 11000000.0 Iy)))
+  (setq dlim (/ Lraf 300.0))
+  (setq qtg (* dz (+ (* (* 1.35 gk) ca) (* (* 1.5 s) ca ca))))
+  (setq Mtg (/ (* qtg *tm-DIST* *tm-DIST*) 8.0))
+  (setq Wtg (/ (* (/ *tm-TEG* 100.0) (/ *tm-TEG* 100.0) (/ *tm-TEG* 100.0)) 6.0))
+  (setq sigtg (/ (/ Mtg Wtg) 1000.0))
+  (setq utiltg (/ sigtg fmd))
+  (list sk mu s qp (car (cdr qpr)) wF wH wHp gk qd qup MEd sig fmd util
+        defl dlim Mtg sigtg utiltg))
+
+;; ---- ΟΜΑΔΟΠΟΙΗΣΗ ΜΕΛΩΝ ΑΝΑ ΜΗΚΟΣ -> ((μηκος πληθος) ...) ----
+(defun xy-grp (mem step / lens m)
+  (setq lens (list))
+  (foreach m mem (setq lens (append lens (list (car m)))))
+  (st-group lens step))
+
+;; δείκτης ομάδας για μήκος L
+(defun xy-gidx (L grp step / i n r)
+  (setq n (length grp) i 0 r 1)
+  (while (< i n)
+    (if (< (abs (- L (car (nth i grp)))) (* step 0.6)) (setq r (1+ i)))
+    (setq i (1+ i)))
+  r)
+
+;; ετικέτα ξύλου: κωδικός + διατομή, περιστραμμένη κατά μήκος του μέλους
+(defun xy-lab (p1 p2 txt h lyr / a mp LL)
+  (setq LL (distance p1 p2))
+  (if (> LL (* h 1.0))
+    (progn
+      (setq a (angle p1 p2))
+      (if (> a (* 0.5 pi)) (setq a (- a pi)))
+      (if (< a (* -0.5 pi)) (setq a (+ a pi)))
+      (setq mp (list (/ (+ (car p1) (car p2)) 2.0) (/ (+ (cadr p1) (cadr p2)) 2.0)))
+      (tm-txtrot (tm-off mp a (* h 0.75)) h txt a lyr))))
+
+;; ---- ΚΥΡΙΑ ΣΥΝΑΡΤΗΣΗ ΞΥΛΟΤΥΠΟΥ ----
+;; eav = πολύγωνο υδρορροής (γείσο ή τοίχος), holes = τρύπες,
+;; darcs = σχεδιασμένα τόξα σκελετού, dx/dy = μετατόπιση, dist/dz = βήματα
+(defun st-xylo (eav holes darcs dx dy dist dz txh / segs esg n i a b LL dr nv
+                 sst pp tt m u k q1 q2 nam nte hp lyr cnt
+                 mA mT mD mS mZ gA gT gD gS gZ hh sec1 sec2 sec3 sec4 sec5 stp
+                 fcs fseg)
+  (st-layer "XYLO-PERIGR" 8)
+  (st-layer "XYLO-AMEIB"  3)
+  (st-layer "XYLO-TEGID"  4)
+  (st-layer "XYLO-DOKOI"  1)
+  (st-layer "XYLO-STROT"  2)
+  (st-layer "XYLO-TXT"    6)
+  (setq segs (list))
+  (foreach a darcs (setq segs (append segs (list (list (car a) (cadr a))))))
+  ;; ΕΔΡΕΣ: καθε αμειβοντας/τεγιδα ΠΡΕΠΕΙ να μενει μεσα στην εδρα του,
+  ;; αλλιως οι δοκοι περνανε απο εδρα σε εδρα (λαθος ξυλοτυπος).
+  (setq fcs (an-faces eav segs))
+  (setq mA (list) mT (list) mD (list) mS (list) mZ (list) stp 0.05)
+  (setq hh (* txh 0.62))
+  (setq sec1 (strcat (rtos *tm-AMB* 2 0) "x" (rtos *tm-AM* 2 0)))
+  (setq sec2 (strcat (rtos *tm-TEG* 2 0) "x" (rtos *tm-TEG* 2 0)))
+  (setq sec3 (strcat (rtos *tm-KOR* 2 0) "x" (rtos *tm-KORH* 2 0)))
+  (setq sec4 (strcat (rtos *tm-STR* 2 0) "x" (rtos *tm-STR* 2 0)))
+  (setq sec5 (strcat (rtos *tm-EL* 2 0) "x" (rtos *tm-EL* 2 0)))
+
+  ;; ---------- ΦΑΣΗ 1: ΣΥΛΛΟΓΗ ΜΕΛΩΝ ----------
+  ;; δοκοί σκελετού
+  (foreach a darcs
+    (setq mD (append mD (list (list (distance (car a) (cadr a)) (car a) (cadr a))))))
+  ;; περίγραμμα -> στρωτήρες
+  (setq n (length eav) i 0)
+  (while (< i n)
+    (setq a (nth i eav) b (nth (rem (1+ i) n) eav))
+    (setq mS (append mS (list (list (distance a b) a b))))
+    (setq i (1+ i)))
+  ;; αμείβοντες + τεγίδες
+  (setq n (length eav) i 0)
+  (while (< i n)
+    (setq a (nth i eav) b (nth (rem (1+ i) n) eav) LL (distance a b))
+    (if (> LL 1e-6)
+      (progn
+        (setq dr (list (/ (- (car b) (car a)) LL) (/ (- (cadr b) (cadr a)) LL)))
+        (setq nv (list (- 0.0 (cadr dr)) (car dr)))
+        ;; ακτινοβολια ΜΟΝΟ στο περιγραμμα της εδρας
+        (setq fseg (an-pick fcs a b))
+        (setq fseg (if fseg (xy-segs fseg) segs))
+        (setq sst (/ dist 2.0))
+        (while (< sst LL)
+          (setq pp (list (+ (car a) (* (car dr) sst)) (+ (cadr a) (* (cadr dr) sst))))
+          (setq tt (xy-near pp nv fseg))
+          (if (and tt (> tt 0.01))
+            (setq mA (append mA (list (list tt pp
+              (list (+ (car pp) (* (car nv) tt)) (+ (cadr pp) (* (cadr nv) tt))))))))
+          (setq sst (+ sst dist)))
+        (setq m (list (/ (+ (car a) (car b)) 2.0) (/ (+ (cadr a) (cadr b)) 2.0)))
+        (setq tt (xy-near m nv fseg))
+        (if tt
+          (progn
+            (setq u dz)
+            (while (< u tt)
+              (setq pp (list (+ (car m) (* (car nv) u)) (+ (cadr m) (* (cadr nv) u))))
+              (setq q1 (xy-near pp dr fseg))
+              (setq q2 (xy-near pp (list (- 0.0 (car dr)) (- 0.0 (cadr dr))) fseg))
+              (if (and q1 q2)
+                (setq mT (append mT (list (list (+ q1 q2)
+                  (list (+ (car pp) (* (car dr) q1)) (+ (cadr pp) (* (cadr dr) q1)))
+                  (list (- (car pp) (* (car dr) q2)) (- (cadr pp) (* (cadr dr) q2))))))))
+              (setq u (+ u dz)))))))
+    (setq i (1+ i)))
+  ;; ελκυστήρες ζευκτών
+  (setq esg (xy-segs eav))
+  (foreach hp holes (setq esg (append esg (xy-segs hp))))
+  (foreach q1 *st-TRP*
+    (setq pp (car q1) nv (cadr q1))
+    (setq tt (xy-near pp nv esg)
+          q2 (xy-near pp (list (- 0.0 (car nv)) (- 0.0 (cadr nv))) esg))
+    (if (and tt q2)
+      (setq mZ (append mZ (list (list (+ tt q2)
+        (list (+ (car pp) (* (car nv) tt)) (+ (cadr pp) (* (cadr nv) tt)))
+        (list (- (car pp) (* (car nv) q2)) (- (cadr pp) (* (cadr nv) q2)))))))))
+
+  ;; ---------- ΦΑΣΗ 2: ΟΜΑΔΟΠΟΙΗΣΗ ----------
+  (setq gA (xy-grp mA stp) gT (xy-grp mT stp) gD (xy-grp mD stp)
+        gS (xy-grp mS stp) gZ (xy-grp mZ stp))
+  (setq *st-XSCH* (list (list "A" sec1 gA) (list "T" sec2 gT)
+                        (list "D" sec3 gD) (list "S" sec4 gS) (list "Z" sec5 gZ)))
+
+  ;; ---------- ΦΑΣΗ 3: ΣΧΕΔΙΑΣΗ ----------
+  (setq q1 (list))
+  (foreach pp eav (setq q1 (append q1 (list (xy-mv pp dx dy)))))
+  (st-pline q1 "XYLO-PERIGR")
+  (foreach hp holes
+    (setq q2 (list))
+    (foreach pp hp (setq q2 (append q2 (list (xy-mv pp dx dy)))))
+    (st-pline q2 "XYLO-PERIGR"))
+
+  (foreach a (list (list mA gA "A" sec1 "XYLO-AMEIB")
+                   (list mT gT "T" sec2 "XYLO-TEGID")
+                   (list mD gD "D" sec3 "XYLO-DOKOI")
+                   (list mS gS "S" sec4 "XYLO-STROT")
+                   (list mZ gZ "Z" sec5 "XYLO-STROT"))
+    (foreach m (car a)
+      (setq pp (xy-mv (cadr m) dx dy) q2 (xy-mv (caddr m) dx dy))
+      (st-line pp q2 (nth 4 a))
+      (if (= *st-XMK* "1")
+        (xy-lab pp q2
+          (strcat (caddr a) (itoa (xy-gidx (car m) (cadr a) stp)) " " (nth 3 a))
+          hh "XYLO-TXT"))))
+
+  ;; --- ΔΗΛΩΣΗ ΟΡΙΩΝ ΠΑΝΩ ΣΤΟΝ ΞΥΛΟΤΥΠΟ ---
+  (st-style)
+  (setq pp (list (car (car eav)) (cadr (car eav))))
+  (foreach q2 eav
+    (if (< (car q2) (car pp)) (setq pp (list (car q2) (cadr pp))))
+    (if (< (cadr q2) (cadr pp)) (setq pp (list (car pp) (cadr q2)))))
+  (st-mtext (xy-mv (list (car pp) (- (cadr pp) (* txh 3.0))) dx dy)
+    (* txh 0.8) (* txh 0.8 90.0)
+    (strcat "{\\C1;\U+039E\U+03A5\U+039B\U+039F\U+03A4\U+03A5\U+03A0\U+039F\U+03A3 \U+03A3\U+03A4\U+0395\U+0393\U+0397\U+03A3 - \U+0395\U+039A\U+03A4\U+0399\U+039C\U+0397\U+03A3\U+0397 / \U+03A0\U+03A1\U+039F\U+039C\U+0395\U+03A4\U+03A1\U+0397\U+03A3\U+0397}\\P"
+            "\U+039F\U+03B9 \U+03B4\U+03B9\U+03B1\U+03C4\U+03BF\U+03BC\U+03B5\U+03C2 \U+03BA\U+03B1\U+03B9 \U+03C4\U+03B1 \U+03BC\U+03B7\U+03BA\U+03B7 \U+03B5\U+03B9\U+03BD\U+03B1\U+03B9 \U+03A0\U+03A1\U+039F\U+039A\U+0391\U+03A4\U+0391\U+03A1\U+039A\U+03A4\U+0399\U+039A\U+0391 \U+03BA\U+03B1\U+03B9 \U+03B1\U+03C6\U+03BF\U+03C1\U+03BF\U+03C5\U+03BD \U+03A0\U+03A1\U+039F\U+039C\U+0395\U+03A4\U+03A1\U+0397\U+03A3\U+0397.\\P"
+            "\U+0394\U+0395\U+039D \U+03A5\U+03A0\U+039F\U+039A\U+0391\U+0398\U+0399\U+03A3\U+03A4\U+0391 \U+03A4\U+0397 \U+03A3\U+03A4\U+0391\U+03A4\U+0399\U+039A\U+0397 \U+039C\U+0395\U+039B\U+0395\U+03A4\U+0397, \U+03B7 \U+03BF\U+03C0\U+03BF\U+03B9\U+03B1 \U+03B5\U+03BA\U+03C0\U+03BF\U+03BD\U+03B5\U+03B9\U+03C4\U+03B1\U+03B9 \U+03BA\U+03B1\U+03B9 \U+03C5\U+03C0\U+03BF\U+03B3\U+03C1\U+03B1\U+03C6\U+03B5\U+03C4\U+03B1\U+03B9\\P"
+            "\U+03B1\U+03C0\U+03BF \U+03B5\U+03BE\U+03BF\U+03C5\U+03C3\U+03B9\U+03BF\U+03B4\U+03BF\U+03C4\U+03B7\U+03BC\U+03B5\U+03BD\U+03BF \U+03A0\U+03BF\U+03BB\U+03B9\U+03C4\U+03B9\U+03BA\U+03BF \U+039C\U+03B7\U+03C7\U+03B1\U+03BD\U+03B9\U+03BA\U+03BF, \U+03BC\U+03B5\U+03BB\U+03BF\U+03C2 \U+03A4.\U+0395.\U+0395., \U+03BA\U+03B1\U+03C4\U+03B1 EN 1995-1-1.")
+    "XYLO-TXT" "HEXIS_MONO")
+  (setq nam (length mA) nte (length mT) cnt (length mZ))
+  (list nam nte cnt))
+
+;; ================= ΞΥΛΟΤΥΠΟΣ =================
+
+;; τομή ημιευθείας (p,v) με τμήμα (a,b) -> παράμετρος t ή nil
+(defun xy-hit (p v a b / dx2 dy2 det ax ay tt ss)
+  (setq dx2 (- (car b) (car a)) dy2 (- (cadr b) (cadr a)))
+  (setq det (- (* (car v) dy2) (* (cadr v) dx2)))
+  (if (< (abs det) 1e-12) nil
+    (progn
+      (setq ax (- (car a) (car p)) ay (- (cadr a) (cadr p)))
+      (setq tt (/ (- (* ax dy2) (* ay dx2)) det))
+      (setq ss (/ (- (* ax (cadr v)) (* ay (car v))) det))
+      (if (and (> tt 1e-7) (> ss -1e-6) (< ss 1.000001)) tt nil))))
+
+;; πλησιέστερη τομή με λίστα τμημάτων
+(defun xy-near (p v segs / best t2 a)
+  (setq best nil)
+  (foreach a segs
+    (setq t2 (xy-hit p v (car a) (cadr a)))
+    (if (and t2 (or (null best) (< t2 best))) (setq best t2)))
+  best)
+
+;; πολύγωνο -> λίστα τμημάτων
+(defun xy-segs (pts / n i out)
+  (setq n (length pts) i 0 out (list))
+  (while (< i n)
+    (setq out (append out (list (list (nth i pts) (nth (rem (1+ i) n) pts)))))
+    (setq i (1+ i)))
+  out)
+
+;; μετατόπιση σημείου
+(defun xy-mv (p dx dy) (list (+ (car p) dx) (+ (cadr p) dy)))
+
 ;; σημείο ΕΝΤΟΣ πολυγώνου (ray casting)
 (defun st-inpoly (p pts / n i a b c x y ya yb xx dy)
   (setq n (length pts) i 0 c nil x (car p) y (cadr p))
@@ -630,6 +920,8 @@
   (write-line "      : toggle { key = \"gei\"; label = \"\U+03A3\U+03C7\U+03B5\U+03B4\U+03AF\U+03B1\U+03C3\U+03B7 \U+03B3\U+03B5\U+03AF\U+03C3\U+03BF\U+03C5\"; value = \"1\"; }" f)
   (write-line "      : toggle { key = \"lab\"; label = \"\U+03A5\U+03C8\U+03CC\U+03BC\U+03B5\U+03C4\U+03C1\U+03B1 \U+03BA\U+03CC\U+03BC\U+03B2\U+03C9\U+03BD\"; value = \"1\"; }" f)
   (write-line "      : toggle { key = \"tomi\"; label = \"\U+039A\U+03B1\U+03B9 \U+03BB\U+03B5\U+03C0\U+03C4\U+03BF\U+03BC\U+03AD\U+03C1\U+03B5\U+03B9\U+03B1 \U+03C4\U+03BF\U+03BC\U+03AE\U+03C2 (STEGHTOMI)\"; }" f)
+  (write-line "      : toggle { key = \"xyl\"; label = \"\U+039A\U+03B1\U+03B9 \U+039E\U+03A5\U+039B\U+039F\U+03A4\U+03A5\U+03A0\U+039F\U+03A3 (\U+03B1\U+03BD\U+03AC\U+03C0\U+03C4\U+03C5\U+03BE\U+03B7 \U+03BE\U+03CD\U+03BB\U+03C9\U+03BD)\"; }" f)
+  (write-line "      : toggle { key = \"xmk\"; label = \"\U+03A3\U+03AE\U+03BC\U+03B1\U+03BD\U+03C3\U+03B7 \U+03BE\U+03CD\U+03BB\U+03C9\U+03BD (\U+03BA\U+03C9\U+03B4\U+03B9\U+03BA\U+03CC\U+03C2 + \U+03B4\U+03B9\U+03B1\U+03C4\U+03BF\U+03BC\U+03AE)\"; value = \"1\"; }" f)
   (write-line "    }" f)
   (write-line "    : column {" f)
   (write-line "      : image { key = \"prev\"; width = 30; aspect_ratio = 0.62; color = 0; }" f)
@@ -683,7 +975,8 @@
                    lowp bi bd pm dd pa pb eang p0 nds sumA nd p
                    xchk badv conn bv usedcl kw v pa2 pb2 lmx lnt lkr
                    t1 t2 ll kk ff holes hss hi he hp ha hb cnt4 ltr
-                   hcand hed hkw bldup hmarg hn hdm hstru hsti hc)
+                   hcand hed hkw bldup hmarg hn hdm hstru hsti hc
+                   xp xx0 yy0 xres)
 
   (defun *error* (msg)
     (if (not (member msg (list "Function cancelled" "quit / exit abort")))
@@ -797,7 +1090,7 @@
       (action_tile "ovh"   "(st-upd)")
       (action_tile "base"  "(st-upd)")
       (action_tile "accept"
-        "(st-upd) (setq *st-GEI* (get_tile \"gei\")) (setq *st-LAB* (get_tile \"lab\")) (setq *st-TOMI* (get_tile \"tomi\")) (done_dialog 1)")
+        "(st-upd) (setq *st-GEI* (get_tile \"gei\")) (setq *st-LAB* (get_tile \"lab\")) (setq *st-TOMI* (get_tile \"tomi\")) (setq *st-XYL* (get_tile \"xyl\")) (setq *st-XMK* (get_tile \"xmk\")) (done_dialog 1)")
       (action_tile "cancel" "(done_dialog 0)")
       (setq *st-STEP* "9b - \U+03B1\U+03BD\U+03BF\U+03B9\U+03C7\U+03C4\U+03BF \U+03C0\U+03B1\U+03C1\U+03B1\U+03B8\U+03C5\U+03C1\U+03BF")
       (setq status (start_dialog))
@@ -828,6 +1121,14 @@
       (initget "Nai Ochi")
       (setq kw (getkword "\n\U+039D\U+03B1 \U+03C3\U+03C7\U+03B5\U+03B4\U+03B9\U+03B1\U+03C3\U+03C4\U+03B5\U+03B9 \U+03BA\U+03B1\U+03B9 \U+03BB\U+03B5\U+03C0\U+03C4\U+03BF\U+03BC\U+03B5\U+03C1\U+03B5\U+03B9\U+03B1 \U+03C4\U+03BF\U+03BC\U+03B7\U+03C2 [Nai/Ochi] <Ochi>: "))
       (setq *st-TOMI* (if (= kw "Nai") "1" "0"))
+      (initget "Nai Ochi")
+      (setq kw (getkword "\n\U+039D\U+03B1 \U+03C3\U+03C7\U+03B5\U+03B4\U+03B9\U+03B1\U+03C3\U+03C4\U+03B5\U+03B9 \U+03BA\U+03B1\U+03B9 \U+039E\U+03A5\U+039B\U+039F\U+03A4\U+03A5\U+03A0\U+039F\U+03A3 [Nai/Ochi] <Ochi>: "))
+      (setq *st-XYL* (if (= kw "Nai") "1" "0"))
+      (if (= *st-XYL* "1")
+        (progn
+          (initget "Nai Ochi")
+          (setq kw (getkword "\n\U+03A3\U+03B7\U+03BC\U+03B1\U+03BD\U+03C3\U+03B7 \U+03BE\U+03C5\U+03BB\U+03C9\U+03BD \U+03C3\U+03C4\U+03BF\U+03BD \U+03BE\U+03C5\U+03BB\U+03BF\U+03C4\U+03C5\U+03C0\U+03BF [Nai/Ochi] <Nai>: "))
+          (setq *st-XMK* (if (= kw "Ochi") "0" "1"))))
       (setq status 1)))
 
   (if (/= status 1) (progn (princ "\n\U+0391\U+03BA\U+03CD\U+03C1\U+03C9\U+03C3\U+03B7.") (exit)))
@@ -919,6 +1220,7 @@
   ;; βρίσκεται πάνω στην ΙΔΙΑ διχοτόμο με τη μαχιά/τον ντερέ.
   (setq *st-STEP* "14 - \U+03C3\U+03C7\U+03B5\U+03B4\U+03B9\U+03B1\U+03C3\U+03B7 \U+03C4\U+03BF\U+03BE\U+03C9\U+03BD (\U+03BC\U+03B5 \U+03B5\U+03C0\U+03B5\U+03BA\U+03C4\U+03B1\U+03C3\U+03B7 \U+03C3\U+03C4\U+03BF \U+03B3\U+03B5\U+03B9\U+03C3\U+03BF)")
   (setq cnt1 0 cnt2 0 cnt3 0 cnt4 0 lmx 0.0 lnt 0.0 lkr 0.0 ltr 0.0)
+  (setq *st-DARCS* (list))
   (foreach a arcs
     (setq ia (st-vidx (car a) orig) ib (st-vidx (cadr a) orig))
     (setq ha (st-hidx (car a) holes) hb (st-hidx (cadr a) holes))
@@ -940,6 +1242,7 @@
           ((= lyr "STEGH-MAXIA")  (setq lmx (+ lmx (distance pa pb))))
           ((= lyr "STEGH-TRYPA")  (setq ltr (+ ltr (distance pa pb))))
           (T                      (setq lkr (+ lkr (distance pa pb)))))
+    (setq *st-DARCS* (append *st-DARCS* (list (list pa pb lyr))))
     (st-line pa pb lyr))
 
   (setq *st-STEP* "15 - \U+03C0\U+03B5\U+03C1\U+03B9\U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03B1 + \U+03B3\U+03B5\U+03B9\U+03C3\U+03BF")
@@ -982,7 +1285,10 @@
     "\n\U+03A5\U+03C8\U+03CC\U+03BC\U+03B5\U+03C4\U+03C1\U+03BF \U+03BA\U+03BF\U+03C1\U+03C6\U+03B9\U+03AC: " (st-elev hmax) " m  (\U+03C3\U+03C7\U+03B5\U+03C4\U+03B9\U+03BA\U+03CC +" (rtos hmax 2 3) ")"
     (if gpts (strcat "\n\U+03A5\U+03C8\U+03CC\U+03BC\U+03B5\U+03C4\U+03C1\U+03BF \U+03C5\U+03B4\U+03C1\U+03BF\U+03C1\U+03C1\U+03BF\U+03AE\U+03C2: " (st-elev (- 0.0 (* ovh th))) " m") "")
     "\n\U+0395\U+03C0\U+03B9\U+03C6\U+03AC\U+03BD\U+03B5\U+03B9\U+03B1 \U+03C3\U+03C4\U+03AD\U+03B3\U+03B7\U+03C2 (\U+03BC\U+03B5 \U+03B3\U+03B5\U+03AF\U+03C3\U+03BF): " (rtos sumA 2 2) " m2"
-    "\nLayers: STEGH-MAXIA / STEGH-NTERES / STEGH-KORFIAS / STEGH-GEISO / STEGH-PERIGR / STEGH-TXT"))
+    "\nLayers: STEGH-MAXIA / STEGH-NTERES / STEGH-KORFIAS / STEGH-GEISO / STEGH-PERIGR / STEGH-TXT"
+    "\n\n*** \U+03A4\U+03B1 \U+03C5\U+03C8\U+03CC\U+03BC\U+03B5\U+03C4\U+03C1\U+03B1 \U+03BA\U+03B1\U+03B9 \U+03BF\U+03B9 \U+03C0\U+03BF\U+03C3\U+03CC\U+03C4\U+03B7\U+03C4\U+03B5\U+03C2 \U+03B1\U+03C0\U+03BF\U+03C4\U+03B5\U+03BB\U+03BF\U+03CD\U+03BD \U+0395\U+039A\U+03A4\U+0399\U+039C\U+0397\U+03A3\U+0397 - \U+03A0\U+03A1\U+039F\U+039C\U+0395\U+03A4\U+03A1\U+0397\U+03A3\U+0397."
+    "\n    \U+0394\U+0395\U+039D \U+03C5\U+03C0\U+03BF\U+03BA\U+03B1\U+03B8\U+03B9\U+03C3\U+03C4\U+03BF\U+03CD\U+03BD \U+03C3\U+03C4\U+03B1\U+03C4\U+03B9\U+03BA\U+03AE \U+03BC\U+03B5\U+03BB\U+03AD\U+03C4\U+03B7 \U+03B1\U+03C0\U+03CC \U+03B5\U+03BE\U+03BF\U+03C5\U+03C3\U+03B9\U+03BF\U+03B4\U+03BF\U+03C4\U+03B7\U+03BC\U+03AD\U+03BD\U+03BF \U+03A0\U+03BF\U+03BB\U+03B9\U+03C4\U+03B9\U+03BA\U+03CC"
+    "\n    \U+039C\U+03B7\U+03C7\U+03B1\U+03BD\U+03B9\U+03BA\U+03CC, \U+03BC\U+03AD\U+03BB\U+03BF\U+03C2 \U+03A4.\U+0395.\U+0395."))
   ;; --- ΕΛΑΧΙΣΤΟ ΣΤΗΘΑΙΟ ΤΡΥΠΩΝ ---
   ;; Ύψος στο οποίο θα έφτανε η στέγη αν ΔΕΝ υπήρχε η τρύπα, στο ψηλότερο
   ;; σημείο του χείλους, + πάχος στρώσεων + περιθώριο στεγάνωσης.
@@ -1017,7 +1323,7 @@
       (princ (strcat (st-elev 0.0) " - \U+03C7\U+03C1\U+03B5\U+03B9\U+03AC\U+03B6\U+03B5\U+03C4\U+03B1\U+03B9 \U+03BB\U+03BF\U+03CD\U+03BA\U+03B9."))))
 
   ;; --- ΠΡΟΓΡΑΜΜΑ ΖΕΥΚΤΩΝ: κατά μήκος κάθε κορφιά, άνοιγμα = 2t ---
-  (setq *st-TR* (list))
+  (setq *st-TR* (list) *st-TRP* (list))
   (if (and (= *st-TYP* "ISO") (> *tm-DIST* 0.05))
     (foreach a arcs
       (setq ia (st-vidx (car a) orig) ib (st-vidx (cadr a) orig))
@@ -1030,6 +1336,12 @@
               (while (<= (* kk *tm-DIST*) (+ ll 1e-9))
                 (setq ff (if (> ll 1e-9) (/ (* kk *tm-DIST*) ll) 0.0))
                 (setq *st-TR* (cons (* 2.0 (+ t1 (* (- t2 t1) ff))) *st-TR*))
+                ;; θέση + κάθετη διεύθυνση για τον ξυλότυπο
+                (setq *st-TRP* (append *st-TRP* (list (list
+                  (list (+ (car (car a)) (* ff (- (car (cadr a)) (car (car a)))))
+                        (+ (cadr (car a)) (* ff (- (cadr (cadr a)) (cadr (car a))))))
+                  (list (- 0.0 (/ (- (cadr (cadr a)) (cadr (car a))) ll))
+                        (/ (- (car (cadr a)) (car (car a))) ll))))))
                 (setq kk (1+ kk))))))))) 
 
   ;; --- ΔΕΔΟΜΕΝΑ ΓΙΑ ΤΗΝ ΤΟΜΗ (πραγματική γεωμετρία κάτοψης) ---
@@ -1049,6 +1361,30 @@
     "\n    \U+0399\U+03C3\U+03BF\U+03B4\U+03CD\U+03BD\U+03B1\U+03BC\U+03BF \U+03AC\U+03BD\U+03BF\U+03B9\U+03B3\U+03BC\U+03B1 (2h/\U+03BA\U+03BB\U+03AF\U+03C3\U+03B7): " (rtos (if (> th 0.0) (/ (* 2.0 hmax) th) 0.0) 2 2) " m"
     "\n    \U+0396\U+03B5\U+03C5\U+03BA\U+03C4\U+03AC \U+03BA\U+03B1\U+03C4\U+03AC \U+03BC\U+03AE\U+03BA\U+03BF\U+03C2 \U+03BA\U+03BF\U+03C1\U+03C6\U+03B9\U+03AC\U+03B4\U+03C9\U+03BD: " (itoa (length *st-TR*))
     " (\U+03B1\U+03BD\U+03AC " (rtos *tm-DIST* 2 2) " m)"))
+  ;; ---------- ΔΕΔΟΜΕΝΑ ΓΙΑ ΞΕΧΩΡΙΣΤΟ ΞΥΛΟΤΥΠΟ ----------
+  (setq *st-EAV* (if gpts gpts orig) *st-HOLES* holes *st-TXH* txh)
+
+  ;; ---------- ΞΥΛΟΤΥΠΟΣ ----------
+  (if (= *st-XYL* "1")
+    (progn
+      (princ "\n\n>>> \U+039E\U+03A5\U+039B\U+039F\U+03A4\U+03A5\U+03A0\U+039F\U+03A3 - \U+03B1\U+03BD\U+03AC\U+03C0\U+03C4\U+03C5\U+03BE\U+03B7 \U+03BE\U+03CD\U+03BB\U+03C9\U+03BD")
+      (setq xp (getpoint "\n\U+03A3\U+03B7\U+03BC\U+03B5\U+03AF\U+03BF \U+03B5\U+03B9\U+03C3\U+03B1\U+03B3\U+03C9\U+03B3\U+03AE\U+03C2 \U+03BE\U+03C5\U+03BB\U+03BF\U+03C4\U+03CD\U+03C0\U+03BF\U+03C5 (\U+03BA\U+03AC\U+03C4\U+03C9-\U+03B1\U+03C1\U+03B9\U+03C3\U+03C4\U+03B5\U+03C1\U+03AC): "))
+      (if (null xp) (princ "\n    \U+03A0\U+03B1\U+03C1\U+03B1\U+03BB\U+03B5\U+03AF\U+03C6\U+03B8\U+03B7\U+03BA\U+03B5 - \U+03C4\U+03C1\U+03AD\U+03BE\U+03B5 \U+03C4\U+03B7\U+03BD \U+03B5\U+03BD\U+03C4\U+03BF\U+03BB\U+03AE STEGHXYLO \U+03B1\U+03C1\U+03B3\U+03CC\U+03C4\U+03B5\U+03C1\U+03B1."))
+      (if xp
+        (progn
+          (setq xx0 (car (car orig)) yy0 (cadr (car orig)))
+          (foreach p (if gpts gpts orig)
+            (if (< (car p) xx0) (setq xx0 (car p)))
+            (if (< (cadr p) yy0) (setq yy0 (cadr p))))
+          (setq xres (st-xylo (if gpts gpts orig) holes *st-DARCS*
+                              (- (car xp) xx0) (- (cadr xp) yy0)
+                              *tm-DIST* *tm-DZ* txh))
+          (princ (strcat "\n    \U+0391\U+03BC\U+03B5\U+03AF\U+03B2\U+03BF\U+03BD\U+03C4\U+03B5\U+03C2: " (itoa (car xres))
+                         "  \U+03A4\U+03B5\U+03B3\U+03AF\U+03B4\U+03B5\U+03C2: " (itoa (cadr xres))
+                         "  \U+0396\U+03B5\U+03C5\U+03BA\U+03C4\U+03AC: " (itoa (caddr xres))
+                         "\n    Layers: XYLO-AMEIB / XYLO-TEGID / XYLO-DOKOI"
+                         " / XYLO-STROT / XYLO-PERIGR / XYLO-TXT"))))))
+
   (if (= *st-TOMI* "1")
     (progn
       (princ "\n\n>>> \U+039B\U+03B5\U+03C0\U+03C4\U+03BF\U+03BC\U+03AD\U+03C1\U+03B5\U+03B9\U+03B1 \U+03C4\U+03BF\U+03BC\U+03AE\U+03C2...")
@@ -1301,6 +1637,22 @@ PLACEHOLDER
       (write-line "      : edit_box { key = \"lroof\"; label = \"\U+039C\U+03AE\U+03BA\U+03BF\U+03C2 \U+03C3\U+03C4\U+03AD\U+03B3\U+03B7\U+03C2 (m):\"; edit_width = 7; }" f)
       (write-line "      : edit_box { key = \"txth\"; label = \"\U+038E\U+03C8\U+03BF\U+03C2 \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03AC\U+03C4\U+03C9\U+03BD (m, 0=auto):\"; edit_width = 7; }" f)
       (write-line "      : edit_box { key = \"km2\"; label = \"\U+039A\U+03B5\U+03C1\U+03B1\U+03BC\U+03AF\U+03B4\U+03B9\U+03B1 (\U+03C4\U+03B5\U+03BC/m2):\"; edit_width = 7; }" f)
+  (write-line "      : boxed_column { label = \"\U+0395\U+03C5\U+03C1\U+03C9\U+03BA\U+03CE\U+03B4\U+03B9\U+03BA\U+03B1\U+03C2 1 - \U+03C6\U+03BF\U+03C1\U+03C4\U+03AF\U+03B1\";" f)
+  (write-line "        : toggle { key = \"ec\"; label = \"\U+03A5\U+03C0\U+03BF\U+03BB\U+03BF\U+03B3\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2 \U+03C6\U+03BF\U+03C1\U+03C4\U+03AF\U+03C9\U+03BD EC1 + \U+03AD\U+03BB\U+03B5\U+03B3\U+03C7\U+03BF\U+03C2 EC5\"; value = \"1\"; }" f)
+  (write-line "        : radio_row { key = \"zn\";" f)
+  (write-line "          : radio_button { key = \"z1\"; label = \"\U+03A7\U+03B9\U+03CC\U+03BD\U+03B9 \U+0399\"; }" f)
+  (write-line "          : radio_button { key = \"z2\"; label = \"\U+0399\U+0399\"; }" f)
+  (write-line "          : radio_button { key = \"z3\"; label = \"\U+0399\U+0399\U+0399\"; value = \"1\"; }" f)
+  (write-line "        }" f)
+  (write-line "        : edit_box { key = \"alt\"; label = \"\U+03A5\U+03C8\U+03CC\U+03BC\U+03B5\U+03C4\U+03C1\U+03BF (m):\"; edit_width = 6; }" f)
+  (write-line "        : radio_row { key = \"vb\";" f)
+  (write-line "          : radio_button { key = \"v33\"; label = \"\U+0386\U+03BD\U+03B5\U+03BC\U+03BF\U+03C2 33 m/s\"; value = \"1\"; }" f)
+  (write-line "          : radio_button { key = \"v27\"; label = \"27 m/s\"; }" f)
+  (write-line "        }" f)
+  (write-line "        : edit_box { key = \"terr\"; label = \"\U+039A\U+03B1\U+03C4\U+03B7\U+03B3. \U+03B5\U+03B4\U+03AC\U+03C6\U+03BF\U+03C5\U+03C2 0-4:\"; edit_width = 6; }" f)
+  (write-line "        : edit_box { key = \"hb\"; label = \"\U+038E\U+03C8\U+03BF\U+03C2 \U+03BA\U+03C4\U+03B9\U+03C1\U+03AF\U+03BF\U+03C5 z (m):\"; edit_width = 6; }" f)
+  (write-line "        : edit_box { key = \"fmk\"; label = \"\U+039E\U+03C5\U+03BB\U+03B5\U+03AF\U+03B1 fm,k (C24=24):\"; edit_width = 6; }" f)
+  (write-line "      }" f)
       (write-line "      : toggle { key = \"mk\"; label = \"\U+039C\U+03AE\U+03BA\U+03B7 \U+03BE\U+03CD\U+03BB\U+03C9\U+03BD \U+03C0\U+03AC\U+03BD\U+03C9 \U+03C3\U+03C4\U+03BF \U+03C3\U+03C7\U+03AD\U+03B4\U+03B9\U+03BF\"; }" f)
       (write-line "      : toggle { key = \"pm\"; label = \"\U+03A0\U+03AF\U+03BD\U+03B1\U+03BA\U+03B1\U+03C2 \U+03C0\U+03C1\U+03BF\U+03BC\U+03AD\U+03C4\U+03C1\U+03B7\U+03C3\U+03B7\U+03C2\"; value = \"1\"; }" f)
       (write-line "      : boxed_radio_row { key = \"out\"; label = \"\U+03A0\U+03AF\U+03BD\U+03B1\U+03BA\U+03B1\U+03C2 \U+03C3\U+03B5\";" f)
@@ -1352,6 +1704,10 @@ PLACEHOLDER
   (setq v (atof (get_tile "lroof"))) (if (> v 0.5) (setq *tm-LR* v))
   (setq v (atof (get_tile "txth")))  (if (>= v 0.0) (setq *tm-TXTH* v))
   (setq v (atof (get_tile "km2")))   (if (> v 0.0) (setq *tm-KM2* v))
+  (setq v (atof (get_tile "alt")))   (if (>= v 0.0) (setq *ec-ALT* v))
+  (setq v (atof (get_tile "terr")))  (if (and (>= v 0.0) (<= v 4.0)) (setq *ec-TERR* (fix v)))
+  (setq v (atof (get_tile "hb")))    (if (> v 1.0) (setq *ec-H* v))
+  (setq v (atof (get_tile "fmk")))   (if (> v 5.0) (setq *ec-FMK* v))
   (foreach kv (list (list "am" 1) (list "amb" 2) (list "el" 3) (list "ort" 4)
                     (list "ant" 5) (list "str" 6) (list "pet" 7) (list "tth" 8)
                     (list "epi" 9) (list "teg" 10) (list "ker" 11))
@@ -1448,6 +1804,18 @@ PLACEHOLDER
       (set_tile "lroof" (rtos *tm-LR* 2 2))
       (set_tile "txth" (rtos *tm-TXTH* 2 3))
       (set_tile "km2"  (rtos *tm-KM2* 2 1))
+      (set_tile "alt"  (rtos *ec-ALT* 2 1))
+      (set_tile "terr" (itoa *ec-TERR*))
+      (set_tile "hb"   (rtos *ec-H* 2 2))
+      (set_tile "fmk"  (rtos *ec-FMK* 2 1))
+      (if (= *ec-ON* "1") (set_tile "ec" "1"))
+      (set_tile (cond ((= *ec-ZONE* 1) "z1") ((= *ec-ZONE* 2) "z2") (T "z3")) "1")
+      (set_tile (if (< *ec-VB0* 30.0) "v27" "v33") "1")
+      (action_tile "z1" "(setq *ec-ZONE* 1)")
+      (action_tile "z2" "(setq *ec-ZONE* 2)")
+      (action_tile "z3" "(setq *ec-ZONE* 3)")
+      (action_tile "v33" "(setq *ec-VB0* 33.0)")
+      (action_tile "v27" "(setq *ec-VB0* 27.0)")
       (if (= *tm-MK* "1") (set_tile "mk" "1"))
       (if (= *tm-PM* "1") (set_tile "pm" "1"))
       (if (<= *st-AREA* 0.0) (mode_tile "kat" 1))
@@ -1472,10 +1840,11 @@ PLACEHOLDER
       (action_tile "g" "(setq *tm-TYP* \"GAB\") (tm-info)")
       (action_tile "m" "(setq *tm-TYP* \"MON\") (tm-info)")
       (foreach k (list "s" "pit" "ovh" "wall" "dist" "am" "amb" "el" "ort" "ant"
-                       "str" "pet" "tth" "epi" "teg" "dz" "ker" "lroof" "txth" "km2")
+                       "str" "pet" "tth" "epi" "teg" "dz" "ker" "lroof" "txth" "km2"
+                       "alt" "terr" "hb" "fmk")
         (action_tile k "(tm-upd)"))
       (action_tile "accept"
-        "(tm-upd) (setq *tm-MK* (get_tile \"mk\")) (setq *tm-PM* (get_tile \"pm\")) (setq *tm-KAT* (get_tile \"kat\")) (setq *tm-GLUE* (get_tile \"glue\")) (done_dialog 1)")
+        "(tm-upd) (setq *tm-MK* (get_tile \"mk\")) (setq *tm-PM* (get_tile \"pm\")) (setq *tm-KAT* (get_tile \"kat\")) (setq *tm-GLUE* (get_tile \"glue\")) (setq *ec-ON* (get_tile \"ec\")) (done_dialog 1)")
       (action_tile "cancel" "(done_dialog 0)")
       (setq status (start_dialog))
       (unload_dialog dclid))
@@ -1745,6 +2114,15 @@ PLACEHOLDER
             (rtos tot 2 2) (rtos v 2 3) ""))
 
       (rr "T" "\U+03A0\U+0399\U+039D\U+0391\U+039A\U+0391\U+03A3 \U+03A0\U+03A1\U+039F\U+039C\U+0395\U+03A4\U+03A1\U+0397\U+03A3\U+0397\U+03A3 \U+03A3\U+03A4\U+0395\U+0393\U+0397\U+03A3" "" "" "" "" "" "")
+      (rr "N" "*** \U+0395\U+039A\U+03A4\U+0399\U+039C\U+0397\U+03A3\U+0397 - \U+03A0\U+03A1\U+039F\U+039C\U+0395\U+03A4\U+03A1\U+0397\U+03A3\U+0397 ***" "" "" "" "" "" "")
+      (rr "N" "\U+039F \U+03C0\U+03B1\U+03C1\U+03C9\U+03BD \U+03C0\U+03B9\U+03BD\U+03B1\U+03BA\U+03B1\U+03C2 \U+03B1\U+03C0\U+03BF\U+03C4\U+03B5\U+03BB\U+03B5\U+03B9 \U+0395\U+039A\U+03A4\U+0399\U+039C\U+0397\U+03A3\U+0397 \U+03A0\U+039F\U+03A3\U+039F\U+03A4\U+0397\U+03A4\U+03A9\U+039D \U+03BA\U+03B1\U+03B9 \U+03A0\U+03A1\U+039F\U+039A\U+0391\U+03A4\U+0391\U+03A1\U+039A\U+03A4\U+0399\U+039A\U+0397"
+          "" "" "" "" "" "")
+      (rr "N" "\U+03B4\U+03B9\U+03B1\U+03C3\U+03C4\U+03B1\U+03C3\U+03B9\U+03BF\U+03BB\U+03BF\U+03B3\U+03B7\U+03C3\U+03B7. \U+0394\U+0395\U+039D \U+03A5\U+03A0\U+039F\U+039A\U+0391\U+0398\U+0399\U+03A3\U+03A4\U+0391 \U+03C4\U+03B7 \U+03A3\U+03A4\U+0391\U+03A4\U+0399\U+039A\U+0397 \U+039C\U+0395\U+039B\U+0395\U+03A4\U+0397, \U+03B7 \U+03BF\U+03C0\U+03BF\U+03B9\U+03B1"
+          "" "" "" "" "" "")
+      (rr "N" "\U+03B5\U+03BA\U+03C0\U+03BF\U+03BD\U+03B5\U+03B9\U+03C4\U+03B1\U+03B9 \U+03BA\U+03B1\U+03B9 \U+03C5\U+03C0\U+03BF\U+03B3\U+03C1\U+03B1\U+03C6\U+03B5\U+03C4\U+03B1\U+03B9 \U+03B1\U+03C0\U+03BF \U+03B5\U+03BE\U+03BF\U+03C5\U+03C3\U+03B9\U+03BF\U+03B4\U+03BF\U+03C4\U+03B7\U+03BC\U+03B5\U+03BD\U+03BF \U+03A0\U+03BF\U+03BB\U+03B9\U+03C4\U+03B9\U+03BA\U+03BF \U+039C\U+03B7\U+03C7\U+03B1\U+03BD\U+03B9\U+03BA\U+03BF,"
+          "" "" "" "" "" "")
+      (rr "N" "\U+03BC\U+03B5\U+03BB\U+03BF\U+03C2 \U+03C4\U+03BF\U+03C5 \U+03A4.\U+0395.\U+0395., \U+03BC\U+03B5 \U+03C0\U+03BB\U+03B7\U+03C1\U+03B7 \U+03B1\U+03BD\U+03B1\U+03BB\U+03C5\U+03C3\U+03B7 \U+03BA\U+03B1\U+03C4\U+03B1 EN 1990/1991/1995." "" "" "" "" "" "")
+      (rr "B" "" "" "" "" "" "" "")
       (rr "N" (if (= usekat 1)
           (strcat "\U+0391\U+03C0\U+03BF \U+03BA\U+03B1\U+03C4\U+03BF\U+03C8\U+03B7 - \U+03B5\U+03BC\U+03B2\U+03B1\U+03B4\U+03BF\U+03BD " (rtos *st-AREA* 2 2)
                   " m2 | \U+03B5\U+03C0\U+03B9\U+03C6\U+03B1\U+03BD\U+03B5\U+03B9\U+03B1 \U+03C3\U+03C4\U+03B5\U+03B3\U+03B7\U+03C2 " (rtos Aslope 2 2)
@@ -1858,6 +2236,89 @@ PLACEHOLDER
           (rr "S" "\U+03A3\U+03A5\U+039D\U+039F\U+039B\U+039F \U+0396\U+0395\U+03A5\U+039A\U+03A4\U+03A9\U+039D" "" (itoa (length *st-TR*)) "" "" "" "")
           (rr "B" "" "" "" "" "" "" "")))
 
+      ;; --- ΕΥΡΩΚΩΔΙΚΑΣ: ΦΟΡΤΙΑ ΚΑΙ ΕΛΕΓΧΟΙ ---
+      (if (= *ec-ON* "1")
+        (progn
+          (setq ecr (ec-calc (/ ang (/ pi 180.0)) Lraf *tm-DIST* dz))
+          (rr "H" "3b. \U+0395\U+03A5\U+03A1\U+03A9\U+039A\U+03A9\U+0394\U+0399\U+039A\U+0391\U+03A3 1 - \U+03A6\U+039F\U+03A1\U+03A4\U+0399\U+0391" "" "" "\U+03A4\U+0399\U+039C\U+0397" "" "" "")
+          (foreach r (list
+            (list (strcat "\U+0396\U+03C9\U+03BD\U+03B7 \U+03C7\U+03B9\U+03BF\U+03BD\U+03B9\U+03BF\U+03C5 " (cond ((= *ec-ZONE* 1) "I") ((= *ec-ZONE* 2) "II") (T "III"))
+                          " - sk,0 = " (rtos (ec-sk0 *ec-ZONE*) 2 2) " kN/m2") "")
+            (list (strcat "\U+03A5\U+03C8\U+03BF\U+03BC\U+03B5\U+03C4\U+03C1\U+03BF " (rtos *ec-ALT* 2 0) " m -> sk")
+                  (strcat (rtos (nth 0 ecr) 2 3) " kN/m2"))
+            (list (strcat "\U+03A3\U+03C5\U+03BD\U+03C4. \U+03BC\U+03BF\U+03C1\U+03C6\U+03B7\U+03C2 \U+03BC1 (\U+03BA\U+03BB\U+03B9\U+03C3\U+03B7 " (rtos (/ ang (/ pi 180.0)) 2 1) " deg)")
+                  (rtos (nth 1 ecr) 2 2))
+            (list "\U+03A7\U+0399\U+039F\U+039D\U+0399 s = \U+03BC1*Ce*Ct*sk" (strcat (rtos (nth 2 ecr) 2 3) " kN/m2"))
+            (list (strcat "\U+0391\U+03BD\U+03B5\U+03BC\U+03BF\U+03C2 vb,0 = " (rtos *ec-VB0* 2 0) " m/s, \U+03B5\U+03B4\U+03B1\U+03C6\U+03BF\U+03C2 \U+03BA\U+03B1\U+03C4. " (itoa *ec-TERR*)
+                          ", z = " (rtos *ec-H* 2 2) " m") "")
+            (list "\U+039C\U+03B5\U+03C3\U+03B7 \U+03C4\U+03B1\U+03C7\U+03C5\U+03C4\U+03B7\U+03C4\U+03B1 vm" (strcat (rtos (nth 4 ecr) 2 2) " m/s"))
+            (list "\U+03A0\U+0399\U+0395\U+03A3\U+0397 \U+0391\U+0399\U+03A7\U+039C\U+0397\U+03A3 qp(z)" (strcat (rtos (nth 3 ecr) 2 3) " kN/m2"))
+            (list "\U+0391\U+03BD\U+03B5\U+03BC\U+03BF\U+03C2 \U+03B6\U+03C9\U+03BD\U+03B7 F (\U+03BC\U+03B5\U+03B3. \U+03C5\U+03C0\U+03BF\U+03C0\U+03B9\U+03B5\U+03C3\U+03B7)" (strcat (rtos (nth 5 ecr) 2 3) " kN/m2"))
+            (list "\U+0391\U+03BD\U+03B5\U+03BC\U+03BF\U+03C2 \U+03B6\U+03C9\U+03BD\U+03B7 H (\U+03C0\U+03B9\U+03B5\U+03C3\U+03B7)" (strcat (rtos (nth 7 ecr) 2 3) " kN/m2"))
+            (list "\U+0399\U+0394\U+0399\U+039F \U+0392\U+0391\U+03A1\U+039F\U+03A3 gk (\U+03B1\U+03C0\U+03BF \U+03C4\U+03B9\U+03C2 \U+03C3\U+03C4\U+03C1\U+03C9\U+03C3\U+03B5\U+03B9\U+03C2)" (strcat (rtos (nth 8 ecr) 2 3) " kN/m2")))
+            (rr "D" (car r) "" "" (cadr r) "" "" ""))
+          (rr "B" "" "" "" "" "" "" "")
+          (rr "H" "3c. \U+03A0\U+03A1\U+039F\U+039A\U+0391\U+03A4\U+0391\U+03A1\U+039A\U+03A4\U+0399\U+039A\U+039F\U+03A3 \U+0395\U+039B\U+0395\U+0393\U+03A7\U+039F\U+03A3 EC5" "" "" "\U+03A4\U+0399\U+039C\U+0397" "\U+039F\U+03A1\U+0399\U+039F" "\U+0392\U+0391\U+0398\U+039C\U+039F\U+03A3" "")
+          (rr "D" "1.35G+1.5S+0.9W -> qd \U+03B1\U+03BC\U+03B5\U+03B9\U+03B2\U+03BF\U+03BD\U+03C4\U+03B1" "" ""
+              (strcat (rtos (nth 9 ecr) 2 3) " kN/m") "" "" "")
+          (rr "D" "\U+0391\U+03BD\U+03B1\U+03C3\U+03B7\U+03BA\U+03C9\U+03C3\U+03B7 1.0G+1.5W" "" ""
+              (strcat (rtos (nth 10 ecr) 2 3) " kN/m")
+              (if (< (nth 10 ecr) 0.0) "\U+0391\U+039D\U+0391\U+03A3\U+0397\U+039A\U+03A9\U+03A3\U+0397!" "OK") "" "")
+          (rr "D" (strcat "\U+0391\U+03BC\U+03B5\U+03B9\U+03B2\U+03BF\U+03BD\U+03C4\U+03B1\U+03C2 " (rtos *tm-AMB* 2 1) "x" (rtos *tm-AM* 2 1)
+                          " - \U+03C3m,d / fm,d") "" ""
+              (strcat (rtos (nth 12 ecr) 2 2) " MPa")
+              (strcat (rtos (nth 13 ecr) 2 2) " MPa")
+              (strcat (rtos (* 100.0 (nth 14 ecr)) 2 0) "%")
+              (if (<= (nth 14 ecr) 1.0) "OK" "\U+0391\U+039D\U+0395\U+03A0\U+0391\U+03A1\U+039A\U+0397\U+03A3"))
+          (rr "D" "\U+0391\U+03BC\U+03B5\U+03B9\U+03B2\U+03BF\U+03BD\U+03C4\U+03B1\U+03C2 - \U+03B2\U+03B5\U+03BB\U+03BF\U+03C2 w / L/300" "" ""
+              (strcat (rtos (* 1000.0 (nth 15 ecr)) 2 1) " mm")
+              (strcat (rtos (* 1000.0 (nth 16 ecr)) 2 1) " mm")
+              (strcat (rtos (* 100.0 (/ (nth 15 ecr) (nth 16 ecr))) 2 0) "%")
+              (if (<= (nth 15 ecr) (nth 16 ecr)) "OK" "\U+03A5\U+03A0\U+0395\U+03A1\U+0392\U+0391\U+03A3\U+0397"))
+          (rr "D" (strcat "\U+03A4\U+03B5\U+03B3\U+03B9\U+03B4\U+03B1 " (rtos *tm-TEG* 2 1) "x" (rtos *tm-TEG* 2 1)
+                          " - \U+03C3m,d / fm,d") "" ""
+              (strcat (rtos (nth 18 ecr) 2 2) " MPa")
+              (strcat (rtos (nth 13 ecr) 2 2) " MPa")
+              (strcat (rtos (* 100.0 (nth 19 ecr)) 2 0) "%")
+              (if (<= (nth 19 ecr) 1.0) "OK" "\U+0391\U+039D\U+0395\U+03A0\U+0391\U+03A1\U+039A\U+0397\U+03A3"))
+          (rr "N" (strcat "\U+039E\U+03C5\U+03BB\U+03B5\U+03B9\U+03B1 fm,k = " (rtos *ec-FMK* 2 1)
+                          " MPa, kmod = 0.90 (\U+03B2\U+03C1\U+03B1\U+03C7\U+03C5\U+03C7\U+03C1\U+03BF\U+03BD\U+03B9\U+03B1), \U+03B3\U+039C = 1.30 -> fm,d = "
+                          (rtos (nth 13 ecr) 2 2) " MPa") "" "" "" "" "" "")
+          (rr "N" "\U+03A0\U+03A1\U+039F\U+03A3\U+039F\U+03A7\U+0397: \U+03A0\U+03A1\U+039F\U+039A\U+0391\U+03A4\U+0391\U+03A1\U+039A\U+03A4\U+0399\U+039A\U+0397 \U+03B4\U+03B9\U+03B1\U+03C3\U+03C4\U+03B1\U+03C3\U+03B9\U+03BF\U+03BB\U+03BF\U+03B3\U+03B7\U+03C3\U+03B7 (\U+03B1\U+03BC\U+03C6\U+03B9\U+03B5\U+03C1\U+03B5\U+03B9\U+03C3\U+03C4\U+03BF\U+03C2 \U+03B1\U+03BC\U+03B5\U+03B9\U+03B2\U+03BF\U+03BD\U+03C4\U+03B1\U+03C2,"
+              "" "" "" "" "" "")
+          (rr "N" "\U+03BC\U+03BF\U+03BD\U+03BF \U+03BA\U+03B1\U+03BC\U+03C8\U+03B7). \U+0394\U+0395\U+039D \U+03B1\U+03BD\U+03C4\U+03B9\U+03BA\U+03B1\U+03B8\U+03B9\U+03C3\U+03C4\U+03B1 \U+03C3\U+03C4\U+03B1\U+03C4\U+03B9\U+03BA\U+03B7 \U+03BC\U+03B5\U+03BB\U+03B5\U+03C4\U+03B7: \U+03BB\U+03C5\U+03B3\U+03B9\U+03C3\U+03BC\U+03BF\U+03C2, \U+03B4\U+03B9\U+03B1\U+03C4\U+03BC\U+03B7\U+03C3\U+03B7,"
+              "" "" "" "" "" "")
+          (rr "N" "\U+03C3\U+03C5\U+03BD\U+03B4\U+03B5\U+03C3\U+03B5\U+03B9\U+03C2, \U+03C3\U+03C5\U+03C3\U+03C3\U+03C9\U+03C1\U+03B5\U+03C5\U+03C3\U+03B7 \U+03C7\U+03B9\U+03BF\U+03BD\U+03B9\U+03BF\U+03C5, \U+03C3\U+03B5\U+03B9\U+03C3\U+03BC\U+03BF\U+03C2 \U+03BA\U+03B1\U+03B9 \U+03B1\U+03BD\U+03B5\U+03BC\U+03BF\U+03C2 \U+03BA\U+03B1\U+03C4\U+03B1 \U+03B8=90 \U+03B8\U+03B5\U+03BB\U+03BF\U+03C5\U+03BD"
+              "" "" "" "" "" "")
+          (rr "N" "\U+03C0\U+03BB\U+03B7\U+03C1\U+03B7 \U+03B1\U+03BD\U+03B1\U+03BB\U+03C5\U+03C3\U+03B7 \U+03BA\U+03B1\U+03C4\U+03B1 EN 1995-1-1." "" "" "" "" "" "")
+          (rr "B" "" "" "" "" "" "" "")))
+
+      ;; --- ΠΙΝΑΚΑΣ ΞΥΛΩΝ ΞΥΛΟΤΥΠΟΥ (ταιριαζει με τη σημανση στο σχεδιο) ---
+      (if *st-XSCH*
+        (progn
+          (rr "H" "3d. \U+03A0\U+0399\U+039D\U+0391\U+039A\U+0391\U+03A3 \U+039E\U+03A5\U+039B\U+03A9\U+039D (\U+039E\U+03A5\U+039B\U+039F\U+03A4\U+03A5\U+03A0\U+039F\U+03A3)" "\U+0394\U+0399\U+0391\U+03A4\U+039F\U+039C\U+0397" "\U+03A4\U+0395\U+039C." "\U+039C\U+0397\U+039A\U+039F\U+03A3"
+              "\U+03A3\U+03A5\U+039D\U+039F\U+039B\U+039F m" "" "")
+          (foreach xg *st-XSCH*
+            (if (caddr xg)
+              (progn
+                (setq kk 1 sp 0.0)
+                (foreach g (caddr xg)
+                  (rr "D" (strcat (car xg) (itoa kk)
+                            (cond ((= (car xg) "A") "  \U+0391\U+03BC\U+03B5\U+03B9\U+03B2\U+03BF\U+03BD\U+03C4\U+03B1\U+03C2")
+                                  ((= (car xg) "T") "  \U+03A4\U+03B5\U+03B3\U+03B9\U+03B4\U+03B1")
+                                  ((= (car xg) "D") "  \U+0394\U+03BF\U+03BA\U+03BF\U+03C2 \U+03C3\U+03BA\U+03B5\U+03BB\U+03B5\U+03C4\U+03BF\U+03C5")
+                                  ((= (car xg) "S") "  \U+03A3\U+03C4\U+03C1\U+03C9\U+03C4\U+03B7\U+03C1\U+03B1\U+03C2")
+                                  (T "  \U+0395\U+03BB\U+03BA\U+03C5\U+03C3\U+03C4\U+03B7\U+03C1\U+03B1\U+03C2 \U+03B6\U+03B5\U+03C5\U+03BA\U+03C4\U+03BF\U+03C5")))
+                      (cadr xg) (itoa (cadr g)) (rtos (car g) 2 2)
+                      (rtos (* (car g) (cadr g)) 2 2) "" "")
+                  (setq sp (+ sp (* (car g) (cadr g))))
+                  (setq kk (1+ kk)))
+                (rr "S" (strcat "  \U+03A3\U+03C5\U+03BD\U+03BF\U+03BB\U+03BF " (car xg)) (cadr xg) "" ""
+                    (rtos sp 2 2) "" ""))))
+          (rr "N" "\U+039F\U+03B9 \U+03BA\U+03C9\U+03B4\U+03B9\U+03BA\U+03BF\U+03B9 A/T/D/S/Z \U+03B1\U+03BD\U+03C4\U+03B9\U+03C3\U+03C4\U+03BF\U+03B9\U+03C7\U+03BF\U+03C5\U+03BD \U+03C3\U+03C4\U+03B7 \U+03C3\U+03B7\U+03BC\U+03B1\U+03BD\U+03C3\U+03B7 \U+03C0\U+03B1\U+03BD\U+03C9 \U+03C3\U+03C4\U+03BF\U+03BD \U+03BE\U+03C5\U+03BB\U+03BF\U+03C4\U+03C5\U+03C0\U+03BF."
+              "" "" "" "" "" "")
+          (rr "B" "" "" "" "" "" "" "")))
+
       ;; --- 4. ΕΠΙΦΑΝΕΙΕΣ ---
       (rr "H" "4. \U+0395\U+03A0\U+0399\U+03A6\U+0391\U+039D\U+0395\U+0399\U+0395\U+03A3" "" "" "\U+0395\U+039C\U+0392\U+0391\U+0394\U+039F\U+039D" "" "" "")
       (foreach r (list
@@ -1886,11 +2347,37 @@ PLACEHOLDER
               (strcat (itoa (max 2 (fix (+ 0.999 (/ Aslope 25.0))))) " \U+03C4\U+03B5\U+03BC"))
         (list "\U+03A4\U+03B5\U+03C1\U+03BC\U+03B1\U+03C4\U+03B9\U+03BA\U+03B1 \U+03BA\U+03B1\U+03B2\U+03B1\U+03BB\U+03BB\U+03B1\U+03C1\U+03B7" (if (= *tm-TYP* "GAB") "2 \U+03C4\U+03B5\U+03BC" "-")))
         (rr "D" (car r) "" "" (cadr r) "" "" ""))
+      (rr "B" "" "" "" "" "" "" "")
+      (rr "T" "\U+0394\U+0397\U+039B\U+03A9\U+03A3\U+0397 \U+039F\U+03A1\U+0399\U+03A9\U+039D \U+03A7\U+03A1\U+0397\U+03A3\U+0397\U+03A3" "" "" "" "" "" "")
+      (rr "N" "1. \U+03A4\U+03B1 \U+03B1\U+03BD\U+03C9\U+03C4\U+03B5\U+03C1\U+03C9 \U+03B1\U+03C0\U+03BF\U+03C4\U+03B5\U+03BB\U+03BF\U+03C5\U+03BD \U+0395\U+039A\U+03A4\U+0399\U+039C\U+0397\U+03A3\U+0397 \U+03A0\U+039F\U+03A3\U+039F\U+03A4\U+0397\U+03A4\U+03A9\U+039D (\U+03C0\U+03C1\U+03BF\U+03BC\U+03B5\U+03C4\U+03C1\U+03B7\U+03C3\U+03B7) \U+03B2\U+03B1\U+03C3\U+03B5\U+03B9 \U+03C4\U+03B7\U+03C2"
+          "" "" "" "" "" "")
+      (rr "N" "   \U+03B3\U+03B5\U+03C9\U+03BC\U+03B5\U+03C4\U+03C1\U+03B9\U+03B1\U+03C2 \U+03C4\U+03B7\U+03C2 \U+03BA\U+03B1\U+03C4\U+03B1\U+03C8\U+03B7\U+03C2 \U+03BA\U+03B1\U+03B9 \U+03C4\U+03C9\U+03BD \U+03C0\U+03B1\U+03C1\U+03B1\U+03BC\U+03B5\U+03C4\U+03C1\U+03C9\U+03BD \U+03C0\U+03BF\U+03C5 \U+03B5\U+03B9\U+03C3\U+03B7\U+03B3\U+03B1\U+03B3\U+03B5 \U+03BF \U+03C7\U+03C1\U+03B7\U+03C3\U+03C4\U+03B7\U+03C2."
+          "" "" "" "" "" "")
+      (rr "N" "2. \U+039F\U+03B9 \U+03B5\U+03BB\U+03B5\U+03B3\U+03C7\U+03BF\U+03B9 \U+03BA\U+03B1\U+03C4\U+03B1 EN 1995-1-1 \U+03B5\U+03B9\U+03BD\U+03B1\U+03B9 \U+03A0\U+03A1\U+039F\U+039A\U+0391\U+03A4\U+0391\U+03A1\U+039A\U+03A4\U+0399\U+039A\U+039F\U+0399 (\U+03BA\U+03B1\U+03BC\U+03C8\U+03B7 \U+03BA\U+03B1\U+03B9 \U+03B2\U+03B5\U+03BB\U+03BF\U+03C2"
+          "" "" "" "" "" "")
+      (rr "N" "   \U+03B1\U+03BC\U+03C6\U+03B9\U+03B5\U+03C1\U+03B5\U+03B9\U+03C3\U+03C4\U+03BF\U+03C5 \U+03BC\U+03B5\U+03BB\U+03BF\U+03C5\U+03C2). \U+0394\U+03B5\U+03BD \U+03BA\U+03B1\U+03BB\U+03C5\U+03C0\U+03C4\U+03BF\U+03BD\U+03C4\U+03B1\U+03B9 \U+03BB\U+03C5\U+03B3\U+03B9\U+03C3\U+03BC\U+03BF\U+03C2, \U+03B4\U+03B9\U+03B1\U+03C4\U+03BC\U+03B7\U+03C3\U+03B7, \U+03C3\U+03C5\U+03BD\U+03B4\U+03B5\U+03C3\U+03B5\U+03B9\U+03C2,"
+          "" "" "" "" "" "")
+      (rr "N" "   \U+03C3\U+03C5\U+03C3\U+03C3\U+03C9\U+03C1\U+03B5\U+03C5\U+03C3\U+03B7 \U+03C7\U+03B9\U+03BF\U+03BD\U+03B9\U+03BF\U+03C5, \U+03C3\U+03B5\U+03B9\U+03C3\U+03BC\U+03B9\U+03BA\U+03B5\U+03C2 \U+03B4\U+03C1\U+03B1\U+03C3\U+03B5\U+03B9\U+03C2 \U+03BA\U+03B1\U+03B9 \U+03B1\U+03BD\U+03B5\U+03BC\U+03BF\U+03C2 \U+03BA\U+03B1\U+03C4\U+03B1 \U+03B8=90 \U+03BC\U+03BF\U+03B9\U+03C1\U+03B5\U+03C2."
+          "" "" "" "" "" "")
+      (rr "N" "3. \U+03A4\U+039F \U+03A0\U+0391\U+03A1\U+039F\U+039D \U+0394\U+0395\U+039D \U+03A5\U+03A0\U+039F\U+039A\U+0391\U+0398\U+0399\U+03A3\U+03A4\U+0391 \U+03A4\U+0397 \U+03A3\U+03A4\U+0391\U+03A4\U+0399\U+039A\U+0397 \U+039C\U+0395\U+039B\U+0395\U+03A4\U+0397. \U+0397 \U+03BC\U+03B5\U+03BB\U+03B5\U+03C4\U+03B7 \U+03C4\U+03BF\U+03C5 \U+03C6\U+03B5\U+03C1\U+03BF\U+03BD\U+03C4\U+03BF\U+03C2"
+          "" "" "" "" "" "")
+      (rr "N" "   \U+03BF\U+03C1\U+03B3\U+03B1\U+03BD\U+03B9\U+03C3\U+03BC\U+03BF\U+03C5 \U+03B5\U+03BA\U+03C0\U+03BF\U+03BD\U+03B5\U+03B9\U+03C4\U+03B1\U+03B9, \U+03C5\U+03C0\U+03BF\U+03B3\U+03C1\U+03B1\U+03C6\U+03B5\U+03C4\U+03B1\U+03B9 \U+03BA\U+03B1\U+03B9 \U+03C3\U+03C6\U+03C1\U+03B1\U+03B3\U+03B9\U+03B6\U+03B5\U+03C4\U+03B1\U+03B9 \U+03B1\U+03C0\U+03BF \U+03B5\U+03BE\U+03BF\U+03C5\U+03C3\U+03B9\U+03BF\U+03B4\U+03BF\U+03C4\U+03B7\U+03BC\U+03B5\U+03BD\U+03BF"
+          "" "" "" "" "" "")
+      (rr "N" "   \U+03A0\U+03BF\U+03BB\U+03B9\U+03C4\U+03B9\U+03BA\U+03BF \U+039C\U+03B7\U+03C7\U+03B1\U+03BD\U+03B9\U+03BA\U+03BF, \U+03BC\U+03B5\U+03BB\U+03BF\U+03C2 \U+03C4\U+03BF\U+03C5 \U+03A4\U+03B5\U+03C7\U+03BD\U+03B9\U+03BA\U+03BF\U+03C5 \U+0395\U+03C0\U+03B9\U+03BC\U+03B5\U+03BB\U+03B7\U+03C4\U+03B7\U+03C1\U+03B9\U+03BF\U+03C5 \U+0395\U+03BB\U+03BB\U+03B1\U+03B4\U+03BF\U+03C2 (\U+03A4.\U+0395.\U+0395.)."
+          "" "" "" "" "" "")
+      (rr "N" "4. \U+039F \U+03C7\U+03C1\U+03B7\U+03C3\U+03C4\U+03B7\U+03C2 \U+03BF\U+03C6\U+03B5\U+03B9\U+03BB\U+03B5\U+03B9 \U+03BD\U+03B1 \U+03B5\U+03BB\U+03B5\U+03B3\U+03BE\U+03B5\U+03B9 \U+03BF\U+03BB\U+03B5\U+03C2 \U+03C4\U+03B9\U+03C2 \U+03C4\U+03B9\U+03BC\U+03B5\U+03C2 \U+03C0\U+03C1\U+03B9\U+03BD \U+03B1\U+03C0\U+03BF \U+03BF\U+03C0\U+03BF\U+03B9\U+03B1\U+03B4\U+03B7\U+03C0\U+03BF\U+03C4\U+03B5 \U+03C7\U+03C1\U+03B7\U+03C3\U+03B7"
+          "" "" "" "" "" "")
+      (rr "N" "   \U+03C3\U+03B5 \U+03BC\U+03B5\U+03BB\U+03B5\U+03C4\U+03B7, \U+03C0\U+03C1\U+03BF\U+03C3\U+03C6\U+03BF\U+03C1\U+03B1 \U+03AE \U+03BA\U+03B1\U+03C4\U+03B1\U+03C3\U+03BA\U+03B5\U+03C5\U+03B7." "" "" "" "" "" "")
+      (rr "B" "" "" "" "" "" "" "")
+      (rr "N" "\U+03A0\U+03B1\U+03C1\U+03B1\U+03C7\U+03B8\U+03B7\U+03BA\U+03B5 \U+03BC\U+03B5 HEXIS STEGH - BRB DEVELOPMENT MON. I.K.E. - www.birbas.gr"
+          "" "" "" "" "" "")
 
       ;; ---------- ΑΠΟΔΟΣΗ ----------
       (if (/= *tm-OUT* "ARXEIO")
         (progn
-          (setq px (+ (car ins) S 1.30) py (- (cadr A0) (* lh 2.4)))
+          ;; ΚΑΤΩ απο το υπομνημα (17 γραμμες x 1.7 + περιθωριο)
+          (setq px (+ (car ins) S 1.30)
+                py (- (+ (cadr A0) (* lh 4.0)) (* lh 36.0)))
           (tm-drawrows px py lh)))
       (if (/= *tm-OUT* "SXEDIO")
         (progn
@@ -1922,9 +2409,241 @@ PLACEHOLDER
     "\n\U+038E\U+03C8\U+03BF\U+03C2 \U+03BA\U+03BF\U+03C1\U+03C6\U+03B9\U+03AC +" (rtos hh 2 3) " m  \U+00B7  \U+03BC\U+03AE\U+03BA\U+03BF\U+03C2 \U+03B1\U+03BC\U+03B5\U+03AF\U+03B2\U+03BF\U+03BD\U+03C4\U+03B1 "
     (rtos kbot 2 3) " m"
     "\n\U+03A4\U+03B5\U+03B3\U+03AF\U+03B4\U+03B5\U+03C2 \U+03B1\U+03BD\U+03AC \U+03BA\U+03BB\U+03AF\U+03C3\U+03B7: " (itoa nteg) "  \U+00B7  \U+03B6\U+03B5\U+03C5\U+03BA\U+03C4\U+03AC \U+03B1\U+03BD\U+03AC " (rtos *tm-DIST* 2 2) " m"
-    "\n\U+03A0\U+03B7\U+03B3\U+03AD\U+03C2: \U+03A4\U+0395\U+0399 \U+0397\U+03C0\U+03B5\U+03AF\U+03C1\U+03BF\U+03C5 \U+03A3\U+03C7.7.1 \U+00B7 \U+0395\U+039C\U+03A0 (\U+03BA\U+03C1\U+03B5\U+03BC\U+03B1\U+03C3\U+03C4\U+03AD\U+03C2 \U+03C3\U+03C4\U+03AD\U+03B3\U+03B5\U+03C2) \U+00B7 \U+0395\U+03C5\U+03C1\U+03C9\U+03BA\U+03CE\U+03B4\U+03B9\U+03BA\U+03B1\U+03C2 5"))
+    "\n\U+03A0\U+03B7\U+03B3\U+03AD\U+03C2: \U+03A4\U+0395\U+0399 \U+0397\U+03C0\U+03B5\U+03AF\U+03C1\U+03BF\U+03C5 \U+03A3\U+03C7.7.1 \U+00B7 \U+0395\U+039C\U+03A0 (\U+03BA\U+03C1\U+03B5\U+03BC\U+03B1\U+03C3\U+03C4\U+03AD\U+03C2 \U+03C3\U+03C4\U+03AD\U+03B3\U+03B5\U+03C2) \U+00B7 \U+0395\U+03C5\U+03C1\U+03C9\U+03BA\U+03CE\U+03B4\U+03B9\U+03BA\U+03B1\U+03C2 5"
+    "\n\n*** \U+0395\U+039A\U+03A4\U+0399\U+039C\U+0397\U+03A3\U+0397 / \U+03A0\U+03A1\U+039F\U+039C\U+0395\U+03A4\U+03A1\U+0397\U+03A3\U+0397 - \U+0394\U+0395\U+039D \U+03A5\U+03A0\U+039F\U+039A\U+0391\U+0398\U+0399\U+03A3\U+03A4\U+0391 \U+03A3\U+03A4\U+0391\U+03A4\U+0399\U+039A\U+0397 \U+039C\U+0395\U+039B\U+0395\U+03A4\U+0397 ***"
+    "\n    \U+0397 \U+03BC\U+03B5\U+03BB\U+03AD\U+03C4\U+03B7 \U+03C4\U+03BF\U+03C5 \U+03C6\U+03AD\U+03C1\U+03BF\U+03BD\U+03C4\U+03BF\U+03C2 \U+03BF\U+03C1\U+03B3\U+03B1\U+03BD\U+03B9\U+03C3\U+03BC\U+03BF\U+03CD \U+03B5\U+03BA\U+03C0\U+03BF\U+03BD\U+03B5\U+03AF\U+03C4\U+03B1\U+03B9 \U+03BA\U+03B1\U+03B9 \U+03C5\U+03C0\U+03BF\U+03B3\U+03C1\U+03AC\U+03C6\U+03B5\U+03C4\U+03B1\U+03B9 \U+03B1\U+03C0\U+03CC"
+    "\n    \U+03B5\U+03BE\U+03BF\U+03C5\U+03C3\U+03B9\U+03BF\U+03B4\U+03BF\U+03C4\U+03B7\U+03BC\U+03AD\U+03BD\U+03BF \U+03A0\U+03BF\U+03BB\U+03B9\U+03C4\U+03B9\U+03BA\U+03CC \U+039C\U+03B7\U+03C7\U+03B1\U+03BD\U+03B9\U+03BA\U+03CC, \U+03BC\U+03AD\U+03BB\U+03BF\U+03C2 \U+03A4.\U+0395.\U+0395."))
+  (princ))
+
+;; ===================== ΑΝΑΠΤΥΓΜΑ ΕΔΡΩΝ =====================
+;; Οι εδρες εξαγονται απο τον ΓΡΑΦΟ (πλευρες + τοξα σκελετου) με
+;; διασχιση "επομενη ακμη = η αμεσως ΔΕΞΙΟΣΤΡΟΦΑ μετα την αντιστροφη".
+;; Δινει ΑΚΡΙΒΩΣ μια εδρα ανα πλευρα - αθροισμα = εμβαδον καταψης.
+;; Το ξεδιπλωμα τεντωνει ΚΑΘΕΤΑ στην υδρορροη κατα 1/cos(κλισης).
+
+;; --- λιστα κομβων: μοναδικα σημεια ---
+(defun an-nid (p nodes / i n r)
+  (setq n (length nodes) i 0 r nil)
+  (while (< i n)
+    (if (and (null r) (< (distance p (nth i nodes)) 1e-6)) (setq r i))
+    (setq i (1+ i)))
+  r)
+
+;; --- γειτονες κομβου, ταξινομημενοι κατα γωνια (αυξουσα) ---
+(defun an-nb (k nodes edg / out e o a i n sorted mn mi rest)
+  (setq out (list))
+  (foreach e edg
+    (setq o nil)
+    (if (= (car e) k) (setq o (cadr e)))
+    (if (= (cadr e) k) (setq o (car e)))
+    (if (and o (not (member o out))) (setq out (append out (list o)))))
+  ;; ταξινομηση κατα γωνια
+  (setq sorted (list))
+  (while out
+    (setq mn nil mi nil)
+    (foreach o out
+      (setq a (angle (nth k nodes) (nth o nodes)))
+      (if (or (null mn) (< a mn)) (setq mn a mi o)))
+    (setq sorted (append sorted (list mi)))
+    (setq rest (list))
+    (foreach o out (if (/= o mi) (setq rest (append rest (list o)))))
+    (setq out rest))
+  sorted)
+
+;; --- ΕΞΑΓΩΓΗ ΕΔΡΩΝ -> λιστα πολυγωνων (λιστες σημειων) ---
+(defun an-faces (pts arcs / nodes edg n i a b k1 k2 e cu cv f out seen
+                  nbl idx g key p q ar)
+  (setq nodes (list) edg (list))
+  (defun an-add (p / r)
+    (setq r (an-nid p nodes))
+    (if (null r)
+      (progn (setq nodes (append nodes (list p))) (setq r (1- (length nodes)))))
+    r)
+  (setq n (length pts) i 0)
+  (while (< i n)
+    (setq k1 (an-add (nth i pts)) k2 (an-add (nth (rem (1+ i) n) pts)))
+    (setq edg (append edg (list (list k1 k2))))
+    (setq i (1+ i)))
+  (foreach a arcs
+    (setq k1 (an-add (car a)) k2 (an-add (cadr a)))
+    (setq edg (append edg (list (list k1 k2)))))
+  ;; προϋπολογισμος γειτονων
+  (setq nbl (list) i 0)
+  (while (< i (length nodes))
+    (setq nbl (append nbl (list (an-nb i nodes edg))))
+    (setq i (1+ i)))
+  ;; διασχιση
+  (setq seen (list) out (list) i 0)
+  (while (< i (length nodes))
+    (foreach q (nth i nbl)
+      (setq key (+ (* i 10000) q))
+      (if (not (member key seen))
+        (progn
+          (setq f (list) cu i cv q g 0)
+          (while (and (not (member (+ (* cu 10000) cv) seen)) (< g 4000))
+            (setq g (1+ g))
+            (setq seen (append seen (list (+ (* cu 10000) cv))))
+            (setq f (append f (list (nth cu nodes))))
+            (setq p (nth cv nbl))
+            (setq idx (- (length p) (length (member cu p))))
+            (setq k1 cv k2 (nth (rem (+ idx (1- (length p))) (length p)) p))
+            (setq cu k1 cv k2))
+          (if (>= (length f) 3)
+            (progn
+              (setq ar (/ (st-area2 f) 2.0))
+              (if (> ar 1e-6) (setq out (append out (list f)))))))))
+    (setq i (1+ i)))
+  out)
+
+;; --- ΞΕΔΙΠΛΩΜΑ ΕΔΡΑΣ πανω στην πλευρα (a,b) ---
+;; -> (πολυγωνο εμβαδον μηκος_υδρορροης)
+(defun an-unfold (f a b ca / LL dr nv out p u v ar)
+  (setq LL (distance a b))
+  (if (< LL 1e-9) nil
+    (progn
+      (setq dr (list (/ (- (car b) (car a)) LL) (/ (- (cadr b) (cadr a)) LL)))
+      (setq nv (list (- 0.0 (cadr dr)) (car dr)))
+      (setq out (list))
+      (foreach p f
+        (setq u (+ (* (- (car p) (car a)) (car dr)) (* (- (cadr p) (cadr a)) (cadr dr))))
+        (setq v (+ (* (- (car p) (car a)) (car nv)) (* (- (cadr p) (cadr a)) (cadr nv))))
+        (setq out (append out (list (list u (/ v ca))))))
+      (setq ar (abs (/ (st-area2 out) 2.0)))
+      (list out ar LL))))
+
+;; --- βρες την εδρα που περιεχει την πλευρα (a,b) ---
+(defun an-pick (faces a b / r f n i p q m dx dy L2 tt)
+  (setq r nil)
+  ;; 1. ακριβης αντιστοιχια ακμης
+  (foreach f faces
+    (if (null r)
+      (progn
+        (setq n (length f) i 0)
+        (while (< i n)
+          (setq p (nth i f) q (nth (rem (1+ i) n) f))
+          (if (and (< (distance p a) 1e-6) (< (distance q b) 1e-6)) (setq r f))
+          (setq i (1+ i))))))
+  ;; 2. εφεδρικο: το ΜΕΣΟ της πλευρας πανω σε ακμη της εδρας
+  ;;    (χρειαζεται σε εκφυλισμενους σκελετους, οπου δυο πλευρες
+  ;;     μοιραζονται εδρα και η ακριβης αντιστοιχια αποτυγχανει)
+  (if (null r)
+    (progn
+      (setq m (list (/ (+ (car a) (car b)) 2.0) (/ (+ (cadr a) (cadr b)) 2.0)))
+      (foreach f faces
+        (if (null r)
+          (progn
+            (setq n (length f) i 0)
+            (while (< i n)
+              (setq p (nth i f) q (nth (rem (1+ i) n) f))
+              (setq dx (- (car q) (car p)) dy (- (cadr q) (cadr p)))
+              (setq L2 (+ (* dx dx) (* dy dy)))
+              (if (> L2 1e-12)
+                (progn
+                  (setq tt (/ (+ (* (- (car m) (car p)) dx) (* (- (cadr m) (cadr p)) dy)) L2))
+                  (if (< tt 0.0) (setq tt 0.0))
+                  (if (> tt 1.0) (setq tt 1.0))
+                  (if (< (distance m (list (+ (car p) (* tt dx)) (+ (cadr p) (* tt dy)))) 1e-6)
+                    (setq r f))))
+              (setq i (1+ i))))))))
+  r)
+
+;; ===================== ΕΝΤΟΛΗ STEGHXYLO =====================
+;; Ξυλότυπος από τα δεδομένα της τελευταίας εκτέλεσης του STEGH
+(defun C:STEGHXYLO ( / *error* xp xx0 yy0 xres p)
+  (defun *error* (msg)
+    (if (not (member msg (list "Function cancelled" "quit / exit abort")))
+      (princ (strcat "\n\U+03A3\U+03C6\U+03AC\U+03BB\U+03BC\U+03B1 STEGHXYLO: " msg)))
+    (princ))
+  (if (null *st-DARCS*)
+    (progn
+      (princ "\n*** \U+0394\U+03B5\U+03BD \U+03C5\U+03C0\U+03AC\U+03C1\U+03C7\U+03BF\U+03C5\U+03BD \U+03B4\U+03B5\U+03B4\U+03BF\U+03BC\U+03AD\U+03BD\U+03B1 \U+03C3\U+03C4\U+03AD\U+03B3\U+03B7\U+03C2.")
+      (princ "\n    \U+03A4\U+03C1\U+03AD\U+03BE\U+03B5 \U+03C0\U+03C1\U+03CE\U+03C4\U+03B1 \U+03C4\U+03B7\U+03BD \U+03B5\U+03BD\U+03C4\U+03BF\U+03BB\U+03AE STEGH \U+03C3\U+03C4\U+03BF \U+03C0\U+03B5\U+03C1\U+03AF\U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03B1.")
+      (exit)))
+  (princ (strcat "\n>>> \U+039E\U+03A5\U+039B\U+039F\U+03A4\U+03A5\U+03A0\U+039F\U+03A3 \U+03B1\U+03C0\U+03CC \U+03C4\U+03B7\U+03BD \U+03C4\U+03B5\U+03BB\U+03B5\U+03C5\U+03C4\U+03B1\U+03AF\U+03B1 \U+03C3\U+03C4\U+03AD\U+03B3\U+03B7 ("
+                 (itoa (length *st-DARCS*)) " \U+03B4\U+03BF\U+03BA\U+03BF\U+03AF \U+03C3\U+03BA\U+03B5\U+03BB\U+03B5\U+03C4\U+03BF\U+03CD, "
+                 (itoa (length *st-TRP*)) " \U+03B6\U+03B5\U+03C5\U+03BA\U+03C4\U+03AC)"))
+  (initget "Nai Ochi")
+  (setq p (getkword "\n\U+03A3\U+03AE\U+03BC\U+03B1\U+03BD\U+03C3\U+03B7 \U+03BE\U+03CD\U+03BB\U+03C9\U+03BD [Nai/Ochi] <Nai>: "))
+  (setq *st-XMK* (if (= p "Ochi") "0" "1"))
+  (setq xp (getpoint "\n\U+03A3\U+03B7\U+03BC\U+03B5\U+03AF\U+03BF \U+03B5\U+03B9\U+03C3\U+03B1\U+03B3\U+03C9\U+03B3\U+03AE\U+03C2 \U+03BE\U+03C5\U+03BB\U+03BF\U+03C4\U+03CD\U+03C0\U+03BF\U+03C5 (\U+03BA\U+03AC\U+03C4\U+03C9-\U+03B1\U+03C1\U+03B9\U+03C3\U+03C4\U+03B5\U+03C1\U+03AC): "))
+  (if (null xp) (progn (princ "\n\U+0391\U+03BA\U+03CD\U+03C1\U+03C9\U+03C3\U+03B7.") (exit)))
+  (setq xx0 (car (car *st-EAV*)) yy0 (cadr (car *st-EAV*)))
+  (foreach p *st-EAV*
+    (if (< (car p) xx0) (setq xx0 (car p)))
+    (if (< (cadr p) yy0) (setq yy0 (cadr p))))
+  (setq xres (st-xylo *st-EAV* *st-HOLES* *st-DARCS*
+                      (- (car xp) xx0) (- (cadr xp) yy0)
+                      *tm-DIST* *tm-DZ* *st-TXH*))
+  (princ (strcat "\n--- \U+039E\U+03A5\U+039B\U+039F\U+03A4\U+03A5\U+03A0\U+039F\U+03A3 ---"
+    "\n\U+0391\U+03BC\U+03B5\U+03AF\U+03B2\U+03BF\U+03BD\U+03C4\U+03B5\U+03C2: " (itoa (car xres))
+    "  \U+03A4\U+03B5\U+03B3\U+03AF\U+03B4\U+03B5\U+03C2: " (itoa (cadr xres))
+    "  \U+0396\U+03B5\U+03C5\U+03BA\U+03C4\U+03AC: " (itoa (caddr xres))
+    "\n\U+0392\U+03AE\U+03BC\U+03B1 \U+03B1\U+03BC\U+03B5\U+03B9\U+03B2\U+03CC\U+03BD\U+03C4\U+03C9\U+03BD " (rtos *tm-DIST* 2 2) " m  \U+00B7  \U+03C4\U+03B5\U+03B3\U+03AF\U+03B4\U+03C9\U+03BD " (rtos *tm-DZ* 2 2) " m"
+    "\nLayers: XYLO-AMEIB / XYLO-TEGID / XYLO-DOKOI / XYLO-STROT / XYLO-PERIGR / XYLO-TXT"
+    "\n\n*** \U+0395\U+039A\U+03A4\U+0399\U+039C\U+0397\U+03A3\U+0397 / \U+03A0\U+03A1\U+039F\U+039C\U+0395\U+03A4\U+03A1\U+0397\U+03A3\U+0397 - \U+0394\U+0395\U+039D \U+03A5\U+03A0\U+039F\U+039A\U+0391\U+0398\U+0399\U+03A3\U+03A4\U+0391 \U+03A3\U+03A4\U+0391\U+03A4\U+0399\U+039A\U+0397 \U+039C\U+0395\U+039B\U+0395\U+03A4\U+0397 ***"))
+  (princ))
+
+;; ===================== ΕΝΤΟΛΗ STEGHANAPT =====================
+(defun C:STEGHANAPT ( / *error* xp ca segs i n a b fc gap x0 y0 j q fcs
+                        tot totp nf h lab p)
+  (defun *error* (msg)
+    (if (not (member msg (list "Function cancelled" "quit / exit abort")))
+      (princ (strcat "\n\U+03A3\U+03C6\U+03AC\U+03BB\U+03BC\U+03B1 STEGHANAPT: " msg)))
+    (princ))
+  (if (null *st-DARCS*)
+    (progn
+      (princ "\n*** \U+0394\U+03B5\U+03BD \U+03C5\U+03C0\U+03AC\U+03C1\U+03C7\U+03BF\U+03C5\U+03BD \U+03B4\U+03B5\U+03B4\U+03BF\U+03BC\U+03AD\U+03BD\U+03B1 \U+03C3\U+03C4\U+03AD\U+03B3\U+03B7\U+03C2. \U+03A4\U+03C1\U+03AD\U+03BE\U+03B5 \U+03C0\U+03C1\U+03CE\U+03C4\U+03B1 STEGH.")
+      (exit)))
+  (st-layer "ANAPT-PERIGR" 3)
+  (st-layer "ANAPT-TXT"    6)
+  (setq ca (cos (atan (st-slope))))
+  (setq segs (list))
+  (foreach a *st-DARCS* (setq segs (append segs (list (list (car a) (cadr a))))))
+  (princ "\n\U+0395\U+03BE\U+03B1\U+03B3\U+03C9\U+03B3\U+03AE \U+03B5\U+03B4\U+03C1\U+03CE\U+03BD \U+03B1\U+03C0\U+03CC \U+03C4\U+03BF\U+03BD \U+03C3\U+03BA\U+03B5\U+03BB\U+03B5\U+03C4\U+03CC...")
+  (setq fcs (an-faces *st-EAV* segs))
+  (princ (strcat " " (itoa (length fcs)) " \U+03AD\U+03B4\U+03C1\U+03B5\U+03C2."))
+  (setq xp (getpoint "\n\U+03A3\U+03B7\U+03BC\U+03B5\U+03AF\U+03BF \U+03B5\U+03B9\U+03C3\U+03B1\U+03B3\U+03C9\U+03B3\U+03AE\U+03C2 \U+03B1\U+03BD\U+03B1\U+03C0\U+03C4\U+03CD\U+03B3\U+03BC\U+03B1\U+03C4\U+03BF\U+03C2 (\U+03BA\U+03AC\U+03C4\U+03C9-\U+03B1\U+03C1\U+03B9\U+03C3\U+03C4\U+03B5\U+03C1\U+03AC): "))
+  (if (null xp) (progn (princ "\n\U+0391\U+03BA\U+03CD\U+03C1\U+03C9\U+03C3\U+03B7.") (exit)))
+  (setq h *st-TXH*)
+  (if (or (null h) (< h 0.01)) (setq h 0.10))
+  (setq x0 (car xp) y0 (cadr xp) gap (* h 6.0) tot 0.0 totp 0.0 nf 0)
+  (setq n (length *st-EAV*) i 0)
+  (princ (strcat "\n\n>>> \U+0391\U+039D\U+0391\U+03A0\U+03A4\U+03A5\U+0393\U+039C\U+0391 \U+03A3\U+03A4\U+0395\U+0393\U+0397\U+03A3 - \U+03BA\U+03BB\U+03AF\U+03C3\U+03B7 "
+    (rtos (/ (atan (st-slope)) (/ pi 180.0)) 2 1) " deg, 1/cos = "
+    (rtos (/ 1.0 ca) 2 4)))
+  (while (< i n)
+    (setq a (nth i *st-EAV*) b (nth (rem (1+ i) n) *st-EAV*))
+    (setq q (an-pick fcs a b))
+    (setq fc (if q (an-unfold q a b ca) nil))
+    (if (and fc (> (cadr fc) 0.01))
+      (progn
+        (setq nf (1+ nf))
+        (setq q (list))
+        (foreach p (car fc)
+          (setq q (append q (list (list (+ x0 (car p)) (+ y0 (cadr p)))))))
+        (st-pline q "ANAPT-PERIGR")
+        (st-txt (list (+ x0 (/ (caddr fc) 2.0)) (- y0 (* h 1.4))) h
+          (strcat "E" (itoa nf)) "ANAPT-TXT")
+        (st-txt (list (+ x0 (/ (caddr fc) 2.0)) (- y0 (* h 2.8))) (* h 0.8)
+          (strcat (rtos (cadr fc) 2 2) " m2") "ANAPT-TXT")
+        (st-txt (list (+ x0 (/ (caddr fc) 2.0)) (- y0 (* h 4.0))) (* h 0.8)
+          (strcat "\U+03C5\U+03B4\U+03C1. " (rtos (caddr fc) 2 2) " m") "ANAPT-TXT")
+        (princ (strcat "\n    E" (itoa nf) ": \U+03C5\U+03B4\U+03C1\U+03BF\U+03C1\U+03C1\U+03BF\U+03AE " (rtos (caddr fc) 2 2)
+          " m  \U+00B7  \U+03C0\U+03C1\U+03B1\U+03B3\U+03BC\U+03B1\U+03C4\U+03B9\U+03BA\U+03CC \U+03B5\U+03BC\U+03B2\U+03B1\U+03B4\U+03CC\U+03BD " (rtos (cadr fc) 2 2) " m2"))
+        (setq tot (+ tot (cadr fc)))
+        (setq totp (+ totp (* (cadr fc) ca)))
+        (setq x0 (+ x0 (caddr fc) gap))))
+    (setq i (1+ i)))
+  (st-txt (list (car xp) (+ y0 (* h 3.0))) (* h 1.3)
+    (strcat "\U+0391\U+039D\U+0391\U+03A0\U+03A4\U+03A5\U+0393\U+039C\U+0391 \U+03A3\U+03A4\U+0395\U+0393\U+0397\U+03A3 - " (itoa nf) " \U+0395\U+0394\U+03A1\U+0395\U+03A3 - \U+03A0\U+03A1\U+0391\U+0393\U+039C\U+0391\U+03A4\U+0399\U+039A\U+039F \U+039C\U+0395\U+0393\U+0395\U+0398\U+039F\U+03A3") "ANAPT-TXT")
+  (princ (strcat "\n    ------------------------------------------"
+    "\n    \U+03A3\U+03A5\U+039D\U+039F\U+039B\U+039F \U+03C0\U+03C1\U+03B1\U+03B3\U+03BC\U+03B1\U+03C4\U+03B9\U+03BA\U+03AE\U+03C2 \U+03B5\U+03C0\U+03B9\U+03C6\U+03AC\U+03BD\U+03B5\U+03B9\U+03B1\U+03C2: " (rtos tot 2 2) " m2"
+    "\n    \U+0388\U+03BB\U+03B5\U+03B3\U+03C7\U+03BF\U+03C2 (\U+03C0\U+03C1\U+03BF\U+03B2\U+03BF\U+03BB\U+03AE = \U+03A3 x cos \U+03B1):  " (rtos totp 2 2) " m2"
+    "\n    \U+0395\U+03BC\U+03B2\U+03B1\U+03B4\U+03CC\U+03BD \U+03BA\U+03AC\U+03C4\U+03BF\U+03C8\U+03B7\U+03C2 \U+03B1\U+03C0\U+03BF STEGH:      " (rtos *st-AREA* 2 2) " m2"
+    "\n    Layers: ANAPT-PERIGR / ANAPT-TXT"
+    "\n\n*** \U+0395\U+039A\U+03A4\U+0399\U+039C\U+0397\U+03A3\U+0397 / \U+03A0\U+03A1\U+039F\U+039C\U+0395\U+03A4\U+03A1\U+0397\U+03A3\U+0397 - \U+0394\U+0395\U+039D \U+03A5\U+03A0\U+039F\U+039A\U+0391\U+0398\U+0399\U+03A3\U+03A4\U+0391 \U+03A3\U+03A4\U+0391\U+03A4\U+0399\U+039A\U+0397 \U+039C\U+0395\U+039B\U+0395\U+03A4\U+0397 ***"))
   (princ))
 
 (princ "\nSTEGH v8.3 \U+03C6\U+03BF\U+03C1\U+03C4\U+03CE\U+03B8\U+03B7\U+03BA\U+03B5 (\U+03B3\U+03B5\U+03B9\U+03C3\U+03BF + \U+03C5\U+03C8\U+03BF\U+03BC\U+03B5\U+03C4\U+03C1\U+03BF \U+03B2\U+03B1\U+03C3\U+03B7\U+03C2 + \U+03C4\U+03BF\U+03BC\U+03B7).")
-(princ "\n\U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AD\U+03C2: STEGH  \U+00B7  STEGHTOMI")
+(princ "\n\U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AD\U+03C2: STEGH \U+00B7 STEGHXYLO \U+00B7 STEGHANAPT \U+00B7 STEGHTOMI")
 (princ)
