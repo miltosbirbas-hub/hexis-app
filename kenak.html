@@ -376,7 +376,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <div class="top">
   <a class="home" href="hub.html">‹ Εργαλεία</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.30</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.31</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -767,9 +767,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=50"></script>
-<script src="kenak-xml.js?v=50"></script>
-<script src="kenak-dxf.js?v=50"></script>
+<script src="kenak-data.js?v=51"></script>
+<script src="kenak-xml.js?v=51"></script>
+<script src="kenak-dxf.js?v=51"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -1295,6 +1295,7 @@ cv.addEventListener('contextmenu',e=>{
     }}
 });
 /* --- αφή: pinch-zoom & μετακίνηση με 2 δάχτυλα --- */
+let canvasCool=0;   /* αγνόηση tap αμέσως μετά από κλείσιμο φύλλων (ghost taps) */
 const PTRS=new Map();
 let pinch=null, pinchCool=0;
 function pinchStart(){
@@ -1442,6 +1443,7 @@ cv.addEventListener('pointerup',e=>{
         if(Math.hypot(e.clientX-O[0],e.clientY-O[1])<40)p=[0,0];}
       if((ortho||SHIFT)&&verts.length){const L=verts[verts.length-1];   /* Shift = προσωρινό ortho */
         if(Math.abs(p[0]-L[0])<Math.abs(p[1]-L[1]))p[0]=L[0];else p[1]=L[1];}
+      if(Date.now()-canvasCool<500){down=null;return;}
       if(verts.length>2&&dist(p,verts[0])<Math.max(0.6,26/cell)){finish();down=null;return;}
       if(!verts.length||dist(p,verts[verts.length-1])>1e-6){verts.push(p);bulges.push(0);}
       document.getElementById('solve').disabled=verts.length<3;
@@ -2551,23 +2553,53 @@ function showXML(m,fname){
    ============================================================ */
 /* Περίγραμμα γεωτεμαχίου ως ΥΠΟΒΑΘΡΟ σχεδίασης (τοπικά μέτρα, Βορράς=+Y) */
 let PARCEL=null;   /* {rings:[[..pts..]], kaek} σε τοπικά μέτρα γύρω από το κεντροειδές */
+function wgs2egsa(lat,lon){
+  /* WGS84 -> ΕΓΣΑ'87: γεωδαιτικές -> XYZ (WGS84) -> 3-param shift -> γεωδαιτικές GRS80 -> TM87 */
+  const D=Math.PI/180;
+  const aW=6378137, fW=1/298.257223563, e2W=fW*(2-fW);
+  const φ=lat*D, λ=lon*D, sinφ=Math.sin(φ), cosφ=Math.cos(φ);
+  const N1=aW/Math.sqrt(1-e2W*sinφ*sinφ);
+  let X=N1*cosφ*Math.cos(λ), Y=N1*cosφ*Math.sin(λ), Z=N1*(1-e2W)*sinφ;
+  /* ΕΓΣΑ87->WGS84 είναι (-199.87,74.79,246.62) — άρα αντίστροφα: */
+  X+=199.87; Y-=74.79; Z-=246.62;
+  const aG=6378137, fG=1/298.257222101, e2G=fG*(2-fG);
+  const pr=Math.hypot(X,Y);
+  let φ2=Math.atan2(Z,pr*(1-e2G));
+  for(let i2=0;i2<6;i2++){
+    const N2=aG/Math.sqrt(1-e2G*Math.sin(φ2)**2);
+    φ2=Math.atan2(Z+e2G*N2*Math.sin(φ2),pr);
+  }
+  const λ2=Math.atan2(Y,X);
+  /* Εγκάρσια Μερκατορική ΤΜ87: λ0=24°, k0=0.9996, E0=500000 */
+  const k0=0.9996, λ0=24*D;
+  const ep2=e2G/(1-e2G);
+  const N3=aG/Math.sqrt(1-e2G*Math.sin(φ2)**2);
+  const T=Math.tan(φ2)**2, C=ep2*Math.cos(φ2)**2;
+  const A2=(λ2-λ0)*Math.cos(φ2);
+  const M=aG*((1-e2G/4-3*e2G*e2G/64-5*e2G**3/256)*φ2
+    -(3*e2G/8+3*e2G*e2G/32+45*e2G**3/1024)*Math.sin(2*φ2)
+    +(15*e2G*e2G/256+45*e2G**3/1024)*Math.sin(4*φ2)
+    -(35*e2G**3/3072)*Math.sin(6*φ2));
+  const E=500000+k0*N3*(A2+(1-T+C)*A2**3/6+(5-18*T+T*T+72*C-58*ep2)*A2**5/120);
+  const Nn=k0*(M+N3*Math.tan(φ2)*(A2*A2/2+(5-T+9*C+4*C*C)*A2**4/24
+    +(61-58*T+T*T+600*C-330*ep2)*A2**6/720));
+  return [E,Nn];
+}
 function parcelFromGeo(d){
-  /* προτίμηση: geometry_egsa (ΕΓΣΑ'87, μέτρα, +Υ=Βορράς)· αλλιώς WGS -> τοπικά μέτρα */
+  /* ΠΑΝΤΑ σε πραγματικές συντεταγμένες ΕΓΣΑ'87 (μέτρα, +Υ=Βορράς) —
+     ο τοπογράφος δουλεύει στο σύστημα αναφοράς του, το DXF βγαίνει γεωαναφερμένο */
   const g=d.geometry_egsa||d.geometry_wgs; if(!g)return null;
   const polys=g.type==='Polygon'?[g.coordinates]:g.type==='MultiPolygon'?g.coordinates:[];
   if(!polys.length)return null;
   const egsa=!!d.geometry_egsa;
-  const lat0=+d.lat*Math.PI/180, kx=111320*Math.cos(lat0), ky=110574;
   let rings=[];
   for(const poly of polys)for(const ring of poly){
-    rings.push(ring.map(pt=>egsa?[pt[0],pt[1]]:[(pt[0]-d.lon)*kx,(pt[1]-d.lat)*ky]));
+    rings.push(ring.map(pt=>egsa?[pt[0],pt[1]]:wgs2egsa(pt[1],pt[0])));
   }
-  /* κεντράρισμα στο (0,0) — να «κάθεται» στους άξονες */
   let cx=0,cy=0,m=0;
   rings.forEach(r=>r.forEach(pt=>{cx+=pt[0];cy+=pt[1];m++;}));
   cx/=m;cy/=m;
-  rings=rings.map(r=>r.map(pt=>[pt[0]-cx,pt[1]-cy]));
-  return {rings,kaek:d.kaek,area:d.area_m2};
+  return {rings,kaek:d.kaek,area:d.area_m2,egsa:true,cx,cy};
 }
 function fitParcel(){
   if(!PARCEL)return;
@@ -2734,13 +2766,15 @@ document.getElementById('kaekUse').onclick=()=>{
   kSel.base=kSel.base||String(kSel.kaek).split('/')[0];
   kSel.kaek=kSel.base+'/'+vx+'/'+vy;
   document.getElementById('mapSheet').classList.remove('on');
+  canvasCool=Date.now();   /* κανένα «κατά λάθος» tap-κορυφή μετά το κλείσιμο */
   if(document.getElementById('kaekDraw').checked){
     PARCEL=parcelFromGeo(kSel);
     if(PARCEL){
       /* Η γεωμετρία είναι γεωαναφερμένη: ο Βορράς ταυτίζεται με τον +Y */
       document.getElementById('north').value=0;
       setTab(2);fitParcel();draw();
-      hint('Περίγραμμα ΚΑΕΚ στο σχέδιο — Βορράς = +Y. Σχεδίασε το κτίριο μέσα του.');
+      hint('ΕΓΣΑ΄87: Χ '+PARCEL.cx.toFixed(0)+' · Υ '+PARCEL.cy.toFixed(0)+
+        ' — το οικόπεδο μπήκε αυτόματα, Βορράς = +Υ. Σχεδίασε το κτίριο μέσα του.');
     }
   }
   kaekChipSync();pSave();
