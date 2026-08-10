@@ -401,7 +401,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<span class="betaTag">BETA</span><small>ενεργειακή επιθεώρηση · v2.46</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<span class="betaTag">BETA</span><small>ενεργειακή επιθεώρηση · v2.48</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -731,7 +731,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
     <option value="mtx">Πάνω από ΜΗ θερμαινόμενο χώρο (b=0,5)</option>
     <option value="heated">Πάνω από ΘΕΡΜΑΙΝΟΜΕΝΟ χώρο (αδιαβατικό)</option>
   </select>
-  <div class="prow"><button class="pbtn" id="dlgNo">Άκυρο</button><button class="pbtn" id="dlgHgt" style="display:none">Ύψος…</button><button class="pbtn" id="dlgVtx" style="display:none">+ Κορυφή</button><button class="pbtn" id="dlgVtxDel" style="display:none;color:#C43A2B">− Κορυφή</button><button class="pbtn cta" id="dlgOk">Εφαρμογή</button></div>
+  <div class="prow"><button class="pbtn" id="dlgNo">Άκυρο</button><button class="pbtn" id="dlgHgt" style="display:none">Ύψος…</button><button class="pbtn" id="dlgVtx" style="display:none">+ Κορυφή</button><button class="pbtn" id="dlgSegU" style="display:none">U τμήμ.</button><button class="pbtn" id="dlgVtxDel" style="display:none;color:#C43A2B">− Κορυφή</button><button class="pbtn cta" id="dlgOk">Εφαρμογή</button></div>
 </div></div>
 
 <div class="sheet" id="opSheet" style="z-index:60">
@@ -802,9 +802,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=66"></script>
-<script src="kenak-xml.js?v=66"></script>
-<script src="kenak-dxf.js?v=66"></script>
+<script src="kenak-data.js?v=68"></script>
+<script src="kenak-xml.js?v=68"></script>
+<script src="kenak-dxf.js?v=68"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -886,6 +886,8 @@ let SHIFT=false;
 addEventListener('keydown',e=>{if(e.key==='Shift')SHIFT=true;});
 addEventListener('keyup',e=>{if(e.key==='Shift')SHIFT=false;});
 let segH=[];   /* ύψος τοίχου ανά πλευρά (m)· 0 = ύψος ζώνης */
+let segU=[];   /* U τοιχοποιίας ΑΝΑ πλευρά (W/m²K)· 0 = τιμή ζώνης (πεδίο U τοίχου) */
+let lastEdgeTap=null; /* σημείο tap πάνω σε πλευρά — για εισαγωγή κορυφής ΕΚΕΙ */
 /* Οροφή με υπόδειξη: αν κενό -> οροφή = κάτοψη ζώνης. Αλλιώς μόνο τα
    σχεδιασμένα πολύγωνα μετρούν (τμήμα χωρίς οροφή = δεν το σχεδιάζεις). */
 let roofPolys=[], roofMode=false, rpts=[];
@@ -909,7 +911,7 @@ function snapZone(pw){
 }
 /* Σχεδίαση στοιχείων με το χέρι: εξώστες/τέντες/εμπόδια/ΜΘΧ/ΙΚΕΕ (πολύγωνα όπως η οροφή) */
 let ovMode=null, opts2=[], ovDrag=null, ovArc=null;
-let COLS=[], colMode=false, colW=0.40;   /* υποστυλώματα: {q:[x,y],ang,w} πάνω στο κέλυφος · colW = τρέχον πλάτος εισαγωγής */
+let COLS=[], colMode=false, colW=0.40, colDown=null;   /* υποστυλώματα: {q:[x,y],ang,w} πάνω στο κέλυφος · colW = τρέχον πλάτος εισαγωγής */
 let ADB=new Set();            /* αδιαβατικές ΠΛΕΥΡΕΣ του περιγράμματος (index) */
 const OVNAMES={skiaseis:'Εξώστης/πρόβολος',tentes:'Τέντα',empodia:'Εμπόδιο',mtx:'ΜΘΧ',ikee:'ΙΚΕΕ'};
 function ovHitVertex(pw){
@@ -1020,9 +1022,11 @@ function askObsH(i){
 let FL=[], fi=0;
 function floorSnap(){
   const prev=(FL[fi]||{});
-  return {verts,bulges,segH,kouf:koufLines,OPR,roof:roofPolys,flr:flrPolys,cols:COLS,adb:[...ADB],closed,
+  return {verts,bulges,segH,segU,kouf:koufLines,OPR,roof:roofPolys,flr:flrPolys,cols:COLS,adb:[...ADB],closed,
     z0:prev.z0,hc:prev.hc};}
-function floorLoad(st){verts=st.verts;bulges=st.bulges;segH=st.segH;COLS=st.cols||[];ADB=new Set(st.adb||[]);
+function floorLoad(st){verts=st.verts;bulges=st.bulges;segH=st.segH;
+  segU=(st.segU&&st.segU.length===st.verts.length)?st.segU:st.verts.map(()=>0);
+  COLS=st.cols||[];ADB=new Set(st.adb||[]);
   koufLines=st.kouf;OPR=st.OPR;roofPolys=st.roof;flrPolys=st.flr||[];closed=st.closed;}
 function floorsInit(){if(!FL.length){FL=[floorSnap()];fi=0;}}
 function floorSave(){floorsInit();FL[fi]=floorSnap();}
@@ -1034,10 +1038,10 @@ function floorSwitch(i){
 }
 function floorAdd(){
   floorSave();
-  const c=JSON.parse(JSON.stringify({v:verts,b:bulges,h:segH,r:roofPolys}));
+  const c=JSON.parse(JSON.stringify({v:verts,b:bulges,h:segH,u:segU,r:roofPolys}));
   const k2=koufLines.map(l=>({a:l.a.slice(),b:l.b.slice()}));
   const o2=OPR.map(o=>Object.assign({},o));
-  FL.push({verts:c.v,bulges:c.b,segH:c.h,kouf:k2,OPR:o2,roof:c.r,closed});
+  FL.push({verts:c.v,bulges:c.b,segH:c.h,segU:c.u,kouf:k2,OPR:o2,roof:c.r,closed});
   floorSwitch(FL.length-1);
   hint('Όροφος '+FL.length+': αντίγραφο του υποκείμενου — τροποποίησε περίγραμμα/κουφώματα κατά το δοκούν');
 }
@@ -1432,6 +1436,9 @@ cv.addEventListener('pointerdown',e=>{
   if(typeof roofMode!=='undefined'&&roofMode){roofPointer(s2w(e.clientX,e.clientY));return;}
   if(typeof koufMode!=='undefined'&&koufMode){const w=s2w(e.clientX,e.clientY);if(koufPointer('down',w))return;}
   down=[e.clientX,e.clientY];moved=false;dragIdx=-1;edgeHit=-1;
+  /* ΥΠΟΣΤΥΛΩΜΑ ενεργό: ΚΑΝΕΝΑ όπλισμα drag κορυφής/ακμής — το tap κρίνεται στο
+     pointerup με δικό του σημείο αναφοράς (ανοχή αφής), το pan με σύρσιμο μένει */
+  if(colMode){colDown=[e.clientX,e.clientY];return;}
   for(let i=0;i<verts.length;i++){const S=w2s(verts[i]);
     if(Math.hypot(e.clientX-S[0],e.clientY-S[1])<24){dragIdx=i;return;}}
   const n=verts.length,lim=closed?n:n-1;
@@ -1512,15 +1519,29 @@ cv.addEventListener('pointerup',e=>{
   if(compassDrag){compassDrag=false;if(closed)report(false);
     hint('Βορράς: '+document.getElementById('north').value+'°');return;}
   if(typeof koufMode!=='undefined'&&koufMode){if(koufPointer('up',s2w(e.clientX,e.clientY)))return;}
+  /* ΥΠΟΣΤΥΛΩΜΑ: tap = μετατόπιση <14px από το pointerdown (ανοχή δαχτύλου σε αφή)·
+     μεγαλύτερη μετατόπιση = pan, απλώς μηδενίζουμε. Πριν το v2.47 το tap χανόταν
+     στα drag branches όταν το δάχτυλο «έτρεμε» >6-7px. */
+  if(colMode){
+    const cd=colDown;colDown=null;
+    if(cd&&Math.hypot(e.clientX-cd[0],e.clientY-cd[1])<14&&Date.now()-canvasCool>=500){
+      const w0=s2w(e.clientX,e.clientY);colTap([w0[0],w0[1]]);
+    }
+    down=null;moved=false;edgeHit=-1;dragIdx=-1;return;
+  }
   if(dragIdx>=0){if(moved&&closed)report(false);dragIdx=-1;down=null;draw();return;}
   if(edgeHit>=0&&moved){edgeHit=-1;down=null;if(closed)report(false);return;}
   if(!moved){
-    /* ΥΠΟΣΤΥΛΩΜΑ: ενεργό mode = προτεραιότητα στο tap, ΚΑΙ με κλειστό περίγραμμα
-       (πριν το v2.45 το colTap καλούνταν μόνο με ανοιχτό περίγραμμα — νεκρό κουμπί) */
-    if(colMode){const w0=s2w(e.clientX,e.clientY);colTap([w0[0],w0[1]]);down=null;edgeHit=-1;return;}
     for(const d of dimHits)
-      if(Math.abs(e.clientX-d.x)<30&&Math.abs(e.clientY-d.y)<20){askLen(d.i);down=null;return;}
+      if(Math.abs(e.clientX-d.x)<30&&Math.abs(e.clientY-d.y)<20){lastEdgeTap=null;askLen(d.i);down=null;return;}
     if(edgeHit>=0&&arcMode){askArc(edgeHit);down=null;return;}
+    /* TAP ΠΑΝΩ ΣΕ ΤΟΙΧΟ με κλειστό περίγραμμα: διάλογος πλευράς
+       (μήκος · ύψος H · U τμήματος · +κορυφή ΣΤΟ ΣΗΜΕΙΟ του tap · −κορυφή) */
+    if(closed&&edgeHit>=0){
+      lastEdgeTap=s2w(e.clientX,e.clientY);
+      const _ei=edgeHit;edgeHit=-1;down=null;
+      askLen(_ei);return;
+    }
     if(!closed){
       const w=s2w(e.clientX,e.clientY);let p=[G(w[0]),G(w[1])];
       /* 1η κορυφή: μαγνήτης στην αρχή των αξόνων 0,0 (ακτίνα 40 px) */
@@ -1542,8 +1563,8 @@ cv.addEventListener('pointerup',e=>{
 /* ---------- διάλογοι ---------- */
 let editIdx=-1,editKind='len';
 function openDlg(t,info,val){
-  const _bh=document.getElementById('dlgHgt'),_bv=document.getElementById('dlgVtx'),_bd=document.getElementById('dlgVtxDel');
-  if(_bh){_bh.style.display='none';_bv.style.display='none';if(_bd)_bd.style.display='none';}
+  const _bh=document.getElementById('dlgHgt'),_bv=document.getElementById('dlgVtx'),_bd=document.getElementById('dlgVtxDel'),_bu=document.getElementById('dlgSegU');
+  if(_bh){_bh.style.display='none';_bv.style.display='none';if(_bd)_bd.style.display='none';if(_bu)_bu.style.display='none';}
   const sel=document.getElementById('dlgSel');if(sel)sel.style.display='none';
   document.getElementById('dlgTitle').textContent=t;
   document.getElementById('dlgInfo').textContent=info;
@@ -1585,28 +1606,48 @@ function deleteVertex(i){
   verts.splice(i,1);
   bulges.splice(Math.max(0,i-1),1,0);bulges.length=verts.length;
   segH.splice(i,1);segH.length=verts.length;
+  if(segU.length){segU.splice(i,1);segU.length=verts.length;}
+  /* ΔΙΟΡΘΩΣΗ: μετατόπιση δεικτών αδιαβατικών πλευρών (i-1&i ενώνονται σε i-1) */
+  ADB=new Set([...ADB].map(e2=>e2>=i?e2-1:e2).filter(e2=>e2>=0&&e2<verts.length));
   draw();if(closed)report(false);pSave();
   hint('Η κορυφή αφαιρέθηκε — οι δύο πλευρές ενώθηκαν');
 }
-function insertVertex(i){
+function insertVertex(i,pAt){
   const A=verts[i],B=verts[(i+1)%verts.length],b=bulges[i]||0;
   let M;
   if(b){const g=arcGeom(A,B,b);const a=g.a0+g.th/2;M=[g.C[0]+g.R*Math.cos(a),g.C[1]+g.R*Math.sin(a)];}
-  else M=[(A[0]+B[0])/2,(A[1]+B[1])/2];
+  else if(pAt){ /* σπάσιμο ΣΤΟ σημείο του tap: προβολή στη χορδή, όχι πάνω στις κορυφές */
+    const dx=B[0]-A[0],dy=B[1]-A[1],L2=dx*dx+dy*dy;
+    const t=L2<1e-12?0.5:Math.max(0.05,Math.min(0.95,((pAt[0]-A[0])*dx+(pAt[1]-A[1])*dy)/L2));
+    M=[G(A[0]+t*dx),G(A[1]+t*dy)];
+  }else M=[(A[0]+B[0])/2,(A[1]+B[1])/2];
   verts.splice(i+1,0,M);
   bulges.splice(i+1,0,b?Math.tan(Math.atan(b)/2):0); if(b)bulges[i]=Math.tan(Math.atan(b)/2);
   segH.splice(i+1,0,segH[i]||0);
-  draw();hint('Νέα κορυφή στην πλευρά '+(i+1)+' — σύρε την όπου θες');
+  if(!segU.length)segU=verts.map(()=>0);else segU.splice(i+1,0,segU[i]||0);
+  /* μετατόπιση δεικτών αδιαβατικών πλευρών· και τα ΔΥΟ μισά κληρονομούν */
+  const na2=[...ADB].map(e2=>e2>i?e2+1:e2);if(ADB.has(i))na2.push(i+1);ADB=new Set(na2);
+  draw();if(closed)report(false);pSave();
+  hint('Νέα κορυφή στην πλευρά '+(i+1)+' — τα δύο τμήματα κράτησαν ύψος/υλικό, όρισέ τα χωριστά με tap');
 }
 function askLen(i){editIdx=i;editKind='len';
   const A=verts[i],B=verts[(i+1)%verts.length];
-  openDlg('Μήκος χορδής','Πλευρά '+(i+1)+' · τώρα '+dist(A,B).toFixed(2)+' m'+(segH[i]>0?' · H '+segH[i].toFixed(2):''),dist(A,B).toFixed(2));
+  openDlg('Μήκος χορδής','Πλευρά '+(i+1)+' · τώρα '+dist(A,B).toFixed(2)+' m'+
+    (segH[i]>0?' · H '+segH[i].toFixed(2):'')+((segU[i]||0)>0?' · U '+segU[i].toFixed(2):''),dist(A,B).toFixed(2));
   const bh=document.getElementById('dlgHgt'),bv=document.getElementById('dlgVtx');
   bh.style.display=bv.style.display='';
   bh.onclick=()=>{document.getElementById('mask').classList.remove('on');askHgt(i);};
-  bv.onclick=()=>{document.getElementById('mask').classList.remove('on');insertVertex(i);};
+  const _tp=lastEdgeTap;lastEdgeTap=null;   /* κατανάλωση: μόνο για ΑΥΤΟ το άνοιγμα */
+  bv.onclick=()=>{document.getElementById('mask').classList.remove('on');insertVertex(i,_tp);};
+  const bu=document.getElementById('dlgSegU');if(bu){bu.style.display='';
+    bu.onclick=()=>{document.getElementById('mask').classList.remove('on');askSegU(i);};}
   const bd=document.getElementById('dlgVtxDel');bd.style.display='';
   bd.onclick=()=>{document.getElementById('mask').classList.remove('on');deleteVertex((i+1)%verts.length);};}
+function askSegU(i){editIdx=i;editKind='segU';
+  const uz=(+document.getElementById('uw').value||2.20).toFixed(2);
+  openDlg('U τοιχοποιίας πλευράς '+(i+1)+' (W/m²K)',
+    'Κενό ή 0 = τιμή ζώνης ('+uz+'). Για διαφορετικό υλικό στο τμήμα (π.χ. λιθοδομή 2,50, γυψοσανίδα 2,05).',
+    (segU[i]||0)>0?segU[i].toFixed(2):'');}
 function askArc(i){editIdx=i;editKind='arc';
   const b=bulges[i]||0,A=verts[i],B=verts[(i+1)%verts.length];
   const g=arcGeom(A,B,b);
@@ -1615,7 +1656,9 @@ function askArc(i){editIdx=i;editKind='arc';
 document.getElementById('dlgOk').onclick=()=>{
   const v=parseFloat(document.getElementById('dlgVal').value.replace(',','.'));
   document.getElementById('mask').classList.remove('on');
-  if(editKind==='hgt'){segH[editIdx]=(isNaN(v)||v<=0)?0:v;draw();return;}
+  if(editKind==='hgt'){segH[editIdx]=(isNaN(v)||v<=0)?0:v;draw();if(closed)report(false);pSave();return;}
+  if(editKind==='segU'){if(!segU.length)segU=verts.map(()=>0);
+    segU[editIdx]=(isNaN(v)||v<=0)?0:Math.min(6,v);draw();if(closed)report(false);pSave();return;}
   if(editKind==='wallKind'){
     const v2=document.getElementById('dlgSel').value;
     if(v2){
@@ -1772,7 +1815,7 @@ function importDXF(buf){
   verts=zc[0].pts.map(p=>p.slice());
   bulges=zc[0].bulges.slice();
   ov={mtx:c.mtx,ikee:c.ikee,empodia:c.empodia,skiaseis:c.skiaseis,tentes:c.tentes};
-  koufLines=c.kouf;OPR=[];ensureOPR();segH=verts.map(()=>0);roofPolys=[];rpts=[];flrPolys=[];fpts=[];FL=[];fi=0;floorsInit();floorChip();
+  koufLines=c.kouf;OPR=[];ensureOPR();segH=verts.map(()=>0);segU=verts.map(()=>0);roofPolys=[];rpts=[];flrPolys=[];fpts=[];FL=[];fi=0;floorsInit();floorChip();
   closed=false;finish();               /* CCW + report */
   fitAll();
   hint('DXF: ζώνη '+verts.length+' κορ. · ΜΘΧ '+ov.mtx.length+' · ΙΚΕΕ '+ov.ikee.length+
@@ -1817,6 +1860,7 @@ function envelope(){
       else{
         for(let k=0;k<8;k++){Q.secLen[k]+=qf.secLen[k];Q.secArea[k]+=qf.secArea[k];
           Q.secNet[k]+=qf.secNet[k];
+          Q.secUdA[k]+=qf.secUdA[k];Q.secCdA[k]+=qf.secCdA[k];
           Q.secHor[k]=Math.max(Q.secHor[k],qf.secHor[k]);
           Q.secHorMax[k]=Math.max(Q.secHorMax[k],qf.secHorMax[k]);}
         Q.mtxA+=qf.mtxA;Q.ikeA+=qf.ikeA;Q.omthA=(Q.omthA||0)+(qf.omthA||0);Q.sunA=(Q.sunA||0)+(qf.sunA||0);
@@ -1843,6 +1887,7 @@ function envelopeCore(hfOne,withRoof,withFloor){
     for(let i=0;i<P.length;i++)s+=dist(P[i],P[(i+1)%P.length]);return s;})();
   const hTot=hfOne!=null?hfOne:hf*nf, V=A*hTot;
   const S=KENAK_DATA.sectors, secLen=new Array(8).fill(0), secArea=new Array(8).fill(0);
+  const secUdA=new Array(8).fill(0), secCdA=new Array(8).fill(0); /* Σ(U·A) & ΣA τμημάτων με ΔΙΚΟ τους U */
   /* διακριτοποιημένα πολύγωνα ΜΘΧ/ΙΚΕΕ για έλεγχο γειτνίασης */
   const mtxP=ov.mtx.filter(x=>x.closed&&x.pts).map(x=>polyOf(x.pts,x.bulges,0.10).P);
   const ikeP=ov.ikee.filter(x=>x.closed&&x.pts).map(x=>polyOf(x.pts,x.bulges,0.10).P);
@@ -1867,6 +1912,8 @@ function envelopeCore(hfOne,withRoof,withFloor){
     const k=Math.round(az/45)%8;
     const hSeg=(src&&segH[src[i]]>0)?segH[src[i]]:hTot;
     secLen[k]+=L; secArea[k]+=L*hSeg;
+    const u3=(src&&segU.length&&segU[src[i]]>0)?segU[src[i]]:0;
+    if(u3>0){secUdA[k]+=L*hSeg*u3;secCdA[k]+=L*hSeg;}
   }
   /* κουφώματα: αντιστοίχιση κάθε LINE στο κοντινότερο τμήμα της ζώνης */
   const hop=+document.getElementById('hopen').value||2.20;
@@ -2016,7 +2063,7 @@ function envelopeCore(hfOne,withRoof,withFloor){
   const perSum=secLen.reduce((s2,x)=>s2+x,0)+mtxLen+ikeLen;
   const perOK=Math.abs(perSum-per)<=0.01*per+0.05;
   const Bchar=perExp>0.01?A/(0.5*perExp):0;
-  return {A,per,V,hTot,nf,hf,secLen,secArea,secNet,S,nPts:P.length,dl,
+  return {A,per,V,hTot,nf,hf,secLen,secArea,secNet,secUdA,secCdA,S,nPts:P.length,dl,
     mtxA:mtxLen*hTot, ikeA:ikeLen*hTot, omthA:omtLen*hTot, sunA:sunLen*hTot, openings, openSec, hop,
     secHor, secHorMax:secHorMax.map(v=>v*180/Math.PI), hobs,
     edges:(function(){
@@ -2139,8 +2186,13 @@ function buildTables(q){
     const FW=[F2(fh[0]),F2(fh[1]),1,1,1,1];
     if(Afo>0.01)opaque.push(['Τοίχος','ΦΕΡΩΝ ΟΡΓΑΝΙΣΜΟΣ (ΔΟΚΟΙ-ΥΠΟΣΤ.) ΟΨΗΣ '+q.S[k]+segTxt,
       k*45,90,Afo.toFixed(2),UFO.toFixed(2),'0.04',ALQ.toFixed(2),EPS.toFixed(2),...FW,'']);
-    opaque.push(['Τοίχος','ΤΟΙΧΟΠΟΙΙΑ ΟΨΗΣ '+q.S[k]+segTxt,k*45,90,
-      Aw.toFixed(2),UW.toFixed(2),'0.04',ALQ.toFixed(2),EPS.toFixed(2),...FW,'']);
+    /* Σταθμισμένο U όψης: τμήματα με δικό τους U (segU) + υπόλοιπα με U ζώνης,
+       με βάρος το ΜΙΚΤΟ εμβαδό (L·h) κάθε στοιχειώδους τμήματος */
+    const gA=q.secArea?q.secArea[k]:0;
+    const UWk=(q.secUdA&&q.secUdA[k]>0&&gA>1e-6)
+      ?((q.secUdA[k]+Math.max(0,gA-q.secCdA[k])*UW)/gA):UW;
+    opaque.push(['Τοίχος','ΤΟΙΧΟΠΟΙΙΑ ΟΨΗΣ '+q.S[k]+segTxt+(Math.abs(UWk-UW)>0.005?' (σταθμ. U)':''),k*45,90,
+      Aw.toFixed(2),UWk.toFixed(2),'0.04',ALQ.toFixed(2),EPS.toFixed(2),...FW,'']);
   }
   /* Προς ΜΘΧ (παραδοχή ΤΜΗΜΑΤΟΣ κτηρίου, FAQ ΤΕΕ): U×b (b=0,5),
      ΜΗΔΕΝΙΚΗ σκίαση χειμώνα-θέρους, περιγραφή ως προς εξωτ. αέρα */
