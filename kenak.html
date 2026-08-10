@@ -327,7 +327,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <div class="top">
   <a class="home" href="hub.html">‹ Εργαλεία</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.23</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.24</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -688,9 +688,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=43"></script>
-<script src="kenak-xml.js?v=43"></script>
-<script src="kenak-dxf.js?v=43"></script>
+<script src="kenak-data.js?v=44"></script>
+<script src="kenak-xml.js?v=44"></script>
+<script src="kenak-dxf.js?v=44"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -2265,7 +2265,8 @@ document.getElementById('xmlBtn').onclick=async()=>{
   const isHP=/Α\.Θ\.|Γεωθερμ/i.test(document.getElementById('s_heatT').value);
   const isEl=/ηλεκτρικές/i.test(document.getElementById('s_heatT').value);
   const heatE=+document.getElementById('s_heatE').value||1;
-  const solA=+document.getElementById('s_solA').value||0;
+  let solA=+document.getElementById('s_solA').value||0;
+  if(sc&&sc.solar!=null)solA=Math.max(solA,+sc.solar);
   const systems={
     heating:{on:document.getElementById('s_heat').checked,
       type:document.getElementById('s_heatT').value,
@@ -3053,7 +3054,8 @@ function aiModel(){
 /* Εκτίμηση κατηγορίας: λόγος T = EP κτιρίου / EP κτιρίου αναφοράς (ίδιο κέλυφος με
    Umax ζώνης + συστήματα αναφοράς), όρια Πίν. ΚΕΝΑΚ. ΕΚΤΙΜΗΣΗ — όχι ΤΕΕ-ΚΕΝΑΚ. */
 const CLASS_T=[['Α+',0.33],['Α',0.50],['Β+',0.75],['Β',1.00],['Γ',1.41],['Δ',1.82],['Ε',2.27],['Ζ',2.73],['Η',99]];
-function estClass(){
+function estClass(sc){
+  sc=sc||null;
   const q=envelope(),Tb=buildTables(q);
   const zone=document.getElementById('czone').value||'B';
   const zi={'A':0,'B':1,'C':2,'D':3}[zone]||1;
@@ -3061,7 +3063,12 @@ function estClass(){
   const FP={el:2.9,oil:1.1};
   let UA0=0,UAr=0;
   Tb.opaque.forEach(r=>{
-    const A=+r[4]||0,U=+r[5]||0;UA0+=A*U;
+    const A=+r[4]||0;let U=+r[5]||0;
+    if(sc){  /* παρεμβάσεις σεναρίου στο κέλυφος */
+      if(sc.etics!=null&&!/ΟΡΟΦΗ|ΠΥΛΩΤΗ|ΜΘΧ|ΔΑΠΕΔΟ/.test(r[1]))U=Math.min(U,+sc.etics);
+      if(sc.roofU!=null&&/ΟΡΟΦΗ|ΠΥΛΩΤΗ|ΔΑΠΕΔΟ/.test(r[1]))U=Math.min(U,+sc.roofU);
+    }
+    UA0+=A*U;
     let Ur=U;
     if(/ΟΡΟΦΗ/.test(r[1]))Ur=Math.min(U,UM.roof[zi]);
     else if(/ΠΥΛΩΤΗ|ΔΑΠΕΔΟ/.test(r[1]))Ur=Math.min(U,UM.pilotis[zi]);
@@ -3069,14 +3076,16 @@ function estClass(){
     else Ur=Math.min(U,UM.wall[zi]);
     UAr+=A*Ur;
   });
-  Tb.transparent.forEach(r=>{const A=+r[4]||0,U=+r[6]||0;
-    UA0+=A*U;UAr+=A*Math.min(U,UM.window[zi]);});
+  Tb.transparent.forEach(r=>{const A=+r[4]||0;let U=+r[6]||0;
+    if(sc&&sc.win&&sc.win.u)U=Math.min(U,+sc.win.u);
+    UA0+=A*U;UAr+=A*Math.min(+r[6]||0,UM.window[zi]);});
   if(Tb.ground[0]){const A=+Tb.ground[0][2]||0,U=+Tb.ground[0][3]||0;
     UA0+=A*U*0.5;UAr+=A*Math.min(U,UM.roof[zi])*0.5;}
   const A=Math.max(1,q.A);
   /* θέρμανση: πρωτογενής = Qθ/η × fp */
-  const hT=document.getElementById('s_heatT').value||'';
-  const hE=Math.max(0.3,+document.getElementById('s_heatE').value||0.8);
+  let hT=document.getElementById('s_heatT').value||'';
+  let hE=Math.max(0.3,+document.getElementById('s_heatE').value||0.8);
+  if(sc&&sc.hp!=null){hT='Α.Θ. (σενάριο)';hE=+sc.hp;}
   const isHP=/Α\.Θ\.|Γεωθερμ/i.test(hT);
   const src2=(document.getElementById('s_heatS')||{}).value||'';
   const isOil=/Πετρέλαιο/i.test(src2)||(/Λέβητας/.test(hT)&&!/Ηλεκτρ/i.test(src2));
@@ -3100,7 +3109,11 @@ function estClass(){
   const T=EP0/EPr;
   let ci=CLASS_T.length-1;
   for(let i2=0;i2<CLASS_T.length;i2++)if(T<=CLASS_T[i2][1]){ci=i2;break;}
-  return {T,EP0,EPr,cls:CLASS_T[ci][0],ci,zone,
+  /* CO2: τελική κατανάλωση × συντ. καυσίμου (πετρ 0,264 · ηλ 0,989 kg/kWh) */
+  const co2h=(UA0*Qh/hE/A)*(isHP||!isOil?0.989:0.264);
+  const co2d=Qd*(1-solCov)/(dhwHP?Math.max(1.5,dE):dE)*(dhwBoil?0.264:0.989);
+  const CO2=co2h+co2d+(EPcom/2.9)*0.989;
+  return {T,EP0,EPr,cls:CLASS_T[ci][0],ci,zone,CO2,
     EPh0,EPhR,EPd0,EPdR,EPcom,UA0,UAr,A,HDD,
     Qh0:UA0*Qh/A,          /* θερμική ζήτηση θέρμανσης kWh/m²·έτος */
     fuel0:UA0*Qh/hE/A};    /* τελική κατανάλωση θέρμανσης kWh/m²·έτος */
@@ -3114,6 +3127,7 @@ function xmlSummary(Tb){
   return {op:sum(Tb.opaque,4,5),tr:sum(Tb.transparent,4,6),
     gr:Tb.ground[0]?{A:num(Tb.ground[0][2]),U:num(Tb.ground[0][3])}:null};
 }
+let PRE_SCN_IDX=-2;  /* -2: αυτόματο (τελευταίο σενάριο) · -1: κανένα · i: SCN[i] */
 /* πεδία που επιτρέπεται να πειράξεις από την Πρόβλεψη (ΟΧΙ κέλυφος) */
 const PRE_FIELDS=[
  ['s_heatT','Θέρμανση — τύπος','sel'],['s_heatS','Πηγή ενέργειας','sel'],
@@ -3132,6 +3146,11 @@ function preCtlBuild(){
     else h+='<input type="number" inputmode="decimal" step="0.05" data-pre="'+id+'">';
     h+='</div>';
   });
+  /* επιλογή σεναρίου σύγκρισης πάνω στο έντυπο */
+  h+='<div><label style="font-size:9.5px;font-weight:800;color:var(--ink2);text-transform:uppercase;letter-spacing:.05em">Σενάριο σύγκρισης</label>'+
+     '<select id="preScnSel"><option value="-1">— κανένα —</option>'+
+     (typeof SCN!=='undefined'?SCN.map((sc,i2)=>'<option value="'+i2+'">'+(sc.title||('Σενάριο '+(i2+1))).slice(0,38)+'</option>').join(''):'')+
+     '</select></div>';
   h+='</div><div class="prow" style="margin-top:10px">'+
     '<button class="pbtn blue" id="preRef">🏛 Κτίριο αναφοράς</button>'+
     '<button class="pbtn" id="preSug">Προτεινόμενες ΤΟΤΕΕ</button></div></div>';
@@ -3147,6 +3166,12 @@ function preCtlBuild(){
       preRender();
     };
   });
+  const ss=document.getElementById('preScnSel');
+  if(ss){
+    if(PRE_SCN_IDX===-2)PRE_SCN_IDX=(typeof SCN!=='undefined'&&SCN.length)?SCN.length-1:-1;
+    ss.value=String(PRE_SCN_IDX);
+    ss.onchange=()=>{PRE_SCN_IDX=+ss.value;preRender();};
+  }
   const rf=document.getElementById('preRef'),sg=document.getElementById('preSug');
   if(rf)rf.onclick=()=>{document.getElementById('sysRef').onclick();preCtlBuild();preRender();};
   if(sg)sg.onclick=()=>{try{sysApplySuggested();}catch(e2){}preCtlBuild();preRender();};
@@ -3166,6 +3191,8 @@ function preview(){
 }
 function preRender(){
   const q=envelope(),Tb=buildTables(q),e=estClass(),S=xmlSummary(Tb);
+  const scSel=(typeof SCN!=='undefined'&&PRE_SCN_IDX>=0&&SCN[PRE_SCN_IDX])?SCN[PRE_SCN_IDX]:null;
+  const e1=scSel?estClass(scSel):null;
   const heat=document.getElementById('s_heatT').value||'—';
   const hE=document.getElementById('s_heatE').value||'—';
   const hP=document.getElementById('s_heatP').value||'—';
@@ -3179,7 +3206,7 @@ function preRender(){
   }catch(e3){}
   document.getElementById('preOut').innerHTML=
     '<p style="font-size:12px;margin:0 0 10px">'+ckTxt+'</p>'+
-    '<h3>Εκτιμώμενη κατάταξη</h3>'+classBarHTML(e)+
+    '<h3>Προσχέδιο εντύπου ΠΕΑ — υφιστάμενο & σενάριο</h3>'+peaHTML(e,e1,scSel?scSel.title:'')+
     '<h3 style="margin-top:18px">Ενεργειακή ανάλυση (kWh/m²·έτος, πρωτογενής)</h3>'+
     '<div class="card"><table class="ptbl"><tr><th></th><th style="text-align:right">Κτίριο</th><th style="text-align:right">Αναφοράς</th></tr>'+
     R('Θέρμανση',e.EPh0.toFixed(1),e.EPhR.toFixed(1))+
@@ -3203,6 +3230,47 @@ function preRender(){
     '<p style="font-size:11.5px;line-height:1.6;margin:6px 0 0">Άνοιξε το XML στο ΤΕΕ-ΚΕΝΑΚ 1.31 → «Υπολογισμός» → σύγκρινε τη συνολική πρωτογενή και την κατηγορία με τα παραπάνω. '+
     'Απόκλιση έως ±1 κατηγορία είναι αναμενόμενη: η εκτίμηση HEXIS δουλεύει με βαθμοημέρες και δεν μοντελοποιεί μηνιαία ηλιακά/εσωτερικά κέρδη ανά προσανατολισμό όπως το ΤΕΕ. '+
     'Αν η απόκλιση είναι μεγαλύτερη, έλεγξε: κλιματική ζώνη, U κουφωμάτων/τοίχων, αποδόσεις συστημάτων και το ηλιακό ΖΝΧ.</p></div>';
+}
+const PEA_COLORS=['#00963F','#48BE20','#8CC63F','#C8DC00','#FFD000','#FF9E00','#F26522','#E01F26','#B01A1F'];
+function peaHTML(e0,e1,scTitle){
+  const names=['Α+','Α','Β+','Β','Γ','Δ','Ε','Ζ','Η'];
+  const gv=id=>{const el=document.getElementById(id);return el?el.value:'';};
+  const kaek=(typeof kSel!=='undefined'&&kSel&&kSel.kaek)?kSel.kaek:'—';
+  let rows2='';
+  for(let i2=0;i2<9;i2++){
+    const w3=34+i2*7.3;
+    rows2+='<div style="display:flex;align-items:center;gap:8px;margin:2.5px 0">'+
+      '<div style="width:'+w3+'%;min-width:52px;background:'+PEA_COLORS[i2]+';color:#fff;'+
+        'font:800 11px var(--ui);padding:4px 8px;border-radius:2px 0 0 2px;position:relative;text-shadow:0 1px 2px #0005">'+names[i2]+
+        '<span style="position:absolute;right:-9px;top:0;border-top:11px solid transparent;'+
+        'border-bottom:11px solid transparent;border-left:9px solid '+PEA_COLORS[i2]+'"></span></div>'+
+      '<div style="flex:1;display:flex;gap:6px;justify-content:flex-end">'+
+      (e0.ci===i2?'<span style="background:#16202B;color:#fff;font:800 10.5px var(--ui);padding:4px 9px;border-radius:3px">◀ ΚΤΙΡΙΟ '+e0.T.toFixed(2)+'</span>':'')+
+      (e1&&e1.ci===i2?'<span style="background:#0B7A3B;color:#fff;font:800 10.5px var(--ui);padding:4px 9px;border-radius:3px">◀ ΣΕΝΑΡΙΟ '+e1.T.toFixed(2)+'</span>':'')+
+      '</div></div>';
+  }
+  return '<div class="card" style="padding:0;overflow:hidden">'+
+    '<div style="background:var(--brb);color:#fff;padding:11px 16px">'+
+      '<b style="font-size:13px;letter-spacing:.04em">ΠΡΟΣΧΕΔΙΟ ΠΙΣΤΟΠΟΙΗΤΙΚΟΥ ΕΝΕΡΓΕΙΑΚΗΣ ΑΠΟΔΟΣΗΣ</b>'+
+      '<div style="font-size:10px;opacity:.85">ΕΚΤΙΜΗΣΗ HEXIS — ΑΝΕΠΙΣΗΜΟ · το επίσημο ΠΕΑ εκδίδεται μέσω ΤΕΕ-ΚΕΝΑΚ / buildingcert</div></div>'+
+    '<div style="padding:12px 16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:4px 14px;font-size:11.5px;border-bottom:1px solid var(--line)">'+
+      '<div><b>Κτίριο:</b> '+(gv('p_num')||'—')+'</div><div><b>Ιδιοκτήτης:</b> '+(gv('p_owner')||'—')+'</div>'+
+      '<div><b>Διεύθυνση:</b> '+(gv('p_addr')||'—')+'</div><div><b>ΚΑΕΚ:</b> <span style="font-family:var(--num)">'+kaek+'</span></div>'+
+      '<div><b>Χρήση:</b> '+(gv('use')==='residential'?'Κατοικία':'Τριτογενής')+' · ζώνη '+({A:'Α',B:'Β',C:'Γ',D:'Δ'})[e0.zone]+'</div>'+
+      '<div><b>Επιφάνεια:</b> '+e0.A.toFixed(1)+' m² · έτος '+(gv('year')||'—')+'</div></div>'+
+    '<div style="padding:14px 16px 8px">'+rows2+'</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;padding:10px 16px 14px;border-top:1px solid var(--line)">'+
+      '<div><div style="font-size:9.5px;color:var(--ink2);font-weight:800;text-transform:uppercase">ΚΤΙΡΙΟ — EP</div>'+
+        '<b style="font-family:var(--num);font-size:17px">'+e0.EP0.toFixed(0)+'</b> <small>kWh/m²·έτος</small></div>'+
+      '<div><div style="font-size:9.5px;color:var(--ink2);font-weight:800;text-transform:uppercase">ΑΝΑΦΟΡΑΣ — EP</div>'+
+        '<b style="font-family:var(--num);font-size:17px">'+e0.EPr.toFixed(0)+'</b> <small>kWh/m²·έτος</small></div>'+
+      '<div><div style="font-size:9.5px;color:var(--ink2);font-weight:800;text-transform:uppercase">Εκπομπές CO₂</div>'+
+        '<b style="font-family:var(--num);font-size:17px">'+e0.CO2.toFixed(1)+'</b> <small>kg/m²·έτος</small></div>'+
+      (e1?'<div><div style="font-size:9.5px;color:#0B7A3B;font-weight:800;text-transform:uppercase">Σενάριο: '+
+        '</div><b style="font-family:var(--num);font-size:17px;color:#0B7A3B">'+e1.cls+'</b> '+
+        '<small>EP '+e1.EP0.toFixed(0)+' · −'+Math.round(100*(1-e1.EP0/Math.max(1,e0.EP0)))+'%</small>'+
+        '<div style="font-size:9.5px;color:var(--ink2)">'+(scTitle||'').slice(0,44)+'</div></div>':'')+
+    '</div></div>';
 }
 function classBarHTML(e){
   const names=['Α+','Α','Β+','Β','Γ','Δ','Ε','Ζ','Η'];
