@@ -75,6 +75,8 @@ button:focus-visible{outline:2px solid var(--brb);outline-offset:2px}
 .mark{font-weight:800;font-size:13.5px;letter-spacing:.12em;color:var(--brb);line-height:1.1;
   background:#fffefaf2;border-radius:10px;padding:5px 11px;box-shadow:0 1px 5px #16202b1f}
 .mark small{display:block;font-weight:500;font-size:9.5px;letter-spacing:.07em;color:var(--ink2);text-transform:uppercase}
+.betaTag{display:inline-block;margin-left:6px;padding:1.5px 7px;border-radius:999px;background:#E8772E;
+  color:#fff;font-size:8.5px;font-weight:800;letter-spacing:.14em;vertical-align:2px;line-height:1.5}
 .steps{display:flex;gap:6px;margin-left:8px}
 .step{font-size:11px;font-weight:700;color:var(--ink2);border:1px solid var(--line);
   border-radius:999px;padding:5px 11px;background:#fff;display:flex;gap:6px;align-items:center}
@@ -132,7 +134,10 @@ button:focus-visible{outline:2px solid var(--brb);outline-offset:2px}
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* ---------- αριστερή εργαλειοθήκη ---------- */
-.tools{position:fixed;left:12px;top:70px;display:flex;flex-direction:column;gap:6px;z-index:9}
+.tools{position:fixed;left:12px;top:70px;display:flex;flex-direction:column;gap:6px;z-index:9;
+  /* Αν δεν χωράνε όλα τα κουμπιά στο ύψος της οθόνης, αναδιπλώνονται σε 2η στήλη
+     — αλλιώς σε μικρές οθόνες laptop τα τελευταία εργαλεία κόβονταν εκτός οθόνης */
+  flex-wrap:wrap;align-content:flex-start;max-height:calc(100vh - 86px)}
 .tools button{width:46px;height:46px;border:1px solid var(--line);background:var(--card);color:var(--ink);
   border-radius:12px;font-size:10px;font-weight:700;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:2px;box-shadow:0 2px 8px #16202b10;cursor:pointer}
@@ -384,7 +389,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.41</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<span class="betaTag">BETA</span><small>ενεργειακή επιθεώρηση · v2.42</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -785,9 +790,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=61"></script>
-<script src="kenak-xml.js?v=61"></script>
-<script src="kenak-dxf.js?v=61"></script>
+<script src="kenak-data.js?v=62"></script>
+<script src="kenak-xml.js?v=62"></script>
+<script src="kenak-dxf.js?v=62"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -2476,7 +2481,7 @@ function makeSketchPDF(){
 }
 
 document.getElementById('xmlBtn').onclick=async()=>{
-  /* Σειρά: 1 κέλυφος, 2 έλεγχος ΤΟΤΕΕ, 3 token, 4 εξαγωγή — με σαφές μήνυμα παντού */
+  /* Σειρά: 1 κέλυφος, 2 έλεγχος ΤΟΤΕΕ, 3 εξαγωγή — Beta: χωρίς χρέωση token */
   if(!closed){
     alert('Το XML δεν εξήχθη: δεν έχει κλείσει το περίγραμμα του κελύφους.\nΠήγαινε στο tab «Κέλυφος» (βήμα 3) και πάτα «Κλείσε περίγραμμα».');
     setTab(2);return;
@@ -2490,8 +2495,9 @@ document.getElementById('xmlBtn').onclick=async()=>{
   if(ck.warns.length&&!confirm('Προειδοποιήσεις ΤΟΤΕΕ:\n\n• '+ck.warns.join('\n• ')+'\n\nΣυνέχεια στην εξαγωγή XML;')){
     setTab(3);sysCheckRender();return;
   }
-  /* ΧΡΕΩΣΗ TOKEN ΠΕΑ: 1 ανά εξαγωγή (ΜΕΤΑ τους ελέγχους — δεν χρεώνει σε αποτυχία) */
-  if(!(await kenakSpendToken()))return;
+  /* BETA: η εξαγωγή XML είναι ΔΩΡΕΑΝ όσο διαρκεί η δοκιμαστική περίοδος.
+     Η χρέωση ανά ΠΕΑ (kenakSpendToken) θα επανενεργοποιηθεί μετά το Beta. */
+  await kenakSpendToken();   /* no-op στο Beta — επιστρέφει πάντα true */
   try{
   const q=envelope();
   /* Αδιαφανείς: μία γραμμή ανά τομέα προσανατολισμού + οροφή.
@@ -2781,7 +2787,7 @@ function fitParcel(){
   cell=Math.max(4,Math.min(400,Math.min(W2/(x1-x0+2),(H2-120)/(y1-y0+2))*0.82));
   ox=W2/2-(x0+x1)/2*cell; oy=H2/2+(y0+y1)/2*cell;
 }
-/* ---- Token ΠΕΑ (5€/ΠΕΑ, πακέτα 50€, δώρο 1 στην ανανέωση) ---- */
+/* ---- Token ΠΕΑ — ΑΝΕΝΕΡΓΟ στο Beta (η υποδομή μένει για μετά) ---- */
 const SB_URL='https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 function sbToken(){
@@ -2799,6 +2805,11 @@ function sbToken(){
   return null;
 }
 async function kenakSpendToken(){
+  /* ===== BETA: ΧΩΡΙΣ ΧΡΕΩΣΗ =====
+     Όσο το εργαλείο είναι σε Beta, κάθε εξαγωγή ΠΕΑ είναι δωρεάν.
+     Για επανενεργοποίηση της χρέωσης: σβήσε το return true παρακάτω
+     (ο κώδικας kenak_spend/RPC παραμένει έτοιμος από κάτω). */
+  return true;
   /* true = προχώρα σε εξαγωγή. Χωρίς σύνδεση: δοκιμαστική λειτουργία με υδατογράφημα ευθύνης χρήστη. */
   const jwt=sbToken();
   if(!jwt){
@@ -2820,14 +2831,20 @@ async function kenakSpendToken(){
 }
 /* ---- Κλιματική ζώνη ανά νομό (ΚΕΝΑΚ/ΤΟΤΕΕ 20701-1) ---- */
 const ZONE_NOMOI={
- A:['ΗΡΑΚΛΕΙ','ΧΑΝΙ','ΡΕΘΥΜΝ','ΛΑΣΙΘ','ΚΥΚΛΑΔ','ΔΩΔΕΚΑΝ','ΡΟΔΟΣ','ΚΩΣ','ΣΑΜΟ','ΜΕΣΣΗΝ','ΛΑΚΩΝ','ΑΡΓΟΛΙΔ','ΖΑΚΥΝΘ','ΚΕΦΑΛ','ΙΘΑΚ','ΚΥΘΗΡ'],
- B:['ΑΤΤΙΚ','ΑΘΗΝ','ΠΕΙΡΑΙ','ΚΟΡΙΝΘ','ΗΛΕΙΑ','ΗΛΙΔ','ΑΧΑΪ','ΑΧΑΙ','ΑΙΤΩΛ','ΑΚΑΡΝΑΝ','ΦΘΙΩΤ','ΦΩΚΙΔ','ΒΟΙΩΤ','ΕΥΒΟΙ','ΜΑΓΝΗΣ','ΣΠΟΡΑΔ','ΛΕΣΒ','ΛΗΜΝ','ΧΙΟ','ΚΕΡΚΥΡ','ΛΕΥΚΑΔ','ΘΕΣΠΡΩΤ','ΠΡΕΒΕΖ','ΑΡΤΑ'],
- C:['ΑΡΚΑΔ','ΕΥΡΥΤΑΝ','ΙΩΑΝΝΙΝ','ΛΑΡΙΣ','ΚΑΡΔΙΤΣ','ΤΡΙΚΑΛ','ΠΙΕΡΙ','ΗΜΑΘΙ','ΠΕΛΛ','ΘΕΣΣΑΛΟΝΙΚ','ΚΙΛΚΙΣ','ΧΑΛΚΙΔΙΚ','ΣΕΡΡ','ΚΑΒΑΛ','ΘΑΣ','ΔΡΑΜ','ΞΑΝΘ','ΡΟΔΟΠ','ΕΒΡ'],
- D:['ΓΡΕΒΕΝ','ΚΟΖΑΝ','ΚΑΣΤΟΡΙ','ΦΛΩΡΙΝ']};
+ /* Νομοί κατά ΤΟΤΕΕ 20701-1 πίν. 2.1 + πρωτεύουσες/μεγάλες πόλεις (όταν το Nominatim
+    επιστρέφει μόνο δήμο). Έλεγχος με σειρά D→C→B→A ώστε να κερδίζουν τα πιο ειδικά. */
+ A:['ΗΡΑΚΛΕΙ','ΧΑΝΙ','ΡΕΘΥΜΝ','ΛΑΣΙΘ','ΚΥΚΛΑΔ','ΔΩΔΕΚΑΝ','ΡΟΔΟΣ','ΚΩΣ','ΣΑΜΟ','ΜΕΣΣΗΝ','ΛΑΚΩΝ','ΑΡΓΟΛΙΔ','ΖΑΚΥΝΘ','ΚΕΦΑΛ','ΙΘΑΚ','ΚΥΘΗΡ',
+   'ΚΑΛΑΜΑΤ','ΣΠΑΡΤ','ΝΑΥΠΛΙ','ΕΡΜΟΥΠΟΛ'],
+ B:['ΑΤΤΙΚ','ΑΘΗΝ','ΠΕΙΡΑΙ','ΚΟΡΙΝΘ','ΗΛΕΙΑ','ΗΛΙΔ','ΑΧΑΪ','ΑΧΑΙ','ΑΙΤΩΛ','ΑΚΑΡΝΑΝ','ΦΘΙΩΤ','ΦΩΚΙΔ','ΒΟΙΩΤ','ΕΥΒΟΙ','ΜΑΓΝΗΣ','ΣΠΟΡΑΔ','ΛΕΣΒ','ΛΗΜΝ','ΧΙΟ','ΚΕΡΚΥΡ','ΛΕΥΚΑΔ','ΘΕΣΠΡΩΤ','ΠΡΕΒΕΖ','ΑΡΤΑ',
+   'ΑΓΡΙΝΙ','ΜΕΣΟΛΟΓΓΙ','ΝΑΥΠΑΚΤ','ΠΑΤΡ','ΛΑΜΙΑ','ΑΜΦΙΣΣ','ΛΙΒΑΔΕΙ','ΧΑΛΚΙΔΑ','ΒΟΛΟ','ΜΥΤΙΛΗΝ','ΗΓΟΥΜΕΝΙΤΣ'],
+ C:['ΑΡΚΑΔ','ΕΥΡΥΤΑΝ','ΙΩΑΝΝΙΝ','ΛΑΡΙΣ','ΚΑΡΔΙΤΣ','ΤΡΙΚΑΛ','ΠΙΕΡΙ','ΗΜΑΘΙ','ΠΕΛΛ','ΘΕΣΣΑΛΟΝΙΚ','ΚΙΛΚΙΣ','ΧΑΛΚΙΔΙΚ','ΣΕΡΡ','ΚΑΒΑΛ','ΘΑΣ','ΞΑΝΘ','ΡΟΔΟΠ','ΕΒΡ',
+   'ΤΡΙΠΟΛ','ΚΑΤΕΡΙΝ','ΒΕΡΟΙ','ΝΑΟΥΣ','ΕΔΕΣΣ','ΓΙΑΝΝΙΤΣ','ΠΟΛΥΓΥΡ','ΚΟΜΟΤΗΝ','ΑΛΕΞΑΝΔΡΟΥΠΟΛ'],
+ /* Δράμα: ζώνη Δ κατά πίν. 2.1 (διόρθωση — ήταν λάθος στη Γ) */
+ D:['ΓΡΕΒΕΝ','ΚΟΖΑΝ','ΚΑΣΤΟΡΙ','ΦΛΩΡΙΝ','ΔΡΑΜ','ΠΤΟΛΕΜΑΙΔ']};
 function grNorm(t){
-  return (t||'').toUpperCase()
-    .replace(/Ά/g,'Α').replace(/Έ/g,'Ε').replace(/Ή/g,'Η').replace(/Ί/g,'Ι')
-    .replace(/Ό/g,'Ο').replace(/Ύ/g,'Υ').replace(/Ώ/g,'Ω').replace(/Ϊ/g,'Ι').replace(/Ϋ/g,'Υ');
+  /* NFD: αποσύνθεση σε βασικό γράμμα + διακριτικά, μετά αφαίρεση ΟΛΩΝ των
+     διακριτικών (τόνοι, διαλυτικά, συνδυασμοί όπως ΐ/ΰ) και κεφαλαία. */
+  return (t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
 }
 function zoneOfCounty(name){
   const n=grNorm(name);
@@ -2835,27 +2852,77 @@ function zoneOfCounty(name){
     for(const k of ZONE_NOMOI[z])if(n.includes(k))return z;
   return null;
 }
-async function zoneFromLocation(){
-  /* Πηγή: (α) θέση ΚΑΕΚ αν υπάρχει, (β) διεύθυνση έργου */
-  let url=null,label='';
-  if(kSel&&kSel.lat){url='https://nominatim.openstreetmap.org/reverse?format=json&accept-language=el&lat='+kSel.lat+'&lon='+kSel.lon;label='τη θέση ΚΑΕΚ';}
-  else{const ad=(document.getElementById('p_addr').value||'').trim();
-    if(!ad){alert('Δώσε διεύθυνση έργου (tab Έργο) ή επίλεξε ΚΑΕΚ στον χάρτη.');return;}
-    url='https://nominatim.openstreetmap.org/search?format=json&accept-language=el&limit=1&countrycodes=gr&addressdetails=1&q='+encodeURIComponent(ad);label='τη διεύθυνση';}
+async function siteElevation(lat,lon){
+  /* Υψόμετρο θέσης (Open-Meteo, χωρίς κλειδί) — null σε αποτυχία */
+  try{
+    const r=await fetch('https://api.open-meteo.com/v1/elevation?latitude='+lat+'&longitude='+lon);
+    const d=await r.json();
+    const e=Array.isArray(d.elevation)?d.elevation[0]:d.elevation;
+    return (typeof e==='number'&&isFinite(e))?Math.round(e):null;
+  }catch(e){return null;}
+}
+function devicePos(){
+  /* Θέση συσκευής (GPS) ως Promise — null αν δεν δοθεί */
+  return new Promise(res=>{
+    if(!navigator.geolocation)return res(null);
+    navigator.geolocation.getCurrentPosition(
+      p=>res({lat:p.coords.latitude,lon:p.coords.longitude}),
+      ()=>res(null),{enableHighAccuracy:true,timeout:8000});
+  });
+}
+async function zoneFromLocation(auto){
+  /* Πηγή, με σειρά: (α) θέση ΚΑΕΚ, (β) θέση κλικ χωρίς ΚΑΕΚ (kPos),
+     (γ) διεύθυνση έργου, (δ) GPS συσκευής. auto=true: αθόρυβο (μόνο hint). */
+  const say=m=>{if(!auto)alert(m);else hint(m);};
+  let lat=null,lon=null,label='';
+  if(kSel&&kSel.lat){lat=+kSel.lat;lon=+kSel.lon;label='τη θέση ΚΑΕΚ';}
+  else if(kPos){lat=kPos.lat;lon=kPos.lon;label='τη θέση στον χάρτη';}
   hint('Εύρεση κλιματικής ζώνης…');
   try{
-    const r=await fetch(url);const d=await r.json();
-    const a=(Array.isArray(d)?(d[0]&&d[0].address):d.address)||{};
-    const county=a.county||a.state_district||a.state||a.municipality||'';
-    const z=zoneOfCounty(county)||zoneOfCounty(a.display_name||'');
-    if(!z){alert('Δεν αναγνωρίστηκε νομός («'+county+'») — διάλεξε ζώνη χειροκίνητα.');return;}
-    document.getElementById('czone').value=z;
+    let a=null,county='',disp='';
+    if(lat!=null){
+      const r=await fetch('https://nominatim.openstreetmap.org/reverse?format=json&accept-language=el&lat='+lat+'&lon='+lon);
+      const d=await r.json();a=d.address||{};disp=d.display_name||'';
+    }else{
+      const ad=(document.getElementById('p_addr').value||'').trim();
+      if(ad){
+        const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&accept-language=el&limit=1&countrycodes=gr&addressdetails=1&q='+encodeURIComponent(ad));
+        const d=await r.json();
+        if(d[0]){a=d[0].address||{};disp=d[0].display_name||'';lat=+d[0].lat;lon=+d[0].lon;label='τη διεύθυνση';}
+      }
+      if(!a){
+        const g=await devicePos();
+        if(!g){say('Δώσε διεύθυνση έργου (tab Έργο), επίλεξε ΚΑΕΚ/σημείο στον χάρτη, ή επίτρεψε τη θέση συσκευής.');return;}
+        lat=g.lat;lon=g.lon;label='τη θέση της συσκευής';
+        const r=await fetch('https://nominatim.openstreetmap.org/reverse?format=json&accept-language=el&lat='+lat+'&lon='+lon);
+        const d=await r.json();a=d.address||{};disp=d.display_name||'';
+      }
+    }
+    const county0=a.county||a.state_district||a.state||a.municipality||'';
+    county=county0;
+    let z=zoneOfCounty(county0)||zoneOfCounty(disp);
+    if(!z){say('Δεν αναγνωρίστηκε νομός («'+county0+'») — διάλεξε ζώνη χειροκίνητα.');return;}
+    /* Κανόνας υψομέτρου ΤΟΤΕΕ 20701-1 §2.2: >500 m -> επόμενη ψυχρότερη ζώνη */
+    let alt=null,z2=z;
+    if(lat!=null){
+      alt=await siteElevation(lat,lon);
+      if(alt!=null)z2=(KENAK_DATA&&KENAK_DATA.zoneAltRule)?KENAK_DATA.zoneAltRule(z,alt):z;
+    }
+    const GR={A:'Α',B:'Β',C:'Γ',D:'Δ'};
+    document.getElementById('czone').value=z2;
     pSave();if(closed)report(false);
-    hint('Κλιματική ζώνη '+({A:'Α',B:'Β',C:'Γ',D:'Δ'})[z]+' από '+label+' ('+county+'). Ορεινός οικισμός >500 μ; -> επόμενη ψυχρότερη ζώνη (ΤΟΤΕΕ).');
-  }catch(e){alert('Αποτυχία εύρεσης — χρειάζεται σύνδεση στο διαδίκτυο.');}
+    let msg='Κλιματική ζώνη '+GR[z2]+' από '+label+' ('+county+')';
+    if(alt!=null){
+      msg+=' · υψόμετρο ~'+alt+' m';
+      if(z2!==z)msg+=' → '+GR[z]+'→'+GR[z2]+' λόγω >500 m (ΤΟΤΕΕ §2.2)';
+    }else msg+=' · υψόμετρο μη διαθέσιμο — αν ο οικισμός είναι >500 m, ανέβασε ζώνη χειροκίνητα';
+    msg+='. Η επιλογή μένει επεξεργάσιμη.';
+    hint(msg);
+  }catch(e){say('Αποτυχία εύρεσης — χρειάζεται σύνδεση στο διαδίκτυο.');}
 }
 const KAEK_FN='https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/kaek-geo';
 let kmap=null,kLayer=null,kSel=null,leafletReady=false;
+let kPos=null;   /* θέση lat/lon όταν ΔΕΝ βρέθηκε ΚΑΕΚ (περιοχή χωρίς κτηματολόγιο) — για κλιμ. ζώνη */
 function loadLeaflet(cb){
   if(leafletReady){cb();return;}
   const css=document.createElement('link');css.rel='stylesheet';
@@ -2925,7 +2992,15 @@ async function kaekLookup(qs){
     }
   }catch(e){
     document.getElementById('kaekVal').textContent='—';
-    document.getElementById('kaekInfo').textContent=e.message;
+    /* Χωρίς ΚΑΕΚ (π.χ. περιοχή που δεν λειτουργεί κτηματολόγιο): κράτα τη θέση
+       του κλικ ώστε να δουλέψει ο αυτόματος εντοπισμός κλιματικής ζώνης. */
+    const m=/lat=([\d.]+)&lon=([\d.]+)/.exec(qs);
+    if(m){
+      kPos={lat:+m[1],lon:+m[2]};
+      document.getElementById('kaekInfo').textContent=e.message+
+        ' Κρατήθηκε η θέση '+(+m[1]).toFixed(5)+', '+(+m[2]).toFixed(5)+' για την κλιματική ζώνη.';
+      zoneFromLocation(true);   /* αθόρυβη πρόταση ζώνης από τη θέση */
+    }else document.getElementById('kaekInfo').textContent=e.message;
     document.getElementById('kaekUse').disabled=true;
   }
 }
@@ -2938,6 +3013,7 @@ document.getElementById('kaekUse').onclick=()=>{
   kSel.kaek=kSel.base+'/'+vx+'/'+vy;
   document.getElementById('mapSheet').classList.remove('on');
   canvasCool=Date.now();   /* κανένα «κατά λάθος» tap-κορυφή μετά το κλείσιμο */
+  zoneFromLocation(true);  /* πρόταση κλιματικής ζώνης από τη θέση ΚΑΕΚ (αθόρυβα, με υψόμετρο) */
   if(document.getElementById('kaekDraw').checked){
     PARCEL=parcelFromGeo(kSel);
     if(PARCEL){
