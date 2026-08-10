@@ -68,11 +68,11 @@ button:focus-visible{outline:2px solid var(--brb);outline-offset:2px}
   background-size:100% 100%,100% 100%;
   backdrop-filter:blur(6px);z-index:10}
 .top::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:5px;background:var(--rib-hot)}
-.home{display:flex;align-items:center;gap:5px;text-decoration:none;font-size:10.5px;font-weight:800;
+.home{display:flex;align-items:center;gap:5px;text-decoration:none;font-size:10.5px;font-weight:800;white-space:nowrap;
   letter-spacing:.02em;color:var(--ink2);background:#ffffffd9;border:1px solid var(--line);
   border-radius:999px;padding:4px 9px;transition:color .15s,border-color .15s}
 .home:hover{color:var(--brb);border-color:var(--brb)}
-.mark{font-weight:800;font-size:13.5px;letter-spacing:.12em;color:var(--brb);line-height:1.1;
+.mark{font-weight:800;font-size:13.5px;letter-spacing:.12em;color:var(--brb);line-height:1.1;white-space:nowrap;
   background:#fffefaf2;border-radius:10px;padding:5px 11px;box-shadow:0 1px 5px #16202b1f}
 .mark small{display:block;font-weight:500;font-size:9.5px;letter-spacing:.07em;color:var(--ink2);text-transform:uppercase}
 .betaTag{display:inline-block;margin-left:6px;padding:1.5px 7px;border-radius:999px;background:#E8772E;
@@ -135,9 +135,21 @@ button:focus-visible{outline:2px solid var(--brb);outline-offset:2px}
 
 /* ---------- αριστερή εργαλειοθήκη ---------- */
 .tools{position:fixed;left:12px;top:70px;display:flex;flex-direction:column;gap:6px;z-index:9;
-  /* Αν δεν χωράνε όλα τα κουμπιά στο ύψος της οθόνης, αναδιπλώνονται σε 2η στήλη
-     — αλλιώς σε μικρές οθόνες laptop τα τελευταία εργαλεία κόβονταν εκτός οθόνης */
+  /* Δίχτυ ασφαλείας για ΠΟΛΥ κοντές οθόνες: αναδίπλωση σε 2η στήλη μόνο αν
+     ούτε τα compact κουμπιά (κανόνας max-height παρακάτω) δεν χωράνε */
   flex-wrap:wrap;align-content:flex-start;max-height:calc(100vh - 86px)}
+/* Κοντές οθόνες laptop: πιο compact κουμπιά ώστε και τα 15 εργαλεία να χωράνε
+   σε ΜΙΑ στήλη με τη σωστή σειρά — όχι σκόρπια σε δεύτερη */
+@media (max-height:1060px) and (min-width:900px){
+  .tools{gap:4px}
+  .tools .sep{height:3px}
+  .tools button{width:44px !important;height:40px !important;min-height:40px !important;font-size:8.5px;gap:1px}
+  .tools button svg{width:15px !important;height:15px !important}
+}
+@media (max-height:860px) and (min-width:900px){
+  .tools button{width:42px !important;height:35px !important;min-height:35px !important;font-size:8px}
+  .tools button svg{width:13px !important;height:13px !important}
+}
 .tools button{width:46px;height:46px;border:1px solid var(--line);background:var(--card);color:var(--ink);
   border-radius:12px;font-size:10px;font-weight:700;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:2px;box-shadow:0 2px 8px #16202b10;cursor:pointer}
@@ -389,7 +401,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<span class="betaTag">BETA</span><small>ενεργειακή επιθεώρηση · v2.42</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<span class="betaTag">BETA</span><small>ενεργειακή επιθεώρηση · v2.43</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -790,9 +802,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=62"></script>
-<script src="kenak-xml.js?v=62"></script>
-<script src="kenak-dxf.js?v=62"></script>
+<script src="kenak-data.js?v=63"></script>
+<script src="kenak-xml.js?v=63"></script>
+<script src="kenak-dxf.js?v=63"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
