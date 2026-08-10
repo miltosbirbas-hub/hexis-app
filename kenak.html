@@ -110,7 +110,7 @@ button:focus-visible{outline:2px solid var(--brb);outline-offset:2px}
   box-shadow:0 2px 10px #E8772E77;animation:stepPulse 1.6s ease-in-out infinite}
 .sstep.opt{opacity:.55;border-style:dashed}
 .page{padding-top:52px}
-@media(max-width:899px){#subSteps{top:96px}.page{padding-top:96px}}
+
 /* --- συσκευές αφής: μεγαλύτεροι στόχοι για δάχτυλο --- */
 @media(pointer:coarse){
   .tools button{width:52px;min-height:52px}
@@ -301,18 +301,38 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 
 /* ---------- ΚΙΝΗΤΟ (<900px): viewer πρώτα, πάνελ κάτω ---------- */
 @media (max-width:899px){
-  /* βήματα ορατά πάντα */
-  .hint{max-width:44vw}
-  .tools{left:10px;top:auto;bottom:224px;flex-direction:row}
+  /* top: 2 σταθερές σειρές — λογότυπο+βοήθεια & tabs σε αναδίπλωση (ΟΧΙ συρόμενα) */
+  .top{height:104px;flex-wrap:wrap;align-content:flex-start;padding:7px 10px 0;gap:8px}
+  .home{padding:5px 10px;font-size:12px}
+  .mark{font-size:14px}
+  .mark small{display:none}
+  .hint{display:none}
+  #helpBtn{margin-left:auto}
+  .tabs{flex-basis:100%;overflow:visible;flex-wrap:wrap;gap:5px;margin:1px 0 0}
+  .tab{font-size:11.5px;padding:6px 10px}
+  .steps{display:none !important}
+  #subSteps{display:none !important}
+  .page{inset:104px 0 0 0;padding-top:12px}
+  /* καμβάς: εργαλεία χαμηλά, πάνελ = συρτάρι που ΚΑΤΕΒΑΙΝΕΙ */
+  .tools{left:10px;top:auto;bottom:60px;flex-direction:row;flex-wrap:wrap;max-width:calc(100vw - 20px)}
   .tools button{width:44px;height:44px}
-  .panel{left:0;right:0;bottom:0;top:auto;width:auto;border-radius:16px 16px 0 0;
-    padding-bottom:env(safe-area-inset-bottom)}
+  .panel{left:0;right:0;bottom:0;top:auto;width:auto !important;border-radius:16px 16px 0 0;
+    max-height:46vh;padding-bottom:env(safe-area-inset-bottom);
+    transition:transform .22s ease}
+  .panel.mob-hid{transform:translateY(calc(100% - 44px))}
+  .pnlTg{display:flex !important}
   .panel .sec{padding:9px 12px}
-  .status{bottom:278px}
-  .legend{bottom:324px}
-  .empty{align-items:flex-start;padding-top:8vh;padding-bottom:230px;overflow:auto}
+  /* το πάνελ φαίνεται ΜΟΝΟ στο tab Κέλυφος */
+  body:not([data-tab="2"]) .panel{display:none}
+  body:not([data-tab="2"]) .tools{display:none}
+  .status{bottom:auto;top:112px}
+  .legend{display:none}
+  .empty{align-items:flex-start;padding-top:6vh;padding-bottom:120px;overflow:auto}
   .sheet{padding-bottom:60px}
 }
+.pnlTg{display:none;width:100%;min-height:44px;border:none;border-bottom:1px solid var(--line);
+  background:var(--card);color:var(--brb);font:800 12px var(--ui);letter-spacing:.06em;
+  align-items:center;justify-content:center;gap:8px;cursor:pointer}
 @media (min-width:900px){
   .sheet{inset:0 0 0 auto;width:500px;transform:translateX(100%);
     border-left:1px solid var(--line);box-shadow:-12px 0 34px #16202b26}
@@ -327,7 +347,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <div class="top">
   <a class="home" href="hub.html">‹ Εργαλεία</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.24</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.26</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -371,7 +391,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 </div>
 
 <button id="panelTab" title="Άνοιγμα/κλείσιμο πάνελ (P)"><span>ΠΑΝΕΛ</span></button>
-<div class="panel"><div id="pgrip" title="Σύρε για πλάτος"></div>
+<div class="panel"><button id="pnlTg" class="pnlTg">▼ ΠΑΝΕΛ — δείξε τον καμβά</button><div id="pgrip" title="Σύρε για πλάτος"></div>
   <div class="sec">
     <h5>Αρχείο</h5>
     <div class="prow">
@@ -417,6 +437,23 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
       <div><label>Έτος</label><input id="year" type="number" inputmode="numeric" value="1985" min="1900" max="2026" title="Έτος κατασκευής — καθορίζει την περίοδο για τυπικές τιμές U"></div>
       <div><label>% ΦΟ</label><input id="fopct" type="number" inputmode="decimal" value="20" min="0" max="60" step="1" title="Ποσοστό φέροντος οργανισμού (δοκοί/υποστυλώματα/τοιχεία) επί της όψης — μετριέται από τα σχέδια"></div>
       <div><label>U ΦΟ</label><input id="ufo" type="number" inputmode="decimal" value="3.40" step="0.05" title="U φέροντος οργανισμού W/m²K"></div>
+      <div class="full"><label>Είδος τοιχοποιίας <span style="font-weight:400;color:var(--ink2)">(βάζει τυπικό U — διορθώνεται)</span></label>
+        <select id="wallKind" title="Τυπικές αμόνωτες/μονωμένες κατασκευές κατά ΤΟΤΕΕ 20701-2 — η επιλογή γεμίζει το U τοιχοποιίας">
+          <option value="">— χειροκίνητο U —</option>
+          <option value="3.05">Δρομική οπτοπλινθοδομή 10 εκ, αμόνωτη — U 3,05</option>
+          <option value="2.20">Μπατική οπτοπλινθοδομή 20 εκ, αμόνωτη — U 2,20</option>
+          <option value="2.50">Υπερμπατική οπτοπλινθοδομή 25-30 εκ, αμόνωτη — U 2,50</option>
+          <option value="1.85">Διπλή δρομική με διάκενο αέρα, αμόνωτη — U 1,85</option>
+          <option value="0.70">Διπλή δρομική + μόνωση 5 εκ στον πυρήνα (μετά το 1979) — U 0,70</option>
+          <option value="0.65">Μπατική + εξωτερική θερμομόνωση 5 εκ — U 0,65</option>
+          <option value="0.45">Τοιχοποιία με θερμοπρόσοψη 8-10 εκ (σύγχρονη) — U 0,45</option>
+          <option value="2.80">Τσιμεντόλιθοι 20 εκ, αμόνωτοι — U 2,80</option>
+          <option value="2.60">Αργολιθοδομή ~50 εκ — U 2,60</option>
+          <option value="2.50">Λιθοδομή ~60 εκ (πλήρης λίθος) — U 2,50</option>
+          <option value="3.00">Λιθοδομή δίκελυφη με γέμισμα ~50 εκ — U 3,00</option>
+          <option value="0.55">Ξηρά δόμηση: διπλή γυψοσανίδα + ορυκτοβάμβακας 10 εκ — U 0,55</option>
+          <option value="1.10">Εμφανές σκυρόδεμα 25 εκ + μόνωση 3 εκ — U 1,10</option>
+        </select></div>
       <div><label>U τοιχ. <a href="#" onclick="uFromYear();return false" style="font-size:9.5px;color:var(--brb)" title="Τυπικές τιμές Πίν.3.5α/β από το έτος άδειας">από έτος;</a></label><input id="uw" type="number" inputmode="decimal" value="2.20" step="0.05" title="U τοιχοποιίας πλήρωσης W/m²K"></div>
     </div>
     <p style="font-size:10px;color:var(--ink2);margin-top:6px" id="periodLbl"></p>
@@ -688,9 +725,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=44"></script>
-<script src="kenak-xml.js?v=44"></script>
-<script src="kenak-dxf.js?v=44"></script>
+<script src="kenak-data.js?v=46"></script>
+<script src="kenak-xml.js?v=46"></script>
+<script src="kenak-dxf.js?v=46"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -1217,10 +1254,18 @@ function pinchStart(){
   if(typeof ovArc!=='undefined')ovArc=null;
   if(typeof kDraft!=='undefined')kDraft=null;
 }
+window.addEventListener('pointerup',e=>{PTRS.delete(e.pointerId);if(PTRS.size<2)pinch=null;},true);
+window.addEventListener('pointercancel',e=>{PTRS.delete(e.pointerId);if(PTRS.size<2)pinch=null;},true);
+cv.addEventListener('lostpointercapture',e=>{PTRS.delete(e.pointerId);if(PTRS.size<2)pinch=null;});
 cv.addEventListener('pointerdown',e=>{
+  if(e.pointerType==='mouse')PTRS.clear();      /* ποντίκι: ποτέ 2 δείκτες */
   PTRS.set(e.pointerId,[e.clientX,e.clientY]);
+  try{cv.setPointerCapture(e.pointerId);}catch(_){}  /* το up έρχεται ΠΑΝΤΑ εδώ */
+  if(PTRS.size>2){                               /* αυτοδιόρθωση από νεκρούς δείκτες */
+    PTRS.clear();PTRS.set(e.pointerId,[e.clientX,e.clientY]);pinch=null;
+  }
   if(PTRS.size===2){pinchStart();return;}
-  if(PTRS.size>2||pinch)return;
+  if(pinch)return;
   const CP=compassPos();
   if(Math.hypot(e.clientX-CP[0],e.clientY-CP[1])<30){
     compassDrag=true;setNorthFromPointer(e.clientX,e.clientY);
@@ -2872,6 +2917,7 @@ cv.addEventListener('contextmenu',e=>e.preventDefault());
    ============================================================ */
 let TAB=2;
 function setTab(t){
+  try{document.body.dataset.tab=String(t);}catch(e){}
   TAB=t;
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',+b.dataset.tab===t));
   for(const i of [1,3,4,5])document.getElementById('pg'+i).classList.toggle('on',t===i);
@@ -3557,6 +3603,25 @@ document.getElementById('viewBtn2').onclick=()=>document.getElementById('viewBtn
 try{fillSysSelects();}catch(e){console.error('fillSysSelects',e);}
 try{pLoad();}catch(e){console.error('pLoad',e);}
 try{ownerSyncPull();floorsInit();floorChip();}catch(e){console.error('floors',e);}
+(function(){
+  const tg=document.getElementById('pnlTg'),pn2=document.querySelector('.panel');
+  if(tg&&pn2){
+    const lbl=()=>{tg.textContent=pn2.classList.contains('mob-hid')?'▲ ΠΑΝΕΛ — άνοιξε τις ρυθμίσεις':'▼ ΠΑΝΕΛ — δείξε τον καμβά';};
+    tg.onclick=()=>{pn2.classList.toggle('mob-hid');lbl();};
+    if(innerWidth<900)pn2.classList.add('mob-hid');   /* κινητό: καμβάς πρώτος */
+    lbl();
+  }
+  try{document.body.dataset.tab=document.body.dataset.tab||'2';}catch(e){}
+})();
+(function(){
+  const wk=document.getElementById('wallKind');
+  if(wk)wk.onchange=()=>{
+    if(!wk.value)return;
+    document.getElementById('uw').value=(+wk.value).toFixed(2);
+    pSave();hint('U τοιχοποιίας: '+(+wk.value).toFixed(2)+' W/m²K — '+wk.selectedOptions[0].textContent.split(' — ')[0]);
+    try{if(document.getElementById('preSheet').classList.contains('on'))preRender();}catch(e){}
+  };
+})();
 document.getElementById('preBtn').onclick=preview;
 document.getElementById('preClose').onclick=()=>document.getElementById('preSheet').classList.remove('on');
 document.getElementById('helpBtn').onclick=()=>document.getElementById('helpSheet').classList.add('on');
