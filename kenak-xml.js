@@ -183,8 +183,8 @@ function kenakXML(model){
     x+=kx_el('zn_parameter'+k3,v3===''?'':v3);
   }
   x+='<ENVELOPE rid="'+(sc2+1)+'">';
-  x+=kx_table('opaque',model.opaque||[],16);
-  x+=kx_table('ground',model.ground||[],8);
+  x+=kx_table('opaque',(scen[sc2]&&scen[sc2].opaque)||model.opaque||[],16);
+  x+=kx_table('ground',(scen[sc2]&&scen[sc2].ground)||model.ground||[],8);
   x+=kx_table('transparent',(scen[sc2].transparent||model.transparent)||[],15);
   x+=kx_table('opaque_tb',model.opaque_tb||[],3);
   x+=kx_el('internal_nodes',0);
