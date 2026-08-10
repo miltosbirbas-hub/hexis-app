@@ -105,12 +105,18 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   /* Floating πάνελ αγκυρωμένο στη ΔΕΞΙΑ ακμή: πλήρες ύψος, σύρεται μέσα/έξω */
   .panel{right:0;top:54px;bottom:0;max-height:none;width:min(48vw,720px);
     border-radius:14px 0 0 14px;border-right:none;
-    display:grid;grid-template-columns:1fr 1fr;gap:0 16px;align-content:start;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+    gap:0 18px;align-content:start;grid-auto-flow:dense;
     transition:transform .22s ease;box-shadow:-10px 0 30px #16202b22}
   .panel.hid{transform:translateX(100%)}
   .panel>*{min-width:0}
-  .panel>.sec:first-child{grid-column:1/-1}
-  .panel>.sec:last-child{grid-column:1/-1}
+  .panel>.sec:nth-child(2){grid-column:1/-1}      /* ΑΡΧΕΙΟ full (1ο = λαβή) */
+  .panel>.sec:last-child{grid-column:1/-1}        /* κουμπιά full */
+  .panel .sec{padding:13px 16px}
+  .panel label{font-size:10.5px}
+  .panel input,.panel select{font-size:14.5px;padding:9px 8px}
+  .panel h5{font-size:11px}
+  .panel .pbtn{font-size:13px;min-height:44px}
   .tools{padding:8px}
   .tools button{min-width:56px;min-height:52px;font-size:11px}
   .tools button svg{width:22px;height:22px}
@@ -122,9 +128,10 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
     font:800 13px var(--ui);box-shadow:-4px 0 14px #16202b26}
   #panelTab span{transform:rotate(180deg);writing-mode:vertical-rl;letter-spacing:.12em;font-size:10px}
   /* λαβή αλλαγής πλάτους στην αριστερή ακμή του πάνελ */
-  #pgrip{position:absolute;left:-4px;top:0;bottom:0;width:9px;cursor:ew-resize;z-index:2}
-  #pgrip::after{content:'';position:absolute;left:3px;top:calc(50% - 22px);width:3px;height:44px;
-    border-radius:2px;background:var(--line)}
+  #pgrip{position:absolute;left:-6px;top:0;bottom:0;width:14px;cursor:ew-resize;z-index:2}
+  #pgrip::after{content:'';position:absolute;left:5px;top:calc(50% - 30px);width:4px;height:60px;
+    border-radius:3px;background:var(--brb);opacity:.45}
+  #pgrip:hover::after{opacity:1}
 }
 @media(max-width:1099px){#panelTab{display:none}}
 .fbt{min-width:26px;height:26px;border:1.5px solid var(--line);border-radius:8px;background:#fff;
@@ -226,7 +233,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 
 <div class="top">
   <a class="home" href="hub.html">‹ Εργαλεία</a>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.5</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.7</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -277,6 +284,8 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
         <svg viewBox="0 0 24 24"><path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>ΚΑΕΚ</button>
       <button class="pbtn" id="viewBtn" title="Άνοιγμα αρχείου ΤΕΕ-ΚΕΝΑΚ για προβολή">
         <svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.5"/></svg>Προβολή XML</button>
+      <button class="pbtn" id="newBtn" title="Νέα επιθεώρηση: καθαρίζει σχέδιο, στοιχεία, σενάρια" style="color:#C43A2B;border-color:#C43A2B44;flex:0 0 auto">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Νέα</button>
     </div>
     <p style="font-size:11px;color:var(--ink2);margin-top:7px;display:none" id="kaekChip"></p>
   </div>
@@ -513,6 +522,21 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <script src="kenak-dxf.js"></script>
 <script>
 'use strict';
+/* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
+   ώστε να ΜΗΝ πέσει το init — και ειδοποίησε για ανανέωση. */
+(function(){
+  const K=self.KENAK_DATA||window.KENAK_DATA;
+  if(!K)return;
+  let stale=false;
+  if(!K.umaxRenovation){stale=true;
+    K.umaxRenovation={roof:[0.50,0.45,0.40,0.35],wall:[0.60,0.50,0.45,0.40],
+      pilotis:[0.50,0.45,0.40,0.35],window:[3.20,3.00,2.80,2.60],
+      pilotisUByEra:{pre1979:3.05,y1979_2010:0.95,post2010:0.45}};}
+  if(!K.systemsExtra)stale=true;
+  if(stale)setTimeout(function(){
+    try{showErr('Παλιά έκδοση kenak-data.js στην cache — κάνε Ctrl+F5 (ή ανέβασε το νέο αρχείο).');}catch(e){}
+  },800);
+})();
 /* ============================================================
    ΓΕΩΜΕΤΡΙΑ: κορυφές + προαιρετικό τόξο ανά πλευρά (bulge όπως DXF)
    bulge b = tan(θ/4), θ = επίκεντρη γωνία. b>0 κυρτό αριστερά της φοράς.
@@ -585,12 +609,50 @@ let flrPolys=[], flrMode=false, fpts=[];
 function snapZone(pw){
   const R=Math.max(0.10,12/cell);   /* 0,10 m — με ελάχιστο 12px για να πιάνεται σε σμίκρυνση */
   let best=R,bp=null;
-  for(const v of verts){const d=dist(pw,v);if(d<best){best=d;bp=v;}}
-  return bp?[bp[0],bp[1]]:pw;
+  for(const v of verts){const d=dist(pw,v);if(d<best){best=d;bp=[v[0],v[1]];}}
+  if(bp)return bp;                   /* προτεραιότητα: κορυφές */
+  /* μετά: προβολή στην πλησιέστερη ΑΚΜΗ της ζώνης (μαγνήτης στην επιφάνεια) */
+  const n=verts.length;
+  for(let i=0;i<n;i++){
+    const A=verts[i],B=verts[(i+1)%n];
+    const dx=B[0]-A[0],dy=B[1]-A[1],L2=dx*dx+dy*dy;if(L2<1e-12)continue;
+    const t=Math.max(0,Math.min(1,((pw[0]-A[0])*dx+(pw[1]-A[1])*dy)/L2));
+    const q=[A[0]+t*dx,A[1]+t*dy],d=Math.hypot(pw[0]-q[0],pw[1]-q[1]);
+    if(d<best){best=d;bp=q;}
+  }
+  return bp||pw;
 }
 /* Σχεδίαση στοιχείων με το χέρι: εξώστες/τέντες/εμπόδια/ΜΘΧ/ΙΚΕΕ (πολύγωνα όπως η οροφή) */
-let ovMode=null, opts2=[];
+let ovMode=null, opts2=[], ovDrag=null;
 const OVNAMES={skiaseis:'Εξώστης/πρόβολος',tentes:'Τέντα',empodia:'Εμπόδιο',mtx:'ΜΘΧ',ikee:'ΙΚΕΕ'};
+function ovHitVertex(pw){
+  const R=Math.max(0.15,14/cell);
+  const L=ov[ovMode]||[];
+  for(let pi=0;pi<L.length;pi++){const pl=L[pi];if(!pl.pts)continue;
+    for(let vi=0;vi<pl.pts.length;vi++)
+      if(dist(pw,pl.pts[vi])<R)return {pi,vi};}
+  return null;
+}
+function ovHitEdge(pw){
+  const R=Math.max(0.15,12/cell);
+  const L=ov[ovMode]||[];
+  for(let pi=0;pi<L.length;pi++){const pl=L[pi];if(!pl.pts)continue;
+    const n=pl.pts.length;
+    for(let ei=0;ei<n;ei++){
+      const A=pl.pts[ei],B=pl.pts[(ei+1)%n];
+      const dx=B[0]-A[0],dy=B[1]-A[1],L2=dx*dx+dy*dy;if(L2<1e-9)continue;
+      const t=Math.max(0,Math.min(1,((pw[0]-A[0])*dx+(pw[1]-A[1])*dy)/L2));
+      if(Math.hypot(pw[0]-A[0]-t*dx,pw[1]-A[1]-t*dy)<R)return {pi,ei};
+    }}
+  return null;
+}
+function askOvLen(hit){
+  editIdx=hit;editKind='ovLen';
+  const pl=ov[ovMode][hit.pi],A=pl.pts[hit.ei],B=pl.pts[(hit.ei+1)%pl.pts.length];
+  openDlg('Μήκος πλευράς '+OVNAMES[ovMode],
+    'Πλευρά '+(hit.ei+1)+' · τώρα '+dist(A,B).toFixed(2)+' m — κλιμακώνεται το τέλος της.',
+    dist(A,B).toFixed(2));
+}
 function ovPointer(pw){
   /* Εμπόδιο: πάτημα ΜΕΣΑ σε υπάρχον (πριν αρχίσεις νέο) = αλλαγή ύψους */
   if(ovMode==='empodia'&&!opts2.length){
@@ -783,6 +845,24 @@ function draw(){
     ctx.fillStyle='#0E7490';ctx.font='700 10px system-ui';ctx.textAlign='center';
     ctx.fillText('ΟΡΟΦΗ '+polyArea(rp).toFixed(1)+'m²',S3[0],S3[1]);ctx.textAlign='left';
   }
+  if(ovMode){
+    /* διαστάσεις πλευρών στα υπάρχοντα πολύγωνα του ενεργού layer */
+    const colA=OVSTYLE[ovMode][0];
+    for(const pl of (ov[ovMode]||[])){
+      if(!pl.pts)continue;
+      const n2=pl.pts.length;
+      for(let i2=0;i2<n2;i2++){
+        const A=pl.pts[i2],B=pl.pts[(i2+1)%n2],L2=dist(A,B);
+        if(L2<0.15)continue;
+        const mp=w2s([(A[0]+B[0])/2,(A[1]+B[1])/2]);
+        ctx.fillStyle='#fff';ctx.fillRect(mp[0]-19,mp[1]-8,38,13);
+        ctx.fillStyle=colA;ctx.font='600 10px ui-monospace,Menlo,monospace';
+        ctx.textAlign='center';ctx.fillText(L2.toFixed(2),mp[0],mp[1]+3);ctx.textAlign='left';
+      }
+      for(const q of pl.pts){const S2=w2s(q);
+        ctx.fillStyle=colA;ctx.beginPath();ctx.arc(S2[0],S2[1],4.5,0,7);ctx.fill();}
+    }
+  }
   if(ovMode&&opts2.length){
     const col=OVSTYLE[ovMode][0];
     ctx.beginPath();
@@ -901,7 +981,21 @@ cv.addEventListener('pointerdown',e=>{
     hint('Σύρε για να δείξεις τον Βορρά');
     return;
   }
-  if(typeof ovMode!=='undefined'&&ovMode){ovPointer(s2w(e.clientX,e.clientY));return;}
+  if(typeof ovMode!=='undefined'&&ovMode){
+    const w0=s2w(e.clientX,e.clientY);
+    if(!opts2.length){
+      const hv=ovHitVertex(w0);
+      if(hv){ovDrag=hv;return;}                    /* σύρσιμο κορυφής */
+      const he=ovHitEdge(w0);
+      if(he){askOvLen(he);return;}                 /* διάσταση πλευράς */
+    }
+    let w=snapZone(w0);                            /* μαγνήτης σε κορυφές+ακμές ζώνης */
+    if((ortho||SHIFT)&&opts2.length&&w===w0){      /* axis-lock όταν ΔΕΝ κούμπωσε */
+      const L=opts2[opts2.length-1];
+      if(Math.abs(w[0]-L[0])<Math.abs(w[1]-L[1]))w=[L[0],w[1]];else w=[w[0],L[1]];
+    }
+    ovPointer(w);return;
+  }
   if(typeof flrMode!=='undefined'&&flrMode){flrPointer(s2w(e.clientX,e.clientY));return;}
   if(typeof roofMode!=='undefined'&&roofMode){roofPointer(s2w(e.clientX,e.clientY));return;}
   if(typeof koufMode!=='undefined'&&koufMode){const w=s2w(e.clientX,e.clientY);if(koufPointer('down',w))return;}
@@ -918,6 +1012,11 @@ cv.addEventListener('pointerdown',e=>{
 });
 cv.addEventListener('pointermove',e=>{
   if(compassDrag){setNorthFromPointer(e.clientX,e.clientY);return;}
+  if(ovDrag&&ovMode){
+    const pl=ov[ovMode][ovDrag.pi];
+    if(pl)pl.pts[ovDrag.vi]=snapZone(s2w(e.clientX,e.clientY));
+    draw();return;
+  }
   if(typeof koufMode!=='undefined'&&koufMode&&kDraft){koufPointer('move',s2w(e.clientX,e.clientY));return;}
   if(!down)return;
   const dd=Math.hypot(e.clientX-down[0],e.clientY-down[1]);
@@ -935,6 +1034,7 @@ cv.addEventListener('pointermove',e=>{
     down=[e.clientX,e.clientY];draw();}
 });
 cv.addEventListener('pointerup',e=>{
+  if(ovDrag){ovDrag=null;draw();if(closed)report(false);pSave();return;}
   if(compassDrag){compassDrag=false;if(closed)report(false);
     hint('Βορράς: '+document.getElementById('north').value+'°');return;}
   if(typeof koufMode!=='undefined'&&koufMode){if(koufPointer('up',s2w(e.clientX,e.clientY)))return;}
@@ -1011,6 +1111,16 @@ document.getElementById('dlgOk').onclick=()=>{
   const v=parseFloat(document.getElementById('dlgVal').value.replace(',','.'));
   document.getElementById('mask').classList.remove('on');
   if(editKind==='hgt'){segH[editIdx]=(isNaN(v)||v<=0)?0:v;draw();return;}
+  if(editKind==='ovLen'){
+    const pl=ov[ovMode]&&ov[ovMode][editIdx.pi];
+    if(pl){
+      const A=pl.pts[editIdx.ei],bi2=(editIdx.ei+1)%pl.pts.length,B=pl.pts[bi2],L=dist(A,B);
+      if(v>0.05&&L>1e-9){const k2=v/L;
+        pl.pts[bi2]=[A[0]+(B[0]-A[0])*k2,A[1]+(B[1]-A[1])*k2];}
+      draw();if(closed)report(false);pSave();
+    }
+    return;
+  }
   if(editKind==='obsH'){
     if(ov.empodia[editIdx]){
       if(isNaN(v)||v<=0)delete ov.empodia[editIdx].h;
@@ -2298,6 +2408,11 @@ function kaekChipSync(){
      (+kSel.lat).toFixed(6)+', '+(+kSel.lon).toFixed(6)):'Δεν έχει επιλεγεί γεωτεμάχιο';
 }
 document.getElementById('kaekBtn2').onclick=()=>document.getElementById('kaekBtn').onclick();
+document.getElementById('newBtn').onclick=()=>{
+  if(!confirm('ΝΕΑ ΕΠΙΘΕΩΡΗΣΗ: θα διαγραφούν σχέδιο, όροφοι, κουφώματα, στοιχεία έργου και σενάρια. Συνέχεια;'))return;
+  try{localStorage.removeItem(PSTORE);localStorage.removeItem('hexis-kenak-panel');}catch(e){}
+  location.reload();
+};
 
 /* -------- συστήματα: dropdowns ΜΟΝΟ από αναγνωρισμένα -------- */
 function fillSysSelects(){
@@ -2637,7 +2752,9 @@ document.getElementById('viewBtn2').onclick=()=>document.getElementById('viewBtn
     'ΖΝΧ χωρίς σύστημα: σύστημα κτιρίου αναφοράς χωρίς το ηλιακό 15%. '+
     'Θερμογέφυρες: προ 1979 αμελητέες · 1979-2010 +0,10 W/m²K αυτόματα.';
 })();
-fillSysSelects();pLoad();ownerSyncPull();floorsInit();floorChip();
+try{fillSysSelects();}catch(e){console.error('fillSysSelects',e);}
+try{pLoad();}catch(e){console.error('pLoad',e);}
+try{ownerSyncPull();floorsInit();floorChip();}catch(e){console.error('floors',e);}
 document.getElementById('sysSug').onclick=sysApplySuggested;
 ['s_heat','s_heatT','s_heatS','s_heatE','s_cool','s_coolT','s_coolE','year','use'].forEach(id=>{
   const el=document.getElementById(id);if(el)el.addEventListener('change',sysCheckRender);});
