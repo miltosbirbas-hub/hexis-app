@@ -401,7 +401,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<span class="betaTag">BETA</span><small>ενεργειακή επιθεώρηση · v2.45</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<span class="betaTag">BETA</span><small>ενεργειακή επιθεώρηση · v2.46</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -492,7 +492,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   <div class="sec">
     <h5>Κατασκευή</h5>
     <div class="fields" style="grid-template-columns:repeat(5,1fr)">
-      <div><label>Χρήση</label><select id="use"><option value="residential">Κατοικία</option><option value="tertiary">Τριτογενής</option></select></div>
+      <div class="full" style="grid-column:1/-1"><label title="Πλήρης πίνακας χρήσεων ΤΟΤΕΕ 20701-1 — καθορίζει ωράριο, νωπό αέρα, κέρδη και τη χρήση ζώνης στο XML">Χρήση</label><select id="use"></select></div>
       <div><label>Κλ. ζώνη <a href="#" onclick="zoneFromLocation();return false" style="font-size:9.5px;color:var(--brb)" title="Αυτόματα από τη διεύθυνση έργου ή τη θέση ΚΑΕΚ">αυτόματα;</a></label><select id="czone" title="Κλιματική ζώνη ΤΟΤΕΕ 20701-1 — Λευκάδα/Αιτωλοακαρνανία: Β">
         <option value="A">Α</option><option value="B" selected>Β</option>
         <option value="C">Γ</option><option value="D">Δ</option></select></div>
@@ -802,9 +802,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=65"></script>
-<script src="kenak-xml.js?v=65"></script>
-<script src="kenak-dxf.js?v=65"></script>
+<script src="kenak-data.js?v=66"></script>
+<script src="kenak-xml.js?v=66"></script>
+<script src="kenak-dxf.js?v=66"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -2296,7 +2296,7 @@ function makeSketchPDF(){
     x.fillStyle='#16202B';F(x,10,600);x.fillText(t,40*S3,62*S3);
     x.fillStyle='#5A6875';F(x,8,500);
     x.fillText(new Date().toLocaleDateString('el-GR')+' · χρήση: '+
-      KENAK_DATA.uses[document.getElementById('use').value].label+
+      KENAK_DATA.uses[useSector()].label+' ('+useLabel()+')'+
       ' · έτος '+document.getElementById('year').value,40*S3,74*S3);
     x.strokeStyle='#1F4E9C';x.lineWidth=1.4*S3;
     x.beginPath();x.moveTo(40*S3,80*S3);x.lineTo(555*S3,80*S3);x.stroke();
@@ -2476,8 +2476,8 @@ function makeSketchPDF(){
         row(r[1]+' · '+r[2]+'° · U '+r[6]+(o&&o.beta>0.05?' · β '+N(o.beta,1)+'°'+(o.tent?' (τέντα)':''):''),r[4]+' m²');});
       row('ΣΥΝΟΛΟ',T.transparent.reduce((t,r)=>t+parseFloat(r[4]),0).toFixed(2)+' m²',true);
     }else row('— δεν έχουν εισαχθεί κουφώματα —','');
-    sec2('ΣΥΣΤΗΜΑΤΑ — ΥΠΟΧΡΕΩΣΕΙΣ ΤΟΤΕΕ ('+KENAK_DATA.uses[document.getElementById('use').value].label+')');
-    const U2=KENAK_DATA.uses[document.getElementById('use').value]||KENAK_DATA.uses.residential;
+    sec2('ΣΥΣΤΗΜΑΤΑ — ΥΠΟΧΡΕΩΣΕΙΣ ΤΟΤΕΕ ('+KENAK_DATA.uses[useSector()].label+')');
+    const U2=KENAK_DATA.uses[useSector()]||KENAK_DATA.uses.residential;
     row('Ψύξη: χωρίς εγκατεστημένο σύστημα -> θεωρητικό '+U2.theoreticalCooling.type,
         'SEER '+U2.theoreticalCooling.seer+' · κάλυψη '+U2.theoreticalCooling.coverage);
     row('Μηχανικός αερισμός',U2.mechVent.required?'ΑΠΑΙΤΕΙΤΑΙ (Πίν. 2.3)':'δεν απαιτείται');
@@ -2533,8 +2533,7 @@ document.getElementById('xmlBtn').onclick=async()=>{
   /* κάλυψη ανά μήνα: AB θέρμ. Νοε-15/4 -> [1,1,1,1(μισός Απρ),0,0,0,0,0,0,1,1] · CD 15/10-30/4
      ψύξη: AB 15/5-15/9 -> Μάι-Σεπ · CD Ιουν-Αυγ · κατοικία κάλυψη 0,5 / τριτογενής 1,0 (θεωρητικό ΤΟΤΕΕ) */
   const heatCover=seas==='AB'?[1,1,1,1,0,0,0,0,0,0,1,1]:[1,1,1,1,0,0,0,0,0,1,1,1];
-  const useV=document.getElementById('use').value;
-  const cc=useV==='residential'?0.5:1.0;
+  const cc=useSector()==='residential'?0.5:1.0;
   const coolCover=seas==='AB'?[0,0,0,0,cc,cc,cc,cc,cc,0,0,0]:[0,0,0,0,0,cc,cc,cc,0,0,0,0];
   const isHP=/Α\.Θ\.|Γεωθερμ/i.test(document.getElementById('s_heatT').value);
   const isEl=/ηλεκτρικές/i.test(document.getElementById('s_heatT').value);
@@ -2580,7 +2579,7 @@ document.getElementById('xmlBtn').onclick=async()=>{
         ((kSel&&kSel.kaek)?(', ΚΑΕΚ '+kSel.kaek+' ('+(+kSel.lat).toFixed(6)+','+(+kSel.lon).toFixed(6)+')'):'')},
     building:{A:q.A,V:q.V,floors:q.nf,hTot:q.hTot,name:'ΚΤΙΡΙΟ',
       scenario:'HEXIS',title:'Υπάρχον κτίριο'},
-    zone:{A:q.A},
+    zone:{A:q.A,use:useName()},
     opaque, ground, transparent:T.transparent,
     scenarios:SCN.map(sc=>({
       /* ΑΝΤΙΓΡΑΦΟ επιθεωρούμενου με τις παρεμβάσεις του μηχανικού: */
@@ -3383,6 +3382,10 @@ function pLoad(){
   if(!o)return;
   for(const id of PFIELDS){const el=document.getElementById(id);
     if(el&&o[id]!==undefined){if(el.type==='checkbox')el.checked=!!o[id];else el.value=o[id];}}
+  /* μετάπτωση από το παλιό διπλό select (v2.45-) */
+  const uSel=document.getElementById('use');
+  if(uSel&&(o.use==='residential'||o.use==='tertiary')){uSel.value=o.use==='residential'?'r0':'u40';}
+  if(uSel&&!uSel.value)uSel.value='r0';
   if(o.kaek&&o.kaek.kaek){kSel=o.kaek;kSel.base=String(kSel.kaek).split('/')[0];kaekChipSync();}
   SCN=Array.isArray(o.scn)?o.scn:[];scnRender();
   RWIN=Array.isArray(o.rwin)?o.rwin:[];try{rwRender();}catch(e){}
@@ -3451,6 +3454,26 @@ document.getElementById('newBtn').onclick=()=>{
   location.reload();
 };
 
+/* -------- ΧΡΗΣΗ ΚΤΙΡΙΟΥ: πλήρης πίνακας ΤΟΤΕΕ 20701-1 --------
+   Τιμές select: r0=Μονοκατοικία, r1=Πολυκατοικία (και οι δύο -> προφίλ γραμμής 0
+   «Μονοκατοικία, πολυκατοικία»), u1..u41 = τριτογενής κατά τον αύξοντα του πίνακα. */
+function useSector(){const v=document.getElementById('use').value||'r0';return v[0]==='u'?'tertiary':'residential';}
+function useIdx(){const v=document.getElementById('use').value||'r0';return v[0]==='u'?Math.max(1,Math.min(41,+v.slice(1)||1)):0;}
+function useName(){ /* ΕΠΙΣΗΜΗ ονομασία χρήσης ΤΟΤΕΕ — αυτή γράφεται στο zn_parameter1 του XML */
+  return KENAK_DATA.totee1_2017.uses[useIdx()]||'Μονοκατοικία, πολυκατοικία';}
+function useLabel(){ /* ετικέτα εμφάνισης (ξεχωρίζει μονοκατοικία/πολυκατοικία) */
+  const v=document.getElementById('use').value||'r0';
+  return v==='r0'?'Μονοκατοικία':v==='r1'?'Πολυκατοικία':useName();}
+function fillUseSelect(){
+  const el=document.getElementById('use');if(!el||el.options.length)return;
+  const U=KENAK_DATA.totee1_2017.uses;
+  let h='<optgroup label="Κατοικία"><option value="r0">Μονοκατοικία</option>'+
+        '<option value="r1">Πολυκατοικία</option></optgroup><optgroup label="Τριτογενής τομέας">';
+  for(let i=1;i<U.length;i++)h+='<option value="u'+i+'">'+U[i]+'</option>';
+  el.innerHTML=h+'</optgroup>';el.value='r0';
+}
+fillUseSelect();
+
 /* -------- συστήματα: dropdowns ΜΟΝΟ από αναγνωρισμένα -------- */
 function fillSysSelects(){
   const mk=(id,list)=>{const el=document.getElementById(id);
@@ -3459,7 +3482,7 @@ function fillSysSelects(){
   mk('s_heatT',KENAK_DATA.teeSW.heatGenTypes);   /* επίσημος κατάλογος ΤΕΕ-ΚΕΝΑΚ 1.31 */
   mk('s_heatS',KENAK_DATA.teeSW.energySources);
   mk('s_coolT',KENAK_DATA.recognizedSystems.coolingProduction);
-  const U2=KENAK_DATA.uses[document.getElementById('use').value]||KENAK_DATA.uses.residential;
+  const U2=KENAK_DATA.uses[useSector()]||KENAK_DATA.uses.residential;
   document.getElementById('sysNote').textContent=
     'Χωρίς σύστημα ψύξης -> θεωρητικό κατά ΤΟΤΕΕ: SEER '+U2.theoreticalCooling.seer+
     ', κάλυψη '+U2.theoreticalCooling.coverage+'. '+U2.mechVent.note;
@@ -3595,12 +3618,12 @@ function estClass(sc){
   const dhwHP=/Αντλία/i.test(dT),dhwBoil=/Λέβητας/i.test(dT);
   const solA=+document.getElementById('s_solA').value||0;
   const solCov=Math.min(0.7,solA>0?0.15+solA*0.18:0);
-  const Qd=document.getElementById('use').value==='residential'?20:12;
+  const Qd=useSector()==='residential'?20:12;
   const EPd0=Qd*(1-solCov)*(dhwBoil?FP.oil:FP.el)/(dhwHP?Math.max(1.5,dE):dE);
   const EPdR=Qd*0.85*FP.oil/0.935;
   /* κοινός όρος ψύξης+βοηθητικών (θεωρητικό σύστημα ~ ίδιο και στα δύο):
      χωρίς αυτόν ο λόγος T βγαίνει τεχνητά δυσμενής στα αμόνωτα */
-  const EPcom=document.getElementById('use').value==='residential'?18:35;
+  const EPcom=useSector()==='residential'?18:35;
   const EP0=EPh0+EPd0+EPcom, EPr=Math.max(1,EPhR+EPdR+EPcom);
   const T=EP0/EPr;
   let ci=CLASS_T.length-1;
@@ -3961,7 +3984,7 @@ function heatLoadCalc(){
   if(Tb.ground[0])UA+=(+Tb.ground[0][2]||0)*(+Tb.ground[0][3]||0)*0.5;
   const zone=document.getElementById('czone').value||'B';
   const DT={A:15,B:18,C:22,D:25}[zone]||18;         /* 20°C − Τσχεδ.εξωτ. ζώνης */
-  const nAch=document.getElementById('use').value==='residential'?0.7:1.0;
+  const nAch=useSector()==='residential'?0.7:1.0;
   const Uv=0.34*nAch*q.V;                            /* W/K αερισμού */
   const P=(UA+Uv)*DT*1.25/1000;
   const Pr=Math.max(4,Math.ceil(P*2)/2);             /* στρογγυλά 0,5 kW */
@@ -3980,8 +4003,7 @@ function sysSuggest(){
   const year=+document.getElementById('year').value||1985;
   const era=year<1990?'pre1990':(year<=2000?'y1990_2000':'post2001');
   const eraTxt=year<1990?'προ 1990':(year<=2000?'1990-2000':'μετά το 2001');
-  const use=document.getElementById('use').value||'residential';
-  const res=use==='residential';
+  const res=useSector()==='residential';
   return {D,year,era,eraTxt,res,
     scop:D.heatPumpSCOP.byYearNoData[era],
     seer:D.coolingSEER.byYearNoData[era],
@@ -4131,7 +4153,7 @@ document.getElementById('sysRef').onclick=()=>{
      Θέρμανση: κεντρικός λέβητας πετρελαίου η=0,935 · δίκτυο 0,95 · τερματικά 0,95
      Ψύξη: τοπικές ΑΘ SEER 3,0 (αναφοράς) — χωρίς σύστημα: θεωρητικό 1,7/2,2
      ΖΝΧ: λέβητας κοινός με θέρμανση + ηλιακό 15% της ζήτησης */
-  const res=document.getElementById('use').value==='residential';
+  const res=useSector()==='residential';
   document.getElementById('s_heat').checked=true;
   document.getElementById('s_heatT').value='Λέβητας';
   const sr=document.getElementById('s_heatS');if(sr)sr.value='Πετρέλαιο θέρμανσης';
