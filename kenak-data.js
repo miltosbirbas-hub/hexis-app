@@ -292,6 +292,13 @@ var KENAK_DATA = {
     var A,tab;
     if(kind==='horizon'){A=T.anglesHor;tab=T.horizon[g];}
     else if(kind==='overhang'){A=T.anglesOv;tab=T.overhang[g];}
+    else if(kind==='finL'||kind==='finR'){
+      /* Πίν.3.21α/β: finLeft/finRight[angleIdx][orientIdx] κατά finOrients */
+      var oi=T.finOrients.indexOf(sectorName); if(oi<0)oi=0;
+      A=T.anglesFin;
+      var M=(kind==='finL'?T.finLeft:T.finRight);
+      tab=A.map(function(_,ai){return M[ai][oi];});
+    }
     else return [1,1];
     var a=Math.max(A[0],Math.min(A[A.length-1],angle));
     for(var i=1;i<A.length;i++)if(a<=A[i]){
