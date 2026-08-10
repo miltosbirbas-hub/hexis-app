@@ -364,6 +364,9 @@ label > input[type=checkbox]{width:46px!important;margin-right:9px!important}
 .sproj .sp-foot .betatag{font-size:8px;padding:0 4px}
 @media print{ #printarea .pbeta{border:1pt dashed #B4801F;background:#FFF8EA!important;color:#6B4C0E!important;
  padding:2mm 3mm;border-radius:1.5mm;font-size:8.5pt;margin:0 0 3mm;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important} }
+
+.freetag{display:inline-block;background:#2F7D4F;color:#EAFBF0;border-radius:4px;padding:0 5px;margin-left:3px;
+ font-size:8.5px;font-weight:900;letter-spacing:.07em;vertical-align:1px}
 </style>
 </head>
 <body>
@@ -371,6 +374,16 @@ label > input[type=checkbox]{width:46px!important;margin-right:9px!important}
 /* ===== HEXIS HUB GATE — έλεγχος entitlement (kostos) ===== */
 (function(){
   var MODULE = 'kostos';
+  /* ===== v1.50 BETA — ΧΩΡΙΣ ΧΡΕΩΣΗ =====================================
+     BETA_FREE : true  → δεν ελέγχεται entitlement. Αρκεί σύνδεση στο HEXIS.
+                         Δεν δεσμεύεται θέση συσκευής (register_device) —
+                         οι 4 θέσεις μένουν για τα εργαλεία με συνδρομή.
+     BETA_OPEN : true  → ούτε σύνδεση δεν απαιτείται (τελείως ανοιχτό, π.χ. demo).
+     Λήξη BETA: γύρισε και τα δύο σε false και το εργαλείο επανέρχεται
+                αυτόματα στο κανονικό entitlement 'kostos'.
+     ==================================================================== */
+  var BETA_FREE = true;
+  var BETA_OPEN = false;
   var SB = 'https://oucqqudfdimccgowvpqp.supabase.co';
   var KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
   var CK = 'hx_gate_' + MODULE, TTL = 7 * 864e5; // offline χάρη 7 ημερών μετά από επιτυχή έλεγχο
@@ -379,6 +392,7 @@ label > input[type=checkbox]{width:46px!important;margin-right:9px!important}
     document.documentElement.style.visibility = '';
     try{ localStorage.setItem(CK, String(Date.now())); }catch(e){}
     try{
+      if(!tok) return;
       var pl = JSON.parse(atob(tok.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
       fetch(SB + '/rest/v1/user_activity', {
         method: 'POST',
@@ -422,7 +436,9 @@ label > input[type=checkbox]{width:46px!important;margin-right:9px!important}
   var raw = null; try{ raw = localStorage.getItem('sb-oucqqudfdimccgowvpqp-auth-token'); }catch(e){}
   var tok = '';
   if (raw) { try{ var s = JSON.parse(raw); tok = s.access_token || (s.currentSession && s.currentSession.access_token) || ''; }catch(e){} }
+  if (BETA_OPEN) { allow(); return; }                 // τελείως ανοιχτό
   if (!tok) { deny('login.html'); return; }
+  if (BETA_FREE) { allow(); return; }                 // δωρεάν BETA: αρκεί η σύνδεση, χωρίς entitlement
   fetch(SB + '/rest/v1/entitlements?select=module,active,expires_at&module=eq.' + MODULE, {
     headers: { apikey: KEY, Authorization: 'Bearer ' + tok }
   }).then(function(r){
@@ -443,7 +459,7 @@ label > input[type=checkbox]{width:46px!important;margin-right:9px!important}
  <aside id="side">
   <div class="sbrand">
    <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" rx="9" fill="#14213D"/><polygon points="24,4.5 40.9,14.2 40.9,33.8 24,43.5 7.1,33.8 7.1,14.2" fill="none" stroke="#8FB4EE" stroke-width="3" stroke-linejoin="round"/><text x="24" y="32" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="21" font-weight="800" fill="#FFFFFF">€</text></svg>
-   <div class="st"><b>HEXIS <i>ΚΟΣΤΟΣ</i> <span class="betatag">BETA</span></b><small>ΑΔΕΙΑΣ ΔΟΜΗΣΗΣ <span id="ver"></span></small></div>
+   <div class="st"><b>HEXIS <i>ΚΟΣΤΟΣ</i> <span class="betatag">BETA</span><span class="freetag">ΔΩΡΕΑΝ</span></b><small>ΑΔΕΙΑΣ ΔΟΜΗΣΗΣ <span id="ver"></span></small></div>
   </div>
   <button type="button" class="sfiles" id="projBtn" title="Αποθήκευση / φόρτωση έργων">
    <span class="sf-ico">📁</span><span>Έργα</span><span class="badge" id="projCount">0</span>
@@ -468,7 +484,7 @@ label > input[type=checkbox]{width:46px!important;margin-right:9px!important}
  <section id="work">
   <div id="betabar">
    <span>⚠️</span>
-   <span><b>Δοκιμαστική έκδοση (BETA).</b> Οι υπολογισμοί βαθμονομήθηκαν σε πραγματικές υποβολές e-Άδειες, αλλά <b>επαλήθευσε πάντα</b> τα ποσά πριν τα δώσεις σε πελάτη ή τα υποβάλεις. Σχόλια/σφάλματα: brb.develop@gmail.com</span>
+   <span><b>Δοκιμαστική έκδοση (BETA) — χωρίς χρέωση.</b> Το εργαλείο είναι ελεύθερο για όλους τους χρήστες του HEXIS όσο διαρκεί η δοκιμαστική περίοδος. Οι υπολογισμοί βαθμονομήθηκαν σε πραγματικές υποβολές e-Άδειες, αλλά <b>επαλήθευσε πάντα</b> τα ποσά πριν τα δώσεις σε πελάτη ή τα υποβάλεις. Σχόλια &amp; σφάλματα: brb.develop@gmail.com</span>
    <button type="button" class="bclose" id="betaX" title="Απόκρυψη για αυτή τη συνεδρία">✕</button>
   </div>
   <div id="workhead">
@@ -2364,7 +2380,7 @@ function phead(sub){
   <svg class="plogo" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" rx="9" fill="#14213D"/><polygon points="24,4.5 40.9,14.2 40.9,33.8 24,43.5 7.1,33.8 7.1,14.2" fill="none" stroke="#8FB4EE" stroke-width="3" stroke-linejoin="round"/><text x="24" y="32" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="21" font-weight="800" fill="#FFFFFF">€</text></svg>
   <div><div class="pt1">HEXIS <span>ΚΟΣΤΟΣ ΑΔΕΙΑΣ</span></div>
   <div class="pt2">${esc(sub)} — hexis-app.gr · ${new Date().toLocaleDateString("el-GR")}</div></div></div>` +
-  (BETA ? `<div class="pbeta"><b>ΔΟΚΙΜΑΣΤΙΚΗ ΕΚΔΟΣΗ (BETA) — ${esc(VER)}.</b> Τα ποσά είναι εκτιμήσεις· επαληθεύστε τα πριν από κάθε επίσημη χρήση, υποβολή ή υπογραφή.</div>` : "");
+  (BETA ? `<div class="pbeta"><b>ΔΟΚΙΜΑΣΤΙΚΗ ΕΚΔΟΣΗ (BETA), διατίθεται χωρίς χρέωση — ${esc(VER)}.</b> Τα ποσά είναι εκτιμήσεις· επαληθεύστε τα πριν από κάθε επίσημη χρήση, υποβολή ή υπογραφή.</div>` : "");
 }
 function ergoline(){
  const e=D.ergo;
