@@ -35,7 +35,7 @@
    Το sw.js (importScripts) και το app.html τη διαβάζουν από εδώ.
    ΔΕΝ γράφεται πουθενά αλλού.
    ============================================================ */
-var VERSION = 'v4.39';
+var VERSION = 'v4.40';
 
 var BRB_TERRAIN_URL = 'https://miltosbirbas-hub.github.io/BRB-contour-live/';
 
@@ -159,3 +159,39 @@ g.HEXIS_ICONS = ICONS;
 g.HEXIS_TERRAIN_URL = BRB_TERRAIN_URL;
 
 })(typeof self !== 'undefined' ? self : this);
+
+/* ============================================================
+   AUTO-ICON (v4.40): αντικατάσταση του ⚡ της κάρτας ΚΕΝΑΚ με το
+   SVG εικονίδιο (icoSvg) ΧΩΡΙΣ καμία αλλαγή στο hub.html.
+   Σαρώνει για στοιχεία-φύλλα με κείμενο ακριβώς «⚡» και βάζει το SVG.
+   Ξαναπροσπαθεί έως 6" (αν το hub κάνει async render).
+   ============================================================ */
+(function(){
+  if(typeof document==='undefined')return;
+  var K=null;
+  try{
+    var L=(typeof HEXIS_TOOLS!=='undefined')?HEXIS_TOOLS:
+      ((typeof self!=='undefined'&&self.HEXIS_TOOLS)||(typeof window!=='undefined'&&window.HEXIS_TOOLS)||[]);
+    K=L.filter(function(t){return t.id==='kenak'&&t.icoSvg;})[0];
+  }catch(e){}
+  if(!K)return;
+  var tries=0;
+  function put(){
+    tries++;
+    var done=false;
+    var all=document.body?document.body.getElementsByTagName('*'):[];
+    for(var i=0;i<all.length;i++){
+      var el=all[i];
+      if(el.children.length===0&&el.textContent&&el.textContent.trim()==='⚡'){
+        el.innerHTML=K.icoSvg;
+        var sv=el.querySelector('svg');
+        if(sv){sv.style.width='100%';sv.style.height='100%';sv.style.display='block';}
+        done=true;
+      }
+    }
+    if(!done&&tries<12)setTimeout(put,500);
+  }
+  if(document.readyState==='loading')
+    document.addEventListener('DOMContentLoaded',function(){setTimeout(put,50);});
+  else setTimeout(put,50);
+})();
