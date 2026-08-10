@@ -269,7 +269,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 
 <div class="top">
   <a class="home" href="hub.html">‹ Εργαλεία</a>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.11</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.12</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -501,6 +501,12 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   <h4 id="dlgTitle">Μήκος πλευράς</h4>
   <p id="dlgInfo"></p>
   <input id="dlgVal" type="text" inputmode="decimal" autocomplete="off">
+  <select id="dlgSel" style="display:none;margin-top:2px">
+    <option value="ground">Σε επαφή με ΕΔΑΦΟΣ</option>
+    <option value="air">Σε επαφή με ΑΕΡΑ (πυλωτή/πρόβολος)</option>
+    <option value="mtx">Πάνω από ΜΗ θερμαινόμενο χώρο (b=0,5)</option>
+    <option value="heated">Πάνω από ΘΕΡΜΑΙΝΟΜΕΝΟ χώρο (αδιαβατικό)</option>
+  </select>
   <div class="prow"><button class="pbtn" id="dlgNo">Άκυρο</button><button class="pbtn" id="dlgHgt" style="display:none">Ύψος…</button><button class="pbtn" id="dlgVtx" style="display:none">+ Κορυφή</button><button class="pbtn" id="dlgVtxDel" style="display:none;color:#C43A2B">− Κορυφή</button><button class="pbtn cta" id="dlgOk">Εφαρμογή</button></div>
 </div></div>
 
@@ -572,9 +578,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=31"></script>
-<script src="kenak-xml.js?v=31"></script>
-<script src="kenak-dxf.js?v=31"></script>
+<script src="kenak-data.js?v=32"></script>
+<script src="kenak-xml.js?v=32"></script>
+<script src="kenak-dxf.js?v=32"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -899,7 +905,17 @@ function draw(){
     ctx.font='700 11px ui-monospace,Menlo,monospace';ctx.fillStyle='#C43A2B';
     ctx.fillText('ΚΑΕΚ '+PARCEL.kaek+(PARCEL.area?' · '+(+PARCEL.area).toFixed(0)+' m²':''),t0[0]+6,t0[1]-6);
   }
-  /* τμήματα οροφής (υπόδειξη): γαλαζοπράσινο γέμισμα */
+  /* μέγεθος ετικετών εμβαδού: μεγαλώνει με το zoom (10-26 px) */
+  const areaFS=Math.max(10,Math.min(26,cell*0.35));
+  const areaLbl=(S2,txt,col,dy)=>{
+    ctx.font='700 '+areaFS+'px system-ui';
+    const w3=ctx.measureText(txt).width;
+    ctx.fillStyle='#ffffffd9';
+    ctx.fillRect(S2[0]-w3/2-4,S2[1]+dy-areaFS*0.85,w3+8,areaFS*1.25);
+    ctx.fillStyle=col;ctx.textAlign='center';
+    ctx.fillText(txt,S2[0],S2[1]+dy);ctx.textAlign='left';
+  };
+  /* τμήματα οροφής (υπόδειξη): γαλαζοπράσινο γέμισμα — ετικέτα ΠΑΝΩ από το κέντρο */
   for(const rp of roofPolys){
     ctx.beginPath();
     rp.pts.forEach((q,i2)=>{const S2=w2s(q);i2?ctx.lineTo(S2[0],S2[1]):ctx.moveTo(S2[0],S2[1]);});
@@ -907,8 +923,7 @@ function draw(){
     ctx.strokeStyle='#0E7490';ctx.lineWidth=1.6;ctx.setLineDash([7,4]);ctx.stroke();ctx.setLineDash([]);
     let cx3=0,cy3=0;rp.pts.forEach(q=>{cx3+=q[0];cy3+=q[1];});
     const S3=w2s([cx3/rp.pts.length,cy3/rp.pts.length]);
-    ctx.fillStyle='#0E7490';ctx.font='700 10px system-ui';ctx.textAlign='center';
-    ctx.fillText('ΟΡΟΦΗ '+polyArea(rp).toFixed(1)+'m²',S3[0],S3[1]);ctx.textAlign='left';
+    areaLbl(S3,'ΟΡΟΦΗ '+polyArea(rp).toFixed(1)+' m²','#0E7490',-areaFS*0.75);
   }
   if(ovMode){
     /* διαστάσεις πλευρών στα υπάρχοντα πολύγωνα του ενεργού layer */
@@ -947,8 +962,8 @@ function draw(){
     ctx.strokeStyle='#7A5230';ctx.lineWidth=1.6;ctx.setLineDash([7,4]);ctx.stroke();ctx.setLineDash([]);
     let cx4=0,cy4=0;fp.pts.forEach(q=>{cx4+=q[0];cy4+=q[1];});
     const S4=w2s([cx4/fp.pts.length,cy4/fp.pts.length]);
-    ctx.fillStyle='#7A5230';ctx.font='700 10px system-ui';ctx.textAlign='center';
-    ctx.fillText('ΕΔΑΦΟΣ '+polyArea(fp).toFixed(1)+'m²',S4[0],S4[1]);ctx.textAlign='left';
+    const FK={ground:'ΕΔΑΦΟΣ',air:'ΑΕΡΑΣ/ΠΥΛΩΤΗ',heated:'ΠΡΟΣ ΘΕΡΜΑΙΝ.',mtx:'ΠΡΟΣ ΜΘΧ'};
+    areaLbl(S4,'ΔΑΠΕΔΟ: '+(FK[fp.kind||'ground'])+' '+polyArea(fp).toFixed(1)+' m²','#7A5230',areaFS*0.95);
   }
   if(flrMode&&fpts.length){
     ctx.beginPath();
@@ -996,7 +1011,8 @@ function drawOverlays(){
       /* ετικέτα στο κέντρο κλειστών */
       if(pl.closed){let cx2=0,cy2=0;pl.pts.forEach(q=>{cx2+=q[0];cy2+=q[1];});
         const S=w2s([cx2/pl.pts.length,cy2/pl.pts.length]);
-        ctx.fillStyle=col;ctx.font='700 10px system-ui';ctx.textAlign='center';
+        const fs2=Math.max(10,Math.min(22,cell*0.3));
+        ctx.fillStyle=col;ctx.font='700 '+fs2+'px system-ui';ctx.textAlign='center';
         ctx.fillText(OVSTYLE[k][2]+(k==='empodia'&&pl.h>0?' H'+pl.h.toFixed(1):''),S[0],S[1]);ctx.textAlign='left';}
     }
   }
@@ -1159,10 +1175,19 @@ let editIdx=-1,editKind='len';
 function openDlg(t,info,val){
   const _bh=document.getElementById('dlgHgt'),_bv=document.getElementById('dlgVtx'),_bd=document.getElementById('dlgVtxDel');
   if(_bh){_bh.style.display='none';_bv.style.display='none';if(_bd)_bd.style.display='none';}
+  const sel=document.getElementById('dlgSel');if(sel)sel.style.display='none';
   document.getElementById('dlgTitle').textContent=t;
   document.getElementById('dlgInfo').textContent=info;
-  const v=document.getElementById('dlgVal');v.value=val;
+  const v=document.getElementById('dlgVal');v.style.display='';v.value=val;
   document.getElementById('mask').classList.add('on');setTimeout(()=>{v.focus();v.select();},60);}
+function askFlrKind(i){
+  editIdx=i;editKind='flrKind';
+  openDlg('Επαφή δαπέδου','Τι υπάρχει ΚΑΤΩ από αυτό το τμήμα δαπέδου; (πάτημα μέσα σε υπάρχον τμήμα το ξαναρωτά)','');
+  document.getElementById('dlgVal').style.display='none';
+  const sel=document.getElementById('dlgSel');
+  sel.style.display='';sel.value=(flrPolys[i]&&flrPolys[i].kind)||'ground';
+  setTimeout(()=>sel.focus(),60);
+}
 function askHgt(i){editIdx=i;editKind='hgt';
   const hT=(+document.getElementById('hfloor').value||3)*Math.max(1,+document.getElementById('floors').value||1);
   openDlg('Ύψος τοίχου πλευράς '+(i+1)+' (m)',
@@ -1204,6 +1229,13 @@ document.getElementById('dlgOk').onclick=()=>{
   const v=parseFloat(document.getElementById('dlgVal').value.replace(',','.'));
   document.getElementById('mask').classList.remove('on');
   if(editKind==='hgt'){segH[editIdx]=(isNaN(v)||v<=0)?0:v;draw();return;}
+  if(editKind==='flrKind'){
+    if(flrPolys[editIdx]){
+      flrPolys[editIdx].kind=document.getElementById('dlgSel').value||'ground';
+      hint('Δάπεδο '+(editIdx+1)+': '+document.getElementById('dlgSel').selectedOptions[0].textContent);
+    }
+    draw();if(closed)report(false);pSave();return;
+  }
   if(editKind==='ovArcR'){
     const pl=ov[ovMode]&&ov[ovMode][editIdx.pi];
     if(pl){
@@ -1508,10 +1540,21 @@ function envelopeCore(hfOne,withRoof,withFloor){
   const secNet=secArea.map((v,k)=>Math.max(0,v-openSec[k]));
   /* Οροφή με υπόδειξη: αν υπάρχουν πολύγωνα, μόνο αυτά μετρούν */
   const Aroof=(roofPolys&&roofPolys.length)?roofPolys.reduce((s2,rp)=>s2+polyArea({pts:rp.pts,bulges:rp.bulges||rp.pts.map(()=>0)}),0):A;
-  /* Δάπεδο με υπόδειξη: πολύγωνα = επαφή με ΕΔΑΦΟΣ, υπόλοιπο = πυλωτή/αέρας */
-  const Aground=(typeof flrPolys!=='undefined'&&flrPolys.length)?
-    Math.min(A,flrPolys.reduce((s2,fp)=>s2+polyArea({pts:fp.pts,bulges:fp.bulges||fp.pts.map(()=>0)}),0)):A;
-  const Apilotis=Math.max(0,A-Aground);
+  /* Δάπεδο με υπόδειξη ΑΝΑ ΕΙΔΟΣ ΕΠΑΦΗΣ: έδαφος/αέρας/ΜΘΧ/θερμαινόμενο.
+     Χωρίς πολύγωνα: όλη η κάτοψη σε έδαφος. Υπόλοιπο μη σχεδιασμένο = αέρας/πυλωτή. */
+  let Aground=A,AflrMtx=0,AflrHeated=0,Apilotis=0;
+  if(typeof flrPolys!=='undefined'&&flrPolys.length){
+    let g2=0,air2=0;
+    for(const fp of flrPolys){
+      const a3=polyArea({pts:fp.pts,bulges:fp.bulges||fp.pts.map(()=>0)});
+      const k3=fp.kind||'ground';
+      if(k3==='ground')g2+=a3;else if(k3==='air')air2+=a3;
+      else if(k3==='mtx')AflrMtx+=a3;else if(k3==='heated')AflrHeated+=a3;
+    }
+    Aground=Math.min(A,g2);
+    AflrMtx=Math.min(A,AflrMtx);AflrHeated=Math.min(A,AflrHeated);
+    Apilotis=Math.max(0,A-Aground-AflrMtx-AflrHeated);  /* ρητά «αέρας» + ό,τι δεν σχεδιάστηκε */
+  }
   /* ΕΚΤΕΘΕΙΜΕΝΗ ΠΕΡΙΜΕΤΡΟΣ (ΕΛΟΤ ΕΝ ISO 13370 / ΤΟΤΕΕ 20701):
      P_exp = P − επαφές ΜΘΧ/ΙΚΕΕ · B' = A/(0,5·P_exp) · ισοζύγιο τομέων */
   const perExp=Math.max(0,per-mtxLen-ikeLen);
@@ -1521,7 +1564,7 @@ function envelopeCore(hfOne,withRoof,withFloor){
   return {A,per,V,hTot,nf,hf,secLen,secArea,secNet,S,nPts:P.length,dl,
     mtxA:mtxLen*hTot, ikeA:ikeLen*hTot, openings, openSec, hop,
     secHor, secHorMax:secHorMax.map(v=>v*180/Math.PI), hobs,
-    Aroof, Afloor:A, Aground, Apilotis, perExp, perOK, perSum, Bchar,
+    Aroof, Afloor:A, Aground, Apilotis, AflrMtx, AflrHeated, perExp, perOK, perSum, Bchar,
     roofCustom:!!(roofPolys&&roofPolys.length), withRoof, withFloor};
 }
 
@@ -1615,12 +1658,16 @@ function buildTables(q){
       (q.Aroof||q.A).toFixed(2),UR.toFixed(2),'0.04','0.80',EPS.toFixed(2),
       FR,FR,FR,FR,FR,FR,'']);
   /* Πυλωτή/δάπεδο σε αέρα (υπόδειξη δαπέδου): αδιαφανές 0° με τυπικό U κατά εποχή */
-  if(q.Apilotis>0.01){
-    const yr2=+document.getElementById('year').value||1985;
-    const UPil=KENAK_DATA.umaxRenovation.pilotisUByEra[yr2<1979?'pre1979':(yr2<=2010?'y1979_2010':'post2010')];
+  const yr2=+document.getElementById('year').value||1985;
+  const UPil=KENAK_DATA.umaxRenovation.pilotisUByEra[yr2<1979?'pre1979':(yr2<=2010?'y1979_2010':'post2010')];
+  if(q.Apilotis>0.01)
     opaque.push(['Τοίχος','ΔΑΠΕΔΟ ΕΠΑΝΩ ΑΠΟ ΠΥΛΩΤΗ/ΑΕΡΑ','',0,q.Apilotis.toFixed(2),
       UPil.toFixed(2),'0.04','0.80',EPS.toFixed(2),1,1,1,1,1,1,'']);
-  }
+  /* Δάπεδο πάνω από ΜΘΧ (υπόγειο/αποθήκη): U×b (b=0,5), χωρίς ηλιακά κέρδη */
+  if(q.AflrMtx>0.01)
+    opaque.push(['Τοίχος','ΔΑΠΕΔΟ ΠΑΝΩ ΑΠΟ ΜΘΧ (b=0,5)','',0,q.AflrMtx.toFixed(2),
+      (UPil*bMTX).toFixed(2),'0.04','0.80',EPS.toFixed(2),0,0,0,0,0,0,'']);
+  /* Δάπεδο πάνω από θερμαινόμενο: αδιαβατικό — ΔΕΝ καταχωρείται στο κέλυφος */
   /* Έδαφος: ΜΟΝΟ το τμήμα σε επαφή με έδαφος + ΕΚΤΕΘΕΙΜΕΝΗ περίμετρος (ISO 13370) */
   const Agr=(q.Aground!=null?q.Aground:(q.Afloor||q.A));
   const ground=(q.withFloor===false||Agr<0.01)?[]:[['Δάπεδο - Οροφή','ΔΑΠΕΔΟ ΣΕ ΕΠΑΦΗ ΜΕ ΕΔΑΦΟΣ',
@@ -2337,11 +2384,21 @@ document.getElementById('roofT').onclick=()=>{
   draw();
 };
 function flrPointer(pw){
+  /* tap ΜΕΣΑ σε υπάρχον τμήμα (πριν αρχίσεις νέο) = αλλαγή είδους επαφής */
+  if(!fpts.length){
+    for(let i=0;i<flrPolys.length;i++){
+      const fp=flrPolys[i];
+      if(pointInPoly(pw,polyOf(fp.pts,fp.bulges||fp.pts.map(()=>0),0.10).P)){
+        askFlrKind(i);return true;
+      }
+    }
+  }
   pw=snapZone(pw);
   if(fpts.length>=3&&dist(pw,fpts[0])<0.45){
-    flrPolys.push({pts:fpts.slice(),bulges:fpts.map(()=>0)});fpts=[];
-    hint('Δάπεδο σε έδαφος '+flrPolys.length+': '+polyArea(flrPolys[flrPolys.length-1]).toFixed(1)+' m² — το υπόλοιπο κάτοψης = πυλωτή/αέρας');
-    draw();if(closed)report(false);return true;
+    flrPolys.push({pts:fpts.slice(),bulges:fpts.map(()=>0),kind:'ground'});fpts=[];
+    draw();if(closed)report(false);
+    askFlrKind(flrPolys.length-1);   /* ρωτά τι είναι από κάτω */
+    return true;
   }
   fpts.push(pw);draw();return true;
 }
