@@ -258,6 +258,11 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 .lrow b{color:var(--brb);font-size:11.5px}
 .lrow a{color:var(--brb);text-decoration:none;border-bottom:1.5px solid #1F4E9C44}
 .lrow a:hover{border-bottom-color:var(--brb)}
+.ptbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.ptbl th{text-align:left;font-size:10.5px;color:var(--ink2);text-transform:uppercase;
+  letter-spacing:.06em;padding:4px 6px;border-bottom:2px solid var(--line)}
+.ptbl td{padding:7px 6px;border-bottom:1px dashed var(--line)}
+.ptbl tr:last-child td{border-bottom:none}
 .lrow span{color:var(--ink);line-height:1.5}
 @media(max-width:560px){.lrow{grid-template-columns:1fr}}
 .sheet{position:fixed;inset:0;background:var(--paper);transform:translateY(100%);box-shadow:0 -14px 40px #16202b26;
@@ -322,7 +327,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <div class="top">
   <a class="home" href="hub.html">‹ Εργαλεία</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.21</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.23</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -421,6 +426,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
       <button class="pbtn cta" id="solve" disabled>Κλείσε περίγραμμα</button>
     </div>
     <div class="prow">
+      <button class="pbtn blue" id="preBtn" title="Πλήρης πρόβλεψη αποτελεσμάτων πριν το ΤΕΕ-ΚΕΝΑΚ">📊 Πρόβλεψη</button>
       <button class="pbtn" id="pdfBtn">
         <svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM14 3v5h5"/></svg>Σκαρίφημα PDF</button>
       <button class="pbtn" id="xmlBtn">
@@ -567,6 +573,11 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 
 <div class="err" id="err"><b>Πρόβλημα</b> <span id="errTxt" style="font-size:13px"></span></div>
 
+<div class="sheet" id="preSheet">
+  <div class="shd"><b>Πρόβλεψη αποτελεσμάτων · πριν το ΤΕΕ-ΚΕΝΑΚ</b>
+    <button class="pbtn" id="preClose" style="margin-left:auto">Κλείσιμο ✕</button></div>
+  <div class="sbody"><div id="preBody" style="max-width:860px;margin:0 auto"></div></div>
+</div>
 <div class="sheet" id="helpSheet">
   <div class="shd"><span style="width:26px;height:26px;flex:0 0 auto;display:inline-block"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></span><b>Βοήθεια · Σκίτσα ΤΟΤΕΕ &amp; Νομοθεσία</b>
     <button class="pbtn" id="helpClose" style="margin-left:auto">Κλείσιμο ✕</button></div>
@@ -677,9 +688,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=41"></script>
-<script src="kenak-xml.js?v=41"></script>
-<script src="kenak-dxf.js?v=41"></script>
+<script src="kenak-data.js?v=43"></script>
+<script src="kenak-xml.js?v=43"></script>
+<script src="kenak-dxf.js?v=43"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -3089,7 +3100,109 @@ function estClass(){
   const T=EP0/EPr;
   let ci=CLASS_T.length-1;
   for(let i2=0;i2<CLASS_T.length;i2++)if(T<=CLASS_T[i2][1]){ci=i2;break;}
-  return {T,EP0,EPr,cls:CLASS_T[ci][0],ci,zone};
+  return {T,EP0,EPr,cls:CLASS_T[ci][0],ci,zone,
+    EPh0,EPhR,EPd0,EPdR,EPcom,UA0,UAr,A,HDD,
+    Qh0:UA0*Qh/A,          /* θερμική ζήτηση θέρμανσης kWh/m²·έτος */
+    fuel0:UA0*Qh/hE/A};    /* τελική κατανάλωση θέρμανσης kWh/m²·έτος */
+}
+function xmlSummary(Tb){
+  const num=v=>+v||0;
+  const sum=(rows,ai,ui)=>{let A=0,UA=0,fmin=1;
+    rows.forEach(r=>{A+=num(r[ai]);UA+=num(r[ai])*num(r[ui]);
+      for(let c=ui+3;c<r.length-1;c++){const f=num(r[c]);if(f>0&&f<fmin)fmin=f;}});
+    return {n:rows.length,A,UA,fmin};};
+  return {op:sum(Tb.opaque,4,5),tr:sum(Tb.transparent,4,6),
+    gr:Tb.ground[0]?{A:num(Tb.ground[0][2]),U:num(Tb.ground[0][3])}:null};
+}
+/* πεδία που επιτρέπεται να πειράξεις από την Πρόβλεψη (ΟΧΙ κέλυφος) */
+const PRE_FIELDS=[
+ ['s_heatT','Θέρμανση — τύπος','sel'],['s_heatS','Πηγή ενέργειας','sel'],
+ ['s_heatE','η / SCOP','num'],['s_heatP','Ισχύς kW','num'],
+ ['s_cool','Ψύξη ενεργή','chk'],['s_coolE','SEER ψύξης','num'],
+ ['s_dhwT','ΖΝΧ — τύπος','sel'],['s_dhwE','η ΖΝΧ','num'],
+ ['s_solA','Ηλιακός m²','num'],['czone','Κλιματική ζώνη','sel']];
+function preCtlBuild(){
+  const host=document.getElementById('preCtl');
+  let h='<div class="card" style="margin-bottom:14px"><b style="font-size:12px;color:var(--brb)">Δοκίμασε αλλαγές — μόνο συστήματα (το κέλυφος μένει ως έχει)</b>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;margin-top:10px">';
+  PRE_FIELDS.forEach(([id,lbl,tp])=>{
+    h+='<div><label style="font-size:9.5px;font-weight:800;color:var(--ink2);text-transform:uppercase;letter-spacing:.05em">'+lbl+'</label>';
+    if(tp==='sel')h+='<select data-pre="'+id+'"></select>';
+    else if(tp==='chk')h+='<div style="padding-top:6px"><input type="checkbox" data-pre="'+id+'" style="width:22px;height:22px;min-height:22px"></div>';
+    else h+='<input type="number" inputmode="decimal" step="0.05" data-pre="'+id+'">';
+    h+='</div>';
+  });
+  h+='</div><div class="prow" style="margin-top:10px">'+
+    '<button class="pbtn blue" id="preRef">🏛 Κτίριο αναφοράς</button>'+
+    '<button class="pbtn" id="preSug">Προτεινόμενες ΤΟΤΕΕ</button></div></div>';
+  host.innerHTML=h;
+  host.querySelectorAll('[data-pre]').forEach(el=>{
+    const src=document.getElementById(el.dataset.pre);if(!src)return;
+    if(el.tagName==='SELECT'){el.innerHTML=src.innerHTML;el.value=src.value;}
+    else if(el.type==='checkbox')el.checked=src.checked;
+    else el.value=src.value;
+    el.onchange=el.oninput=()=>{
+      if(el.type==='checkbox')src.checked=el.checked;else src.value=el.value;
+      pSave();try{sysCheckRender();}catch(e2){}
+      preRender();
+    };
+  });
+  const rf=document.getElementById('preRef'),sg=document.getElementById('preSug');
+  if(rf)rf.onclick=()=>{document.getElementById('sysRef').onclick();preCtlBuild();preRender();};
+  if(sg)sg.onclick=()=>{try{sysApplySuggested();}catch(e2){}preCtlBuild();preRender();};
+}
+function preview(){
+  if(!closed){alert('Κλείσε πρώτα το περίγραμμα (βήμα 3).');setTab(2);return;}
+  document.getElementById('preBody').innerHTML=
+    '<div id="preCtl"></div><div id="preOut"></div>'+
+    '<div class="prow" style="margin:16px 0 30px">'+
+    '<button class="pbtn cta" id="preXml" style="min-height:48px">Είμαι ΟΚ → XML ΤΕΕ-ΚΕΝΑΚ</button></div>';
+  preCtlBuild();
+  preRender();
+  const px=document.getElementById('preXml');
+  if(px)px.onclick=()=>{document.getElementById('preSheet').classList.remove('on');
+    document.getElementById('xmlBtn').onclick();};
+  document.getElementById('preSheet').classList.add('on');
+}
+function preRender(){
+  const q=envelope(),Tb=buildTables(q),e=estClass(),S=xmlSummary(Tb);
+  const heat=document.getElementById('s_heatT').value||'—';
+  const hE=document.getElementById('s_heatE').value||'—';
+  const hP=document.getElementById('s_heatP').value||'—';
+  const R=(a,b,c)=>'<tr><td>'+a+'</td><td style="text-align:right;font-family:var(--num)">'+b+'</td>'+
+    '<td style="text-align:right;font-family:var(--num);color:var(--ink2)">'+c+'</td></tr>';
+  let ckTxt='';
+  try{const ck=sysCheck();
+    ckTxt=ck.errors.length?'<span style="color:#C43A2B;font-weight:800">✕ '+ck.errors.length+' σφάλματα ΤΟΤΕΕ — δες tab Συστήματα</span>':
+      (ck.warns.length?'<span style="color:#B7770B;font-weight:800">⚠ '+ck.warns.length+' προειδοποιήσεις</span>':
+      '<span style="color:#0B7A3B;font-weight:800">✓ Έλεγχος ΤΟΤΕΕ καθαρός</span>');
+  }catch(e3){}
+  document.getElementById('preOut').innerHTML=
+    '<p style="font-size:12px;margin:0 0 10px">'+ckTxt+'</p>'+
+    '<h3>Εκτιμώμενη κατάταξη</h3>'+classBarHTML(e)+
+    '<h3 style="margin-top:18px">Ενεργειακή ανάλυση (kWh/m²·έτος, πρωτογενής)</h3>'+
+    '<div class="card"><table class="ptbl"><tr><th></th><th style="text-align:right">Κτίριο</th><th style="text-align:right">Αναφοράς</th></tr>'+
+    R('Θέρμανση',e.EPh0.toFixed(1),e.EPhR.toFixed(1))+
+    R('ΖΝΧ',e.EPd0.toFixed(1),e.EPdR.toFixed(1))+
+    R('Ψύξη + βοηθητικά (κοινή εκτίμηση)',e.EPcom.toFixed(0),e.EPcom.toFixed(0))+
+    R('<b>ΣΥΝΟΛΟ EP</b>','<b>'+e.EP0.toFixed(0)+'</b>','<b>'+e.EPr.toFixed(0)+'</b>')+
+    '</table>'+
+    '<p style="font-size:11.5px;margin:8px 0 0">Θερμική ζήτηση θέρμανσης ≈ <b>'+e.Qh0.toFixed(0)+
+    '</b> kWh/m² · τελική κατανάλωση ≈ <b>'+e.fuel0.toFixed(0)+'</b> kWh/m² ('+heat+', η/SCOP '+hE+', '+hP+' kW)'+
+    ' · UA κτιρίου <b>'+e.UA0.toFixed(0)+'</b> έναντι αναφοράς <b>'+e.UAr.toFixed(0)+'</b> W/K · ζώνη '+
+    ({A:'Α',B:'Β',C:'Γ',D:'Δ'})[e.zone]+' ('+e.HDD+' HDD)</p></div>'+
+    '<h3 style="margin-top:18px">Τι γράφτηκε στο XML</h3>'+
+    '<div class="card"><table class="ptbl">'+
+    R('Αδιαφανή (τοίχοι/ΦΟ/οροφές/πυλωτή)',S.op.n+' γραμμές · '+S.op.A.toFixed(1)+' m²','U·A '+S.op.UA.toFixed(0)+' W/K · Fmin '+S.op.fmin.toFixed(2))+
+    R('Διαφανή (κουφώματα)',S.tr.n+' γραμμές · '+S.tr.A.toFixed(1)+' m²','U·A '+S.tr.UA.toFixed(0)+' W/K · Fmin '+S.tr.fmin.toFixed(2))+
+    (S.gr?R('Δάπεδο σε έδαφος',S.gr.A.toFixed(1)+' m²','U '+S.gr.U.toFixed(2)):'')+
+    R('Σενάρια εξοικονόμησης',(typeof SCN!=='undefined'?SCN.length:0)+'','')+
+    '</table></div>'+
+    '<div class="card" style="margin-top:14px;background:#1F4E9C0a;border-color:#1F4E9C33">'+
+    '<b style="font-size:12px;color:var(--brb)">Σύγκριση με ΤΕΕ-ΚΕΝΑΚ</b>'+
+    '<p style="font-size:11.5px;line-height:1.6;margin:6px 0 0">Άνοιξε το XML στο ΤΕΕ-ΚΕΝΑΚ 1.31 → «Υπολογισμός» → σύγκρινε τη συνολική πρωτογενή και την κατηγορία με τα παραπάνω. '+
+    'Απόκλιση έως ±1 κατηγορία είναι αναμενόμενη: η εκτίμηση HEXIS δουλεύει με βαθμοημέρες και δεν μοντελοποιεί μηνιαία ηλιακά/εσωτερικά κέρδη ανά προσανατολισμό όπως το ΤΕΕ. '+
+    'Αν η απόκλιση είναι μεγαλύτερη, έλεγξε: κλιματική ζώνη, U κουφωμάτων/τοίχων, αποδόσεις συστημάτων και το ηλιακό ΖΝΧ.</p></div>';
 }
 function classBarHTML(e){
   const names=['Α+','Α','Β+','Β','Γ','Δ','Ε','Ζ','Η'];
@@ -3376,6 +3489,8 @@ document.getElementById('viewBtn2').onclick=()=>document.getElementById('viewBtn
 try{fillSysSelects();}catch(e){console.error('fillSysSelects',e);}
 try{pLoad();}catch(e){console.error('pLoad',e);}
 try{ownerSyncPull();floorsInit();floorChip();}catch(e){console.error('floors',e);}
+document.getElementById('preBtn').onclick=preview;
+document.getElementById('preClose').onclick=()=>document.getElementById('preSheet').classList.remove('on');
 document.getElementById('helpBtn').onclick=()=>document.getElementById('helpSheet').classList.add('on');
 document.getElementById('helpClose').onclick=()=>document.getElementById('helpSheet').classList.remove('on');
 document.getElementById('sysSug').onclick=sysApplySuggested;
