@@ -376,7 +376,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <div class="top">
   <a class="home" href="hub.html">‹ Εργαλεία</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.29</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.30</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -767,9 +767,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=49"></script>
-<script src="kenak-xml.js?v=49"></script>
-<script src="kenak-dxf.js?v=49"></script>
+<script src="kenak-data.js?v=50"></script>
+<script src="kenak-xml.js?v=50"></script>
+<script src="kenak-dxf.js?v=50"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -3469,10 +3469,23 @@ function aiPropose(){
   };
 }
 /* -------- σενάρια -------- */
+function scnBadge(e,e0){
+  if(!e)return'';
+  const drop=e0&&e0.EP0>1?Math.round(100*(1-e.EP0/e0.EP0)):0;
+  return '<span style="display:inline-flex;align-items:center;gap:6px;margin-left:auto">'+
+    '<span style="background:'+PEA_COLORS[e.ci]+';color:#fff;font:800 12px var(--ui);'+
+      'padding:3px 10px;border-radius:4px;text-shadow:0 1px 2px #0005">'+e.cls+'</span>'+
+    '<span style="font-family:var(--num);font-size:10.5px;color:var(--ink2)">EP '+e.EP0.toFixed(0)+
+    (drop>0?' · <b style=\'color:#0B7A3B\'>−'+drop+'%</b>':'')+'</span></span>';
+}
 function scnRender(){
   const el=document.getElementById('scnList');
-  let h='<div class="scn"><b>1. Υπάρχον κτίριο</b><span style="font-size:11px;color:var(--ink2)">βασικό</span></div>';
+  /* ενεργειακή κλάση: υφιστάμενο + ανά σενάριο (μόνο με κλειστό κέλυφος) */
+  let e0=null;try{if(closed)e0=estClass();}catch(e){}
+  let h='<div class="scn"><b>1. Υπάρχον κτίριο</b><span style="font-size:11px;color:var(--ink2)">βασικό</span>'+
+    (e0?scnBadge(e0,null):'')+'</div>';
   SCN.forEach((sc,i)=>{
+    let eS=null;try{if(closed)eS=estClass(sc);}catch(e){}
     let wsel='<div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">'+
       '<label style="font-size:11px;color:var(--ink2)">Κουφώματα:</label>'+
       '<select class="swF" data-i="'+i+'" style="font-size:12px;padding:5px 8px"><option value="">— υφιστάμενα —</option>';
@@ -3496,8 +3509,8 @@ function scnRender(){
       chk('hp','Αντλία θερμ. SCOP',4.0,'','Αντικατάσταση συστήματος θέρμανσης με ΑΘ')+
       chk('solar','Ηλιακός ΖΝΧ',2.5,'m²','Ηλιοθερμικό ΖΝΧ — solar_collector στο XML')+
       '</div>';
-    h+='<div class="scn" style="display:block"><div style="display:flex;align-items:center;gap:10px"><b style="flex:1">'+(i+2)+'. '+sc.title+
-      '</b><button class="del" data-i="'+i+'" title="Διαγραφή">×</button></div>'+wsel+iv+'</div>';
+    h+='<div class="scn" style="display:block"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b style="flex:1">'+(i+2)+'. '+sc.title+
+      '</b>'+(eS?scnBadge(eS,e0):'')+'<button class="del" data-i="'+i+'" title="Διαγραφή">×</button></div>'+wsel+iv+'</div>';
   });
   el.innerHTML=h;
   el.querySelectorAll('.del').forEach(b=>b.onclick=()=>{SCN.splice(+b.dataset.i,1);scnRender();pSave();});
