@@ -339,6 +339,8 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   /* το πάνελ φαίνεται ΜΟΝΟ στο tab Κέλυφος */
   body:not([data-tab="2"]) .panel{display:none}
   body:not([data-tab="2"]) .tools{display:none}
+  body:not([data-tab="2"]) #alignFab{display:none !important}
+  body:not([data-tab="2"]) #closeFab{display:none !important}
   .status{bottom:auto;top:96px}
   .legend{display:none}
   .empty{align-items:flex-start;padding-top:2vh;padding-bottom:64px;overflow:auto}
@@ -358,7 +360,11 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   border:none;border-radius:999px;padding:11px 20px;font:800 13.5px var(--ui);
   box-shadow:0 4px 14px #0B7A3B55;cursor:pointer}
 #closeFab:active{transform:translateX(-50%) scale(.97)}
-@media(min-width:900px){#closeFab{top:64px}}
+#alignFab{display:none;position:fixed;right:12px;top:118px;z-index:12;align-items:center;gap:6px;
+  background:linear-gradient(180deg,#2E62B8,#1F4E9C);color:#fff;border:none;border-radius:999px;
+  padding:10px 16px;font:800 12px var(--ui);box-shadow:0 4px 12px #1F4E9C55;cursor:pointer}
+#alignFab:active{transform:scale(.97)}
+@media(min-width:900px){#closeFab{top:64px}#alignFab{top:64px;right:376px}}
 .pnlTg{display:none;width:100%;min-height:44px;border:none;border-bottom:1px solid var(--line);
   background:var(--card);color:var(--brb);font:800 12px var(--ui);letter-spacing:.06em;
   align-items:center;justify-content:center;gap:8px;cursor:pointer}
@@ -376,7 +382,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <div class="top">
   <a class="home" href="hub.html">‹ Εργαλεία</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.31</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.32</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -650,6 +656,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <div class="legend" id="legend"></div>
 
 <button id="closeFab" onclick="finish()">✓ Κλείσε περίγραμμα</button>
+<button id="alignFab" onclick="alignParcel()">⟳ Ίσιωμα οικοπέδου</button>
 <div class="err" id="err"><b>Πρόβλημα</b> <span id="errTxt" style="font-size:13px"></span></div>
 
 <div class="sheet" id="preSheet">
@@ -767,9 +774,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=51"></script>
-<script src="kenak-xml.js?v=51"></script>
-<script src="kenak-dxf.js?v=51"></script>
+<script src="kenak-data.js?v=52"></script>
+<script src="kenak-xml.js?v=52"></script>
+<script src="kenak-dxf.js?v=52"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -1108,6 +1115,8 @@ function draw(){
     ctx.textAlign='center';ctx.fillText('κλείσε εδώ',S0[0],S0[1]-rr-8);ctx.textAlign='left';
     const fb=document.getElementById('closeFab');if(fb)fb.style.display='flex';
   }else{const fb=document.getElementById('closeFab');if(fb)fb.style.display='none';}
+  const af=document.getElementById('alignFab');
+  if(af)af.style.display=PARCEL?'flex':'none';
   ctx.textAlign='left';
   /* κέντρο βάρους για κατεύθυνση ετικετών προς τα ΕΞΩ */
   let vcx=0,vcy=0;verts.forEach(q=>{vcx+=q[0];vcy+=q[1];});
@@ -2600,6 +2609,51 @@ function parcelFromGeo(d){
   rings.forEach(r=>r.forEach(pt=>{cx+=pt[0];cy+=pt[1];m++;}));
   cx/=m;cy/=m;
   return {rings,kaek:d.kaek,area:d.area_m2,egsa:true,cx,cy};
+}
+function rotPt(pt,c,a){
+  const s2=Math.sin(a),c2=Math.cos(a),dx=pt[0]-c[0],dy=pt[1]-c[1];
+  return [c[0]+dx*c2-dy*s2, c[1]+dx*s2+dy*c2];
+}
+function rotateAll(aRad,c){
+  /* στρίβει οικόπεδο + ΟΛΗ τη σχεδίαση γύρω από το c — τα bulges/ύψη δεν αλλάζουν */
+  const R=pt=>rotPt(pt,c,aRad);
+  if(PARCEL)PARCEL.rings=PARCEL.rings.map(r=>r.map(R));
+  verts=verts.map(R);
+  koufLines.forEach(k2=>{k2.a=R(k2.a);k2.b=R(k2.b);});
+  ['mtx','ikee','empodia','skiaseis','tentes'].forEach(k2=>{
+    (ov[k2]||[]).forEach(o2=>{if(o2.pts)o2.pts=o2.pts.map(R);});});
+  roofPolys.forEach(r2=>{if(r2.pts)r2.pts=r2.pts.map(R);});
+  flrPolys.forEach(r2=>{if(r2.pts)r2.pts=r2.pts.map(R);});
+  FL.forEach(f2=>{
+    if(f2.verts)f2.verts=f2.verts.map(R);
+    (f2.kouf||[]).forEach(k2=>{k2.a=R(k2.a);k2.b=R(k2.b);});
+    (f2.roof||[]).forEach(r2=>{if(r2.pts)r2.pts=r2.pts.map(R);});
+  });
+}
+function alignParcel(){
+  if(!PARCEL||!PARCEL.rings.length)return;
+  const c=[PARCEL.cx||0,PARCEL.cy||0];
+  const nEl=document.getElementById('north');
+  if(PARCEL.rot){                      /* επαναφορά στον πραγματικό προσανατολισμό */
+    rotateAll(PARCEL.rot,c);
+    nEl.value=((+nEl.value-PARCEL.rot*180/Math.PI)%360+360)%360;
+    PARCEL.rot=0;
+    hint('Επαναφορά: πραγματικός προσανατολισμός ΕΓΣΑ΄87 (Βορράς = +Υ)');
+  }else{                               /* ίσιωμα: μακρύτερη πλευρά -> οριζόντια */
+    const ring=PARCEL.rings[0];let best=0,bl=-1;
+    for(let i2=0;i2<ring.length-1;i2++){
+      const L2=Math.hypot(ring[i2+1][0]-ring[i2][0],ring[i2+1][1]-ring[i2][1]);
+      if(L2>bl){bl=L2;best=i2;}
+    }
+    const dx=ring[best+1][0]-ring[best][0],dy=ring[best+1][1]-ring[best][1];
+    const phi=Math.atan2(dy,dx);       /* γωνία μεγάλης πλευράς από οριζόντιο */
+    rotateAll(-phi,c);
+    nEl.value=Math.round(((+nEl.value+phi*180/Math.PI)%360+360)%360*10)/10;
+    PARCEL.rot=-(-phi);PARCEL.rot=phi; /* αποθήκευση για επαναφορά */
+    hint('Ίσιωμα για εύκολη σχεδίαση — ο Βορράς μετακινήθηκε στις '+nEl.value+'° (δες πυξίδα)· τα αζιμούθια βγαίνουν σωστά');
+  }
+  try{document.getElementById('alignFab').textContent=PARCEL.rot?'⟲ Πραγματικός Βορράς':'⟳ Ίσιωμα οικοπέδου';}catch(e2){}
+  fitParcel();draw();if(closed)report(false);pSave();
 }
 function fitParcel(){
   if(!PARCEL)return;
