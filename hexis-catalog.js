@@ -35,7 +35,7 @@
    Το sw.js (importScripts) και το app.html τη διαβάζουν από εδώ.
    ΔΕΝ γράφεται πουθενά αλλού.
    ============================================================ */
-var VERSION = 'v4.38';
+var VERSION = 'v4.39';
 
 var BRB_TERRAIN_URL = 'https://miltosbirbas-hub.github.io/BRB-contour-live/';
 
@@ -106,7 +106,7 @@ var CATALOG = [
     tagline:'Από το όριο του γεωτεμαχίου σε έτοιμη αποστολή χαρτογράφησης στο DJI Pilot 2 — σε δύο λεπτά.',
     feats:['Καθαρίζει KML/KMZ από Κτηματολόγιο & Google Earth (styles, folders, label points)','Έτοιμο KMZ για import ως Area Route (Mapping) στο DJI Pilot 2','Οδηγός αποστολής 5 βημάτων: εξαγωγή → καθάρισμα → import → ρυθμίσεις → checklist','Πίνακας ύψους/GSD για Mavic 3E και checklist πεδίου — δουλεύει offline (PWA)'] },
 
-  { id:'kenak', ico:'⚡', name:'ΚΕΝΑΚ Επιθεώρηση',
+  { id:'kenak', ico:'⚡', icoSvg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14   l3.4 1.7 l-3.4 1.7 h-14 z"   fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23   l3.4 1.7 l-3.4 1.7 h-23 z"   fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg>', name:'ΚΕΝΑΚ Επιθεώρηση',
     desc:'Σκαρίφημα κάτοψης · κουφώματα · σκιάσεις · όροφοι · έλεγχοι ΤΟΤΕΕ · XML ΤΕΕ-ΚΕΝΑΚ',
     href:'kenak.html', price:'5€ / ΠΕΑ + ΦΠΑ · πακέτο 10 ΠΕΑ 50€ + ΦΠΑ',
     tagline:'Από την αυτοψία στο XML του ΤΕΕ-ΚΕΝΑΚ — σχεδιάζεις την κάτοψη, βγαίνουν όψεις, σκιάσεις, συστήματα και σενάρια, έτοιμα για import.',
