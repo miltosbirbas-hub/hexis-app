@@ -76,6 +76,25 @@ canvas#board{position:fixed;inset:0;cursor:crosshair}
 @keyframes stepPulse{
   0%,100%{box-shadow:0 3px 12px #E8772E70;transform:scale(1)}
   50%{box-shadow:0 4px 22px #E8772Ecc;transform:scale(1.05)}}
+/* ---- υπο-βήματα του τρέχοντος βήματος ---- */
+#subSteps{position:fixed;left:0;right:0;top:54px;z-index:8;display:flex;gap:6px;
+  align-items:center;padding:5px 14px;overflow-x:auto;scrollbar-width:none;
+  background:linear-gradient(#ffffffe8,#ffffffd8);border-bottom:1px solid var(--line);
+  backdrop-filter:blur(4px)}
+#subSteps:empty{display:none}
+#subSteps .lbl{font:800 10px var(--ui);color:var(--ink2);letter-spacing:.08em;
+  text-transform:uppercase;flex:0 0 auto;margin-right:2px}
+.sstep{flex:0 0 auto;display:flex;gap:5px;align-items:center;cursor:pointer;
+  font:700 11px var(--ui);color:var(--ink2);border:1px solid var(--line);
+  border-radius:999px;padding:4px 10px;background:#fff}
+.sstep i{font-style:normal;font-family:var(--num);font-size:9.5px}
+.sstep.done{color:#0B7A3B;border-color:#0B7A3B55;background:#0B7A3B0d}
+.sstep.done::after{content:'✓';font-size:9px;font-weight:900}
+.sstep.cur{color:#fff;background:var(--cta);border-color:var(--cta);font-size:11.5px;
+  box-shadow:0 2px 10px #E8772E77;animation:stepPulse 1.6s ease-in-out infinite}
+.sstep.opt{opacity:.55;border-style:dashed}
+.page{padding-top:52px}
+@media(max-width:899px){#subSteps{top:96px}.page{padding-top:96px}}
 @media(max-width:899px){
   .steps{display:flex !important;position:fixed;left:0;right:0;top:54px;z-index:9;
     padding:6px 10px;background:#fffc;backdrop-filter:blur(5px);
@@ -250,7 +269,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 
 <div class="top">
   <a class="home" href="hub.html">‹ Εργαλεία</a>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.8</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.9</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -261,6 +280,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   <div class="steps" id="steps"></div>
   <div class="hint" id="hint">Σχεδίασε ή εισήγαγε DXF</div>
 </div>
+<div id="subSteps"></div>
 
 <div class="tools">
   <button class="on" id="ortho" title="Ορθογώνια σχεδίαση (O)">
@@ -541,9 +561,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=28"></script>
-<script src="kenak-xml.js?v=28"></script>
-<script src="kenak-dxf.js?v=28"></script>
+<script src="kenak-data.js?v=29"></script>
+<script src="kenak-xml.js?v=29"></script>
+<script src="kenak-dxf.js?v=29"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -1813,6 +1833,7 @@ function makeSketchPDF(){
     wrap('Στα σενάρια επιτρέπονται ΜΟΝΟ συστήματα αναγνωρισμένα από ΤΟΤΕΕ. Οι τιμές SEER/κάλυψης προς τελική αντιπαραβολή με το επίσημο κείμενο ΤΟΤΕΕ 20701-1/2017.');
   }
   savePdf(pages,Wp,Hp,'hexis-kenak-skarifima.pdf');
+  PDF_DONE=true;stepSync();
   hint('Σκαρίφημα PDF: κάτοψη + αναπτύγματα + πίνακες');
 }
 
@@ -2845,7 +2866,7 @@ sysCheckRender();setTab(2);
 let XML_DONE=false;
 const STEPS=[
  {t:'Στοιχεία',full:'Στοιχεία έργου & ιδιοκτήτη',
-  done:()=>!!(document.getElementById('p_num').value.trim()&&document.getElementById('p_owner').value.trim()&&/^\d{9}$/.test(document.getElementById('p_afm').value.trim())),
+  done:()=>!!(document.getElementById('p_num').value.trim()&&document.getElementById('p_owner').value.trim()&&/^\d{9}$/.test(document.getElementById('p_afm').value.trim())&&document.getElementById('p_addr').value.trim()),
   go:()=>{setTab(1);setTimeout(()=>document.getElementById('p_num').focus(),80);}},
  {t:'ΚΑΕΚ',full:'Θέση/ΚΑΕΚ στον χάρτη',
   done:()=>!!(kSel&&kSel.kaek),
@@ -2865,6 +2886,31 @@ const STEPS=[
  {t:'XML',full:'Εξαγωγή XML ΤΕΕ-ΚΕΝΑΚ',
   done:()=>XML_DONE,
   go:()=>document.getElementById('xmlBtn').onclick()}];
+/* υπο-βήματα: opt=true δεν μπλοκάρει την πορεία (γκρι διακεκομμένο αν εκκρεμεί) */
+const SUBSTEPS=[
+ [ {t:'Ονομασία κτιρίου',done:()=>!!document.getElementById('p_num').value.trim(),go:()=>{setTab(1);document.getElementById('p_num').focus();}},
+   {t:'Ιδιοκτήτης + ΑΦΜ',done:()=>!!(document.getElementById('p_owner').value.trim()&&/^\d{9}$/.test(document.getElementById('p_afm').value.trim())),go:()=>{setTab(1);document.getElementById('p_owner').focus();}},
+   {t:'Διεύθυνση',done:()=>!!document.getElementById('p_addr').value.trim(),go:()=>{setTab(1);document.getElementById('p_addr').focus();}} ],
+ [ {t:'Γεωτεμάχιο στον χάρτη',done:()=>!!(kSel&&kSel.kaek),go:()=>document.getElementById('kaekBtn').onclick()},
+   {t:'Κάθετη/Οριζόντια Χ/Υ',opt:true,done:()=>!!(kSel&&/\/[1-9]/.test(kSel.kaek||'')),go:()=>document.getElementById('kaekBtn').onclick()},
+   {t:'Κλιματική ζώνη',opt:true,done:()=>false,go:()=>zoneFromLocation()} ],
+ [ {t:'Περίγραμμα τοίχων',done:()=>closed,go:()=>setTab(2)},
+   {t:'Ύψη/όροφοι',opt:true,done:()=>FL.length>1||segH.some(h2=>h2>0),go:()=>{setTab(2);hint('Πάτα ετικέτα πλευράς -> «Ύψος…» ή πρόσθεσε όροφο (+)');}},
+   {t:'Οροφή',opt:true,done:()=>roofPolys.length>0,go:()=>{setTab(2);document.getElementById('roofT').click();}},
+   {t:'Δάπεδο/πυλωτή',opt:true,done:()=>flrPolys.length>0,go:()=>{setTab(2);document.getElementById('flrT').click();}} ],
+ [ {t:'Σχεδίαση κουφωμάτων',done:()=>koufLines.length>0,go:()=>{setTab(2);if(!koufMode)document.getElementById('koufT').click();}},
+   {t:'Διαστάσεις/ποδιές',done:()=>koufLines.length>0&&OPR.every(o=>o&&o.sill!=null),go:()=>{setTab(2);if(koufLines.length)openOpSheet(0);}},
+   {t:'Εξώστες/τέντες',opt:true,done:()=>ov.skiaseis.length+ov.tentes.length>0,go:()=>{setTab(2);document.querySelector('.ovT[data-ov="skiaseis"]').click();}},
+   {t:'Εμπόδια ορίζοντα',opt:true,done:()=>ov.empodia.length>0,go:()=>{setTab(2);document.querySelector('.ovT[data-ov="empodia"]').click();}} ],
+ [ {t:'Θέρμανση',done:()=>document.getElementById('s_heat').checked,go:()=>setTab(3)},
+   {t:'Ψύξη',opt:true,done:()=>document.getElementById('s_cool').checked,go:()=>setTab(3)},
+   {t:'ΖΝΧ + ηλιακός',done:()=>document.getElementById('s_dhw').checked,go:()=>setTab(3)},
+   {t:'Έλεγχος ΤΟΤΕΕ',done:()=>{try{return sysCheck().errors.length===0;}catch(e){return false;}},go:()=>{setTab(3);sysCheckRender();}} ],
+ [ {t:'Σενάριο μηχανικού',done:()=>SCN.some(sc=>!/ΠΡΟΤΑΣΗ ΑΙ/.test(sc.title)),go:()=>setTab(4)},
+   {t:'Πρόταση ΑΙ',opt:true,done:()=>SCN.some(sc=>/ΠΡΟΤΑΣΗ ΑΙ/.test(sc.title)),go:()=>{setTab(4);aiPropose();}} ],
+ [ {t:'Σκαρίφημα PDF',opt:true,done:()=>PDF_DONE,go:()=>document.getElementById('pdfBtn').onclick()},
+   {t:'Εξαγωγή XML',done:()=>XML_DONE,go:()=>document.getElementById('xmlBtn').onclick()} ]];
+let PDF_DONE=false;
 function stepSync(){
   const el=document.getElementById('steps');if(!el)return;
   let cur=-1;
@@ -2876,6 +2922,21 @@ function stepSync(){
   });
   el.innerHTML=h;
   el.querySelectorAll('.step').forEach(b=>b.onclick=()=>STEPS[+b.dataset.s].go());
+  /* υπο-βήματα του τρέχοντος */
+  const se=document.getElementById('subSteps');if(!se)return;
+  if(cur<0){se.innerHTML='';return;}
+  const subs=SUBSTEPS[cur]||[];
+  let curSub=-1;
+  const sd=subs.map((s,i)=>{let d=false;try{d=!!s.done();}catch(e){}
+    if(!d&&!s.opt&&curSub<0)curSub=i;return d;});
+  if(curSub<0)curSub=sd.findIndex((d,i)=>!d);   /* όλα τα υποχρεωτικά ΟΚ: δείξε 1ο προαιρετικό */
+  let sh='<span class="lbl">Βήμα '+(cur+1)+'</span>';
+  subs.forEach((s,i)=>{
+    const cls=sd[i]?'sstep done':(i===curSub?'sstep cur':(s.opt?'sstep opt':'sstep'));
+    sh+='<button class="'+cls+'" data-i="'+i+'"><i>'+(cur+1)+'.'+(i+1)+'</i>'+s.t+(s.opt&&!sd[i]?' <small>(προαιρ.)</small>':'')+'</button>';
+  });
+  se.innerHTML=sh;
+  se.querySelectorAll('.sstep').forEach(b=>b.onclick=()=>subs[+b.dataset.i].go());
 }
 /* ---------- UI v0.5: κενή οθόνη, βήματα, status, υπόμνημα, πλήκτρα ---------- */
 const $=id=>document.getElementById(id);
