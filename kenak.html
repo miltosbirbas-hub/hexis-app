@@ -65,6 +65,23 @@ canvas#board{position:fixed;inset:0;cursor:crosshair}
 .step.on{color:var(--brb);border-color:var(--brb)}
 .step.on i{background:var(--brb);color:#fff}
 .step.done i{background:#0B7A3B;color:#fff}
+/* ΠΟΡΕΙΑ ΕΠΙΘΕΩΡΗΣΗΣ: το ΕΠΟΜΕΝΟ βήμα φωνάζει */
+.step{cursor:pointer;font-family:var(--ui)}
+.step.done{color:#0B7A3B;border-color:#0B7A3B55;background:#0B7A3B0d}
+.step.done::after{content:'✓';font-size:10px;font-weight:900;color:#0B7A3B}
+.step.cur{color:#fff;background:var(--cta);border-color:var(--cta);
+  font-size:12px;padding:6px 14px;box-shadow:0 3px 14px #E8772E88;
+  animation:stepPulse 1.6s ease-in-out infinite}
+.step.cur i{background:#fff;color:var(--cta)}
+@keyframes stepPulse{
+  0%,100%{box-shadow:0 3px 12px #E8772E70;transform:scale(1)}
+  50%{box-shadow:0 4px 22px #E8772Ecc;transform:scale(1.05)}}
+@media(max-width:899px){
+  .steps{display:flex !important;position:fixed;left:0;right:0;top:54px;z-index:9;
+    padding:6px 10px;background:#fffc;backdrop-filter:blur(5px);
+    border-bottom:1px solid var(--line);overflow-x:auto;margin:0}
+  .step{flex:0 0 auto}
+}
 .hint{margin-left:auto;font-size:12px;color:var(--ink2);max-width:34vw;text-align:right;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
@@ -208,7 +225,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 
 /* ---------- ΚΙΝΗΤΟ (<900px): viewer πρώτα, πάνελ κάτω ---------- */
 @media (max-width:899px){
-  .steps{display:none}
+  /* βήματα ορατά πάντα */
   .hint{max-width:44vw}
   .tools{left:10px;top:auto;bottom:224px;flex-direction:row}
   .tools button{width:44px;height:44px}
@@ -233,7 +250,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 
 <div class="top">
   <a class="home" href="hub.html">‹ Εργαλεία</a>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.7</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.8</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -241,6 +258,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
     <button class="tab" data-tab="4"><i>4</i>Σενάρια</button>
     <button class="tab" data-tab="5"><i>5</i>Σχέδια</button>
   </div>
+  <div class="steps" id="steps"></div>
   <div class="hint" id="hint">Σχεδίασε ή εισήγαγε DXF</div>
 </div>
 
@@ -314,7 +332,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
     <h5>Κατασκευή</h5>
     <div class="fields" style="grid-template-columns:repeat(5,1fr)">
       <div><label>Χρήση</label><select id="use"><option value="residential">Κατοικία</option><option value="tertiary">Τριτογενής</option></select></div>
-      <div><label>Κλ. ζώνη</label><select id="czone" title="Κλιματική ζώνη ΤΟΤΕΕ 20701-1 — Λευκάδα/Αιτωλοακαρνανία: Β">
+      <div><label>Κλ. ζώνη <a href="#" onclick="zoneFromLocation();return false" style="font-size:9.5px;color:var(--brb)" title="Αυτόματα από τη διεύθυνση έργου ή τη θέση ΚΑΕΚ">αυτόματα;</a></label><select id="czone" title="Κλιματική ζώνη ΤΟΤΕΕ 20701-1 — Λευκάδα/Αιτωλοακαρνανία: Β">
         <option value="A">Α</option><option value="B" selected>Β</option>
         <option value="C">Γ</option><option value="D">Δ</option></select></div>
       <div><label>Έτος</label><input id="year" type="number" inputmode="numeric" value="1985" min="1900" max="2026" title="Έτος κατασκευής — καθορίζει την περίοδο για τυπικές τιμές U"></div>
@@ -503,6 +521,12 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
       <b id="kaekVal" style="font-family:var(--num);font-size:17px;color:var(--brb)">—</b>
       <div id="kaekInfo" style="font-size:11px;color:var(--ink2)">Πάτα πάνω σε γεωτεμάχιο ή δώσε ΚΑΕΚ</div>
     </div>
+    <div style="flex:0 0 auto;display:flex;gap:5px;align-items:center" title="Ιδιοκτησία: 12ψήφιο/Χ/Υ — Χ κάθετη, Υ οριζόντια από το απόσπασμα κτηματολογικού φύλλου. 0 = γεωτεμάχιο">
+      <span style="font-size:10px;color:var(--ink2);font-weight:700">/</span>
+      <input id="kaekVX" type="number" inputmode="numeric" min="0" max="99" value="0" style="width:46px;font-size:13px;padding:6px 4px" title="Χ: αριθμός ΚΑΘΕΤΗΣ ιδιοκτησίας (0 = καμία)">
+      <span style="font-size:10px;color:var(--ink2);font-weight:700">/</span>
+      <input id="kaekVY" type="number" inputmode="numeric" min="0" max="99" value="0" style="width:46px;font-size:13px;padding:6px 4px" title="Υ: αριθμός ΟΡΙΖΟΝΤΙΑΣ ιδιοκτησίας (0 = καμία)">
+    </div>
     <label style="display:flex;gap:6px;align-items:center;font-size:11px;color:var(--ink2);flex:0 0 auto;font-weight:600">
       <input type="checkbox" id="kaekDraw" checked style="width:16px;height:16px;accent-color:var(--brb)">περίγραμμα<br>στο σχέδιο</label>
     <a class="pbtn" href="ktimatologio.html" style="text-decoration:none;flex:0 0 auto">Κτηματολόγιο ›</a>
@@ -517,9 +541,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=27"></script>
-<script src="kenak-xml.js?v=27"></script>
-<script src="kenak-dxf.js?v=27"></script>
+<script src="kenak-data.js?v=28"></script>
+<script src="kenak-xml.js?v=28"></script>
+<script src="kenak-dxf.js?v=28"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -1908,6 +1932,7 @@ document.getElementById('xmlBtn').onclick=async()=>{
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([xml],{type:'application/xml;charset=utf-8'}));
   a.download='hexis-kenak.xml';a.click();
+  XML_DONE=true;stepSync();
   hint('XML σε μορφή ΤΕΕ-ΚΕΝΑΚ (ENR_IN) — άνοιξέ το στο ΤΕΕ-ΚΕΝΑΚ 1.31');
 
 };
@@ -2050,6 +2075,42 @@ async function kenakSpendToken(){
     return confirm('Αδυναμία επικοινωνίας με τον διακομιστή token.\nΕξαγωγή ως ΔΟΚΙΜΑΣΤΙΚΟ (χωρίς χρέωση);');
   }
 }
+/* ---- Κλιματική ζώνη ανά νομό (ΚΕΝΑΚ/ΤΟΤΕΕ 20701-1) ---- */
+const ZONE_NOMOI={
+ A:['ΗΡΑΚΛΕΙ','ΧΑΝΙ','ΡΕΘΥΜΝ','ΛΑΣΙΘ','ΚΥΚΛΑΔ','ΔΩΔΕΚΑΝ','ΡΟΔΟΣ','ΚΩΣ','ΣΑΜΟ','ΜΕΣΣΗΝ','ΛΑΚΩΝ','ΑΡΓΟΛΙΔ','ΖΑΚΥΝΘ','ΚΕΦΑΛ','ΙΘΑΚ','ΚΥΘΗΡ'],
+ B:['ΑΤΤΙΚ','ΑΘΗΝ','ΠΕΙΡΑΙ','ΚΟΡΙΝΘ','ΗΛΕΙΑ','ΗΛΙΔ','ΑΧΑΪ','ΑΧΑΙ','ΑΙΤΩΛ','ΑΚΑΡΝΑΝ','ΦΘΙΩΤ','ΦΩΚΙΔ','ΒΟΙΩΤ','ΕΥΒΟΙ','ΜΑΓΝΗΣ','ΣΠΟΡΑΔ','ΛΕΣΒ','ΛΗΜΝ','ΧΙΟ','ΚΕΡΚΥΡ','ΛΕΥΚΑΔ','ΘΕΣΠΡΩΤ','ΠΡΕΒΕΖ','ΑΡΤΑ'],
+ C:['ΑΡΚΑΔ','ΕΥΡΥΤΑΝ','ΙΩΑΝΝΙΝ','ΛΑΡΙΣ','ΚΑΡΔΙΤΣ','ΤΡΙΚΑΛ','ΠΙΕΡΙ','ΗΜΑΘΙ','ΠΕΛΛ','ΘΕΣΣΑΛΟΝΙΚ','ΚΙΛΚΙΣ','ΧΑΛΚΙΔΙΚ','ΣΕΡΡ','ΚΑΒΑΛ','ΘΑΣ','ΔΡΑΜ','ΞΑΝΘ','ΡΟΔΟΠ','ΕΒΡ'],
+ D:['ΓΡΕΒΕΝ','ΚΟΖΑΝ','ΚΑΣΤΟΡΙ','ΦΛΩΡΙΝ']};
+function grNorm(t){
+  return (t||'').toUpperCase()
+    .replace(/Ά/g,'Α').replace(/Έ/g,'Ε').replace(/Ή/g,'Η').replace(/Ί/g,'Ι')
+    .replace(/Ό/g,'Ο').replace(/Ύ/g,'Υ').replace(/Ώ/g,'Ω').replace(/Ϊ/g,'Ι').replace(/Ϋ/g,'Υ');
+}
+function zoneOfCounty(name){
+  const n=grNorm(name);
+  for(const z of ['D','C','B','A'])   /* ψυχρότερες πρώτα: πιο ειδικά ονόματα */
+    for(const k of ZONE_NOMOI[z])if(n.includes(k))return z;
+  return null;
+}
+async function zoneFromLocation(){
+  /* Πηγή: (α) θέση ΚΑΕΚ αν υπάρχει, (β) διεύθυνση έργου */
+  let url=null,label='';
+  if(kSel&&kSel.lat){url='https://nominatim.openstreetmap.org/reverse?format=json&accept-language=el&lat='+kSel.lat+'&lon='+kSel.lon;label='τη θέση ΚΑΕΚ';}
+  else{const ad=(document.getElementById('p_addr').value||'').trim();
+    if(!ad){alert('Δώσε διεύθυνση έργου (tab Έργο) ή επίλεξε ΚΑΕΚ στον χάρτη.');return;}
+    url='https://nominatim.openstreetmap.org/search?format=json&accept-language=el&limit=1&countrycodes=gr&addressdetails=1&q='+encodeURIComponent(ad);label='τη διεύθυνση';}
+  hint('Εύρεση κλιματικής ζώνης…');
+  try{
+    const r=await fetch(url);const d=await r.json();
+    const a=(Array.isArray(d)?(d[0]&&d[0].address):d.address)||{};
+    const county=a.county||a.state_district||a.state||a.municipality||'';
+    const z=zoneOfCounty(county)||zoneOfCounty(a.display_name||'');
+    if(!z){alert('Δεν αναγνωρίστηκε νομός («'+county+'») — διάλεξε ζώνη χειροκίνητα.');return;}
+    document.getElementById('czone').value=z;
+    pSave();if(closed)report(false);
+    hint('Κλιματική ζώνη '+({A:'Α',B:'Β',C:'Γ',D:'Δ'})[z]+' από '+label+' ('+county+'). Ορεινός οικισμός >500 μ; -> επόμενη ψυχρότερη ζώνη (ΤΟΤΕΕ).');
+  }catch(e){alert('Αποτυχία εύρεσης — χρειάζεται σύνδεση στο διαδίκτυο.');}
+}
 const KAEK_FN='https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/kaek-geo';
 let kmap=null,kLayer=null,kSel=null,leafletReady=false;
 function loadLeaflet(cb){
@@ -2080,7 +2141,13 @@ document.getElementById('kaekBtn').onclick=()=>{
 document.getElementById('mapClose').onclick=()=>document.getElementById('mapSheet').classList.remove('on');
 document.getElementById('kaekGo').onclick=()=>{
   const v=document.getElementById('kaekQ').value.trim();
-  if(v)kaekLookup('kaek='+encodeURIComponent(v)+'&neighbors=0');
+  if(!v)return;
+  const m=v.match(/^(\d{12})(?:\/(\d{1,2})\/(\d{1,2}))?$/);
+  if(m){
+    if(m[2]!=null)document.getElementById('kaekVX').value=m[2];
+    if(m[3]!=null)document.getElementById('kaekVY').value=m[3];
+    kaekLookup('kaek='+encodeURIComponent(m[1])+'&neighbors=0');
+  }else kaekLookup('kaek='+encodeURIComponent(v)+'&neighbors=0');
 };
 document.getElementById('kaekQ').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('kaekGo').onclick();});
 document.getElementById('gpsBtn').onclick=()=>{
@@ -2095,8 +2162,14 @@ async function kaekLookup(qs){
     const r=await fetch(KAEK_FN+'?'+qs);
     const d=await r.json();
     if(!r.ok||d.error||!d.kaek)throw new Error(d.error||'Δεν βρέθηκε γεωτεμάχιο εδώ.');
-    kSel=d;
-    document.getElementById('kaekVal').textContent=d.kaek;
+    kSel=d;kSel.base=String(d.kaek).split('/')[0];
+    const _fullK=()=>{
+      const vx=+document.getElementById('kaekVX').value||0,vy=+document.getElementById('kaekVY').value||0;
+      document.getElementById('kaekVal').textContent=kSel.base+'/'+vx+'/'+vy;
+    };
+    _fullK();
+    document.getElementById('kaekVX').oninput=_fullK;
+    document.getElementById('kaekVY').oninput=_fullK;
     document.getElementById('kaekInfo').textContent=
       (d.area_m2?('εμβαδόν '+(+d.area_m2).toFixed(1).replace('.',',')+' m² · '):'')+
       (+d.lat).toFixed(6)+', '+(+d.lon).toFixed(6)+(d.approx?' · κατά προσέγγιση':'');
@@ -2115,6 +2188,11 @@ async function kaekLookup(qs){
 }
 document.getElementById('kaekUse').onclick=()=>{
   if(!kSel)return;
+  /* Πλήρης μορφή ιδιοκτησίας: 12ψήφιο/Χ/Υ (κάθετη/οριζόντια από ΑΚΦ) */
+  const vx=Math.max(0,Math.min(99,Math.round(+document.getElementById('kaekVX').value||0)));
+  const vy=Math.max(0,Math.min(99,Math.round(+document.getElementById('kaekVY').value||0)));
+  kSel.base=kSel.base||String(kSel.kaek).split('/')[0];
+  kSel.kaek=kSel.base+'/'+vx+'/'+vy;
   document.getElementById('mapSheet').classList.remove('on');
   if(document.getElementById('kaekDraw').checked){
     PARCEL=parcelFromGeo(kSel);
@@ -2381,6 +2459,7 @@ function pSave(){
   for(const id of PFIELDS){const el=document.getElementById(id);
     if(el)o[id]=el.type==='checkbox'?el.checked:el.value;}
   try{localStorage.setItem(PSTORE,JSON.stringify(o));}catch(e){}
+  try{stepSync();}catch(e){}
 }
 function pLoad(){
   let o=null;try{o=JSON.parse(localStorage.getItem(PSTORE)||'null');}catch(e){}
@@ -2760,6 +2839,44 @@ document.getElementById('sysSug').onclick=sysApplySuggested;
   const el=document.getElementById(id);if(el)el.addEventListener('change',sysCheckRender);});
 sysCheckRender();setTab(2);
 
+/* ============================================================
+   ΠΟΡΕΙΑ ΕΠΙΘΕΩΡΗΣΗΣ — 7 βήματα, το επόμενο φωνάζει (pulse)
+   ============================================================ */
+let XML_DONE=false;
+const STEPS=[
+ {t:'Στοιχεία',full:'Στοιχεία έργου & ιδιοκτήτη',
+  done:()=>!!(document.getElementById('p_num').value.trim()&&document.getElementById('p_owner').value.trim()&&/^\d{9}$/.test(document.getElementById('p_afm').value.trim())),
+  go:()=>{setTab(1);setTimeout(()=>document.getElementById('p_num').focus(),80);}},
+ {t:'ΚΑΕΚ',full:'Θέση/ΚΑΕΚ στον χάρτη',
+  done:()=>!!(kSel&&kSel.kaek),
+  go:()=>document.getElementById('kaekBtn').onclick()},
+ {t:'Κέλυφος',full:'Σχεδίαση & κλείσιμο περιγράμματος',
+  done:()=>closed,
+  go:()=>setTab(2)},
+ {t:'Κουφώμ.',full:'Κουφώματα με ιδιότητες',
+  done:()=>closed&&koufLines.length>0,
+  go:()=>{setTab(2);if(!koufMode)document.getElementById('koufT').click();}},
+ {t:'Συστήματα',full:'Συστήματα χωρίς σφάλματα ΤΟΤΕΕ',
+  done:()=>{try{return document.getElementById('s_heat').checked&&sysCheck().errors.length===0;}catch(e){return false;}},
+  go:()=>setTab(3)},
+ {t:'Σενάρια',full:'Σενάριο εξοικονόμησης (+ Πρόταση ΑΙ)',
+  done:()=>SCN.length>0,
+  go:()=>setTab(4)},
+ {t:'XML',full:'Εξαγωγή XML ΤΕΕ-ΚΕΝΑΚ',
+  done:()=>XML_DONE,
+  go:()=>document.getElementById('xmlBtn').onclick()}];
+function stepSync(){
+  const el=document.getElementById('steps');if(!el)return;
+  let cur=-1;
+  const st=STEPS.map((s,i)=>{const d=!!s.done();if(!d&&cur<0)cur=i;return d;});
+  let h='';
+  STEPS.forEach((s,i)=>{
+    const cls=st[i]?'step done':(i===cur?'step cur':'step');
+    h+='<button class="'+cls+'" data-s="'+i+'" title="'+s.full+'"><i>'+(i+1)+'</i>'+s.t+'</button>';
+  });
+  el.innerHTML=h;
+  el.querySelectorAll('.step').forEach(b=>b.onclick=()=>STEPS[+b.dataset.s].go());
+}
 /* ---------- UI v0.5: κενή οθόνη, βήματα, status, υπόμνημα, πλήκτρα ---------- */
 const $=id=>document.getElementById(id);
 $('eDxf').onclick=()=>$('dxfFile').click();
@@ -2788,6 +2905,7 @@ function uiSync(){
   LG.forEach(([k,c,t])=>{if(ov[k].length)lg+='<span class="lg"><i style="background:'+c+'"></i>'+t+' '+ov[k].length+'</span>';});
   if(koufLines.length)lg+='<span class="lg"><i style="background:#2E8B57"></i>Κουφώματα '+koufLines.length+'</span>';
   $('legend').innerHTML=lg;$('legend').style.display=lg?'flex':'none';
+  stepSync();
 }
 function periodSync(){
   const y=+document.getElementById('year').value||0;
