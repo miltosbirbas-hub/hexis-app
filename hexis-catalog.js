@@ -35,7 +35,7 @@
    Το sw.js (importScripts) και το app.html τη διαβάζουν από εδώ.
    ΔΕΝ γράφεται πουθενά αλλού.
    ============================================================ */
-var VERSION = 'v4.40';
+var VERSION = 'v4.42';
 
 var BRB_TERRAIN_URL = 'https://miltosbirbas-hub.github.io/BRB-contour-live/';
 
@@ -179,6 +179,36 @@ g.HEXIS_TERRAIN_URL = BRB_TERRAIN_URL;
   function put(){
     tries++;
     var done=false;
+    /* 0. Το hub έχει ΔΙΚΟ του map: var ICONS = {...} ΧΩΡΙΣ κλειδί kenak.
+       Το προσθέτουμε (για κάθε μελλοντικό render)... */
+    try{
+      var IC=(typeof ICONS!=='undefined')?ICONS:(window.ICONS||null);
+      if(IC&&!IC.kenak)IC.kenak='<svg style="width:100%;height:100%;display:block" '+
+        K.icoSvg.replace(/^<svg /,'').replace('<svg ','');
+      if(IC&&!IC.kenak)IC.kenak=K.icoSvg;
+    }catch(e){}
+    /* 1. ...και γεμίζουμε το ΗΔΗ αποδοσμένο άδειο slot: κάρτα με σύνδεσμο στο kenak.html */
+    try{
+      var links=document.querySelectorAll('a[href*="kenak"],[data-id="kenak"],[data-href*="kenak"]');
+      for(var li=0;li<links.length;li++){
+        var card=links[li];
+        /* ανέβα έως 4 επίπεδα μέχρι να βρεις container με κείμενο της κάρτας */
+        for(var up2=0;up2<4&&card&&!(card.textContent||'').includes('ΚΕΝΑΚ');up2++)card=card.parentElement;
+        if(!card||card.querySelector('svg,img'))continue;
+        /* κενό slot: στοιχείο χωρίς παιδιά-στοιχεία και χωρίς κείμενο */
+        var cand=card.getElementsByTagName('*');
+        for(var ci=0;ci<cand.length;ci++){
+          var c2=cand[ci];
+          if(c2.children.length===0&&(c2.textContent||'').trim()===''&&c2.tagName!=='BR'&&c2.tagName!=='HR'){
+            c2.innerHTML=K.icoSvg;
+            var sv2=c2.querySelector('svg');
+            if(sv2){sv2.style.width='100%';sv2.style.height='100%';sv2.style.display='block';}
+            done=true;break;
+          }
+        }
+        if(done)break;
+      }
+    }catch(e){}
     var all=document.body?document.body.getElementsByTagName('*'):[];
     for(var i=0;i<all.length;i++){
       var el=all[i];
@@ -187,6 +217,28 @@ g.HEXIS_TERRAIN_URL = BRB_TERRAIN_URL;
         var sv=el.querySelector('svg');
         if(sv){sv.style.width='100%';sv.style.height='100%';sv.style.display='block';}
         done=true;
+      }
+    }
+    if(!done){
+      /* Το hub δεν αποδίδει καθόλου το ico: βρες την κάρτα από τον ΤΙΤΛΟ της
+         και βάλε το εικονίδιο πάνω από αυτόν (όπως στις άλλες κάρτες). */
+      var heads=document.querySelectorAll('h1,h2,h3,h4,b,strong,div,span');
+      for(var j=0;j<heads.length;j++){
+        var h=heads[j];
+        if(h.children.length>0)continue;
+        if((h.textContent||'').trim()!=='ΚΕΝΑΚ Επιθεώρηση')continue;
+        var card=h.parentElement;
+        for(var up=0;up<3&&card;up++){
+          if(card.querySelector('svg,img'))break;   /* έχει ήδη εικονίδιο */
+          if(card.children.length>=2){break;}
+          card=card.parentElement;
+        }
+        if(card&&!card.querySelector('svg,img')){
+          h.insertAdjacentHTML('beforebegin',
+            '<div style="width:46px;height:46px;margin:0 0 10px">'+K.icoSvg+'</div>');
+          done=true;
+        }
+        break;
       }
     }
     if(!done&&tries<12)setTimeout(put,500);
