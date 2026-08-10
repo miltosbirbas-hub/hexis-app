@@ -102,14 +102,31 @@ input,select{width:100%;min-width:0;font-family:var(--num);font-size:13.5px;font
   border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink)}
 input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 @media(min-width:1100px){
-  .panel{width:min(48vw,720px);display:grid;grid-template-columns:1fr 1fr;gap:0 16px;align-content:start}
+  /* Floating πάνελ αγκυρωμένο στη ΔΕΞΙΑ ακμή: πλήρες ύψος, σύρεται μέσα/έξω */
+  .panel{right:0;top:54px;bottom:0;max-height:none;width:min(48vw,720px);
+    border-radius:14px 0 0 14px;border-right:none;
+    display:grid;grid-template-columns:1fr 1fr;gap:0 16px;align-content:start;
+    transition:transform .22s ease;box-shadow:-10px 0 30px #16202b22}
+  .panel.hid{transform:translateX(100%)}
   .panel>*{min-width:0}
   .panel>.sec:first-child{grid-column:1/-1}
   .panel>.sec:last-child{grid-column:1/-1}
   .tools{padding:8px}
   .tools button{min-width:56px;min-height:52px;font-size:11px}
   .tools button svg{width:22px;height:22px}
+  /* γλωττίδα: πάντα ορατή στη δεξιά άκρη */
+  #panelTab{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:11;
+    width:26px;height:92px;border:1px solid var(--line);border-right:none;
+    border-radius:10px 0 0 10px;background:var(--brb);color:#fff;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    font:800 13px var(--ui);box-shadow:-4px 0 14px #16202b26}
+  #panelTab span{transform:rotate(180deg);writing-mode:vertical-rl;letter-spacing:.12em;font-size:10px}
+  /* λαβή αλλαγής πλάτους στην αριστερή ακμή του πάνελ */
+  #pgrip{position:absolute;left:-4px;top:0;bottom:0;width:9px;cursor:ew-resize;z-index:2}
+  #pgrip::after{content:'';position:absolute;left:3px;top:calc(50% - 22px);width:3px;height:44px;
+    border-radius:2px;background:var(--line)}
 }
+@media(max-width:1099px){#panelTab{display:none}}
 .fbt{min-width:26px;height:26px;border:1.5px solid var(--line);border-radius:8px;background:#fff;
   font:700 12px system-ui;color:var(--ink2);cursor:pointer}
 .fbt.on{background:var(--brb);color:#fff;border-color:var(--brb)}
@@ -209,7 +226,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 
 <div class="top">
   <a class="home" href="hub.html">‹ Εργαλεία</a>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.4</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.5</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -249,7 +266,8 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
     <svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3m-8 0l1 13h8l1-13"/></svg>Νέο</button>
 </div>
 
-<div class="panel">
+<button id="panelTab" title="Άνοιγμα/κλείσιμο πάνελ (P)"><span>ΠΑΝΕΛ</span></button>
+<div class="panel"><div id="pgrip" title="Σύρε για πλάτος"></div>
   <div class="sec">
     <h5>Αρχείο</h5>
     <div class="prow">
@@ -852,7 +870,12 @@ function drawOverlays(){
 
 /* ---------- pointer ---------- */
 function compassPos(){
-  return innerWidth>=900?[W-352,H-64]:[W-42,H-296];
+  if(innerWidth<900)return [W-42,H-296];
+  const pn=document.querySelector('.panel');
+  let pw=0;
+  if(pn&&pn.style.display!=='none'&&!pn.classList.contains('hid'))
+    pw=pn.getBoundingClientRect().width||352;
+  return [W-pw-56,H-64];
 }
 let compassDrag=false;
 function setNorthFromPointer(x,y){
@@ -2225,6 +2248,8 @@ function setTab(t){
   const canv=(t===2);
   document.querySelector('.tools').style.display=canv?'':'none';
   document.querySelector('.panel').style.display=canv?'':'none';
+  const _pt=document.getElementById('panelTab');
+  if(_pt)_pt.style.display=canv?'':'none';
   document.getElementById('status').style.display='none';
   document.getElementById('legend').style.display='none';
   document.getElementById('empty').style.display='none';
@@ -2666,6 +2691,37 @@ addEventListener('keydown',e=>{
   else if(k==='t')$('arc').click();
   else if(k==='d')$('dxfBtn').click();
 });
+/* ---------- floating πάνελ (desktop): toggle + πλάτος ---------- */
+(function(){
+  const pn=document.querySelector('.panel'),tb=document.getElementById('panelTab');
+  if(!pn||!tb)return;
+  const KEY='hexis-kenak-panel';
+  let st={};try{st=JSON.parse(localStorage.getItem(KEY)||'{}');}catch(e){}
+  const apply=()=>{
+    if(innerWidth<1100){pn.classList.remove('hid');return;}
+    pn.classList.toggle('hid',!!st.hid);
+    tb.querySelector('span').textContent=st.hid?'ΠΑΝΕΛ ‹':'ΠΑΝΕΛ ›';
+    if(st.w>=340&&st.w<=innerWidth*0.6)pn.style.width=st.w+'px';
+  };
+  const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(st));}catch(e){}};
+  tb.onclick=()=>{st.hid=!st.hid;apply();save();};
+  addEventListener('keydown',e=>{
+    if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
+    if(e.key.toLowerCase()==='p'&&innerWidth>=1100)tb.onclick();
+  });
+  /* λαβή πλάτους */
+  const gr=document.getElementById('pgrip');
+  if(gr){let drag=null;
+    gr.addEventListener('pointerdown',e=>{drag=e.clientX;gr.setPointerCapture(e.pointerId);e.preventDefault();});
+    gr.addEventListener('pointermove',e=>{
+      if(drag==null)return;
+      const w2=Math.max(340,Math.min(innerWidth*0.6,innerWidth-e.clientX));
+      pn.style.width=w2+'px';st.w=w2;});
+    gr.addEventListener('pointerup',()=>{drag=null;save();});
+  }
+  addEventListener('resize',apply);
+  apply();
+})();
 resize();
 </script>
 </body>
