@@ -401,7 +401,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<span class="betaTag">BETA</span><small>ενεργειακή επιθεώρηση · v2.51</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<span class="betaTag">BETA</span><small>ενεργειακή επιθεώρηση · v2.52</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -724,7 +724,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <div class="mask" id="mask"><div class="dlg">
   <h4 id="dlgTitle">Μήκος πλευράς</h4>
   <p id="dlgInfo"></p>
-  <input id="dlgVal" type="text" inputmode="decimal" autocomplete="off">
+  <input id="dlgVal2" style="display:none" placeholder="τέλος"><input id="dlgVal" type="text" inputmode="decimal" autocomplete="off">
   <select id="dlgSel" style="display:none;margin-top:2px">
     <option value="ground">Σε επαφή με ΕΔΑΦΟΣ</option>
     <option value="air">Σε επαφή με ΑΕΡΑ (πυλωτή/πρόβολος)</option>
@@ -832,9 +832,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=71"></script>
-<script src="kenak-xml.js?v=71"></script>
-<script src="kenak-dxf.js?v=71"></script>
+<script src="kenak-data.js?v=72"></script>
+<script src="kenak-xml.js?v=72"></script>
+<script src="kenak-dxf.js?v=72"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -917,6 +917,11 @@ addEventListener('keydown',e=>{if(e.key==='Shift')SHIFT=true;});
 addEventListener('keyup',e=>{if(e.key==='Shift')SHIFT=false;});
 let segH=[];   /* ύψος τοίχου ανά πλευρά (m)· 0 = ύψος ζώνης */
 let segU=[];   /* U τοιχοποιίας ΑΝΑ πλευρά (W/m²K)· 0 = τιμή ζώνης (πεδίο U τοίχου) */
+let segH2=[];  /* ύψος στο ΤΕΛΟΣ της πλευράς (m) για τραπεζοειδείς τοίχους· 0 = ίδιο με αρχής.
+                  Το segH = ύψος στην ΑΡΧΗ (κορυφή i). Εμβαδό: L×(h1+h2)/2 (ακριβές). */
+function segHm(i,hT){const a=segH[i]||0,b2=segH2[i]||0;return a>0?(b2>0?(a+b2)/2:a):hT;}
+function segHtxt(i){const a=segH[i]||0,b2=segH2[i]||0;
+  return a>0?(b2>0&&Math.abs(b2-a)>0.004?a.toFixed(2)+'→'+b2.toFixed(2):a.toFixed(2)):'';}
 let lastEdgeTap=null; /* σημείο tap πάνω σε πλευρά — για εισαγωγή κορυφής ΕΚΕΙ */
 /* Οροφή με υπόδειξη: αν κενό -> οροφή = κάτοψη ζώνης. Αλλιώς μόνο τα
    σχεδιασμένα πολύγωνα μετρούν (τμήμα χωρίς οροφή = δεν το σχεδιάζεις). */
@@ -1052,10 +1057,11 @@ function askObsH(i){
 let FL=[], fi=0;
 function floorSnap(){
   const prev=(FL[fi]||{});
-  return {verts,bulges,segH,segU,kouf:koufLines,OPR,roof:roofPolys,flr:flrPolys,cols:COLS,adb:[...ADB],closed,
+  return {verts,bulges,segH,segH2,segU,kouf:koufLines,OPR,roof:roofPolys,flr:flrPolys,cols:COLS,adb:[...ADB],closed,
     z0:prev.z0,hc:prev.hc};}
 function floorLoad(st){verts=st.verts;bulges=st.bulges;segH=st.segH;
   segU=(st.segU&&st.segU.length===st.verts.length)?st.segU:st.verts.map(()=>0);
+  segH2=(st.segH2&&st.segH2.length===st.verts.length)?st.segH2:st.verts.map(()=>0);
   COLS=st.cols||[];ADB=new Set(st.adb||[]);
   koufLines=st.kouf;OPR=st.OPR;roofPolys=st.roof;flrPolys=st.flr||[];closed=st.closed;}
 function floorsInit(){if(!FL.length){FL=[floorSnap()];fi=0;}}
@@ -1068,10 +1074,10 @@ function floorSwitch(i){
 }
 function floorAdd(){
   floorSave();
-  const c=JSON.parse(JSON.stringify({v:verts,b:bulges,h:segH,u:segU,r:roofPolys}));
+  const c=JSON.parse(JSON.stringify({v:verts,b:bulges,h:segH,h2:segH2,u:segU,r:roofPolys}));
   const k2=koufLines.map(l=>({a:l.a.slice(),b:l.b.slice()}));
   const o2=OPR.map(o=>Object.assign({},o));
-  FL.push({verts:c.v,bulges:c.b,segH:c.h,segU:c.u,kouf:k2,OPR:o2,roof:c.r,closed});
+  FL.push({verts:c.v,bulges:c.b,segH:c.h,segH2:c.h2,segU:c.u,kouf:k2,OPR:o2,roof:c.r,closed});
   floorSwitch(FL.length-1);
   hint('Όροφος '+FL.length+': αντίγραφο του υποκείμενου — τροποποίησε περίγραμμα/κουφώματα κατά το δοκούν');
 }
@@ -1182,7 +1188,7 @@ function draw(){
     ctx.fillStyle=g?'#7A4DB0':'#1F4E9C';ctx.font='600 11px ui-monospace,Menlo,monospace';
     ctx.textAlign='center';ctx.fillText(L.toFixed(2),mp[0],mp[1]+3);
     if(segH[i]>0){ctx.fillStyle='#C43A2B';ctx.font='600 9px ui-monospace,Menlo,monospace';
-      ctx.fillText('H'+segH[i].toFixed(2),mp[0],mp[1]+14);}
+      ctx.fillText('H'+segHtxt(i),mp[0],mp[1]+14);}
     dimHits.push({x:mp[0],y:mp[1],i});
   }
   /* στόχος κλεισίματος: παλλόμενος δακτύλιος στην Α1 */
@@ -1620,6 +1626,7 @@ function openDlg(t,info,val){
   document.getElementById('dlgTitle').textContent=t;
   document.getElementById('dlgInfo').textContent=info;
   const v=document.getElementById('dlgVal');v.style.display='';v.value=val;
+  const v2=document.getElementById('dlgVal2');if(v2){v2.style.display='none';v2.value='';}
   document.getElementById('mask').classList.add('on');setTimeout(()=>{v.focus();v.select();},60);}
 const FLR_OPTS='<option value="ground">Σε επαφή με ΕΔΑΦΟΣ</option>'+
  '<option value="air">Σε επαφή με ΑΕΡΑ (πυλωτή/πρόβολος)</option>'+
@@ -1647,16 +1654,28 @@ function askRoofKind(i){
   sel.style.display='';sel.value=(roofPolys[i]&&roofPolys[i].kind)||'expose';
   setTimeout(()=>sel.focus(),60);
 }
+let hgtSwap=false; /* τελευταία πλευρά Αn-Α1: στο διάλογο πρώτα η Α1 (μικρότερη) */
 function askHgt(i){editIdx=i;editKind='hgt';
+  const n2=verts.length,j=(i+1)%n2;
+  hgtSwap=(j<i);   /* μόνο η πλευρά Αn-Α1 */
+  const pA='Α'+(Math.min(i,j)+1),pB='Α'+(Math.max(i,j)+1);
   const hT=(+document.getElementById('hfloor').value||3)*Math.max(1,+document.getElementById('floors').value||1);
-  openDlg('Ύψος τοίχου πλευράς '+(i+1)+' (m)',
-    'Κενό ή 0 = ύψος ζώνης ('+hT.toFixed(2)+' m). Κεκλιμένη στέγη: δώσε το ΜΕΣΟ ύψος.',
-    segH[i]>0?segH[i].toFixed(2):'');}
+  /* αποθηκευμένα: segH=ύψος στην κορυφή i, segH2=στην κορυφή j — στο UI με φορά '''+"'"+'''μικρή Α → μεγάλη Α'''+"'"+''' */
+  const hIn=segH[i]>0?segH[i].toFixed(2):'',hOut=segH2[i]>0?segH2[i].toFixed(2):'';
+  openDlg('Ύψος τοίχου '+pA+'-'+pB+' (m)',
+    'Ύψος ΑΡΧΗΣ στην '+pA+' και ΤΕΛΟΥΣ στην '+pB+'. Κενό τέλος = ίδιο ύψος παντού. '+
+    'Κενό/0 στην αρχή = ύψος ζώνης ('+hT.toFixed(2)+' m). Τραπεζοειδής (μονόριχτη): δώσε και τα δύο.',
+    hgtSwap?(hOut||''):(hIn||''));
+  const v=document.getElementById('dlgVal');v.placeholder='ύψος στην '+pA+' (αρχή)';
+  const v2=document.getElementById('dlgVal2');
+  if(v2){v2.style.display='';v2.placeholder='ύψος στην '+pB+' (τέλος)';
+    v2.value=hgtSwap?(hIn||''):(hOut||'');}}
 function deleteVertex(i){
   if(verts.length<= (closed?3:2)){hint('Δεν γίνεται — ελάχιστες κορυφές');return;}
   verts.splice(i,1);
   bulges.splice(Math.max(0,i-1),1,0);bulges.length=verts.length;
   segH.splice(i,1);segH.length=verts.length;
+  if(segH2.length){segH2.splice(i,1);segH2.length=verts.length;}
   if(segU.length){segU.splice(i,1);segU.length=verts.length;}
   /* ΔΙΟΡΘΩΣΗ: μετατόπιση δεικτών αδιαβατικών πλευρών (i-1&i ενώνονται σε i-1) */
   ADB=new Set([...ADB].map(e2=>e2>=i?e2-1:e2).filter(e2=>e2>=0&&e2<verts.length));
@@ -1674,7 +1693,15 @@ function insertVertex(i,pAt){
   }else M=[(A[0]+B[0])/2,(A[1]+B[1])/2];
   verts.splice(i+1,0,M);
   bulges.splice(i+1,0,b?Math.tan(Math.atan(b)/2):0); if(b)bulges[i]=Math.tan(Math.atan(b)/2);
-  segH.splice(i+1,0,segH[i]||0);
+  /* τραπεζοειδές: το σπάσιμο στο t δίνει ενδιάμεσο ύψος hM με γραμμική παρεμβολή */
+  if(!segH2.length)segH2=verts.map(()=>0);
+  const hA6=segH[i]||0,hB6=segH2[i]||0;
+  if(hA6>0&&hB6>0){
+    const A6=verts[i],B6=verts[(i+2)%verts.length];  /* B μετά το splice κορυφής */
+    const t6=dist(A6,M)/Math.max(1e-9,dist(A6,B6));
+    const hM=hA6+(hB6-hA6)*Math.max(0,Math.min(1,t6));
+    segH.splice(i+1,0,hM);segH2.splice(i+1,0,hB6);segH2[i]=hM;
+  }else{segH.splice(i+1,0,segH[i]||0);segH2.splice(i+1,0,segH2[i]||0);}
   if(!segU.length)segU=verts.map(()=>0);else segU.splice(i+1,0,segU[i]||0);
   /* μετατόπιση δεικτών αδιαβατικών πλευρών· και τα ΔΥΟ μισά κληρονομούν */
   const na2=[...ADB].map(e2=>e2>i?e2+1:e2);if(ADB.has(i))na2.push(i+1);ADB=new Set(na2);
@@ -1684,7 +1711,7 @@ function insertVertex(i,pAt){
 function askLen(i){editIdx=i;editKind='len';
   const A=verts[i],B=verts[(i+1)%verts.length];
   openDlg('Μήκος χορδής','Πλευρά '+(i+1)+' · τώρα '+dist(A,B).toFixed(2)+' m'+
-    (segH[i]>0?' · H '+segH[i].toFixed(2):'')+((segU[i]||0)>0?' · U '+segU[i].toFixed(2):''),dist(A,B).toFixed(2));
+    (segH[i]>0?' · H '+segHtxt(i):'')+((segU[i]||0)>0?' · U '+segU[i].toFixed(2):''),dist(A,B).toFixed(2));
   const bh=document.getElementById('dlgHgt'),bv=document.getElementById('dlgVtx');
   bh.style.display=bv.style.display='';
   bh.onclick=()=>{document.getElementById('mask').classList.remove('on');askHgt(i);};
@@ -1718,7 +1745,15 @@ function askArc(i){editIdx=i;editKind='arc';
 document.getElementById('dlgOk').onclick=()=>{
   const v=parseFloat(document.getElementById('dlgVal').value.replace(',','.'));
   document.getElementById('mask').classList.remove('on');
-  if(editKind==='hgt'){segH[editIdx]=(isNaN(v)||v<=0)?0:v;draw();if(closed)report(false);pSave();return;}
+  if(editKind==='hgt'){
+    const vb=parseFloat((document.getElementById('dlgVal2').value||'').replace(',','.'));
+    let hA=(isNaN(v)||v<=0)?0:v, hB=(isNaN(vb)||vb<=0)?0:vb;
+    if(hgtSwap){const t2=hA;hA=hB;hB=t2;}   /* UI: μικρή Α πρώτα → αποθήκευση: κορυφή i πρώτα */
+    if(!segH2.length)segH2=verts.map(()=>0);
+    if(hA<=0&&hB>0){hA=hB;hB=0;}            /* μόνο τέλος δόθηκε: ενιαίο ύψος */
+    if(hB>0&&Math.abs(hB-hA)<=0.004)hB=0;   /* ίδια ύψη: ενιαίο */
+    segH[editIdx]=hA;segH2[editIdx]=hA>0?hB:0;
+    draw();if(closed)report(false);pSave();return;}
   if(editKind==='segU'){if(!segU.length)segU=verts.map(()=>0);
     segU[editIdx]=(isNaN(v)||v<=0)?0:Math.min(6,v);draw();if(closed)report(false);pSave();return;}
   if(editKind==='wallKind'){
@@ -1817,7 +1852,7 @@ document.getElementById('clear').onclick=()=>{
   }
   /* ΠΛΗΡΗΣ μηδενισμός σχεδίου — πριν το v2.50 έμεναν κολώνες/κουφώματα/σκιάσεις
      και «στοίχειωναν» το νέο περίγραμμα */
-  verts=[];bulges=[];closed=false;segH=[];segU=[];ADB=new Set();
+  verts=[];bulges=[];closed=false;segH=[];segH2=[];segU=[];ADB=new Set();
   COLS=[];colDown=null;koufLines=[];OPR=[];kDraft=null;opIdx=-1;
   roofPolys=[];rpts=[];flrPolys=[];fpts=[];
   for(const k in ov)ov[k]=[];opts2=[];ovDrag=null;ovArc=null;ovMode=null;
@@ -1887,7 +1922,7 @@ function importDXF(buf){
   verts=zc[0].pts.map(p=>p.slice());
   bulges=zc[0].bulges.slice();
   ov={mtx:c.mtx,ikee:c.ikee,empodia:c.empodia,skiaseis:c.skiaseis,tentes:c.tentes};
-  koufLines=c.kouf;OPR=[];ensureOPR();segH=verts.map(()=>0);segU=verts.map(()=>0);roofPolys=[];rpts=[];flrPolys=[];fpts=[];FL=[];fi=0;floorsInit();floorChip();
+  koufLines=c.kouf;OPR=[];ensureOPR();segH=verts.map(()=>0);segH2=verts.map(()=>0);segU=verts.map(()=>0);roofPolys=[];rpts=[];flrPolys=[];fpts=[];FL=[];fi=0;floorsInit();floorChip();
   closed=false;finish();               /* CCW + report */
   fitAll();
   hint('DXF: ζώνη '+verts.length+' κορ. · ΜΘΧ '+ov.mtx.length+' · ΙΚΕΕ '+ov.ikee.length+
@@ -1982,7 +2017,7 @@ function envelopeCore(hfOne,withRoof,withFloor){
        Ο Βορράς είναι στραμμένος +na από τον +Y -> αφαιρείται (όχι +). */
     let az=(Math.atan2(nx,ny)-na)*180/Math.PI; az=((az%360)+360)%360;
     const k=Math.round(az/45)%8;
-    const hSeg=(src&&segH[src[i]]>0)?segH[src[i]]:hTot;
+    const hSeg=src?segHm(src[i],hTot):hTot;
     secLen[k]+=L; secArea[k]+=L*hSeg;
     const u3=(src&&segU.length&&segU[src[i]]>0)?segU[src[i]]:0;
     if(u3>0){secUdA[k]+=L*hSeg*u3;secCdA[k]+=L*hSeg;}
