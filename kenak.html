@@ -401,7 +401,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<span class="betaTag">BETA</span><small>ενεργειακή επιθεώρηση · v2.50</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<span class="betaTag">BETA</span><small>ενεργειακή επιθεώρηση · v2.51</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -832,9 +832,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=70"></script>
-<script src="kenak-xml.js?v=70"></script>
-<script src="kenak-dxf.js?v=70"></script>
+<script src="kenak-data.js?v=71"></script>
+<script src="kenak-xml.js?v=71"></script>
+<script src="kenak-dxf.js?v=71"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -1616,7 +1616,7 @@ let editIdx=-1,editKind='len';
 function openDlg(t,info,val){
   const _bh=document.getElementById('dlgHgt'),_bv=document.getElementById('dlgVtx'),_bd=document.getElementById('dlgVtxDel'),_bu=document.getElementById('dlgSegU');
   if(_bh){_bh.style.display='none';_bv.style.display='none';if(_bd)_bd.style.display='none';if(_bu)_bu.style.display='none';}
-  const sel=document.getElementById('dlgSel');if(sel)sel.style.display='none';
+  const sel=document.getElementById('dlgSel');if(sel){sel.style.display='none';sel.onchange=null;}
   document.getElementById('dlgTitle').textContent=t;
   document.getElementById('dlgInfo').textContent=info;
   const v=document.getElementById('dlgVal');v.style.display='';v.value=val;
@@ -1697,8 +1697,19 @@ function askLen(i){editIdx=i;editKind='len';
 function askSegU(i){editIdx=i;editKind='segU';
   const uz=(+document.getElementById('uw').value||2.20).toFixed(2);
   openDlg('U τοιχοποιίας πλευράς '+(i+1)+' (W/m²K)',
-    'Κενό ή 0 = τιμή ζώνης ('+uz+'). Για διαφορετικό υλικό στο τμήμα (π.χ. λιθοδομή 2,50, γυψοσανίδα 2,05).',
-    (segU[i]||0)>0?segU[i].toFixed(2):'');}
+    'Διάλεξε είδος τοιχοποιίας για ΑΥΤΟ το τμήμα ή δώσε U χειροκίνητα. Κενό/0 = τιμή ζώνης ('+uz.replace('.',',')+').',
+    (segU[i]||0)>0?segU[i].toFixed(2):'');
+  /* dropdown με ΟΛΟΥΣ τους τύπους τοιχοποιίας (ίδια βιβλιοθήκη με την ΚΑΤΑΣΚΕΥΗ) */
+  const wk=document.getElementById('wallKind'),sel=document.getElementById('dlgSel');
+  if(wk&&sel){
+    sel.innerHTML='<option value="">— τιμή ζώνης (U '+uz.replace('.',',')+') —</option>'+
+      wk.innerHTML.replace('<option value="">— χειροκίνητο U —</option>','');
+    /* προεπιλογή: αν το τρέχον segU ταυτίζεται με τύπο, δείξε τον */
+    const cur=(segU[i]||0)>0?segU[i].toFixed(2):'';
+    sel.value=[...sel.options].some(o=>o.value===cur)?cur:'';
+    sel.style.display='';
+    sel.onchange=()=>{document.getElementById('dlgVal').value=sel.value?(+sel.value).toFixed(2):'';};
+  }}
 function askArc(i){editIdx=i;editKind='arc';
   const b=bulges[i]||0,A=verts[i],B=verts[(i+1)%verts.length];
   const g=arcGeom(A,B,b);
