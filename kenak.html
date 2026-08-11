@@ -843,9 +843,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=83"></script>
-<script src="kenak-xml.js?v=83"></script>
-<script src="kenak-dxf.js?v=83"></script>
+<script src="kenak-data.js?v=84"></script>
+<script src="kenak-xml.js?v=84"></script>
+<script src="kenak-dxf.js?v=84"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -952,7 +952,50 @@ function segHtxt(i){const a=segH[i]||0,b2=segH2[i]||0;
   return a>0?(b2>0&&Math.abs(b2-a)>0.004?a.toFixed(2)+'→'+b2.toFixed(2):a.toFixed(2)):'';}
 let lastEdgeTap=null; /* σημείο tap πάνω σε πλευρά — για εισαγωγή κορυφής ΕΚΕΙ */
 let SRF={};
-let SYS2={};  /* overrides SYSTEM (δίκτυο/τερματικά/βοηθητικά/κάλυψη/ηλιακός):
+let SYS2={};
+let SYSX={heat:[],cool:[]};  /* ΕΠΙΠΛΕΟΝ συστήματα (π.χ. λέβητας + split):
+  {type,src,kw,eff,deff,term,cover[12]} — μπαίνουν ως πρόσθετες ΓΡΑΜΜΕΣ στους
+  πίνακες SYSTEM του XML· ο συνολικός υπολογισμός γίνεται με μερίδια κάλυψης. */
+function sysxAdd(p){
+  const S=sysSuggest();
+  SYSX[p].push(p==='heat'
+    ?{type:'Τοπική αερόψυκτη Α.Θ.',src:'Ηλεκτρισμός',kw:3.5,eff:S.scop,deff:1,term:0.93,
+      cover:[0,0,0,0,0,0,0,0,0,0,0,0]}
+    :{type:'Τοπική αερόψυκτη Α.Θ.',kw:3.5,eff:S.seer,deff:1,term:0.93,
+      cover:[0,0,0,0,0,0,0,0,0,0,0,0]});
+  pSave();sysTableRender();
+  hint('Νέο σύστημα: όρισε τα ΜΕΡΙΔΙΑ κάλυψης ανά μήνα — το άθροισμα όλων ≤ 1.');
+}
+function sysxDel(p,i){SYSX[p].splice(i,1);pSave();sysTableRender();}
+function sysxSet(el){
+  const p=el.dataset.p,i=+el.dataset.i,k=el.dataset.k;
+  const o=SYSX[p]&&SYSX[p][i];if(!o)return;
+  if(k==='type'||k==='src')o[k]=el.value;
+  else{const v=parseFloat(String(el.value).replace(',','.'));o[k]=isNaN(v)?0:v;}
+  pSave();sysCheckRender();
+}
+function sysxCov(el){
+  const p=el.dataset.p,i=+el.dataset.i,m=+el.dataset.m;
+  const o=SYSX[p]&&SYSX[p][i];if(!o)return;
+  o.cover[m]=Math.max(0,Math.min(1,parseFloat(String(el.value).replace(',','.'))||0));
+  pSave();sysCheckRender();
+}
+function effWeighted(p){
+  /* Σταθμισμένος βαθμός για την ΕΚΤΙΜΗΣΗ: βάρος = kW × Σμηνών κάλυψης.
+     Κύριο σύστημα + όλα τα επιπλέον. Επιστρέφει null αν δεν υπάρχουν επιπλέον. */
+  if(!SYSX[p]||!SYSX[p].length)return null;
+  const SD=sysDefaults(100);
+  const main={kw:+document.getElementById(p==='heat'?'s_heatP':'s_coolP').value||1,
+    eff:+document.getElementById(p==='heat'?'s_heatE':'s_coolE').value||1,
+    cover:sys2Cover(p,SD)};
+  let sw=0,se=0;
+  for(const o of [main].concat(SYSX[p])){
+    const months=(o.cover||[]).reduce((a,b)=>a+b,0);
+    const w=Math.max(0.001,(+o.kw||1))*Math.max(0.001,months);
+    sw+=w;se+=w*(+o.eff||1);
+  }
+  return se/sw;
+}  /* overrides SYSTEM (δίκτυο/τερματικά/βοηθητικά/κάλυψη/ηλιακός):
                  {heat:{deff,term,auxKW,cover[12]},cool:{deff,term,cover[12]},
                   dhw:{deff,term},sol:{azim,tilt,util}} */
 function sysDefaults(Az){
@@ -2830,12 +2873,14 @@ document.getElementById('xmlBtn').onclick=async()=>{
       cover:sys2Cover('heat',SD9),
       dnetKW:(isEl||/Τοπικ/i.test(document.getElementById('s_heatT').value))?null:(+document.getElementById('s_heatP').value||null),
       deff:+sys2Get('heat','deff',SD9), term:+sys2Get('heat','term',SD9),
-      auxN:1, auxKW:+sys2Get('heat','auxKW',SD9)},
+      auxN:1, auxKW:+sys2Get('heat','auxKW',SD9),
+      extra:SYSX.heat.map(o=>({type:o.type,src:o.src,kw:o.kw,eff:o.eff,deff:o.deff,term:o.term,cover:o.cover}))},
     cooling:{on:document.getElementById('s_cool').checked,
       type:document.getElementById('s_coolT').value||'Αερόψυκτη Α.Θ.',
       kw:+document.getElementById('s_coolP').value||0,
       seer:+document.getElementById('s_coolE').value||1,
-      cover:sys2Cover('cool',SD9), dnetKW:null, deff:+sys2Get('cool','deff',SD9), term:+sys2Get('cool','term',SD9)},
+      cover:sys2Cover('cool',SD9), dnetKW:null, deff:+sys2Get('cool','deff',SD9), term:+sys2Get('cool','term',SD9),
+      extra:SYSX.cool.map(o=>({type:o.type,kw:o.kw,seer:o.eff,deff:o.deff,term:o.term,cover:o.cover}))},
     dhw:{on:document.getElementById('s_dhw').checked,
       type:document.getElementById('s_dhwT')?document.getElementById('s_dhwT').value:'Τοπικός ηλεκτρικός θερμαντήρας',
       src:'Ηλεκτρισμός',
@@ -3704,7 +3749,7 @@ function pSave(){
   /* ΠΛΗΡΕΣ ΣΧΕΔΙΟ: όροφοι (κορυφές/τόξα/ύψη/κουφώματα/OPR/οροφές/δάπεδα/κολώνες/
      αδιαβατικά), overlays οικοπέδου (εμπόδια/εξώστες/τέντες/ΜΘΧ/ΙΚΕΕ/ηλιακοί/Όμ.Θ)
      και περίγραμμα ΚΑΕΚ — ώστε διακοπή ρεύματος/κλείσιμο browser να μη χάνει ΤΙΠΟΤΑ. */
-  try{floorSave();o.model={FL:FL,fi:fi,ov:ov,parcel:PARCEL,colw:colW,srf:SRF,sys2:SYS2};}catch(e){}
+  try{floorSave();o.model={FL:FL,fi:fi,ov:ov,parcel:PARCEL,colw:colW,srf:SRF,sys2:SYS2,sysx:SYSX};}catch(e){}
   try{localStorage.setItem(PSTORE,JSON.stringify(o));}catch(e){}
   try{stepSync();}catch(e){}
 }
@@ -3737,6 +3782,7 @@ function pLoad(){
       if(+o.model.colw>=0.10)colW=Math.min(2,+o.model.colw);
       if(o.model.srf&&typeof o.model.srf==='object')SRF=o.model.srf;
       if(o.model.sys2&&typeof o.model.sys2==='object')SYS2=o.model.sys2;
+      if(o.model.sysx&&o.model.sysx.heat)SYSX=o.model.sysx;
       ensureOPR();
       /* το resize()/αρχικό draw τρέχουν ΜΕΤΑ το pLoad — κεντράρισμα σε επόμενο tick */
       setTimeout(()=>{try{
@@ -3975,6 +4021,7 @@ function estClass(sc){
   /* θέρμανση: πρωτογενής = Qθ/η × fp */
   let hT=document.getElementById('s_heatT').value||'';
   let hE=Math.max(0.3,+document.getElementById('s_heatE').value||0.8);
+  const hEw=effWeighted('heat');if(hEw)hE=Math.max(0.3,hEw);
   if(sc&&sc.hp!=null){hT='Α.Θ. (σενάριο)';hE=+sc.hp;}
   const isHP=/Α\.Θ\.|Γεωθερμ/i.test(hT);
   const src2=(document.getElementById('s_heatS')||{}).value||'';
@@ -4424,6 +4471,19 @@ function sysCheck(){
     out.tips.push({m:'Χωρίς σύστημα ψύξης: θεωρητικό SEER '+S.seerTheo+' με κάλυψη '+(S.res?'0,5':'1,0')+' — μπορείς να το δηλώσεις ρητά για να φαίνεται στο XML.',
       f:['@cool','','Συμπλήρωση θεωρητικού']});
   }
+  for(const p9 of ['heat','cool']){
+    if(SYSX[p9]&&SYSX[p9].length){
+      const SDx=sysDefaults(100);const mainC=sys2Cover(p9,SDx);
+      const MN=['Ιαν','Φεβ','Μάρ','Απρ','Μάι','Ιούν','Ιούλ','Αύγ','Σεπ','Οκτ','Νοέ','Δεκ'];
+      const bad=[];
+      for(let m9=0;m9<12;m9++){
+        let s9=mainC[m9];for(const o9 of SYSX[p9])s9+=(o9.cover[m9]||0);
+        if(s9>1.001)bad.push(MN[m9]+' ('+s9.toFixed(1).replace('.',',')+')');
+      }
+      if(bad.length)out.warns.push((p9==='heat'?'Θέρμανση':'Ψύξη')+' με '+(SYSX[p9].length+1)+' συστήματα: άθροισμα κάλυψης > 1 σε: '+bad.join(', ')+' — μοίρασε τα μερίδια (π.χ. λέβητας 0,7 + split 0,3).');
+      else out.tips.push((p9==='heat'?'Θέρμανση':'Ψύξη')+': '+(SYSX[p9].length+1)+' συστήματα — ο συνολικός υπολογισμός γίνεται με τα μηνιαία μερίδια κάλυψης κάθε γραμμής.');
+    }
+  }
   try{const zc=zn131();
     if(!zc.sure)out.tips.push('Η χρήση «'+useName()+'» δεν έχει επιβεβαιωμένη ονομασία στο ΤΕΕ-ΚΕΝΑΚ 1.31 — μετά το import έλεγξε το πεδίο «Χρήση ζώνης» μέσα στο πρόγραμμα. (Επιβεβαιωμένες: κατοικίες, καταστήματα, γραφεία, ιατρεία.)');
   }catch(e){}
@@ -4597,6 +4657,40 @@ function sysTableRender(){
       '<input type="number" min="0" max="1" step="0.1" value="'+c[m]+'" data-p="'+p+'" data-m="'+m+'"'+
       ' onchange="sys2Cov(this)" style="width:44px;font-size:12px;padding:4px 2px;text-align:center"></span>';
     return h2+'</div></div>';};
+  const sysxUI=(p)=>{
+    /* επιπλέον συστήματα: υπο-κάρτες + «+ Σύστημα» */
+    let hx='<div style="grid-column:1/-1">';
+    (SYSX[p]||[]).forEach((o,i)=>{
+      const typSel=document.getElementById(p==='heat'?'s_heatT':'s_coolT');
+      let opts='';for(const op of typSel.options)opts+='<option value="'+op.value+'"'+(op.value===o.type?' selected':'')+'>'+op.text+'</option>';
+      let srcH='';
+      if(p==='heat'){const ss=document.getElementById('s_heatS');let so='';
+        for(const op of ss.options)so+='<option value="'+op.value+'"'+(op.value===o.src?' selected':'')+'>'+op.text+'</option>';
+        srcH=cell('Πηγή','<select data-p="'+p+'" data-i="'+i+'" data-k="src" onchange="sysxSet(this)" style="font-size:12px;padding:4px;min-width:130px">'+so+'</select>');}
+      const nf=(k,lab,w,step)=>cell(lab,'<input type="number" step="'+(step||'0.05')+'" value="'+o[k]+'" data-p="'+p+'" data-i="'+i+'" data-k="'+k+'"'+
+        ' onchange="sysxSet(this)" style="width:'+w+'px;font-size:12px;padding:4px;text-align:center">');
+      const MN=['Ιαν','Φεβ','Μάρ','Απρ','Μάι','Ιούν','Ιούλ','Αύγ','Σεπ','Οκτ','Νοέ','Δεκ'];
+      let cv='<div style="grid-column:1/-1"><label style="font-size:9.5px;color:var(--ink2)">Μερίδιο κάλυψης ανά μήνα (0–1)</label><div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:2px">';
+      for(let m2=0;m2<12;m2++)cv+='<span style="text-align:center"><small style="font-size:9px;display:block;color:var(--ink2)">'+MN[m2]+'</small>'+
+        '<input type="number" min="0" max="1" step="0.1" value="'+o.cover[m2]+'" data-p="'+p+'" data-i="'+i+'" data-m="'+m2+'"'+
+        ' onchange="sysxCov(this)" style="width:44px;font-size:12px;padding:4px 2px;text-align:center"></span>';
+      cv+='</div></div>';
+      hx+='<div style="border:1px dashed var(--brb);border-radius:9px;padding:9px 11px;margin-top:8px;background:var(--card)">'+
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'+
+        '<b style="font-size:11px;color:var(--brb)">'+(p==='heat'?'ΘΕΡΜΑΝΣΗ':'ΨΥΞΗ')+' — ΣΥΣΤΗΜΑ '+(i+2)+'</b>'+
+        '<a href="#" onclick="sysxDel(\''+p+'\','+i+');return false" style="margin-left:auto;color:#C43A2B;font-size:11px">× αφαίρεση</a></div>'+
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,max-content));gap:10px 14px;align-items:end">'+
+        '<div style="grid-column:span 2;min-width:200px">'+cell('Τύπος','<select data-p="'+p+'" data-i="'+i+'" data-k="type" onchange="sysxSet(this)" style="font-size:12px;padding:4px;width:100%;min-width:190px">'+opts+'</select>')+'</div>'+
+        srcH+
+        nf('kw','Ισχύς kW',66)+
+        nf('eff',p==='heat'?'COP / η':'EER',60)+
+        nf('deff','Δίκτυο',56,'0.01')+
+        nf('term','Τερματικά',56,'0.01')+
+        cv+'</div></div>';
+    });
+    hx+='<button class="pbtn" style="margin-top:8px;padding:5px 14px;font-size:12px" onclick="sysxAdd(\''+p+'\')">+ Σύστημα '+(p==='heat'?'θέρμανσης':'ψύξης')+' (π.χ. split)</button></div>';
+    return hx;
+  };
   const row=(ck,lbl,inner,p)=>'<div style="border:1px solid var(--line);border-radius:11px;padding:11px 13px;margin:8px 0;background:var(--paper)">'+
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+ck+
     '<b style="font-size:12px;letter-spacing:.05em;color:var(--brb)">'+lbl+'</b>'+
@@ -4613,7 +4707,7 @@ function sysTableRender(){
     cell('Δίκτυο',num('heat','deff','0.01',62,'βαθμός δικτύου διανομής (μονωμένο 0,96 · τοπικά 1,0)'))+
     cell('Τερματικά',num('heat','term','0.01',62,'βαθμός τερματικών (σώματα 0,93 · FCU 0,94 · ενδοδαπέδια 0,88)'))+
     cell('Βοηθ. kW',num('heat','auxKW','0.01',72,'βοηθητικά κυκλοφορητών/καυστήρα — αυτόματο 0,1 W/m²'))+
-    cov('heat'),'heat');
+    cov('heat')+sysxUI('heat'),'heat');
   const cOn=document.getElementById('s_cool').checked;
   h+=row(mirCk('s_cool'),'ΨΥΞΗ',!cOn?'<span style="color:var(--ink2);font-size:12px">ανενεργή — θεωρητικό SEER στον έλεγχο</span>':
     '<div style="grid-column:span 2;min-width:210px">'+cell('Τύπος',mirSel('s_coolT','τύπος συστήματος ψύξης'))+'</div>'+
@@ -4621,7 +4715,7 @@ function sysTableRender(){
     cell('EER/SEER <a href="#" onclick="scopPop(\'seer\');return false" title="Τυπικές τιμές ΤΟΤΕΕ ανά έτος + τρόπος υπολογισμού" style="color:var(--brb);text-decoration:none">ⓘ</a>',mir('s_coolE',66,'EER/SEER — διπλό κλικ: τιμές ΤΟΤΕΕ'))+
     cell('Δίκτυο',num('cool','deff','0.01',62,'βαθμός δικτύου (τοπικές μονάδες 1,0)'))+
     cell('Τερματικά',num('cool','term','0.01',62,'βαθμός τερματικών ψύξης (0,93)'))+
-    cov('cool'),'cool');
+    cov('cool')+sysxUI('cool'),'cool');
   const dOn=document.getElementById('s_dhw').checked;
   h+=row(mirCk('s_dhw'),'ΖΝΧ',!dOn?'<span style="color:var(--ink2);font-size:12px">ανενεργό — θεωρητικός ηλεκτρικός στον έλεγχο</span>':
     '<div style="grid-column:span 2;min-width:210px">'+cell('Τύπος',mirSel('s_dhwT','τύπος συστήματος ΖΝΧ'))+'</div>'+

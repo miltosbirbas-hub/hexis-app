@@ -89,26 +89,47 @@ function kx_system(sys,rid){
   var h=sys.heating||{},c=sys.cooling||{},d=sys.dhw||{},sol=sys.solar||{};
   /* heating */
   x+='<heating rid="1"><heating_exists>'+(h.on?1:0)+'</heating_exists>';
-  x+=kx_ctable('production',h.on?[[h.type||'',KX_SRC_INTERNAL[h.src]||h.src||'',
+  /* ΠΟΛΛΑΠΛΑ συστήματα: κύριο + h.extra[] -> πρόσθετες γραμμές σε production/
+     distribution/termatic — ο ΤΕΕ-ΚΕΝΑΚ επιμερίζει με τα μηνιαία μερίδια κάλυψης */
+  var hR=h.on?[[h.type||'',KX_SRC_INTERNAL[h.src]||h.src||'',
     h.kw!=null?(+h.kw).toFixed(2):'',h.eff!=null?h.eff:1,h.scop!=null?h.scop:1]
-    .concat(h.cover||[1,1,1,1,0,0,0,0,0,0,1,1]).concat([''])]:[],18);
-  x+=kx_ctable('distribution',h.on?[
-    ['Δίκτυο διανομής θερμού μέσου',h.dnetKW!=null?(+h.dnetKW).toFixed(2):'',
-     h.route||'Εσωτερικοί  ή έως και 20% σε εξωτερικούς','','',h.deff!=null?h.deff:0.96,'False',''],
-    ['Αεραγωγοί','','','','','','False','']]:[],8);
-  x+=kx_ctable('termatic',h.on?[['',h.term!=null?h.term:0.93,'']]:[],3);
+    .concat(h.cover||[1,1,1,1,0,0,0,0,0,0,1,1]).concat([''])]:[];
+  var hD=h.on?[['Δίκτυο διανομής θερμού μέσου',h.dnetKW!=null?(+h.dnetKW).toFixed(2):'',
+     h.route||'Εσωτερικοί  ή έως και 20% σε εξωτερικούς','','',h.deff!=null?h.deff:0.96,'False','']]:[];
+  var hT=h.on?[['',h.term!=null?h.term:0.93,'']]:[];
+  if(h.on&&h.extra)for(var ex=0;ex<h.extra.length;ex++){var e1=h.extra[ex];
+    var hp1=/Α\.Θ\.|αντλία/i.test(e1.type||'');
+    hR.push([e1.type||'',KX_SRC_INTERNAL[e1.src]||e1.src||'Electricity',
+      (+e1.kw||0).toFixed(2),hp1?1.0:(e1.eff||1),hp1?(e1.eff||1):1.0]
+      .concat(e1.cover||[0,0,0,0,0,0,0,0,0,0,0,0]).concat(['']));
+    hD.push(['Δίκτυο διανομής θερμού μέσου',(+e1.kw||0).toFixed(2),
+      'Εσωτερικοί  ή έως και 20% σε εξωτερικούς','','',e1.deff!=null?e1.deff:1,'False','']);
+    hT.push(['',e1.term!=null?e1.term:0.93,'']);
+  }
+  if(h.on)hD.push(['Αεραγωγοί','','','','','','False','']);
+  x+=kx_ctable('production',hR,18);
+  x+=kx_ctable('distribution',hD,8);
+  x+=kx_ctable('termatic',hT,3);
   x+=kx_ctable('auxiliary',h.on&&h.auxKW?[['',h.auxN||1,(+h.auxKW).toFixed(6)]]:[],3);
   x+='</heating>';
   /* cooling */
   x+='<cooling rid="1"><cooling_exists>'+(c.on?1:0)+'</cooling_exists>';
-  x+=kx_ctable('production',c.on?[[c.type||'Αερόψυκτη Α.Θ.','Electricity',
+  var cR=c.on?[[c.type||'Αερόψυκτη Α.Θ.','Electricity',
     c.kw!=null?(+c.kw).toFixed(2):'',1.0,c.seer!=null?c.seer:1]
-    .concat(c.cover||[0,0,0,0,0.5,0.5,0.5,0.5,0.5,0,0,0]).concat([''])]:[],18);
+    .concat(c.cover||[0,0,0,0,0.5,0.5,0.5,0.5,0.5,0,0,0]).concat([''])]:[];
+  var cT=c.on?[['',c.term!=null?c.term:0.93,'']]:[];
+  if(c.on&&c.extra)for(var ex2=0;ex2<c.extra.length;ex2++){var e2=c.extra[ex2];
+    cR.push([e2.type||'Τοπική αερόψυκτη Α.Θ.','Electricity',
+      (+e2.kw||0).toFixed(2),1.0,e2.seer!=null?e2.seer:1]
+      .concat(e2.cover||[0,0,0,0,0,0,0,0,0,0,0,0]).concat(['']));
+    cT.push(['',e2.term!=null?e2.term:0.93,'']);
+  }
+  x+=kx_ctable('production',cR,18);
   x+=kx_ctable('distribution',c.on?[
     ['Δίκτυο διανομής ψυχρού μέσου',c.dnetKW!=null?(+c.dnetKW).toFixed(2):'',
      c.route||'Εσωτερικοί  ή έως και 20% σε εξωτερικούς',c.deff!=null?c.deff:0.96,'False',''],
     ['Αεραγωγοί','','','','False','']]:[],6);
-  x+=kx_ctable('termatic',c.on?[['',c.term!=null?c.term:0.93,'']]:[],3);
+  x+=kx_ctable('termatic',cT,3);
   x+=kx_ctable('auxiliary',[],3);
   x+='</cooling>';
   /* humidification: πάντα παρόν, ανενεργό (μοτίβο ΟΛΩΝ των έγκυρων αρχείων) */
