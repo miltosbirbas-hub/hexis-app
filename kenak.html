@@ -580,13 +580,13 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
       <div><label>Τύπος <a href="#" onclick="theoreticalHeat();return false" style="font-size:10px;color:var(--brb)">χωρίς σύστημα;</a></label><select id="s_heatT"></select></div>
       <div><label>Πηγή ενέργειας</label><select id="s_heatS"></select></div>
       <div><label>Ισχύς kW <a href="#" onclick="heatLoadCalc();return false" style="font-size:10px;color:var(--brb)" title="Διαστασιολόγηση από τις απώλειες του κελύφους: P=(ΣU·A + αερισμός)·ΔΤ ζώνης ×1,25">υπολόγισε;</a></label><input id="s_heatP" type="number" inputmode="decimal" value="10.0" step="0.5"></div>
-      <div><label>COP/η</label><input id="s_heatE" type="number" inputmode="decimal" value="3.50" step="0.05"></div>
+      <div><label>COP/η <a href="#" onclick="scopPop('scop');return false" style="font-size:9.5px;color:var(--brb)" title="Τυπικές τιμές ΤΟΤΕΕ ανά έτος εγκατάστασης + πώς υπολογίζεται">ΤΟΤΕΕ;</a></label><input id="s_heatE" type="number" inputmode="decimal" value="3.50" step="0.05"></div>
     </div>
     <div class="sysrow">
       <label class="sw"><input type="checkbox" id="s_cool">Ψύξη</label>
       <div><label>Τύπος</label><select id="s_coolT"></select></div>
       <div><label>Ισχύς kW</label><input id="s_coolP" type="number" inputmode="decimal" value="10.0" step="0.5"></div>
-      <div><label>EER/SEER</label><input id="s_coolE" type="number" inputmode="decimal" value="3.00" step="0.05"></div>
+      <div><label>EER/SEER <a href="#" onclick="scopPop('seer');return false" style="font-size:9.5px;color:var(--brb)" title="Τυπικές τιμές ΤΟΤΕΕ ανά έτος εγκατάστασης + πώς υπολογίζεται">ΤΟΤΕΕ;</a></label><input id="s_coolE" type="number" inputmode="decimal" value="3.00" step="0.05"></div>
     </div>
     <div class="sysrow">
       <label class="sw"><input type="checkbox" id="s_dhw" checked>ΖΝΧ</label>
@@ -732,7 +732,17 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
     <option value="mtx">Πάνω από ΜΗ θερμαινόμενο χώρο (b=0,5)</option>
     <option value="heated">Πάνω από ΘΕΡΜΑΙΝΟΜΕΝΟ χώρο (αδιαβατικό)</option>
   </select>
-  <div id="colSheet" style="position:fixed;right:12px;top:70px;z-index:40;display:none;width:238px;
+  <div id="scopPop" style="display:none;position:fixed;inset:0;z-index:70;background:#16202b66" onclick="if(event.target===this)this.style.display='none'">
+  <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,94vw);max-height:88vh;overflow:auto;
+    background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 10px 40px #16202b55">
+    <div style="display:flex;align-items:center;gap:8px">
+      <b id="spTitle" style="color:var(--brb);font-size:14px"></b>
+      <button onclick="document.getElementById('scopPop').style.display='none'" style="margin-left:auto;border:none;background:none;font-size:20px;cursor:pointer;color:var(--ink2)">×</button>
+    </div>
+    <div id="spBody" style="font-size:12.5px;line-height:1.5;margin-top:8px"></div>
+  </div>
+</div>
+<div id="colSheet" style="position:fixed;right:12px;top:70px;z-index:40;display:none;width:238px;
   background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 12px;box-shadow:0 4px 18px #16202b2e;font-size:12px">
   <b style="color:var(--brb);font-size:12px;letter-spacing:.05em">ΥΠΟΣΤΥΛΩΜΑ — ΒΙΒΛΙΟΘΗΚΗ</b>
   <div style="margin-top:7px"><label style="font-size:10px;color:var(--ink2)">Σχήμα</label>
@@ -833,9 +843,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=82"></script>
-<script src="kenak-xml.js?v=82"></script>
-<script src="kenak-dxf.js?v=82"></script>
+<script src="kenak-data.js?v=83"></script>
+<script src="kenak-xml.js?v=83"></script>
+<script src="kenak-dxf.js?v=83"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -4471,6 +4481,85 @@ function sysFix(id,val){
   pSave();sysCheckRender();
   hint('Εφαρμόστηκε: '+val+' — ο έλεγχος ΤΟΤΕΕ ξανάτρεξε.');
 }
+function spCalc(){
+  /* COP/EER από πινακίδα: αποδιδόμενη ισχύς ÷ απορροφούμενη ηλεκτρική */
+  const o=+((document.getElementById('spOut')||{}).value)||0;
+  const i=+((document.getElementById('spIn')||{}).value)||0;
+  const r=document.getElementById('spRes'),b=document.getElementById('spUse');
+  if(!r)return;
+  if(o>0&&i>0){const v=o/i;
+    r.textContent=v.toFixed(2).replace('.',',');
+    r.style.color=(v<1||v>7)?'#C43A2B':'var(--brb)';
+    if(b){b.style.display='';b.onclick=()=>{spApply(window._spFld,v.toFixed(2));return false;};}
+  }else{r.textContent='—';if(b)b.style.display='none';}
+}
+function spApply(id,v){
+  const el=document.getElementById(id);if(!el)return;
+  el.value=v;try{el.dispatchEvent(new Event('change'));}catch(e){}
+  pSave();sysCheckRender();
+  document.getElementById('scopPop').style.display='none';
+  hint('Εφαρμόστηκε '+v+' — ΤΟΤΕΕ τυπική τιμή.');
+}
+function scopPop(kind){
+  /* Αναδυόμενο SCOP/SEER: τυπικές τιμές ΤΟΤΕΕ ανά έτος εγκατάστασης + πώς προσδιορίζονται.
+     Όλα τα νούμερα ΑΥΤΟΥΣΙΑ από KENAK_DATA.systemDefaults. */
+  const D=KENAK_DATA.systemDefaults,S=sysSuggest();
+  const heat=kind==='scop';
+  const fld=heat?'s_heatE':'s_coolE';
+  const B=heat?D.heatPumpSCOP.byYearNoData:D.coolingSEER.byYearNoData;
+  const eras=[['pre1990','προ 1990'],['y1990_2000','1990–2000'],['post2001','μετά το 2001']];
+  const rng=heat?D.heatPumpSCOP.range:D.coolingSEER.range;
+  window._spFld=fld;
+  let h='<div style="background:#E8772E14;border:1px solid #E8772E55;border-radius:9px;padding:8px 10px;margin-bottom:9px">'+
+    '<b>Προσοχή στη διάκριση:</b> η μάσκα ΤΕΕ-ΚΕΝΑΚ και οι <b>πινακίδες</b> των μηχανημάτων δίνουν τον '+
+    '<b>ΟΝΟΜΑΣΤΙΚΟ '+(heat?'COP':'EER')+'</b> (πλήρες φορτίο, ΕΝ 14511 — π.χ. A7/W35). '+
+    'Οι <b>νέες σημάνσεις ErP</b> δίνουν εποχιακό '+(heat?'SCOP':'SEER')+' — αυτός ΔΕΝ μπαίνει ως έχει: μετατρέπεται (βλ. σχέσεις παρακάτω).</div>'+
+    '<b style="font-size:11.5px;color:var(--ink2)">ΥΠΟΛΟΓΙΣΜΟΣ ΑΠΟ ΠΙΝΑΚΙΔΑ ΜΗΧΑΝΗΜΑΤΟΣ</b>'+
+    '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin:6px 0 4px">'+
+    '<div><label style="font-size:9.5px;color:var(--ink2)">'+(heat?'Θερμική':'Ψυκτική')+' ισχύς kW</label><br>'+
+    '<input id="spOut" type="number" step="0.1" oninput="spCalc()" style="width:90px;padding:5px 6px;text-align:center"></div>'+
+    '<div style="padding-bottom:7px">÷</div>'+
+    '<div><label style="font-size:9.5px;color:var(--ink2)">Απορροφούμενη ηλεκτρική kW</label><br>'+
+    '<input id="spIn" type="number" step="0.05" oninput="spCalc()" style="width:90px;padding:5px 6px;text-align:center"></div>'+
+    '<div style="padding-bottom:5px">= <b id="spRes" style="font-size:16px;font-family:var(--num);color:var(--brb)">—</b></div>'+
+    '<button id="spUse" class="pbtn" style="display:none;padding:4px 12px">Χρήση</button></div>'+
+    '<p style="margin:2px 0 10px;font-size:11px;color:var(--ink2)">Αν η πινακίδα δίνει BTU/h: kW = BTU/h ÷ 3412. Αν δίνει μόνο ρεύμα (A): ηλεκτρική kW ≈ V×A×συνφ/1000 (μονοφασικό ~230×A×0,9/1000).</p>'+
+    '<b style="font-size:11.5px;color:var(--ink2)">ΧΩΡΙΣ ΣΤΟΙΧΕΙΑ/ΣΗΜΑΝΣΗ — τυπική τιμή από ΕΤΟΣ ΕΓΚΑΤΑΣΤΑΣΗΣ</b>'+
+    '<table style="width:100%;margin:6px 0 10px;border-collapse:collapse">';
+  for(const [k,txt] of eras){
+    const cur=(k===S.era);
+    h+='<tr style="'+(cur?'background:#E8772E22;font-weight:700':'')+'">'+
+      '<td style="padding:6px 8px;border:1px solid var(--line)">'+txt+(cur?' <small>← έτος άδειας '+S.year+'</small>':'')+'</td>'+
+      '<td style="padding:6px 8px;border:1px solid var(--line);text-align:center;font-family:var(--num)">'+B[k].toFixed(1).replace('.',',')+'</td>'+
+      '<td style="padding:6px 8px;border:1px solid var(--line);text-align:center">'+
+      '<button class="pbtn" style="padding:3px 10px;font-size:11px" onclick="spApply(\''+fld+'\',\''+B[k]+'\')">Χρήση</button></td></tr>';
+  }
+  h+='</table>';
+  if(heat){
+    h+='<b style="font-size:11.5px;color:var(--ink2)">ΠΩΣ ΥΠΟΛΟΓΙΖΕΤΑΙ ΤΟ SCOP</b>'+
+      '<p style="margin:5px 0">Το SCOP είναι ο <b>εποχιακός</b> βαθμός απόδοσης (kWh θερμότητας ανά kWh ηλεκτρικής, κατά EN 14825). Με σειρά προτεραιότητας:</p>'+
+      '<p style="margin:5px 0">1. <b>Νέα σήμανση ErP (δίνει SCOP/ηs):</b> μετατροπή σε τιμή μάσκας: '+
+      Object.entries(D.heatPumpSCOP.labelFormulas).map(([k2,v2])=>'ΑΘ '+k2+': <b style="font-family:var(--num)">'+v2+'</b>').join(' · ')+
+      ' — όπου ηs ο εποχιακός βαθμός χώρου της σήμανσης.</p>'+
+      '<p style="margin:5px 0">2. <b>Ονομαστικό COP από πηγή</b> (τυπικές τιμές χωρίς εποχιακά στοιχεία): '+
+      Object.entries(S.res?D.heatPumpSCOP.nominalBySource_residential:D.heatPumpSCOP.nominalBySource_tertiary)
+        .map(([k2,v2])=>k2+' '+[].concat(v2).map(x=>String(x).replace('.',',')).join('/')).join(' · ')+'.</p>'+
+      '<p style="margin:5px 0">3. <b>Χωρίς κανένα στοιχείο:</b> ο πίνακας ανά έτος εγκατάστασης (πάνω).</p>';
+  }else{
+    h+='<b style="font-size:11.5px;color:var(--ink2)">ΠΩΣ ΥΠΟΛΟΓΙΖΕΤΑΙ ΤΟ EER/SEER</b>'+
+      '<p style="margin:5px 0">Πινακίδα/παλιά μηχανήματα: ο <b>ονομαστικός EER</b> όπως αναγράφεται (ή από τον υπολογιστή πάνω). Νέα σήμανση ErP με SEER: χρησιμοποίησέ τον με τεκμηρίωση από το φύλλο κατασκευαστή. Χωρίς κανένα στοιχείο: ο πίνακας ανά έτος (πάνω).</p>'+
+      '<p style="margin:5px 0"><b>Κτίριο αναφοράς:</b> '+
+      Object.entries(D.coolingSEER.reference).map(([k2,v2])=>k2+' '+String(v2).replace('.',',')).join(' · ')+'.</p>'+
+      '<p style="margin:5px 0"><b>Χωρίς σύστημα ψύξης (θεωρητικό):</b> SEER '+
+      String(D.coolingSEER.theoretical.residential).replace('.',',')+' κατοικία (κάλυψη 0,5) · '+
+      String(D.coolingSEER.theoretical.tertiary).replace('.',',')+' τριτογενής (κάλυψη 1,0).</p>';
+  }
+  h+='<p style="margin:5px 0;color:var(--ink2)">Αποδεκτό εύρος μάσκας: '+String(rng[0]).replace('.',',')+'–'+String(rng[1]).replace('.',',')+
+    '. Πηγή: ΤΟΤΕΕ 20701-1/2017 κεφ. 4-5, αυτούσιοι πίνακες.</p>';
+  document.getElementById('spTitle').textContent=heat?'SCOP θέρμανσης — τιμές ΤΟΤΕΕ':'EER/SEER ψύξης — τιμές ΤΟΤΕΕ';
+  document.getElementById('spBody').innerHTML=h;
+  document.getElementById('scopPop').style.display='block';
+}
 function sysMir(el){
   /* καθρέφτης πίνακα -> πραγματικό πεδίο φόρμας (μία πηγή αλήθειας) */
   const t=document.getElementById(el.dataset.mir);if(!t)return;
@@ -4487,7 +4576,8 @@ function sysTableRender(){
     '<label style="font-size:9.5px;color:var(--ink2);letter-spacing:.03em;white-space:nowrap">'+lab+'</label>'+inner+'</div>';
   const mir=(id,w,tit)=>{const f=document.getElementById(id);if(!f)return '';
     return '<input type="number" step="0.05" value="'+f.value+'" data-mir="'+id+'" onchange="sysMir(this)"'+
-      ' title="'+tit+'" style="width:'+w+'px;font-size:12.5px;padding:5px 6px;text-align:center">';};
+      ' title="'+tit+'"'+((id==='s_heatE')?' ondblclick="scopPop(\'scop\')"':(id==='s_coolE')?' ondblclick="scopPop(\'seer\')"':'')+
+      ' style="width:'+w+'px;font-size:12.5px;padding:5px 6px;text-align:center">';};
   const mirSel=(id,tit)=>{const f=document.getElementById(id);if(!f)return '';
     let o='';for(const op of f.options)o+='<option value="'+op.value+'"'+(op.value===f.value?' selected':'')+'>'+op.text+'</option>';
     return '<select data-mir="'+id+'" onchange="sysMir(this)" title="'+tit+'"'+
@@ -4519,7 +4609,7 @@ function sysTableRender(){
     '<div style="grid-column:span 2;min-width:210px">'+cell('Τύπος',mirSel('s_heatT','τύπος συστήματος θέρμανσης'))+'</div>'+
     cell('Πηγή',mirSel('s_heatS','πηγή ενέργειας'))+
     cell('Ισχύς kW',mir('s_heatP',72,'ονομαστική ισχύς — «υπολόγισε;» στη φόρμα για διαστασιολόγηση'))+
-    cell('η / SCOP',mir('s_heatE',66,'βαθμός λέβητα ή SCOP αντλίας'))+
+    cell('η / SCOP <a href="#" onclick="scopPop(\'scop\');return false" title="Τυπικές τιμές ΤΟΤΕΕ ανά έτος + τρόπος υπολογισμού" style="color:var(--brb);text-decoration:none">ⓘ</a>',mir('s_heatE',66,'SCOP/βαθμός — διπλό κλικ: τιμές ΤΟΤΕΕ'))+
     cell('Δίκτυο',num('heat','deff','0.01',62,'βαθμός δικτύου διανομής (μονωμένο 0,96 · τοπικά 1,0)'))+
     cell('Τερματικά',num('heat','term','0.01',62,'βαθμός τερματικών (σώματα 0,93 · FCU 0,94 · ενδοδαπέδια 0,88)'))+
     cell('Βοηθ. kW',num('heat','auxKW','0.01',72,'βοηθητικά κυκλοφορητών/καυστήρα — αυτόματο 0,1 W/m²'))+
@@ -4528,7 +4618,7 @@ function sysTableRender(){
   h+=row(mirCk('s_cool'),'ΨΥΞΗ',!cOn?'<span style="color:var(--ink2);font-size:12px">ανενεργή — θεωρητικό SEER στον έλεγχο</span>':
     '<div style="grid-column:span 2;min-width:210px">'+cell('Τύπος',mirSel('s_coolT','τύπος συστήματος ψύξης'))+'</div>'+
     cell('Ισχύς kW',mir('s_coolP',72,'ονομαστική ψυκτική ισχύς'))+
-    cell('EER/SEER',mir('s_coolE',66,'EER/SEER ψύξης'))+
+    cell('EER/SEER <a href="#" onclick="scopPop(\'seer\');return false" title="Τυπικές τιμές ΤΟΤΕΕ ανά έτος + τρόπος υπολογισμού" style="color:var(--brb);text-decoration:none">ⓘ</a>',mir('s_coolE',66,'EER/SEER — διπλό κλικ: τιμές ΤΟΤΕΕ'))+
     cell('Δίκτυο',num('cool','deff','0.01',62,'βαθμός δικτύου (τοπικές μονάδες 1,0)'))+
     cell('Τερματικά',num('cool','term','0.01',62,'βαθμός τερματικών ψύξης (0,93)'))+
     cov('cool'),'cool');
