@@ -401,7 +401,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<span class="betaTag">BETA</span><small>ενεργειακή επιθεώρηση · v2.54</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<span class="betaTag">BETA</span><small>ενεργειακή επιθεώρηση · v2.59</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -517,7 +517,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
           <option value="0.55">Ξηρά δόμηση: διπλή γυψοσανίδα + ορυκτοβάμβακας 10 εκ — U 0,55</option>
           <option value="1.10">Εμφανές σκυρόδεμα 25 εκ + μόνωση 3 εκ — U 1,10</option>
         </select></div>
-      <div><label>U τοιχ. <a href="#" onclick="uFromYear();return false" style="font-size:9.5px;color:var(--brb)" title="Τυπικές τιμές Πίν.3.5α/β από το έτος άδειας">από έτος;</a></label><input id="uw" type="number" inputmode="decimal" value="2.20" step="0.05" title="U τοιχοποιίας πλήρωσης W/m²K"></div>
+      <div><label>U τοιχ. <a href="#" onclick="uFromYear();return false" style="font-size:9.5px;color:var(--brb)" title="Τυπικές τιμές Πίν.3.5α/β από το έτος άδειας">από έτος;</a> <span id="uwRef" style="font-size:9px;color:var(--ink2)" title="Umax κτιρίου αναφοράς για την τρέχουσα κλιματική ζώνη (Πίν.3.4α)"></span></label><input id="uw" type="number" inputmode="decimal" value="2.20" step="0.05" title="U τοιχοποιίας πλήρωσης W/m²K"></div>
       <div class="full" style="grid-column:1/-1;border-top:1px dashed var(--line);padding-top:10px;margin-top:6px">
         <label style="color:var(--brb)" title="Προαιρετικά — γράφονται στο XML με τη γωνία κλίσης της στέγης">Παράθυρα στέγης (VELUX)</label>
         <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-top:5px;align-items:end">
@@ -619,6 +619,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   <h3>Επίλυση & κατηγορία</h3>
   <div class="card" id="solveCard">
     <div id="sysCheck" style="margin:4px 0 8px"></div>
+    <div id="sysTbl" style="margin:4px 0 8px"></div>
     <div class="prow">
       <button class="pbtn blue" id="sysRef" style="flex:1.3;min-height:46px;font-size:13.5px;box-shadow:0 3px 12px #1F4E9C44"
         title="Συμπληρώνει τα συστήματα με τις τιμές του ΚΤΙΡΙΟΥ ΑΝΑΦΟΡΑΣ κατά ΚΕΝΑΚ/FAQ ΤΕΕ">
@@ -832,9 +833,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=74"></script>
-<script src="kenak-xml.js?v=74"></script>
-<script src="kenak-dxf.js?v=74"></script>
+<script src="kenak-data.js?v=80"></script>
+<script src="kenak-xml.js?v=80"></script>
+<script src="kenak-dxf.js?v=80"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -919,10 +920,51 @@ let segH=[];   /* ύψος τοίχου ανά πλευρά (m)· 0 = ύψος �
 let segU=[];   /* U τοιχοποιίας ΑΝΑ πλευρά (W/m²K)· 0 = τιμή ζώνης (πεδίο U τοίχου) */
 let segH2=[];  /* ύψος στο ΤΕΛΟΣ της πλευράς (m) για τραπεζοειδείς τοίχους· 0 = ίδιο με αρχής.
                   Το segH = ύψος στην ΑΡΧΗ (κορυφή i). Εμβαδό: L×(h1+h2)/2 (ακριβές). */
+function zoneIdx(){return {A:0,B:1,C:2,D:3}[document.getElementById('czone').value]||1;}
+function uRef(kind){ /* Umax αναφοράς ανά ζώνη (ΤΟΤΕΕ Πίν.3.4α) — wall/roof/window */
+  const t=KENAK_DATA.umaxRenovation[kind];return t?t[zoneIdx()]:null;}
+function uCheck(v){ /* έλεγχος λογικότητας U τοίχου· null = ΟΚ, αλλιώς μήνυμα με πρόταση */
+  const GR={A:'Α',B:'Β',C:'Γ',D:'Δ'}[document.getElementById('czone').value]||'Β';
+  const ref=uRef('wall');
+  if(v<0.15)return 'U '+v.toFixed(2).replace('.',',')+' είναι ΜΗ ρεαλιστικά χαμηλό για τοίχο (και παθητικά κτίρια ~0,15).\n'+
+    'Κτίριο αναφοράς ζώνης '+GR+': '+ref.toFixed(2).replace('.',',')+' · μονωμένα τυπικά 0,40–1,00.';
+  if(v>4.6)return 'U '+v.toFixed(2).replace('.',',')+' ξεπερνά και την αμόνωτη αργολιθοδομή (max ~4,3).\n'+
+    'Τυπικά: αμόνωτα 2,20–3,40 · Κ.Θ.Κ. 0,85–1,00 · αναφοράς ζώνης '+GR+': '+ref.toFixed(2).replace('.',',')+'.';
+  return null;}
+function hCheck(hA,hB){ /* έλεγχος λογικότητας ύψους τοίχου */
+  const hT=(+document.getElementById('hfloor').value||3)*Math.max(1,+document.getElementById('floors').value||1);
+  const mx=Math.max(hA,hB||hA),mn=Math.min(hA,hB>0?hB:hA);
+  if(mn>0&&mn<1.9)return 'Ύψος '+mn.toFixed(2).replace('.',',')+' m < 1,90 — κάτω από κάθε κατοικήσιμο ύψος. Ύψος ζώνης: '+hT.toFixed(2).replace('.',',')+' m.';
+  if(mx>hT+3.2)return 'Ύψος '+mx.toFixed(2).replace('.',',')+' m ξεπερνά κατά πολύ το ύψος ζώνης ('+hT.toFixed(2).replace('.',',')+' m). Για διπλό ύψος/στέγη τυπικά έως ~'+(hT+3).toFixed(1).replace('.',',')+' m.';
+  return null;}
 function segHm(i,hT){const a=segH[i]||0,b2=segH2[i]||0;return a>0?(b2>0?(a+b2)/2:a):hT;}
 function segHtxt(i){const a=segH[i]||0,b2=segH2[i]||0;
   return a>0?(b2>0&&Math.abs(b2-a)>0.004?a.toFixed(2)+'→'+b2.toFixed(2):a.toFixed(2)):'';}
 let lastEdgeTap=null; /* σημείο tap πάνω σε πλευρά — για εισαγωγή κορυφής ΕΚΕΙ */
+let SRF={};
+let SYS2={};  /* overrides SYSTEM (δίκτυο/τερματικά/βοηθητικά/κάλυψη/ηλιακός):
+                 {heat:{deff,term,auxKW,cover[12]},cool:{deff,term,cover[12]},
+                  dhw:{deff,term},sol:{azim,tilt,util}} */
+function sysDefaults(Az){
+  /* ΟΙ αυτόματες τιμές SYSTEM (ΤΟΤΕΕ 20701-4 πίν.11.x) — μία πηγή για XML & πίνακα */
+  const zoneSel=document.getElementById('czone')?document.getElementById('czone').value:'B';
+  const seas=(zoneSel==='C'||zoneSel==='D')?'CD':'AB';
+  const cc=useSector()==='residential'?0.5:1.0;
+  const tH=document.getElementById('s_heatT').value||'';
+  const isEl=/ηλεκτρικές/i.test(tH);
+  return {
+    heatCover:seas==='AB'?[1,1,1,1,0,0,0,0,0,0,1,1]:[1,1,1,1,0,0,0,0,0,1,1,1],
+    coolCover:seas==='AB'?[0,0,0,0,cc,cc,cc,cc,cc,0,0,0]:[0,0,0,0,0,cc,cc,cc,0,0,0,0],
+    heat:{deff:isEl?1.0:0.96, term:isEl?0.94:0.93, auxKW:isEl?0:Math.round(0.1*Az)/1000},
+    cool:{deff:1.0, term:0.93},
+    dhw:{deff:0.92, term:0.98},
+    sol:{azim:180, tilt:45, util:0.36}
+  };
+}
+function sys2Get(p,k,SD){const o=SYS2[p]||{};return (o[k]!=null&&o[k]!=='')?o[k]:SD[p][k];}
+function sys2Cover(p,SD){const o=SYS2[p]||{};
+  return (Array.isArray(o.cover)&&o.cover.length===12)?o.cover:(p==='heat'?SD.heatCover:SD.coolCover);}  /* overrides ΑΝΑ ΕΠΙΦΑΝΕΙΑ (κλειδί: περιγραφή γραμμής): {U,a,e}
+                — εφαρμόζονται στους πίνακες αδιαφανών/εδάφους πριν το XML */
 /* Οροφή με υπόδειξη: αν κενό -> οροφή = κάτοψη ζώνης. Αλλιώς μόνο τα
    σχεδιασμένα πολύγωνα μετρούν (τμήμα χωρίς οροφή = δεν το σχεδιάζεις). */
 let roofPolys=[], roofMode=false, rpts=[];
@@ -1667,7 +1709,7 @@ function askHgt(i){editIdx=i;editKind='hgt';
   const hIn=segH[i]>0?segH[i].toFixed(2):'',hOut=segH2[i]>0?segH2[i].toFixed(2):'';
   openDlg('Ύψος τοίχου '+pA+'-'+pB+' (m)',
     'Ύψος ΑΡΧΗΣ στην '+pA+' και ΤΕΛΟΥΣ στην '+pB+'. Κενό τέλος = ίδιο ύψος παντού. '+
-    'Κενό/0 στην αρχή = ύψος ζώνης ('+hT.toFixed(2)+' m). Τραπεζοειδής (μονόριχτη): δώσε και τα δύο.',
+    'Κενό/0 στην αρχή = ύψος ζώνης ('+hT.toFixed(2)+' m) — τυπικά 2,20–4,50 m ανά όροφο. Τραπεζοειδής (μονόριχτη): δώσε και τα δύο.',
     hgtSwap?(hOut||''):(hIn||''));
   const v=document.getElementById('dlgVal');v.placeholder='ύψος στην '+pA+' (αρχή)';
   const v2=document.getElementById('dlgVal2');
@@ -1726,8 +1768,10 @@ function askLen(i){editIdx=i;editKind='len';
   bd.onclick=()=>{document.getElementById('mask').classList.remove('on');deleteVertex((i+1)%verts.length);};}
 function askSegU(i){editIdx=i;editKind='segU';
   const uz=(+document.getElementById('uw').value||2.20).toFixed(2);
+  const GRz={A:'Α',B:'Β',C:'Γ',D:'Δ'}[document.getElementById('czone').value]||'Β';
   openDlg('U τοιχοποιίας πλευράς '+(i+1)+' (W/m²K)',
-    'Διάλεξε είδος τοιχοποιίας για ΑΥΤΟ το τμήμα ή δώσε U χειροκίνητα. Κενό/0 = τιμή ζώνης ('+uz.replace('.',',')+').',
+    'Είδος από τη λίστα ή U χειροκίνητα. Κενό/0 = τιμή ζώνης ('+uz.replace('.',',')+'). '+
+    'Αναφοράς ζώνης '+GRz+' (Umax): '+uRef('wall').toFixed(2).replace('.',',')+' · αμόνωτα 2,20–3,40 · μονωμένα 0,40–1,00.',
     (segU[i]||0)>0?segU[i].toFixed(2):'');
   /* dropdown με ΟΛΟΥΣ τους τύπους τοιχοποιίας (ίδια βιβλιοθήκη με την ΚΑΤΑΣΚΕΥΗ) */
   const wk=document.getElementById('wallKind'),sel=document.getElementById('dlgSel');
@@ -1755,10 +1799,16 @@ document.getElementById('dlgOk').onclick=()=>{
     if(!segH2.length)segH2=verts.map(()=>0);
     if(hA<=0&&hB>0){hA=hB;hB=0;}            /* μόνο τέλος δόθηκε: ενιαίο ύψος */
     if(hB>0&&Math.abs(hB-hA)<=0.004)hB=0;   /* ίδια ύψη: ενιαίο */
+    if(hA>0){const w3=hCheck(hA,hB);
+      if(w3&&!confirm(w3+'\n\nΝα κρατηθεί;')){document.getElementById('mask').classList.add('on');return;}}
     segH[editIdx]=hA;segH2[editIdx]=hA>0?hB:0;
     draw();if(closed)report(false);pSave();return;}
   if(editKind==='segU'){if(!segU.length)segU=verts.map(()=>0);
-    segU[editIdx]=(isNaN(v)||v<=0)?0:Math.min(6,v);draw();if(closed)report(false);pSave();return;}
+    let uv=(isNaN(v)||v<=0)?0:Math.min(6,v);
+    if(uv>0){const w2=uCheck(uv);
+      if(w2&&!confirm(w2+'\n\nΝα κρατηθεί το '+uv.toFixed(2).replace('.',',')+';'))
+        {document.getElementById('mask').classList.add('on');return;}}
+    segU[editIdx]=uv;draw();if(closed)report(false);pSave();return;}
   if(editKind==='wallKind'){
     const v2=document.getElementById('dlgSel').value;
     if(v2){
@@ -1858,7 +1908,7 @@ document.getElementById('clear').onclick=()=>{
   verts=[];bulges=[];closed=false;segH=[];segH2=[];segU=[];ADB=new Set();
   COLS=[];colDown=null;koufLines=[];OPR=[];kDraft=null;opIdx=-1;
   roofPolys=[];rpts=[];flrPolys=[];fpts=[];
-  for(const k in ov)ov[k]=[];opts2=[];ovDrag=null;ovArc=null;ovMode=null;
+  for(const k in ov)ov[k]=[];opts2=[];ovDrag=null;ovArc=null;ovMode=null;SRF={};
   FL=[];fi=0;floorsInit();floorChip();
   ox=W/2;oy=H/2;cell=48;document.getElementById('solve').disabled=true;
   hint('Πάτα για κορυφές περιγράμματος');draw();pSave();};
@@ -2274,9 +2324,49 @@ function report(open){
     'Πλευρικές προεξοχές F<sub>fin</sub>=1,00 (δεν σχεδιάζονται πλευρικά πτερύγια).</p>':''}
   <p class="cap">Καμπύλοι τοίχοι κατανέμονται αυτόματα στους 8 τομείς ανά στοιχειώδες dl —
   γι' αυτό η διακριτοποίηση καθορίζει και την ακρίβεια των όψεων.</p>`;
+  /* ---- ΕΠΕΞΕΡΓΑΣΙΜΟΙ ΠΙΝΑΚΕΣ ΕΠΙΦΑΝΕΙΩΝ (ό,τι ΑΚΡΙΒΩΣ γράφεται στο XML) ---- */
+  try{
+    const T9=buildTables(q);window._SRFK=[];
+    const inp=(ri,f,val,tit)=>{window._SRFK[ri]=window._SRFK[ri];
+      return '<input type="number" step="0.01" value="'+val+'" data-i="'+ri+'" data-f="'+f+'"'+
+        ' onchange="srfSet(this)" title="'+tit+'" style="width:52px;font-size:11px;padding:2px 3px;text-align:center">';};
+    let oh='';
+    T9.opaque.concat(T9.ground).forEach(r9=>{
+      const ri=window._SRFK.length;window._SRFK.push(r9[1]);
+      const ov9=SRF[r9[1]];
+      oh+='<tr><td style="font-size:10.5px">'+r9[1]+(ov9?' <a href="#" onclick="srfClr('+ri+');return false" title="Επαναφορά αυτόματων τιμών" style="color:#C43A2B">↺</a>':'')+'</td>'+
+        '<td style="white-space:nowrap">'+r9[4]+' m² · U '+inp(ri,'U',r9[5],'U επιφάνειας W/m²K — override')+
+        ' α '+inp(ri,'a',r9[7],'απορροφητικότητα (0,40 ανοιχτό - 0,80 σκούρο)')+
+        ' ε '+inp(ri,'e',r9[8],'συντ. εκπομπής (τυπικά 0,80)')+'</td></tr>';
+    });
+    let th='';
+    T9.transparent.forEach((r9,i9)=>{
+      th+='<tr><td style="font-size:10.5px">'+r9[1]+'</td>'+
+        '<td style="white-space:nowrap">'+r9[4]+' m² · U '+r9[6]+' · g '+r9[7]+
+        ' · <a href="#" onclick="openOpSheet('+i9+');return false" style="color:var(--brb);font-weight:700">✎ επεξεργασία</a></td></tr>';
+    });
+    lastOutHTML+='<h3>Αδιαφανείς επιφάνειες — επεξεργάσιμες (U · α · ε)</h3>'+
+      '<table>'+oh+'</table>'+
+      '<p class="cap">Ό,τι βλέπεις εδώ γράφεται ΑΥΤΟΥΣΙΟ στο XML. Το ↺ επαναφέρει τις αυτόματες τιμές (από σχέδιο/ζώνη/τμήματα).</p>'+
+      (th?'<h3>Διαφανείς επιφάνειες (κουφώματα)</h3><table>'+th+'</table>'+
+      '<p class="cap">Το ✎ ανοίγει το φύλλο του κουφώματος — τύπος, πλαίσιο, υαλοπίνακας, U, ποδιά.</p>':'');
+  }catch(e){console.error('srf table',e);}
   document.getElementById('out').innerHTML=lastOutHTML;
   if(open)document.getElementById('sheet').classList.add('on');
 }
+function srfSet(el){
+  const key=window._SRFK[+el.dataset.i];if(!key)return;
+  const f=el.dataset.f,v=parseFloat(String(el.value).replace(',','.'));
+  SRF[key]=SRF[key]||{};
+  if(isNaN(v)||v<=0)delete SRF[key][f];else SRF[key][f]=v;
+  if(!Object.keys(SRF[key]).length)delete SRF[key];
+  /* λογικότητα: U μόνο σε τοίχους/ΦΟ με το uCheck — οροφές/δάπεδα έχουν άλλο εύρος */
+  if(f==='U'&&v>0&&/ΤΟΙΧ|ΦΕΡΩΝ/.test(key)){const w9=uCheck(v);if(w9)showErr(w9.replace(/\n/g,' '));}
+  if(f==='a'&&v>0&&(v<0.25||v>0.90))showErr('α εκτός τυπικού εύρους 0,30-0,90 (ανοιχτό 0,40 · σκούρο 0,80).');
+  if(f==='e'&&v>0&&(v<0.1||v>1))showErr('ε τυπικά 0,80 (κοινά υλικά) — low-e επιστρώσεις σπάνια σε αδιαφανή.');
+  pSave();report(false);
+}
+function srfClr(ri){const key=window._SRFK[ri];if(key){delete SRF[key];pSave();report(false);}}
 
 /* ============================================================
    XML — ΠΡΟΣΧΕΔΙΟ δομής συμβατής με ΤΕΕ-ΚΕΝΑΚ.
@@ -2380,6 +2470,14 @@ function buildTables(q){
       r.face*45, r.slope, (r.w*r.h).toFixed(2),'',(+r.u).toFixed(2),'1.00',
       '1.00','1.00','1.00','1.00','1.00','1.00','']);
   });
+  /* OVERRIDES ανά επιφάνεια (πίνακας «Επιφάνειες» στα Αποτελέσματα):
+     δείκτες γραμμής: 5=U, 7=α απορρ., 8=ε εκπομπής */
+  for(const r9 of opaque.concat(ground)){
+    const o9=SRF[r9[1]];if(!o9)continue;
+    if(o9.U>0)r9[5]=(+o9.U).toFixed(2);
+    if(o9.a>0)r9[7]=(+o9.a).toFixed(2);
+    if(o9.e>0)r9[8]=(+o9.e).toFixed(2);
+  }
   const tot=opaque.length+transparent.length;
   if(tot>KENAK_DATA.teeFAQ.maxElementsPerZone)
     showErr('Προσοχή: '+tot+' δομικά στοιχεία — το ΤΕΕ-ΚΕΝΑΚ δέχεται έως 200/ζώνη. Συγχώνευσε ομοειδή ίδιου προσανατολισμού (σταθμισμένα U/F) ή χώρισε σε ζώνες.');
@@ -2675,10 +2773,10 @@ document.getElementById('xmlBtn').onclick=async()=>{
   const ck=sysCheck();
   if(ck.errors.length){
     setTab(3);sysCheckRender();
-    alert('Το XML δεν εξήχθη — διόρθωσε πρώτα στα Συστήματα:\n\n• '+ck.errors.join('\n• '));
+    alert('Το XML δεν εξήχθη — διόρθωσε πρώτα στα Συστήματα:\n\n• '+ck.errors.map(x=>typeof x==='string'?x:x.m).join('\n• '));
     return;
   }
-  if(ck.warns.length&&!confirm('Προειδοποιήσεις ΤΟΤΕΕ:\n\n• '+ck.warns.join('\n• ')+'\n\nΣυνέχεια στην εξαγωγή XML;')){
+  if(ck.warns.length&&!confirm('Προειδοποιήσεις ΤΟΤΕΕ:\n\n• '+ck.warns.map(x=>typeof x==='string'?x:x.m).join('\n• ')+'\n\nΣυνέχεια στην εξαγωγή XML;')){
     setTab(3);sysCheckRender();return;
   }
   /* BETA: η εξαγωγή XML είναι ΔΩΡΕΑΝ όσο διαρκεί η δοκιμαστική περίοδος.
@@ -2712,29 +2810,30 @@ document.getElementById('xmlBtn').onclick=async()=>{
   const heatE=+document.getElementById('s_heatE').value||1;
   let solA=+document.getElementById('s_solA').value||0;
   if(sc&&sc.solar!=null)solA=Math.max(solA,+sc.solar);
+  const SD9=sysDefaults(q.A);
   const systems={
     heating:{on:document.getElementById('s_heat').checked,
       type:document.getElementById('s_heatT').value,
       src:document.getElementById('s_heatS')?document.getElementById('s_heatS').value:'Ηλεκτρισμός',
       kw:+document.getElementById('s_heatP').value||0,
       eff:isHP?1.0:heatE, scop:isHP?heatE:1.0,
-      cover:heatCover,
+      cover:sys2Cover('heat',SD9),
       dnetKW:(isEl||/Τοπικ/i.test(document.getElementById('s_heatT').value))?null:(+document.getElementById('s_heatP').value||null),
-      deff:isEl?1.0:0.96, term:isEl?0.94:0.93,
-      auxN:1, auxKW:isEl?0:0.1*q.A/1000},
+      deff:+sys2Get('heat','deff',SD9), term:+sys2Get('heat','term',SD9),
+      auxN:1, auxKW:+sys2Get('heat','auxKW',SD9)},
     cooling:{on:document.getElementById('s_cool').checked,
       type:document.getElementById('s_coolT').value||'Αερόψυκτη Α.Θ.',
       kw:+document.getElementById('s_coolP').value||0,
       seer:+document.getElementById('s_coolE').value||1,
-      cover:coolCover, dnetKW:null, deff:1.0, term:0.93},
+      cover:sys2Cover('cool',SD9), dnetKW:null, deff:+sys2Get('cool','deff',SD9), term:+sys2Get('cool','term',SD9)},
     dhw:{on:document.getElementById('s_dhw').checked,
       type:document.getElementById('s_dhwT')?document.getElementById('s_dhwT').value:'Τοπικός ηλεκτρικός θερμαντήρας',
       src:'Ηλεκτρισμός',
       kw:+((document.getElementById('s_dhwP')||{}).value)||4,
       eff:+((document.getElementById('s_dhwE')||{}).value)||1.0,
-      deff:0.92, term:0.98},
-    solar:{on:solA>0, area:solA, azim:180, tilt:45, util:0.36, coverage:1.0},
-    lighting:useV!=='residential'};
+      deff:+sys2Get('dhw','deff',SD9), term:+sys2Get('dhw','term',SD9)},
+    solar:{on:solA>0, area:solA, azim:+sys2Get('sol','azim',SD9), tilt:+sys2Get('sol','tilt',SD9), util:+sys2Get('sol','util',SD9), coverage:1.0},
+    lighting:useSector()!=='residential'};
   const xml=kenakXML({
     systems,
     project:{
@@ -2769,7 +2868,7 @@ document.getElementById('xmlBtn').onclick=async()=>{
       systems: (sc.hp!=null||sc.solar!=null) ? {
         heating: sc.hp!=null ? {on:true,type:'Κεντρική αερόψυκτη Α.Θ. αέρα-νερού',src:'Ηλεκτρισμός',
           kw:+document.getElementById('s_heatP').value||10,eff:1.0,scop:+sc.hp,
-          cover:heatCover,dnetKW:+document.getElementById('s_heatP').value||10,deff:0.96,term:0.93,
+          cover:sys2Cover('heat',SD9),dnetKW:+document.getElementById('s_heatP').value||10,deff:0.96,term:0.93,
           auxN:1,auxKW:0.1*q.A/1000} : systems.heating,
         cooling: systems.cooling,
         dhw: Object.assign({},systems.dhw,{on:true}),
@@ -3590,7 +3689,7 @@ function pSave(){
   /* ΠΛΗΡΕΣ ΣΧΕΔΙΟ: όροφοι (κορυφές/τόξα/ύψη/κουφώματα/OPR/οροφές/δάπεδα/κολώνες/
      αδιαβατικά), overlays οικοπέδου (εμπόδια/εξώστες/τέντες/ΜΘΧ/ΙΚΕΕ/ηλιακοί/Όμ.Θ)
      και περίγραμμα ΚΑΕΚ — ώστε διακοπή ρεύματος/κλείσιμο browser να μη χάνει ΤΙΠΟΤΑ. */
-  try{floorSave();o.model={FL:FL,fi:fi,ov:ov,parcel:PARCEL,colw:colW};}catch(e){}
+  try{floorSave();o.model={FL:FL,fi:fi,ov:ov,parcel:PARCEL,colw:colW,srf:SRF,sys2:SYS2};}catch(e){}
   try{localStorage.setItem(PSTORE,JSON.stringify(o));}catch(e){}
   try{stepSync();}catch(e){}
 }
@@ -3621,6 +3720,8 @@ function pLoad(){
       if(o.model.ov)for(const k in ov)if(Array.isArray(o.model.ov[k]))ov[k]=o.model.ov[k];
       if(o.model.parcel&&o.model.parcel.rings)PARCEL=o.model.parcel;
       if(+o.model.colw>=0.10)colW=Math.min(2,+o.model.colw);
+      if(o.model.srf&&typeof o.model.srf==='object')SRF=o.model.srf;
+      if(o.model.sys2&&typeof o.model.sys2==='object')SYS2=o.model.sys2;
       ensureOPR();
       /* το resize()/αρχικό draw τρέχουν ΜΕΤΑ το pLoad — κεντράρισμα σε επόμενο tick */
       setTimeout(()=>{try{
@@ -3697,6 +3798,16 @@ function fillUseSelect(){
   el.innerHTML=h+'</optgroup>';el.value='r0';
 }
 fillUseSelect();
+/* Ένδειξη αναφοράς + ζωντανός έλεγχος λογικότητας στα U της ΚΑΤΑΣΚΕΥΗΣ */
+(function(){
+  const uw=document.getElementById('uw'),cz=document.getElementById('czone'),ref=document.getElementById('uwRef');
+  const upd=()=>{if(ref)ref.textContent='(αναφ. '+uRef('wall').toFixed(2).replace('.',',')+')';};
+  if(cz){cz.addEventListener('change',upd);upd();}
+  const chk=el=>()=>{const v=+el.value||0;if(v<=0)return;const w2=uCheck(v);
+    if(w2)showErr(w2.replace(/\n/g,' '));};
+  if(uw)uw.addEventListener('change',chk(uw));
+  const uf=document.getElementById('ufo');if(uf)uf.addEventListener('change',chk(uf));
+})();
 (function(){const sh=document.getElementById('colShape'),w2=document.getElementById('colB2wrap');
   if(sh&&w2){const f=()=>{w2.style.display=sh.value==='L'?'':'none';
     const dd=document.getElementById('colD'),bb=document.getElementById('colB');
@@ -4246,28 +4357,31 @@ function sysCheck(){
   const S=sysSuggest(), D=S.D, out={errors:[],warns:[],tips:[]};
   const hOn=document.getElementById('s_heat').checked;
   const cOn=document.getElementById('s_cool')?document.getElementById('s_cool').checked:false;
+  if(!hOn)out.warns.push({m:'Χωρίς σύστημα θέρμανσης: κατά ΤΟΤΕΕ §4.1.1 δηλώνεται ΘΕΩΡΗΤΙΚΟ = κτιρίου αναφοράς (λέβητας πετρελαίου 0,935 · δίκτυο 0,95 · τερματικά 0,95).',
+    f:['@heat','','Συμπλήρωση θεωρητικού']});
   if(hOn){
     const t=document.getElementById('s_heatT').value;
     const e=+document.getElementById('s_heatE').value||0;
     const src=(document.getElementById('s_heatS')||{}).value||'';
     if(t==='Λέβητας'){
-      if(e>1.001)out.errors.push('Λέβητας με βαθμό απόδοσης '+e+' > 1 — για λέβητα δίνεται βαθμός ≤ 1 (το SCOP αφορά αντλίες).');
+      const eb=(S.year<1990?0.75:0.80);
+      if(e>1.001)out.errors.push({m:'Λέβητας με βαθμό απόδοσης '+e+' > 1 — για λέβητα δίνεται βαθμός ≤ 1 (το SCOP αφορά αντλίες).',f:['s_heatE',String(eb),'Διόρθωση σε '+eb.toFixed(2).replace('.',',')]});
       else if(e<D.boiler.range[0]||e>D.boiler.range[1])
-        out.errors.push('Βαθμός λέβητα '+e+' εκτός ορίων ΤΟΤΕΕ ['+D.boiler.range[0]+'–'+D.boiler.range[1]+'].');
+        out.errors.push({m:'Βαθμός λέβητα '+e+' εκτός ορίων ΤΟΤΕΕ ['+D.boiler.range[0]+'–'+D.boiler.range[1]+'].',f:['s_heatE',String(eb),'Τυπικό '+S.eraTxt+': '+eb.toFixed(2).replace('.',',')]});
       else if(e>0.75&&S.year<1990)
         out.warns.push('Λέβητας '+S.eraTxt+' με η='+e+': χωρίς φύλλο καυσαερίων/σήμανση το μέγιστο είναι 0,75 (Πίν.4.2β).');
       out.tips.push('Λέβητας χωρίς στοιχεία: 0,75 · συνήθης: 0,80 · χαμηλών θερμοκρασιών: 0,85 · συμπύκνωσης: 0,95 (Πίν.4.2β).');
-      if(/Ηλεκτρ/i.test(src))out.warns.push('Λέβητας με πηγή «Ηλεκτρισμός» — έλεγξε την πηγή ενέργειας (συνήθως πετρέλαιο/ΦΑ/βιομάζα).');
+      if(/Ηλεκτρ/i.test(src))out.warns.push({m:'Λέβητας με πηγή «Ηλεκτρισμός» — έλεγξε την πηγή (συνήθως πετρέλαιο/ΦΑ/βιομάζα).',f:['s_heatS','Πετρέλαιο θέρμανσης','Ορισμός «Πετρέλαιο θέρμανσης»']});
     }else if(/Α\.Θ\.|Γεωθερμ/i.test(t)){
       if(e<D.heatPumpSCOP.range[0]||e>D.heatPumpSCOP.range[1])
-        out.errors.push('SCOP αντλίας '+e+' εκτός ορίων ['+D.heatPumpSCOP.range[0]+'–'+D.heatPumpSCOP.range[1]+'].');
+        out.errors.push({m:'SCOP αντλίας '+e+' εκτός ορίων ['+D.heatPumpSCOP.range[0]+'–'+D.heatPumpSCOP.range[1]+'].',f:['s_heatE',String(S.scop),'Τυπικό '+S.eraTxt+': '+S.scop]});
       else if(Math.abs(e-S.scop)>1.6)
-        out.warns.push('SCOP '+e+' απέχει πολύ από την τυπική τιμή χωρίς στοιχεία για '+S.eraTxt+' ('+S.scop+') — τεκμηρίωσέ το από σήμανση/φύλλο κατασκευαστή.');
+        out.warns.push({m:'SCOP '+e+' απέχει πολύ από την τυπική χωρίς στοιχεία για '+S.eraTxt+' ('+S.scop+') — τεκμηρίωσέ το από σήμανση/φύλλο.',f:['s_heatE',String(S.scop),'Τυπικό: '+S.scop]});
       out.tips.push('ΑΘ χωρίς στοιχεία (§4.1.2.2): '+S.eraTxt+' → SCOP '+S.scop+' · με σήμανση αέρα: 0,93·SCOP(ΕΣ) · νερού: 2,35·(ηs35+3%) ή 2,55/2,75·(ηs55+3%).');
-      if(!/Ηλεκτρ/i.test(src))out.warns.push('Αντλία θερμότητας με πηγή «'+src+'» — οι ΑΘ δηλώνονται με πηγή «Ηλεκτρισμός».');
+      if(!/Ηλεκτρ/i.test(src))out.warns.push({m:'Αντλία θερμότητας με πηγή «'+src+'» — οι ΑΘ δηλώνονται με «Ηλεκτρισμός».',f:['s_heatS','Ηλεκτρισμός','Ορισμός «Ηλεκτρισμός»']});
     }else if(/ηλεκτρικές/i.test(t)){
-      if(Math.abs(e-1)>0.001)out.warns.push('Τοπικές ηλεκτρικές μονάδες: βαθμός παραγωγής 1,0 (η εκπομπή 0,91-0,94 μπαίνει στα τερματικά).');
-      if(!/Ηλεκτρ/i.test(src))out.errors.push('Τοπικές ηλεκτρικές μονάδες με πηγή «'+src+'» — απαιτείται «Ηλεκτρισμός».');
+      if(Math.abs(e-1)>0.001)out.warns.push({m:'Τοπικές ηλεκτρικές μονάδες: βαθμός παραγωγής 1,0 (η εκπομπή 0,91-0,94 μπαίνει στα τερματικά).',f:['s_heatE','1.0','Διόρθωση σε 1,0']});
+      if(!/Ηλεκτρ/i.test(src))out.errors.push({m:'Τοπικές ηλεκτρικές μονάδες με πηγή «'+src+'» — απαιτείται «Ηλεκτρισμός».',f:['s_heatS','Ηλεκτρισμός','Ορισμός «Ηλεκτρισμός»']});
     }else if(/εστίες/i.test(t)){
       if(e>0.65)out.warns.push('Ανοικτή εστία καύσης με η='+e+' — τυπικά πολύ χαμηλός βαθμός.');
     }
@@ -4275,22 +4389,161 @@ function sysCheck(){
   if(cOn){
     const e=+document.getElementById('s_coolE').value||0;
     if(e<D.coolingSEER.range[0]||e>D.coolingSEER.range[1])
-      out.errors.push('SEER ψύξης '+e+' εκτός ορίων ['+D.coolingSEER.range[0]+'–'+D.coolingSEER.range[1]+'].');
+      out.errors.push({m:'SEER ψύξης '+e+' εκτός ορίων ['+D.coolingSEER.range[0]+'–'+D.coolingSEER.range[1]+'].',f:['s_coolE',String(S.seer),'Τυπικό '+S.eraTxt+': '+S.seer]});
     else if(Math.abs(e-S.seer)>1.8)
-      out.warns.push('SEER '+e+' μακριά από τυπική τιμή χωρίς στοιχεία '+S.eraTxt+' ('+S.seer+') — θέλει τεκμηρίωση.');
+      out.warns.push({m:'SEER '+e+' μακριά από τυπική χωρίς στοιχεία '+S.eraTxt+' ('+S.seer+') — θέλει τεκμηρίωση.',f:['s_coolE',String(S.seer),'Τυπικό: '+S.seer]});
     out.tips.push('Ψύξη χωρίς στοιχεία: '+S.eraTxt+' → SEER '+S.seer+' · χωρίς σύστημα (θεωρητικό): SEER '+S.seerTheo+' με κάλυψη '+(S.res?'0,5':'1,0')+'.');
   }else{
-    out.tips.push('Χωρίς σύστημα ψύξης: το ΤΕΕ-ΚΕΝΑΚ βάζει θεωρητικό SEER '+S.seerTheo+' (κάλυψη '+(S.res?'0,5':'1,0')+') — δεν χρειάζεται δική σου τιμή.');
+    out.tips.push({m:'Χωρίς σύστημα ψύξης: θεωρητικό SEER '+S.seerTheo+' με κάλυψη '+(S.res?'0,5':'1,0')+' — μπορείς να το δηλώσεις ρητά για να φαίνεται στο XML.',
+      f:['@cool','','Συμπλήρωση θεωρητικού']});
+  }
+  /* ΖΝΧ: λογικότητα βαθμού απόδοσης ανά τύπο */
+  const dEl=document.getElementById('s_dhw');
+  if(dEl&&!dEl.checked)out.warns.push({m:'Χωρίς σύστημα ΖΝΧ: κατά ΤΟΤΕΕ δηλώνεται θεωρητικός τοπικός ηλεκτρικός θερμαντήρας (η=1,0).',
+    f:['@dhw','','Συμπλήρωση θεωρητικού']});
+  if(dEl&&dEl.checked){
+    const td=(document.getElementById('s_dhwT')||{}).value||'';
+    const ed=+((document.getElementById('s_dhwE')||{}).value)||0;
+    if(/ηλεκτρικ/i.test(td)&&Math.abs(ed-1)>0.001)
+      out.warns.push({m:'Ηλεκτρικός θερμαντήρας ΖΝΧ: βαθμός παραγωγής 1,0 (αντίσταση) — το '+ed+' αφορά λέβητες.',f:['s_dhwE','1.0','Διόρθωση σε 1,0']});
+    if(/Λέβητας/i.test(td)&&(ed<0.6||ed>1.001))
+      out.warns.push({m:'Λέβητας ΖΝΧ με βαθμό '+ed+' — τυπικά 0,75–0,95.',f:['s_dhwE','0.90','Διόρθωση σε 0,90']});
+    if(/Αντλία|Α\.Θ\./i.test(td)&&ed<1.5)
+      out.warns.push({m:'ΑΘ ΖΝΧ με COP '+ed+' < 1,5 — τυπικά 2,0–3,5.',f:['s_dhwE','2.5','Τυπικό: 2,5']});
   }
   return out;
 }
+function ckLine(x,ic,cl){
+  const m=typeof x==='string'?x:x.m;
+  const fx=(typeof x==='object'&&x.f)?
+    ' <a href="#" onclick="sysFix(\''+x.f[0]+'\',\''+String(x.f[1]).replace(/'/g,'')+'\');return false"'+
+    ' style="color:var(--brb);font-weight:800;white-space:nowrap">→ '+x.f[2]+'</a>':'';
+  return '<div class="ck '+cl+'">'+ic+' '+m+fx+'</div>';
+}
+function theoFill(kind){
+  /* Χωρίς σύστημα -> ΘΕΩΡΗΤΙΚΟ κατά ΤΟΤΕΕ §4.1.1 (= κτιρίου αναφοράς), από teeFAQ */
+  const set=(id,v)=>{const el=document.getElementById(id);if(el){
+    if(el.type==='checkbox')el.checked=!!v;else el.value=v;
+    try{el.dispatchEvent(new Event('change'));}catch(e){}}};
+  const FAQ=KENAK_DATA.teeFAQ;
+  if(kind==='heat'){
+    set('s_heat',true);set('s_heatT','Λέβητας');set('s_heatS','Πετρέλαιο θέρμανσης');
+    set('s_heatE',FAQ.refHeatingNoSystem.gen.toFixed(3));
+    if(!(+document.getElementById('s_heatP').value>0)){try{heatLoadCalc();}catch(e){}}
+    hint('Θεωρητική θέρμανση §4.1.1: λέβητας πετρελαίου η='+FAQ.refHeatingNoSystem.gen+' · δίκτυο 0,95 · τερματικά 0,95.');
+  }else if(kind==='cool'){
+    const St=sysSuggest();
+    set('s_cool',true);set('s_coolT','Τοπική αερόψυκτη Α.Θ.');
+    set('s_coolE',String(St.seerTheo));
+    hint('Θεωρητική ψύξη: SEER '+St.seerTheo+' · κάλυψη '+(St.res?'50%':'100%')+' (ΤΟΤΕΕ).');
+  }else if(kind==='dhw'){
+    set('s_dhw',true);set('s_dhwT','Τοπικός ηλεκτρικός θερμαντήρας');set('s_dhwE','1.0');
+    hint('Θεωρητικό ΖΝΧ: τοπικός ηλεκτρικός θερμαντήρας η=1,0 (αντίσταση).');
+  }
+  pSave();sysCheckRender();
+}
+function sysFix(id,val){
+  /* εφαρμογή προτεινόμενης τιμής με ένα κλικ — και επανέλεγχος */
+  if(id&&id[0]==='@'){theoFill(id.slice(1));return;}   /* @heat/@cool/@dhw = θεωρητικό σύστημα */
+  const el=document.getElementById(id);if(!el)return;
+  el.value=val;
+  try{el.dispatchEvent(new Event('change'));}catch(e){}
+  pSave();sysCheckRender();
+  hint('Εφαρμόστηκε: '+val+' — ο έλεγχος ΤΟΤΕΕ ξανάτρεξε.');
+}
+function sysMir(el){
+  /* καθρέφτης πίνακα -> πραγματικό πεδίο φόρμας (μία πηγή αλήθειας) */
+  const t=document.getElementById(el.dataset.mir);if(!t)return;
+  if(el.type==='checkbox')t.checked=el.checked;else t.value=el.value;
+  try{t.dispatchEvent(new Event('change'));}catch(e){}
+  pSave();sysCheckRender();
+}
+function sysTableRender(){
+  const el=document.getElementById('sysTbl');if(!el)return;
+  let Az=100;try{if(closed)Az=envelope().A;}catch(e){}
+  const SD=sysDefaults(Az);
+  const mir=(id,w,tit)=>{const f=document.getElementById(id);if(!f)return '';
+    return '<input type="number" step="0.05" value="'+f.value+'" data-mir="'+id+'" onchange="sysMir(this)"'+
+      ' title="'+tit+'" style="width:'+w+'px;font-size:11px;padding:2px 3px;text-align:center">';};
+  const mirSel=(id,tit,mw)=>{const f=document.getElementById(id);if(!f)return '';
+    let o='';for(const op of f.options)o+='<option value="'+op.value+'"'+(op.value===f.value?' selected':'')+'>'+op.text+'</option>';
+    return '<select data-mir="'+id+'" onchange="sysMir(this)" title="'+tit+'"'+
+      ' style="font-size:11px;max-width:'+(mw||160)+'px">'+o+'</select>';};
+  const mirCk=id=>{const f=document.getElementById(id);if(!f)return '';
+    return '<input type="checkbox" data-mir="'+id+'" onchange="sysMir(this)"'+(f.checked?' checked':'')+
+      ' title="Ενεργό/ανενεργό σύστημα" style="vertical-align:-2px">';};
+  const num=(p,k,step,w,tit)=>{
+    const cur=+sys2Get(p,k,SD),ov9=(SYS2[p]||{})[k]!=null;
+    return '<input type="number" step="'+step+'" value="'+cur+'" data-p="'+p+'" data-k="'+k+'"'+
+      ' onchange="sys2Set(this)" title="'+tit+' — αυτόματο: '+SD[p][k]+'"'+
+      ' style="width:'+w+'px;font-size:11px;padding:2px 3px;text-align:center'+(ov9?';border:1px solid #C43A2B':'')+'">';};
+  const cov=(p)=>{const c=sys2Cover(p,SD);const M=['Ι','Φ','Μ','Α','Μ','Ι','Ι','Α','Σ','Ο','Ν','Δ'];
+    let h2='<div style="display:flex;gap:2px;align-items:center;flex-wrap:wrap"><span style="font-size:10px;color:var(--ink2)">κάλυψη/μήνα</span>';
+    for(let m=0;m<12;m++)h2+='<span style="text-align:center"><small style="font-size:8px;display:block;color:var(--ink2)">'+M[m]+'</small>'+
+      '<input type="number" min="0" max="1" step="0.1" value="'+c[m]+'" data-p="'+p+'" data-m="'+m+'"'+
+      ' onchange="sys2Cov(this)" style="width:30px;font-size:10px;padding:1px;text-align:center"></span>';
+    return h2+'</div>';};
+  const row=(lbl,inner,p)=>'<div style="border:1px solid var(--line);border-radius:9px;padding:7px 9px;margin:5px 0">'+
+    '<b style="font-size:11px;color:var(--brb)">'+lbl+'</b>'+
+    ((SYS2[p]&&Object.keys(SYS2[p]).length)?' <a href="#" onclick="sys2Clr(\''+p+'\');return false" style="color:#C43A2B;font-size:10px">↺ αυτόματα</a>':'')+
+    '<div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:4px;font-size:11px">'+inner+'</div></div>';
+  let h='<b style="font-size:11px;letter-spacing:.06em;color:var(--ink2)">ΠΙΝΑΚΑΣ SYSTEM (ΤΟΤΕΕ 11.x) — ΟΛΑ ΕΠΕΞΕΡΓΑΣΙΜΑ · κόκκινο πλαίσιο = δική σου τιμή αντί αυτόματης</b>';
+  const hOn=document.getElementById('s_heat').checked;
+  h+=row(mirCk('s_heat')+' ΘΕΡΜΑΝΣΗ',!hOn?'<span style="color:var(--ink2)">ανενεργή — ο έλεγχος προτείνει «Συμπλήρωση θεωρητικού» (§4.1.1)</span>':
+    mirSel('s_heatT','τύπος συστήματος θέρμανσης')+' '+mirSel('s_heatS','πηγή ενέργειας',110)+
+    ' kW '+mir('s_heatP',52,'ονομαστική ισχύς — «υπολόγισε;» στη φόρμα για διαστασιολόγηση από το κέλυφος')+
+    ' η/SCOP '+mir('s_heatE',50,'βαθμός λέβητα ή SCOP αντλίας')+
+    ' · δίκτυο '+num('heat','deff','0.01',46,'βαθμός δικτύου διανομής (μονωμένο 0,96 · τοπικά 1,0)')+
+    ' τερματικά '+num('heat','term','0.01',46,'βαθμός τερματικών (σώματα 0,93 · FCU 0,94 · ενδοδαπέδια 0,88)')+
+    ' βοηθ. kW '+num('heat','auxKW','0.01',54,'βοηθητικά κυκλοφορητών/καυστήρα — αυτόματο 0,1 W/m²')+
+    cov('heat'),'heat');
+  const cOn=document.getElementById('s_cool').checked;
+  h+=row(mirCk('s_cool')+' ΨΥΞΗ',!cOn?'<span style="color:var(--ink2)">ανενεργή — θεωρητικό SEER στον έλεγχο</span>':
+    mirSel('s_coolT','τύπος συστήματος ψύξης')+
+    ' kW '+mir('s_coolP',52,'ονομαστική ψυκτική ισχύς')+
+    ' SEER '+mir('s_coolE',50,'EER/SEER ψύξης')+
+    ' · δίκτυο '+num('cool','deff','0.01',46,'βαθμός δικτύου (τοπικές μονάδες 1,0)')+
+    ' τερματικά '+num('cool','term','0.01',46,'βαθμός τερματικών ψύξης (0,93)')+cov('cool'),'cool');
+  const dOn=document.getElementById('s_dhw').checked;
+  h+=row(mirCk('s_dhw')+' ΖΝΧ',!dOn?'<span style="color:var(--ink2)">ανενεργό — θεωρητικός ηλεκτρικός στον έλεγχο</span>':
+    mirSel('s_dhwT','τύπος συστήματος ΖΝΧ')+
+    ' kW '+mir('s_dhwP',52,'ισχύς ΖΝΧ')+
+    ' η '+mir('s_dhwE',50,'βαθμός απόδοσης ΖΝΧ (ηλεκτρικός 1,0)')+
+    ' · δίκτυο '+num('dhw','deff','0.01',46,'βαθμός δικτύου ΖΝΧ (0,92 · τοπικός χωρίς δίκτυο 1,0)')+
+    ' τερματικά '+num('dhw','term','0.01',46,'βαθμός «τερματικών» ΖΝΧ (0,98)'),'dhw');
+  h+=row('ΗΛΙΑΚΟΣ','m² '+mir('s_solA',48,'επιφάνεια ηλιακών συλλεκτών — 0 = χωρίς')+
+    ' αζιμούθιο '+num('sol','azim','1',50,'αζιμούθιο συλλέκτη (180 = Νότος)')+
+    ' κλίση '+num('sol','tilt','1',44,'κλίση συλλέκτη (τυπικά 40-45°)')+
+    ' αξιοπ. '+num('sol','util','0.01',46,'συντελεστής αξιοποίησης ηλιακού (0,36 τυπικό)'),'sol');
+  el.innerHTML=h+'<p style="font-size:10px;color:var(--ink2);margin:3px 0 0">Οι τιμές γράφονται ΑΥΤΟΥΣΙΕΣ στα SYSTEM του XML. ↺ = επιστροφή στις αυτόματες ΤΟΤΕΕ.</p>';
+}
+function sys2Set(el){
+  const p=el.dataset.p,k=el.dataset.k;
+  const v=parseFloat(String(el.value).replace(',','.'));
+  SYS2[p]=SYS2[p]||{};
+  if(isNaN(v)||v<0)delete SYS2[p][k];else SYS2[p][k]=v;
+  if(!isNaN(v)&&v>1.001&&k!=='auxKW'&&k!=='azim'&&k!=='tilt')
+    showErr('Βαθμοί δικτύου/τερματικών/αξιοποίησης δίνονται ≤ 1 — το '+v+' δεν είναι βαθμός απόδοσης.');
+  if(!Object.keys(SYS2[p]).length)delete SYS2[p];
+  pSave();sysTableRender();
+}
+function sys2Cov(el){
+  const p=el.dataset.p,m=+el.dataset.m;
+  const SD=sysDefaults(100);
+  SYS2[p]=SYS2[p]||{};
+  if(!Array.isArray(SYS2[p].cover))SYS2[p].cover=(p==='heat'?SD.heatCover:SD.coolCover).slice();
+  SYS2[p].cover[m]=Math.max(0,Math.min(1,parseFloat(String(el.value).replace(',','.'))||0));
+  pSave();sysTableRender();
+}
+function sys2Clr(p){delete SYS2[p];pSave();sysTableRender();}
 function sysCheckRender(){
   const el=document.getElementById('sysCheck'); if(!el)return;
+  try{sysTableRender();}catch(e){console.error('sysTbl',e);}
   const r=sysCheck();
   let h='';
-  r.errors.forEach(x=>h+='<div class="ck e">✕ '+x+'</div>');
-  r.warns.forEach(x=>h+='<div class="ck w">⚠ '+x+'</div>');
-  r.tips.forEach(x=>h+='<div class="ck t">Υπόδειγμα ΤΟΤΕΕ: '+x+'</div>');
+  r.errors.forEach(x=>h+=ckLine(x,'✕','e'));
+  r.warns.forEach(x=>h+=ckLine(x,'⚠','w'));
+  r.tips.forEach(x=>h+=ckLine(typeof x==='string'?'Υπόδειγμα ΤΟΤΕΕ: '+x:{m:'Υπόδειγμα ΤΟΤΕΕ: '+x.m,f:x.f},'','t'));
   el.innerHTML=h;
 }
 function sysApplySuggested(){
