@@ -187,7 +187,7 @@ input,select{width:100%;min-width:0;font-family:var(--num);font-size:13.5px;font
 input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 @media(min-width:1100px){
   /* Floating πάνελ αγκυρωμένο στη ΔΕΞΙΑ ακμή: πλήρες ύψος, σύρεται μέσα/έξω */
-  .panel{right:0;top:54px;bottom:0;max-height:none;width:min(48vw,720px);
+  .panel{right:0;top:54px;bottom:0;max-height:none;width:min(60vw,960px);
     border-radius:14px 0 0 14px;border-right:none;
     display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
     gap:0 18px;align-content:start;grid-auto-flow:dense;
@@ -833,9 +833,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=81"></script>
-<script src="kenak-xml.js?v=81"></script>
-<script src="kenak-dxf.js?v=81"></script>
+<script src="kenak-data.js?v=82"></script>
+<script src="kenak-xml.js?v=82"></script>
+<script src="kenak-dxf.js?v=82"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -4482,59 +4482,68 @@ function sysTableRender(){
   const el=document.getElementById('sysTbl');if(!el)return;
   let Az=100;try{if(closed)Az=envelope().A;}catch(e){}
   const SD=sysDefaults(Az);
+  /* πεδίο με label από πάνω — άνετα πλάτη, τίποτα κομμένο */
+  const cell=(lab,inner)=>'<div style="display:flex;flex-direction:column;gap:2px;min-width:0">'+
+    '<label style="font-size:9.5px;color:var(--ink2);letter-spacing:.03em;white-space:nowrap">'+lab+'</label>'+inner+'</div>';
   const mir=(id,w,tit)=>{const f=document.getElementById(id);if(!f)return '';
     return '<input type="number" step="0.05" value="'+f.value+'" data-mir="'+id+'" onchange="sysMir(this)"'+
-      ' title="'+tit+'" style="width:'+w+'px;font-size:11px;padding:2px 3px;text-align:center">';};
-  const mirSel=(id,tit,mw)=>{const f=document.getElementById(id);if(!f)return '';
+      ' title="'+tit+'" style="width:'+w+'px;font-size:12.5px;padding:5px 6px;text-align:center">';};
+  const mirSel=(id,tit)=>{const f=document.getElementById(id);if(!f)return '';
     let o='';for(const op of f.options)o+='<option value="'+op.value+'"'+(op.value===f.value?' selected':'')+'>'+op.text+'</option>';
     return '<select data-mir="'+id+'" onchange="sysMir(this)" title="'+tit+'"'+
-      ' style="font-size:11px;max-width:'+(mw||160)+'px">'+o+'</select>';};
+      ' style="font-size:12.5px;padding:5px 6px;width:100%;min-width:190px">'+o+'</select>';};
   const mirCk=id=>{const f=document.getElementById(id);if(!f)return '';
     return '<input type="checkbox" data-mir="'+id+'" onchange="sysMir(this)"'+(f.checked?' checked':'')+
-      ' title="Ενεργό/ανενεργό σύστημα" style="vertical-align:-2px">';};
+      ' title="Ενεργό/ανενεργό σύστημα" style="vertical-align:-2px;width:15px;height:15px">';};
   const num=(p,k,step,w,tit)=>{
     const cur=+sys2Get(p,k,SD),ov9=(SYS2[p]||{})[k]!=null;
     return '<input type="number" step="'+step+'" value="'+cur+'" data-p="'+p+'" data-k="'+k+'"'+
       ' onchange="sys2Set(this)" title="'+tit+' — αυτόματο: '+SD[p][k]+'"'+
-      ' style="width:'+w+'px;font-size:11px;padding:2px 3px;text-align:center'+(ov9?';border:1px solid #C43A2B':'')+'">';};
-  const cov=(p)=>{const c=sys2Cover(p,SD);const M=['Ι','Φ','Μ','Α','Μ','Ι','Ι','Α','Σ','Ο','Ν','Δ'];
-    let h2='<div style="display:flex;gap:2px;align-items:center;flex-wrap:wrap"><span style="font-size:10px;color:var(--ink2)">κάλυψη/μήνα</span>';
-    for(let m=0;m<12;m++)h2+='<span style="text-align:center"><small style="font-size:8px;display:block;color:var(--ink2)">'+M[m]+'</small>'+
+      ' style="width:'+w+'px;font-size:12.5px;padding:5px 6px;text-align:center'+(ov9?';border:1.5px solid #C43A2B':'')+'">';};
+  const cov=(p)=>{const c=sys2Cover(p,SD);const M=['Ιαν','Φεβ','Μάρ','Απρ','Μάι','Ιούν','Ιούλ','Αύγ','Σεπ','Οκτ','Νοέ','Δεκ'];
+    let h2='<div style="grid-column:1/-1"><label style="font-size:9.5px;color:var(--ink2)">Κάλυψη ανά μήνα (0–1)</label>'+
+      '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:2px">';
+    for(let m=0;m<12;m++)h2+='<span style="text-align:center"><small style="font-size:9px;display:block;color:var(--ink2)">'+M[m]+'</small>'+
       '<input type="number" min="0" max="1" step="0.1" value="'+c[m]+'" data-p="'+p+'" data-m="'+m+'"'+
-      ' onchange="sys2Cov(this)" style="width:30px;font-size:10px;padding:1px;text-align:center"></span>';
-    return h2+'</div>';};
-  const row=(lbl,inner,p)=>'<div style="border:1px solid var(--line);border-radius:9px;padding:7px 9px;margin:5px 0">'+
-    '<b style="font-size:11px;color:var(--brb)">'+lbl+'</b>'+
-    ((SYS2[p]&&Object.keys(SYS2[p]).length)?' <a href="#" onclick="sys2Clr(\''+p+'\');return false" style="color:#C43A2B;font-size:10px">↺ αυτόματα</a>':'')+
-    '<div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:4px;font-size:11px">'+inner+'</div></div>';
+      ' onchange="sys2Cov(this)" style="width:44px;font-size:12px;padding:4px 2px;text-align:center"></span>';
+    return h2+'</div></div>';};
+  const row=(ck,lbl,inner,p)=>'<div style="border:1px solid var(--line);border-radius:11px;padding:11px 13px;margin:8px 0;background:var(--paper)">'+
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+ck+
+    '<b style="font-size:12px;letter-spacing:.05em;color:var(--brb)">'+lbl+'</b>'+
+    ((SYS2[p]&&Object.keys(SYS2[p]).length)?'<a href="#" onclick="sys2Clr(\''+p+'\');return false" style="color:#C43A2B;font-size:11px;margin-left:auto">↺ αυτόματες τιμές</a>':'')+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,max-content));gap:10px 14px;align-items:end">'+inner+'</div></div>';
   let h='<b style="font-size:11px;letter-spacing:.06em;color:var(--ink2)">ΠΙΝΑΚΑΣ SYSTEM (ΤΟΤΕΕ 11.x) — ΟΛΑ ΕΠΕΞΕΡΓΑΣΙΜΑ · κόκκινο πλαίσιο = δική σου τιμή αντί αυτόματης</b>';
   const hOn=document.getElementById('s_heat').checked;
-  h+=row(mirCk('s_heat')+' ΘΕΡΜΑΝΣΗ',!hOn?'<span style="color:var(--ink2)">ανενεργή — ο έλεγχος προτείνει «Συμπλήρωση θεωρητικού» (§4.1.1)</span>':
-    mirSel('s_heatT','τύπος συστήματος θέρμανσης')+' '+mirSel('s_heatS','πηγή ενέργειας',110)+
-    ' kW '+mir('s_heatP',52,'ονομαστική ισχύς — «υπολόγισε;» στη φόρμα για διαστασιολόγηση από το κέλυφος')+
-    ' η/SCOP '+mir('s_heatE',50,'βαθμός λέβητα ή SCOP αντλίας')+
-    ' · δίκτυο '+num('heat','deff','0.01',46,'βαθμός δικτύου διανομής (μονωμένο 0,96 · τοπικά 1,0)')+
-    ' τερματικά '+num('heat','term','0.01',46,'βαθμός τερματικών (σώματα 0,93 · FCU 0,94 · ενδοδαπέδια 0,88)')+
-    ' βοηθ. kW '+num('heat','auxKW','0.01',54,'βοηθητικά κυκλοφορητών/καυστήρα — αυτόματο 0,1 W/m²')+
+  h+=row(mirCk('s_heat'),'ΘΕΡΜΑΝΣΗ',!hOn?'<span style="color:var(--ink2);font-size:12px">ανενεργή — ο έλεγχος προτείνει «Συμπλήρωση θεωρητικού» (§4.1.1)</span>':
+    '<div style="grid-column:span 2;min-width:210px">'+cell('Τύπος',mirSel('s_heatT','τύπος συστήματος θέρμανσης'))+'</div>'+
+    cell('Πηγή',mirSel('s_heatS','πηγή ενέργειας'))+
+    cell('Ισχύς kW',mir('s_heatP',72,'ονομαστική ισχύς — «υπολόγισε;» στη φόρμα για διαστασιολόγηση'))+
+    cell('η / SCOP',mir('s_heatE',66,'βαθμός λέβητα ή SCOP αντλίας'))+
+    cell('Δίκτυο',num('heat','deff','0.01',62,'βαθμός δικτύου διανομής (μονωμένο 0,96 · τοπικά 1,0)'))+
+    cell('Τερματικά',num('heat','term','0.01',62,'βαθμός τερματικών (σώματα 0,93 · FCU 0,94 · ενδοδαπέδια 0,88)'))+
+    cell('Βοηθ. kW',num('heat','auxKW','0.01',72,'βοηθητικά κυκλοφορητών/καυστήρα — αυτόματο 0,1 W/m²'))+
     cov('heat'),'heat');
   const cOn=document.getElementById('s_cool').checked;
-  h+=row(mirCk('s_cool')+' ΨΥΞΗ',!cOn?'<span style="color:var(--ink2)">ανενεργή — θεωρητικό SEER στον έλεγχο</span>':
-    mirSel('s_coolT','τύπος συστήματος ψύξης')+
-    ' kW '+mir('s_coolP',52,'ονομαστική ψυκτική ισχύς')+
-    ' SEER '+mir('s_coolE',50,'EER/SEER ψύξης')+
-    ' · δίκτυο '+num('cool','deff','0.01',46,'βαθμός δικτύου (τοπικές μονάδες 1,0)')+
-    ' τερματικά '+num('cool','term','0.01',46,'βαθμός τερματικών ψύξης (0,93)')+cov('cool'),'cool');
+  h+=row(mirCk('s_cool'),'ΨΥΞΗ',!cOn?'<span style="color:var(--ink2);font-size:12px">ανενεργή — θεωρητικό SEER στον έλεγχο</span>':
+    '<div style="grid-column:span 2;min-width:210px">'+cell('Τύπος',mirSel('s_coolT','τύπος συστήματος ψύξης'))+'</div>'+
+    cell('Ισχύς kW',mir('s_coolP',72,'ονομαστική ψυκτική ισχύς'))+
+    cell('EER/SEER',mir('s_coolE',66,'EER/SEER ψύξης'))+
+    cell('Δίκτυο',num('cool','deff','0.01',62,'βαθμός δικτύου (τοπικές μονάδες 1,0)'))+
+    cell('Τερματικά',num('cool','term','0.01',62,'βαθμός τερματικών ψύξης (0,93)'))+
+    cov('cool'),'cool');
   const dOn=document.getElementById('s_dhw').checked;
-  h+=row(mirCk('s_dhw')+' ΖΝΧ',!dOn?'<span style="color:var(--ink2)">ανενεργό — θεωρητικός ηλεκτρικός στον έλεγχο</span>':
-    mirSel('s_dhwT','τύπος συστήματος ΖΝΧ')+
-    ' kW '+mir('s_dhwP',52,'ισχύς ΖΝΧ')+
-    ' η '+mir('s_dhwE',50,'βαθμός απόδοσης ΖΝΧ (ηλεκτρικός 1,0)')+
-    ' · δίκτυο '+num('dhw','deff','0.01',46,'βαθμός δικτύου ΖΝΧ (0,92 · τοπικός χωρίς δίκτυο 1,0)')+
-    ' τερματικά '+num('dhw','term','0.01',46,'βαθμός «τερματικών» ΖΝΧ (0,98)'),'dhw');
-  h+=row('ΗΛΙΑΚΟΣ','m² '+mir('s_solA',48,'επιφάνεια ηλιακών συλλεκτών — 0 = χωρίς')+
-    ' αζιμούθιο '+num('sol','azim','1',50,'αζιμούθιο συλλέκτη (180 = Νότος)')+
-    ' κλίση '+num('sol','tilt','1',44,'κλίση συλλέκτη (τα ΠΕΑ-πρότυπα: 60°)')+
-    ' αξιοπ. '+num('sol','util','0.01',46,'συντελεστής αξιοποίησης ηλιακού (0,36 τυπικό)'),'sol');
+  h+=row(mirCk('s_dhw'),'ΖΝΧ',!dOn?'<span style="color:var(--ink2);font-size:12px">ανενεργό — θεωρητικός ηλεκτρικός στον έλεγχο</span>':
+    '<div style="grid-column:span 2;min-width:210px">'+cell('Τύπος',mirSel('s_dhwT','τύπος συστήματος ΖΝΧ'))+'</div>'+
+    cell('Ισχύς kW',mir('s_dhwP',72,'ισχύς ΖΝΧ'))+
+    cell('Βαθμός η',mir('s_dhwE',66,'βαθμός απόδοσης ΖΝΧ (ηλεκτρικός 1,0)'))+
+    cell('Δίκτυο',num('dhw','deff','0.01',62,'βαθμός δικτύου ΖΝΧ (0,92 · τοπικός χωρίς δίκτυο 1,0)'))+
+    cell('Τερματικά',num('dhw','term','0.01',62,'βαθμός «τερματικών» ΖΝΧ (0,98)')),'dhw');
+  h+=row('','ΗΛΙΑΚΟΣ ΣΥΛΛΕΚΤΗΣ',
+    cell('Επιφάνεια m²',mir('s_solA',70,'επιφάνεια ηλιακών συλλεκτών — 0 = χωρίς'))+
+    cell('Αζιμούθιο °',num('sol','azim','1',66,'αζιμούθιο συλλέκτη (180 = Νότος)'))+
+    cell('Κλίση °',num('sol','tilt','1',60,'κλίση συλλέκτη (τα ΠΕΑ-πρότυπα: 60°)'))+
+    cell('Αξιοποίηση',num('sol','util','0.01',66,'συντελεστής αξιοποίησης ηλιακού (0,36 τυπικό)')),'sol');
   el.innerHTML=h+'<p style="font-size:10px;color:var(--ink2);margin:3px 0 0">Οι τιμές γράφονται ΑΥΤΟΥΣΙΕΣ στα SYSTEM του XML. ↺ = επιστροφή στις αυτόματες ΤΟΤΕΕ.</p>';
 }
 function sys2Set(el){
