@@ -110,6 +110,8 @@ button:focus-visible{outline:2px solid var(--brb);outline-offset:2px}
   padding:6px 7px;font:600 12px var(--num);background:#fff}
 .ttbl input.tdesc{font-family:var(--ui);min-width:120px}
 .ttbl .tdel{border:none;background:none;color:#C43A2B;font-weight:800;cursor:pointer;font-size:14px;padding:2px 6px}
+.tlbl{font:700 9.5px var(--ui);color:var(--ink2);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:3px}
+.tinp{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 8px;font:600 12px var(--ui);background:#fff}
 #subSteps .lbl{font:800 10px var(--ui);color:var(--ink2);letter-spacing:.08em;
   text-transform:uppercase;flex:0 0 auto;margin-right:2px}
 .sstep{flex:0 0 auto;display:flex;gap:5px;align-items:center;cursor:pointer;
@@ -394,7 +396,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.47</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.48</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -684,10 +686,33 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
     <p class="cap" style="margin:6px 0 12px">Καταχώρησε τις επιφάνειες όπως στις μάσκες του ΤΕΕ.
       Χρήση, κλιματική ζώνη και <b>συστήματα</b> διαβάζονται από τα tabs Έργο/Συστήματα.
       ΜΘΧ: γράψε «ΜΘΧ» στην περιγραφή ή βάλε b&lt;1.</p>
-    <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:12px">
-      <div><label style="font:700 10px var(--ui);color:var(--ink2)">ΩΦΕΛΙΜΗ ΕΠΙΦΑΝΕΙΑ m²</label><br>
-        <input id="tblA" type="number" inputmode="decimal" step="0.01" style="width:130px;font-family:var(--num)"></div>
-      <button class="pbtn blue" id="tblSolve" style="min-height:38px">⚡ Επίλυση</button>
+    <div style="border:1.5px solid var(--brb);border-radius:12px;padding:12px 14px;margin-bottom:14px;background:#fff">
+      <h3 style="font:800 12px var(--ui);color:var(--brb);margin:0 0 8px">ΕΠΙΘΕΩΡΟΥΜΕΝΟ ΚΤΙΡΙΟ — Γενικά</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px">
+        <div><label class="tlbl">Χρήση</label><select id="tm_use" class="tinp"></select></div>
+        <div><label class="tlbl">Κλιματική ζώνη</label><select id="tm_zone" class="tinp"></select></div>
+        <div><label class="tlbl">Ωφέλιμη επιφάνεια m²</label>
+          <input id="tblA" type="number" inputmode="decimal" step="0.01" class="tinp" style="font-family:var(--num)"></div>
+        <div><label class="tlbl">Ύψος ορόφου m</label>
+          <input id="tm_h" type="number" inputmode="decimal" step="0.05" class="tinp" style="font-family:var(--num)"></div>
+      </div>
+      <h3 style="font:800 12px var(--ui);color:var(--brb);margin:14px 0 8px">ΣΥΣΤΗΜΑΤΑ ΕΠΙΘΕΩΡΟΥΜΕΝΟΥ <small style="font-weight:400;color:var(--ink2)">(συγχρονίζονται με το tab Συστήματα)</small></h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px">
+        <div><label class="tlbl">Θέρμανση — τύπος</label><select id="tm_heatT" class="tinp"></select></div>
+        <div><label class="tlbl">Πηγή</label><select id="tm_heatS" class="tinp"></select></div>
+        <div><label class="tlbl">η / SCOP</label>
+          <input id="tm_heatE" type="number" step="0.01" inputmode="decimal" class="tinp" style="font-family:var(--num)"></div>
+        <div><label class="tlbl">Ψύξη</label>
+          <div style="display:flex;gap:7px;align-items:center">
+            <input type="checkbox" id="tm_cool" style="width:18px;height:18px">
+            <input id="tm_coolE" type="number" step="0.1" inputmode="decimal" class="tinp" style="font-family:var(--num)" title="EER/SEER"></div></div>
+        <div><label class="tlbl">ΖΝΧ — τύπος</label><select id="tm_dhwT" class="tinp"></select></div>
+        <div><label class="tlbl">ΖΝΧ η/COP</label>
+          <input id="tm_dhwE" type="number" step="0.01" inputmode="decimal" class="tinp" style="font-family:var(--num)"></div>
+        <div><label class="tlbl">Ηλιακός m²</label>
+          <input id="tm_solA" type="number" step="0.1" inputmode="decimal" class="tinp" style="font-family:var(--num)"></div>
+      </div>
+      <button class="pbtn blue" id="tblSolve" style="min-height:40px;width:100%;margin-top:12px">⚡ Επίλυση επιθεωρούμενου</button>
     </div>
     <div id="tblRes"></div>
     <h3 style="font:800 12px var(--ui);color:var(--brb);margin:14px 0 6px">ΑΔΙΑΦΑΝΕΙΣ (τοίχοι · ΦΟ · οροφές · πυλωτές)</h3>
@@ -826,9 +851,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=67"></script>
-<script src="kenak-xml.js?v=67"></script>
-<script src="kenak-dxf.js?v=67"></script>
+<script src="kenak-data.js?v=68"></script>
+<script src="kenak-xml.js?v=68"></script>
+<script src="kenak-dxf.js?v=68"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -3493,8 +3518,22 @@ function tblLoad(){
     gr:[{d:'ΔΑΠΕΔΟ ΣΕ ΕΔΑΦΟΣ',A:'',U:''}],tr:[{d:'Κ1',az:180,A:'',U:'',F:1}]};
 }
 function tblSave(){try{localStorage.setItem('kenakTBL',JSON.stringify(TBL));}catch(e){}}
+const TM_MAP=[['tm_use','use'],['tm_zone','czone'],['tm_h','hfloor'],
+  ['tm_heatT','s_heatT'],['tm_heatS','s_heatS'],['tm_heatE','s_heatE'],
+  ['tm_coolE','s_coolE'],['tm_dhwT','s_dhwT'],['tm_dhwE','s_dhwE'],['tm_solA','s_solA']];
+function tblSyncFromApp(){
+  for(const [m,r] of TM_MAP){
+    const me=document.getElementById(m),re=document.getElementById(r);
+    if(!me||!re)continue;
+    if(me.tagName==='SELECT'&&!me.options.length&&re.innerHTML)me.innerHTML=re.innerHTML;
+    me.value=re.value;
+  }
+  const tc=document.getElementById('tm_cool'),rc=document.getElementById('s_cool');
+  if(tc&&rc)tc.checked=rc.checked;
+}
 function tblRender(){
   tblLoad();
+  tblSyncFromApp();
   document.getElementById('tblA').value=TBL.A;
   const mk=(id,cols,rows,kind)=>{
     let h='<tr>'+cols.map(c=>'<th>'+c+'</th>').join('')+'<th></th></tr>';
@@ -3544,7 +3583,7 @@ function tblSolve(){
       catch(e){return'';}})():'';
     h='<div style="border:2px solid '+PEA_COLORS[e2.ci]+';border-radius:12px;padding:12px 14px;margin:4px 0 10px;background:#fff">'+
       '<span style="background:'+PEA_COLORS[e2.ci]+';color:#fff;font:800 24px var(--ui);padding:6px 16px;border-radius:8px;text-shadow:0 1px 2px #0005">'+e2.cls+'</span> '+
-      '<b style="margin-left:8px">Επίλυση πινάκων</b>'+scBadge+
+      '<b style="margin-left:8px">ΕΠΙΘΕΩΡΟΥΜΕΝΟ ΚΤΙΡΙΟ — επίλυση</b>'+scBadge+
       '<div style="font-family:var(--num);font-size:12px;margin-top:7px">T='+e2.T.toFixed(2)+
       ' · EP '+e2.EP0.toFixed(0)+' / αναφ. '+e2.EPr.toFixed(0)+' kWh/m² · Qh '+e2.Qh0.toFixed(0)+
       ' · ζώνη '+((document.getElementById('czone')||{}).value||'B')+' · A '+pr.A.toFixed(1)+' m²</div>'+
@@ -3558,6 +3597,15 @@ function tblSolve(){
   if(eT)eT.onclick=()=>{tblRender();sh.style.display='block';};
   document.getElementById('tblClose').onclick=()=>{sh.style.display='none';};
   document.getElementById('tblSolve').onclick=tblSolve;
+  /* συστήματα: mirror -> πραγματικά πεδία tab + αποθήκευση */
+  for(const [m,r] of TM_MAP){
+    const me=document.getElementById(m);if(!me)continue;
+    me.addEventListener('input',()=>{const re=document.getElementById(r);
+      if(re){re.value=me.value;try{pSave();}catch(e2){}}});
+  }
+  const tc=document.getElementById('tm_cool');
+  if(tc)tc.addEventListener('change',()=>{const rc=document.getElementById('s_cool');
+    if(rc){rc.checked=tc.checked;try{pSave();}catch(e2){}}});
   document.getElementById('tblA').addEventListener('input',e2=>{tblLoad();TBL.A=e2.target.value;tblSave();});
   sh.addEventListener('input',e2=>{
     const t=e2.target;if(!t.dataset||!t.dataset.kind||t.id==='tblA')return;
