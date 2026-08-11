@@ -681,6 +681,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   <button class="eb" id="eDraw">
     <svg viewBox="0 0 24 24"><path d="M4 20l4-1L20 7l-3-3L5 16l-1 4zM14 6l3 3"/></svg>
     <span><b>Σχεδίαση με το χέρι</b><span>Πάτα κορυφές · «Τόξο» για καμπύλες · κάνναβος 5 cm</span></span></button>
+  <button class="eb" id="eManual">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 14h18M9 4v16M15 4v16"/></svg>
+    <span><b>Πίνακες ΤΕΕ-ΚΕΝΑΚ — χωρίς σχέδιο</b><span>Συμπλήρωσε αδιαφανείς/κουφώματα/έδαφος όπως στο πρόγραμμα · μόνο εξαγωγή XML</span></span></button>
   <button class="eb" id="eView">
     <svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.5"/></svg>
     <span><b>Προβολή αρχείου XML</b><span>Αποτελέσματα ΤΕΕ-ΚΕΝΑΚ στην οθόνη — κύρια χρήση στο κινητό</span></span></button>
@@ -696,6 +699,11 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <button id="alignFab" onclick="alignParcel()">⟳ Ίσιωμα οικοπέδου</button>
 <div class="err" id="err"><b>Πρόβλημα</b> <span id="errTxt" style="font-size:13px"></span></div>
 
+<div class="sheet" id="manSheet">
+  <div class="shd"><b>Πίνακες ΤΕΕ-ΚΕΝΑΚ — χωρίς σχέδιο</b>
+    <button class="pbtn" onclick="document.getElementById('manSheet').classList.remove('on')">Πίσω</button></div>
+  <div class="sbody" id="manBody"></div>
+</div>
 <div class="sheet" id="preSheet">
   <div class="shd"><b>Πρόβλεψη αποτελεσμάτων · πριν το ΤΕΕ-ΚΕΝΑΚ</b>
     <button class="pbtn" id="preClose" style="margin-left:auto">Κλείσιμο ✕</button></div>
@@ -851,9 +859,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=88"></script>
-<script src="kenak-xml.js?v=88"></script>
-<script src="kenak-dxf.js?v=88"></script>
+<script src="kenak-data.js?v=91"></script>
+<script src="kenak-xml.js?v=91"></script>
+<script src="kenak-dxf.js?v=91"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -961,7 +969,11 @@ function segHtxt(i){const a=segH[i]||0,b2=segH2[i]||0;
 let lastEdgeTap=null; /* σημείο tap πάνω σε πλευρά — για εισαγωγή κορυφής ΕΚΕΙ */
 let SRF={};
 let SYS2={};
-let SYSX={heat:[],cool:[]};  /* ΕΠΙΠΛΕΟΝ συστήματα (π.χ. λέβητας + split):
+let SYSX={heat:[],cool:[]};
+let MANUAL={on:false,A:'',V:'',h:'3.00',nf:1,
+  opaque:[],   /* {d,az,tilt,A,U,a,e} */
+  trans:[],    /* {d,az,A,U,g} */
+  ground:[]};  /* {d,A,U,per} */  /* ΕΠΙΠΛΕΟΝ συστήματα (π.χ. λέβητας + split):
   {type,src,kw,eff,deff,term,cover[12]} — μπαίνουν ως πρόσθετες ΓΡΑΜΜΕΣ στους
   πίνακες SYSTEM του XML· ο συνολικός υπολογισμός γίνεται με μερίδια κάλυψης. */
 function sysxAdd(p){
@@ -1976,6 +1988,66 @@ document.getElementById('clear').onclick=()=>{
   ox=W/2;oy=H/2;cell=48;document.getElementById('solve').disabled=true;
   hint('Πάτα για κορυφές περιγράμματος');draw();pSave();};
 document.getElementById('solve').onclick=()=>{if(!closed)finish();else report(true);};
+/* ===== ΛΕΙΤΟΥΡΓΙΑ «ΠΙΝΑΚΕΣ ΤΕΕ-ΚΕΝΑΚ» (χωρίς σχέδιο) ===== */
+const MAN_COLS={
+  opaque:[['d','Περιγραφή δομικού στοιχείου','text',190],['az','γ (°)','num',56],['tilt','Κλίση (°)','num',56],
+          ['A','Εμβαδό m²','num',72],['U','U W/m²K','num',64],['a','α','num',50],['e','ε','num',50]],
+  trans: [['d','Περιγραφή κουφώματος','text',190],['az','γ (°)','num',56],
+          ['A','Εμβαδό m²','num',72],['U','U W/m²K','num',64],['g','g','num',50]],
+  ground:[['d','Περιγραφή','text',190],['A','Εμβαδό m²','num',72],['U','U W/m²K','num',64],['per','Περίμετρος m','num',80]]};
+function manOpen(){MANUAL.on=true;pSave();manRender();document.getElementById('manSheet').classList.add('on');}
+function manRender(){
+  const el=document.getElementById('manBody');if(!el)return;
+  const grid=(key,title,defR)=>{
+    const C=MAN_COLS[key],rows=MANUAL[key];
+    let h='<h3 style="margin-top:14px">'+title+'</h3>'+
+      '<div style="overflow-x:auto"><table style="border-collapse:collapse;background:#ECEBE6;min-width:520px">'+
+      '<tr>'+C.map(c=>'<td style="border:1px solid #B8B6AE;background:#DDDBD3;font-size:10.5px;font-weight:700;padding:4px 6px;text-align:center">'+c[1]+'</td>').join('')+
+      '<td style="border:1px solid #B8B6AE;background:#DDDBD3"></td></tr>';
+    rows.forEach((r,i)=>{
+      h+='<tr>'+C.map(c=>'<td style="border:1px solid #B8B6AE;padding:0">'+
+        '<input type="'+(c[2]==='num'?'number':'text')+'" step="0.01" value="'+(r[c[0]]??'')+'"'+
+        ' data-man="'+key+'" data-i="'+i+'" data-k="'+c[0]+'" onchange="manSet(this)"'+
+        ' style="width:'+c[3]+'px;border:none;background:#fff;font-size:12px;padding:5px 6px;text-align:'+(c[2]==='num'?'center':'left')+'"></td>').join('')+
+        '<td style="border:1px solid #B8B6AE;text-align:center"><a href="#" onclick="MANUAL.'+key+'.splice('+i+',1);pSave();manRender();return false" style="color:#C43A2B;padding:0 7px">×</a></td></tr>';
+    });
+    h+='</table></div><button class="pbtn" style="margin-top:6px;padding:4px 12px;font-size:12px"'+
+      ' onclick=\'MANUAL["'+key+'"].push('+JSON.stringify(defR)+');pSave();manRender()\'>+ Γραμμή</button>';
+    return h;};
+  el.innerHTML=
+    '<p style="font-size:12px;color:var(--ink2)">Δούλεψε όπως στο ΤΕΕ-ΚΕΝΑΚ: γέμισε τους πίνακες με τα εμβαδά και τα U — χωρίς σχέδιο. '+
+    'Αζιμούθιο γ: 0=Β, 90=Α, 180=Ν, 270=Δ. Τα Συστήματα στη 3η καρτέλα ισχύουν κανονικά. Η εξαγωγή XML θα χρησιμοποιήσει ΑΥΤΟΥΣ τους πίνακες.</p>'+
+    '<h3>Ζώνη</h3><div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">'+
+    ['A|Εμβαδό m²','V|Όγκος m³','h|Ύψος m','nf|Όροφοι'].map(x=>{const [k,l]=x.split('|');
+      return '<div><label style="font-size:9.5px;color:var(--ink2)">'+l+'</label><br>'+
+      '<input type="number" step="0.01" value="'+(MANUAL[k]??'')+'" onchange="MANUAL.'+k+'=this.value;pSave()" style="width:92px;padding:5px 6px;text-align:center"></div>';}).join('')+
+    '</div>'+
+    grid('opaque','Αδιαφανείς επιφάνειες',{d:'ΤΟΙΧΟΠΟΙΙΑ',az:0,tilt:90,A:'',U:'',a:0.6,e:0.8})+
+    grid('trans','Διαφανείς επιφάνειες (κουφώματα)',{d:'Κ1',az:0,A:'',U:3.2,g:0.68})+
+    grid('ground','Σε επαφή με έδαφος',{d:'ΔΑΠΕΔΟ ΣΕ ΕΔΑΦΟΣ',A:'',U:'',per:''})+
+    '<div class="prow" style="margin-top:14px">'+
+    '<button class="pbtn blue" onclick="document.getElementById(\'manSheet\').classList.remove(\'on\');setTab(3)">→ Συστήματα</button>'+
+    '<button class="pbtn" onclick="document.getElementById(\'xmlBtn\').click()">Εξαγωγή XML</button></div>'+
+    '<p class="cap">Εκτίμηση κατηγορίας: φόρτωσε το XML που θα βγάλεις στην «Προβολή αρχείου XML».</p>';
+}
+function manSet(el){
+  const o=MANUAL[el.dataset.man][+el.dataset.i];if(!o)return;
+  o[el.dataset.k]=el.type==='number'?String(el.value).replace(',','.'):el.value;
+  pSave();
+}
+function manTables(){
+  /* MANUAL -> μορφή γραμμών XML (16/15/8 στήλες) με F σκίασης = 1 */
+  const F6=['1','1','1','1','1','1'];
+  const opaque=MANUAL.opaque.filter(r=>+r.A>0).map(r=>['Τοίχος',r.d||'ΤΟΙΧΟΠΟΙΙΑ',String(+r.az||0),String(+r.tilt||90),
+    (+r.A).toFixed(2),(+r.U||0).toFixed(2),'0.04',(+r.a||0.6).toFixed(2),(+r.e||0.8).toFixed(2)].concat(F6).concat(['']));
+  const transparent=MANUAL.trans.filter(r=>+r.A>0).map(r=>['Ανοιγόμενο',r.d||'Κ',String(+r.az||0),'90',
+    (+r.A).toFixed(2),'Μεταλλικό με θερμοδιακοπή',(+r.U||3.2).toFixed(2),(+r.g||0.68).toFixed(2),'0.75']
+    .concat(['1','1','1','1','1']).concat(['']));
+  const ground=MANUAL.ground.filter(r=>+r.A>0).map(r=>['Δάπεδο',r.d||'ΔΑΠΕΔΟ ΣΕ ΕΔΑΦΟΣ',(+r.A).toFixed(2),(+r.U||0).toFixed(2),
+    '','',(+r.per||0).toFixed(2),'']);
+  return {opaque,transparent,ground};
+}
+document.getElementById('eManual').onclick=manOpen;
 document.getElementById('close').onclick=()=>document.getElementById('sheet').classList.remove('on');
 /* Αλλαγή πλάτους «Αποτελεσμάτων» με σύρσιμο της αριστερής λαβής (και σε αφή).
    Το πλάτος θυμάται — διπλό κλικ στη λαβή: επαναφορά στα 560px. */
@@ -2850,8 +2922,9 @@ function makeSketchPDF(){
 
 document.getElementById('xmlBtn').onclick=async()=>{
   /* Σειρά: 1 κέλυφος, 2 έλεγχος ΤΟΤΕΕ, 3 εξαγωγή — Beta: χωρίς χρέωση token */
-  if(!closed){
-    alert('Το XML δεν εξήχθη: δεν έχει κλείσει το περίγραμμα του κελύφους.\nΠήγαινε στο tab «Κέλυφος» (βήμα 3) και πάτα «Κλείσε περίγραμμα».');
+  const MANUAL_GO=MANUAL.on&&(+MANUAL.A>0)&&(MANUAL.opaque.some(r=>+r.A>0));
+  if(!closed&&!MANUAL_GO){
+    alert('Το XML δεν εξήχθη: δεν έχει κλείσει το περίγραμμα του κελύφους.\nΠήγαινε στο tab «Κέλυφος» (βήμα 3) και πάτα «Κλείσε περίγραμμα» — ή δούλεψε με «Πίνακες ΤΕΕ-ΚΕΝΑΚ» από την αρχική.');
     setTab(2);return;
   }
   const ck=sysCheck();
@@ -2867,7 +2940,7 @@ document.getElementById('xmlBtn').onclick=async()=>{
      Η χρέωση ανά ΠΕΑ (kenakSpendToken) θα επανενεργοποιηθεί μετά το Beta. */
   /* ΠΡΟΕΠΙΣΚΟΠΗΣΗ: τίποτα δεν γράφεται στο XML χωρίς έγκριση του μηχανικού */
   try{
-    const zc2=zn131(),qx=envelope();
+    const zc2=zn131(),qx=(MANUAL.on&&+MANUAL.A>0&&!closed)?{A:+MANUAL.A,V:+MANUAL.V||(+MANUAL.A*3),nf:+MANUAL.nf||1}:envelope();
     const ovS=Object.keys(SRF).length,ovY=Object.keys(SYS2).length;
     const nH=1+(SYSX.heat?SYSX.heat.length:0),nC=1+(SYSX.cool?SYSX.cool.length:0);
     let sum='ΣΥΝΟΨΗ ΕΞΑΓΩΓΗΣ — έλεγξε πριν εγκρίνεις:\n\n'+
@@ -2886,7 +2959,9 @@ document.getElementById('xmlBtn').onclick=async()=>{
   }catch(e){console.error('σύνοψη',e);}
   await kenakSpendToken();   /* no-op στο Beta — επιστρέφει πάντα true */
   try{
-  const q=envelope();
+  const q=MANUAL_GO&&!closed
+    ?{A:+MANUAL.A,V:+MANUAL.V||(+MANUAL.A*(+MANUAL.h||3)),nf:+MANUAL.nf||1,hTot:(+MANUAL.h||3)*(+MANUAL.nf||1)}
+    :envelope();
   /* Αδιαφανείς: μία γραμμή ανά τομέα προσανατολισμού + οροφή.
      Προσωρινές τιμές U/α/ε — θα γίνουν επεξεργάσιμες ανά επιφάνεια
      στην επόμενη έκδοση (καρτέλες επιφανειών). */
@@ -2894,7 +2969,7 @@ document.getElementById('xmlBtn').onclick=async()=>{
      ΧΩΡΙΣΤΑ από την τοιχοποιία πλήρωσης, ανά όψη, με δικό του U —
      όπως στα πραγματικά αρχεία ΤΕΕ-ΚΕΝΑΚ. Το ποσοστό %ΦΟ και τα U
      δίνονται από τον επιθεωρητή (πεδία «Κατασκευή»). */
-  const T=buildTables(q);
+  const T=(MANUAL_GO&&!closed)?manTables():buildTables(q);
   const opaque=T.opaque, ground=T.ground;
   /* (τα παρακάτω πεδία διαβάζονται μέσα στο buildTables) */
   const foP0=Math.max(0,Math.min(0.60,(+document.getElementById('fopct').value||0)/100));
@@ -3068,25 +3143,37 @@ function showXML(m,fname){
     if(srows)h+='<h3>Συστήματα</h3><table>'+srows+'</table>';
     /* Εκτίμηση κατηγορίας από τα δεδομένα ΤΟΥ ΑΡΧΕΙΟΥ */
     try{
-      const ex=estFromXML(b);
-      if(ex.UA0>0){
+      const ex=solveXML(b);
+      if(ex.Htr>0){
         const d2=v=>(+v).toFixed(2).replace('.',',');
         const d1=v=>(+v).toFixed(1).replace('.',',');
-        h+='<h3>Εκτίμηση κατηγορίας — '+tag+'</h3>'+classBarHTML(ex)+
-          '<h3>Στοιχεία υπολογισμού (όπως διαβάστηκαν από το αρχείο)</h3><table>'+
-          '<tr><td>Χρήση ζώνης</td><td>'+((b.zone&&b.zone[1])||'—')+' ('+(ex.res?'κατοικία':'τριτογενής')+')</td></tr>'+
-          '<tr><td>Θερμαινόμενο εμβαδό</td><td>'+d1(ex.A)+' m²</td></tr>'+
-          '<tr><td>Κλιματική ζώνη · ΒΘΗ</td><td>'+ex.zone+' · '+ex.HDD+' (τρέχουσα επιλογή εργαλείου)</td></tr>'+
-          '<tr><td>UA αδιαφανών</td><td>'+d1(ex.UAop)+' W/K ('+d1(ex.Aop)+' m²)</td></tr>'+
-          '<tr><td>UA κουφωμάτων</td><td>'+d1(ex.UAtr)+' W/K ('+d1(ex.Atr)+' m²)</td></tr>'+
-          (ex.Agr>0?'<tr><td>UA εδάφους (×0,5)</td><td>'+d1(ex.UAgr)+' W/K ('+d1(ex.Agr)+' m²)</td></tr>':'')+
-          '<tr><td><b>UA κτιρίου / αναφοράς</b></td><td><b>'+d1(ex.UA0)+' / '+d1(ex.UAr)+' W/K</b></td></tr>'+
-          '<tr><td>Θέρμανση</td><td>'+(ex.hT||'—')+' · '+(ex.fuel||'—')+' · '+(ex.isHP?'SCOP':'η')+' '+d2(ex.hE)+' · fp '+d2(ex.fp0)+'</td></tr>'+
-          '<tr><td>ΖΝΧ</td><td>'+(ex.dT||'—')+' · η '+d2(ex.dE)+(ex.solA?' · ηλιακός '+ex.solA+' m² (κάλυψη ~'+Math.round(ex.solCov*100)+'%)':'')+'</td></tr>'+
-          '<tr><td>EP θέρμανσης / ΖΝΧ / λοιπά</td><td>'+d1(ex.EPh0)+' / '+d1(ex.EPd0)+' / '+ex.EPcom+' kWh/m²</td></tr>'+
-          '<tr><td><b>EP κτιρίου / αναφοράς → T</b></td><td><b>'+d1(ex.EP0)+' / '+d1(ex.EPr)+' → '+d2(ex.T)+'</b></td></tr>'+
+        const MN=['Ι','Φ','Μ','Α','Μ','Ι','Ι','Α','Σ','Ο','Ν','Δ'];
+        const maxQ=Math.max(...ex.QHm,1);
+        const bars=ex.QHm.map((q,mi)=>'<span style="display:inline-flex;flex-direction:column;align-items:center;width:7.5%">'+
+          '<span style="display:block;width:70%;background:var(--brb);border-radius:2px 2px 0 0;height:'+Math.round(q/maxQ*46)+'px"></span>'+
+          '<small style="font-size:8px;color:var(--ink2)">'+MN[mi]+'</small></span>').join('');
+        h+='<h3>Επίλυση — '+tag+'</h3>'+classBarHTML(ex)+
+          '<div style="display:flex;align-items:flex-end;height:64px;margin:8px 0 2px">'+bars+'</div>'+
+          '<p class="cap" style="margin:0 0 6px">Μηνιαία θερμική ζήτηση θέρμανσης (μηνιαία μέθοδος ISO 13790 / ΤΟΤΕΕ)</p>'+
+          '<h3>Ενεργειακά μεγέθη</h3><table>'+
+          '<tr><td>Ζήτηση θέρμανσης Q<sub>H,nd</sub></td><td>'+d1(ex.QH)+' kWh/m²·έτος</td></tr>'+
+          '<tr><td>Ζήτηση ψύξης Q<sub>C,nd</sub></td><td>'+d1(ex.QC)+' kWh/m²·έτος</td></tr>'+
+          '<tr><td>EP θέρμανσης / ψύξης / ΖΝΧ / βοηθ.</td><td>'+d1(ex.EPh)+' / '+d1(ex.EPc)+' / '+d1(ex.EPd)+' / '+ex.EPaux+'</td></tr>'+
+          '<tr><td><b>EP κτιρίου / αναφοράς → T</b></td><td><b>'+d1(ex.EP0)+' / '+d1(ex.EPr)+' kWh/m² → '+d2(ex.T)+'</b></td></tr>'+
+          '<tr><td>Εκπομπές CO₂</td><td>'+d1(ex.CO2)+' kg/m²·έτος</td></tr>'+
           '</table>'+
-          '<p class="cap">Εκτίμηση HEXIS — η επίσημη κατάταξη από το ΤΕΕ-ΚΕΝΑΚ. Αν το κτίριο είναι σε άλλη κλιματική ζώνη, άλλαξέ τη στο tab Έργο και ξαναφόρτωσε το αρχείο.</p>';
+          '<h3>Στοιχεία υπολογισμού (από το αρχείο)</h3><table>'+
+          '<tr><td>Χρήση ζώνης</td><td>'+((b.zone&&b.zone[1])||'—')+' ('+(ex.res?'κατοικία':'τριτογενής')+')</td></tr>'+
+          '<tr><td>Εμβαδό / Όγκος</td><td>'+d1(ex.A)+' m² · '+d1(ex.V)+' m³</td></tr>'+
+          '<tr><td>Κλιματική ζώνη</td><td>'+ex.zone+' (τρέχουσα επιλογή εργαλείου — μηνιαία κλιματικά αντιπρ. πόλης)</td></tr>'+
+          '<tr><td>UA αδιαφανών / κουφωμάτων'+(ex.Agr>0?' / εδάφους':'')+'</td><td>'+d1(ex.UAop)+' / '+d1(ex.UAtr)+(ex.Agr>0?' / '+d1(ex.UAgr):'')+' W/K</td></tr>'+
+          '<tr><td>H μετάδοσης + αερισμού</td><td>'+d1(ex.Htr)+' + '+d1(ex.Hve)+' = '+d1(ex.H)+' W/K (n='+d2(ex.ach)+' h⁻¹) · αναφοράς '+d1(ex.Hr)+'</td></tr>'+
+          '<tr><td>Κουφώματα στα ηλιακά κέρδη</td><td>'+ex.nWin+' τεμ. (g, προσανατολισμός, F από το αρχείο)</td></tr>'+
+          '<tr><td>Θέρμανση</td><td>'+(ex.hT||'—')+' · '+(ex.fuel||'—')+' · '+(ex.isHP?'SCOP':'η')+' '+d2(ex.hE)+' · δίκτυο '+d2(ex.dEff)+' · τερμ. '+d2(ex.tEff)+' · fp '+d2(ex.fpH)+'</td></tr>'+
+          '<tr><td>Ψύξη</td><td>SEER '+d2(ex.seer)+'</td></tr>'+
+          '<tr><td>ΖΝΧ</td><td>'+(ex.dT||'—')+' · η '+d2(ex.dE)+(ex.solA?' · ηλιακός '+ex.solA+' m² (~'+Math.round(ex.solCov*100)+'%)':'')+'</td></tr>'+
+          '</table>'+
+          '<p class="cap">Επίλυση HEXIS με τη μηνιαία μέθοδο — ανεξάρτητη αναπαραγωγή, όχι το επίσημο αποτέλεσμα: το ΤΕΕ-ΚΕΝΑΚ κάνει την κατάταξη. Αν το κτίριο είναι σε άλλη ζώνη, άλλαξέ τη στο tab Έργο και ξαναφόρτωσε.</p>';
       }
     }catch(e2){console.error('estFromXML',e2);}
   });
@@ -3822,7 +3909,7 @@ function pSave(){
   /* ΠΛΗΡΕΣ ΣΧΕΔΙΟ: όροφοι (κορυφές/τόξα/ύψη/κουφώματα/OPR/οροφές/δάπεδα/κολώνες/
      αδιαβατικά), overlays οικοπέδου (εμπόδια/εξώστες/τέντες/ΜΘΧ/ΙΚΕΕ/ηλιακοί/Όμ.Θ)
      και περίγραμμα ΚΑΕΚ — ώστε διακοπή ρεύματος/κλείσιμο browser να μη χάνει ΤΙΠΟΤΑ. */
-  try{floorSave();o.model={FL:FL,fi:fi,ov:ov,parcel:PARCEL,colw:colW,srf:SRF,sys2:SYS2,sysx:SYSX};}catch(e){}
+  try{floorSave();o.model={FL:FL,fi:fi,ov:ov,parcel:PARCEL,colw:colW,srf:SRF,sys2:SYS2,sysx:SYSX,manual:MANUAL};}catch(e){}
   try{localStorage.setItem(PSTORE,JSON.stringify(o));}catch(e){}
   try{stepSync();}catch(e){}
 }
@@ -3856,6 +3943,7 @@ function pLoad(){
       if(o.model.srf&&typeof o.model.srf==='object')SRF=o.model.srf;
       if(o.model.sys2&&typeof o.model.sys2==='object')SYS2=o.model.sys2;
       if(o.model.sysx&&o.model.sysx.heat)SYSX=o.model.sysx;
+      if(o.model.manual&&o.model.manual.opaque)MANUAL=o.model.manual;
       ensureOPR();
       /* το resize()/αρχικό draw τρέχουν ΜΕΤΑ το pLoad — κεντράρισμα σε επόμενο tick */
       setTimeout(()=>{try{
@@ -4281,6 +4369,123 @@ function peaHTML(e0,e1,scTitle){
         '<small>EP '+e1.EP0.toFixed(0)+' · −'+Math.round(100*(1-e1.EP0/Math.max(1,e0.EP0)))+'%</small>'+
         '<div style="font-size:9.5px;color:var(--ink2)">'+(scTitle||'').slice(0,44)+'</div></div>':'')+
     '</div></div>';
+}
+/* ===== ΕΠΙΛΥΣΗ XML — μηνιαία μέθοδος (quasi-steady, ISO 13790 / ΤΟΤΕΕ) =====
+   Κλιματικά: αντιπροσωπευτική πόλη ανά ζώνη (ΤΟΤΕΕ 20701-3): μέση μηνιαία θe
+   και ηλιακή σε νότια κατακόρυφη/οριζόντια επιφάνεια (προσαρμογή ανά ζώνη). */
+const KLIMA={
+  Te:{A:[12.4,12.5,13.6,16.1,19.4,23.3,25.4,25.3,23.3,20.1,16.8,13.9],
+      B:[9.3,9.9,11.3,15.0,20.0,24.7,27.3,27.2,23.3,18.4,14.1,10.9],
+      C:[5.2,6.7,9.5,13.9,19.0,23.8,26.2,25.7,21.4,16.0,10.8,6.6],
+      D:[1.5,3.2,6.8,11.2,16.2,20.6,23.0,22.4,18.0,12.6,7.2,2.8]},
+  IsS:[98,95,102,92,85,80,85,95,105,110,98,95],      /* νότια κατακόρυφη kWh/m²·μήνα */
+  IsH:[55,70,110,150,185,200,210,190,145,100,65,50], /* οριζόντια */
+  zScale:{A:1.05,B:1.0,C:0.92,D:0.85},
+  dirF:az=>{const a=((+az%360)+360)%360;const d=Math.min(Math.abs(a-180),360-Math.abs(a-180));
+    return d<=22?1.0:d<=67?0.88:d<=112?0.62:d<=157?0.42:0.32;}
+};
+const DAYS=[31,28,31,30,31,30,31,31,30,31,30,31];
+function solveXML(b){
+  const E=b.envelope||{},SY=b.systems||{};
+  const zone=document.getElementById('czone').value||'B';
+  const zi={'A':0,'B':1,'C':2,'D':3}[zone]||1;
+  const UM=KENAK_DATA.umaxRenovation,FPm={el:2.9,oil:1.1,gas:1.05};
+  const A=Math.max(1,parseFloat(b.zone&&b.zone[3])||parseFloat(b.params&&b.params[1])||1);
+  const V=Math.max(A*2.5,parseFloat(b.params&&b.params[4])||A*3);
+  const res=/Μονοκατοικία|πολυκατοικία/i.test((b.zone&&b.zone[1])||'');
+  /* --- H μετάδοσης (πραγματικό & αναφοράς) + ηλιακή συλλογή κουφωμάτων --- */
+  let Htr=0,Htr_r=0,Aop=0,Atr=0,Agr=0,UAop=0,UAtr=0,UAgr=0;
+  const wins=[];
+  (E.opaque||[]).forEach(r=>{const Ax=+r[4]||0,U=+r[5]||0;Htr+=Ax*U;UAop+=Ax*U;Aop+=Ax;
+    const d=r[1]||'';
+    Htr_r+=Ax*(/ΟΡΟΦΗ|ΔΩΜΑ|ΣΤΕΓΗ/i.test(d)?Math.min(U,UM.roof[zi])
+      :/ΠΥΛΩΤΗ|ΔΑΠΕΔΟ/i.test(d)?Math.min(U,UM.pilotis[zi])
+      :/ΜΘΧ/i.test(d)?U:Math.min(U,UM.wall[zi]));});
+  (E.transparent||[]).forEach(r=>{const Ax=+r[4]||0,U=+r[6]||0,g=+r[7]||0.68;
+    Htr+=Ax*U;UAtr+=Ax*U;Atr+=Ax;Htr_r+=Ax*Math.min(U,UM.window[zi]);
+    let Fw=1;for(let c=9;c<=13;c++){const f=+r[c];if(f>0&&f<Fw)Fw=f;}
+    wins.push({A:Ax,g,az:+r[2]||0,tilt:+r[3]||90,F:Fw});});
+  (E.ground||[]).forEach(r=>{const Ax=+r[2]||0,U=+r[3]||0;
+    Htr+=Ax*U*0.5;UAgr+=Ax*U*0.5;Agr+=Ax;Htr_r+=Ax*Math.min(U||UM.roof[zi],UM.roof[zi])*0.5;});
+  /* --- H αερισμού: κατοικία 0,75 ach φυσικός · τριτογενής νωπός/όγκο ή 1,2 --- */
+  let ach=res?0.75:1.2;
+  const ahuRow=(SY.ahu&&SY.ahu.rows&&SY.ahu.rows[0])||null;
+  if(!res&&ahuRow&&+ahuRow[2]>0)ach=Math.max(0.5,(+ahuRow[2])/V);
+  const Hve=0.34*ach*V;
+  const H=Htr+Hve,Hr=Htr_r+Hve;
+  /* --- συστήματα από το αρχείο --- */
+  const hp=(SY.heating&&SY.heating.rows&&SY.heating.rows[0])||[];
+  const hT=hp[0]||'',isHP=/Α\.Θ\.|αντλ/i.test(hT);
+  const hE=Math.max(0.3,parseFloat((isHP?hp[4]:hp[3])||'')||0.8);
+  const fuel=(hp[1]||'').toLowerCase();
+  const isOil=/oil|πετρ/i.test(fuel)&&!/electr/.test(fuel);
+  const isGas=/gas|αέρι/i.test(fuel);
+  const fpH=isHP?FPm.el:(isOil?FPm.oil:isGas?FPm.gas:FPm.el);
+  const hd=(SY.heatingDistr&&SY.heatingDistr.rows&&SY.heatingDistr.rows[0])||[];
+  const dEff=Math.max(0.8,Math.min(1,parseFloat(hd[5]||'')||0.96)),tEff=0.93;
+  const cp=(SY.cooling&&SY.cooling.rows&&SY.cooling.rows[0])||[];
+  const seer=Math.max(1,parseFloat(cp[4]||'')||(res?1.7:2.2));
+  const dp=(SY.dhw&&SY.dhw.rows&&SY.dhw.rows[0])||[];
+  const dE=Math.max(0.3,parseFloat(dp[3]||'')||1);
+  const dhwBoil=/Λέβητας/i.test(dp[0]||''),dhwHP=/Αντλ/i.test(dp[0]||'');
+  const sr=(SY.solar&&SY.solar.exists&&SY.solar.rows&&SY.solar.rows[0])||null;
+  const solA=sr?(parseFloat(sr[5])||0):0;
+  const solCov=Math.min(0.7,solA>0?0.15+solA*0.18:0);
+  /* --- μηνιαίος βρόχος --- */
+  const Te=KLIMA.Te[zone]||KLIMA.Te.B,zS=KLIMA.zScale[zone]||1;
+  const thI=20,thC=26,qint=(res?4:8);   /* W/m² εσωτερικά */
+  let QH=0,QC=0;const QHm=[];
+  for(let m=0;m<12;m++){
+    const t=DAYS[m]*24/1000;            /* kh */
+    const Qht=H*(thI-Te[m])*t;          /* kWh (θέρμανση, μπορεί <0) */
+    let Qsol=0;
+    for(const w of wins){
+      const I=(w.tilt<30?KLIMA.IsH[m]:KLIMA.IsS[m]*KLIMA.dirF(w.az))*zS;
+      Qsol+=w.A*w.g*0.75*w.F*I;
+    }
+    const Qgn=Qsol+qint*A*t;
+    if(Qht>0){const g2=Qgn/Math.max(1,Qht),a2=3;
+      const eta=g2===1?a2/(a2+1):(1-Math.pow(g2,a2))/(1-Math.pow(g2,a2+1));
+      QHm.push(Math.max(0,Qht-eta*Qgn));QH+=QHm[m];
+    }else QHm.push(0);
+    const Qhtc=H*(thC-Te[m])*t;         /* >0 = απώλειες βοηθούν ψύξη */
+    const g3=Math.max(0.01,Qhtc>0?Qhtc/Math.max(1,Qgn):99);
+    if(Te[m]>19||Qgn>Qhtc){const a3=3;
+      const etaL=g3>=99?0:(g3===1?a3/(a3+1):(1-Math.pow(g3,a3))/(1-Math.pow(g3,a3+1)));
+      QC+=Math.max(0,Qgn-etaL*Math.max(0,Qhtc));}
+  }
+  QH/=A;QC/=A;QC=Math.min(QC,120);
+  /* --- πρωτογενής --- */
+  const EPh=QH/(hE*dEff*tEff)*fpH;
+  const EPc=(res?0.35:0.8)*QC/seer*FPm.el;   /* μερική κάλυψη ψύξης */
+  const Qd=res?20:12;
+  const EPd=Qd*(1-solCov)*(dhwBoil?FPm.oil:FPm.el)/(dhwHP?Math.max(1.5,dE):dE);
+  const EPaux=res?3:6;
+  const EP0=EPh+EPc+EPd+EPaux;
+  /* --- κτίριο αναφοράς: ίδιο σχήμα, U ζώνης, λέβητας 0,935, SEER 2,8, ηλιακό 15% --- */
+  let QHr=0,QCr=0;
+  for(let m=0;m<12;m++){
+    const t=DAYS[m]*24/1000;
+    const Qht=Hr*(thI-Te[m])*t;
+    let Qsol=0;for(const w of wins){const I=(w.tilt<30?KLIMA.IsH[m]:KLIMA.IsS[m]*KLIMA.dirF(w.az))*zS;Qsol+=w.A*0.44*0.75*w.F*I;}
+    const Qgn=Qsol+qint*A*t;
+    if(Qht>0){const g2=Qgn/Math.max(1,Qht),a2=3;
+      const eta=(1-Math.pow(g2,a2))/(1-Math.pow(g2,a2+1))||a2/(a2+1);
+      QHr+=Math.max(0,Qht-eta*Qgn);}
+    const Qhtc=Hr*(thC-Te[m])*t;
+    if(Te[m]>19||Qgn>Qhtc){const g3=Math.max(0.01,Qhtc>0?Qhtc/Math.max(1,Qgn):99),a3=3;
+      const etaL=g3>=99?0:(1-Math.pow(g3,a3))/(1-Math.pow(g3,a3+1))||a3/(a3+1);
+      QCr+=Math.max(0,Qgn-etaL*Math.max(0,Qhtc));}
+  }
+  QHr/=A;QCr=Math.min(QCr/A,120);
+  const EPr=Math.max(1,QHr/(0.935*0.96*0.93)*FPm.oil+(res?0.35:0.8)*QCr/2.8*FPm.el+Qd*0.85*FPm.oil/0.935+EPaux);
+  const T=EP0/EPr;
+  let ci=CLASS_T.length-1;
+  for(let i2=0;i2<CLASS_T.length;i2++)if(T<=CLASS_T[i2][1]){ci=i2;break;}
+  const CO2=QH/(hE*dEff*tEff)*(isHP?0.989:isOil?0.264:0.989)+Qd*(1-solCov)/dE*(dhwBoil?0.264:0.989)+QC/seer*0.989*(res?0.35:0.8);
+  return {T,EP0,EPr,cls:CLASS_T[ci][0],ci,zone,A,V,res,
+    Htr,Hve,H,Hr,ach,QH,QC,QHr,EPh,EPc,EPd,EPaux,CO2,QHm,
+    UAop,UAtr,UAgr,Aop,Atr,Agr,hT,hE,fuel:hp[1]||'',isHP,fpH,dEff,tEff,seer,dT:dp[0]||'',dE,solA,solCov,nWin:wins.length};
 }
 function estFromXML(b){
   /* Εκτίμηση κατηγορίας από parsed XML (ίδια μεθοδολογία με estClass):
