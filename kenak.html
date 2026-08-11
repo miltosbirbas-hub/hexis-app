@@ -316,6 +316,14 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 .sheet tr:last-child td{border-bottom:none}
 .sheet td:last-child{text-align:right;font-family:var(--num);font-weight:700;white-space:nowrap}
 .sheet .cap{font-size:11px;color:var(--ink2);margin:6px 0 0}
+#sheetGrip{display:none}
+@media(min-width:900px){
+  #sheetGrip{display:flex;align-items:center;justify-content:center;
+    position:absolute;left:0;top:0;bottom:0;width:14px;cursor:ew-resize;z-index:5;
+    background:linear-gradient(90deg,var(--line),transparent);touch-action:none}
+  #sheetGrip::before{content:'⋮';color:var(--ink2);font-size:15px;font-weight:700}
+  #sheetGrip:hover{background:linear-gradient(90deg,var(--brb),transparent);opacity:.85}
+}
 .note{background:#FFF6E8;border:1px solid #E8B96A;border-radius:12px;padding:10px 12px;font-size:12px;margin:14px 14px 0}
 
 /* ---------- σφάλμα + διάλογος ---------- */
@@ -388,7 +396,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   background:var(--card);color:var(--brb);font:800 12px var(--ui);letter-spacing:.06em;
   align-items:center;justify-content:center;gap:8px;cursor:pointer}
 @media (min-width:900px){
-  .sheet{inset:0 0 0 auto;width:500px;transform:translateX(100%);
+  .sheet{inset:0 0 0 auto;width:var(--sheetw,560px);max-width:94vw;transform:translateX(100%);
     border-left:1px solid var(--line);box-shadow:-12px 0 34px #16202b26}
   .sheet.on{transform:none}
 }
@@ -836,16 +844,16 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   </div>
 </div>
 
-<div class="sheet" id="sheet">
+<div class="sheet" id="sheet"><div id="sheetGrip" title="Σύρε για πλάτος — διπλό κλικ: επαναφορά"></div>
   <div class="shd"><h2>Αποτελέσματα</h2><button class="pbtn" id="close">Πίσω</button></div>
   <div class="sbody" id="out"></div>
   <div class="note"><b>v0.5.</b> XML σε μορφή ENR_IN ΤΕΕ-ΚΕΝΑΚ 1.31. Τα U/α/ε είναι προσωρινά
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=84"></script>
-<script src="kenak-xml.js?v=84"></script>
-<script src="kenak-dxf.js?v=84"></script>
+<script src="kenak-data.js?v=88"></script>
+<script src="kenak-xml.js?v=88"></script>
+<script src="kenak-dxf.js?v=88"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -1011,7 +1019,9 @@ function sysDefaults(Az){
     heat:{deff:isEl?1.0:0.96, term:isEl?0.94:0.93, auxKW:isEl?0:Math.round(0.1*Az)/1000},
     cool:{deff:1.0, term:0.93},
     dhw:{deff:0.92, term:0.98},
-    sol:{azim:180, tilt:60, util:0.36}
+    sol:{azim:180, tilt:60, util:0.36, yield:0},
+    ahu:{flow:Math.round((KENAK_DATA.totee1_2017.freshAir[useIdx()]||[0,0,0])[2]*Az*100)/100},
+    lig:{kw:Math.round(0.014*Az*1000)/1000, count:Math.round(0.45*Az)}
   };
 }
 function sys2Get(p,k,SD){const o=SYS2[p]||{};return (o[k]!=null&&o[k]!=='')?o[k]:SD[p][k];}
@@ -1967,6 +1977,27 @@ document.getElementById('clear').onclick=()=>{
   hint('Πάτα για κορυφές περιγράμματος');draw();pSave();};
 document.getElementById('solve').onclick=()=>{if(!closed)finish();else report(true);};
 document.getElementById('close').onclick=()=>document.getElementById('sheet').classList.remove('on');
+/* Αλλαγή πλάτους «Αποτελεσμάτων» με σύρσιμο της αριστερής λαβής (και σε αφή).
+   Το πλάτος θυμάται — διπλό κλικ στη λαβή: επαναφορά στα 560px. */
+(function(){
+  const g=document.getElementById('sheetGrip'),sh=document.getElementById('sheet');
+  if(!g||!sh)return;
+  try{const w0=+localStorage.getItem('hexis-kenak-sheetw');
+    if(w0>=340)document.documentElement.style.setProperty('--sheetw',Math.min(w0,innerWidth*0.94)+'px');}catch(e){}
+  let sx=0,sw=0,drag=false;
+  g.addEventListener('pointerdown',e=>{
+    drag=true;sx=e.clientX;sw=sh.getBoundingClientRect().width;
+    g.setPointerCapture(e.pointerId);sh.style.transition='none';e.preventDefault();});
+  g.addEventListener('pointermove',e=>{
+    if(!drag)return;
+    const w=Math.max(340,Math.min(innerWidth*0.94,sw+(sx-e.clientX)));
+    document.documentElement.style.setProperty('--sheetw',w+'px');});
+  const end=()=>{if(!drag)return;drag=false;sh.style.transition='';
+    try{localStorage.setItem('hexis-kenak-sheetw',parseInt(getComputedStyle(sh).width));}catch(e){}};
+  g.addEventListener('pointerup',end);g.addEventListener('pointercancel',end);
+  g.addEventListener('dblclick',()=>{document.documentElement.style.setProperty('--sheetw','560px');
+    try{localStorage.removeItem('hexis-kenak-sheetw');}catch(e){}});
+})();
 document.getElementById('floors').addEventListener('change',()=>{
   const want=Math.max(1,Math.round(+document.getElementById('floors').value||1));
   floorsInit();
@@ -2834,6 +2865,25 @@ document.getElementById('xmlBtn').onclick=async()=>{
   }
   /* BETA: η εξαγωγή XML είναι ΔΩΡΕΑΝ όσο διαρκεί η δοκιμαστική περίοδος.
      Η χρέωση ανά ΠΕΑ (kenakSpendToken) θα επανενεργοποιηθεί μετά το Beta. */
+  /* ΠΡΟΕΠΙΣΚΟΠΗΣΗ: τίποτα δεν γράφεται στο XML χωρίς έγκριση του μηχανικού */
+  try{
+    const zc2=zn131(),qx=envelope();
+    const ovS=Object.keys(SRF).length,ovY=Object.keys(SYS2).length;
+    const nH=1+(SYSX.heat?SYSX.heat.length:0),nC=1+(SYSX.cool?SYSX.cool.length:0);
+    let sum='ΣΥΝΟΨΗ ΕΞΑΓΩΓΗΣ — έλεγξε πριν εγκρίνεις:\n\n'+
+      '• Χρήση: '+useLabel()+' → XML «'+zc2.zn+'» (κωδ. '+zc2.code+')'+(zc2.sure?'':' ⚠ ΜΗ επιβεβαιωμένη')+'\n'+
+      '• Ζώνη '+document.getElementById('czone').value+' · Εμβαδό '+qx.A.toFixed(1)+' m² · Όγκος '+qx.V.toFixed(0)+' m³ · '+qx.nf+' όροφοι\n'+
+      '• Θέρμανση: '+(document.getElementById('s_heat').checked?nH+' σύστημα(τα)':'ΧΩΡΙΣ (θα λείπει!)')+
+      ' · Ψύξη: '+(document.getElementById('s_cool').checked?nC:'—')+
+      ' · ΖΝΧ: '+(document.getElementById('s_dhw').checked?'✓':'—')+
+      ' · Ηλιακός: '+((+document.getElementById('s_solA').value||0)>0?document.getElementById('s_solA').value+' m²':'—')+'\n'+
+      (useSector()!=='residential'?'• Μηχ. αερισμός: '+((SYS2.ahu&&SYS2.ahu.on===false)?'ΟΧΙ':(+sys2Get('ahu','flow',sysDefaults(qx.A))).toFixed(0)+' m³/h')+
+        ' · Φωτισμός: '+((SYS2.lig&&SYS2.lig.on===false)?'ΟΧΙ':(+sys2Get('lig','kw',sysDefaults(qx.A))).toFixed(2)+' kW')+'\n':'')+
+      '• Δικές σου τιμές (overrides): '+ovS+' σε επιφάνειες · '+ovY+' σε συστήματα\n'+
+      (SCN.length?'• Σενάρια εξοικονόμησης: '+SCN.length+'\n':'')+
+      '\nΌλα τα παραπάνω είναι επεξεργάσιμα στους πίνακες. Εξαγωγή;';
+    if(!confirm(sum))return;
+  }catch(e){console.error('σύνοψη',e);}
   await kenakSpendToken();   /* no-op στο Beta — επιστρέφει πάντα true */
   try{
   const q=envelope();
@@ -2887,11 +2937,11 @@ document.getElementById('xmlBtn').onclick=async()=>{
       kw:+((document.getElementById('s_dhwP')||{}).value)||4,
       eff:+((document.getElementById('s_dhwE')||{}).value)||1.0,
       deff:+sys2Get('dhw','deff',SD9), term:+sys2Get('dhw','term',SD9)},
-    solar:{on:solA>0, area:solA, azim:+sys2Get('sol','azim',SD9), tilt:+sys2Get('sol','tilt',SD9), util:+sys2Get('sol','util',SD9), coverage:1.0},
+    solar:{on:solA>0, area:solA, azim:+sys2Get('sol','azim',SD9), tilt:+sys2Get('sol','tilt',SD9), util:+sys2Get('sol','util',SD9), yield:+sys2Get('sol','yield',SD9)||null, coverage:1.0},
     ahu:useSector()==='residential'?{on:false}:
-      {on:true,flow:(KENAK_DATA.totee1_2017.freshAir[useIdx()]||[0,0,1])[2]*q.A},
+      {on:(SYS2.ahu&&SYS2.ahu.on===false)?false:true,flow:+sys2Get('ahu','flow',SD9)},
     lighting:useSector()==='residential'?{on:false}:
-      {on:true,kw:0.014*q.A,count:Math.round(0.45*q.A)}};
+      {on:(SYS2.lig&&SYS2.lig.on===false)?false:true,kw:+sys2Get('lig','kw',SD9),count:Math.round(+sys2Get('lig','count',SD9))}};
   const xml=kenakXML({
     systems,
     project:{
@@ -3016,6 +3066,29 @@ function showXML(m,fname){
         }).join('<br>')}</td></tr>`;}
       else if(sy.exists)srows+=`<tr><td>${NM[k]}</td><td>ναι</td></tr>`;}
     if(srows)h+='<h3>Συστήματα</h3><table>'+srows+'</table>';
+    /* Εκτίμηση κατηγορίας από τα δεδομένα ΤΟΥ ΑΡΧΕΙΟΥ */
+    try{
+      const ex=estFromXML(b);
+      if(ex.UA0>0){
+        const d2=v=>(+v).toFixed(2).replace('.',',');
+        const d1=v=>(+v).toFixed(1).replace('.',',');
+        h+='<h3>Εκτίμηση κατηγορίας — '+tag+'</h3>'+classBarHTML(ex)+
+          '<h3>Στοιχεία υπολογισμού (όπως διαβάστηκαν από το αρχείο)</h3><table>'+
+          '<tr><td>Χρήση ζώνης</td><td>'+((b.zone&&b.zone[1])||'—')+' ('+(ex.res?'κατοικία':'τριτογενής')+')</td></tr>'+
+          '<tr><td>Θερμαινόμενο εμβαδό</td><td>'+d1(ex.A)+' m²</td></tr>'+
+          '<tr><td>Κλιματική ζώνη · ΒΘΗ</td><td>'+ex.zone+' · '+ex.HDD+' (τρέχουσα επιλογή εργαλείου)</td></tr>'+
+          '<tr><td>UA αδιαφανών</td><td>'+d1(ex.UAop)+' W/K ('+d1(ex.Aop)+' m²)</td></tr>'+
+          '<tr><td>UA κουφωμάτων</td><td>'+d1(ex.UAtr)+' W/K ('+d1(ex.Atr)+' m²)</td></tr>'+
+          (ex.Agr>0?'<tr><td>UA εδάφους (×0,5)</td><td>'+d1(ex.UAgr)+' W/K ('+d1(ex.Agr)+' m²)</td></tr>':'')+
+          '<tr><td><b>UA κτιρίου / αναφοράς</b></td><td><b>'+d1(ex.UA0)+' / '+d1(ex.UAr)+' W/K</b></td></tr>'+
+          '<tr><td>Θέρμανση</td><td>'+(ex.hT||'—')+' · '+(ex.fuel||'—')+' · '+(ex.isHP?'SCOP':'η')+' '+d2(ex.hE)+' · fp '+d2(ex.fp0)+'</td></tr>'+
+          '<tr><td>ΖΝΧ</td><td>'+(ex.dT||'—')+' · η '+d2(ex.dE)+(ex.solA?' · ηλιακός '+ex.solA+' m² (κάλυψη ~'+Math.round(ex.solCov*100)+'%)':'')+'</td></tr>'+
+          '<tr><td>EP θέρμανσης / ΖΝΧ / λοιπά</td><td>'+d1(ex.EPh0)+' / '+d1(ex.EPd0)+' / '+ex.EPcom+' kWh/m²</td></tr>'+
+          '<tr><td><b>EP κτιρίου / αναφοράς → T</b></td><td><b>'+d1(ex.EP0)+' / '+d1(ex.EPr)+' → '+d2(ex.T)+'</b></td></tr>'+
+          '</table>'+
+          '<p class="cap">Εκτίμηση HEXIS — η επίσημη κατάταξη από το ΤΕΕ-ΚΕΝΑΚ. Αν το κτίριο είναι σε άλλη κλιματική ζώνη, άλλαξέ τη στο tab Έργο και ξαναφόρτωσε το αρχείο.</p>';
+      }
+    }catch(e2){console.error('estFromXML',e2);}
   });
   h+=`<p class="cap">Αρχείο: ${fname} · ${m.buildings.length} σενάρι${m.buildings.length===1?'ο':'α'}</p>`;
   document.getElementById('out').innerHTML=h;
@@ -4209,6 +4282,50 @@ function peaHTML(e0,e1,scTitle){
         '<div style="font-size:9.5px;color:var(--ink2)">'+(scTitle||'').slice(0,44)+'</div></div>':'')+
     '</div></div>';
 }
+function estFromXML(b){
+  /* Εκτίμηση κατηγορίας από parsed XML (ίδια μεθοδολογία με estClass):
+     κέλυφος από τους πίνακες του αρχείου, συστήματα από την 1η γραμμή production.
+     Η κλιματική ζώνη ΔΕΝ γράφεται αξιόπιστα στο XML — χρησιμοποιείται η τρέχουσα
+     επιλογή του εργαλείου (czone), αλλαγή της ξανατρέχει την προβολή. */
+  const E=b.envelope||{},SY=b.systems||{};
+  const zone=document.getElementById('czone').value||'B';
+  const zi={'A':0,'B':1,'C':2,'D':3}[zone]||1;
+  const HDD=AI_HDD[zone]||1150,UM=KENAK_DATA.umaxRenovation,FP={el:2.9,oil:1.1};
+  let UA0=0,UAr=0,UAop=0,UAtr=0,UAgr=0,Aop=0,Atr=0,Agr=0;
+  (E.opaque||[]).forEach(r=>{const A=+r[4]||0,U=+r[5]||0;UA0+=A*U;UAop+=A*U;Aop+=A;
+    const d=r[1]||'';
+    const Ur=/ΟΡΟΦΗ|ΔΩΜΑ|ΣΤΕΓΗ/i.test(d)?Math.min(U,UM.roof[zi])
+      :/ΠΥΛΩΤΗ|ΔΑΠΕΔΟ/i.test(d)?Math.min(U,UM.pilotis[zi])
+      :/ΜΘΧ/i.test(d)?U:Math.min(U,UM.wall[zi]);
+    UAr+=A*Ur;});
+  (E.transparent||[]).forEach(r=>{const A=+r[4]||0,U=+r[6]||0;
+    UA0+=A*U;UAtr+=A*U;Atr+=A;UAr+=A*Math.min(U,UM.window[zi]);});
+  (E.ground||[]).forEach(r=>{const A=+r[2]||0,U=+r[3]||0;
+    UA0+=A*U*0.5;UAgr+=A*U*0.5;Agr+=A;UAr+=A*Math.min(U||UM.roof[zi],UM.roof[zi])*0.5;});
+  const A=Math.max(1,parseFloat(b.zone&&b.zone[3])||parseFloat(b.params&&b.params[1])||1);
+  const res=/Μονοκατοικία|πολυκατοικία/i.test((b.zone&&b.zone[1])||'');
+  const hp=(SY.heating&&SY.heating.rows&&SY.heating.rows[0])||[];
+  const hT=hp[0]||'',isHP=/Α\.Θ\.|αντλ/i.test(hT);
+  const hE=Math.max(0.3,parseFloat((isHP?hp[4]:hp[3])||'')||0.8);
+  const isOil=/oil|πετρέλαιο/i.test(hp[1]||'')||(/Λέβητας/i.test(hT)&&!/electr|ηλεκτρ/i.test(hp[1]||''));
+  const fp0=isHP?FP.el:(isOil?FP.oil:FP.el);
+  const Qh=HDD*24/1000;
+  const EPh0=UA0*Qh*fp0/hE/A, EPhR=UAr*Qh*FP.oil/0.935/A;
+  const dp=(SY.dhw&&SY.dhw.rows&&SY.dhw.rows[0])||[];
+  const dE=Math.max(0.3,parseFloat(dp[3]||'')||1);
+  const dhwHP=/Αντλ/i.test(dp[0]||''),dhwBoil=/Λέβητας/i.test(dp[0]||'');
+  const sr=(SY.solar&&SY.solar.exists&&SY.solar.rows&&SY.solar.rows[0])||null;
+  const solA=sr?(parseFloat(sr[5])||0):0;
+  const solCov=Math.min(0.7,solA>0?0.15+solA*0.18:0);
+  const Qd=res?20:12;
+  const EPd0=Qd*(1-solCov)*(dhwBoil?FP.oil:FP.el)/(dhwHP?Math.max(1.5,dE):dE);
+  const EPdR=Qd*0.85*FP.oil/0.935;
+  const EPcom=res?18:35;
+  const EP0=EPh0+EPd0+EPcom,EPr=Math.max(1,EPhR+EPdR+EPcom);
+  const T=EP0/EPr;let ci=CLASS_T.length-1;
+  for(let i2=0;i2<CLASS_T.length;i2++)if(T<=CLASS_T[i2][1]){ci=i2;break;}
+  return {T,EP0,EPr,cls:CLASS_T[ci][0],ci,zone,A,UA0,UAr,UAop,UAtr,UAgr,Aop,Atr,Agr,HDD,hT,hE,fuel:hp[1]||'',isHP,isOil,fp0,dT:dp[0]||'',dE,solA,solCov,res,EPh0,EPhR,EPd0,EPdR,EPcom};
+}
 function classBarHTML(e){
   const names=['Α+','Α','Β+','Β','Γ','Δ','Ε','Ζ','Η'];
   const pos=((e.ci+0.5)/9*100).toFixed(1);
@@ -4723,11 +4840,27 @@ function sysTableRender(){
     cell('Βαθμός η',mir('s_dhwE',66,'βαθμός απόδοσης ΖΝΧ (ηλεκτρικός 1,0)'))+
     cell('Δίκτυο',num('dhw','deff','0.01',62,'βαθμός δικτύου ΖΝΧ (0,92 · τοπικός χωρίς δίκτυο 1,0)'))+
     cell('Τερματικά',num('dhw','term','0.01',62,'βαθμός «τερματικών» ΖΝΧ (0,98)')),'dhw');
+  if(useSector()!=='residential'){
+    const ahOn=(SYS2.ahu&&SYS2.ahu.on===false)?false:true;
+    h+=row('<input type="checkbox" '+(ahOn?'checked':'')+' onchange="SYS2.ahu=SYS2.ahu||{};SYS2.ahu.on=this.checked;pSave();sysCheckRender()" style="width:15px;height:15px">',
+      'ΜΗΧΑΝΙΚΟΣ ΑΕΡΙΣΜΟΣ <small style="font-weight:400;color:var(--ink2)">(τριτογενής — γράφεται στο XML)</small>',
+      !ahOn?'<span style="color:var(--ink2);font-size:12px">ανενεργός — φυσικός αερισμός</span>':
+      cell('Παροχή m³/h',num('ahu','flow','1',80,'Νωπός αέρας: '+((KENAK_DATA.totee1_2017.freshAir[useIdx()]||[0,0,0])[2])+' m³/h/m² (Πίν.2.3, χρήση «'+useName()+'») × εμβαδό — άλλαξέ το αν έχεις μελέτη ΚΚΜ'))+
+      '<div style="align-self:center;font-size:10.5px;color:var(--ink2);max-width:340px">= νωπός Πίν.2.3 × εμβαδό ζώνης. Όπως στα επικυρωμένα ΠΕΑ καταστημάτων/γραφείων/ιατρείων.</div>','ahu');
+    const lgOn=(SYS2.lig&&SYS2.lig.on===false)?false:true;
+    h+=row('<input type="checkbox" '+(lgOn?'checked':'')+' onchange="SYS2.lig=SYS2.lig||{};SYS2.lig.on=this.checked;pSave();sysCheckRender()" style="width:15px;height:15px">',
+      'ΦΩΤΙΣΜΟΣ <small style="font-weight:400;color:var(--ink2)">(τριτογενής — γράφεται στο XML)</small>',
+      !lgOn?'<span style="color:var(--ink2);font-size:12px">ανενεργός</span>':
+      cell('Ισχύς kW',num('lig','kw','0.01',76,'Εγκατεστημένη ισχύς φωτισμού — αυτόματο 14 W/m² (τυπικό των επικυρωμένων ΠΕΑ)· μέτρα τα φωτιστικά για ακρίβεια'))+
+      cell('Φωτιστικά τεμ.',num('lig','count','1',70,'Πλήθος φωτιστικών σωμάτων — αυτόματο ~0,45/m²'))+
+      '<div style="align-self:center;font-size:10.5px;color:var(--ink2);max-width:340px">Καταμέτρησε στην αυτοψία: τεμ. × W λαμπτήρα = ακριβής ισχύς.</div>','lig');
+  }
   h+=row('','ΗΛΙΑΚΟΣ ΣΥΛΛΕΚΤΗΣ',
     cell('Επιφάνεια m²',mir('s_solA',70,'επιφάνεια ηλιακών συλλεκτών — 0 = χωρίς'))+
     cell('Αζιμούθιο °',num('sol','azim','1',66,'αζιμούθιο συλλέκτη (180 = Νότος)'))+
     cell('Κλίση °',num('sol','tilt','1',60,'κλίση συλλέκτη (τα ΠΕΑ-πρότυπα: 60°)'))+
-    cell('Αξιοποίηση',num('sol','util','0.01',66,'συντελεστής αξιοποίησης ηλιακού (0,36 τυπικό)')),'sol');
+    cell('Αξιοποίηση',num('sol','util','0.01',66,'συντελεστής αξιοποίησης ηλιακού (0,36 τυπικό)'))+
+    cell('kWh/έτος',num('sol','yield','10',76,'Ετήσια ωφέλιμη ενέργεια συλλεκτών — 0 = το υπολογίζει το ΤΕΕ-ΚΕΝΑΚ· στα επικυρωμένα: 100-240 kWh/m²')),'sol');
   el.innerHTML=h+'<p style="font-size:10px;color:var(--ink2);margin:3px 0 0">Οι τιμές γράφονται ΑΥΤΟΥΣΙΕΣ στα SYSTEM του XML. ↺ = επιστροφή στις αυτόματες ΤΟΤΕΕ.</p>';
 }
 function sys2Set(el){
