@@ -71,16 +71,8 @@ function kx_ctable(name,rows,ncols){
   }
   return x;
 }
-function kx_ctable_raw(pref,rows){
-  var x2='';var nc=rows[0].length;
-  for(var c2=1;c2<=nc;c2++){
-    var vals=[];for(var r2=0;r2<rows.length;r2++)vals.push(rows[r2][c2-1]);
-    x2+='<'+pref+'_column'+c2+'>'+vals.join(',')+',</'+pref+'_column'+c2+'>';
-  }
-  return x2;
-}
 var KX_SRC_INTERNAL={'Ηλεκτρισμός':'Electricity','Φυσικό αέριο':'NaturalGas','Υγραέριο':'LPG',
-  'Πετρέλαιο θέρμανσης':'Fuel oil','Πετρέλαιο κίνησης':'Diesel','Βιομάζα':'Biomass',
+  'Πετρέλαιο θέρμανσης':'Oil','Πετρέλαιο κίνησης':'Diesel','Βιομάζα':'Biomass',
   'Βιομάζα Τυποποιημένη':'BiomassStandard','Τηλεθέρμανση (ΔΕΗ)':'DistrictHeating',
   'Τηλεθέρμανση (ΑΠΕ)':'DistrictHeatingRES','ΣΗΘ(1-10)':'CHP'};
 function kx_system(sys,rid){
@@ -89,71 +81,28 @@ function kx_system(sys,rid){
   var h=sys.heating||{},c=sys.cooling||{},d=sys.dhw||{},sol=sys.solar||{};
   /* heating */
   x+='<heating rid="1"><heating_exists>'+(h.on?1:0)+'</heating_exists>';
-  /* ΠΟΛΛΑΠΛΑ συστήματα: κύριο + h.extra[] -> πρόσθετες γραμμές σε production/
-     distribution/termatic — ο ΤΕΕ-ΚΕΝΑΚ επιμερίζει με τα μηνιαία μερίδια κάλυψης */
-  var hR=h.on?[[h.type||'',KX_SRC_INTERNAL[h.src]||h.src||'',
+  x+=kx_ctable('production',h.on?[[h.type||'',KX_SRC_INTERNAL[h.src]||h.src||'',
     h.kw!=null?(+h.kw).toFixed(2):'',h.eff!=null?h.eff:1,h.scop!=null?h.scop:1]
-    .concat(h.cover||[1,1,1,1,0,0,0,0,0,0,1,1]).concat([''])]:[];
-  var hD=h.on?[['Δίκτυο διανομής θερμού μέσου',h.dnetKW!=null?(+h.dnetKW).toFixed(2):'',
-     h.route||'Εσωτερικοί  ή έως και 20% σε εξωτερικούς','','',h.deff!=null?h.deff:0.96,'False','']]:[];
-  var hT=h.on?[['',h.term!=null?h.term:0.93,'']]:[];
-  if(h.on&&h.extra)for(var ex=0;ex<h.extra.length;ex++){var e1=h.extra[ex];
-    var hp1=/Α\.Θ\.|αντλία/i.test(e1.type||'');
-    hR.push([e1.type||'',KX_SRC_INTERNAL[e1.src]||e1.src||'Electricity',
-      (+e1.kw||0).toFixed(2),hp1?1.0:(e1.eff||1),hp1?(e1.eff||1):1.0]
-      .concat(e1.cover||[0,0,0,0,0,0,0,0,0,0,0,0]).concat(['']));
-    hD.push(['Δίκτυο διανομής θερμού μέσου',(+e1.kw||0).toFixed(2),
-      'Εσωτερικοί  ή έως και 20% σε εξωτερικούς','','',e1.deff!=null?e1.deff:1,'False','']);
-    hT.push(['',e1.term!=null?e1.term:0.93,'']);
-  }
-  if(h.on)hD.push(['Αεραγωγοί','','','','','','False','']);
-  x+=kx_ctable('production',hR,18);
-  x+=kx_ctable('distribution',hD,8);
-  x+=kx_ctable('termatic',hT,3);
+    .concat(h.cover||[1,1,1,1,0,0,0,0,0,0,1,1]).concat([''])]:[],18);
+  x+=kx_ctable('distribution',h.on?[
+    ['Δίκτυο διανομής θερμού μέσου',h.dnetKW!=null?(+h.dnetKW).toFixed(2):'',
+     h.route||'Εσωτερικοί  ή έως και 20% σε εξωτερικούς','','',h.deff!=null?h.deff:0.96,'False',''],
+    ['Αεραγωγοί','','','','','','False','']]:[],8);
+  x+=kx_ctable('termatic',h.on?[['',h.term!=null?h.term:0.93,'']]:[],3);
   x+=kx_ctable('auxiliary',h.on&&h.auxKW?[['',h.auxN||1,(+h.auxKW).toFixed(6)]]:[],3);
   x+='</heating>';
   /* cooling */
   x+='<cooling rid="1"><cooling_exists>'+(c.on?1:0)+'</cooling_exists>';
-  var cR=c.on?[[c.type||'Αερόψυκτη Α.Θ.','Electricity',
+  x+=kx_ctable('production',c.on?[[c.type||'Αερόψυκτη Α.Θ.','Electricity',
     c.kw!=null?(+c.kw).toFixed(2):'',1.0,c.seer!=null?c.seer:1]
-    .concat(c.cover||[0,0,0,0,0.5,0.5,0.5,0.5,0.5,0,0,0]).concat([''])]:[];
-  var cT=c.on?[['',c.term!=null?c.term:0.93,'']]:[];
-  if(c.on&&c.extra)for(var ex2=0;ex2<c.extra.length;ex2++){var e2=c.extra[ex2];
-    cR.push([e2.type||'Τοπική αερόψυκτη Α.Θ.','Electricity',
-      (+e2.kw||0).toFixed(2),1.0,e2.seer!=null?e2.seer:1]
-      .concat(e2.cover||[0,0,0,0,0,0,0,0,0,0,0,0]).concat(['']));
-    cT.push(['',e2.term!=null?e2.term:0.93,'']);
-  }
-  x+=kx_ctable('production',cR,18);
+    .concat(c.cover||[0,0,0,0,0.5,0.5,0.5,0.5,0.5,0,0,0]).concat([''])]:[],18);
   x+=kx_ctable('distribution',c.on?[
     ['Δίκτυο διανομής ψυχρού μέσου',c.dnetKW!=null?(+c.dnetKW).toFixed(2):'',
      c.route||'Εσωτερικοί  ή έως και 20% σε εξωτερικούς',c.deff!=null?c.deff:0.96,'False',''],
     ['Αεραγωγοί','','','','False','']]:[],6);
-  x+=kx_ctable('termatic',cT,3);
+  x+=kx_ctable('termatic',c.on?[['',c.term!=null?c.term:0.93,'']]:[],3);
   x+=kx_ctable('auxiliary',[],3);
   x+='</cooling>';
-  /* humidification: πάντα παρόν, ανενεργό (μοτίβο ΟΛΩΝ των έγκυρων αρχείων) */
-  x+='<humidification rid="1"><humidification_exists>0</humidification_exists>';
-  x+=kx_el('production_rows',0);
-  for(var hu=1;hu<=17;hu++)x+='<production_column'+hu+' />';
-  x+=kx_el('distribution_rows',1);
-  for(var hu2=1;hu2<=4;hu2++)x+='<distribution_column'+hu2+'>,</distribution_column'+hu2+'>';
-  x+=kx_el('termatic_rows',1);
-  for(var hu3=1;hu3<=3;hu3++)x+='<termatic_column'+hu3+'>,</termatic_column'+hu3+'>';
-  x+='</humidification>';
-  /* ahu: μηχανικός αερισμός — on στον τριτογενή με παροχή = νωπός×A (m³/h),
-     μοτίβο στηλών ακριβώς όπως στα επικυρωμένα (ΜΠΙΤΟΥΝΗΣ/ΑΛΕΞΙΟΥ/ΧΡΙΣΤΟΘ.) */
-  var ah=sys.ahu||{};
-  x+='<ahu rid="1"><ahu_exists>'+(ah.on?1:0)+'</ahu_exists>';
-  if(ah.on){
-    var fl=(+ah.flow||0).toFixed(2);
-    x+=kx_el('ahu_rows',1);
-    x+=kx_ctable_raw('ahu',[['ΜΗΧΑΝΙΚΟΣ ΑΕΡΙΣΜΟΣ','False',fl,'','0.0','0.0','False',fl,'','0.0','0.0','False','0.0','False','1','']]);
-  }else{
-    x+=kx_el('ahu_rows',0);
-    for(var av=1;av<=16;av++)x+='<ahu_column'+av+' />';
-  }
-  x+='</ahu>';
   /* dhw */
   x+='<dhw rid="1"><dhw_exists>'+(d.on?1:0)+'</dhw_exists>';
   x+=kx_ctable('production',d.on?[[d.type||'Τοπικός ηλεκτρικός θερμαντήρας',
@@ -170,16 +119,8 @@ function kx_system(sys,rid){
     sol.util!=null?sol.util:0.36,'',sol.area!=null?(+sol.area).toFixed(2):'',
     sol.azim!=null?sol.azim:180,sol.tilt!=null?sol.tilt:60,sol.coverage!=null?sol.coverage:1.0,'']]:[],10);
   x+='</solar_collector>';
-  /* lighting: 12 παράμετροι — μοτίβα ΑΚΡΙΒΩΣ από τα επικυρωμένα αρχεία:
-     κατοικία off: p3=-1,p4=-1,p6..8=0,p9='0,0,0,0,0,0,0,',p10..12=0
-     τριτογενές on: p1=kW, p2=πλήθος φωτιστικών, p3=1,p7=1,p9='0,100,0,0,0,0,0,' */
-  var lg=sys.lighting;if(typeof lg!=='object'||lg==null)lg={on:!!lg};
-  x+='<lighting rid="1"><lighting_exists>'+(lg.on?1:0)+'</lighting_exists>';
-  var lp=lg.on?
-    {1:(+lg.kw||0).toFixed(5),2:String(lg.count!=null?lg.count:''),3:'1',4:'0',5:'',6:'0',7:'1',8:'0',9:'0,100,0,0,0,0,0,',10:'0',11:'0',12:'0'}:
-    {1:'',2:'',3:'-1',4:'-1',5:'',6:'0',7:'0',8:'0',9:'0,0,0,0,0,0,0,',10:'0',11:'0',12:'0'};
-  for(var lk=1;lk<=12;lk++)x+='<lighting_parameter'+lk+'>'+lp[lk]+'</lighting_parameter'+lk+'>';
-  x+='</lighting>';
+  /* lighting: κατοικία -> 0 */
+  x+='<lighting rid="1"><lighting_exists>'+(sys.lighting?1:0)+'</lighting_exists></lighting>';
   x+='</SYSTEM>';
   return x;
 }
@@ -190,7 +131,7 @@ function kenakXML(model){
   x+='<EPA_NR_PROJECT rid="#1">';
   x+=kx_el('id','');
   x+=kx_el('blg_use',p.use!=null?p.use:2);
-  x+=kx_el('blg_part',p.part!=null?p.part:0);
+  x+=kx_el('blg_part',p.part!=null?p.part:1);
   x+=kx_el('building_num',p.num||'');
   x+=kx_el('blg_kaek',p.kaek||'');
   x+=kx_el('blg_owner',(p.owner||'')+(p.afm?' — ΑΦΜ '+p.afm:''));
@@ -200,10 +141,10 @@ function kenakXML(model){
   x+=kx_el('blg_resp_name',p.respName||'');
   x+=kx_el('blg_resp_phone',p.respPhone||'');
   x+='<blg_resp_mail>'+kx_esc(p.respMail||'')+'</blg_resp_mail>';
-  x+=kx_el('blg_zone',p.zoneFlag!=null?p.zoneFlag:0);
+  x+=kx_el('blg_zone',p.zone!=null?p.zone:1);
   x+=kx_el('blg_height',p.height!=null?p.height:0);
   x+=kx_el('blg_climate',p.climate!=null?p.climate:0);
-  x+=kx_el('blg_datasource',p.datasource||'1000000010');
+  x+=kx_el('blg_datasource',p.datasource||'1000000000');
   x+=kx_el('blg_licence_data',p.licence||'');
   x+=kx_el('version_tee_kenak_dll','1.31.1.9');
   x+=kx_el('blg_type',p.type!=null?p.type:0);
@@ -234,7 +175,7 @@ function kenakXML(model){
   }
   x+='<ZONE1 rid="'+(sc2+1)+'">';
   var zp={1:z.use||'Μονοκατοικία, πολυκατοικία',2:'',3:z.A!=null?z.A:b.A,
-          4:z.days!=null?z.days:280,5:z.p5!=null?z.p5:3,6:z.p6!=null?z.p6:'',7:0,8:0,9:0,10:0,
+          4:z.days!=null?z.days:280,5:1,6:z.p6!=null?z.p6:'',7:0,8:0,9:0,10:0,
           11:1,12:z.p12!=null?z.p12:'',13:'False',14:1,15:0};
   for(var k3=1;k3<=15;k3++){
     var v3=zp[k3];
