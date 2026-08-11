@@ -401,7 +401,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<span class="betaTag">BETA</span><small>ενεργειακή επιθεώρηση · v2.59</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<span class="betaTag">BETA</span><small>ενεργειακή επιθεώρηση · v2.60</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -833,9 +833,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=80"></script>
-<script src="kenak-xml.js?v=80"></script>
-<script src="kenak-dxf.js?v=80"></script>
+<script src="kenak-data.js?v=81"></script>
+<script src="kenak-xml.js?v=81"></script>
+<script src="kenak-dxf.js?v=81"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -958,7 +958,7 @@ function sysDefaults(Az){
     heat:{deff:isEl?1.0:0.96, term:isEl?0.94:0.93, auxKW:isEl?0:Math.round(0.1*Az)/1000},
     cool:{deff:1.0, term:0.93},
     dhw:{deff:0.92, term:0.98},
-    sol:{azim:180, tilt:45, util:0.36}
+    sol:{azim:180, tilt:60, util:0.36}
   };
 }
 function sys2Get(p,k,SD){const o=SYS2[p]||{};return (o[k]!=null&&o[k]!=='')?o[k]:SD[p][k];}
@@ -2833,7 +2833,10 @@ document.getElementById('xmlBtn').onclick=async()=>{
       eff:+((document.getElementById('s_dhwE')||{}).value)||1.0,
       deff:+sys2Get('dhw','deff',SD9), term:+sys2Get('dhw','term',SD9)},
     solar:{on:solA>0, area:solA, azim:+sys2Get('sol','azim',SD9), tilt:+sys2Get('sol','tilt',SD9), util:+sys2Get('sol','util',SD9), coverage:1.0},
-    lighting:useSector()!=='residential'};
+    ahu:useSector()==='residential'?{on:false}:
+      {on:true,flow:(KENAK_DATA.totee1_2017.freshAir[useIdx()]||[0,0,1])[2]*q.A},
+    lighting:useSector()==='residential'?{on:false}:
+      {on:true,kw:0.014*q.A,count:Math.round(0.45*q.A)}};
   const xml=kenakXML({
     systems,
     project:{
@@ -2844,13 +2847,15 @@ document.getElementById('xmlBtn').onclick=async()=>{
       respName:document.getElementById('p_owner').value||'',
       respPhone:document.getElementById('p_phone').value||'',
       respMail:document.getElementById('p_mail').value||'',
-      zone:{A:1,B:2,C:3,D:4}[zoneSel]||2,climate:0,
+      use:zn131().code,part:0,climate:0,
+      licence:'Αρχ. κατασκευή,'+(document.getElementById('p_num').value||'ΚΤΙΡΙΟ')+',Ενεργειακή επιθεώρηση,---,'+yr+',Αρχ. κατασκευή,'+(document.getElementById('p_num').value||'ΚΤΙΡΙΟ')+',Πολεοδομική Άδεια,'+yr+','+yr+',,,,,,,,,,,',
       kaek:(kSel&&kSel.kaek)||document.getElementById('p_kaek').textContent.replace('—','').trim()||'',
       licence:'HEXIS KENAK — έτος κατασκευής '+yr+', %ΦΟ '+(foP*100).toFixed(0)+'%'+
         ((kSel&&kSel.kaek)?(', ΚΑΕΚ '+kSel.kaek+' ('+(+kSel.lat).toFixed(6)+','+(+kSel.lon).toFixed(6)+')'):'')},
-    building:{A:q.A,V:q.V,floors:q.nf,hTot:q.hTot,name:'ΚΤΙΡΙΟ',
-      scenario:'HEXIS',title:'Υπάρχον κτίριο'},
-    zone:{A:q.A,use:useName()},
+    building:{A:q.A,V:q.V,floors:q.nf,hTot:q.hTot,
+      name:document.getElementById('p_num').value||'ΚΤΙΡΙΟ',
+      scenario:zn131().cat,title:'Υπάρχον κτίριο'},
+    zone:{A:q.A,use:zn131().zn},
     opaque, ground, transparent:T.transparent,
     scenarios:SCN.map(sc=>({
       /* ΑΝΤΙΓΡΑΦΟ επιθεωρούμενου με τις παρεμβάσεις του μηχανικού: */
@@ -3786,6 +3791,18 @@ function useSector(){const v=document.getElementById('use').value||'r0';return v
 function useIdx(){const v=document.getElementById('use').value||'r0';return v[0]==='u'?Math.max(1,Math.min(41,+v.slice(1)||1)):0;}
 function useName(){ /* ΕΠΙΣΗΜΗ ονομασία χρήσης ΤΟΤΕΕ — αυτή γράφεται στο zn_parameter1 του XML */
   return KENAK_DATA.totee1_2017.uses[useIdx()]||'Μονοκατοικία, πολυκατοικία';}
+function zn131(){
+  /* Αντιστοίχιση στην ονοματολογία του ΤΕΕ-ΚΕΝΑΚ 1.31 (παλιές ονομασίες/πληθυντικοί)
+     — ΕΠΙΒΕΒΑΙΩΜΕΝΑ ζεύγη από 9 επικυρωμένα αρχεία ΠΕΑ. Μη επιβεβαιωμένες χρήσεις:
+     κρατούν το όνομα ΤΟΤΕΕ 2017 (sure:false -> ειδοποίηση ελέγχου). */
+  const v=document.getElementById('use').value||'r0',nm=useName();
+  if(v==='r0')return {zn:'Μονοκατοικία, πολυκατοικία',code:1,cat:'Μονοκατοικία',sure:true};
+  if(v==='r1')return {zn:'Μονοκατοικία, πολυκατοικία',code:2,cat:'Πολυκατοικία',sure:true};
+  if(/Κατάστημα, φαρμακείο/.test(nm))return {zn:'Καταστήματα, Φαρμακεία',code:54,cat:'Καταστήματα',sure:true};
+  if(/^Γραφείο$/.test(nm))return {zn:'Γραφεία',code:59,cat:'Γραφεία',sure:true};
+  if(/Αγροτικό ιατρείο/.test(nm))return {zn:'Αγροτικά ιατρεία, Υγειονομικοί σταθμοί, Κέντρα υγείας, Ιατρεία',code:40,cat:'',sure:true};
+  return {zn:nm,code:54,cat:'',sure:false};
+}
 function useLabel(){ /* ετικέτα εμφάνισης (ξεχωρίζει μονοκατοικία/πολυκατοικία) */
   const v=document.getElementById('use').value||'r0';
   return v==='r0'?'Μονοκατοικία':v==='r1'?'Πολυκατοικία':useName();}
@@ -4397,6 +4414,9 @@ function sysCheck(){
     out.tips.push({m:'Χωρίς σύστημα ψύξης: θεωρητικό SEER '+S.seerTheo+' με κάλυψη '+(S.res?'0,5':'1,0')+' — μπορείς να το δηλώσεις ρητά για να φαίνεται στο XML.',
       f:['@cool','','Συμπλήρωση θεωρητικού']});
   }
+  try{const zc=zn131();
+    if(!zc.sure)out.tips.push('Η χρήση «'+useName()+'» δεν έχει επιβεβαιωμένη ονομασία στο ΤΕΕ-ΚΕΝΑΚ 1.31 — μετά το import έλεγξε το πεδίο «Χρήση ζώνης» μέσα στο πρόγραμμα. (Επιβεβαιωμένες: κατοικίες, καταστήματα, γραφεία, ιατρεία.)');
+  }catch(e){}
   /* ΖΝΧ: λογικότητα βαθμού απόδοσης ανά τύπο */
   const dEl=document.getElementById('s_dhw');
   if(dEl&&!dEl.checked)out.warns.push({m:'Χωρίς σύστημα ΖΝΧ: κατά ΤΟΤΕΕ δηλώνεται θεωρητικός τοπικός ηλεκτρικός θερμαντήρας (η=1,0).',
@@ -4513,7 +4533,7 @@ function sysTableRender(){
     ' τερματικά '+num('dhw','term','0.01',46,'βαθμός «τερματικών» ΖΝΧ (0,98)'),'dhw');
   h+=row('ΗΛΙΑΚΟΣ','m² '+mir('s_solA',48,'επιφάνεια ηλιακών συλλεκτών — 0 = χωρίς')+
     ' αζιμούθιο '+num('sol','azim','1',50,'αζιμούθιο συλλέκτη (180 = Νότος)')+
-    ' κλίση '+num('sol','tilt','1',44,'κλίση συλλέκτη (τυπικά 40-45°)')+
+    ' κλίση '+num('sol','tilt','1',44,'κλίση συλλέκτη (τα ΠΕΑ-πρότυπα: 60°)')+
     ' αξιοπ. '+num('sol','util','0.01',46,'συντελεστής αξιοποίησης ηλιακού (0,36 τυπικό)'),'sol');
   el.innerHTML=h+'<p style="font-size:10px;color:var(--ink2);margin:3px 0 0">Οι τιμές γράφονται ΑΥΤΟΥΣΙΕΣ στα SYSTEM του XML. ↺ = επιστροφή στις αυτόματες ΤΟΤΕΕ.</p>';
 }

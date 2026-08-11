@@ -71,8 +71,16 @@ function kx_ctable(name,rows,ncols){
   }
   return x;
 }
+function kx_ctable_raw(pref,rows){
+  var x2='';var nc=rows[0].length;
+  for(var c2=1;c2<=nc;c2++){
+    var vals=[];for(var r2=0;r2<rows.length;r2++)vals.push(rows[r2][c2-1]);
+    x2+='<'+pref+'_column'+c2+'>'+vals.join(',')+',</'+pref+'_column'+c2+'>';
+  }
+  return x2;
+}
 var KX_SRC_INTERNAL={'Ηλεκτρισμός':'Electricity','Φυσικό αέριο':'NaturalGas','Υγραέριο':'LPG',
-  'Πετρέλαιο θέρμανσης':'Oil','Πετρέλαιο κίνησης':'Diesel','Βιομάζα':'Biomass',
+  'Πετρέλαιο θέρμανσης':'Fuel oil','Πετρέλαιο κίνησης':'Diesel','Βιομάζα':'Biomass',
   'Βιομάζα Τυποποιημένη':'BiomassStandard','Τηλεθέρμανση (ΔΕΗ)':'DistrictHeating',
   'Τηλεθέρμανση (ΑΠΕ)':'DistrictHeatingRES','ΣΗΘ(1-10)':'CHP'};
 function kx_system(sys,rid){
@@ -103,6 +111,28 @@ function kx_system(sys,rid){
   x+=kx_ctable('termatic',c.on?[['',c.term!=null?c.term:0.93,'']]:[],3);
   x+=kx_ctable('auxiliary',[],3);
   x+='</cooling>';
+  /* humidification: πάντα παρόν, ανενεργό (μοτίβο ΟΛΩΝ των έγκυρων αρχείων) */
+  x+='<humidification rid="1"><humidification_exists>0</humidification_exists>';
+  x+=kx_el('production_rows',0);
+  for(var hu=1;hu<=17;hu++)x+='<production_column'+hu+' />';
+  x+=kx_el('distribution_rows',1);
+  for(var hu2=1;hu2<=4;hu2++)x+='<distribution_column'+hu2+'>,</distribution_column'+hu2+'>';
+  x+=kx_el('termatic_rows',1);
+  for(var hu3=1;hu3<=3;hu3++)x+='<termatic_column'+hu3+'>,</termatic_column'+hu3+'>';
+  x+='</humidification>';
+  /* ahu: μηχανικός αερισμός — on στον τριτογενή με παροχή = νωπός×A (m³/h),
+     μοτίβο στηλών ακριβώς όπως στα επικυρωμένα (ΜΠΙΤΟΥΝΗΣ/ΑΛΕΞΙΟΥ/ΧΡΙΣΤΟΘ.) */
+  var ah=sys.ahu||{};
+  x+='<ahu rid="1"><ahu_exists>'+(ah.on?1:0)+'</ahu_exists>';
+  if(ah.on){
+    var fl=(+ah.flow||0).toFixed(2);
+    x+=kx_el('ahu_rows',1);
+    x+=kx_ctable_raw('ahu',[['ΜΗΧΑΝΙΚΟΣ ΑΕΡΙΣΜΟΣ','False',fl,'','0.0','0.0','False',fl,'','0.0','0.0','False','0.0','False','1','']]);
+  }else{
+    x+=kx_el('ahu_rows',0);
+    for(var av=1;av<=16;av++)x+='<ahu_column'+av+' />';
+  }
+  x+='</ahu>';
   /* dhw */
   x+='<dhw rid="1"><dhw_exists>'+(d.on?1:0)+'</dhw_exists>';
   x+=kx_ctable('production',d.on?[[d.type||'Τοπικός ηλεκτρικός θερμαντήρας',
@@ -119,8 +149,16 @@ function kx_system(sys,rid){
     sol.util!=null?sol.util:0.36,'',sol.area!=null?(+sol.area).toFixed(2):'',
     sol.azim!=null?sol.azim:180,sol.tilt!=null?sol.tilt:60,sol.coverage!=null?sol.coverage:1.0,'']]:[],10);
   x+='</solar_collector>';
-  /* lighting: κατοικία -> 0 */
-  x+='<lighting rid="1"><lighting_exists>'+(sys.lighting?1:0)+'</lighting_exists></lighting>';
+  /* lighting: 12 παράμετροι — μοτίβα ΑΚΡΙΒΩΣ από τα επικυρωμένα αρχεία:
+     κατοικία off: p3=-1,p4=-1,p6..8=0,p9='0,0,0,0,0,0,0,',p10..12=0
+     τριτογενές on: p1=kW, p2=πλήθος φωτιστικών, p3=1,p7=1,p9='0,100,0,0,0,0,0,' */
+  var lg=sys.lighting;if(typeof lg!=='object'||lg==null)lg={on:!!lg};
+  x+='<lighting rid="1"><lighting_exists>'+(lg.on?1:0)+'</lighting_exists>';
+  var lp=lg.on?
+    {1:(+lg.kw||0).toFixed(5),2:String(lg.count!=null?lg.count:''),3:'1',4:'0',5:'',6:'0',7:'1',8:'0',9:'0,100,0,0,0,0,0,',10:'0',11:'0',12:'0'}:
+    {1:'',2:'',3:'-1',4:'-1',5:'',6:'0',7:'0',8:'0',9:'0,0,0,0,0,0,0,',10:'0',11:'0',12:'0'};
+  for(var lk=1;lk<=12;lk++)x+='<lighting_parameter'+lk+'>'+lp[lk]+'</lighting_parameter'+lk+'>';
+  x+='</lighting>';
   x+='</SYSTEM>';
   return x;
 }
@@ -131,7 +169,7 @@ function kenakXML(model){
   x+='<EPA_NR_PROJECT rid="#1">';
   x+=kx_el('id','');
   x+=kx_el('blg_use',p.use!=null?p.use:2);
-  x+=kx_el('blg_part',p.part!=null?p.part:1);
+  x+=kx_el('blg_part',p.part!=null?p.part:0);
   x+=kx_el('building_num',p.num||'');
   x+=kx_el('blg_kaek',p.kaek||'');
   x+=kx_el('blg_owner',(p.owner||'')+(p.afm?' — ΑΦΜ '+p.afm:''));
@@ -141,10 +179,10 @@ function kenakXML(model){
   x+=kx_el('blg_resp_name',p.respName||'');
   x+=kx_el('blg_resp_phone',p.respPhone||'');
   x+='<blg_resp_mail>'+kx_esc(p.respMail||'')+'</blg_resp_mail>';
-  x+=kx_el('blg_zone',p.zone!=null?p.zone:1);
+  x+=kx_el('blg_zone',p.zoneFlag!=null?p.zoneFlag:0);
   x+=kx_el('blg_height',p.height!=null?p.height:0);
   x+=kx_el('blg_climate',p.climate!=null?p.climate:0);
-  x+=kx_el('blg_datasource',p.datasource||'1000000000');
+  x+=kx_el('blg_datasource',p.datasource||'1000000010');
   x+=kx_el('blg_licence_data',p.licence||'');
   x+=kx_el('version_tee_kenak_dll','1.31.1.9');
   x+=kx_el('blg_type',p.type!=null?p.type:0);
@@ -175,7 +213,7 @@ function kenakXML(model){
   }
   x+='<ZONE1 rid="'+(sc2+1)+'">';
   var zp={1:z.use||'Μονοκατοικία, πολυκατοικία',2:'',3:z.A!=null?z.A:b.A,
-          4:z.days!=null?z.days:280,5:1,6:z.p6!=null?z.p6:'',7:0,8:0,9:0,10:0,
+          4:z.days!=null?z.days:280,5:z.p5!=null?z.p5:3,6:z.p6!=null?z.p6:'',7:0,8:0,9:0,10:0,
           11:1,12:z.p12!=null?z.p12:'',13:'False',14:1,15:0};
   for(var k3=1;k3<=15;k3++){
     var v3=zp[k3];
