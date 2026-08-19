@@ -396,7 +396,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.48</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.49</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -712,7 +712,10 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
         <div><label class="tlbl">Ηλιακός m²</label>
           <input id="tm_solA" type="number" step="0.1" inputmode="decimal" class="tinp" style="font-family:var(--num)"></div>
       </div>
-      <button class="pbtn blue" id="tblSolve" style="min-height:40px;width:100%;margin-top:12px">⚡ Επίλυση επιθεωρούμενου</button>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="pbtn blue" id="tblSolve" style="min-height:40px;flex:2">⚡ Επίλυση επιθεωρούμενου</button>
+        <button class="pbtn" id="tblXml" style="min-height:40px;flex:1">↓ XML ΤΕΕ-ΚΕΝΑΚ</button>
+      </div>
     </div>
     <div id="tblRes"></div>
     <h3 style="font:800 12px var(--ui);color:var(--brb);margin:14px 0 6px">ΑΔΙΑΦΑΝΕΙΣ (τοίχοι · ΦΟ · οροφές · πυλωτές)</h3>
@@ -851,9 +854,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=68"></script>
-<script src="kenak-xml.js?v=68"></script>
-<script src="kenak-dxf.js?v=68"></script>
+<script src="kenak-data.js?v=69"></script>
+<script src="kenak-xml.js?v=69"></script>
+<script src="kenak-dxf.js?v=69"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -2586,7 +2589,6 @@ document.getElementById('xmlBtn').onclick=async()=>{
   const isEl=/ηλεκτρικές/i.test(document.getElementById('s_heatT').value);
   const heatE=+document.getElementById('s_heatE').value||1;
   let solA=+document.getElementById('s_solA').value||0;
-  if(sc&&sc.solar!=null)solA=Math.max(solA,+sc.solar);
   const systems={
     heating:{on:document.getElementById('s_heat').checked,
       type:document.getElementById('s_heatT').value,
@@ -3372,6 +3374,11 @@ for(const id of PFIELDS){const el=document.getElementById(id);
 /* -------- ΚΑΕΚ chip και στα δύο σημεία -------- */
 function kaekChipSync(){
   const has=kSel&&kSel.kaek;
+  const pk=document.getElementById('p_kaek');
+  if(pk)pk.textContent=has?kSel.kaek:'—';
+  const pki=document.getElementById('p_kaekInfo');
+  if(pki)pki.textContent=has?'Από τον χάρτη ΚΑΕΚ — ενημερώνεται αν αλλάξεις Χ/Υ ιδιοκτησίας παρακάτω.':
+    'Δεν έχει επιλεγεί γεωτεμάχιο — σε πολυκατοικία αρκεί οποιοσδήποτε ΚΑΕΚ ιδιοκτησίας (μόνο για θέση, κατά ΤΕΕ)';
   /* πεδία Χ/Υ (κάθετη/οριζόντια) — επεξεργάσιμα και μετά την επιλογή */
   const wrap=document.getElementById('pkXYwrap');
   if(wrap){
@@ -3597,6 +3604,23 @@ function tblSolve(){
   if(eT)eT.onclick=()=>{tblRender();sh.style.display='block';};
   document.getElementById('tblClose').onclick=()=>{sh.style.display='none';};
   document.getElementById('tblSolve').onclick=tblSolve;
+  document.getElementById('tblXml').onclick=async()=>{
+    let pr;try{pr=profileFromTBL();}catch(e2){alert('Συμπλήρωσε τουλάχιστον μία γραμμή με εμβαδό και U πριν την εξαγωγή XML.');return;}
+    /* «δανείζουμε» στιγμιαία envelope/buildTables/closed στον ΙΔΙΟ exporter — καμία διπλή λογική.
+       ΠΡΟΣΟΧΗ: ο exporter είναι async (token check) — ΠΡΕΠΕΙ να γίνει await πριν την επαναφορά,
+       αλλιώς το finally τρέχει πριν προλάβει να καλέσει envelope()/buildTables(). */
+    const _env=envelope,_bt=buildTables,_cl=closed;
+    envelope=()=>({A:pr.A,V:pr.A*(+document.getElementById('tm_h').value||3),nf:1,
+      hTot:+document.getElementById('tm_h').value||3});
+    buildTables=()=>({
+      opaque:pr.op.map(o=>['Τοίχος',o[0],'',90,String(o[1]),o[2].toFixed(2),'','','','','','','','','','']),
+      ground:pr.gr.length?[['Δάπεδο',pr.gr[0][0],String(pr.gr.reduce((a2,g2)=>a2+g2[1],0)),String(pr.gr[0][2]),'','','0']]:[],
+      transparent:pr.tr.map((t2,i3)=>['Ανοιγ.','Κ'+(i3+1),t2[0],90,String(t2[1]),'',String(t2[2]),'',String(t2[3]),'1',String(t2[4]),'1','1','1',''])
+    });
+    closed=true;
+    try{await document.getElementById('xmlBtn').onclick();}
+    finally{envelope=_env;buildTables=_bt;closed=_cl;}
+  };
   /* συστήματα: mirror -> πραγματικά πεδία tab + αποθήκευση */
   for(const [m,r] of TM_MAP){
     const me=document.getElementById(m);if(!me)continue;
