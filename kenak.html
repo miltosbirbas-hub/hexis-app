@@ -357,6 +357,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   body:not([data-tab="2"]) .tools{display:none}
   body:not([data-tab="2"]) #alignFab{display:none !important}
   body:not([data-tab="2"]) #closeFab{display:none !important}
+  body:not([data-tab="2"]) #bgBar{display:none !important}
   .status{bottom:auto;top:96px}
   .legend{display:none}
   .empty{align-items:flex-start;padding-top:2vh;padding-bottom:64px;overflow:auto}
@@ -381,6 +382,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   padding:10px 16px;font:800 12px var(--ui);box-shadow:0 4px 12px #1F4E9C55;cursor:pointer}
 #alignFab:active{transform:scale(.97)}
 @media(min-width:900px){#closeFab{top:64px}#alignFab{display:none !important}}
+body:not([data-tab="2"]) #bgBar{display:none}
 .pnlTg{display:none;width:100%;min-height:44px;border:none;border-bottom:1px solid var(--line);
   background:var(--card);color:var(--brb);font:800 12px var(--ui);letter-spacing:.06em;
   align-items:center;justify-content:center;gap:8px;cursor:pointer}
@@ -398,7 +400,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.50</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.51</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -672,6 +674,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   <button class="eb" id="eView">
     <svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.5"/></svg>
     <span><b>Προβολή αρχείου XML</b><span>Αποτελέσματα ΤΕΕ-ΚΕΝΑΚ στην οθόνη — κύρια χρήση στο κινητό</span></span></button>
+  <button class="eb" id="eTrace">
+    <svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 20V4M16 20V4"/></svg>
+    <span><b>Ιχνηλάτηση PDF κάτοψης</b><span>Ανέβασε σκαναρισμένη κάτοψη ως φόντο και σχεδίασε το περίγραμμα από πάνω, σαν ξεπατικωσιά</span></span></button>
   <button class="eb" id="eTbl">
     <svg viewBox="0 0 24 24"><path d="M3 5h18v14H3z"/><path d="M3 10h18M3 15h18M9 5v14M15 5v14"/></svg>
     <span><b>Πίνακες ΤΕΕ-ΚΕΝΑΚ</b><span>Καταχώρηση επιφανειών σε πίνακες όπως στο ΤΕΕ — χωρίς σχεδίαση · άμεση επίλυση</span></span></button>
@@ -739,6 +744,16 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 
 <button id="closeFab" onclick="finish()">✓ Κλείσε περίγραμμα</button>
 <button id="alignFab" onclick="alignParcel()">⟳ Ίσιωμα οικοπέδου</button>
+<input type="file" id="bgPdfFile" accept="application/pdf" style="display:none">
+<div id="bgBar" style="display:none;position:fixed;left:12px;bottom:calc(env(safe-area-inset-bottom) + 12px);
+  z-index:12;background:#fffefaee;backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:12px;
+  padding:8px 10px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px #16202b1a;flex-wrap:wrap;max-width:min(94vw,420px)">
+  <button class="pbtn" id="bgToggle" style="min-height:32px;padding:5px 10px;font-size:11.5px">👁 PDF</button>
+  <label style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--ink2)">Διαφάνεια
+    <input type="range" id="bgOpR" min="15" max="100" value="55" style="width:70px"></label>
+  <button class="pbtn" id="bgCalib" style="min-height:32px;padding:5px 10px;font-size:11.5px">🎯 Βαθμονόμηση</button>
+  <button class="pbtn" id="bgClear" style="min-height:32px;padding:5px 10px;font-size:11.5px;color:#C43A2B">✕ Αφαίρεση</button>
+</div>
 <div class="err" id="err"><b>Πρόβλημα</b> <span id="errTxt" style="font-size:13px"></span></div>
 
 <div class="sheet" id="preSheet">
@@ -856,9 +871,9 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=70"></script>
-<script src="kenak-xml.js?v=70"></script>
-<script src="kenak-dxf.js?v=70"></script>
+<script src="kenak-data.js?v=71"></script>
+<script src="kenak-xml.js?v=71"></script>
+<script src="kenak-dxf.js?v=71"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -965,6 +980,8 @@ function snapZone(pw){
 let ovMode=null, opts2=[], ovDrag=null, ovArc=null;
 let COLS=[], colMode=false;   /* υποστυλώματα: {q:[x,y],ang,w} πάνω στο κέλυφος */
 let ADB=new Set();            /* αδιαβατικές ΠΛΕΥΡΕΣ του περιγράμματος (index) */
+/* Ιχνηλάτηση PDF κάτοψης: BG={img,natW,natH,wppx (m/px πηγής),wx0,wy0 (κόσμος πάνω-αριστερά)} */
+let BG=null, calibMode=false, calibPts=[], bgOn=true, bgOp=0.55;
 const OVNAMES={skiaseis:'Εξώστης/πρόβολος',tentes:'Τέντα',empodia:'Εμπόδιο',mtx:'ΜΘΧ',ikee:'ΙΚΕΕ'};
 function ovHitVertex(pw){
   const R=Math.max(0.15,14/cell);
@@ -1150,6 +1167,14 @@ addEventListener('resize',resize);
 let dimHits=[];
 function draw(){
   ctx.clearRect(0,0,W,H);
+  /* φόντο ιχνηλάτησης: εικόνα PDF κάτοψης, στραμμένη/κλιμακωμένη στον κόσμο */
+  if(BG&&BG.img&&bgOn){
+    const S0=w2s([BG.wx0,BG.wy0]);
+    ctx.save();ctx.globalAlpha=bgOp;
+    ctx.translate(S0[0],S0[1]);ctx.scale(cell*BG.wppx,cell*BG.wppx);
+    try{ctx.drawImage(BG.img,0,0);}catch(e){}
+    ctx.restore();
+  }
   ctx.strokeStyle='#DDE3E8';ctx.lineWidth=1;
   const st=cell;                          /* κάνναβος 1 m */
   for(let x=ox%st;x<W;x+=st){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
@@ -1241,6 +1266,15 @@ function draw(){
     ctx.fillStyle='#ffffffd9';ctx.fillRect(lx-lw/2-3,ly-vfs*0.75,lw+6,vfs*1.1);
     ctx.fillStyle='#173C78';ctx.textAlign='center';
     ctx.fillText(lbl,lx,ly+vfs*0.12);ctx.textAlign='left';
+  }
+  /* σημεία βαθμονόμησης PDF */
+  if(calibMode&&calibPts.length){
+    ctx.fillStyle='#0288A8';ctx.strokeStyle='#fff';ctx.lineWidth=2;
+    calibPts.forEach(pw=>{const S2=w2s(pw);
+      ctx.beginPath();ctx.arc(S2[0],S2[1],6,0,7);ctx.fill();ctx.stroke();});
+    if(calibPts.length===2){const A2=w2s(calibPts[0]),B2=w2s(calibPts[1]);
+      ctx.strokeStyle='#0288A8';ctx.lineWidth=2;ctx.setLineDash([6,4]);
+      ctx.beginPath();ctx.moveTo(A2[0],A2[1]);ctx.lineTo(B2[0],B2[1]);ctx.stroke();ctx.setLineDash([]);}
   }
   /* αδιαβατικές πλευρές: παχιά βαθυκόκκινη σήμανση */
   if(ADB.size&&verts.length>=2){
@@ -1580,6 +1614,7 @@ cv.addEventListener('pointerup',e=>{
       if((ortho||SHIFT)&&verts.length){const L=verts[verts.length-1];   /* Shift = προσωρινό ortho */
         if(Math.abs(p[0]-L[0])<Math.abs(p[1]-L[1]))p[0]=L[0];else p[1]=L[1];}
       if(Date.now()-canvasCool<500){down=null;return;}
+      if(calibMode){bgCalibTap(p);down=null;return;}
       if(colMode){colTap(p);down=null;return;}
       if(verts.length>2&&dist(p,verts[0])<Math.max(0.6,26/cell)){finish();down=null;return;}
       if(!verts.length||dist(p,verts[verts.length-1])>1e-6){verts.push(p);bulges.push(0);}
@@ -3122,6 +3157,19 @@ function roofPointer(pw){
   }
   rpts.push(pw);draw();return true;
 }
+document.getElementById('eTrace').onclick=()=>document.getElementById('bgPdfFile').click();
+document.getElementById('bgPdfFile').addEventListener('change',e=>{
+  const f=e.target.files&&e.target.files[0];if(f)bgImportPdf(f);e.target.value='';});
+document.getElementById('bgToggle').onclick=()=>{bgOn=!bgOn;bgSave();draw();};
+document.getElementById('bgOpR').addEventListener('input',e=>{
+  bgOp=(+e.target.value||55)/100;bgSave();draw();});
+document.getElementById('bgCalib').onclick=bgStartCalib;
+document.getElementById('bgClear').onclick=()=>{
+  if(!confirm('Αφαίρεση της κάτοψης φόντου;'))return;
+  BG=null;calibMode=false;calibPts=[];
+  document.getElementById('bgBar').style.display='none';
+  bgSave();draw();
+};
 document.getElementById('colT').onclick=()=>{
   colMode=!colMode;
   if(colMode){
@@ -3150,6 +3198,90 @@ document.getElementById('koufT').onclick=()=>{
   hint(koufMode?'Κούφωμα: σύρε γραμμή πάνω/κοντά στο κέλυφος — πάτα υπάρχον για ιδιότητες':'Σχεδίαση περιγράμματος');
   draw();
 };
+let pdfjsReady=null;
+function ensurePdfJs(){
+  if(pdfjsReady)return pdfjsReady;
+  pdfjsReady=new Promise((res,rej)=>{
+    if(window.pdfjsLib){res();return;}
+    const s2=document.createElement('script');
+    s2.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s2.onload=()=>{try{window.pdfjsLib.GlobalWorkerOptions.workerSrc=
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';res();}catch(e){rej(e);}};
+    s2.onerror=()=>rej(new Error('Αποτυχία φόρτωσης pdf.js — έλεγξε τη σύνδεση.'));
+    document.head.appendChild(s2);
+  });
+  return pdfjsReady;
+}
+async function bgImportPdf(file){
+  hint('Φόρτωση PDF…');
+  try{
+    await ensurePdfJs();
+    const buf=await file.arrayBuffer();
+    const doc=await window.pdfjsLib.getDocument({data:buf}).promise;
+    const page=await doc.getPage(1);
+    const vp0=page.getViewport({scale:1});
+    const targetW=1600;                       /* καλή ευκρίνεια, λογικό μέγεθος για localStorage */
+    const sc2=Math.min(3,targetW/vp0.width);
+    const vp=page.getViewport({scale:sc2});
+    const c2=document.createElement('canvas');c2.width=vp.width;c2.height=vp.height;
+    const cx2=c2.getContext('2d');cx2.fillStyle='#fff';cx2.fillRect(0,0,c2.width,c2.height);
+    await page.render({canvasContext:cx2,viewport:vp}).promise;
+    const durl=c2.toDataURL('image/jpeg',0.72);
+    const img=new Image();
+    await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=durl;});
+    /* αρχική τοποθέτηση: κέντρο τρέχουσας προβολής, εικασία 60 px/m ώστε να «κάθεται»
+       λογικού μεγέθους — η ΒΑΘΜΟΝΟΜΗΣΗ διορθώνει την ακριβή κλίμακα αμέσως μετά */
+    const wppxGuess=1/60;
+    const c0=s2w(W/2,H/2);
+    BG={durl,img,natW:img.naturalWidth,natH:img.naturalHeight,wppx:wppxGuess,
+      wx0:c0[0]-img.naturalWidth*wppxGuess/2, wy0:c0[1]+img.naturalHeight*wppxGuess/2};
+    bgOn=true;document.getElementById('bgBar').style.display='flex';
+    bgSave();draw();
+    hint('Κάτοψη εισήχθη — πάτα «🎯 Βαθμονόμηση», μετά 2 σημεία γνωστής απόστασης πάνω στην εικόνα.');
+    bgStartCalib();
+  }catch(e){showErr('Αποτυχία εισαγωγής PDF: '+(e&&e.message||e));}
+}
+function bgStartCalib(){
+  if(!BG){hint('Εισήγαγε πρώτα PDF κάτοψης.');return;}
+  calibMode=true;calibPts=[];
+  koufMode=false;document.getElementById('koufT').classList.remove('on');
+  colMode=false;document.getElementById('colT').classList.remove('on');
+  hint('Βαθμονόμηση: πάτα 2 σημεία γνωστής απόστασης πάνω στην κάτοψη (π.χ. τις 2 άκρες ενός τοίχου).');
+  draw();
+}
+function bgCalibTap(pw){
+  calibPts.push(pw);
+  if(calibPts.length<2){draw();return;}
+  const dCur=dist(calibPts[0],calibPts[1]);
+  const v=parseFloat((prompt('Πραγματική απόσταση σε μέτρα μεταξύ των 2 σημείων:','')||'').replace(',','.'));
+  calibMode=false;
+  if(!v||v<=0||dCur<1e-6){calibPts=[];draw();hint('Ακυρώθηκε η βαθμονόμηση.');return;}
+  /* διατήρησε σταθερό το ΠΡΩΤΟ σημείο βαθμονόμησης στον κόσμο — ξανακλιμάκωσε γύρω του */
+  const A2=calibPts[0];
+  const ipxA=[(A2[0]-BG.wx0)/BG.wppx,(A2[1]-BG.wy0)/BG.wppx];
+  const newWppx=v/dCur*BG.wppx;
+  BG.wx0=A2[0]-ipxA[0]*newWppx;BG.wy0=A2[1]-ipxA[1]*newWppx;BG.wppx=newWppx;
+  calibPts=[];bgSave();draw();
+  hint('Βαθμονομήθηκε: '+v.toFixed(2)+' m. Τώρα σχεδίασε το περίγραμμα πάνω στην κάτοψη.');
+}
+function bgSave(){
+  try{
+    if(!BG){localStorage.removeItem('kenakBG');return;}
+    localStorage.setItem('kenakBG',JSON.stringify(
+      {durl:BG.durl,natW:BG.natW,natH:BG.natH,wppx:BG.wppx,wx0:BG.wx0,wy0:BG.wy0,bgOn,bgOp}));
+  }catch(e){/* ενδεχ. quota — η κάτοψη απλά δεν persist, χωρίς κρασάρισμα */}
+}
+function bgLoad(){
+  let o=null;try{o=JSON.parse(localStorage.getItem('kenakBG')||'null');}catch(e){}
+  if(!o||!o.durl)return;
+  const img=new Image();
+  img.onload=()=>{BG={durl:o.durl,img,natW:o.natW,natH:o.natH,wppx:o.wppx,wx0:o.wx0,wy0:o.wy0};
+    bgOn=o.bgOn!==false;bgOp=o.bgOp||0.55;
+    document.getElementById('bgBar').style.display='flex';
+    document.getElementById('bgOpR').value=Math.round(bgOp*100);
+    draw();};
+  img.src=o.durl;
+}
 function colTap(pw){
   /* υπάρχουσα κολώνα; -> πλάτος/διαγραφή */
   for(let i=0;i<COLS.length;i++){
@@ -3218,7 +3350,7 @@ function openOpSheet(i){
   document.getElementById('opFrame').value=o.frame in KENAK_DATA.windowU.frames||o.type==='door'?o.frame:'wood';
   if(o.type!=='door')document.getElementById('opGlz').value=o.glz;
   document.getElementById('opFf').value=o.ff;
-  if(o.sill==null)o.sill=o.type==='door'?0:0.90;
+  if(o.sill==null)o.sill=(o.type==='door'||o.type==='bal')?0:0.90;
   if(!o.pos)o.pos='mid';
   document.getElementById('opH').value=o.h.toFixed(2);
   document.getElementById('opSill').value=o.sill.toFixed(2);
@@ -3264,7 +3396,7 @@ function openOpSheet(i){
     else document.getElementById('opEra').textContent='συνδυασμός εκτός Πίν. 3.13α — δώσε U';
   };
   document.getElementById('opType').onchange=()=>{fillFG();sync();
-    if(document.getElementById('opType').value==='door'){
+    if(document.getElementById('opType').value==='door'||document.getElementById('opType').value==='bal'){
       document.getElementById('opSill').value='0.00';
       const h3=+document.getElementById('opH').value||2.20;
       document.getElementById('opLintel').value=h3.toFixed(2);
@@ -3281,7 +3413,7 @@ document.getElementById('opSave').onclick=()=>{
     glz:t==='door'?'':document.getElementById('opGlz').value,
     ff:+document.getElementById('opFf').value,
     h:+document.getElementById('opH').value||2.20,
-    sill:t==='door'?0:(+document.getElementById('opSill').value||0),
+    sill:(t==='door'||t==='bal')?0:(+document.getElementById('opSill').value||0),
     pos:document.getElementById('opPos').value||'mid',
     u:+document.getElementById('opU').value||3.2};
   document.getElementById('opSheet').classList.remove('on');draw();
@@ -4231,6 +4363,7 @@ document.getElementById('viewBtn2').onclick=()=>document.getElementById('viewBtn
 })();
 try{fillSysSelects();}catch(e){console.error('fillSysSelects',e);}
 try{pLoad();}catch(e){console.error('pLoad',e);}
+try{bgLoad();}catch(e){console.error('bgLoad',e);}
 try{ownerSyncPull();floorsInit();floorChip();}catch(e){console.error('floors',e);}
 (function(){
   const tg=document.getElementById('pnlTg'),pn2=document.querySelector('.panel');
