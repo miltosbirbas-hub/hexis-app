@@ -400,7 +400,7 @@ body:not([data-tab="2"]) #bgBar{display:none}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.51</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.52</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -417,6 +417,13 @@ body:not([data-tab="2"]) #bgBar{display:none}
 <div class="tools">
   <button class="on" id="ortho" title="Ορθογώνια σχεδίαση (O)">
     <svg viewBox="0 0 24 24"><path d="M4 20V6M4 20h14"/></svg>90°</button>
+  <button class="on" id="gridT" title="Κάνναβος: κουμπώνει τις κορυφές στο βήμα που διαλέγεις — κλείσε τον για ελεύθερη σχεδίαση (π.χ. πάνω σε ιχνηλατημένο PDF)">
+    <svg viewBox="0 0 24 24"><path d="M4 4h4v4H4zM10 4h4v4h-4zM16 4h4v4h-4zM4 10h4v4H4zM10 10h4v4h-4zM16 10h4v4h-4zM4 16h4v4H4zM10 16h4v4h-4zM16 16h4v4h-4z"/></svg>Grid</button>
+  <select id="gridSel" title="Βήμα καννάβου" style="width:56px;padding:6px 3px;border:1px solid var(--line);border-radius:8px;font:600 11px var(--num);background:#fff">
+    <option value="0.01">1cm</option><option value="0.02">2cm</option>
+    <option value="0.05" selected>5cm</option><option value="0.10">10cm</option>
+    <option value="0.25">25cm</option><option value="0.50">50cm</option>
+  </select>
   <button id="arc" title="Καμπύλη πλευρά — σύρε ή πάτα πλευρά (T)">
     <svg viewBox="0 0 24 24"><path d="M4 18q8-14 16 0"/></svg>Τόξο</button>
   <button id="koufT" title="Κούφωμα: σύρε γραμμή κοντά στο κέλυφος — πάτημα σε υπάρχον για ιδιότητες (K)">
@@ -871,9 +878,9 @@ body:not([data-tab="2"]) #bgBar{display:none}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=71"></script>
-<script src="kenak-xml.js?v=71"></script>
-<script src="kenak-dxf.js?v=71"></script>
+<script src="kenak-data.js?v=72"></script>
+<script src="kenak-xml.js?v=72"></script>
+<script src="kenak-dxf.js?v=72"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -1151,7 +1158,8 @@ function floorChip(){
 /* DXF overlays: ό,τι ήρθε από τα layers της σύμβασης */
 let ov={mtx:[],ikee:[],empodia:[],skiaseis:[],tentes:[],omth:[],sun:[]}, koufLines=[];
 let down=null,moved=false,dragIdx=-1,edgeHit=-1,dragB=-1;
-const G=v=>Math.round(v*20)/20;
+let gridOn=true, gridStep=0.05;   /* «Grid»: μαγνήτευση σε κάνναβο — προεπιλογή ίδια με πριν (5cm) */
+const G=v=>gridOn?Math.round(v/gridStep)*gridStep:v;
 const s2w=(x,y)=>[(x-ox)/cell,(oy-y)/cell];
 const w2s=p=>[ox+p[0]*cell,oy-p[1]*cell];
 const hint=t=>document.getElementById('hint').textContent=t;
@@ -1787,6 +1795,22 @@ document.getElementById('mask').addEventListener('click',e=>{if(e.target.id==='m
 document.getElementById('ortho').onclick=e=>{ortho=!ortho;
   e.currentTarget.classList.toggle('on',ortho);
   hint(ortho?'Ορθογώνια σχεδίαση':'Ελεύθερη (λοξή) σχεδίαση');};
+try{
+  const gv=localStorage.getItem('kenakGrid');
+  if(gv!==null){const gj=JSON.parse(gv);gridOn=gj.on!==false;gridStep=gj.step||0.05;}
+}catch(e){}
+document.getElementById('gridT').classList.toggle('on',gridOn);
+document.getElementById('gridSel').value=String(gridStep);
+document.getElementById('gridSel').style.opacity=gridOn?'1':'.4';
+function gridSaveState(){try{localStorage.setItem('kenakGrid',JSON.stringify({on:gridOn,step:gridStep}));}catch(e){}}
+document.getElementById('gridT').onclick=e=>{gridOn=!gridOn;
+  e.currentTarget.classList.toggle('on',gridOn);
+  document.getElementById('gridSel').style.opacity=gridOn?'1':'.4';
+  gridSaveState();
+  hint(gridOn?'Κάνναβος '+(gridStep*100).toFixed(0)+' εκ. ενεργός':'Ελεύθερη σχεδίαση — χωρίς κάνναβο');};
+document.getElementById('gridSel').addEventListener('change',e=>{
+  gridStep=+e.target.value||0.05;gridSaveState();
+  hint('Βήμα καννάβου: '+(gridStep*100).toFixed(0)+' εκ.');});
 document.getElementById('arc').onclick=e=>{arcMode=!arcMode;
   e.currentTarget.classList.toggle('on',arcMode);
   hint(arcMode?'Σύρε μια πλευρά για καμπύλη · πάτα την για ακριβή ακτίνα':'Λειτουργία ευθειών');};
@@ -3549,8 +3573,11 @@ function kaekChipSync(){
 }
 document.getElementById('kaekBtn2').onclick=()=>document.getElementById('kaekBtn').onclick();
 document.getElementById('newBtn').onclick=()=>{
-  if(!confirm('ΝΕΑ ΕΠΙΘΕΩΡΗΣΗ: θα διαγραφούν σχέδιο, όροφοι, κουφώματα, στοιχεία έργου και σενάρια. Συνέχεια;'))return;
-  try{localStorage.removeItem(PSTORE);localStorage.removeItem('hexis-kenak-panel');}catch(e){}
+  if(!confirm('ΝΕΑ ΕΠΙΘΕΩΡΗΣΗ: θα διαγραφούν σχέδιο, όροφοι, κουφώματα, στοιχεία έργου, σενάρια, ιχνηλατημένη κάτοψη PDF και πίνακες ΤΕΕ. Συνέχεια;'))return;
+  try{
+    localStorage.removeItem(PSTORE);localStorage.removeItem('hexis-kenak-panel');
+    localStorage.removeItem('kenakBG');localStorage.removeItem('kenakTBL');
+  }catch(e){}
   location.reload();
 };
 
