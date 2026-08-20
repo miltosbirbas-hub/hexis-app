@@ -400,7 +400,7 @@ body:not([data-tab="2"]) #bgBar{display:none}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.52</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.53</small></div>
   <div class="tabs" id="tabs">
     <button class="tab" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab on" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -588,11 +588,28 @@ body:not([data-tab="2"]) #bgBar{display:none}
       <div><label>Ισχύς kW <a href="#" onclick="heatLoadCalc();return false" style="font-size:10px;color:var(--brb)" title="Διαστασιολόγηση από τις απώλειες του κελύφους: P=(ΣU·A + αερισμός)·ΔΤ ζώνης ×1,25">υπολόγισε;</a></label><input id="s_heatP" type="number" inputmode="decimal" value="10.0" step="0.5"></div>
       <div><label>COP/η</label><input id="s_heatE" type="number" inputmode="decimal" value="3.50" step="0.05"></div>
     </div>
+    <div class="sysrow" id="hxRow" style="border-top:1px dashed var(--line);padding-top:8px;margin-top:2px">
+      <div style="grid-column:1/-1;font-size:11px;color:var(--ink2)">Πρόσθετα συστήματα θέρμανσης <span style="color:var(--ink2);font-weight:400">(π.χ. δεύτερος λέβητας, τοπικές μονάδες σε άλλο χώρο)</span></div>
+      <div><label>Τύπος</label><select id="hxT"></select></div>
+      <div><label>Πηγή</label><select id="hxS"></select></div>
+      <div><label>Ισχύς kW</label><input id="hxP" type="number" inputmode="decimal" value="5.0" step="0.5"></div>
+      <div><label>COP/η</label><input id="hxE" type="number" inputmode="decimal" value="3.50" step="0.05"></div>
+      <div style="display:flex;align-items:flex-end"><button class="pbtn blue" id="hxAdd" style="min-height:36px">+ Προσθήκη</button></div>
+      <div id="hxList" style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;margin-top:4px"></div>
+    </div>
     <div class="sysrow">
       <label class="sw"><input type="checkbox" id="s_cool">Ψύξη</label>
       <div><label>Τύπος</label><select id="s_coolT"></select></div>
       <div><label>Ισχύς kW</label><input id="s_coolP" type="number" inputmode="decimal" value="10.0" step="0.5"></div>
       <div><label>EER/SEER</label><input id="s_coolE" type="number" inputmode="decimal" value="3.00" step="0.05"></div>
+    </div>
+    <div class="sysrow" id="cxRow" style="border-top:1px dashed var(--line);padding-top:8px;margin-top:2px">
+      <div style="grid-column:1/-1;font-size:11px;color:var(--ink2)">Πρόσθετα συστήματα ψύξης <span style="color:var(--ink2);font-weight:400">(π.χ. επιπλέον split σε άλλο χώρο)</span></div>
+      <div><label>Τύπος</label><select id="cxT"></select></div>
+      <div><label>Ισχύς kW</label><input id="cxP" type="number" inputmode="decimal" value="5.0" step="0.5"></div>
+      <div><label>EER/SEER</label><input id="cxE" type="number" inputmode="decimal" value="3.00" step="0.05"></div>
+      <div style="display:flex;align-items:flex-end"><button class="pbtn blue" id="cxAdd" style="min-height:36px">+ Προσθήκη</button></div>
+      <div id="cxList" style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;margin-top:4px"></div>
     </div>
     <div class="sysrow">
       <label class="sw"><input type="checkbox" id="s_dhw" checked>ΖΝΧ</label>
@@ -878,9 +895,9 @@ body:not([data-tab="2"]) #bgBar{display:none}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=72"></script>
-<script src="kenak-xml.js?v=72"></script>
-<script src="kenak-dxf.js?v=72"></script>
+<script src="kenak-data.js?v=73"></script>
+<script src="kenak-xml.js?v=73"></script>
+<script src="kenak-dxf.js?v=73"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -2659,12 +2676,15 @@ document.getElementById('xmlBtn').onclick=async()=>{
       cover:heatCover,
       dnetKW:(isEl||/Τοπικ/i.test(document.getElementById('s_heatT').value))?null:(+document.getElementById('s_heatP').value||null),
       deff:isEl?1.0:0.96, term:isEl?0.94:0.93,
-      auxN:1, auxKW:isEl?0:0.1*q.A/1000},
+      auxN:1, auxKW:isEl?0:0.1*q.A/1000,
+      extra:HX.map(h=>{const hp=/Α\.Θ\.|Γεωθερμ/i.test(h.t);
+        return {type:h.t,src:h.s,kw:h.p,eff:hp?1.0:h.e,scop:hp?h.e:1.0};})},
     cooling:{on:document.getElementById('s_cool').checked,
       type:document.getElementById('s_coolT').value||'Αερόψυκτη Α.Θ.',
       kw:+document.getElementById('s_coolP').value||0,
       seer:+document.getElementById('s_coolE').value||1,
-      cover:coolCover, dnetKW:null, deff:1.0, term:0.93},
+      cover:coolCover, dnetKW:null, deff:1.0, term:0.93,
+      extra:CX.map(c=>({type:c.t,kw:c.p,seer:c.e}))},
     dhw:{on:document.getElementById('s_dhw').checked,
       type:document.getElementById('s_dhwT')?document.getElementById('s_dhwT').value:'Τοπικός ηλεκτρικός θερμαντήρας',
       src:'Ηλεκτρισμός',
@@ -3244,13 +3264,13 @@ async function bgImportPdf(file){
     const doc=await window.pdfjsLib.getDocument({data:buf}).promise;
     const page=await doc.getPage(1);
     const vp0=page.getViewport({scale:1});
-    const targetW=1600;                       /* καλή ευκρίνεια, λογικό μέγεθος για localStorage */
-    const sc2=Math.min(3,targetW/vp0.width);
+    const targetW=3000;                       /* υψηλή ανάλυση — να διαβάζονται διαστάσεις με zoom */
+    const sc2=Math.min(5,targetW/vp0.width);
     const vp=page.getViewport({scale:sc2});
     const c2=document.createElement('canvas');c2.width=vp.width;c2.height=vp.height;
     const cx2=c2.getContext('2d');cx2.fillStyle='#fff';cx2.fillRect(0,0,c2.width,c2.height);
     await page.render({canvasContext:cx2,viewport:vp}).promise;
-    const durl=c2.toDataURL('image/jpeg',0.72);
+    const durl=c2.toDataURL('image/jpeg',0.90);
     const img=new Image();
     await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=durl;});
     /* αρχική τοποθέτηση: κέντρο τρέχουσας προβολής, εικασία 60 px/m ώστε να «κάθεται»
@@ -3293,7 +3313,7 @@ function bgSave(){
     if(!BG){localStorage.removeItem('kenakBG');return;}
     localStorage.setItem('kenakBG',JSON.stringify(
       {durl:BG.durl,natW:BG.natW,natH:BG.natH,wppx:BG.wppx,wx0:BG.wx0,wy0:BG.wy0,bgOn,bgOp}));
-  }catch(e){/* ενδεχ. quota — η κάτοψη απλά δεν persist, χωρίς κρασάρισμα */}
+  }catch(e){hint('Η κάτοψη είναι μεγάλη για μόνιμη αποθήκευση — θα λειτουργεί κανονικά τώρα, αλλά μπορεί να μη διατηρηθεί μετά το κλείσιμο.');}
 }
 function bgLoad(){
   let o=null;try{o=JSON.parse(localStorage.getItem('kenakBG')||'null');}catch(e){}
@@ -3513,8 +3533,10 @@ const PFIELDS=['p_num','p_owner','p_addr','p_phone','p_mail','p_afm',
   'use','czone','year','fopct','ufo','uw','beamH','north','hfloor','floors','dl','hopen','hobs'];
 let SCN=[];  /* σενάρια: [{title}] */
 let RWIN=[]; /* παράθυρα στέγης: [{w,h,slope,face,u}] */
+let HX=[];   /* πρόσθετα συστήματα θέρμανσης: [{t,s,p,e}] */
+let CX=[];   /* πρόσθετα συστήματα ψύξης: [{t,p,e}] */
 function pSave(){
-  const o={scn:SCN,rwin:RWIN,kaek:kSel?{kaek:kSel.kaek,lat:kSel.lat,lon:kSel.lon,area_m2:kSel.area_m2}:null};
+  const o={scn:SCN,rwin:RWIN,hx:HX,cx:CX,kaek:kSel?{kaek:kSel.kaek,lat:kSel.lat,lon:kSel.lon,area_m2:kSel.area_m2}:null};
   for(const id of PFIELDS){const el=document.getElementById(id);
     if(el)o[id]=el.type==='checkbox'?el.checked:el.value;}
   try{localStorage.setItem(PSTORE,JSON.stringify(o));}catch(e){}
@@ -3528,6 +3550,8 @@ function pLoad(){
   if(o.kaek&&o.kaek.kaek){kSel=o.kaek;kSel.base=String(kSel.kaek).split('/')[0];kaekChipSync();}
   SCN=Array.isArray(o.scn)?o.scn:[];scnRender();
   RWIN=Array.isArray(o.rwin)?o.rwin:[];try{rwRender();}catch(e){}
+  HX=Array.isArray(o.hx)?o.hx:[];try{hxRender();}catch(e){}
+  CX=Array.isArray(o.cx)?o.cx:[];try{cxRender();}catch(e){}
 }
 for(const id of PFIELDS){const el=document.getElementById(id);
   if(el)el.addEventListener('change',pSave);}
@@ -3589,11 +3613,37 @@ function fillSysSelects(){
   mk('s_heatT',KENAK_DATA.teeSW.heatGenTypes);   /* επίσημος κατάλογος ΤΕΕ-ΚΕΝΑΚ 1.31 */
   mk('s_heatS',KENAK_DATA.teeSW.energySources);
   mk('s_coolT',KENAK_DATA.recognizedSystems.coolingProduction);
+  mk('hxT',KENAK_DATA.teeSW.heatGenTypes);
+  mk('hxS',KENAK_DATA.teeSW.energySources);
+  mk('cxT',KENAK_DATA.recognizedSystems.coolingProduction);
   const U2=KENAK_DATA.uses[document.getElementById('use').value]||KENAK_DATA.uses.residential;
   document.getElementById('sysNote').textContent=
     'Χωρίς σύστημα ψύξης -> θεωρητικό κατά ΤΟΤΕΕ: SEER '+U2.theoreticalCooling.seer+
     ', κάλυψη '+U2.theoreticalCooling.coverage+'. '+U2.mechVent.note;
 }
+/* ── πρόσθετα συστήματα θέρμανσης/ψύξης: ίδιο πρότυπο με τα παράθυρα στέγης (RWIN) ── */
+function hxRender(){
+  const el=document.getElementById('hxList');if(!el)return;
+  el.innerHTML=HX.map((r,i)=>'<span style="background:#1F4E9C12;border:1px solid #1F4E9C33;border-radius:999px;padding:4px 10px;font-size:11px;font-family:var(--num)">Θ'+(i+2)+' '+
+    r.t.split(' ')[0]+' '+r.p+'kW '+r.e+' <a href="#" onclick="hxDel('+i+');return false" style="color:#C43A2B;font-weight:800;margin-left:4px">×</a></span>').join('');
+}
+function hxDel(i){HX.splice(i,1);hxRender();pSave();}
+function cxRender(){
+  const el=document.getElementById('cxList');if(!el)return;
+  el.innerHTML=CX.map((r,i)=>'<span style="background:#1F4E9C12;border:1px solid #1F4E9C33;border-radius:999px;padding:4px 10px;font-size:11px;font-family:var(--num)">Ψ'+(i+2)+' '+
+    r.t.split(' ')[0]+' '+r.p+'kW '+r.e+' <a href="#" onclick="cxDel('+i+');return false" style="color:#C43A2B;font-weight:800;margin-left:4px">×</a></span>').join('');
+}
+function cxDel(i){CX.splice(i,1);cxRender();pSave();}
+document.getElementById('hxAdd').onclick=()=>{
+  HX.push({t:document.getElementById('hxT').value,s:document.getElementById('hxS').value,
+    p:+document.getElementById('hxP').value||0,e:+document.getElementById('hxE').value||1});
+  hxRender();pSave();hint('Πρόσθετο σύστημα θέρμανσης Θ'+(HX.length+1)+' προστέθηκε — γράφεται στο XML ως επιπλέον μονάδα παραγωγής.');
+};
+document.getElementById('cxAdd').onclick=()=>{
+  CX.push({t:document.getElementById('cxT').value,
+    p:+document.getElementById('cxP').value||0,e:+document.getElementById('cxE').value||1});
+  cxRender();pSave();hint('Πρόσθετο σύστημα ψύξης Ψ'+(CX.length+1)+' προστέθηκε — γράφεται στο XML ως επιπλέον μονάδα παραγωγής.');
+};
 document.getElementById('use').addEventListener('change',fillSysSelects);
 document.getElementById('scnAI').onclick=aiPropose;
 
@@ -3893,6 +3943,14 @@ function estClass(sc,prof){
   /* συστήματα */
   let hT=prof?prof.heatT:(document.getElementById('s_heatT').value||'');
   let hE=Math.max(0.3,prof?(prof.heatE||0.8):(+document.getElementById('s_heatE').value||0.8));
+  /* πρόσθετα συστήματα θέρμανσης (HX): σταθμισμένη απόδοση κατά ισχύ — προσεγγιστικό στο γρήγορο
+     μοντέλο (η αρχή αλήθειας για πολλά συστήματα είναι το εξαγόμενο XML, όχι αυτή η εκτίμηση) */
+  if(!prof&&!sc&&typeof HX!=='undefined'&&HX.length){
+    const p0=Math.max(0.1,+document.getElementById('s_heatP').value||1);
+    let sw=p0,swe=p0*hE;
+    HX.forEach(h=>{const w2=Math.max(0.1,h.p||0.1);sw+=w2;swe+=w2*(h.e||hE);});
+    hE=swe/sw;
+  }
   if(sc&&sc.hp!=null){hT='Α.Θ. (σενάριο)';hE=+sc.hp;}
   const isHP=/Α\.Θ\.|Γεωθερμ/i.test(hT);
   const src2=prof?(/Fuel oil|Πετρέλαιο/i.test(prof.heatS)?'Πετρέλαιο θέρμανσης':'Ηλεκτρισμός')
@@ -3918,7 +3976,13 @@ function estClass(sc,prof){
   if(isRes){
     const Qc={A:55,B:42,C:30,D:22}[zone]||42;
     const hasCool=prof?prof.coolE>=1.5:document.getElementById('s_cool').checked;
-    const cE=Math.max(1.2,prof?(prof.coolE||3):(+document.getElementById('s_coolE').value||3));
+    let cE=Math.max(1.2,prof?(prof.coolE||3):(+document.getElementById('s_coolE').value||3));
+    if(!prof&&hasCool&&typeof CX!=='undefined'&&CX.length){
+      const p0=Math.max(0.1,+document.getElementById('s_coolP').value||1);
+      let sw=p0,swe=p0*cE;
+      CX.forEach(c=>{const w2=Math.max(0.1,c.p||0.1);sw+=w2;swe+=w2*(c.e||cE);});
+      cE=swe/sw;
+    }
     /* SEER 1,7 = ο θεωρητικός κανόνας ΤΕΕ «χωρίς σύστημα» -> πάντα με κάλυψη 0,5 */
     const cov=(!hasCool||Math.abs(cE-1.7)<0.06)?0.5:1.0;
     EPc0=Qc*cov/(hasCool?cE:1.7)*FP.el;

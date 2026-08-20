@@ -79,11 +79,22 @@ function kx_system(sys,rid){
   if(!sys)return '';
   var x='<SYSTEM rid="'+rid+'">';
   var h=sys.heating||{},c=sys.cooling||{},d=sys.dhw||{},sol=sys.solar||{};
+  function kx_heatRow(o,cov){
+    return [o.type||'',KX_SRC_INTERNAL[o.src]||o.src||'',
+      o.kw!=null?(+o.kw).toFixed(2):'',o.eff!=null?o.eff:1,o.scop!=null?o.scop:1]
+      .concat(cov).concat(['']);
+  }
+  function kx_coolRow(o,cov){
+    return [o.type||'Αερόψυκτη Α.Θ.','Electricity',
+      o.kw!=null?(+o.kw).toFixed(2):'',1.0,o.seer!=null?o.seer:1]
+      .concat(cov).concat(['']);
+  }
   /* heating */
   x+='<heating rid="1"><heating_exists>'+(h.on?1:0)+'</heating_exists>';
-  x+=kx_ctable('production',h.on?[[h.type||'',KX_SRC_INTERNAL[h.src]||h.src||'',
-    h.kw!=null?(+h.kw).toFixed(2):'',h.eff!=null?h.eff:1,h.scop!=null?h.scop:1]
-    .concat(h.cover||[1,1,1,1,0,0,0,0,0,0,1,1]).concat([''])]:[],18);
+  x+=kx_ctable('production',h.on?
+    [kx_heatRow(h,h.cover||[1,1,1,1,0,0,0,0,0,0,1,1])]
+      .concat((h.extra||[]).map(function(e){return kx_heatRow(e,h.cover||[1,1,1,1,0,0,0,0,0,0,1,1]);}))
+    :[],18);
   x+=kx_ctable('distribution',h.on?[
     ['Δίκτυο διανομής θερμού μέσου',h.dnetKW!=null?(+h.dnetKW).toFixed(2):'',
      h.route||'Εσωτερικοί  ή έως και 20% σε εξωτερικούς','','',h.deff!=null?h.deff:0.96,'False',''],
@@ -93,9 +104,10 @@ function kx_system(sys,rid){
   x+='</heating>';
   /* cooling */
   x+='<cooling rid="1"><cooling_exists>'+(c.on?1:0)+'</cooling_exists>';
-  x+=kx_ctable('production',c.on?[[c.type||'Αερόψυκτη Α.Θ.','Electricity',
-    c.kw!=null?(+c.kw).toFixed(2):'',1.0,c.seer!=null?c.seer:1]
-    .concat(c.cover||[0,0,0,0,0.5,0.5,0.5,0.5,0.5,0,0,0]).concat([''])]:[],18);
+  x+=kx_ctable('production',c.on?
+    [kx_coolRow(c,c.cover||[0,0,0,0,0.5,0.5,0.5,0.5,0.5,0,0,0])]
+      .concat((c.extra||[]).map(function(e){return kx_coolRow(e,c.cover||[0,0,0,0,0.5,0.5,0.5,0.5,0.5,0,0,0]);}))
+    :[],18);
   x+=kx_ctable('distribution',c.on?[
     ['Δίκτυο διανομής ψυχρού μέσου',c.dnetKW!=null?(+c.dnetKW).toFixed(2):'',
      c.route||'Εσωτερικοί  ή έως και 20% σε εξωτερικούς',c.deff!=null?c.deff:0.96,'False',''],
