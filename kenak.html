@@ -28,17 +28,18 @@ input:focus,select:focus{outline:none;border-color:var(--brb)!important;
   box-shadow:0 0 0 3px #1F4E9C24;background:#fff}
 button:focus-visible{outline:2px solid var(--brb);outline-offset:2px}
 /* ---------- tabs ---------- */
-.tabs{display:flex;gap:4px;margin-left:6px;overflow-x:auto;scrollbar-width:none}
-.tab{font-size:12px;font-weight:700;color:#16202B;text-shadow:0 1px 2px #fffc;border:1px solid transparent;
-  border-radius:999px;padding:6px 13px;background:transparent;cursor:pointer;white-space:nowrap;
+.tabs{display:flex;gap:calc(4px*var(--ts,1));margin-left:6px;flex-wrap:wrap;row-gap:3px}
+.tab{font-size:calc(12px*var(--ts,1));font-weight:700;color:#16202B;text-shadow:0 1px 2px #fffc;border:1px solid transparent;
+  border-radius:999px;padding:calc(6px*var(--ts,1)) calc(13px*var(--ts,1));background:transparent;cursor:pointer;white-space:nowrap;
   display:flex;gap:6px;align-items:center;font-family:var(--ui)}
-.tab i{font-style:normal;font-family:var(--num);font-size:10px;width:16px;height:16px;line-height:16px;
+.tab i{font-style:normal;font-family:var(--num);font-size:calc(10px*var(--ts,1));
+  width:calc(16px*var(--ts,1));height:calc(16px*var(--ts,1));line-height:calc(16px*var(--ts,1));
   text-align:center;border-radius:50%;background:var(--paper);color:var(--ink2)}
 .tab.on{color:var(--brb);background:#fff;text-shadow:none;box-shadow:0 1px 5px #16202b22}
 .tab.on i{background:var(--rib-hot);color:#fff;text-shadow:0 1px 2px #0006}
 .tab{transition:background .15s,box-shadow .15s}
-.page{position:fixed;inset:54px 0 0 0;overflow:auto;background:var(--paper);display:none;z-index:6;
-  padding:52px 14px calc(env(safe-area-inset-bottom) + 40px)}
+.page{position:fixed;inset:var(--topH,54px) 0 0 0;overflow:auto;overflow-x:hidden;background:var(--paper);display:none;z-index:6;
+  padding:calc(var(--subH,0px) + 12px) 14px calc(env(safe-area-inset-bottom) + 40px)}
 .page.on{display:block}
 .page .wrap{max-width:760px;margin:0 auto}
 .page h3{color:var(--brb);font-size:12px;margin:20px 0 9px;text-transform:uppercase;letter-spacing:.09em;
@@ -59,28 +60,34 @@ button:focus-visible{outline:2px solid var(--brb);outline-offset:2px}
   border-radius:12px;padding:10px 13px;margin-bottom:8px}
 .scn b{flex:1;font-size:13.5px}
 .scn .del{flex:0 0 auto;border:none;background:none;color:#C43A2B;font-size:16px;cursor:pointer}
+/* Καμία οριζόντια κύλιση: αν κάτι ξεχειλίσει, το τιθασεύουμε αντί να σέρνεται η σελίδα */
+html,body{max-width:100%;overflow-x:hidden;overscroll-behavior-x:none}
+.sheet,.panel,.page,.top,#bgBar{max-width:100vw}
+.sheet pre,.sbody pre{white-space:pre-wrap;overflow-wrap:anywhere}
 /* ---------- επάνω μπάρα ---------- */
-.top{position:fixed;left:0;right:0;top:0;height:54px;display:flex;align-items:center;gap:14px;
-  padding:0 14px;border-bottom:1px solid var(--line);
+.top{position:fixed;left:0;right:0;top:0;min-height:54px;display:flex;align-items:center;
+  flex-wrap:wrap;gap:calc(14px*var(--ts,1)) calc(14px*var(--ts,1));row-gap:4px;
+  padding:4px 14px;border-bottom:1px solid var(--line);
   /* ribbon ενεργειακής κατάταξης πίσω από την επικεφαλίδα:
      η παλέτα Α+→Η με λευκό γαλάκτωμα από πάνω ώστε να διαβάζεται το κείμενο */
   background:linear-gradient(rgba(255,255,255,.58),rgba(255,255,255,.66)),var(--rib-hot);
   background-size:100% 100%,100% 100%;
   backdrop-filter:blur(6px);z-index:40}
 .top::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:5px;background:var(--rib-hot)}
-.home{display:flex;align-items:center;gap:5px;text-decoration:none;font-size:10.5px;font-weight:800;
+.home{display:flex;align-items:center;gap:5px;text-decoration:none;font-size:calc(10.5px*var(--ts,1));font-weight:800;white-space:nowrap;
   letter-spacing:.02em;color:var(--ink2);background:#ffffffd9;border:1px solid var(--line);
   border-radius:999px;padding:4px 9px;transition:color .15s,border-color .15s}
 .home:hover{color:var(--brb);border-color:var(--brb)}
-.mark{font-weight:800;font-size:13.5px;letter-spacing:.12em;color:var(--brb);line-height:1.1;
-  background:#fffefaf2;border-radius:10px;padding:5px 11px;box-shadow:0 1px 5px #16202b1f}
-.mark small{display:block;font-weight:500;font-size:9.5px;letter-spacing:.07em;color:var(--ink2);text-transform:uppercase}
-.steps{display:flex;gap:6px;margin-left:8px;min-width:0;overflow-x:auto;scrollbar-width:none;flex:0 1 auto}
-@media(max-width:1380px){.hint{display:none}}
-@media(max-width:1180px){.mark small{display:none}.step{padding:5px 8px;font-size:10.5px}}
-.step{font-size:11px;font-weight:700;color:var(--ink2);border:1px solid var(--line);
-  border-radius:999px;padding:5px 11px;background:#fff;display:flex;gap:6px;align-items:center}
-.step i{font-style:normal;font-family:var(--num);font-size:10px;width:15px;height:15px;line-height:15px;
+.mark{font-weight:800;font-size:calc(13.5px*var(--ts,1));letter-spacing:.12em;color:var(--brb);line-height:1.1;
+  background:#fffefaf2;border-radius:10px;padding:calc(5px*var(--ts,1)) calc(11px*var(--ts,1));box-shadow:0 1px 5px #16202b1f;white-space:nowrap}
+.mark small{display:block;font-weight:500;font-size:calc(9.5px*var(--ts,1));letter-spacing:.07em;color:var(--ink2);text-transform:uppercase}
+.steps{display:flex;gap:calc(6px*var(--ts,1));margin-left:8px;flex-wrap:wrap;row-gap:3px;flex:0 0 auto}
+/* Καμία απόκρυψη: το fitTop() σμικραίνει (--ts) και, αν χρειαστεί, η μπάρα
+   αναδιπλώνεται σε δεύτερη σειρά — όλα παραμένουν ορατά και ακέραια. */
+.step{font-size:calc(11px*var(--ts,1));font-weight:700;color:var(--ink2);border:1px solid var(--line);
+  border-radius:999px;padding:calc(5px*var(--ts,1)) calc(11px*var(--ts,1));background:#fff;display:flex;gap:5px;align-items:center;white-space:nowrap}
+.step i{font-style:normal;font-family:var(--num);font-size:calc(10px*var(--ts,1));
+  width:calc(15px*var(--ts,1));height:calc(15px*var(--ts,1));line-height:calc(15px*var(--ts,1));
   text-align:center;border-radius:50%;background:var(--paper);color:var(--ink2)}
 .step.on{color:var(--brb);border-color:var(--brb)}
 .step.on i{background:var(--brb);color:#fff}
@@ -90,14 +97,14 @@ button:focus-visible{outline:2px solid var(--brb);outline-offset:2px}
 .step.done{color:#0B7A3B;border-color:#0B7A3B55;background:#0B7A3B0d}
 .step.done::after{content:'✓';font-size:10px;font-weight:900;color:#0B7A3B}
 .step.cur{color:#fff;background:var(--cta);border-color:var(--cta);
-  font-size:12px;padding:6px 14px;box-shadow:0 3px 14px #E8772E88;
+  font-size:calc(12px*var(--ts,1));padding:calc(6px*var(--ts,1)) calc(14px*var(--ts,1));box-shadow:0 3px 14px #E8772E88;
   animation:stepPulse 1.6s ease-in-out infinite}
 .step.cur i{background:#fff;color:var(--cta)}
 @keyframes stepPulse{
   0%,100%{box-shadow:0 3px 12px #E8772E70;transform:scale(1)}
   50%{box-shadow:0 4px 22px #E8772Ecc;transform:scale(1.05)}}
 /* ---- υπο-βήματα του τρέχοντος βήματος ---- */
-#subSteps{position:fixed;left:0;right:0;top:54px;z-index:39;display:flex;gap:6px;
+#subSteps{position:fixed;left:0;right:0;top:var(--topH,54px);z-index:39;display:flex;gap:6px;
   align-items:center;padding:6px 14px;overflow-x:auto;scrollbar-width:none;
   background:#FDFCF9;border-bottom:2px solid var(--brb);
   box-shadow:0 3px 10px #16202B14}
@@ -110,7 +117,7 @@ button:focus-visible{outline:2px solid var(--brb);outline-offset:2px}
   padding:6px 7px;font:600 12px var(--num);background:#fff}
 .ttbl input.tdesc{font-family:var(--ui);min-width:120px}
 .ttbl .tdel{border:none;background:none;color:#C43A2B;font-weight:800;cursor:pointer;font-size:14px;padding:2px 6px}
-@media(max-width:899px){#tblSheet{inset:88px 0 0 0 !important}}
+@media(max-width:899px){#tblSheet{inset:calc(var(--topH,54px) + 34px) 0 0 0 !important}}
 .tlbl{font:700 9.5px var(--ui);color:var(--ink2);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:3px}
 .tinp{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 8px;font:600 12px var(--ui);background:#fff}
 #subSteps .lbl{font:800 10px var(--ui);color:var(--ink2);letter-spacing:.08em;
@@ -124,39 +131,49 @@ button:focus-visible{outline:2px solid var(--brb);outline-offset:2px}
 .sstep.cur{color:#fff;background:var(--cta);border-color:var(--cta);font-size:11.5px;
   box-shadow:0 2px 10px #E8772E77;animation:stepPulse 1.6s ease-in-out infinite}
 .sstep.opt{opacity:.55;border-style:dashed}
-.page{padding-top:52px}
+.page{padding-top:calc(var(--subH,0px) + 12px)}
 
 /* --- συσκευές αφής: μεγαλύτεροι στόχοι για δάχτυλο --- */
 @media(pointer:coarse){
-  .tools button{width:52px;min-height:52px}
-  .tools svg{width:24px;height:24px}
+  /* ΔΕΝ κλειδώνουμε διαστάσεις εδώ — μόνο προτιμώμενες τιμές· το fitTools
+     τις μικραίνει όσο χρειάζεται ώστε να χωρούν ΟΛΑ τα εργαλεία στην οθόνη */
+  .tools{--tb:52px;--tic:24px;--tfs:11px}
   .pbtn{min-height:46px}
   .fbt{min-height:38px}
   input,select{min-height:42px;font-size:14px}
   #helpBtn{width:36px;height:36px;font-size:18px}
 }
 @media(max-width:899px){
-  .steps{display:flex !important;position:fixed;left:0;right:0;top:54px;z-index:9;
+  .steps{display:flex !important;position:fixed;left:0;right:0;top:var(--topH,54px);z-index:9;
     padding:6px 10px;background:#fffc;backdrop-filter:blur(5px);
     border-bottom:1px solid var(--line);overflow-x:auto;margin:0}
   .step{flex:0 0 auto}
 }
-.hint{margin-left:auto;font-size:12px;color:var(--ink2);max-width:34vw;text-align:right;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hint{margin-left:auto;font-size:calc(11.5px*var(--ts,1));line-height:1.3;color:var(--ink2);
+  flex:1 1 190px;min-width:140px;max-width:min(34vw,420px);text-align:right;white-space:normal}
+.tabs,.steps{min-width:0;flex:0 0 auto;overflow:visible}
 
 /* ---------- αριστερή εργαλειοθήκη ---------- */
-.tools{position:fixed;left:12px;top:70px;display:flex;flex-direction:column;gap:6px;z-index:9}
-.tools button{width:46px;height:46px;border:1px solid var(--line);background:var(--card);color:var(--ink);
-  border-radius:12px;font-size:10px;font-weight:700;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:2px;box-shadow:0 2px 8px #16202b10;cursor:pointer}
-.tools button svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tools{position:fixed;left:12px;top:calc(var(--topH,54px) + var(--subH,0px) + 12px);display:flex;flex-direction:column;flex-wrap:wrap;
+  align-content:flex-start;gap:var(--tgap,6px);z-index:9;
+  max-height:var(--tmaxh,calc(100vh - 88px))}
+.tools button{width:var(--tb,46px);height:var(--tb,46px);border:1px solid var(--line);background:var(--card);color:var(--ink);
+  border-radius:calc(var(--tb,46px)*.26);font-size:var(--tfs,10px);font-weight:700;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:1px;box-shadow:0 2px 8px #16202b10;cursor:pointer;
+  line-height:1.05;overflow:hidden;padding:0 1px}
+.tools button svg{width:var(--tic,17px);height:var(--tic,17px);stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tools select{width:var(--tb,46px) !important;height:calc(var(--tb,46px)*.62) !important;
+  font-size:calc(var(--tfs,10px) + .5px) !important;padding:1px 0 !important;text-align:center}
 .tools button.on{background:var(--brb);border-color:var(--brb);color:#fff}
 .tools button:active{transform:translateY(1px)}
-.tools .sep{height:6px}
+.tools .sep{height:6px;flex:0 0 auto;width:100%}
 
 /* ---------- δεξί πάνελ ---------- */
-.panel{position:fixed;right:12px;top:70px;width:352px;max-height:calc(100vh - 84px);overflow:auto;background:var(--card);border:1px solid var(--line);
-  border-radius:14px;box-shadow:0 8px 28px #16202b1a;z-index:9;overflow:hidden}
+.panel{position:fixed;right:12px;top:calc(var(--topH,54px) + var(--subH,0px) + 12px);width:352px;max-height:calc(100vh - var(--topH,54px) - var(--subH,0px) - 26px);
+  background:var(--card);border:1px solid var(--line);
+  border-radius:14px;box-shadow:0 8px 28px #16202b1a;z-index:9;
+  overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+  padding-bottom:calc(env(safe-area-inset-bottom) + 18px)}
 .panel::before{content:'';display:block;height:4px;background:var(--rib)}
 .panel .sec{padding:11px 13px;border-bottom:1px solid var(--paper)}
 .panel .sec:last-child{border-bottom:none}
@@ -183,10 +200,11 @@ input,select{width:100%;min-width:0;font-family:var(--num);font-size:13.5px;font
 input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 @media(min-width:1100px){
   /* Floating πάνελ αγκυρωμένο στη ΔΕΞΙΑ ακμή: πλήρες ύψος, σύρεται μέσα/έξω */
-  .panel{right:0;top:54px;bottom:0;max-height:none;width:min(48vw,720px);
+  .panel{right:0;top:var(--topH,54px);bottom:0;max-height:none;width:min(48vw,720px);
     border-radius:14px 0 0 14px;border-right:none;
     display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
     gap:0 18px;align-content:start;grid-auto-flow:dense;
+    overflow-y:auto;overflow-x:hidden;padding-bottom:26px;
     transition:transform .22s ease;box-shadow:-10px 0 30px #16202b22}
   .panel.hid{transform:translateX(100%)}
   .panel>*{min-width:0}
@@ -197,9 +215,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   .panel input,.panel select{font-size:14.5px;padding:9px 8px}
   .panel h5{font-size:11px}
   .panel .pbtn{font-size:13px;min-height:44px}
-  .tools{padding:8px}
-  .tools button{min-width:56px;min-height:52px;font-size:11px}
-  .tools button svg{width:22px;height:22px}
+  .tools{--tb:52px;--tic:21px;--tfs:11px}
   /* γλωττίδα: πάντα ορατή στη δεξιά άκρη */
   #panelTab{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:11;
     width:26px;height:92px;border:1px solid var(--line);border-right:none;
@@ -293,7 +309,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
 @media(max-width:560px){.lrow{grid-template-columns:1fr}}
 .sheet{position:fixed;inset:54px 0 0 0;background:var(--paper);transform:translateY(100%);box-shadow:0 -14px 40px #16202b26;
   transition:transform .26s;overflow:auto;padding:0 0 40px;z-index:30}
-@media(max-width:899px){.sheet{inset:88px 0 0 0}}
+@media(max-width:899px){.sheet{inset:calc(var(--topH,54px) + 34px) 0 0 0}}
 .sheet.on{transform:none}
 .shd{position:sticky;top:0;display:flex;align-items:center;gap:10px;background:#fffd;
   backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:10px 14px;z-index:2}
@@ -311,12 +327,17 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   border:1px solid var(--line)}
 .sheet td{padding:8px 11px;border-bottom:1px solid var(--paper);font-size:13px}
 .sheet tr:last-child td{border-bottom:none}
-.sheet td:last-child{text-align:right;font-family:var(--num);font-weight:700;white-space:nowrap}
+.sheet td:last-child{text-align:right;font-family:var(--num);font-weight:700;
+  white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+.sheet td:first-child{white-space:normal;overflow-wrap:anywhere}
+.sheet table{table-layout:auto;max-width:100%}
+.sheet td{max-width:0}                       /* αναγκάζει τα κελιά να σέβονται το πλάτος του πίνακα */
+.sheet td:first-child{width:42%}
 .sheet .cap{font-size:11px;color:var(--ink2);margin:6px 0 0}
 .note{background:#FFF6E8;border:1px solid #E8B96A;border-radius:12px;padding:10px 12px;font-size:12px;margin:14px 14px 0}
 
 /* ---------- σφάλμα + διάλογος ---------- */
-.err{position:fixed;left:50%;transform:translateX(-50%);top:64px;width:min(420px,92vw);background:#fff;
+.err{position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--topH,54px) + var(--subH,0px) + 10px);width:min(420px,92vw);background:#fff;
   border:2px solid #C43A2B;border-radius:12px;padding:10px 13px;display:none;z-index:40;box-shadow:0 8px 24px #16202b26}
 .err b{color:#C43A2B}
 .mask{position:fixed;inset:0;background:#16202b66;display:none;align-items:center;justify-content:center;z-index:50}
@@ -342,10 +363,11 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   .tab i{display:none}
   .steps{display:none !important}
   #subSteps{display:none !important}
-  .page{inset:88px 0 0 0;padding-top:12px}
+  .page{inset:calc(var(--topH,54px) + 34px) 0 0 0;padding-top:12px}
   /* καμβάς: εργαλεία χαμηλά, πάνελ = συρτάρι που ΚΑΤΕΒΑΙΝΕΙ */
-  .tools{left:10px;top:auto;bottom:60px;flex-direction:row;flex-wrap:wrap;max-width:calc(100vw - 20px)}
-  .tools button{width:44px;height:44px}
+  .tools{left:10px;top:auto;bottom:60px;flex-direction:row;flex-wrap:wrap;
+    max-width:calc(100vw - 20px);max-height:none;align-content:flex-end;--tb:44px;--tic:16px;--tfs:9.5px}
+  .tools .sep{width:6px;height:auto}
   .panel{left:0;right:0;bottom:0;top:auto;width:auto !important;border-radius:16px 16px 0 0;
     max-height:42vh;padding-bottom:env(safe-area-inset-bottom);
     transition:transform .22s ease}
@@ -358,7 +380,7 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   body:not([data-tab="2"]) #alignFab{display:none !important}
   body:not([data-tab="2"]) #closeFab{display:none !important}
   body:not([data-tab="2"]) #bgBar{display:none !important}
-  .status{bottom:auto;top:96px}
+  .status{bottom:auto;top:calc(var(--topH,54px) + var(--subH,0px) + 8px)}
   .legend{display:none}
   .empty{align-items:flex-start;padding-top:2vh;padding-bottom:64px;overflow:auto}
   .ecard{padding:14px 14px 10px;width:min(430px,94vw)}
@@ -369,25 +391,29 @@ input:focus{outline:2px solid var(--brb);outline-offset:-1px}
   .ecard .eb span span{font-size:9.5px;line-height:1.3}
   .ecard .eb svg{width:19px;height:19px;flex:0 0 auto}
   .ecard .conv{display:none}
-  #closeFab{top:98px;padding:9px 16px;font-size:12.5px}
+  #closeFab{top:calc(var(--topH,54px) + var(--subH,0px) + 10px);padding:9px 16px;font-size:12.5px}
   .sheet{padding-bottom:60px}
 }
-#closeFab{display:none;position:fixed;left:50%;transform:translateX(-50%);top:118px;z-index:12;
+#closeFab{display:none;position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--topH,54px) + var(--subH,0px) + 12px);z-index:12;
   align-items:center;gap:7px;background:linear-gradient(180deg,#12A24E,#0B7A3B);color:#fff;
   border:none;border-radius:999px;padding:11px 20px;font:800 13.5px var(--ui);
   box-shadow:0 4px 14px #0B7A3B55;cursor:pointer}
 #closeFab:active{transform:translateX(-50%) scale(.97)}
-#alignFab{display:none;position:fixed;right:12px;top:118px;z-index:12;align-items:center;gap:6px;
+#alignFab{display:none;position:fixed;right:12px;top:calc(var(--topH,54px) + var(--subH,0px) + 12px);z-index:12;align-items:center;gap:6px;
   background:linear-gradient(180deg,#2E62B8,#1F4E9C);color:#fff;border:none;border-radius:999px;
   padding:10px 16px;font:800 12px var(--ui);box-shadow:0 4px 12px #1F4E9C55;cursor:pointer}
 #alignFab:active{transform:scale(.97)}
-@media(min-width:900px){#closeFab{top:64px}#alignFab{display:none !important}}
+@media(min-width:900px){#closeFab{top:calc(var(--topH,54px) + var(--subH,0px) + 12px)}#alignFab{display:none !important}}
 body:not([data-tab="2"]) #bgBar{display:none}
+#bgBar.folded{max-width:none !important;padding:6px 8px;gap:5px}
+#bgBar.folded>*{display:none !important}
+#bgBar.folded>#bgGrip,#bgBar.folded>#bgFold{display:flex !important}
+#bgBar.folded>#bgFold{color:var(--brb)}
 .pnlTg{display:none;width:100%;min-height:44px;border:none;border-bottom:1px solid var(--line);
   background:var(--card);color:var(--brb);font:800 12px var(--ui);letter-spacing:.06em;
   align-items:center;justify-content:center;gap:8px;cursor:pointer}
 @media (min-width:900px){
-  .sheet{inset:0 0 0 auto;width:500px;transform:translateX(100%);
+  .sheet{inset:0 0 0 auto;width:min(540px,100vw);transform:translateX(100%);
     border-left:1px solid var(--line);box-shadow:-12px 0 34px #16202b26}
   .sheet.on{transform:none}
 }
@@ -400,7 +426,7 @@ body:not([data-tab="2"]) #bgBar{display:none}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.58</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.65</small></div>
   <div class="tabs" id="tabs">
     <button class="tab on" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -774,13 +800,23 @@ body:not([data-tab="2"]) #bgBar{display:none}
 <div id="bgBar" style="display:none;position:fixed;left:12px;bottom:calc(env(safe-area-inset-bottom) + 12px);
   z-index:12;background:#fffefaee;backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:12px;
   padding:8px 10px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px #16202b1a;flex-wrap:wrap;max-width:min(94vw,420px)">
+  <span id="bgGrip" title="Σύρε για να μετακινήσεις τη μπάρα · διπλό κλικ = επαναφορά θέσης"
+    style="cursor:grab;user-select:none;touch-action:none;color:var(--ink2);font:900 15px var(--ui);
+    padding:0 3px;line-height:1;align-self:stretch;display:flex;align-items:center">⠿</span>
   <button class="pbtn" id="bgToggle" style="min-height:32px;padding:5px 10px;font-size:11.5px">👁 PDF</button>
   <label style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--ink2)">Διαφάνεια
     <input type="range" id="bgOpR" min="15" max="100" value="55" style="width:70px"></label>
   <button class="pbtn" id="bgMove" style="min-height:32px;padding:5px 10px;font-size:11.5px">✥ Μετακίνηση</button>
-  <button class="pbtn" id="bgRot" style="min-height:32px;padding:5px 10px;font-size:11.5px">⟳ Περιστροφή</button>
+  <button class="pbtn" id="bgRot" style="min-height:32px;padding:5px 10px;font-size:11.5px">⟳ 3 σημεία</button>
+  <span id="bgRotG" style="display:flex;align-items:center;gap:3px">
+    <button class="pbtn" id="bgRotL" title="Περιστροφή −90°" style="min-height:32px;padding:5px 7px;font-size:11.5px">↺90</button>
+    <input id="bgRotN" type="number" step="0.5" value="0" title="Γωνία κάτοψης σε μοίρες — γράψε τιμή ή χρησιμοποίησε τα βελάκια"
+      style="width:62px;padding:5px 4px;font-size:11.5px;height:32px">
+    <button class="pbtn" id="bgRotR" title="Περιστροφή +90°" style="min-height:32px;padding:5px 7px;font-size:11.5px">↻90</button>
+  </span>
   <button class="pbtn" id="bgCalib" style="min-height:32px;padding:5px 10px;font-size:11.5px">🎯 Βαθμονόμηση</button>
   <button class="pbtn" id="bgClear" style="min-height:32px;padding:5px 10px;font-size:11.5px;color:#C43A2B">✕ Αφαίρεση</button>
+  <button class="pbtn" id="bgFold" title="Σύμπτυξη μπάρας PDF" style="min-height:32px;padding:5px 9px;font-size:12px;font-weight:900">–</button>
 </div>
 <div class="err" id="err"><b>Πρόβλημα</b> <span id="errTxt" style="font-size:13px"></span></div>
 
@@ -938,9 +974,9 @@ body:not([data-tab="2"]) #bgBar{display:none}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=78"></script>
-<script src="kenak-xml.js?v=78"></script>
-<script src="kenak-dxf.js?v=78"></script>
+<script src="kenak-data.js?v=96"></script>
+<script src="kenak-xml.js?v=96"></script>
+<script src="kenak-dxf.js?v=96"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -1224,14 +1260,18 @@ let gridOn=true, gridStep=0.05;   /* «Grid»: μαγνήτευση σε κάν�
 const G=v=>gridOn?Math.round(v/gridStep)*gridStep:v;
 const s2w=(x,y)=>[(x-ox)/cell,(oy-y)/cell];
 const w2s=p=>[ox+p[0]*cell,oy-p[1]*cell];
-const hint=t=>document.getElementById('hint').textContent=t;
+const hint=t=>{const h=document.getElementById('hint');
+  h.textContent=t;h.title=t;                 /* πλήρες κείμενο στο hover — δεν χάνεται τίποτα */
+  try{fitTop();}catch(e){}};
 const showErr=t=>{document.getElementById('errTxt').textContent=t;
   document.getElementById('err').style.display='block';
   setTimeout(()=>document.getElementById('err').style.display='none',4200);};
 
 function resize(){DPR=Math.min(devicePixelRatio||1,2.5);W=innerWidth;H=innerHeight;
   cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px';
-  ctx.setTransform(DPR,0,0,DPR,0,0);if(!verts.length){ox=W/2;oy=H/2;}draw();}
+  ctx.setTransform(DPR,0,0,DPR,0,0);if(!verts.length){ox=W/2;oy=H/2;}
+  try{fitTools();}catch(e){}
+  draw();}
 addEventListener('resize',resize);
 
 let dimHits=[];
@@ -1252,13 +1292,18 @@ function draw(){
   ctx.strokeStyle='#DDE3E8';ctx.lineWidth=1;
   const st=cell;                          /* κάνναβος 1 m */
   for(let x=ox%st;x<W;x+=st){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
-  for(let y=oy%st;y<H;y+=st){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(y>=0?W:0,y);ctx.stroke();}
-  /* άξονες αρχής 0,0 (σύμβαση CAD: X κόκκινος, Y πράσινος) */
+  for(let y=oy%st;y<H;y+=st){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  /* άξονες αρχής 0,0 (σύμβαση CAD: X κόκκινος, Y πράσινος).
+     Με ενεργό υπόβαθρο PDF ΔΕΝ σχεδιάζονται — μπέρδευαν την ιχνηλάτηση. */
   const O=w2s([0,0]);
-  if(O[0]>-40&&O[0]<W+40){ctx.strokeStyle='#2E8B5766';ctx.lineWidth=1.4;
-    ctx.beginPath();ctx.moveTo(O[0],0);ctx.lineTo(O[0],H);ctx.stroke();}
-  if(O[1]>-40&&O[1]<H+40){ctx.strokeStyle='#C43A2B66';ctx.lineWidth=1.4;
-    ctx.beginPath();ctx.moveTo(0,O[1]);ctx.lineTo(W,O[1]);ctx.stroke();}
+  if(!(BG&&BG.img&&bgOn)){
+    ctx.save();ctx.setLineDash([7,7]);
+    if(O[0]>-40&&O[0]<W+40){ctx.strokeStyle='#2E8B5730';ctx.lineWidth=1.2;
+      ctx.beginPath();ctx.moveTo(O[0],0);ctx.lineTo(O[0],H);ctx.stroke();}
+    if(O[1]>-40&&O[1]<H+40){ctx.strokeStyle='#C43A2B30';ctx.lineWidth=1.2;
+      ctx.beginPath();ctx.moveTo(0,O[1]);ctx.lineTo(W,O[1]);ctx.stroke();}
+    ctx.restore();
+  }
   if(O[0]>-20&&O[0]<W+20&&O[1]>-20&&O[1]<H+20){
     ctx.fillStyle='#16202B';ctx.beginPath();ctx.arc(O[0],O[1],3.5,0,7);ctx.fill();
     ctx.font='700 10px ui-monospace,Menlo,monospace';ctx.fillStyle='#5A6875';
@@ -2333,6 +2378,7 @@ function report(open){
   <p class="cap">Καμπύλοι τοίχοι κατανέμονται αυτόματα στους 8 τομείς ανά στοιχειώδες dl —
   γι' αυτό η διακριτοποίηση καθορίζει και την ακρίβεια των όψεων.</p>`;
   document.getElementById('out').innerHTML=lastOutHTML;
+  try{noOverflowX();}catch(e){}
   if(open)document.getElementById('sheet').classList.add('on');
 }
 
@@ -2933,6 +2979,7 @@ function showXML(m,fname){
   });
   h+=`<p class="cap">Αρχείο: ${fname} · ${m.buildings.length} σενάρι${m.buildings.length===1?'ο':'α'}</p>`;
   document.getElementById('out').innerHTML=h;
+  try{noOverflowX();}catch(e){}
   document.getElementById('sheet').classList.add('on');
 }
 
@@ -3329,6 +3376,9 @@ document.getElementById('bgToggle').onclick=()=>{bgOn=!bgOn;bgSave();draw();};
 document.getElementById('bgOpR').addEventListener('input',e=>{
   bgOp=(+e.target.value||55)/100;bgSave();draw();});
 document.getElementById('bgCalib').onclick=bgStartCalib;
+document.getElementById('bgRotL').onclick=()=>bgRotateBy(-90);
+document.getElementById('bgRotR').onclick=()=>bgRotateBy(90);
+document.getElementById('bgRotN').onchange=e=>bgRotateTo(parseFloat((e.target.value||'0').replace(',','.')));
 document.getElementById('bgMove').onclick=()=>bgStartTool(bgTool==='move'?null:'move');
 document.getElementById('bgRot').onclick=()=>bgStartTool(bgTool==='rot'?null:'rot');
 document.getElementById('bgClear').onclick=()=>{
@@ -3336,7 +3386,7 @@ document.getElementById('bgClear').onclick=()=>{
   BG=null;calibMode=false;calibPts=[];bgTool=null;bgPts=[];
   document.getElementById('bgMove').classList.remove('on');
   document.getElementById('bgRot').classList.remove('on');
-  document.getElementById('bgBar').style.display='none';
+  bgBarShow(false);
   bgSave();draw();
 };
 document.getElementById('colT').onclick=()=>{
@@ -3404,12 +3454,207 @@ async function bgImportPdf(file){
     const c0=s2w(W/2,H/2);
     BG={durl,img,natW:img.naturalWidth,natH:img.naturalHeight,wppx:wppxGuess,
       wx0:c0[0]-img.naturalWidth*wppxGuess/2, wy0:c0[1]+img.naturalHeight*wppxGuess/2};
-    bgOn=true;document.getElementById('bgBar').style.display='flex';
+    bgOn=true;bgBarShow(true);bgSyncRot();
     bgSave();draw();
     hint('Κάτοψη εισήχθη — πάτα «🎯 Βαθμονόμηση», μετά 2 σημεία γνωστής απόστασης πάνω στην εικόνα.');
     bgStartCalib();
   }catch(e){showErr('Αποτυχία εισαγωγής PDF: '+(e&&e.message||e));}
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ΑΥΤΟΜΑΤΗ ΠΡΟΣΑΡΜΟΓΗ ΕΡΓΑΛΕΙΟΘΗΚΗΣ (fitTools)
+   Στόχος: ΟΛΑ τα εργαλεία ορατά μέσα στην οθόνη — τίποτα κομμένο, τίποτα
+   κρυμμένο κάτω από τη μπάρα PDF. Τα κουμπιά σμικρύνονται όσο χρειάζεται
+   και, αν πάλι δεν χωρούν, αναδιπλώνονται σε δεύτερη στήλη (CSS wrap).
+   ═══════════════════════════════════════════════════════════════════════ */
+/* Η επάνω μπάρα ΔΕΝ κρύβει τίποτα: μικραίνει αναλογικά (--ts) και, αν πάλι
+   δεν φτάνει, αναδιπλώνεται σε δεύτερη σειρά. Το πραγματικό ύψος γράφεται στο
+   --topH ώστε εργαλειοθήκη/πάνελ/καρτέλες να κατεβαίνουν μαζί του. */
+let TS_LAST=1;
+/* Φρουρός: αν κάποιο στοιχείο ξεπεράσει το πλάτος της οθόνης, το εντοπίζουμε
+   και το τιθασεύουμε αντί να αποκτήσει η σελίδα οριζόντια κύλιση. */
+function noOverflowX(){
+  if(document.documentElement.scrollWidth<=innerWidth+1)return 0;
+  let fixed=0;
+  document.querySelectorAll('.sheet table,.sheet td,.panel,.sbody,#out *').forEach(el=>{
+    const r=el.getBoundingClientRect();
+    if(r.right>innerWidth+1||r.width>innerWidth){
+      el.style.maxWidth='100%'; el.style.overflowWrap='anywhere'; fixed++;
+    }
+  });
+  scrollTo(0,scrollY);
+  return fixed;
+}
+function fitTop(){
+  const top=document.querySelector('.top'); if(!top)return;
+  const R=document.documentElement;
+  const need=()=>{
+    let w=0,n=0;
+    for(const c of top.children){
+      if(getComputedStyle(c).display==='none')continue;
+      n++; w+=Math.max(c.scrollWidth,Math.ceil(c.getBoundingClientRect().width));
+    }
+    return w+14*TS_LAST*Math.max(0,n-1)+30;
+  };
+  let ts=1; TS_LAST=1; R.style.setProperty('--ts','1');
+  for(let i=0;i<15&&ts>0.80;i++){
+    if(need()<=top.clientWidth)break;
+    ts=Math.max(0.80,Math.round((ts-0.02)*100)/100);
+    TS_LAST=ts; R.style.setProperty('--ts',String(ts));
+  }
+  const hNow=Math.round(top.getBoundingClientRect().height);
+  R.style.setProperty('--topH',hNow+'px');
+  /* γραμμή υπο-βημάτων: μετριέται ζωντανά ώστε τίποτα να μη χώνεται από κάτω της */
+  const ss=document.getElementById('subSteps');
+  let sh=0;
+  if(ss&&getComputedStyle(ss).display!=='none')sh=Math.round(ss.getBoundingClientRect().height);
+  const mst=document.querySelector('.steps');
+  if(!sh&&mst&&getComputedStyle(mst).position==='fixed')sh=Math.round(mst.getBoundingClientRect().height);
+  R.style.setProperty('--subH',sh+'px');
+  try{noOverflowX();}catch(e){}
+  if(hNow!==TOPH_LAST){
+    TOPH_LAST=hNow;
+    if(!FIT_BUSY)requestAnimationFrame(()=>{try{fitTools();}catch(e){}});
+  }
+}
+let FIT_BUSY=false, TOPH_LAST=-1;
+function fitTools(){
+  const T=document.querySelector('.tools'); if(!T)return;
+  FIT_BUSY=true; try{fitTop();}catch(e){} FIT_BUSY=false;
+  const bar=document.getElementById('bgBar');
+  const barOn=!!bar&&bar.style.display!=='none'&&getComputedStyle(bar).display!=='none';
+  const mob=innerWidth<=700;
+  const kids=[...T.children];
+  const nb=kids.filter(k=>k.tagName==='BUTTON').length;
+  const nsel=kids.filter(k=>k.tagName==='SELECT').length;
+  const nsep=kids.filter(k=>k.classList&&k.classList.contains('sep')).length;
+  const gap=mob?5:6, sepPx=6, n=kids.length;
+  const fixed=nsep*sepPx+Math.max(0,n-1)*gap;
+  const units=nb+0.62*nsel;                 /* το select είναι χαμηλότερο */
+  let tb;
+  if(!mob){
+    const top=T.getBoundingClientRect().top||70;
+    const avail=Math.max(180,innerHeight-top-14);
+    const coarse=matchMedia('(pointer:coarse)').matches;
+    tb=Math.floor((avail-fixed)/units);
+    tb=Math.max(coarse?36:30,Math.min(54,tb));
+    T.style.setProperty('--tmaxh',avail+'px');
+  }else{
+    const availW=Math.max(220,innerWidth-20);
+    tb=Math.floor((availW*2-fixed)/units);  /* δύο σειρές το πολύ */
+    tb=Math.max(34,Math.min(46,tb));
+    T.style.setProperty('--tmaxh','none');
+  }
+  T.style.setProperty('--tb',tb+'px');
+  T.style.setProperty('--tgap',gap+'px');
+  T.style.setProperty('--tic',Math.round(tb*0.38)+'px');
+  T.style.setProperty('--tfs',(Math.max(8,Math.round(tb*0.215*10)/10))+'px');
+  /* Η μπάρα PDF δεν πατάει ΠΟΤΕ πάνω στα εργαλεία */
+  if(bar&&barOn&&BGPOS){ bgBarApplyPos(); }
+  else if(bar&&barOn){
+    const r=T.getBoundingClientRect();
+    if(mob){
+      bar.style.left='10px';
+      bar.style.bottom=Math.round(innerHeight-r.top+8)+'px';
+      bar.style.maxWidth='calc(100vw - 20px)';
+    }else{
+      bar.style.left=Math.round(r.right+10)+'px';
+      bar.style.bottom='calc(env(safe-area-inset-bottom) + 12px)';
+      bar.style.maxWidth='calc(100vw - '+Math.round(r.right+24)+'px)';
+    }
+  }
+}
+/* ═══ Μπάρα PDF: ελεύθερα μετακινούμενη (drag από τη λαβή) και συμπτυσσόμενη ═══ */
+let BGPOS=null;
+function bgBarApplyPos(){
+  const bar=document.getElementById('bgBar'); if(!bar||!BGPOS)return;
+  const w=bar.offsetWidth||260, h=bar.offsetHeight||44;
+  const topH=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topH'))||54;
+  const x=Math.max(4,Math.min(innerWidth-w-4,BGPOS.x));
+  const y=Math.max(topH+6,Math.min(innerHeight-h-6,BGPOS.y));
+  bar.style.left=x+'px'; bar.style.top=y+'px';
+  bar.style.bottom='auto'; bar.style.right='auto';
+  if(!bar.classList.contains('folded'))bar.style.maxWidth='min(94vw,540px)';
+}
+function bgBarSaveUI(){
+  try{localStorage.setItem('kenakBGBar',JSON.stringify(
+    {p:BGPOS,f:document.getElementById('bgBar').classList.contains('folded')}));}catch(e){}
+}
+function bgFoldSet(f){
+  const bar=document.getElementById('bgBar'), b=document.getElementById('bgFold');
+  bar.classList.toggle('folded',f);
+  b.textContent=f?'PDF':'–';
+  b.title=f?'Άνοιγμα μπάρας PDF':'Σύμπτυξη μπάρας PDF';
+  if(f)bar.style.maxWidth='none';
+}
+function bgBarLoadUI(){
+  let o=null; try{o=JSON.parse(localStorage.getItem('kenakBGBar')||'null');}catch(e){}
+  if(!o)return;
+  BGPOS=o.p||null;
+  if(o.f)bgFoldSet(true);
+}
+function bgBarInitDrag(){
+  const bar=document.getElementById('bgBar'), g=document.getElementById('bgGrip');
+  if(!bar||!g)return;
+  let sx=0,sy=0,ox=0,oy=0,drag=false;
+  g.addEventListener('pointerdown',e=>{
+    const r=bar.getBoundingClientRect();
+    drag=true; sx=e.clientX; sy=e.clientY; ox=r.left; oy=r.top;
+    try{g.setPointerCapture(e.pointerId);}catch(_){}
+    g.style.cursor='grabbing'; e.preventDefault(); e.stopPropagation();
+  });
+  g.addEventListener('pointermove',e=>{
+    if(!drag)return;
+    BGPOS={x:ox+e.clientX-sx, y:oy+e.clientY-sy};
+    bgBarApplyPos(); e.preventDefault();
+  });
+  const end=()=>{ if(!drag)return; drag=false; g.style.cursor='grab'; bgBarSaveUI(); };
+  g.addEventListener('pointerup',end);
+  g.addEventListener('pointercancel',end);
+  g.addEventListener('dblclick',e=>{         /* επαναφορά στην προεπιλεγμένη θέση */
+    e.preventDefault(); BGPOS=null;
+    bar.style.top='auto'; bar.style.bottom='calc(env(safe-area-inset-bottom) + 12px)';
+    bgBarSaveUI(); fitTools(); hint('Η μπάρα PDF επανήλθε στη θέση της.');
+  });
+  document.getElementById('bgFold').onclick=()=>{
+    bgFoldSet(!bar.classList.contains('folded'));
+    bgBarSaveUI();
+    if(BGPOS)bgBarApplyPos(); else fitTools();
+  };
+}
+function bgBarShow(on){
+  const bar=document.getElementById('bgBar'); if(!bar)return;
+  bar.style.display=on?'flex':'none';
+  fitTools();
+}
+/* ═══ Περιστροφή υποβάθρου PDF με ΓΩΝΙΑ (γύρω από το κέντρο της εικόνας) ═══ */
+function bgCenterW(){
+  const w=BG.natW*BG.wppx/2, h=BG.natH*BG.wppx/2, a=BG.rot||0;
+  const c=Math.cos(a), s2=Math.sin(a);
+  return [BG.wx0+w*c+h*s2, BG.wy0+w*s2-h*c];
+}
+function bgSyncRot(){
+  const n=document.getElementById('bgRotN'); if(!n)return;
+  let d=BG?((BG.rot||0)*180/Math.PI):0;
+  d=((d%360)+360)%360; if(d>180)d-=360;
+  n.value=(Math.round(d*10)/10).toFixed(1);
+}
+function bgRotateBy(degDelta){
+  if(!BG){hint('Εισήγαγε πρώτα PDF κάτοψης.');return;}
+  const da=(+degDelta||0)*Math.PI/180;
+  if(Math.abs(da)<1e-9)return;
+  pushUndo('περιστροφή κάτοψης PDF');
+  const C=bgCenterW(), P=rotPt([BG.wx0,BG.wy0],C,da);
+  BG.wx0=P[0];BG.wy0=P[1];BG.rot=(BG.rot||0)+da;
+  bgSyncRot();bgSave();draw();
+  hint('Κάτοψη PDF: γωνία '+document.getElementById('bgRotN').value+'° (γύρω από το κέντρο της εικόνας)');
+}
+function bgRotateTo(deg){
+  if(!BG)return;
+  const cur=((BG.rot||0)*180/Math.PI);
+  bgRotateBy((+deg||0)-cur);
+}
+
 function bgStartCalib(){
   if(!BG){hint('Εισήγαγε πρώτα PDF κάτοψης.');return;}
   calibMode=true;calibPts=[];
@@ -3448,7 +3693,7 @@ function bgLoad(){
   const img=new Image();
   img.onload=()=>{BG={durl:o.durl,img,natW:o.natW,natH:o.natH,wppx:o.wppx,wx0:o.wx0,wy0:o.wy0,rot:o.rot||0};
     bgOn=o.bgOn!==false;bgOp=o.bgOp||0.55;
-    document.getElementById('bgBar').style.display='flex';
+    bgBarShow(true);bgSyncRot();
     document.getElementById('bgOpR').value=Math.round(bgOp*100);
     draw();};
   img.src=o.durl;
@@ -3792,7 +4037,7 @@ function bgToolTap(pwRaw){
     BG.wx0=P0[0];BG.wy0=P0[1];
     bgTool=null;bgPts=[];
     document.getElementById('bgRot').classList.remove('on');
-    bgSave();draw();
+    bgSyncRot();bgSave();draw();
     hint('Η κάτοψη περιστράφηκε κατά '+(da*180/Math.PI).toFixed(2)+'° — κούμπωσε στη διεύθυνση αναφοράς.');
     return;
   }
@@ -3981,6 +4226,7 @@ cv.addEventListener('contextmenu',e=>e.preventDefault());
 let TAB=2;
 function setTab(t){
   try{document.body.dataset.tab=String(t);}catch(e){}
+  try{setTimeout(fitTools,0);}catch(e){}
   /* κλείσε κάθε ανοιχτό πλήρες φύλλο — η αλλαγή tab είναι πλέον πάντα δυνατή */
   document.querySelectorAll('.sheet.on').forEach(sh=>sh.classList.remove('on'));
   const tbs=document.getElementById('tblSheet');if(tbs)tbs.style.display='none';
@@ -4938,6 +5184,9 @@ document.getElementById('viewBtn2').onclick=()=>document.getElementById('viewBtn
 try{fillSysSelects();}catch(e){console.error('fillSysSelects',e);}
 try{pLoad();}catch(e){console.error('pLoad',e);}
 try{bgLoad();}catch(e){console.error('bgLoad',e);}
+try{bgBarLoadUI();bgBarInitDrag();}catch(e){console.error('bgBarUI',e);}
+try{fitTools();}catch(e){console.error('fitTools',e);}
+addEventListener('orientationchange',()=>setTimeout(fitTools,220));
 try{ownerSyncPull();floorsInit();floorChip();}catch(e){console.error('floors',e);}
 /* Άνοιγμα πάντα στα «Στοιχεία έργου» (ιδιοκτησία/θέση/ΚΑΕΚ) πριν το Κέλυφος —
    ρητή κλήση, ώστε να ισχύει σε desktop ΚΑΙ κινητό ανεξάρτητα από τις preset κλάσεις */
