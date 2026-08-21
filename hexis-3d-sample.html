@@ -1,0 +1,138 @@
+<!DOCTYPE html><html lang="el"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HEXIS ΚΕΝΑΚ — δείγμα 3D ηλιακής σκίασης</title>
+<style>
+:root{--brb:#1F4E9C;--ink:#16202B;--ink2:#5A6875;--line:#E1DDD2;--paper:#FBFAF7}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);
+ font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial}
+header{background:var(--brb);color:#fff;padding:14px 18px}
+header b{font-size:16px}header span{opacity:.85;font-size:12px;display:block;margin-top:3px}
+.wrap{max-width:1000px;margin:0 auto;padding:16px}
+#wrap3d{position:relative;width:100%;aspect-ratio:16/10;min-height:320px;border:1px solid var(--line);
+ border-radius:12px;overflow:hidden;background:#dfeaf5}
+canvas{width:100%;height:100%;display:block}
+#badge{position:absolute;left:10px;top:10px;background:#16202Bcc;color:#fff;padding:6px 11px;
+ border-radius:8px;font:700 12px ui-monospace,Menlo,Consolas,monospace}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+label{font:700 10px system-ui;color:var(--ink2);letter-spacing:.05em;display:block}
+input[type=range]{width:100%}
+.val{font:700 12px ui-monospace,Menlo,monospace;color:var(--brb)}
+button{background:var(--brb);color:#fff;border:none;border-radius:9px;padding:10px 14px;
+ font:700 12px system-ui;cursor:pointer}button.alt{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.note{font-size:12px;color:var(--ink2)}
+.lg{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2);margin-top:8px}
+.lg i{width:12px;height:12px;border-radius:3px;display:inline-block;margin-right:4px;vertical-align:-2px}
+</style></head><body>
+<header><b>HEXIS ΚΕΝΑΚ — δείγμα 3D ηλιακής σκίασης</b>
+<span>Λευκάδα φ=38,83° · κτίριο 10×6 m, 2 όροφοι · νότιο μπαλκόνι με στηθαίο 40 εκ · απέναντι εμπόδιο 12 m</span></header>
+<div class="wrap">
+<div id="wrap3d"><canvas id="cv"></canvas><div id="badge"></div></div>
+<div class="card"><div class="grid">
+<div><label>ΜΗΝΑΣ</label><input type="range" id="mo" min="1" max="12" value="12"><div class="val" id="moL"></div></div>
+<div><label>ΩΡΑ</label><input type="range" id="hr" min="5" max="21" step="0.25" value="13"><div class="val" id="hrL"></div></div>
+<div><label>ΓΕΩΓΡ. ΠΛΑΤΟΣ</label><input type="range" id="la" min="34" max="42" step="0.1" value="38.8"><div class="val" id="laL"></div></div>
+<div style="display:flex;align-items:flex-end;gap:8px">
+<button id="play">▶ Κίνηση ημέρας</button><button class="alt" id="top">Κάτοψη</button></div>
+</div>
+<div class="lg"><span><i style="background:#f2ede3;border:1px solid #ccc"></i>κτίριο</span>
+<span><i style="background:#7fb6d9"></i>κουφώματα</span><span><i style="background:#E08A00"></i>μπαλκόνι</span>
+<span><i style="background:#e6e0d4;border:1px solid #ccc"></i>στηθαίο 40εκ</span>
+<span><i style="background:#9aa4ad"></i>εμπόδιο 12m</span><span><i style="background:#a8563a"></i>δώμα</span></div>
+<p class="note" style="margin:10px 0 0">Σύρσιμο = περιστροφή · ροδέλα = ζουμ. Δοκίμασε <b>Δεκ 13:00</b> (ο ήλιος στα 26° — το εμπόδιο σκιάζει, χάνονται τα χειμερινά κέρδη) και μετά <b>Ιούν 13:00</b> (70° — το μπαλκόνι προστατεύει από υπερθέρμανση).</p>
+</div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+function sunPos(lat,month,hour){
+  const D=Math.PI/180;
+  const doy=Math.round((month-0.5)*30.44);                 /* μέση ημέρα του μήνα */
+  const decl=23.45*D*Math.sin(2*Math.PI*(284+doy)/365);    /* απόκλιση ηλίου */
+  const H=(hour-12)*15*D;                                  /* ωριαία γωνία (ηλιακή ώρα) */
+  const φ=lat*D;
+  const sinAlt=Math.sin(φ)*Math.sin(decl)+Math.cos(φ)*Math.cos(decl)*Math.cos(H);
+  const alt=Math.asin(Math.max(-1,Math.min(1,sinAlt)));
+  let az=Math.atan2(Math.sin(H),Math.cos(H)*Math.sin(φ)-Math.tan(decl)*Math.cos(φ));
+  az=az+Math.PI;                                            /* 0 = Βορράς, δεξιόστροφα */
+  return {alt,az,altDeg:alt/D,azDeg:((az/D)%360+360)%360};
+}
+
+const T=THREE, cv=document.getElementById('cv'), wrap=document.getElementById('wrap3d');
+const sc=new T.Scene(); sc.background=new T.Color(0xdfeaf5);
+const cam=new T.PerspectiveCamera(50,16/10,0.5,3000);
+const rend=new T.WebGLRenderer({canvas:cv,antialias:true});
+rend.setPixelRatio(Math.min(2,devicePixelRatio||1));
+rend.shadowMap.enabled=true; rend.shadowMap.type=T.PCFSoftShadowMap;
+const dist=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
+/* ── ΙΔΙΑ γεωμετρία με την εφαρμογή ── */
+const sq=[[0,0],[10,0],[10,6],[0,6]];
+let cx=5,cy=3;
+const P3=(x,y)=>new T.Vector2(x-cx,y-cy);
+const gr=new T.Mesh(new T.PlaneGeometry(160,160),new T.MeshLambertMaterial({color:0xbfd6a8}));
+gr.rotation.x=-Math.PI/2; gr.receiveShadow=true; sc.add(gr);
+const prism=(pts,h,z0,mat)=>{const sh=new T.Shape(pts.map(v=>P3(v[0],v[1])));
+ const g=new T.ExtrudeGeometry(sh,{depth:h,bevelEnabled:false}); g.rotateX(-Math.PI/2);
+ const m=new T.Mesh(g,mat); m.position.y=(z0||0)+h; m.castShadow=true; m.receiveShadow=true; sc.add(m); return m;};
+const matB=new T.MeshLambertMaterial({color:0xf2ede3}),
+      matG=new T.MeshLambertMaterial({color:0x7fb6d9,transparent:true,opacity:0.72}),
+      matR=new T.MeshLambertMaterial({color:0xa8563a}),
+      matP=new T.MeshLambertMaterial({color:0xe6e0d4}),
+      matS=new T.MeshLambertMaterial({color:0xE08A00,transparent:true,opacity:0.9}),
+      matO=new T.MeshLambertMaterial({color:0x9aa4ad});
+prism(sq,3,0,matB); prism(sq,3,3,matB); prism(sq,0.25,6,matR);
+const win=(A,B,sill,hK)=>{const L=dist(A,B);
+ const m=new T.Mesh(new T.BoxGeometry(L,hK,0.14),matG);
+ const mid=P3((A[0]+B[0])/2,(A[1]+B[1])/2);
+ m.position.set(mid.x,sill+hK/2,mid.y); m.rotation.y=-Math.atan2(B[1]-A[1],B[0]-A[0]); sc.add(m);};
+win([2,0],[5,0],0,2.2); win([2,0],[4,0],3.9,1.3); win([6.5,0],[8.5,0],0.9,1.3);
+/* μπαλκόνι + στηθαίο 40 εκ */
+const bal=[[2,-1.6],[5,-1.6],[5,0],[2,0]], bz=3.0;
+prism(bal,0.18,bz-0.18,matS);
+for(let i=0;i<bal.length;i++){const A=bal[i],B=bal[(i+1)%bal.length],L=dist(A,B);
+ if(L<0.12)continue;
+ const m=new T.Mesh(new T.BoxGeometry(L,0.40,0.10),matP);
+ const mid=P3((A[0]+B[0])/2,(A[1]+B[1])/2);
+ m.position.set(mid.x,bz+0.20,mid.y); m.rotation.y=-Math.atan2(B[1]-A[1],B[0]-A[0]);
+ m.castShadow=true;m.receiveShadow=true;sc.add(m);}
+/* εμπόδιο 12 m νότια (−Y στο σχέδιο = Νότος) */
+prism([[0,-14],[10,-14],[10,-8],[0,-8]],12,0,matO);
+sc.add(new T.HemisphereLight(0xcfe3f7,0x8a9a72,0.55));
+const sun=new T.DirectionalLight(0xfff4e0,1.0); sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-40,right:40,top:40,bottom:-40,near:1,far:260});
+sc.add(sun); sc.add(sun.target);
+const orbit={az:1.25,alt:0.42,d:34};
+function camApply(){const y=Math.max(1.5,orbit.d*Math.sin(orbit.alt));
+ cam.position.set(orbit.d*Math.cos(orbit.alt)*Math.cos(orbit.az),y,orbit.d*Math.cos(orbit.alt)*Math.sin(orbit.az));
+ cam.lookAt(0,3,0); render();}
+const MN=['Ιαν','Φεβ','Μάρ','Απρ','Μάι','Ιούν','Ιούλ','Αύγ','Σεπ','Οκτ','Νοέ','Δεκ'];
+function apply(){
+ const m=+mo.value,h=+hr.value,lat=+la.value;
+ const s=sunPos(lat,m,h), D=90, up=Math.max(0.02,Math.sin(s.alt));
+ sun.position.set(D*Math.cos(s.alt)*Math.sin(s.az),D*up,-D*Math.cos(s.alt)*Math.cos(s.az));
+ sun.target.position.set(0,0,0); sun.target.updateMatrixWorld();
+ const night=s.altDeg<=0;
+ sun.intensity=night?0:Math.min(1.15,0.35+1.0*Math.sin(Math.max(0,s.alt)));
+ sc.background=new T.Color(night?0x2a3550:(s.altDeg<8?0xf3d9b8:0xdfeaf5));
+ const hh=Math.floor(h),mm=Math.round((h-hh)*60);
+ moL.textContent=MN[m-1]; hrL.textContent=hh+':'+String(mm).padStart(2,'0');
+ laL.textContent=lat.toFixed(1)+'°Β';
+ badge.textContent=MN[m-1]+' · '+hh+':'+String(mm).padStart(2,'0')+' · ύψος '+s.altDeg.toFixed(1)+'° · αζιμ. '+s.azDeg.toFixed(0)+'°'+(night?' · ΝΥΧΤΑ':'');
+ render();}
+function render(){rend.render(sc,cam);}
+function resize(){const w=wrap.clientWidth,h=wrap.clientHeight;
+ rend.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix(); render();}
+['mo','hr','la'].forEach(id=>document.getElementById(id).addEventListener('input',apply));
+let playing=false,af=null;
+play.onclick=()=>{playing=!playing; play.textContent=playing?'⏸ Παύση':'▶ Κίνηση ημέρας';
+ const step=()=>{if(!playing)return; let v=+hr.value+0.06; if(v>21)v=5; hr.value=v; apply(); af=requestAnimationFrame(step);};
+ if(playing)step(); else if(af)cancelAnimationFrame(af);};
+top.onclick=()=>{orbit.alt=1.42;orbit.az=-Math.PI/2;camApply();};
+let drag=null;
+cv.onpointerdown=e=>{drag={x:e.clientX,y:e.clientY,az:orbit.az,alt:orbit.alt};cv.setPointerCapture(e.pointerId);};
+cv.onpointermove=e=>{if(!drag)return; orbit.az=drag.az-(e.clientX-drag.x)*0.008;
+ orbit.alt=Math.max(0.08,Math.min(1.45,drag.alt+(e.clientY-drag.y)*0.006)); camApply();};
+cv.onpointerup=()=>drag=null;
+cv.onwheel=e=>{e.preventDefault(); orbit.d=Math.max(10,Math.min(120,orbit.d*(e.deltaY>0?1.12:0.9))); camApply();};
+addEventListener('resize',resize);
+resize(); camApply(); apply();
+</script></body></html>
