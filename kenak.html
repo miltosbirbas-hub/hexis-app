@@ -426,7 +426,7 @@ body:not([data-tab="2"]) #bgBar{display:none}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.65</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.67</small></div>
   <div class="tabs" id="tabs">
     <button class="tab on" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -912,6 +912,12 @@ body:not([data-tab="2"]) #bgBar{display:none}
     <button class="pbtn cta" id="opSave">Εντάξει</button></div>
   <div style="position:absolute;inset:59px 0 0 0;overflow:auto;padding:16px 14px">
    <div class="pcardX" style="max-width:560px;margin:0 auto">
+    <div class="fields" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div style="grid-column:1/-1"><label>Βιβλιοθήκη κουφωμάτων (δικά μου)</label>
+        <select id="opLib" title="Αποθηκευμένοι τύποι κουφωμάτων — μένουν στη συσκευή και ξαναχρησιμοποιούνται σε κάθε μελέτη"></select></div>
+      <div><button class="pbtn blue" id="opLibSave" type="button" style="width:100%">＋ Αποθήκευση ως…</button></div>
+      <div><button class="pbtn" id="opLibDel" type="button" style="width:100%;color:#C43A2B;border-color:#C43A2B44">🗑 Διαγραφή τύπου</button></div>
+    </div>
     <div class="fields" style="grid-template-columns:1fr 1fr;gap:10px">
       <div><label>Τύπος</label><select id="opType">
         <option value="win">Παράθυρο</option><option value="bal">Μπαλκονόπορτα</option>
@@ -921,8 +927,13 @@ body:not([data-tab="2"]) #bgBar{display:none}
         <option value="stath">Σταθερό</option></select></div>
       <div id="opFrameW"><label>Πλαίσιο</label><select id="opFrame"></select></div>
       <div id="opGlzW"><label>Υαλοπίνακας</label><select id="opGlz"></select></div>
-      <div><label>% πλαισίου Ff</label><select id="opFf">
-        <option>20</option><option selected>30</option><option>40</option></select></div>
+      <div><label>Φύλλα</label><select id="opLeaf" title="Μονόφυλλο, δίφυλλο, τρίφυλλο… — καθορίζει τους ορθοστάτες και άρα το % πλαισίου Ff">
+        <option value="1">1 · μονόφυλλο</option><option value="2" selected>2 · δίφυλλο</option>
+        <option value="3">3 · τρίφυλλο</option><option value="4">4 · τετράφυλλο</option>
+        <option value="5">5 · πεντάφυλλο</option><option value="6">6 · εξάφυλλο</option>
+        <option value="7">7 · επτάφυλλο</option><option value="8">8 · οκτάφυλλο</option></select></div>
+      <div><label>% πλαισίου Ff</label><input id="opFf" type="number" inputmode="decimal" step="0.5" min="8" max="85"
+        title="Υπολογίζεται γεωμετρικά από πλάτος × ύψος × φύλλα. Γράψε δική σου τιμή για να κλειδώσει."></div>
       <div><label>Πλάτος m</label><input id="opLen" type="number" inputmode="decimal" step="0.05"></div>
       <div><label>Ύψος m</label><input id="opH" type="number" inputmode="decimal" step="0.05"
         title="Ύψος = Πρέκι − Ποδιά (συγχρονίζονται)"></div>
@@ -933,11 +944,18 @@ body:not([data-tab="2"]) #bgBar{display:none}
       <div><label>Περασιά</label><select id="opPos" title="Θέση στο πάχος του τοίχου">
         <option value="out">Έξω (πρόσωπο)</option><option value="mid" selected>Κέντρο</option>
         <option value="in">Μέσα (εσωτ. περασιά)</option></select></div>
+      <div style="grid-column:1/-1"><label>Παντζούρι / ρολό;</label><select id="opShut"
+        title="Εξωτερικό προστατευτικό φύλλο — προσθέτει θερμική αντίσταση ΔR όταν είναι κλειστό (EN ISO 10077-1)"></select></div>
       <div><label>U W/m²K</label><input id="opU" type="number" inputmode="decimal" step="0.05"
-        title="Αυτόματα από Πίν. 3.13α ΤΟΤΕΕ — μπορείς να το αλλάξεις"></div>
+        title="Αυτόματα από Πίν. 3.13α ΤΟΤΕΕ, διορθωμένο για παντζούρι/ρολό — μπορείς να το αλλάξεις"></div>
       <div style="display:flex;align-items:flex-end"><span id="opEra" style="font-size:11px;color:var(--ink2)"></span></div>
+      <div id="opFfInfo" style="grid-column:1/-1;font-size:11.5px;color:var(--ink2);
+        background:#1F4E9C0a;border:1px solid #1F4E9C33;border-radius:9px;padding:7px 10px"></div>
+      <div id="opShutInfo" style="grid-column:1/-1;display:none;font-size:11.5px;
+        background:#0B7A3B0d;border:1px solid #0B7A3B44;border-radius:9px;padding:8px 10px;color:#0B7A3B"></div>
     </div>
-    <p style="font-size:11px;color:var(--ink2);margin-top:10px">Το U προτείνεται από τον Πίνακα 3.13α της ΤΟΤΕΕ 20701-1/2017 (τυπικές τιμές) βάσει πλαισίου, υαλοπίνακα και Ff. Μονός υαλοπίνακας = τυπικό προ-ΚΕΝΑΚ· δίδυμος/low-e = κατά ΚΕΝΑΚ.</p>
+    <p style="font-size:11px;color:var(--ink2);margin-top:10px">Το U προτείνεται από τον Πίνακα 3.13α της ΤΟΤΕΕ 20701-1/2017 (τυπικές τιμές) βάσει πλαισίου, υαλοπίνακα και Ff. Μονός υαλοπίνακας = τυπικό προ-ΚΕΝΑΚ· δίδυμος/low-e = κατά ΚΕΝΑΚ.<br>
+    <b>Παντζούρι / ρολό:</b> καταγράφεται πάντα (φαίνεται στην περιγραφή του κουφώματος στο XML και στα αποτελέσματα). Το κλειστό φύλλο προσθέτει θερμική αντίσταση ΔR κατά EN ISO 10077-1 (Παρ. G, μέτρια διαπερατότητα αέρα): U<sub>κλειστό</sub> = 1/(1/U + ΔR). <b>Το πεδίο U κρατά την τιμή ανοιχτού φύλλου</b> — η διόρθωση εφαρμόζεται μόνο αν την επιλέξεις ρητά, γιατί ισχύει μόνο τις ώρες που το φύλλο είναι κλειστό.</p>
    </div>
   </div>
 </div>
@@ -974,9 +992,9 @@ body:not([data-tab="2"]) #bgBar{display:none}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=96"></script>
-<script src="kenak-xml.js?v=96"></script>
-<script src="kenak-dxf.js?v=96"></script>
+<script src="kenak-data.js?v=98"></script>
+<script src="kenak-xml.js?v=98"></script>
+<script src="kenak-dxf.js?v=98"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -2199,7 +2217,8 @@ function envelopeCore(hfOne,withRoof,withFloor){
     openings.push({len:dist(l.a,l.b),az:Math.round(az),k:Math.round(az/45)%8,
       area:dist(l.a,l.b)*hK,beta,ovDepth:dmax,tent,pi:bi,mid:om,finL:gL,finR:gR,
       hK,u:pr?pr.u:null,lbl:pr?oprLabel(pr):null,isDoor:pr?pr.type==='door':false,
-      sill:pr?pr.sill:null,pos:pr?pr.pos:null});
+      sill:pr?pr.sill:null,pos:pr?pr.pos:null,shut:pr?(pr.shut||'none'):'none',
+      leaf:pr?(pr.leaf||1):1,ff:pr?(pr.ff||30):30});
   }
   /* ---- ΓΩΝΙΕΣ ΣΚΙΑΣΗΣ (γεωμετρία· τα F από πίνακες ΤΟΤΕΕ όταν μπουν) ----
      α ορίζοντα: από το μέσο ύψος της όψης (hTot/2) προς την κορυφή του
@@ -2470,7 +2489,9 @@ function buildTables(q){
     const dims=(o.sill!=null)?(' · ΠΟΔΙΑ '+(+o.sill).toFixed(2).replace('.',',')+
       ' ΠΡΕΚΙ '+((+o.sill)+o.hK).toFixed(2).replace('.',',')+
       (o.pos?' ΠΕΡΑΣΙΑ '+(POS[o.pos]||''):'')):'';
-    const dsc='ΚΟΥΦΩΜΑ Κ'+(i+1)+' ΟΨΗ '+q.S[o.k]+(o.lbl?' — '+o.lbl.toUpperCase():'')+dims;
+    const dsc='ΚΟΥΦΩΜΑ Κ'+(i+1)+' ΟΨΗ '+q.S[o.k]+(o.lbl?' — '+o.lbl.toUpperCase():'')+
+      (o.leaf>1?' '+leafName(o.leaf).toUpperCase():'')+
+      (typeof shutTag==='function'?shutTag(o.shut||'none'):'')+dims;
     return [typ,dsc,o.az,90,
       o.area.toFixed(2),'',uo,'1.00',F2(fh[0]),F2(fh[1]),F2(ovH),F2(ovC),F2(finH),F2(finC),''];
   });
@@ -3269,16 +3290,72 @@ document.getElementById('kaekUse').onclick=()=>{
    OPR[i] = {type,mech,frame,glz,ff,h,u,label} ανά koufLines[i]
    ============================================================ */
 let OPR=[], koufMode=false, kDraft=null, opIdx=-1;
+/* ═══════════════════════════════════════════════════════════════════════
+   ΕΞΩΤΕΡΙΚΑ ΠΡΟΣΤΑΤΕΥΤΙΚΑ ΦΥΛΛΑ (παντζούρι / ρολό)
+   Πρόσθετη θερμική αντίσταση κλειστού φύλλου ΔR κατά EN ISO 10077-1, Παρ. G:
+     ΔR = a·Rsh + b, με (a,b) ανά κατηγορία διαπερατότητας αέρα του φύλλου.
+   Χρησιμοποιείται η κατηγορία «μέτρια» (a=0,55 · b=0,11) που αντιστοιχεί σε
+   τυπική ελληνική εγκατάσταση. Rsh = θερμική αντίσταση του ίδιου του φύλλου.
+   Το διορθωμένο U με ΚΛΕΙΣΤΟ φύλλο: U_ws = 1 / (1/U_w + ΔR).
+   ΟΛΑ φαίνονται στην οθόνη και το U παραμένει επεξεργάσιμο από τον μηχανικό.
+   ═══════════════════════════════════════════════════════════════════════ */
+/* ── ΦΥΛΛΑ ΚΟΥΦΩΜΑΤΟΣ ──────────────────────────────────────────────────
+   Τυπικό ορατό πλάτος προφίλ b (m) ανά υλικό πλαισίου. Το ποσοστό πλαισίου
+   Ff προκύπτει ΓΕΩΜΕΤΡΙΚΑ από τις πραγματικές διαστάσεις και τα φύλλα:
+     A_πλ = 2b(W+H) − 4b²  +  (ν−1)·2b·(H−2b)      [περιμετρικό + ορθοστάτες]
+     Ff  = A_πλ / (W·H)
+   Ο μηχανικός μπορεί να γράψει δικό του Ff — τότε το αυτόματο σταματά. */
+const PROFB={metalNoBreak:0.050,metalBreak12:0.065,metalBreak24:0.075,
+  synthetic:0.075,wood:0.070,doubleWood:0.090,doubleAlu:0.080};
+const LEAFN=['','μονόφυλλο','δίφυλλο','τρίφυλλο','τετράφυλλο','πεντάφυλλο',
+  'εξάφυλλο','επτάφυλλο','οκτάφυλλο'];
+function leafName(n){n=Math.max(1,Math.round(+n||1));return LEAFN[n]||(n+'-φυλλο');}
+function ffGeom(W,H,n,frame){
+  const b=PROFB[frame]||0.07;
+  n=Math.max(1,Math.round(+n||1));
+  if(!(W>2*b)||!(H>2*b))return null;
+  const Aper=2*b*(W+H)-4*b*b;
+  const Amul=(n-1)*2*b*Math.max(0,H-2*b);
+  const ff=100*(Aper+Amul)/(W*H);
+  return Math.max(8,Math.min(85,Math.round(ff*10)/10));
+}
+const SHUT={
+  none:      {lbl:'Όχι — χωρίς παντζούρι/ρολό', Rsh:0,    dR:0},
+  rollAl:    {lbl:'Ρολό αλουμινίου (χωρίς μόνωση)', Rsh:0.01, dR:0.12},
+  rollPvc:   {lbl:'Ρολό PVC / ξύλου 12–16 mm',      Rsh:0.10, dR:0.17},
+  rollFoam:  {lbl:'Ρολό με αφρό πολυουρεθάνης',      Rsh:0.15, dR:0.19},
+  shutWood:  {lbl:'Ξύλινο παντζούρι 25–30 mm',       Rsh:0.20, dR:0.22},
+  shutMetal: {lbl:'Μεταλλικό παντζούρι / γρίλια',    Rsh:0.01, dR:0.12}
+};
+function shutU(u,kind){
+  const k=SHUT[kind]; if(!k||!k.dR||!(u>0))return +u;
+  return 1/(1/(+u)+k.dR);
+}
+function shutTag(kind){
+  const k=SHUT[kind]; if(!k||kind==='none')return '';
+  return ' ΜΕ '+(kind.indexOf('roll')===0?'ΡΟΛΟ':'ΠΑΝΤΖΟΥΡΙ');
+}
 function oprDefault(){
   const h=+document.getElementById('hopen').value||2.20;
   return {type:'win',mech:'anoig',frame:'wood',glz:'single',ff:30,h,
-    sill:0.90,pos:'mid',
+    sill:0.90,pos:'mid',shut:'none',leaf:2,ffAuto:true,
     u:KENAK_DATA.windowUof('wood','single',30)||5.0};}
 function oprLabel(o){
   if(o.type==='door')return KENAK_DATA.windowU.doors[o.frame==='metalNoBreak'?'metal':(o.frame==='synthetic'?'synthetic':'wood')].label;
   const fr=KENAK_DATA.windowU.frames[o.frame], gl=KENAK_DATA.windowU.glazings[o.glz];
-  return (o.type==='bal'?'Μπαλκονόπορτα':'Παράθυρο')+' '+(o.mech==='syr'?'συρόμενο':o.mech==='stath'?'σταθερό':'ανοιγόμενο')+
-    ' · '+(fr?fr.label:'')+' · '+(gl||'');
+  return (o.type==='bal'?'Μπαλκονόπορτα':'Παράθυρο')+' '+leafName(o.leaf||1)+' '+
+    (o.mech==='syr'?'συρόμενο':o.mech==='stath'?'σταθερό':'ανοιγόμενο')+
+    ' · '+(fr?fr.label:'')+' · '+(gl||'')+' · Ff '+(+o.ff||30)+'%';
+}
+/* ═══ ΒΙΒΛΙΟΘΗΚΗ ΚΟΥΦΩΜΑΤΩΝ ΧΡΗΣΤΗ — μένει στη συσκευή, ανά μελέτη ═══ */
+function winLibLoad(){
+  try{return JSON.parse(localStorage.getItem('kenakWinLib')||'[]');}catch(e){return [];}
+}
+function winLibSave(a){try{localStorage.setItem('kenakWinLib',JSON.stringify(a));}catch(e){}}
+function winLibFill(sel){
+  const L=winLibLoad();
+  sel.innerHTML='<option value="">— τυπικά ΤΟΤΕΕ (χωρίς αποθηκευμένο τύπο) —</option>';
+  L.forEach((w,i)=>{sel.innerHTML+='<option value="'+i+'">'+w.name+'</option>';});
 }
 function ensureOPR(){while(OPR.length<koufLines.length)OPR.push(oprDefault());OPR.length=koufLines.length;}
 document.querySelectorAll('.ovT').forEach(b=>b.onclick=()=>{
@@ -4114,9 +4191,18 @@ function openOpSheet(i){
   document.getElementById('opMech').value=o.mech;
   document.getElementById('opFrame').value=o.frame in KENAK_DATA.windowU.frames||o.type==='door'?o.frame:'wood';
   if(o.type!=='door')document.getElementById('opGlz').value=o.glz;
+  if(!o.leaf)o.leaf=(o.type==='door')?1:2;
+  if(o.ffAuto===undefined)o.ffAuto=false;
+  document.getElementById('opLeaf').value=String(Math.max(1,Math.min(8,o.leaf)));
   document.getElementById('opFf').value=o.ff;
+  winLibFill(document.getElementById('opLib'));
   if(o.sill==null)o.sill=(o.type==='door'||o.type==='bal')?0:0.90;
   if(!o.pos)o.pos='mid';
+  if(!o.shut)o.shut='none';
+  const selS=document.getElementById('opShut');
+  if(!selS.options.length)
+    for(const[k,v]of Object.entries(SHUT))selS.innerHTML+='<option value="'+k+'">'+v.lbl+'</option>';
+  selS.value=o.shut;
   document.getElementById('opH').value=o.h.toFixed(2);
   document.getElementById('opSill').value=o.sill.toFixed(2);
   document.getElementById('opLintel').value=(o.sill+o.h).toFixed(2);
@@ -4149,7 +4235,29 @@ function openOpSheet(i){
   };
   document.getElementById('opU').value=(+o.u).toFixed(2);
   document.getElementById('opTitle').textContent='Κούφωμα Κ'+(i+1)+' · '+N(dist(koufLines[i].a,koufLines[i].b))+' m';
+  /* Ff γεωμετρικά από διαστάσεις + φύλλα· «κλειδώνει» μόλις ο μηχανικός γράψει δικό του */
+  const ffCalc=(force)=>{
+    const W=+document.getElementById('opLen').value||0,
+          H2=+document.getElementById('opH').value||0,
+          n=+document.getElementById('opLeaf').value||1,
+          fr=document.getElementById('opFrame').value;
+    const box=document.getElementById('opFfInfo');
+    const g=ffGeom(W,H2,n,fr), b=(PROFB[fr]||0.07);
+    if(g==null){box.textContent='Δώσε πλάτος και ύψος για αυτόματο Ff.';return;}
+    if(force||OPR[opIdx].ffAuto!==false)document.getElementById('opFf').value=g;
+    const cur=+document.getElementById('opFf').value;
+    box.innerHTML='Ff γεωμετρικά: <b>'+g.toFixed(1)+'%</b> για '+leafName(n)+' '+
+      W.toFixed(2)+'×'+H2.toFixed(2)+' m με προφίλ b='+(b*100).toFixed(1)+' cm'+
+      (Math.abs(cur-g)>0.05?' — <b style="color:#C43A2B">εσύ έδωσες '+cur+'%</b> '+
+        '<a href="#" id="opFfAuto" style="color:#1F4E9C">↺ αυτόματο</a>':' ✓ αυτόματο')+
+      '. Το U παρεμβάλλεται ανάμεσα στις στήλες 20/30/40% του Πίν. 3.13α'+
+      (cur>40?' — <b style="color:#C43A2B">Ff πάνω από 40%: ο πίνακας σταματά εκεί, το U κόβεται στη στήλη 40%</b>':'')+
+      (cur<20?' — <b style="color:#C43A2B">Ff κάτω από 20%: το U κόβεται στη στήλη 20%</b>':'')+'.';
+    const a2=document.getElementById('opFfAuto');
+    if(a2)a2.onclick=e=>{e.preventDefault();OPR[opIdx].ffAuto=true;ffCalc(true);sync();};
+  };
   const sync=()=>{
+    ffCalc(false);
     const t=document.getElementById('opType').value;
     let u=null;
     if(t==='door'){const d=KENAK_DATA.windowU.doors[document.getElementById('opFrame').value];u=d?d.ext:null;}
@@ -4157,8 +4265,32 @@ function openOpSheet(i){
       document.getElementById('opGlz').value,+document.getElementById('opFf').value);
     document.getElementById('opEra').textContent=
       (t!=='door'&&document.getElementById('opGlz').value==='single')?'τυπικό προ-ΚΕΝΑΚ':(t==='door'?'':'κατά ΚΕΝΑΚ');
-    if(u!=null)document.getElementById('opU').value=u.toFixed(2);
-    else document.getElementById('opEra').textContent='συνδυασμός εκτός Πίν. 3.13α — δώσε U';
+    const sk=document.getElementById('opShut').value, sh=SHUT[sk], box=document.getElementById('opShutInfo');
+    if(u!=null){
+      /* ΠΡΟΣΟΧΗ: στο πεδίο U μπαίνει η τιμή του Πίν. 3.13α (ανοιχτό φύλλο).
+         Το ΔR ισχύει ΜΟΝΟ όσο το παντζούρι/ρολό είναι κλειστό — η εφαρμογή του
+         για όλο το 24ωρο υπερεκτιμά την επίδοση. Το δείχνουμε και ο μηχανικός
+         αποφασίζει με ένα κλικ. */
+      document.getElementById('opU').value=u.toFixed(2);
+      if(sh&&sh.dR>0){
+        const uc=shutU(u,sk);
+        box.style.display='';
+        box.innerHTML='<b>'+sh.lbl+'</b> — ΔR = '+sh.dR.toFixed(2)+' m²K/W (Rsh '+sh.Rsh.toFixed(2)+
+          ' · EN ISO 10077-1, Παρ. G)<br>Με <u>κλειστό</u> το φύλλο: 1/(1/'+u.toFixed(2)+' + '+
+          sh.dR.toFixed(2)+') = <b>'+uc.toFixed(2)+' W/m²K</b> (−'+Math.round((1-uc/u)*100)+'%).<br>'+
+          '<span style="color:#8a5a00">Ισχύει μόνο τις ώρες που είναι κλειστό — στο ΠΕΑ δηλώνεται κατά κανόνα '+
+          'το U ανοιχτού φύλλου ('+u.toFixed(2)+'), που είναι και η τρέχουσα τιμή.</span> '+
+          '<a href="#" id="opShutUse" style="color:#1F4E9C;font-weight:800">Χρήση '+uc.toFixed(2)+' →</a>'+
+          ' &nbsp;<a href="#" id="opShutUndo" style="color:#1F4E9C">↺ '+u.toFixed(2)+'</a>';
+        const us=document.getElementById('opShutUse');
+        if(us)us.onclick=e=>{e.preventDefault();document.getElementById('opU').value=uc.toFixed(2);};
+        const un=document.getElementById('opShutUndo');
+        if(un)un.onclick=e=>{e.preventDefault();document.getElementById('opU').value=u.toFixed(2);};
+      }else box.style.display='none';
+    }else{
+      document.getElementById('opEra').textContent='συνδυασμός εκτός Πίν. 3.13α — δώσε U';
+      box.style.display='none';
+    }
   };
   document.getElementById('opType').onchange=()=>{fillFG();sync();
     if(document.getElementById('opType').value==='door'||document.getElementById('opType').value==='bal'){
@@ -4167,7 +4299,55 @@ function openOpSheet(i){
       document.getElementById('opLintel').value=h3.toFixed(2);
       OPR[opIdx].sill=0;
     }};
-  for(const id of['opFrame','opGlz','opFf'])document.getElementById(id).onchange=sync;
+  for(const id of['opFrame','opGlz','opShut'])document.getElementById(id).onchange=sync;
+  document.getElementById('opLeaf').onchange=()=>{OPR[opIdx].ffAuto=true;ffCalc(true);sync();};
+  document.getElementById('opFf').onchange=()=>{OPR[opIdx].ffAuto=false;sync();};
+  /* αλλαγή διαστάσεων -> νέο γεωμετρικό Ff */
+  for(const id of['opLen','opH','opLintel'])document.getElementById(id)
+    .addEventListener('change',()=>{ffCalc(false);sync();});
+  /* βιβλιοθήκη */
+  const lib=document.getElementById('opLib');
+  lib.onchange=()=>{
+    const L=winLibLoad(), w=L[+lib.value];
+    if(!w)return;
+    document.getElementById('opType').value=w.type;fillFG();
+    document.getElementById('opMech').value=w.mech;
+    document.getElementById('opFrame').value=w.frame;
+    if(w.type!=='door')document.getElementById('opGlz').value=w.glz;
+    document.getElementById('opLeaf').value=String(w.leaf||1);
+    document.getElementById('opShut').value=w.shut||'none';
+    OPR[opIdx].ffAuto=false;
+    document.getElementById('opFf').value=w.ff;
+    sync();
+    document.getElementById('opU').value=(+w.u).toFixed(2);
+    hint('Εφαρμόστηκε ο τύπος «'+w.name+'» από τη βιβλιοθήκη σου.');
+  };
+  document.getElementById('opLibSave').onclick=()=>{
+    const nm=(prompt('Όνομα τύπου κουφώματος (π.χ. «ΑΛΟΥΜΙΝΙΟ ΘΔ 24 ΔΙΦΥΛΛΟ LOW-E»):','')||'').trim();
+    if(!nm)return;
+    const L=winLibLoad();
+    const rec={name:nm,type:document.getElementById('opType').value,
+      mech:document.getElementById('opMech').value,
+      frame:document.getElementById('opFrame').value,
+      glz:document.getElementById('opGlz').value,
+      leaf:+document.getElementById('opLeaf').value||1,
+      ff:+document.getElementById('opFf').value||30,
+      shut:document.getElementById('opShut').value||'none',
+      u:+document.getElementById('opU').value||3.2};
+    const ex=L.findIndex(x=>x.name===nm);
+    if(ex>=0){if(!confirm('Υπάρχει ήδη τύπος «'+nm+'». Αντικατάσταση;'))return;L[ex]=rec;}
+    else L.push(rec);
+    winLibSave(L);winLibFill(lib);lib.value=String(L.findIndex(x=>x.name===nm));
+    hint('Αποθηκεύτηκε στη βιβλιοθήκη: '+nm+' (U '+rec.u.toFixed(2)+' · Ff '+rec.ff+'%)');
+  };
+  document.getElementById('opLibDel').onclick=()=>{
+    const L=winLibLoad(), i2=+lib.value;
+    if(!(i2>=0)||!L[i2]){hint('Διάλεξε πρώτα αποθηκευμένο τύπο.');return;}
+    if(!confirm('Διαγραφή του τύπου «'+L[i2].name+'» από τη βιβλιοθήκη;'))return;
+    L.splice(i2,1);winLibSave(L);winLibFill(lib);
+    hint('Ο τύπος διαγράφηκε.');
+  };
+  sync();
   document.getElementById('opSheet').classList.add('on');
 }
 document.getElementById('opSave').onclick=()=>{
@@ -4180,6 +4360,9 @@ document.getElementById('opSave').onclick=()=>{
     h:+document.getElementById('opH').value||2.20,
     sill:(t==='door'||t==='bal')?0:(+document.getElementById('opSill').value||0),
     pos:document.getElementById('opPos').value||'mid',
+    shut:document.getElementById('opShut').value||'none',
+    leaf:+document.getElementById('opLeaf').value||1,
+    ffAuto:(opIdx>=0&&OPR[opIdx])?OPR[opIdx].ffAuto!==false:true,
     u:+document.getElementById('opU').value||3.2};
   document.getElementById('opSheet').classList.remove('on');draw();
 };
