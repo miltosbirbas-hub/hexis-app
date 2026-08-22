@@ -426,7 +426,7 @@ body:not([data-tab="2"]) #bgBar{display:none}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.68</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.71</small></div>
   <div class="tabs" id="tabs">
     <button class="tab on" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -475,6 +475,11 @@ body:not([data-tab="2"]) #bgBar{display:none}
     <svg viewBox="0 0 24 24"><rect x="3" y="6" width="9" height="12"/><rect x="12" y="6" width="9" height="12" fill="currentColor" fill-opacity="0.45"/></svg>Όμ.Θ</button>
   <button class="ovT" data-ov="ikee" title="Όμορο ΑΓΝΩΣΤΗΣ κατάστασης / ΙΚΕΕ σε επαφή — b=0,5 κατά ΤΕΕ">
     <svg viewBox="0 0 24 24"><rect x="3" y="8" width="9" height="12"/><rect x="12" y="4" width="9" height="16"/></svg>ΙΚΕΕ</button>
+  <div class="sep"></div>
+  <button id="koufListBtn" title="Λίστα κουφωμάτων — δες, εντόπισε, διόρθωσε, διάγραψε ένα-ένα">
+    <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/><path d="M12 4v16M4 12h16"/></svg>Λίστα Κ</button>
+  <button id="projBtn" title="Έργα — τα 5 τελευταία">
+    <svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v11H3z"/></svg>Έργα</button>
   <div class="sep"></div>
   <button id="undo" title="Αναίρεση (Ctrl+Z)">
     <svg viewBox="0 0 24 24"><path d="M8 6L3 11l5 5M3 11h11a6 6 0 0 1 0 12h-2"/></svg>Πίσω</button>
@@ -708,6 +713,14 @@ body:not([data-tab="2"]) #bgBar{display:none}
       <button class="pbtn blue" id="xmlBtn2">XML ΤΕΕ-ΚΕΝΑΚ</button>
       <button class="pbtn" id="viewBtn2">Προβολή XML</button>
     </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 4px">
+      <label style="font-size:11.5px;font-weight:700;color:var(--ink2)">Φορά όψεων:</label>
+      <select id="elevDir" style="max-width:290px;font-size:11.5px"
+        title="Πώς διαβάζεται το ανάπτυγμα οριζόντια">
+        <option value="out" selected>Όπως τη βλέπεις ΑΠΟ ΕΞΩ (Α1→Α2 αριστερά→δεξιά)</option>
+        <option value="mir">Καθρέφτης — ΑΠΟ ΜΕΣΑ (Α1→Α2 δεξιά→αριστερά)</option>
+      </select>
+    </div>
     <p style="font-size:11px;color:var(--ink2);margin-top:8px">Σκαρίφημα: κάτοψη με διαστάσεις + αναπτύγματα όψεων
     με κουφώματα + πίνακες αδιαφανών/διαφανών/συστημάτων — έτοιμο για buildingcert.</p>
   </div>
@@ -907,6 +920,27 @@ body:not([data-tab="2"]) #bgBar{display:none}
   <div class="prow"><button class="pbtn" id="dlgNo">Άκυρο</button><button class="pbtn" id="dlgHgt" style="display:none">Ύψος…</button><button class="pbtn" id="dlgVtx" style="display:none">+ Κορυφή</button><button class="pbtn" id="dlgVtxDel" style="display:none;color:#C43A2B">− Κορυφή</button><button class="pbtn cta" id="dlgOk">Εφαρμογή</button></div>
 </div></div>
 
+<div class="sheet" id="projSheet" style="z-index:70">
+  <div class="shd"><h2>Έργα — τα 5 τελευταία</h2>
+    <button class="pbtn" id="projNew" style="color:#0B7A3B;border-color:#0B7A3B55">＋ Νέο έργο</button>
+    <button class="pbtn cta" id="projClose">Κλείσιμο</button></div>
+  <div style="position:absolute;inset:59px 0 0 0;overflow:auto;padding:16px 14px">
+    <div class="pcardX" style="max-width:620px;margin:0 auto">
+      <div id="projList"></div>
+      <p style="font-size:11px;color:var(--ink2);margin-top:12px">Κρατούνται τα <b>5 πιο πρόσφατα</b> έργα στη συσκευή. Το ενεργό έργο σημειώνεται με ● και ενημερώνεται αυτόματα καθώς δουλεύεις. Η διαγραφή είναι οριστική.</p>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="koufSheet" style="z-index:62">
+  <div class="shd"><h2>Κουφώματα — πλήρης έλεγχος</h2>
+    <button class="pbtn" id="koufDelAll" style="color:#C43A2B;border-color:#C43A2B44">🗑 Διαγραφή όλων</button>
+    <button class="pbtn cta" id="koufClose">Κλείσιμο</button></div>
+  <div style="position:absolute;inset:59px 0 0 0;overflow:auto;padding:16px 14px">
+    <div class="pcardX" style="max-width:680px;margin:0 auto"><div id="koufList"></div></div>
+  </div>
+</div>
+
 <div class="sheet" id="opSheet" style="z-index:60">
   <div class="shd"><h2 id="opTitle">Κούφωμα</h2>
     <button class="pbtn" id="opDel" style="color:#C43A2B;border-color:#C43A2B44">Διαγραφή</button>
@@ -993,9 +1027,9 @@ body:not([data-tab="2"]) #bgBar{display:none}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=99"></script>
-<script src="kenak-xml.js?v=99"></script>
-<script src="kenak-dxf.js?v=99"></script>
+<script src="kenak-data.js?v=102"></script>
+<script src="kenak-xml.js?v=102"></script>
+<script src="kenak-dxf.js?v=102"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -1472,9 +1506,8 @@ function draw(){
   };
   /* τμήματα οροφής (υπόδειξη): γαλαζοπράσινο γέμισμα — ετικέτα ΠΑΝΩ από το κέντρο */
   for(const rp of roofPolys){
-    ctx.beginPath();
-    rp.pts.forEach((q,i2)=>{const S2=w2s(q);i2?ctx.lineTo(S2[0],S2[1]):ctx.moveTo(S2[0],S2[1]);});
-    ctx.closePath();ctx.fillStyle='#0891B215';ctx.fill();
+    pathPolyArc(ctx,rp.pts,rp.bulges,w2s);
+    ctx.fillStyle='#0891B215';ctx.fill();
     ctx.strokeStyle='#0E7490';ctx.lineWidth=1.6;ctx.setLineDash([7,4]);ctx.stroke();ctx.setLineDash([]);
     let cx3=0,cy3=0;rp.pts.forEach(q=>{cx3+=q[0];cy3+=q[1];});
     const S3=w2s([cx3/rp.pts.length,cy3/rp.pts.length]);
@@ -1512,9 +1545,8 @@ function draw(){
       ctx.beginPath();ctx.arc(S2[0],S2[1],4,0,7);ctx.fill();}
   }
   for(const fp of flrPolys){
-    ctx.beginPath();
-    fp.pts.forEach((q,i2)=>{const S2=w2s(q);i2?ctx.lineTo(S2[0],S2[1]):ctx.moveTo(S2[0],S2[1]);});
-    ctx.closePath();ctx.fillStyle='#7A523012';ctx.fill();
+    pathPolyArc(ctx,fp.pts,fp.bulges,w2s);
+    ctx.fillStyle='#7A523012';ctx.fill();
     ctx.strokeStyle='#7A5230';ctx.lineWidth=1.6;ctx.setLineDash([7,4]);ctx.stroke();ctx.setLineDash([]);
     let cx4=0,cy4=0;fp.pts.forEach(q=>{cx4+=q[0];cy4+=q[1];});
     const S4=w2s([cx4/fp.pts.length,cy4/fp.pts.length]);
@@ -1991,7 +2023,7 @@ document.getElementById('undo').onclick=doUndo;
    σενάρια, συστήματα, ΚΑΕΚ και η αποθηκευμένη μελέτη — και ξαναεμφανίζονταν
    στο επόμενο έργο (τα «φαντάσματα» πράσινα κουφώματα στα σκαριφήματα).
    ═══════════════════════════════════════════════════════════════════════ */
-function newProject(silent){
+function newProject(silent,keepBG){
   /* --- γεωμετρία τρέχοντος ορόφου --- */
   verts=[];bulges=[];segH=[];segU=[];closed=false;
   koufLines=[];OPR=[];opIdx=-1;
@@ -2007,10 +2039,13 @@ function newProject(silent){
   try{localStorage.removeItem('kenakTBL');}catch(e){}
   /* --- ΚΑΕΚ --- */
   kSel=null;try{kaekChipSync();}catch(e){}
-  /* --- υπόβαθρο PDF --- */
-  BG=null;calibMode=false;calibPts=[];bgTool=null;bgPts=[];bgOn=true;
-  try{localStorage.removeItem('kenakBG');}catch(e){}
-  try{bgBarShow(false);}catch(e){}
+  /* --- υπόβαθρο PDF (διατηρείται όταν απλώς ανοίγεις άλλο έργο) --- */
+  calibMode=false;calibPts=[];bgTool=null;bgPts=[];
+  if(!keepBG){
+    BG=null;bgOn=true;
+    try{localStorage.removeItem('kenakBG');}catch(e){}
+    try{bgBarShow(false);}catch(e){}
+  }
   /* --- πεδία φόρμας: πίσω στις προεπιλογές του HTML --- */
   for(const id of PFIELDS){
     const el=document.getElementById(id); if(!el)continue;
@@ -2083,6 +2118,17 @@ function askWallKind(){
    DXF IMPORT — σύμβαση layers: ΖΩΝΗ, ΜΘΧ, ΙΚΕΕ, ΕΜΠΟΔΙΑ,
    ΣΚΙΑΣΕΙΣ, ΤΕΝΤΕΣ, ΚΟΥΦΩΜΑΤΑ (LINE)
    ============================================================ */
+/* Διαδρομή πολυγώνου ΤΗΡΩΝΤΑΣ τα τόξα (bulges).
+   Πριν σχεδιαζόταν με σκέτα lineTo ανάμεσα στις κορυφές, δηλαδή κάθε καμπύλη
+   πλευρά γινόταν ΧΟΡΔΗ — η οροφή/δάπεδο δεν ήταν πιστό αντίγραφο της ζώνης. */
+function pathPolyArc(c2,pts,bulges,toScreen,dl){
+  const B=bulges||pts.map(()=>0);
+  const {P}=polyOf(pts,B,dl||0.06,false);
+  if(!P.length)return;
+  c2.beginPath();
+  P.forEach((q,i)=>{const S=toScreen(q);i?c2.lineTo(S[0],S[1]):c2.moveTo(S[0],S[1]);});
+  c2.closePath();
+}
 function polyArea(pl){ /* εμβαδόν πολυγραμμής με bulges */
   const {P}=polyOf(pl.pts,pl.bulges,0.05);return Math.abs(area2(P)/2);}
 function pointInPoly(pt,P){
@@ -2629,7 +2675,9 @@ document.getElementById('pdfBtn').onclick=()=>{
   if(!closed){showErr('Κλείσε πρώτα το περίγραμμα.');return;}
   makeSketchPDF();
 };
+let SLIVERS=0;
 function makeSketchPDF(){
+  SLIVERS=0;
   const q=envelope(), T=buildTables(q), S3=3, Wp=595, Hp=842;
   const na=(+document.getElementById('north').value||0)*Math.PI/180;
   const dl2=+document.getElementById('dl').value||0.10;
@@ -2733,9 +2781,24 @@ function makeSketchPDF(){
       x.fillStyle=col;x.textAlign='center';x.fillText(txtV!==undefined?txtV:N(L2),0,2*S3);
       x.restore();x.textAlign='left';};
     M(x,6.5);
-    const wallP=mergeCol(verts.map(v=>v.slice()));
     const offm=10*S3/sc;
-    for(let i=0;i<wallP.length;i++)dimSide(wallP[i],wallP[(i+1)%wallP.length],'#16202B',offm);
+    /* Μήκος πλευράς: για τοξωτή πλευρά (bulge≠0) το ΠΡΑΓΜΑΤΙΚΟ μήκος τόξου.
+       Πριν γραφόταν η ΧΟΡΔΗ — γι' αυτό η κάτοψη έβγαζε άλλο άθροισμα από τις όψεις. */
+    const sideLen=(i)=>{
+      const a2=verts[i], b2=verts[(i+1)%verts.length], c=dist(a2,b2);
+      const bg=(bulges&&bulges[i])||0;
+      if(Math.abs(bg)<1e-6||c<1e-9)return {L:c,arc:false};
+      const th=4*Math.atan(Math.abs(bg));
+      const R=c/(2*Math.sin(th/2));
+      return {L:R*th,arc:true};
+    };
+    /* Συνευθειακές πλευρές ΧΩΡΙΣ τόξο συγχωνεύονται· οι τοξωτές μένουν αυτόνομες */
+    for(let i=0;i<verts.length;i++){
+      const sl=sideLen(i);
+      if(sl.L<0.3)continue;
+      dimSide(verts[i],verts[(i+1)%verts.length],'#16202B',offm,
+        (sl.arc?'⌒ ':'')+N(sl.L));
+    }
     q.openings.forEach((o,i)=>{
       const l=koufLines[o.src];if(!l)return;          /* ΗΤΑΝ koufLines[i]: λάθος ζευγάρωμα */
       dimSide(l.a,l.b,'#2E8B57',-offm,'Κ'+(i+1)+' '+N(o.len));
@@ -2761,6 +2824,38 @@ function makeSketchPDF(){
   }
   /* ---- ΣΕΛΙΔΕΣ ΑΝΑΠΤΥΓΜΑΤΩΝ ---- */
   const runs=facadeRuns(q,P,na,mtxP,ikeP);
+  /* ΣΥΓΧΩΝΕΥΣΗ ΘΡΥΨΑΛΩΝ: η διακριτοποίηση τόξου σκορπίζει μικρά κομμάτια σε
+     γειτονικούς τομείς 45°, οπότε εμφανίζονταν ανύπαρκτες «όψεις» των 0,50 m.
+     Για το ΣΧΕΔΙΟ τα ενώνουμε με τη γειτονική τους όψη (τα εμβαδά ανά
+     προσανατολισμό στους πίνακες ΔΕΝ αλλάζουν — μόνο η απεικόνιση). */
+  (function mergeSlivers(){
+    const MINL=0.60;
+    const all=[];
+    runs.forEach((rs,k)=>rs.forEach(r=>all.push({k,r,i0:r.segs[0].i})));
+    all.sort((a,b)=>a.i0-b.i0);
+    let moved=0;
+    for(let n=0;n<all.length;n++){
+      const cur=all[n]; if(cur.r.len>=MINL||cur.dead)continue;
+      const cand=[all[n-1],all[n+1]].filter(z=>z&&!z.dead&&z.r.len>=MINL);
+      if(!cand.length)continue;
+      const host=cand.sort((a,b)=>b.r.len-a.r.len)[0];
+      const before=host.i0>cur.i0;
+      if(before){                                  /* το θρύψαλο προηγείται */
+        host.r.segs.forEach(sg=>sg.cum+=cur.r.len);
+        host.r.segs=cur.r.segs.map(sg=>({i:sg.i,L:sg.L,cum:sg.cum-cur.r.segs[0].cum}))
+          .concat(host.r.segs);
+        host.i0=cur.i0;
+      }else{                                       /* έπεται */
+        const base=host.r.len;
+        host.r.segs=host.r.segs.concat(
+          cur.r.segs.map(sg=>({i:sg.i,L:sg.L,cum:base+sg.cum})));
+      }
+      host.r.len+=cur.r.len; host.r.merged=(host.r.merged||0)+cur.r.len;
+      const arr=runs[cur.k], ix=arr.indexOf(cur.r); if(ix>=0)arr.splice(ix,1);
+      cur.dead=true; moved++;
+    }
+    if(moved)SLIVERS=moved;
+  })();
   const cumOf={};  /* pi -> [k, runIdx, cum] */
   runs.forEach((rs,k)=>rs.forEach((r,ri)=>r.segs.forEach(sg=>{cumOf[sg.i]=[k,ri,sg.cum,sg.L];})));
   let x=null,yy=0;
@@ -2775,10 +2870,13 @@ function makeSketchPDF(){
     const blockH=q.hTot*scE+56*S3;
     if(yy+blockH>(Hp-46)*S3)newElevPage();
     x.fillStyle='#1F4E9C';F(x,10,700);
-    x.fillText('ΟΨΗ '+q.S[k]+' ('+(k*45)+'°) — μήκος '+N(q.secLen[k])+' m · καθαρό εμβαδόν '+N(q.secNet[k])+' m²',40*S3,yy+4*S3);
+    x.fillText('ΟΨΗ '+q.S[k]+' ('+(k*45)+'°) — μήκος '+N(q.secLen[k])+' m · καθαρό εμβαδόν '+N(q.secNet[k])+' m²'+
+      (((document.getElementById('elevDir')||{}).value==='mir')?'  [ΑΠΟ ΜΕΣΑ]':'')+
+      (runs[k].some(r=>r.merged)?'  [περιλαμβάνει τμήμα τόξου]':''),40*S3,yy+4*S3);
     yy+=14*S3;
     let xx=40*S3;
     runs[k].forEach((r,ri)=>{
+      const MIR=(document.getElementById('elevDir')||{}).value==='mir';
       const w2=r.len*scE, h2=q.hTot*scE;
       x.strokeStyle='#16202B';x.lineWidth=1.6*S3;x.strokeRect(xx,yy,w2,h2);
       x.fillStyle='#EDF0F2';x.fillRect(xx,yy,w2,h2);
@@ -2794,7 +2892,8 @@ function makeSketchPDF(){
         /* ΘΕΣΗ: cum του τμήματος + ΠΡΑΓΜΑΤΙΚΗ προβολή του κουφώματος πάνω του.
            (Πριν έμπαινε c2[3]/2 = μέσο του ΤΜΗΜΑΤΟΣ — όλα τα κουφώματα του ίδιου
             τοίχου σχεδιάζονταν στο κέντρο, το ένα πάνω στο άλλο.) */
-        const pos=c2[2]+(o.t0!=null?o.t0:0.5)*c2[3];
+        let pos=c2[2]+(o.t0!=null?o.t0:0.5)*c2[3];
+        if(MIR)pos=r.len-pos;                    /* καθρέφτης κατ' επιλογή χρήστη */
         const ow=o.len*scE;
         const hop2=(o.hK&&o.hK>0.2)?o.hK:hop;
         const sill=(o.sill!=null)?Math.max(0,Math.min(+o.sill,q.hTot-0.3))
@@ -2837,8 +2936,14 @@ function makeSketchPDF(){
         x.fillText('ποδιά '+N(sill)+' · πρέκι '+N(sill+hh),ox2+1.5*S3,oy2+oh+7*S3);
         x.textAlign='left';
       });
+      /* ΟΝΟΜΑΤΑ ΚΟΡΥΦΩΝ στα άκρα — ίδια με την κάτοψη, ώστε να ελέγχεις τη φορά */
+      const vA='A'+((r.segs[0].i%verts.length)+1);
+      const vB='A'+(((r.segs[r.segs.length-1].i+1)%verts.length)+1);
+      M(x,6.5);x.fillStyle='#1F4E9C';
+      x.textAlign='left';  x.fillText(MIR?vB:vA,xx+1*S3,yy-3*S3);
+      x.textAlign='right'; x.fillText(MIR?vA:vB,xx+w2-1*S3,yy-3*S3);
       /* διάσταση run */
-      M(x,6.5);x.fillStyle='#16202B';x.textAlign='center';
+      x.fillStyle='#16202B';x.textAlign='center';
       x.fillText(N(r.len)+' m',xx+w2/2,yy+h2+10*S3);
       x.textAlign='left';
       xx+=w2+0.8*scE;
@@ -3474,6 +3579,69 @@ function winLibFill(sel){
   sel.innerHTML='<option value="">— τυπικά ΤΟΤΕΕ (χωρίς αποθηκευμένο τύπο) —</option>';
   L.forEach((w,i)=>{sel.innerHTML+='<option value="'+i+'">'+w.name+'</option>';});
 }
+/* ═══ ΛΙΣΤΑ ΚΟΥΦΩΜΑΤΩΝ — ο χρήστης βλέπει και ελέγχει το ΚΑΘΕΝΑ ═══ */
+function koufOnShell(i){
+  /* απόσταση του κουφώματος i από το κέλυφος (ίδιο κριτήριο με το envelope) */
+  const l=koufLines[i]; if(!l||!verts.length)return 9;
+  const dl2=+document.getElementById('dl').value||0.10;
+  let P;try{P=polyOf(verts,bulges,dl2,true).P;}catch(e){return 9;}
+  const m=[(l.a[0]+l.b[0])/2,(l.a[1]+l.b[1])/2];
+  let best=1e9;
+  for(let k=0;k<P.length;k++){
+    const a=P[k],b=P[(k+1)%P.length];
+    const dx=b[0]-a[0],dy=b[1]-a[1],L2=dx*dx+dy*dy;if(L2<1e-12)continue;
+    const t=Math.max(0,Math.min(1,((m[0]-a[0])*dx+(m[1]-a[1])*dy)/L2));
+    best=Math.min(best,Math.hypot(m[0]-a[0]-t*dx,m[1]-a[1]-t*dy));
+  }
+  return best;
+}
+function koufSnapToShell(i){
+  const l=koufLines[i]; if(!l)return false;
+  const a2=snapToShell(l.a), b2=snapToShell(l.b);
+  if(!a2||!b2)return false;
+  pushUndo('κόλλημα Κ'+(i+1)+' στο κέλυφος');
+  l.a=a2;l.b=b2;draw();if(closed)report(false);pSave();return true;
+}
+function koufZoom(i){
+  const l=koufLines[i];if(!l)return;
+  const m=[(l.a[0]+l.b[0])/2,(l.a[1]+l.b[1])/2];
+  cell=Math.max(20,Math.min(200,cell));
+  ox=W/2-m[0]*cell;oy=H/2+m[1]*cell;draw();
+}
+function koufListRender(){
+  const box=document.getElementById('koufList'); if(!box)return;
+  if(!koufLines.length){box.innerHTML='<div style="padding:14px;color:var(--ink2);font-size:12.5px">'+
+    'Δεν έχεις σχεδιάσει κουφώματα. Εργαλείο «Κούφ.» → σύρε γραμμή πάνω στον τοίχο.</div>';return;}
+  ensureOPR();
+  box.innerHTML=koufLines.map((l,i)=>{
+    const o=OPR[i]||{}, L=dist(l.a,l.b), d=koufOnShell(i), off=d>0.50;
+    return '<div style="display:flex;gap:8px;align-items:center;padding:9px 11px;margin-bottom:7px;'+
+      'border:1px solid '+(off?'#C43A2B':'var(--line)')+';border-radius:11px;'+
+      'background:'+(off?'#C43A2B0d':'#fff')+'">'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-weight:800;font-size:12.5px">Κ'+(i+1)+' · '+L.toFixed(2)+' × '+
+          (+o.h||0).toFixed(2)+' m'+(off?' <span style="color:#C43A2B">— ΕΚΤΟΣ ΤΟΙΧΟΥ '+d.toFixed(2)+' m</span>':'')+'</div>'+
+        '<div style="font-size:11px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+
+          (o.type?oprLabel(o):'—')+' · U '+(+o.u||0).toFixed(2)+' · ποδιά '+(+o.sill||0).toFixed(2)+'</div></div>'+
+      (off?'<button class="pbtn" data-kf="'+i+'" title="Κόλλησέ το στον τοίχο" style="padding:6px 9px;font-size:11.5px;color:#0B7A3B;border-color:#0B7A3B55">⇥ Κόλλα</button>':'')+
+      '<button class="pbtn" data-kz="'+i+'" title="Δείξ\' το" style="padding:6px 9px;font-size:11.5px">🔍</button>'+
+      '<button class="pbtn" data-ke="'+i+'" title="Ιδιότητες" style="padding:6px 9px;font-size:11.5px">✎</button>'+
+      '<button class="pbtn" data-kd="'+i+'" title="Διαγραφή" style="padding:6px 9px;font-size:11.5px;color:#C43A2B;border-color:#C43A2B44">🗑</button>'+
+    '</div>';}).join('');
+  box.querySelectorAll('[data-kz]').forEach(b=>b.onclick=()=>{
+    koufZoom(+b.dataset.kz);document.getElementById('koufSheet').classList.remove('on');});
+  box.querySelectorAll('[data-ke]').forEach(b=>b.onclick=()=>{
+    document.getElementById('koufSheet').classList.remove('on');openOpSheet(+b.dataset.ke);});
+  box.querySelectorAll('[data-kf]').forEach(b=>b.onclick=()=>{
+    if(koufSnapToShell(+b.dataset.kf))koufListRender();
+    else hint('Δεν βρέθηκε τοίχος αρκετά κοντά — μετακίνησέ το με το χέρι.');});
+  box.querySelectorAll('[data-kd]').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.kd;
+    if(!confirm('Διαγραφή του Κ'+(i+1)+'; Δεν αναιρείται.'))return;
+    pushUndo('διαγραφή Κ'+(i+1));
+    koufLines.splice(i,1);OPR.splice(i,1);opIdx=-1;
+    draw();if(closed)report(false);pSave();koufListRender();});
+}
 function ensureOPR(){while(OPR.length<koufLines.length)OPR.push(oprDefault());OPR.length=koufLines.length;}
 document.querySelectorAll('.ovT').forEach(b=>b.onclick=()=>{
   const k=b.dataset.ov;
@@ -3486,8 +3654,10 @@ document.querySelectorAll('.ovT').forEach(b=>b.onclick=()=>{
   draw();
 });
 function copyZoneAsFloorPoly(kindArr){
-  /* αντιγράφει το ίδιο περίγραμμα της ζώνης ως τμήμα οροφής/δαπέδου */
-  return {pts:verts.map(v=>[v[0],v[1]]),bulges:bulges.slice(),kind:kindArr};
+  /* ΠΙΣΤΗ αντιγραφή του περιγράμματος της ζώνης: κορυφές ΚΑΙ τόξα (bulges),
+     ώστε μια καμπύλη πλευρά να μένει καμπύλη και όχι χορδή. */
+  const b=(bulges&&bulges.length===verts.length)?bulges.slice():verts.map(()=>0);
+  return {pts:verts.map(v=>[v[0],v[1]]),bulges:b,kind:kindArr,closed:true};
 }
 document.getElementById('flrT').onclick=()=>{
   if(!flrMode&&closed&&verts.length>=3){
@@ -4611,30 +4781,133 @@ let SCN=[];  /* σενάρια: [{title}] */
 let RWIN=[]; /* παράθυρα στέγης: [{w,h,slope,face,u}] */
 let HX=[];   /* πρόσθετα συστήματα θέρμανσης: [{t,s,p,e}] */
 let CX=[];   /* πρόσθετα συστήματα ψύξης: [{t,p,e}] */
-function pSave(){
-  floorSave();   /* ΚΡΙΣΙΜΟ: χωρίς αυτό η σχεδίαση χανόταν σε κάθε ανανέωση/επανεκκίνηση */
-  const o={scn:SCN,rwin:RWIN,hx:HX,cx:CX,fl:FL,fi,
+/* Πλήρες στιγμιότυπο μελέτης. ΠΡΟΣΟΧΗ: το «ov» (εμπόδια/εξώστες/τέντες/ΜΘΧ/ΙΚΕΕ)
+   ΔΕΝ αποθηκευόταν καθόλου — χανόταν σε κάθε ανανέωση σελίδας. */
+function pSnap(){
+  floorSave();
+  const o={scn:SCN,rwin:RWIN,hx:HX,cx:CX,fl:FL,fi,ov:ov,
     kaek:kSel?{kaek:kSel.kaek,lat:kSel.lat,lon:kSel.lon,area_m2:kSel.area_m2}:null};
   for(const id of PFIELDS){const el=document.getElementById(id);
     if(el)o[id]=el.type==='checkbox'?el.checked:el.value;}
-  try{localStorage.setItem(PSTORE,JSON.stringify(o));}catch(e){}
-  try{stepSync();}catch(e){}
+  return o;
 }
-function pLoad(){
-  let o=null;try{o=JSON.parse(localStorage.getItem(PSTORE)||'null');}catch(e){}
+function pApply(o){
   if(!o)return;
   for(const id of PFIELDS){const el=document.getElementById(id);
     if(el&&o[id]!==undefined){if(el.type==='checkbox')el.checked=!!o[id];else el.value=o[id];}}
   if(o.kaek&&o.kaek.kaek){kSel=o.kaek;kSel.base=String(kSel.kaek).split('/')[0];kaekChipSync();}
-  SCN=Array.isArray(o.scn)?o.scn:[];scnRender();
+  else{kSel=null;try{kaekChipSync();}catch(e){}}
+  SCN=Array.isArray(o.scn)?o.scn:[];try{scnRender();}catch(e){}
   RWIN=Array.isArray(o.rwin)?o.rwin:[];try{rwRender();}catch(e){}
   HX=Array.isArray(o.hx)?o.hx:[];try{hxRender();}catch(e){}
   CX=Array.isArray(o.cx)?o.cx:[];try{cxRender();}catch(e){}
+  if(o.ov&&typeof o.ov==='object'){
+    ov={mtx:[],ikee:[],empodia:[],skiaseis:[],tentes:[],omth:[],sun:[]};
+    for(const k in ov)if(Array.isArray(o.ov[k]))ov[k]=o.ov[k];
+  }
   if(Array.isArray(o.fl)&&o.fl.length){
     FL=o.fl;fi=Math.max(0,Math.min(o.fi||0,FL.length-1));
     floorLoad(FL[fi]);
   }
+  try{floorChip();}catch(e){}
+  try{koufListRender();}catch(e){}
+  draw();
 }
+function pSave(){
+  const o=pSnap();
+  try{localStorage.setItem(PSTORE,JSON.stringify(o));}catch(e){}
+  try{projTouch(o);}catch(e){}
+  try{stepSync();}catch(e){}
+  try{koufListRender();}catch(e){}
+}
+function pLoad(){
+  let o=null;try{o=JSON.parse(localStorage.getItem(PSTORE)||'null');}catch(e){}
+  pApply(o);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ΕΡΓΑ — έως 5 πρόσφατα, με ρητή επιλογή του χρήστη. Τίποτα δεν φορτώνεται
+   και τίποτα δεν σβήνεται χωρίς να το ζητήσει.
+   ═══════════════════════════════════════════════════════════════════════ */
+const PROJ_KEY='hexis-kenak-projects', PROJ_CUR='hexis-kenak-cur', PROJ_MAX=5;
+function projList(){try{const a=JSON.parse(localStorage.getItem(PROJ_KEY)||'[]');
+  return Array.isArray(a)?a:[];}catch(e){return [];}}
+function projWrite(a){try{localStorage.setItem(PROJ_KEY,JSON.stringify(a.slice(0,PROJ_MAX)));}catch(e){}}
+function projCur(){try{return localStorage.getItem(PROJ_CUR)||'';}catch(e){return '';}}
+function projSetCur(id){try{localStorage.setItem(PROJ_CUR,id||'');}catch(e){}}
+function projTitle(o){
+  const n=(o&&o.p_num||'').trim(), ow=(o&&o.p_owner||'').trim(), ad=(o&&o.p_addr||'').trim();
+  return n||ow||ad||'Έργο χωρίς ονομασία';
+}
+/* Κρατά ενημερωμένο τον φάκελο του ΤΡΕΧΟΝΤΟΣ έργου (χωρίς να δημιουργεί νέο άδειο) */
+function projTouch(o){
+  const hasWork=(o.fl&&o.fl.length&&o.fl[0]&&o.fl[0].verts&&o.fl[0].verts.length)||
+                (o.p_num&&o.p_num.trim());
+  if(!hasWork)return;
+  let id=projCur();
+  const a=projList();
+  if(!id){id='P'+Date.now().toString(36);projSetCur(id);}
+  const rec={id,name:projTitle(o),ts:Date.now(),data:o};
+  const i=a.findIndex(x=>x.id===id);
+  if(i>=0)a.splice(i,1);
+  a.unshift(rec);
+  projWrite(a);
+}
+function projOpen(id){
+  const r=projList().find(x=>x.id===id);
+  if(!r){showErr('Το έργο δεν βρέθηκε.');return;}
+  newProject(true,true);         /* καθαρό ξεκίνημα, το υπόβαθρο μένει */
+  projSetCur(id);
+  pApply(r.data);
+  try{localStorage.setItem(PSTORE,JSON.stringify(r.data));}catch(e){}
+  try{stepSync();}catch(e){}
+  hint('Άνοιξε το έργο: '+r.name);
+}
+function projDelete(id){
+  const a=projList(), r=a.find(x=>x.id===id); if(!r)return;
+  if(!confirm('ΟΡΙΣΤΙΚΗ ΔΙΑΓΡΑΦΗ\n\n«'+r.name+'»\n\nΔεν αναιρείται. Συνέχεια;'))return;
+  projWrite(a.filter(x=>x.id!==id));
+  if(projCur()===id){projSetCur('');try{localStorage.removeItem(PSTORE);}catch(e){}}
+  projDlgRender();
+  hint('Το έργο διαγράφηκε.');
+}
+function projRename(id){
+  const a=projList(), r=a.find(x=>x.id===id); if(!r)return;
+  const nn=(prompt('Νέα ονομασία έργου:',r.name)||'').trim();
+  if(!nn)return;
+  r.name=nn; if(r.data)r.data.p_num=nn;
+  projWrite(a);
+  if(projCur()===id){const el=document.getElementById('p_num');if(el)el.value=nn;}
+  projDlgRender();
+}
+function projDlgRender(){
+  const box=document.getElementById('projList'); if(!box)return;
+  const a=projList();
+  if(!a.length){box.innerHTML='<div style="padding:14px;color:var(--ink2);font-size:12.5px">'+
+    'Δεν υπάρχουν αποθηκευμένα έργα ακόμη.</div>';return;}
+  box.innerHTML=a.map(r=>{
+    const d=new Date(r.ts), cur=projCur()===r.id;
+    const nf=(r.data&&r.data.fl&&r.data.fl.length)||0;
+    const nk=(r.data&&r.data.fl&&r.data.fl[0]&&r.data.fl[0].kouf&&r.data.fl[0].kouf.length)||0;
+    return '<div style="display:flex;gap:8px;align-items:center;padding:10px 12px;'+
+      'border:1px solid '+(cur?'#E8772E':'var(--line)')+';border-radius:11px;margin-bottom:8px;'+
+      'background:'+(cur?'#E8772E10':'#fff')+'">'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-weight:800;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+
+          (cur?'● ':'')+r.name+'</div>'+
+        '<div style="font-size:11px;color:var(--ink2)">'+d.toLocaleDateString('el-GR')+' '+
+          d.toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'})+
+          ' · '+nf+' όροφ. · '+nk+' κουφ.</div></div>'+
+      '<button class="pbtn cta" data-op="'+r.id+'" style="padding:6px 12px;font-size:11.5px">Άνοιγμα</button>'+
+      '<button class="pbtn" data-rn="'+r.id+'" title="Μετονομασία" style="padding:6px 9px;font-size:11.5px">✎</button>'+
+      '<button class="pbtn" data-dl="'+r.id+'" title="Διαγραφή" style="padding:6px 9px;font-size:11.5px;color:#C43A2B;border-color:#C43A2B44">🗑</button>'+
+    '</div>';}).join('');
+  box.querySelectorAll('[data-op]').forEach(b=>b.onclick=()=>{
+    projOpen(b.dataset.op);document.getElementById('projSheet').classList.remove('on');});
+  box.querySelectorAll('[data-rn]').forEach(b=>b.onclick=()=>projRename(b.dataset.rn));
+  box.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>projDelete(b.dataset.dl));
+}
+function projDlgOpen(){projDlgRender();document.getElementById('projSheet').classList.add('on');}
 for(const id of PFIELDS){const el=document.getElementById(id);
   if(el)el.addEventListener('change',pSave);}
 
@@ -5536,7 +5809,37 @@ document.getElementById('viewBtn2').onclick=()=>document.getElementById('viewBtn
     'Θερμογέφυρες: προ 1979 αμελητέες · 1979-2010 +0,10 W/m²K αυτόματα.';
 })();
 try{fillSysSelects();}catch(e){console.error('fillSysSelects',e);}
-try{pLoad();}catch(e){console.error('pLoad',e);}
+document.getElementById('koufListBtn').onclick=()=>{koufListRender();
+  document.getElementById('koufSheet').classList.add('on');};
+document.getElementById('koufClose').onclick=()=>document.getElementById('koufSheet').classList.remove('on');
+document.getElementById('koufDelAll').onclick=()=>{
+  if(!koufLines.length){hint('Δεν υπάρχουν κουφώματα.');return;}
+  if(!confirm('Διαγραφή ΚΑΙ ΤΩΝ '+koufLines.length+' κουφωμάτων του ορόφου; Δεν αναιρείται.'))return;
+  pushUndo('διαγραφή όλων των κουφωμάτων');
+  koufLines.length=0;OPR.length=0;opIdx=-1;
+  draw();if(closed)report(false);pSave();koufListRender();
+  hint('Όλα τα κουφώματα διαγράφηκαν.');};
+document.getElementById('projBtn').onclick=projDlgOpen;
+document.getElementById('projClose').onclick=()=>document.getElementById('projSheet').classList.remove('on');
+document.getElementById('projNew').onclick=()=>{
+  if(!confirm('ΝΕΟ ΕΡΓΟ\n\nΤο τρέχον παραμένει αποθηκευμένο στη λίστα. Συνέχεια;'))return;
+  projSetCur('');try{localStorage.removeItem(PSTORE);}catch(e){}
+  newProject(false);
+  document.getElementById('projSheet').classList.remove('on');};
+
+/* ═══ ΕΚΚΙΝΗΣΗ: ΡΩΤΑΜΕ. Δεν φορτώνεται τίποτα από μόνο του. ═══ */
+(function startup(){
+  const a=projList();
+  if(!a.length){try{pLoad();}catch(e){console.error('pLoad',e);}return;}
+  setTimeout(()=>{
+    const last=a[0], d=new Date(last.ts);
+    const msg='ΚΑΛΩΣ ΗΡΘΕΣ\n\nΤελευταίο έργο: «'+last.name+'»\n('+
+      d.toLocaleDateString('el-GR')+' '+d.toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'})+')\n\n'+
+      'OK  = συνέχεια σε αυτό\nΆκυρο = διάλεξε άλλο ή ξεκίνα νέο ('+a.length+' αποθηκευμένα)';
+    if(confirm(msg)){projOpen(last.id);}
+    else{newProject(true,true);projSetCur('');projDlgOpen();}
+  },350);
+})();
 try{bgLoad();}catch(e){console.error('bgLoad',e);}
 try{bgBarLoadUI();bgBarInitDrag();}catch(e){console.error('bgBarUI',e);}
 try{fitTools();}catch(e){console.error('fitTools',e);}
