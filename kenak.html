@@ -426,7 +426,7 @@ body:not([data-tab="2"]) #bgBar{display:none}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.75</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.76</small></div>
   <div class="tabs" id="tabs">
     <button class="tab on" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -436,6 +436,8 @@ body:not([data-tab="2"]) #bgBar{display:none}
   </div>
   <div class="steps" id="steps"></div>
   <div class="hint" id="hint">Σχεδίασε ή εισήγαγε DXF</div>
+  <button class="pbtn cta" id="guideBtn" title="Οδηγός βημάτων — τι πρέπει να κάνεις τώρα"
+    style="padding:5px 12px;font-size:calc(11.5px*var(--ts,1));font-weight:900;white-space:nowrap;flex:0 0 auto">☑ ΟΔΗΓΟΣ</button>
   <button id="helpBtn" title="Βοήθεια: σκίτσα γωνιών σκίασης, στάθμες, νομοθεσία" aria-label="Βοήθεια">?</button>
 </div>
 <div id="subSteps"></div>
@@ -564,7 +566,7 @@ body:not([data-tab="2"]) #bgBar{display:none}
         </select></div>
       <div><label>U τοιχ. <a href="#" onclick="uFromYear();return false" style="font-size:9.5px;color:var(--brb)" title="Τυπικές τιμές Πίν.3.5α/β από το έτος άδειας">από έτος;</a></label><input id="uw" type="number" inputmode="decimal" value="2.20" step="0.05" title="U τοιχοποιίας πλήρωσης W/m²K"></div>
       <div style="grid-column:1/-1"><label>Τύπος οροφής (Πίν. 3.5β ΤΟΤΕΕ)</label>
-        <select id="roofT" title="Καθορίζει το τυπικό U της οροφής ανάλογα με το έτος κατασκευής"></select></div>
+        <select id="roofType" title="Καθορίζει το τυπικό U της οροφής ανάλογα με το έτος κατασκευής"></select></div>
       <div><label>U οροφής</label><input id="uroof" type="number" inputmode="decimal" value="3.05" step="0.05"
         title="W/m²K — προτείνεται από τύπο οροφής + έτος· μπορείς να το αλλάξεις"></div>
       <div><label>U δαπέδου εδάφ.</label><input id="ugr" type="number" inputmode="decimal" value="3.10" step="0.05"
@@ -942,6 +944,18 @@ body:not([data-tab="2"]) #bgBar{display:none}
   <div class="prow"><button class="pbtn" id="dlgNo">Άκυρο</button><button class="pbtn" id="dlgHgt" style="display:none">Ύψος…</button><button class="pbtn" id="dlgVtx" style="display:none">+ Κορυφή</button><button class="pbtn" id="dlgVtxDel" style="display:none;color:#C43A2B">− Κορυφή</button><button class="pbtn cta" id="dlgOk">Εφαρμογή</button></div>
 </div></div>
 
+<div class="sheet" id="guideSheet" style="z-index:68">
+  <div class="shd"><h2>Οδηγός επιθεώρησης</h2>
+    <button class="pbtn cta" id="guideClose">Κλείσιμο</button></div>
+  <div style="position:absolute;inset:59px 0 0 0;overflow:auto;padding:14px">
+    <div class="pcardX" style="max-width:660px;margin:0 auto">
+      <div id="guideNext" style="border:2px solid #E8772E;background:#E8772E12;border-radius:13px;
+        padding:13px 14px;margin-bottom:14px"></div>
+      <div id="guideList"></div>
+    </div>
+  </div>
+</div>
+
 <div class="sheet" id="projSheet" style="z-index:70">
   <div class="shd"><h2>Έργα — τα 5 τελευταία</h2>
     <button class="pbtn" id="projNew" style="color:#0B7A3B;border-color:#0B7A3B55">＋ Νέο έργο</button>
@@ -1049,9 +1063,9 @@ body:not([data-tab="2"]) #bgBar{display:none}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=106"></script>
-<script src="kenak-xml.js?v=106"></script>
-<script src="kenak-dxf.js?v=106"></script>
+<script src="kenak-data.js?v=107"></script>
+<script src="kenak-xml.js?v=107"></script>
+<script src="kenak-dxf.js?v=107"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -2102,7 +2116,10 @@ function newProject(silent,keepBG){
   try{undoBtnSync();}catch(e){}
   try{stepSync();}catch(e){}
   draw();
-  if(!silent)hint('Νέο έργο — όλα μηδενίστηκαν. Πάτα για κορυφές περιγράμματος.');
+  if(!silent){
+    hint('Νέο έργο — όλα μηδενίστηκαν.');
+    try{setTimeout(guideOpen,250);}catch(e){}   /* δείξε αμέσως το βήμα 1 */
+  }
 }
 document.getElementById('clear').onclick=()=>{
   const hasWork=verts.length||koufLines.length||FL.length>1||SCN.length||RWIN.length||BG;
@@ -5013,7 +5030,7 @@ const PSTORE='hexis-kenak-v1';
 const PFIELDS=['p_num','p_owner','p_addr','p_phone','p_mail','p_afm',
   's_heat','s_heatT','s_heatS','s_heatP','s_heatE','s_cool','s_coolT','s_coolP','s_coolE','s_dhw','s_dhwT','s_dhwP','s_dhwE','s_solA','s_dhwN',
   'use','czone','year','fopct','ufo','uw','beamH','north','hfloor','floors','dl','hopen','hobs',
-  'roofT','uroof','ugr','absorp','emis'];
+  'roofType','uroof','ugr','absorp','emis'];
 let SCN=[];  /* σενάρια: [{title}] */
 let RWIN=[]; /* παράθυρα στέγης: [{w,h,slope,face,u}] */
 let HX=[];   /* πρόσθετα συστήματα θέρμανσης: [{t,s,p,e}] */
@@ -5239,7 +5256,7 @@ document.getElementById('cxAdd').onclick=()=>{
 };
 document.getElementById('use').addEventListener('change',fillSysSelects);
 try{roofFill(false);}catch(e){}
-document.getElementById('roofT').addEventListener('change',roofUApply);
+document.getElementById('roofType').addEventListener('change',roofUApply);
 document.getElementById('year').addEventListener('change',()=>{roofFill(true);});
 for(const id of ['uroof','ugr','absorp','emis'])
   document.getElementById(id).addEventListener('change',()=>{if(closed)report(false);pSave();});
@@ -5909,7 +5926,7 @@ function roofTable(){
   return y<1979?KENAK_DATA.typicalU.horizontalNone:KENAK_DATA.typicalU.horizontalKthk;
 }
 function roofFill(keepSel){
-  const sel=document.getElementById('roofT'); if(!sel)return;
+  const sel=document.getElementById('roofType'); if(!sel)return;
   const T=roofTable(), cur=keepSel?sel.value:null;
   sel.innerHTML='';
   for(const k in T){
@@ -5920,7 +5937,7 @@ function roofFill(keepSel){
   if(cur&&[...sel.options].some(o=>o.value===cur))sel.value=cur;
 }
 function roofUApply(){
-  const sel=document.getElementById('roofT'), T=roofTable();
+  const sel=document.getElementById('roofType'), T=roofTable();
   const a=T[sel.value]; if(!a)return;
   const v=a.find(x=>x!=null); if(v==null)return;
   document.getElementById('uroof').value=v.toFixed(2);
@@ -6096,6 +6113,8 @@ document.getElementById('koufDelAll').onclick=()=>{
   try{rwRender();}catch(e){}
   elemAfterChange();
   hint('Καθαρίστηκαν '+n+' στοιχεία — το περίγραμμα έμεινε. «◀ Πίσω» για επαναφορά.');};
+document.getElementById('guideBtn').onclick=guideOpen;
+document.getElementById('guideClose').onclick=()=>document.getElementById('guideSheet').classList.remove('on');
 document.getElementById('projBtn').onclick=projDlgOpen;
 document.getElementById('projBtn2').onclick=projDlgOpen;
 document.getElementById('clear2').onclick=()=>document.getElementById('clear').onclick();
@@ -6300,7 +6319,99 @@ const SUBSTEPS=[
  [ {t:'Σκαρίφημα PDF',opt:true,done:()=>PDF_DONE,go:()=>document.getElementById('pdfBtn').onclick()},
    {t:'Εξαγωγή XML',done:()=>XML_DONE,go:()=>document.getElementById('xmlBtn').onclick()} ]];
 let PDF_DONE=false;
+/* ═══════════════════════════════════════════════════════════════════════
+   ΟΔΗΓΟΣ — 7 βήματα με τα υπο-βήματά τους. Για κάθε γραμμή φαίνεται:
+   αν έγινε, τι ακριβώς λείπει, και κουμπί που σε πάει ΕΚΕΙ.
+   Γραμμένος για να τον ακολουθεί και κάποιος που δεν έχει ξανακάνει ΠΕΑ.
+   ═══════════════════════════════════════════════════════════════════════ */
+const STEP_HELP=[
+ 'Ποιος είναι ο ιδιοκτήτης και πού είναι το κτίριο. Χωρίς αυτά το ΠΕΑ δεν έχει ταυτότητα.',
+ 'Δείξε το ακίνητο στον χάρτη για να πάρει ΚΑΕΚ και κλιματική ζώνη. Η ζώνη αλλάζει τα πάντα στους υπολογισμούς.',
+ 'Σχεδίασε το περίγραμμα της θερμαινόμενης ζώνης και κλείσ\' το. Ό,τι είναι μέσα θερμαίνεται, ό,τι έξω όχι.',
+ 'Πέρασε τα κουφώματα πάνω στους τοίχους και δώσε τους διαστάσεις και ιδιότητες.',
+ 'Τι σύστημα θέρμανσης/ψύξης/ΖΝΧ υπάρχει. Αν δεν υπάρχει, το ΤΟΤΕΕ βάζει θεωρητικό — δεν το γράφεις εσύ.',
+ 'Τουλάχιστον ένα σενάριο παρεμβάσεων. Το ΠΕΑ χωρίς προτάσεις δεν γίνεται δεκτό.',
+ 'Το τελικό αρχείο που ανοίγεις στο ΤΕΕ-ΚΕΝΑΚ.'];
+const STEP_WHY=[
+ 'Γράψε ονομασία, ιδιοκτήτη, 9ψήφιο ΑΦΜ και διεύθυνση.',
+ 'Πάτα «ΚΑΕΚ», βρες το ακίνητο στον χάρτη, επίλεξέ το.',
+ 'Πάτα στον καμβά για κορυφές· στο τέλος «Κλείσε εδώ».',
+ 'Εργαλείο «Κούφ.» → σύρε γραμμή πάνω στον τοίχο. Μετά άνοιξέ το για διαστάσεις.',
+ 'Καρτέλα «Συστήματα» → τσέκαρε τι υπάρχει και δώσε βαθμούς απόδοσης.',
+ 'Καρτέλα «Σενάρια» → πρόσθεσε παρέμβαση ή πάτα «Πρόταση ΑΙ».',
+ 'Πάτα «XML ΤΕΕ-ΚΕΝΑΚ» και κατέβασε το αρχείο.'];
+function guideData(){
+  return STEPS.map((st,i)=>{
+    let d=false;try{d=!!st.done();}catch(e){}
+    const subs=(SUBSTEPS[i]||[]).map(sb=>{
+      let sd=false;try{sd=!!sb.done();}catch(e){}
+      return {t:sb.t,done:sd,opt:!!sb.opt,go:sb.go};
+    });
+    return {i,t:st.t,full:st.full,done:d,go:st.go,subs,
+      help:STEP_HELP[i]||'',why:STEP_WHY[i]||''};
+  });
+}
+function guideRender(){
+  const list=document.getElementById('guideList'), nx=document.getElementById('guideNext');
+  if(!list)return;
+  const G=guideData();
+  const doneN=G.filter(g=>g.done).length;
+  const cur=G.find(g=>!g.done);
+  /* ── τι πρέπει να κάνεις ΤΩΡΑ ── */
+  if(!cur){
+    nx.innerHTML='<div style="font-weight:900;font-size:14px;color:#0B7A3B">✓ Όλα τα βήματα ολοκληρώθηκαν</div>'+
+      '<div style="font-size:12px;color:var(--ink2);margin-top:5px">Η επιθεώρηση είναι πλήρης. '+
+      'Μπορείς να ξαναβγάλεις XML ή σκαρίφημα όποτε θες.</div>';
+  }else{
+    const miss=cur.subs.filter(x=>!x.done&&!x.opt).map(x=>x.t);
+    nx.innerHTML='<div style="font-size:10.5px;letter-spacing:.1em;color:var(--brb);font-weight:800">'+
+      'ΒΗΜΑ '+(cur.i+1)+' ΑΠΟ '+G.length+' — ΚΑΝΕ ΤΩΡΑ ΑΥΤΟ</div>'+
+      '<div style="font-weight:900;font-size:15px;margin:3px 0 5px">'+cur.full+'</div>'+
+      '<div style="font-size:12.5px;line-height:1.45">'+cur.why+'</div>'+
+      (miss.length?('<div style="font-size:11.5px;color:#C43A2B;margin-top:6px">Λείπει: '+miss.join(' · ')+'</div>'):'')+
+      '<div style="font-size:11.5px;color:var(--ink2);margin-top:7px">'+cur.help+'</div>'+
+      '<button class="pbtn cta" id="guideGo" style="margin-top:10px;width:100%;font-weight:900">'+
+        'Πάμε στο βήμα '+(cur.i+1)+' →</button>';
+  }
+  /* ── πλήρης εικόνα ── */
+  list.innerHTML='<div style="font-size:11.5px;color:var(--ink2);margin-bottom:9px">'+
+      'Ολοκληρωμένα '+doneN+' από '+G.length+' βήματα</div>'+
+    G.map(g=>{
+      const isCur=cur&&g.i===cur.i;
+      const mark=g.done?'<span style="color:#0B7A3B;font-weight:900">✓</span>'
+        :(isCur?'<span style="color:#E8772E;font-weight:900">▶</span>'
+        :'<span style="color:var(--ink2)">○</span>');
+      return '<div style="border:1px solid '+(isCur?'#E8772E':(g.done?'#0B7A3B44':'var(--line)'))+
+        ';border-radius:12px;padding:10px 12px;margin-bottom:8px;background:'+
+        (g.done?'#0B7A3B08':(isCur?'#E8772E08':'#fff'))+'">'+
+        '<div style="display:flex;gap:8px;align-items:center">'+
+          '<div style="font-family:var(--num);font-size:12px;color:var(--ink2);min-width:16px">'+(g.i+1)+'</div>'+
+          '<div style="flex:1;min-width:0"><div style="font-weight:800;font-size:13px">'+mark+' '+g.full+'</div></div>'+
+          '<button class="pbtn" data-gs="'+g.i+'" style="padding:5px 11px;font-size:11.5px">'+
+            (g.done?'Άνοιξε':'Πάμε')+'</button></div>'+
+        (g.subs.length?('<div style="margin:7px 0 0 24px;display:flex;flex-direction:column;gap:4px">'+
+          g.subs.map((sb,j)=>'<div style="display:flex;gap:7px;align-items:center;font-size:11.5px;'+
+            'color:'+(sb.done?'#0B7A3B':(sb.opt?'var(--ink2)':'#C43A2B'))+'">'+
+            '<span>'+(sb.done?'✓':(sb.opt?'○':'✕'))+'</span>'+
+            '<span style="flex:1">'+sb.t+(sb.opt&&!sb.done?' <i style="color:var(--ink2);font-style:normal">(προαιρετικό)</i>':'')+'</span>'+
+            (sb.done?'':'<button class="pbtn" data-gsub="'+g.i+'.'+j+'" style="padding:3px 8px;font-size:10.5px">→</button>')+
+          '</div>').join('')+'</div>'):'')+
+      '</div>';}).join('');
+  const gg=document.getElementById('guideGo');
+  if(gg&&cur)gg.onclick=()=>{document.getElementById('guideSheet').classList.remove('on');
+    try{cur.go();}catch(e){}};
+  list.querySelectorAll('[data-gs]').forEach(b=>b.onclick=()=>{
+    document.getElementById('guideSheet').classList.remove('on');
+    try{G[+b.dataset.gs].go();}catch(e){}});
+  list.querySelectorAll('[data-gsub]').forEach(b=>b.onclick=()=>{
+    const [a,c]=b.dataset.gsub.split('.').map(Number);
+    document.getElementById('guideSheet').classList.remove('on');
+    try{G[a].subs[c].go();}catch(e){}});
+}
+function guideOpen(){guideRender();document.getElementById('guideSheet').classList.add('on');}
 function stepSync(){
+  const gs=document.getElementById('guideSheet');
+  if(gs&&gs.classList.contains('on')){try{guideRender();}catch(e){}}
   const el=document.getElementById('steps');if(!el)return;
   let cur=-1;
   const st=STEPS.map((s,i)=>{const d=!!s.done();if(!d&&cur<0)cur=i;return d;});
