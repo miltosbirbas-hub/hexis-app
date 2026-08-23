@@ -426,7 +426,7 @@ body:not([data-tab="2"]) #bgBar{display:none}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.73</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.74</small></div>
   <div class="tabs" id="tabs">
     <button class="tab on" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -1035,9 +1035,9 @@ body:not([data-tab="2"]) #bgBar{display:none}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=104"></script>
-<script src="kenak-xml.js?v=104"></script>
-<script src="kenak-dxf.js?v=104"></script>
+<script src="kenak-data.js?v=105"></script>
+<script src="kenak-xml.js?v=105"></script>
+<script src="kenak-dxf.js?v=105"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -3023,20 +3023,67 @@ function makeSketchPDF(){
   hint('Σκαρίφημα PDF: κάτοψη + αναπτύγματα + πίνακες');
 }
 
+/* Αυτόματη διόρθωση τιμών εκτός ορίων ΤΟΤΕΕ, ώστε η εξαγωγή να ΜΗΝ μπλοκάρει.
+   Επιστρέφει τι ακριβώς άλλαξε, για να το δει ο μηχανικός. */
+function xmlAutofix(){
+  const S=sysSuggest(), D=S.D, done=[];
+  const set=(id,v,txt)=>{const el=document.getElementById(id);
+    if(!el)return; if(String(el.value)===String(v))return;
+    done.push(txt+': '+el.value+' → '+v); el.value=v;};
+  if(document.getElementById('s_heat').checked){
+    const t=document.getElementById('s_heatT').value;
+    const e=+document.getElementById('s_heatE').value||0;
+    const srcEl=document.getElementById('s_heatS');
+    if(t==='Λέβητας'){
+      if(e>1.001||e<D.boiler.range[0]||e>D.boiler.range[1])
+        set('s_heatE',(S.year<1990?0.75:0.80),'Βαθμός λέβητα (εκτός ορίων ΤΟΤΕΕ)');
+    }else if(/Α\.Θ\.|Γεωθερμ/i.test(t)){
+      if(e<D.heatPumpSCOP.range[0]||e>D.heatPumpSCOP.range[1])
+        set('s_heatE',S.scop,'SCOP αντλίας (εκτός ορίων)');
+      if(srcEl&&!/Ηλεκτρ/i.test(srcEl.value)){
+        const o=[...srcEl.options].find(x=>/Ηλεκτρ/i.test(x.value));
+        if(o){done.push('Πηγή θέρμανσης: '+srcEl.value+' → '+o.value);srcEl.value=o.value;}
+      }
+    }else if(/ηλεκτρικές/i.test(t)){
+      if(Math.abs(e-1)>0.001)set('s_heatE',1,'Βαθμός τοπικών ηλεκτρικών');
+      if(srcEl&&!/Ηλεκτρ/i.test(srcEl.value)){
+        const o=[...srcEl.options].find(x=>/Ηλεκτρ/i.test(x.value));
+        if(o){done.push('Πηγή θέρμανσης: '+srcEl.value+' → '+o.value);srcEl.value=o.value;}
+      }
+    }
+  }
+  if(document.getElementById('s_cool')&&document.getElementById('s_cool').checked){
+    const e=+document.getElementById('s_coolE').value||0;
+    if(e<D.coolingSEER.range[0]||e>D.coolingSEER.range[1])
+      set('s_coolE',S.seer,'SEER ψύξης (εκτός ορίων)');
+  }
+  if(done.length){try{sysCheckRender();pSave();}catch(e){}}
+  return done;
+}
 document.getElementById('xmlBtn').onclick=async()=>{
-  /* Σειρά: 1 κέλυφος, 2 έλεγχος ΤΟΤΕΕ, 3 token, 4 εξαγωγή — με σαφές μήνυμα παντού */
+  /* Η εξαγωγή ΔΕΝ μπλοκάρεται ποτέ από ελέγχους. Το μόνο πραγματικό εμπόδιο
+     είναι κλειστό περίγραμμα — χωρίς αυτό δεν υπάρχει κέλυφος να γραφτεί. */
   if(!closed){
-    alert('Το XML δεν εξήχθη: δεν έχει κλείσει το περίγραμμα του κελύφους.\nΠήγαινε στο tab «Κέλυφος» (βήμα 3) και πάτα «Κλείσε περίγραμμα».');
-    setTab(2);return;
+    if(verts.length>=3&&confirm('Το περίγραμμα δεν έχει κλείσει.\n\nΝα το κλείσω τώρα ('+
+      verts.length+' κορυφές) και να συνεχίσω στην εξαγωγή;')){
+      try{finish();}catch(e){}
+    }
+    if(!closed){
+      hint('Χρειάζεται κλειστό περίγραμμα — σχεδίασε τη ζώνη και πάτα «Κλείσε εδώ».');
+      setTab(2);return;
+    }
   }
   const ck=sysCheck();
-  if(ck.errors.length){
-    setTab(3);sysCheckRender();
-    alert('Το XML δεν εξήχθη — διόρθωσε πρώτα στα Συστήματα:\n\n• '+ck.errors.join('\n• '));
-    return;
-  }
-  if(ck.warns.length&&!confirm('Προειδοποιήσεις ΤΟΤΕΕ:\n\n• '+ck.warns.join('\n• ')+'\n\nΣυνέχεια στην εξαγωγή XML;')){
-    setTab(3);sysCheckRender();return;
+  if(ck.errors.length||ck.warns.length){
+    const msg='ΕΛΕΓΧΟΣ ΠΡΙΝ ΤΗΝ ΕΞΑΓΩΓΗ\n\n'+
+      (ck.errors.length?('Εκτός ορίων ΤΟΤΕΕ:\n• '+ck.errors.join('\n• ')+'\n\n'):'')+
+      (ck.warns.length?('Προσοχή:\n• '+ck.warns.join('\n• ')+'\n\n'):'')+
+      'OK = διόρθωση στις τυπικές τιμές ΤΟΤΕΕ και εξαγωγή\n'+
+      'Άκυρο = εξαγωγή ΩΣ ΕΧΕΙ (οι τιμές μένουν δικές σου)';
+    if(confirm(msg)){
+      const fixed=xmlAutofix();
+      if(fixed.length)hint('Διορθώθηκαν: '+fixed.join(' · '));
+    }
   }
   /* ΧΡΕΩΣΗ TOKEN ΠΕΑ: 1 ανά εξαγωγή (ΜΕΤΑ τους ελέγχους — δεν χρεώνει σε αποτυχία) */
   if(!(await kenakSpendToken()))return;
@@ -3062,7 +3109,8 @@ document.getElementById('xmlBtn').onclick=async()=>{
      ψύξη: AB 15/5-15/9 -> Μάι-Σεπ · CD Ιουν-Αυγ · κατοικία κάλυψη 0,5 / τριτογενής 1,0 (θεωρητικό ΤΟΤΕΕ) */
   const heatCover=seas==='AB'?[1,1,1,1,0,0,0,0,0,0,1,1]:[1,1,1,1,0,0,0,0,0,1,1,1];
   const useV=document.getElementById('use').value;
-  const cc=useV==='residential'?0.5:1.0;
+  const UZ=KENAK_DATA.uses[useV]||KENAK_DATA.uses.residential;
+  const cc=(UZ.theoreticalCooling&&UZ.theoreticalCooling.coverage!=null)?UZ.theoreticalCooling.coverage:0.5;
   const coolCover=seas==='AB'?[0,0,0,0,cc,cc,cc,cc,cc,0,0,0]:[0,0,0,0,0,cc,cc,cc,0,0,0,0];
   const isHP=/Α\.Θ\.|Γεωθερμ/i.test(document.getElementById('s_heatT').value);
   const isEl=/ηλεκτρικές/i.test(document.getElementById('s_heatT').value);
@@ -3104,13 +3152,16 @@ document.getElementById('xmlBtn').onclick=async()=>{
       respName:document.getElementById('p_owner').value||'',
       respPhone:document.getElementById('p_phone').value||'',
       respMail:document.getElementById('p_mail').value||'',
+      use:UZ.code,                       /* blg_use ΑΠΟ ΤΗ ΧΡΗΣΗ ΤΗΣ ΖΩΝΗΣ */
       zone:{A:1,B:2,C:3,D:4}[zoneSel]||2,climate:0,
       kaek:(kSel&&kSel.kaek)||document.getElementById('p_kaek').textContent.replace('—','').trim()||'',
       licence:'HEXIS KENAK — έτος κατασκευής '+yr+', %ΦΟ '+(foP*100).toFixed(0)+'%'+
         ((kSel&&kSel.kaek)?(', ΚΑΕΚ '+kSel.kaek+' ('+(+kSel.lat).toFixed(6)+','+(+kSel.lon).toFixed(6)+')'):'')},
     building:{A:q.A,V:q.V,floors:q.nf,hTot:q.hTot,name:'ΚΤΙΡΙΟ',
       scenario:'HEXIS',title:'Υπάρχον κτίριο'},
-    zone:{A:q.A},
+    /* zn_parameter1/4: ονομασία χρήσης ζώνης + ημέρες λειτουργίας ΤΟΤΕΕ.
+       ΠΡΙΝ έμπαινε πάντα «Μονοκατοικία, πολυκατοικία» ό,τι χρήση κι αν είχες. */
+    zone:{A:q.A,use:UZ.znName,days:UZ.days},
     opaque, ground, transparent:T.transparent,
     scenarios:SCN.map(sc=>({
       /* ΑΝΤΙΓΡΑΦΟ επιθεωρούμενου με τις παρεμβάσεις του μηχανικού: */
