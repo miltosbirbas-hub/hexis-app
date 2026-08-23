@@ -30,12 +30,19 @@ function kx_el(tag,val,attr){
 }
 /* πίνακας κατά στήλες: rows[i][k] -> X_rows + X_columnK (trailing κόμμα) */
 function kx_table(prefix,rows,nCols){
+  rows=rows||[];
   var out=kx_el(prefix+'_rows',rows.length||0,null);
   for(var k=1;k<=nCols;k++){
     var vals='';
     if(rows.length){
-      for(var i=0;i<rows.length;i++)
-        vals+=String(rows[i][k-1]==null?'':rows[i][k-1])+',';
+      for(var i=0;i<rows.length;i++){
+        var v=rows[i]?rows[i][k-1]:'';
+        if(v==null)v='';
+        else if(typeof v==='number'&&!isFinite(v))v='';   /* NaN/Infinity -> κενό */
+        /* κόμμα ή αλλαγή γραμμής μέσα σε τιμή θα μετατόπιζε ΟΛΕΣ τις στήλες */
+        else v=String(v).replace(/[\r\n,]/g,' ');
+        vals+=v+',';
+      }
     }
     out+=kx_el(prefix+'_column'+k,vals,null);
   }
@@ -64,9 +71,19 @@ function kx_emptySystem(name){
 /* ---- SYSTEM tables (δομή 1:1 με export ΤΕΕ-ΚΕΝΑΚ 1.31 / ΤΟΤΕΕ 20701-4 πίν.11.x) ----
    Σειριοποίηση COLUMN-MAJOR: production_columnK = "τιμή_γρ1,τιμή_γρ2,...," (τρέιλινγκ κόμμα). */
 function kx_ctable(name,rows,ncols){
+  rows=rows||[];
   var x='<'+name+'_rows>'+rows.length+'</'+name+'_rows>';
   for(var c=1;c<=ncols;c++){
-    var vals=rows.map(function(r){var v=r[c-1];return v==null?'':String(v);});
+    /* ΜΗΔΕΝ γραμμές = ΚΕΝΗ στήλη. Πριν γραφόταν σκέτο «,» που το ΤΕΕ-ΚΕΝΑΚ
+       διαβάζει ως μία γραμμή-φάντασμα ενώ το _rows λέει 0 — ασυμφωνία που
+       προκαλεί σφάλματα/παράξενα μηνύματα στην εισαγωγή. */
+    if(!rows.length){x+=kx_el(name+'_column'+c,'');continue;}
+    var vals=rows.map(function(r){
+      var v=r?r[c-1]:'';
+      if(v==null)return '';
+      if(typeof v==='number'&&!isFinite(v))return '';    /* NaN/Infinity -> κενό */
+      return String(v).replace(/[\r\n,]/g,' ');          /* κόμμα/newline θα έσπαγε τη στήλη */
+    });
     x+=kx_el(name+'_column'+c,vals.join(',')+',');
   }
   return x;
@@ -125,6 +142,11 @@ function kx_system(sys,rid){
   x+=kx_ctable('termatic',d.on?[['',d.term!=null?d.term:0.98,'']]:[],3);
   x+=kx_ctable('auxiliary',[],3);
   x+='</dhw>';
+  /* ΥΓΡΑΝΣΗ και ΚΚΜ: ΕΛΕΙΠΑΝ τελείως από το SYSTEM. Το ENR_IN του ΤΕΕ-ΚΕΝΑΚ
+     περιμένει και τα επτά υποσυστήματα με τη σειρά του KENAK_SYSTEM_SPEC —
+     όταν λείπουν, η εισαγωγή βγάζει σφάλμα ή αφήνει κενές καρτέλες. */
+  x+=kx_emptySystem('humidification');
+  x+=kx_emptySystem('ahu');
   /* solar collector */
   x+='<solar_collector rid="1"><solar_collector_exists>'+(sol.on?1:0)+'</solar_collector_exists>';
   x+=kx_ctable('solar_collector',sol.on?[[sol.type||'Επιλεκτικός επίπεδος','False','True',
@@ -132,7 +154,9 @@ function kx_system(sys,rid){
     sol.azim!=null?sol.azim:180,sol.tilt!=null?sol.tilt:60,sol.coverage!=null?sol.coverage:1.0,'']]:[],10);
   x+='</solar_collector>';
   /* lighting: κατοικία -> 0 */
-  x+='<lighting rid="1"><lighting_exists>'+(sys.lighting?1:0)+'</lighting_exists></lighting>';
+  x+='<lighting rid="1"><lighting_exists>'+(sys.lighting?1:0)+'</lighting_exists>';
+  for(var lp=1;lp<=12;lp++)x+=kx_el('lighting_parameter'+lp,'');   /* ΕΛΕΙΠΑΝ */
+  x+='</lighting>';
   x+='</SYSTEM>';
   return x;
 }
