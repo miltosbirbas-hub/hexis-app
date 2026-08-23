@@ -64,6 +64,15 @@ button:focus-visible{outline:2px solid var(--brb);outline-offset:2px}
 html,body{max-width:100%;overflow-x:hidden;overscroll-behavior-x:none}
 .sheet,.panel,.page,.top,#bgBar{max-width:100vw}
 .sheet pre,.sbody pre{white-space:pre-wrap;overflow-wrap:anywhere}
+/* ---------- έλεγχος λογικών τιμών ---------- */
+input.vErr,select.vErr{border-color:#C43A2B !important;background:#C43A2B0f !important;
+  box-shadow:0 0 0 2px #C43A2B33}
+input.vWarn,select.vWarn{border-color:#C8860D !important;background:#C8860D0d !important}
+.vMsg{font-size:10.5px;line-height:1.35;margin-top:3px;display:block}
+.vMsg.e{color:#C43A2B;font-weight:700}
+.vMsg.w{color:#8a5a00}
+.vMsg button{font:inherit;font-weight:800;background:none;border:none;padding:0 0 0 4px;
+  color:#1F4E9C;cursor:pointer;text-decoration:underline}
 /* ---------- επάνω μπάρα ---------- */
 .top{position:fixed;left:0;right:0;top:0;min-height:54px;display:flex;align-items:center;
   flex-wrap:wrap;gap:calc(14px*var(--ts,1)) calc(14px*var(--ts,1));row-gap:4px;
@@ -426,7 +435,7 @@ body:not([data-tab="2"]) #bgBar{display:none}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.77</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.78</small></div>
   <div class="tabs" id="tabs">
     <button class="tab on" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -1063,9 +1072,9 @@ body:not([data-tab="2"]) #bgBar{display:none}
   μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
 </div>
 
-<script src="kenak-data.js?v=108"></script>
-<script src="kenak-xml.js?v=108"></script>
-<script src="kenak-dxf.js?v=108"></script>
+<script src="kenak-data.js?v=109"></script>
+<script src="kenak-xml.js?v=109"></script>
+<script src="kenak-dxf.js?v=109"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -3065,6 +3074,61 @@ function makeSketchPDF(){
 /* Δομικός αυτοέλεγχος του XML που μόλις παρήχθη — ίδιοι κανόνες με το ENR_IN.
    ΔΕΝ αντικαθιστά τη δοκιμή στο ΤΕΕ-ΚΕΝΑΚ, αλλά πιάνει ό,τι μπορεί να ελεγχθεί
    εδώ: πλήθη γραμμών/στηλών, τελικά κόμματα, ισοζύγιο tags, υποσυστήματα. */
+/* ═══════════════════════════════════════════════════════════════════════
+   ΕΛΕΓΧΟΣ ΤΙΜΩΝ ΣΕ ΚΑΘΕ ΠΕΔΙΟ
+   Κόκκινο = εκτός ορίων ΤΟΤΕΕ, με το εύρος και την πηγή· δίπλα κουμπί που
+   επαναφέρει στο κοντινότερο αποδεκτό. Πορτοκαλί = εκτός τυπικού εύρους.
+   ═══════════════════════════════════════════════════════════════════════ */
+function vMsgEl(el){
+  let m=el.parentNode.querySelector('.vMsg');
+  if(!m){m=document.createElement('span');m.className='vMsg';el.parentNode.appendChild(m);}
+  return m;
+}
+function validateField(el){
+  if(!el||!el.id)return null;
+  const r=KENAK_DATA.checkLimit(el.id,el.value);
+  el.classList.remove('vErr','vWarn');
+  const m=vMsgEl(el);
+  if(!r){m.textContent='';m.className='vMsg';return null;}
+  el.classList.add(r.level==='err'?'vErr':'vWarn');
+  m.className='vMsg '+(r.level==='err'?'e':'w');
+  m.innerHTML=(r.level==='err'?'✕ ':'⚠ ')+r.msg;
+  if(r.L&&r.v!=null){
+    const fix=r.level==='err'
+      ? Math.min(r.L.hard[1],Math.max(r.L.hard[0],r.v))
+      : Math.min(r.L.soft[1],Math.max(r.L.soft[0],r.v));
+    const b=document.createElement('button');
+    b.type='button';b.textContent='Διόρθωσε σε '+fix;
+    b.onclick=()=>{el.value=fix;validateField(el);
+      el.dispatchEvent(new Event('change',{bubbles:true}));};
+    m.appendChild(b);
+  }
+  return r;
+}
+/* Συνολικός έλεγχος — χρησιμοποιείται πριν από XML/PDF και στον οδηγό */
+function validateAll(){
+  const out={err:[],warn:[]};
+  for(const id in KENAK_DATA.limits){
+    const el=document.getElementById(id);
+    if(!el||el.offsetParent===null&&el.type!=='hidden'){
+      /* κρυμμένο πεδίο: ελέγχεται ούτως ή άλλως, μετράει στο XML */
+    }
+    if(!el)continue;
+    const r=KENAK_DATA.checkLimit(id,el.value);
+    if(!r)continue;
+    (r.level==='err'?out.err:out.warn).push((r.L.label||id)+': '+r.msg);
+  }
+  return out;
+}
+function wireValidation(){
+  for(const id in KENAK_DATA.limits){
+    const el=document.getElementById(id); if(!el)continue;
+    el.addEventListener('input',()=>validateField(el));
+    el.addEventListener('change',()=>validateField(el));
+    el.addEventListener('blur',()=>validateField(el));
+    validateField(el);
+  }
+}
 function xmlSelfCheck(xml){
   const e=[];
   if(!xml||xml.length<500)return ['το αρχείο είναι κενό ή πολύ μικρό'];
@@ -3139,6 +3203,16 @@ document.getElementById('xmlBtn').onclick=async()=>{
     if(!closed){
       hint('Χρειάζεται κλειστό περίγραμμα — σχεδίασε τη ζώνη και πάτα «Κλείσε εδώ».');
       setTab(2);return;
+    }
+  }
+  /* ΕΛΕΓΧΟΣ ΤΙΜΩΝ ΠΕΔΙΩΝ πριν από οτιδήποτε άλλο */
+  const vv=validateAll();
+  if(vv.err.length){
+    try{wireValidation();}catch(e){}
+    if(!confirm('ΤΙΜΕΣ ΕΚΤΟΣ ΟΡΙΩΝ ΤΟΤΕΕ ('+vv.err.length+'):\n\n• '+
+        vv.err.slice(0,6).join('\n\n• ')+(vv.err.length>6?'\n\n… και '+(vv.err.length-6)+' ακόμη':'')+
+        '\n\nΆκυρο = πήγαινε να τις διορθώσεις (σημειώνονται με κόκκινο)\nOK = συνέχεια παρ\' όλα αυτά')){
+      setTab(2);hint('Διόρθωσε τα κόκκινα πεδία και ξαναδοκίμασε.');return;
     }
   }
   const ck=sysCheck();
@@ -6139,6 +6213,7 @@ document.getElementById('projNew').onclick=()=>{
   },350);
 })();
 try{bgLoad();}catch(e){console.error('bgLoad',e);}
+try{wireValidation();}catch(e){console.error('wireValidation',e);}
 try{bgBarLoadUI();bgBarInitDrag();}catch(e){console.error('bgBarUI',e);}
 try{fitTools();}catch(e){console.error('fitTools',e);}
 addEventListener('orientationchange',()=>setTimeout(fitTools,220));
