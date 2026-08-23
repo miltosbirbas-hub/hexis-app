@@ -435,7 +435,7 @@ body:not([data-tab="2"]) #bgBar{display:none}
 <div class="top">
   <a class="home" href="hub.html">‹ HEXIS Tools</a>
   <div class="brandIco" title="HEXIS ΚΕΝΑΚ"><svg style="width:100%;height:100%;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14 l3.4 1.7 l-3.4 1.7 h-14 z" fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23 l3.4 1.7 l-3.4 1.7 h-23 z" fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg></div>
-  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.78</small></div>
+  <div class="mark">HEXIS ΚΕΝΑΚ<small>ενεργειακή επιθεώρηση · v2.85</small></div>
   <div class="tabs" id="tabs">
     <button class="tab on" data-tab="1"><i>1</i>Έργο</button>
     <button class="tab" data-tab="2"><i>2</i>Κέλυφος</button>
@@ -574,6 +574,42 @@ body:not([data-tab="2"]) #bgBar{display:none}
           <option value="1.10">Εμφανές σκυρόδεμα 25 εκ + μόνωση 3 εκ — U 1,10</option>
         </select></div>
       <div><label>U τοιχ. <a href="#" onclick="uFromYear();return false" style="font-size:9.5px;color:var(--brb)" title="Τυπικές τιμές Πίν.3.5α/β από το έτος άδειας">από έτος;</a></label><input id="uw" type="number" inputmode="decimal" value="2.20" step="0.05" title="U τοιχοποιίας πλήρωσης W/m²K"></div>
+      <div><label>Είδος κτιρίου <span style="font-size:9px;color:var(--ink2)">(blg_use)</span></label>
+        <select id="bldKind" title="Καθορίζει το blg_use του ΤΕΕ-ΚΕΝΑΚ — επαληθευμένο σε πραγματικά αρχεία">
+          <option value="1">Μονοκατοικία</option>
+          <option value="2" selected>Πολυκατοικία / διαμέρισμα</option>
+          <option value="5">Τριτογενής τομέας</option></select></div>
+      <div><label>Εύρος επιθεώρησης <span style="font-size:9px;color:var(--ink2)">(blg_part)</span></label>
+        <select id="bldPart" title="Ολόκληρο κτίριο ή τμήμα του (διαμέρισμα/κατάστημα)">
+          <option value="0">Ολόκληρο κτίριο</option>
+          <option value="1" selected>Τμήμα κτιρίου</option></select></div>
+      <div style="grid-column:1/-1"><label>Υψόμετρο πάνω από 500 m</label>
+        <select id="alt500" title="ΤΟΤΕΕ 20701-1/2017: κτίριο σε υψόμετρο >500 m υπολογίζεται στην ΕΠΟΜΕΝΗ ΨΥΧΡΟΤΕΡΗ κλιματική ζώνη. Εξαίρεση: αν τα κλιματικά δεδομένα είναι ήδη ζώνης Γ (π.χ. Τρίπολη), δεν εφαρμόζεται.">
+          <option value="0" selected>Όχι — κάτω από 500 m</option>
+          <option value="1">Ναι — πάνω από 500 m (μία ζώνη ψυχρότερα)</option></select>
+        <div id="alt500Info" style="font-size:10.5px;color:var(--ink2);margin-top:3px"></div></div>
+      <div><label>Πατάρι / σοφίτα <span style="font-size:9px;color:var(--ink2)">(blg_par.10)</span></label>
+        <select id="bldP10" title="Στα πραγματικά αρχεία: 1 σε ισόγεια κατοικία με πατάρι, 0 σε διαμέρισμα/απλή κατοικία">
+          <option value="0" selected>Όχι</option><option value="1">Ναι</option></select></div>
+      <div><label>Κατοικίες / μονάδες ΖΝΧ <span style="font-size:9px;color:var(--ink2)">(zn_par.5 &amp; 14)</span></label>
+        <input id="znUnits" type="number" step="1" min="1" max="50" value="3"
+          title="Πλήθος αυτοτελών κατοικιών/μονάδων της ζώνης. Στα πραγματικά αρχεία: 3 σε διαμέρισμα 104 m², 2 σε κατοικία 64 m²."></div>
+      <div><label>ΖΝΧ m³/έτος <span style="font-size:9px;color:var(--ink2)">(zn_par.12 — βήμα 27,38)</span></label>
+        <input id="znDhw" type="number" step="27.38" min="0" value="27.38"
+          title="Ετήσια κατανάλωση ΖΝΧ. Στα πραγματικά αρχεία πάντα ακέραιο πολλαπλάσιο του 27,38 m³/έτος."></div>
+      <div style="grid-column:1/-1"><label>Περιοχή (κλιματικά δεδομένα)
+        <span style="font-size:9px;color:var(--ink2)">(blg_climate)</span></label>
+        <select id="climSel" style="display:none"></select>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:4px">
+          <input id="climIdx" type="number" step="1" min="0" max="500" value="1" style="width:88px"
+            title="Αύξων αριθμός περιοχής στη βιβλιοθήκη EnrClimateGR.xml του ΤΕΕ-ΚΕΝΑΚ. Γνωστά: Αθήνα=1, Λασίθι=47, Μύκονος=51.">
+          <button class="pbtn blue" id="climLoad" type="button" style="flex:1;font-size:11px">📂 Φόρτωσε EnrClimateGR.xml</button>
+        </div>
+        <input type="file" id="climFile" accept=".xml,text/xml,application/xml" style="display:none">
+        <div id="climInfo" style="font-size:10.5px;color:var(--ink2);margin-top:4px">
+          Δεν έχει φορτωθεί κατάλογος περιοχών — γράψε τον αριθμό χειροκίνητα.
+          Το αρχείο είναι στο <code>C:\Program Files (x86)\TEE\TEE_KENAK_1_31\EnrClimateGR.xml</code>
+        </div></div>
       <div style="grid-column:1/-1"><label>Τύπος οροφής (Πίν. 3.5β ΤΟΤΕΕ)</label>
         <select id="roofType" title="Καθορίζει το τυπικό U της οροφής ανάλογα με το έτος κατασκευής"></select></div>
       <div><label>U οροφής</label><input id="uroof" type="number" inputmode="decimal" value="3.05" step="0.05"
@@ -588,6 +624,13 @@ body:not([data-tab="2"]) #bgBar{display:none}
         <option value="0.90">Πολύ σκούρο / μαύρο — 0,90</option></select></div>
       <div><label>Εκπομπή ε</label><input id="emis" type="number" inputmode="decimal" value="0.80" step="0.01" min="0.1" max="1"
         title="Συντελεστής εκπομπής — τυπικά 0,80 για δομικά υλικά"></div>
+      <div style="grid-column:1/-1"><label>Απορροφητικότητα α ΟΡΟΦΗΣ</label>
+        <select id="absorpR" title="Χωριστά από τους τοίχους — η οροφή έχει συνήθως σκουρότερη επιφάνεια (ασφαλτόπανο, κεραμίδι)">
+        <option value="0.30">Λευκή / ανακλαστική μεμβράνη — 0,30</option>
+        <option value="0.45">Ανοιχτόχρωμη — 0,45</option>
+        <option value="0.60">Μεσαία — 0,60</option>
+        <option value="0.80" selected>Σκούρα (ασφαλτόπανο/κεραμίδι, τυπικό) — 0,80</option>
+        <option value="0.90">Μαύρη — 0,90</option></select></div>
       <div class="full" style="grid-column:1/-1;border-top:1px dashed var(--line);padding-top:10px;margin-top:6px">
         <label style="color:var(--brb)" title="Προαιρετικά — γράφονται στο XML με τη γωνία κλίσης της στέγης">Παράθυρα στέγης (VELUX)</label>
         <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-top:5px;align-items:end">
@@ -1068,13 +1111,15 @@ body:not([data-tab="2"]) #bgBar{display:none}
 <div class="sheet" id="sheet">
   <div class="shd"><h2>Αποτελέσματα</h2><button class="pbtn" id="close">Πίσω</button></div>
   <div class="sbody" id="out"></div>
-  <div class="note"><b>v0.5.</b> XML σε μορφή ENR_IN ΤΕΕ-ΚΕΝΑΚ 1.31. Τα U/α/ε είναι προσωρινά
-  μέχρι τις καρτέλες επιφανειών. Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ. ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ.</div>
+  <div class="note"><b>XML σε μορφή ENR_IN ΤΕΕ-ΚΕΝΑΚ 1.31.</b> Τα U τοιχοποιίας/ΦΟ/οροφής/δαπέδου και τα α/ε
+  δίνονται από τα πεδία «Κατασκευή» με πρόταση από τους Πίν. 3.5α/3.5β ανάλογα με το έτος· κάθε τιμή ελέγχεται ως προς τα όρια ΤΟΤΕΕ.
+  Συστήματα: ΜΟΝΟ αναγνωρισμένα από ΤΟΤΕΕ.
+  <b>ΔΕΝ υποκαθιστά το εγκεκριμένο λογισμικό ΤΕΕ-ΚΕΝΑΚ</b> — το XML προορίζεται για εισαγωγή σε αυτό.</div>
 </div>
 
-<script src="kenak-data.js?v=109"></script>
-<script src="kenak-xml.js?v=109"></script>
-<script src="kenak-dxf.js?v=109"></script>
+<script src="kenak-data.js?v=116"></script>
+<script src="kenak-xml.js?v=116"></script>
+<script src="kenak-dxf.js?v=116"></script>
 <script>
 'use strict';
 /* Συμβατότητα cache: αν σερβιριστεί παλιό kenak-data.js, συμπλήρωσε τα ελάχιστα
@@ -2583,6 +2628,7 @@ function buildTables(q){
   const UR=+document.getElementById('uroof').value||3.05;
   const UGR=+document.getElementById('ugr').value||UR;
   const ALQ=+document.getElementById('absorp').value||0.60;
+  const ALQR=+document.getElementById('absorpR').value||0.80;   /* οροφή: χωριστό α */
   const EPS=+document.getElementById('emis').value||0.80;
   const opaque=[];
   /* Συντελεστές σκίασης από τις ΥΠΟΛΟΓΙΣΜΕΝΕΣ γωνίες μέσω των πινάκων
@@ -2618,28 +2664,28 @@ function buildTables(q){
   const slDeg=Asl>0.01?Math.round(slW/Asl):0;
   if(q.withRoof!==false&&Asl>0.01)
     opaque.push(['Τοίχος','ΚΕΚΛΙΜΕΝΗ ΣΤΕΓΗ (ΚΛΙΣΗ '+slDeg+'°)','',slDeg,
-      (Asl/Math.cos(slDeg*Math.PI/180)).toFixed(2),UR.toFixed(2),'0.04','0.80',EPS.toFixed(2),
+      (Asl/Math.cos(slDeg*Math.PI/180)).toFixed(2),UR.toFixed(2),'0.04',ALQR.toFixed(2),EPS.toFixed(2),
       FR,FR,FR,FR,FR,FR,'']);
   const Aflat=Math.max(0,(q.Aroof||q.A)-Asl);
   if(q.withRoof!==false&&Aflat>0.01)
     opaque.push(['Τοίχος','ΟΡΟΦΗ/ΔΩΜΑ'+(q.roofCustom?' (ΜΕ ΥΠΟΔΕΙΞΗ)':''),'',0,
-      Aflat.toFixed(2),UR.toFixed(2),'0.04','0.80',EPS.toFixed(2),
+      Aflat.toFixed(2),UR.toFixed(2),'0.04',ALQR.toFixed(2),EPS.toFixed(2),
       FR,FR,FR,FR,FR,FR,'']);
   /* Οροφή κάτω από ΜΘΧ (μη θερμαινόμενη σοφίτα): U×b (b=0,5), χωρίς ηλιακά */
   if(q.withRoof!==false&&q.AroofMtx>0.01)
     opaque.push(['Τοίχος','ΟΡΟΦΗ ΚΑΤΩ ΑΠΟ ΜΘΧ/ΣΟΦΙΤΑ (b=0,5)','',0,
-      q.AroofMtx.toFixed(2),(UR*bMTX).toFixed(2),'0.04','0.80',EPS.toFixed(2),0,0,0,0,0,0,'']);
+      q.AroofMtx.toFixed(2),(UR*bMTX).toFixed(2),'0.04',ALQR.toFixed(2),EPS.toFixed(2),0,0,0,0,0,0,'']);
   /* Οροφή κάτω από θερμαινόμενο: αδιαβατική — καμία καταχώρηση */
   /* Πυλωτή/δάπεδο σε αέρα (υπόδειξη δαπέδου): αδιαφανές 0° με τυπικό U κατά εποχή */
   const yr2=+document.getElementById('year').value||1985;
   const UPil=KENAK_DATA.umaxRenovation.pilotisUByEra[yr2<1979?'pre1979':(yr2<=2010?'y1979_2010':'post2010')];
   if(q.Apilotis>0.01)
     opaque.push(['Τοίχος','ΔΑΠΕΔΟ ΕΠΑΝΩ ΑΠΟ ΠΥΛΩΤΗ/ΑΕΡΑ','',0,q.Apilotis.toFixed(2),
-      UPil.toFixed(2),'0.04','0.80',EPS.toFixed(2),1,1,1,1,1,1,'']);
+      UPil.toFixed(2),'0.04',ALQR.toFixed(2),EPS.toFixed(2),1,1,1,1,1,1,'']);
   /* Δάπεδο πάνω από ΜΘΧ (υπόγειο/αποθήκη): U×b (b=0,5), χωρίς ηλιακά κέρδη */
   if(q.AflrMtx>0.01)
     opaque.push(['Τοίχος','ΔΑΠΕΔΟ ΠΑΝΩ ΑΠΟ ΜΘΧ (b=0,5)','',0,q.AflrMtx.toFixed(2),
-      (UPil*bMTX).toFixed(2),'0.04','0.80',EPS.toFixed(2),0,0,0,0,0,0,'']);
+      (UPil*bMTX).toFixed(2),'0.04',ALQR.toFixed(2),EPS.toFixed(2),0,0,0,0,0,0,'']);
   /* Δάπεδο πάνω από θερμαινόμενο: αδιαβατικό — ΔΕΝ καταχωρείται στο κέλυφος */
   /* Έδαφος: ΜΟΝΟ το τμήμα σε επαφή με έδαφος + ΕΚΤΕΘΕΙΜΕΝΗ περίμετρος (ISO 13370) */
   const Agr=(q.Aground!=null?q.Aground:(q.Afloor||q.A));
@@ -2654,7 +2700,21 @@ function buildTables(q){
     const fR=o.finR>0.5?KENAK_DATA.fShade('finR',o.finR,q.S[o.k]):[1,1];
     const finH=(fL[0]*fR[0]),finC=(fL[1]*fR[1]);
     const uo=o.u!=null?(+o.u).toFixed(2):'3.20';
-    const typ=o.isDoor?'Πόρτα':'Ανοιγόμενο κούφωμα';
+    /* ΣΤΗΛΗ 1: λειτουργία κουφώματος όπως τη γράφει το ΤΕΕ-ΚΕΝΑΚ */
+    const MECH=KENAK_DATA.windowU.kenakMech||{};
+    const typ=o.isDoor?'Πόρτα':(MECH[o.mech]||'Ανοιγόμενο κούφωμα');
+    /* ΣΤΗΛΗ 6: σύνθετη περιγραφή τύπου, στη μορφή της βιβλιοθήκης ΤΕΕ-ΚΕΝΑΚ
+       «[Με ρολά ]<πλαίσιο> <Ff>% <υαλοπίνακας>»
+       — επαληθευμένο σε πραγματικό αρχείο επιθεώρησης. */
+    const KF=KENAK_DATA.windowU.kenakFrame||{}, KG=KENAK_DATA.windowU.kenakGlz||{};
+    const ffN=Math.round(+o.ff||30);
+    const libTxt=o.isDoor?(KF[o.frame]||'')
+      :((o.shut&&o.shut!=='none'?'Με ρολά ':'')+
+        (KF[o.frame]||'')+' '+ffN+'% '+(KG[o.glz]||''));
+    /* ΣΤΗΛΗ 8: συντελεστής ηλιακών κερδών = g × (1 − Ff), ΟΧΙ σταθερό 1.00.
+       Το 1.00 υπερεκτιμούσε τα ηλιακά κέρδη πάνω από διπλάσια. */
+    const gGl=(KENAK_DATA.windowU.gValues||{})[o.glz];
+    const gEff=o.isDoor?0:(gGl!=null?gGl*(1-ffN/100):0.50);
     const POS={out:'ΕΞΩ',mid:'ΚΕΝΤΡΟ',in:'ΜΕΣΑ'};
     const dims=(o.sill!=null)?(' · ΠΟΔΙΑ '+(+o.sill).toFixed(2).replace('.',',')+
       ' ΠΡΕΚΙ '+((+o.sill)+o.hK).toFixed(2).replace('.',',')+
@@ -2663,12 +2723,16 @@ function buildTables(q){
 
       (typeof shutTag==='function'?shutTag(o.shut||'none'):'')+dims;
     return [typ,dsc,o.az,90,
-      o.area.toFixed(2),'',uo,'1.00',F2(fh[0]),F2(fh[1]),F2(ovH),F2(ovC),F2(finH),F2(finC),''];
+      o.area.toFixed(2),libTxt,uo,gEff.toFixed(2),
+      F2(fh[0]),F2(fh[1]),F2(ovH),F2(ovC),F2(finH),F2(finC),''];
   });
   RWIN.forEach((r,i)=>{
     transparent.push(['Ανοιγόμενο κούφωμα',
       'ΠΑΡΑΘΥΡΟ ΣΤΕΓΗΣ Ρ'+(i+1)+' ΟΨΗ '+q.S[r.face]+' ΚΛΙΣΗ '+r.slope+'°',
-      r.face*45, r.slope, (r.w*r.h).toFixed(2),'',(+r.u).toFixed(2),'1.00',
+      r.face*45, r.slope, (r.w*r.h).toFixed(2),
+      (KENAK_DATA.windowU.kenakGlz||{})[r.glz]||'Δίδυμος με διάκενο αέρα 12mm',
+      (+r.u).toFixed(2),
+      (((KENAK_DATA.windowU.gValues||{})[r.glz]||0.70)*0.70).toFixed(2),
       '1.00','1.00','1.00','1.00','1.00','1.00','']);
   });
   const tot=opaque.length+transparent.length;
@@ -3129,6 +3193,99 @@ function wireValidation(){
     validateField(el);
   }
 }
+/* ═══════════════════════════════════════════════════════════════════════
+   ΚΑΤΑΛΟΓΟΣ ΠΕΡΙΟΧΩΝ από το EnrClimateGR.xml του ΤΕΕ-ΚΕΝΑΚ.
+   Δεν δημοσιεύεται πουθενά — το διαβάζουμε από την ίδια την εγκατάσταση.
+   ΑΥΤΟΕΛΕΓΧΟΣ: επαληθεύεται στα τρία γνωστά ζεύγη από πραγματικά ΠΕΑ
+   (Αθήνα=1, Λασίθι=47, Μύκονος=51) πριν γίνει δεκτός.
+   ═══════════════════════════════════════════════════════════════════════ */
+const CLIM_KEY='hexis-kenak-clim';
+const CLIM_KNOWN=[[1,/αθην/i],[47,/λασιθ/i],[51,/μυκον|κυκλαδ/i]];
+function climLoadStore(){try{const a=JSON.parse(localStorage.getItem(CLIM_KEY)||'null');
+  return Array.isArray(a)&&a.length?a:null;}catch(e){return null;}}
+function climParse(txt){
+  /* Ανεκτικός parser: κρατάει, με τη σειρά του εγγράφου, κάθε στοιχείο που
+     μοιάζει με ονομασία περιοχής (ελληνικό κείμενο, 2–40 χαρακτήρες). */
+  const out=[];
+  const re=/<([A-Za-z_][\w]*)>([^<>&]{2,40})<\/\1>/g;
+  let m, seenTag=null, counts={};
+  while((m=re.exec(txt))){
+    const v=m[2].trim();
+    if(!/[Α-Ωα-ωΆ-ώ]/.test(v))continue;
+    if(/^\d+([.,]\d+)?$/.test(v))continue;
+    counts[m[1]]=(counts[m[1]]||0)+1;
+  }
+  /* η ετικέτα με τις περισσότερες ελληνικές τιμές είναι το πεδίο ονόματος */
+  let best=null,bn=0;
+  for(const k in counts)if(counts[k]>bn){bn=counts[k];best=k;}
+  if(!best)return [];
+  const re2=new RegExp('<'+best+'>([^<>&]{2,40})<\\/'+best+'>','g');
+  while((m=re2.exec(txt))){
+    const v=m[1].trim();
+    if(!/[Α-Ωα-ωΆ-ώ]/.test(v))continue;
+    out.push(v);
+  }
+  return out;
+}
+function climVerify(list){
+  const bad=[];
+  for(const [idx,rx] of CLIM_KNOWN){
+    const nm=list[idx-1];
+    if(!nm||!rx.test(nm))bad.push('#'+idx+' = «'+(nm||'—')+'» (αναμενόταν '+String(rx).replace(/[/i]/g,'')+')');
+  }
+  return bad;
+}
+function climFill(){
+  const sel=document.getElementById('climSel'), info=document.getElementById('climInfo');
+  const L=climLoadStore();
+  if(!L){sel.style.display='none';return;}
+  sel.innerHTML=L.map((n,i)=>'<option value="'+(i+1)+'">'+(i+1)+' · '+n+'</option>').join('');
+  sel.style.display='';
+  sel.value=String(+document.getElementById('climIdx').value||1);
+  info.innerHTML='Κατάλογος φορτωμένος: <b>'+L.length+' περιοχές</b>. Διάλεξε από τη λίστα.';
+  sel.onchange=()=>{document.getElementById('climIdx').value=sel.value;
+    try{validateField(document.getElementById('climIdx'));}catch(e){}
+    const el=document.getElementById('climIdx');if(el)el.dataset.ok='1';
+    pSave();};
+}
+function climInit(){
+  const btn=document.getElementById('climLoad'), f=document.getElementById('climFile');
+  if(!btn||!f)return;
+  btn.onclick=()=>f.click();
+  f.onchange=async()=>{
+    const file=f.files&&f.files[0]; f.value=''; if(!file)return;
+    try{
+      const txt=await file.text();
+      const L=climParse(txt);
+      if(L.length<10){showErr('Δεν βρέθηκε κατάλογος περιοχών στο αρχείο ('+L.length+' εγγραφές). Είναι το EnrClimateGR.xml;');return;}
+      const bad=climVerify(L);
+      if(bad.length&&!confirm('Ο κατάλογος φορτώθηκε ('+L.length+' περιοχές) αλλά ΔΕΝ επαληθεύεται '+
+        'στα γνωστά σημεία από πραγματικά ΠΕΑ:\n\n• '+bad.join('\n• ')+
+        '\n\nΊσως η σειρά ανάγνωσης διαφέρει. Να τον κρατήσω;'))return;
+      localStorage.setItem(CLIM_KEY,JSON.stringify(L));
+      climFill();
+      hint(bad.length?('Κατάλογος '+L.length+' περιοχών — ΧΩΡΙΣ επαλήθευση, έλεγξέ τον.')
+        :('Κατάλογος '+L.length+' περιοχών — επαληθεύτηκε σε Αθήνα, Λασίθι, Μύκονο ✓'));
+    }catch(e){showErr('Δεν διαβάστηκε το αρχείο: '+(e&&e.message||e));}
+  };
+  climFill();
+}
+const ZIDX={A:0,B:1,C:2,D:3}, ZNAM=['Α','Β','Γ','Δ'];
+function zoneIdxFinal(){
+  const z=document.getElementById('czone'), a=document.getElementById('alt500');
+  let i=ZIDX[z?z.value:'B']; if(i==null)i=1;
+  if(a&&a.value==='1')i=Math.min(3,i+1);
+  return i;
+}
+function alt500Sync(){
+  const info=document.getElementById('alt500Info'); if(!info)return;
+  const z=document.getElementById('czone'), a=document.getElementById('alt500');
+  const base=ZIDX[z?z.value:'B']||0, fin=zoneIdxFinal();
+  info.innerHTML=(fin!==base)
+    ? '<b style="color:#C43A2B">Ζώνη '+ZNAM[base]+' → υπολογίζεται ως '+ZNAM[fin]+
+      '</b> (ΤΟΤΕΕ 20701-1/2017). Στο XML γράφεται blg_zone='+fin+'.'
+    : 'Ζώνη '+ZNAM[base]+' — στο XML γράφεται blg_zone='+fin+'.';
+}
 function xmlSelfCheck(xml){
   const e=[];
   if(!xml||xml.length<500)return ['το αρχείο είναι κενό ή πολύ μικρό'];
@@ -3204,6 +3361,21 @@ document.getElementById('xmlBtn').onclick=async()=>{
       hint('Χρειάζεται κλειστό περίγραμμα — σχεδίασε τη ζώνη και πάτα «Κλείσε εδώ».');
       setTab(2);return;
     }
+  }
+  /* Κωδικός κλίματος: αν έμεινε στην προεπιλογή, ΡΩΤΑΜΕ ρητά — αλλιώς το ΠΕΑ
+     θα υπολογιστεί με τα κλιματικά δεδομένα της Αθήνας χωρίς να το καταλάβεις. */
+  const ciEl=document.getElementById('climIdx');
+  if(ciEl&&!ciEl.dataset.ok&&String(ciEl.value).trim()==='1'){
+    if(!confirm('ΚΩΔΙΚΟΣ ΚΛΙΜΑΤΙΚΩΝ ΔΕΔΟΜΕΝΩΝ = 1 (Αθήνα)\n\n'+
+      'Αυτό ΔΕΝ είναι η κλιματική ζώνη — είναι ο αριθμός της πόλης/σταθμού στη βιβλιοθήκη '+
+      'του ΤΕΕ-ΚΕΝΑΚ (π.χ. Αθήνα=1, Λασίθι=47, Λευκάδα=;).\n\n'+
+      'Αν το κτίριο ΔΕΝ είναι στην Αθήνα, το ΠΕΑ θα βγει με λάθος κλιματικά δεδομένα.\n\n'+
+      'OK = ναι, είναι σωστό το 1\nΆκυρο = πάω να το διορθώσω')){
+      setTab(1);ciEl.focus();ciEl.select&&ciEl.select();
+      hint('Δες τον κωδικό της πόλης στο ΤΕΕ-ΚΕΝΑΚ και γράψ\' τον στο πεδίο «Κωδικός κλιματικών δεδομένων».');
+      return;
+    }
+    ciEl.dataset.ok='1';
   }
   /* ΕΛΕΓΧΟΣ ΤΙΜΩΝ ΠΕΔΙΩΝ πριν από οτιδήποτε άλλο */
   const vv=validateAll();
@@ -3294,16 +3466,31 @@ document.getElementById('xmlBtn').onclick=async()=>{
       respName:document.getElementById('p_owner').value||'',
       respPhone:document.getElementById('p_phone').value||'',
       respMail:document.getElementById('p_mail').value||'',
-      use:UZ.code,                       /* blg_use ΑΠΟ ΤΗ ΧΡΗΣΗ ΤΗΣ ΖΩΝΗΣ */
-      zone:{A:1,B:2,C:3,D:4}[zoneSel]||2,climate:0,
+      /* blg_use: 1=μονοκατοικία · 2=πολυκατοικία/διαμέρισμα · 5=τριτογενής
+         blg_part: 0=ολόκληρο κτίριο · 1=τμήμα κτιρίου
+         Και τα δύο επαληθεύτηκαν σε δύο πραγματικά αρχεία ΤΕΕ-ΚΕΝΑΚ. */
+      use:+document.getElementById('bldKind').value||UZ.code,
+      part:+document.getElementById('bldPart').value||0,
+      /* ΚΡΙΣΙΜΟ: η αρίθμηση ζωνών στο ENR_IN είναι 0-based (Α=0, Β=1, Γ=2, Δ=3).
+         Επαληθεύτηκε σε πραγματικό αρχείο: κτίριο στην Αθήνα (ζώνη Β) -> blg_zone=1.
+         Πριν γραφόταν 1-based, δηλαδή ΔΗΛΩΝΟΤΑΝ ΛΑΘΟΣ ΖΩΝΗ σε κάθε εξαγωγή. */
+      /* ΤΟΤΕΕ 20701-1/2017: υψόμετρο >500 m -> μία ζώνη ψυχρότερα (Α→Β→Γ→Δ).
+         Η ζώνη Δ είναι η ψυχρότερη, δεν προσαυξάνεται άλλο. */
+      zone:zoneIdxFinal(),
+      /* blg_climate ΔΕΝ είναι η ζώνη: είναι ο δείκτης πόλης στη βιβλιοθήκη
+         κλιματικών δεδομένων (Αθήνα=1, Λασίθι=47 στα πραγματικά αρχεία). */
+      climate:+document.getElementById('climIdx').value||1,
       kaek:(kSel&&kSel.kaek)||document.getElementById('p_kaek').textContent.replace('—','').trim()||'',
       licence:'HEXIS KENAK — έτος κατασκευής '+yr+', %ΦΟ '+(foP*100).toFixed(0)+'%'+
         ((kSel&&kSel.kaek)?(', ΚΑΕΚ '+kSel.kaek+' ('+(+kSel.lat).toFixed(6)+','+(+kSel.lon).toFixed(6)+')'):'')},
     building:{A:q.A,V:q.V,floors:q.nf,hTot:q.hTot,name:'ΚΤΙΡΙΟ',
-      scenario:'HEXIS',title:'Υπάρχον κτίριο'},
+      scenario:'HEXIS',title:'Υπάρχον κτίριο',
+      p10:+document.getElementById('bldP10').value||0},
     /* zn_parameter1/4: ονομασία χρήσης ζώνης + ημέρες λειτουργίας ΤΟΤΕΕ.
        ΠΡΙΝ έμπαινε πάντα «Μονοκατοικία, πολυκατοικία» ό,τι χρήση κι αν είχες. */
-    zone:{A:q.A,use:UZ.znName,days:UZ.days},
+    zone:{A:q.A,use:UZ.znName,days:UZ.days,
+      p5:+document.getElementById('znUnits').value||3,
+      p12:+document.getElementById('znDhw').value||27.38},
     opaque, ground, transparent:T.transparent,
     scenarios:SCN.map(sc=>({
       /* ΑΝΤΙΓΡΑΦΟ επιθεωρούμενου με τις παρεμβάσεις του μηχανικού: */
@@ -5104,7 +5291,8 @@ const PSTORE='hexis-kenak-v1';
 const PFIELDS=['p_num','p_owner','p_addr','p_phone','p_mail','p_afm',
   's_heat','s_heatT','s_heatS','s_heatP','s_heatE','s_cool','s_coolT','s_coolP','s_coolE','s_dhw','s_dhwT','s_dhwP','s_dhwE','s_solA','s_dhwN',
   'use','czone','year','fopct','ufo','uw','beamH','north','hfloor','floors','dl','hopen','hobs',
-  'roofType','uroof','ugr','absorp','emis'];
+  'roofType','uroof','ugr','absorp','absorpR','emis','bldKind','bldPart','climIdx',
+  'znUnits','znDhw','bldP10','alt500'];
 let SCN=[];  /* σενάρια: [{title}] */
 let RWIN=[]; /* παράθυρα στέγης: [{w,h,slope,face,u}] */
 let HX=[];   /* πρόσθετα συστήματα θέρμανσης: [{t,s,p,e}] */
@@ -5332,7 +5520,7 @@ document.getElementById('use').addEventListener('change',fillSysSelects);
 try{roofFill(false);}catch(e){}
 document.getElementById('roofType').addEventListener('change',roofUApply);
 document.getElementById('year').addEventListener('change',()=>{roofFill(true);});
-for(const id of ['uroof','ugr','absorp','emis'])
+for(const id of ['uroof','ugr','absorp','absorpR','emis'])
   document.getElementById(id).addEventListener('change',()=>{if(closed)report(false);pSave();});
 document.getElementById('scnAI').onclick=aiPropose;
 
@@ -6213,6 +6401,10 @@ document.getElementById('projNew').onclick=()=>{
   },350);
 })();
 try{bgLoad();}catch(e){console.error('bgLoad',e);}
+try{climInit();alt500Sync();
+  document.getElementById('alt500').addEventListener('change',()=>{alt500Sync();pSave();});
+  document.getElementById('czone').addEventListener('change',alt500Sync);
+}catch(e){console.error('climInit',e);}
 try{wireValidation();}catch(e){console.error('wireValidation',e);}
 try{bgBarLoadUI();bgBarInitDrag();}catch(e){console.error('bgBarUI',e);}
 try{fitTools();}catch(e){console.error('fitTools',e);}

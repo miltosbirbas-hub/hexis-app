@@ -22,6 +22,15 @@
 'use strict';
 var KENAK_SYSTEM_SPEC = {"heating": ["heating_exists", "production_rows", "production_column1", "production_column2", "production_column3", "production_column4", "production_column5", "production_column6", "production_column7", "production_column8", "production_column9", "production_column10", "production_column11", "production_column12", "production_column13", "production_column14", "production_column15", "production_column16", "production_column17", "production_column18", "distribution_rows", "distribution_column1", "distribution_column2", "distribution_column3", "distribution_column4", "distribution_column5", "distribution_column6", "distribution_column7", "distribution_column8", "termatic_rows", "termatic_column1", "termatic_column2", "termatic_column3", "auxiliary_rows", "auxiliary_column1", "auxiliary_column2", "auxiliary_column3"], "cooling": ["cooling_exists", "production_rows", "production_column1", "production_column2", "production_column3", "production_column4", "production_column5", "production_column6", "production_column7", "production_column8", "production_column9", "production_column10", "production_column11", "production_column12", "production_column13", "production_column14", "production_column15", "production_column16", "production_column17", "production_column18", "distribution_rows", "distribution_column1", "distribution_column2", "distribution_column3", "distribution_column4", "distribution_column5", "distribution_column6", "termatic_rows", "termatic_column1", "termatic_column2", "termatic_column3", "auxiliary_rows", "auxiliary_column1", "auxiliary_column2", "auxiliary_column3"], "humidification": ["humidification_exists", "production_rows", "production_column1", "production_column2", "production_column3", "production_column4", "production_column5", "production_column6", "production_column7", "production_column8", "production_column9", "production_column10", "production_column11", "production_column12", "production_column13", "production_column14", "production_column15", "production_column16", "production_column17", "distribution_rows", "distribution_column1", "distribution_column2", "distribution_column3", "distribution_column4", "termatic_rows", "termatic_column1", "termatic_column2", "termatic_column3"], "ahu": ["ahu_exists", "ahu_rows", "ahu_column1", "ahu_column2", "ahu_column3", "ahu_column4", "ahu_column5", "ahu_column6", "ahu_column7", "ahu_column8", "ahu_column9", "ahu_column10", "ahu_column11", "ahu_column12", "ahu_column13", "ahu_column14", "ahu_column15", "ahu_column16"], "dhw": ["dhw_exists", "production_rows", "production_column1", "production_column2", "production_column3", "production_column4", "production_column5", "production_column6", "production_column7", "production_column8", "production_column9", "production_column10", "production_column11", "production_column12", "production_column13", "production_column14", "production_column15", "production_column16", "production_column17", "distribution_rows", "distribution_column1", "distribution_column2", "distribution_column3", "distribution_column4", "distribution_column5", "termatic_rows", "termatic_column1", "termatic_column2", "termatic_column3", "auxiliary_rows", "auxiliary_column1", "auxiliary_column2", "auxiliary_column3"], "solar_collector": ["solar_collector_exists", "solar_collector_rows", "solar_collector_column1", "solar_collector_column2", "solar_collector_column3", "solar_collector_column4", "solar_collector_column5", "solar_collector_column6", "solar_collector_column7", "solar_collector_column8", "solar_collector_column9", "solar_collector_column10"], "lighting": ["lighting_exists", "lighting_parameter1", "lighting_parameter2", "lighting_parameter3", "lighting_parameter4", "lighting_parameter5", "lighting_parameter6", "lighting_parameter7", "lighting_parameter8", "lighting_parameter9", "lighting_parameter10", "lighting_parameter11", "lighting_parameter12"]};
 
+/* Μορφή αριθμών όπως τη γράφει το ΤΕΕ-ΚΕΝΑΚ: 3 δεκαδικά, αλλά με ΤΟΥΛΑΧΙΣΤΟΝ 2.
+   Επαληθεύτηκε σε 4 πραγματικά αρχεία: 104 -> «104.00», 5.2 -> «5.20»,
+   190.95 -> «190.95», 56.685 -> «56.685», 402.428 -> «402.428». */
+function kx_num(v){
+  if(v===''||v==null||!isFinite(v))return '';
+  var t=Number(v).toFixed(3);
+  if(/0$/.test(t))t=t.slice(0,-1);      /* αφαιρείται ΜΟΝΟ ένα μηδενικό -> μένουν 2 δεκαδικά */
+  return t;
+}
 function kx_esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function kx_el(tag,val,attr){
   var a=attr?' '+attr:'';
@@ -197,25 +206,38 @@ function kenakXML(model){
   /* scen[i].transparent (προαιρετικό) αντικαθιστά τα διαφανή του σεναρίου — νέα κουφώματα */
   for(var sc2=0;sc2<scen.length;sc2++){
   x+='<BUILDING rid="'+(sc2+1)+'">';
-  var bp={1:b.A,2:b.Aheat!=null?b.Aheat:b.A,3:(b.A/floors),
-          4:b.V,5:b.Vheat!=null?b.Vheat:b.V,6:(b.V/floors),
-          7:1,8:b.hTot,9:'',10:0,11:1,12:0,13:0,
+  /* blg_parameter3 = A/2 και blg_parameter6 = V/2 — ΟΧΙ διαιρεμένα με τους
+     ορόφους. Επαληθεύτηκε σε ΤΕΣΣΕΡΑ πραγματικά αρχεία ΤΕΕ-ΚΕΝΑΚ (4/4). */
+  var bp={1:b.A,2:b.Aheat!=null?b.Aheat:b.A,3:(b.A/2),
+          4:b.V,5:b.Vheat!=null?b.Vheat:b.V,6:(b.V/2),
+          7:1,8:b.hTot,9:'',10:b.p10!=null?b.p10:0,11:1,12:0,13:0,
           14:b.name||'ΚΤΙΡΙΟ',15:'1111',16:0,17:0,18:'',19:0,20:'',
           21:0,22:'',23:'',24:'',25:'',26:1,27:0,28:'',29:1,30:0,
           31:'',32:1,33:b.scenario||'',34:scen[sc2].title||''};
+  /* Οι παράμετροι εμβαδού/όγκου/ύψους γράφονται με τη μορφή του ΤΕΕ-ΚΕΝΑΚ */
+  var BP_NUM={1:1,2:1,3:1,4:1,5:1,6:1,8:1};
   for(var k2=1;k2<=34;k2++){
     var v2=bp[k2];
     if(typeof v2==='number'&&!isFinite(v2))v2='';
-    if(typeof v2==='number')v2=(Math.round(v2*1000)/1000);
+    if(typeof v2==='number')v2=BP_NUM[k2]?kx_num(v2):(Math.round(v2*1000)/1000);
     x+=kx_el('blg_parameter'+k2,v2===''?'':v2);
   }
   x+='<ZONE1 rid="'+(sc2+1)+'">';
+  /* zn_parameter5 και 14: ΣΤΑΘΕΡΕΣ = 3 — επαληθεύτηκε σε ΔΥΟ πραγματικά αρχεία
+     ΤΕΕ-ΚΕΝΑΚ (διαμέρισμα πολυκατοικίας και μονοκατοικία). Έγραφαν 1. */
   var zp={1:z.use||'Μονοκατοικία, πολυκατοικία',2:'',3:z.A!=null?z.A:b.A,
-          4:z.days!=null?z.days:280,5:1,6:z.p6!=null?z.p6:'',7:0,8:0,9:0,10:0,
-          11:1,12:z.p12!=null?z.p12:'',13:'False',14:1,15:0};
+          4:z.days!=null?z.days:280,
+          /* zn_parameter5 = zn_parameter14 σε ΚΑΙ ΤΑ ΤΕΣΣΕΡΑ πραγματικά αρχεία
+             (τιμές 3,3,3,2) — δίνεται από τον χρήστη, προεπιλογή 3. */
+          5:z.p5!=null?z.p5:3,6:z.p6!=null?z.p6:'',
+          7:z.p7!=null?z.p7:0,8:0,9:0,10:0,
+          /* zn_parameter12 = ΖΝΧ: ακέραιο πολλαπλάσιο του 27,38 m³/έτος
+             (πραγματικά: 82,14=3× · 54,76=2× · 27,38=1×). */
+          11:1,12:z.p12!=null?z.p12:'',13:'False',14:z.p5!=null?z.p5:3,15:0};
+  var ZP_NUM={3:1,6:1,12:1};
   for(var k3=1;k3<=15;k3++){
     var v3=zp[k3];
-    if(typeof v3==='number')v3=(Math.round(v3*1000)/1000);
+    if(typeof v3==='number')v3=ZP_NUM[k3]?kx_num(v3):(Math.round(v3*1000)/1000);
     x+=kx_el('zn_parameter'+k3,v3===''?'':v3);
   }
   x+='<ENVELOPE rid="'+(sc2+1)+'">';
