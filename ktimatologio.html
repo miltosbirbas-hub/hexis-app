@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0e1f2e">
-<title>Hexis-app Cadastral v2.2 — ΚΑΕΚ, Όρια & Χάραξη</title>
+<title>Hexis-app Cadastral v2.3 — ΚΑΕΚ, Χάραξη & Ασφάλεια πεδίου</title>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -215,7 +215,11 @@
 
   /* ── Πολυγωνική διαδρομή (χάραξη) ───────────────────── */
   #routeBtn{ top:244px; left:14px; right:auto; font-size:17px; }
+  #trackBtn{ top:290px; left:14px; right:auto; font-size:17px; }
+  #sosBtn{ top:336px; left:14px; right:auto; }
   body.mapfull #routeBtn{ display:grid !important; top:14px; left:14px; }
+  body.mapfull #trackBtn{ top:14px; left:60px; right:auto; }
+  body.mapfull #sosBtn{ top:14px; left:106px; right:auto; }
   #routeBtn.on{ background:#e67e22; color:#04101f; border-color:#e67e22; }
   #routePanel{ position:fixed; top:12px; left:50%; transform:translateX(-50%);
     z-index:10001; width:min(430px, calc(100vw - 20px));
@@ -264,6 +268,59 @@
     background:var(--panel2); border:1px solid #f5a623; color:#f5a623; }
   .sp-exp button:active{ transform:scale(.96); }
 
+
+  /* ── Στίγμα SOS & ίχνος: πρέπει να φτάνονται πάντα, ακόμη και σε πλήρη χάρτη ── */
+  .gear.sos{ background:#7f1d1d; border-color:#ef4444; color:#fff; font-size:16px; }
+  .gear.sos:active{ background:#b91c1c; }
+  #trackBtn.on{ background:#22d3ee; color:#04101f; border-color:#22d3ee; }
+  body.mapfull #routeBtn, body.mapfull #trackBtn, body.mapfull #sosBtn{ display:grid !important; }
+
+  #sosPanel{ display:none; position:fixed; z-index:10050; left:50%; top:50%;
+    transform:translate(-50%,-50%); width:min(360px, calc(100vw - 24px));
+    background:#0a1d33; border:2px solid #ef4444; border-radius:16px; padding:14px 16px;
+    box-shadow:0 10px 40px rgba(0,0,0,.6); color:#fff; }
+  #sosPanel .sos-head{ display:flex; justify-content:space-between; align-items:center;
+    font-size:15px; color:#fca5a5; margin-bottom:10px; }
+  #sosPanel .sos-head button{ background:none; border:1px solid #7f1d1d; color:#fca5a5;
+    border-radius:9px; padding:0; min-width:36px; min-height:36px; font-weight:800; flex:none; }
+  #sosPanel .sos-ll{ font-size:26px; font-weight:800; line-height:1.2; letter-spacing:.5px;
+    font-variant-numeric:tabular-nums; color:#fff; text-align:center;
+    background:#04101f; border-radius:10px; padding:10px 6px; user-select:all; }
+  #sosPanel .sos-sub{ text-align:center; font-size:12.5px; color:#9fc3dd; margin-top:7px; }
+  #sosPanel .sos-stale{ color:#f59e0b; font-weight:700; }
+  #sosPanel .sos-egsa{ text-align:center; font-size:12.5px; color:#7ea8cc; margin-top:4px;
+    font-variant-numeric:tabular-nums; user-select:all; }
+  #sosPanel .sos-warn{ margin-top:8px; font-size:12px; color:#f59e0b; text-align:center; }
+  #sosPanel .sos-wait{ text-align:center; padding:18px 0; color:#9fc3dd; font-size:13px;
+    animation:pulse 1.2s ease-in-out infinite; }
+  #sosPanel .sos-acts{ display:flex; gap:7px; margin-top:12px; }
+  #sosPanel .sos-acts button, #sosPanel .sos-acts a{ flex:1; min-height:40px; border-radius:10px;
+    font-size:12.5px; font-weight:800; display:flex; align-items:center; justify-content:center;
+    background:var(--panel2); border:1px solid var(--neon); color:var(--neon); text-decoration:none; }
+  #sosPanel .sos-acts a{ background:#7f1d1d; border-color:#ef4444; color:#fff; }
+  #sosPanel .sos-acts .off{ opacity:.35; pointer-events:none; }
+
+  #trackPanel{ display:none; position:absolute; z-index:665; left:50%; bottom:26px;
+    transform:translateX(-50%); width:min(360px, calc(100vw - 20px));
+    background:rgba(6,16,32,.94); border:1px solid var(--neon); border-radius:13px;
+    padding:8px 11px; color:#fff; font-size:12.5px; box-shadow:0 4px 16px rgba(0,0,0,.45); }
+  #trackPanel .tp-head{ display:flex; justify-content:space-between; align-items:center; color:var(--neon); }
+  #trackPanel .tp-head button{ background:none; border:none; color:#9fc3dd; font-size:15px;
+    flex:none; padding:0; min-width:34px; min-height:34px; }
+  #tpInfo{ margin:5px 0 7px; font-variant-numeric:tabular-nums; }
+  #tpInfo b{ color:var(--olive-bright); }
+  #trackPanel .tp-live{ color:#ef4444; font-weight:800; animation:gpsPulse 1.4s infinite; }
+  #trackPanel .tp-acts{ display:flex; gap:6px; }
+  #trackPanel .tp-acts button{ flex:1; min-height:34px; border-radius:9px; font-size:12px; font-weight:800;
+    background:var(--panel2); border:1px solid var(--neon); color:var(--neon); }
+  #trackPanel .tp-acts button#tpTxt, #trackPanel .tp-acts button#tpClear{ flex:none; width:40px; }
+  #trackPanel .tp-acts button.go{ background:#ef4444; border-color:#ef4444; color:#fff; }
+  #trackPanel .tp-acts button:disabled{ opacity:.35; }
+  #trackPanel.docked{ position:static; transform:none; width:auto; margin:0 0 12px; }
+  /* Με ανοιχτό το ίχνος, τα κουμπιά του κάτω άκρου ανεβαίνουν να μην καλυφθούν */
+  body.track-open #recenterBtn{ bottom:132px; }
+  body.track-open #clearSelBtn{ bottom:122px; }
+
   /* ═══════════ ΔΙΑΤΑΞΗ: ΚΙΝΗΤΟ ═══════════ */
   .copy-wrap{ margin-top:6px; }
   .copy-wrap .cap{ font-size:10px;color:var(--muted);margin-bottom:3px; }
@@ -306,7 +363,8 @@
     #measureBtn{ top:12px !important; } #polyBtn{ top:50px !important; }
     #ktimWmsBtn{ top:88px !important; font-size:14px !important; }
     #forestBtn{ top:126px !important; } #timeBtn{ top:164px !important; }
-    #routeBtn{ top:202px !important; }
+    #routeBtn{ top:202px !important; } #trackBtn{ top:240px !important; }
+    #sosBtn{ top:278px !important; }
     #gear{ top:12px !important; } #fullBtn{ top:50px !important; }
     #langBtn{ top:88px !important; font-size:10.5px !important; }
     #sidePanel{ top:128px !important; }
@@ -331,6 +389,7 @@
     #measureBtn{ top:10px !important; } #polyBtn{ top:45px !important; }
     #ktimWmsBtn{ top:80px !important; } #forestBtn{ top:115px !important; }
     #timeBtn{ top:150px !important; } #routeBtn{ top:185px !important; }
+    #trackBtn{ top:220px !important; } #sosBtn{ top:255px !important; }
     .gear{ width:30px !important; height:30px !important; }
     #routePanel{ top:calc(env(safe-area-inset-top) + 50px); padding:6px 8px; }
     #rpList{ max-height:15vh; max-height:15dvh; }
@@ -383,10 +442,11 @@
     #measureBtn{ top:14px !important; } #polyBtn{ top:56px !important; }
     #ktimWmsBtn{ top:98px !important; } #forestBtn{ top:140px !important; }
     #timeBtn{ top:182px !important; } #routeBtn{ top:224px !important; }
+    #trackBtn{ top:266px !important; } #sosBtn{ top:308px !important; }
     #gear{ top:14px !important; } #fullBtn{ top:56px !important; }
     #langBtn{ top:98px !important; }
     #sidePanel{ top:146px !important; width:230px; }
-    #forestPanel,#timePanel{ left:14px; top:270px; width:270px; }
+    #forestPanel,#timePanel{ left:14px; top:356px; width:270px; }
 
     #routePanel.docked{ position:static; width:auto; transform:none;
       margin:0 0 12px; border-radius:12px; backdrop-filter:none; }
@@ -493,6 +553,8 @@ if('serviceWorker' in navigator){
   <div class="gear" id="polyBtn" data-lbl="Πολύγωνο" style="top:60px;left:14px;right:auto;font-size:18px" title="Σχεδίαση πολυγώνου / εμβαδόν">✏️</div>
   <div class="gear" id="ktimWmsBtn" data-lbl="Όρια ΚΤ" style="top:106px;left:14px;right:auto;font-size:16px;font-weight:800" title="Όρια κτηματογράφησης (on/off)" onclick="toggleKtim()">ΚΤ</div>
   <div class="gear" id="langBtn" title="Γλώσσα / Language" onclick="toggleLang()">EN</div>
+  <div class="gear" id="trackBtn" data-lbl="Ίχνος" title="Καταγραφή ίχνους & επιστροφή" onclick="toggleTrackPanel()">⏺</div>
+  <div class="gear sos" id="sosBtn" data-lbl="Στίγμα SOS" title="Η θέση μου — στίγμα έκτακτης ανάγκης" onclick="openSOS()">🆘</div>
   <div class="gear" id="routeBtn" data-lbl="Διαδρομή" title="Πολυγωνική διαδρομή (χάραξη)" onclick="toggleRoutePanel()">🛣</div>
   <div class="gear" id="fullBtn" data-lbl="Πλήρης χάρτης" style="top:60px;right:14px;left:auto;font-size:18px" title="Πλήρης χάρτης — απόκρυψη panel & κουμπιών" onclick="toggleFull()">⛶</div>
   <div class="gear" id="forestBtn" data-lbl="Δασικά" style="top:152px;left:14px;right:auto;font-size:17px" title="Δασικοί χάρτες & SHP importer" onclick="toggleForestPanel()">🌲</div>
@@ -588,6 +650,10 @@ if('serviceWorker' in navigator){
       <b>⬇ DXF</b> — σχέδιο σε ΕΓΣΑ'87 με τέσσερα layers: <b>HEXIS_POINTS</b> (σημεία), <b>HEXIS_TEXT</b> (ετικέτες K1, K2…), <b>HEXIS_LINE</b> (πολυγραμμή — κλειστή αν το πολύγωνο έχει κλείσει) και <b>HEXIS_DIM</b> (τα μήκη των πλευρών, στραμμένα πάνω σε κάθε πλευρά και πάντα αναγνώσιμα). Το ύψος κειμένου προσαρμόζεται στο μέγεθος του σχεδίου.</p>
       <p><b style="color:#22d3ee">🗑 Καθαρισμός επιλογών.</b> Όταν έχεις επιλεγμένα γεωτεμάχια, εμφανίζεται κουμπί «Καθαρισμός» στο κάτω μέρος του χάρτη — ένα πάτημα σβήνει κύριο, όμορα, ΕΚ, καρτελάκια και στατιστικά.</p>
       <p><b style="color:#22d3ee">📍 Live tracking (κινητό/tablet).</b> Το «Θέση μου» ξεκινά συνεχή παρακολούθηση: η πινέζα σου κινείται σε πραγματικό χρόνο με κύκλο ακρίβειας (±μ) και ο χάρτης σε ακολουθεί. Αν σύρεις τον χάρτη ή ψάξεις ΚΑΕΚ, το follow παύει και εμφανίζεται κουμπί «⌖ Επιστροφή στη θέση μου» — πάτα το για να ξαναγυρίσει πάνω σου. Ξαναπάτημα του 📍 (⏸ Stop) τερματίζει το tracking. <i style="opacity:.8">Σημ.: το GPS κινητού δίνει ±3–10 μ — για αναγνώριση στο πεδίο, όχι για χάραξη ακριβείας.</i></p>
+      <p><b style="color:#ef4444">🆘 Στίγμα έκτακτης ανάγκης.</b> Το κόκκινο κουμπί δείχνει <b>τη δική σου θέση</b> — όχι του σταυρονήματος — σε μεγάλα ψηφία που διαβάζονται στο τηλέφωνο: γεωγραφικό πλάτος/μήκος σε δεκαδικές μοίρες (η μορφή που ζητά το 112 και το ΕΚΑΒ), ακρίβεια ±μ, ηλικία στίγματος και από κάτω ΕΓΣΑ'87 Χ/Υ. <b>📋 Αντιγραφή</b> βάζει στο πρόχειρο έτοιμο μήνυμα με συντεταγμένες, ώρα και σύνδεσμο χάρτη· <b>↗ Αποστολή</b> το στέλνει με SMS/Viber/WhatsApp· <b>📞 112</b> καλεί. Αν το στίγμα είναι παλιότερο από ένα λεπτό, εμφανίζεται προειδοποίηση με πορτοκαλί. Χωρίς ενεργό tracking ζητά αμέσως νέο στίγμα. <b>Δεν χρειάζεται δίκτυο</b> — το GPS δουλεύει και χωρίς σήμα κινητής.</p>
+      <p><b style="color:#22d3ee">⏺ Ίχνος πορείας & επιστροφή.</b> Ανεξάρτητο από την πλοήγηση: γράφει τον δρόμο που περπάτησες (νέο σημείο κάθε ~8 μ, αγνοώντας στίγματα χειρότερα από ±60 μ) και τον δείχνει με γαλάζια διακεκομμένη. Το ίχνος <b>επιβιώνει reload και κλείσιμο</b> — αποθηκεύεται τοπικά μέσα σε 3 δευτερόλεπτα από κάθε αλλαγή και αμέσως μόλις φύγεις από την εφαρμογή.</p>
+      <p style="margin-left:12px"><b>↩ Επιστροφή</b> — παίρνει το ίχνος, το απλοποιεί σε λίγα καθαρά σκέλη (κρατά τις στροφές, όχι κάθε κουκκίδα), το γυρίζει ανάποδα και ξεκινά κανονική πλοήγηση διαδρομής προς την αφετηρία σου, με απόσταση, πυξίδα και αυτόματη μετάβαση σε κάθε σημείο. <b>⬇</b> κατεβάζει το ίχνος σε TXT (ΕΓΣΑ'87).</p>
+      <p style="margin-left:12px;font-size:12.5px;opacity:.9">Δύο πράγματα που πρέπει να ξέρεις: όσο τρέχει το GPS, η <b>οθόνη μένει αναμμένη</b> (Wake Lock) γιατί αλλιώς το κλείδωμα σταματά τον εντοπισμό — φρόντισε τη μπαταρία. Και μια <b>προσωρινή απώλεια σήματος</b> (φαράγγι, πυκνό δάσος) δεν σταματά πλέον την παρακολούθηση· μόνο η άρνηση άδειας τοποθεσίας τη σταματά.</p>
       <p><b style="color:#22d3ee">🧭 Πλοήγηση σε σημείο.</b> Κεντράρισε το σταυρόνημα στο σημείο που θες να πας (ή βρες το με ΚΑΕΚ) και πάτα «Στο σημείο»: αν δεν τρέχει ήδη εντοπισμός, το GPS ξεκινά αυτόματα, μπαίνει σημαία 🚩, πορτοκαλί γραμμή πορείας από τη θέση σου, και πάνελ με ζωντανή <b>απόσταση</b> και <b>πορεία</b> (αζιμούθιο σε μοίρες + πυξίδα, υπολογισμένα σε ΕΓΣΑ'87). Στη θέση σου εμφανίζεται μηχανικός με λευκό κράνος και κίτρινο γιλέκο ασφαλείας, που περπατάει (πόδια και χέρια σε κίνηση) όσο κινείσαι και στέκεται ακίνητος όταν σταματάς. Μόλις ξεκινήσεις να κινείσαι, η αρχική ευθεία εκκίνηση→στόχος «κλειδώνει» και εμφανίζονται δύο παράλληλες διακεκομμένες εκατέρωθέν της (διάδρομος ±10 μ, όπως στο Navionics)· το πάνελ δείχνει και την <b>εκτροπή</b> σου από την πορεία (μέτρα, ◀ αριστερά / ▶ δεξιά) — πράσινη εντός διαδρόμου, κόκκινη που αναβοσβήνει αν βγεις έξω. Πίσω σου μένει <b>ίχνος από κόκκινες κουκκίδες</b> (μία κάθε ~4 μ) από την αφετηρία — βλέπεις ακριβώς από πού πέρασες σε σχέση με τον διάδρομο. Όλα τα στοιχεία πλοήγησης εμφανίζονται μόνο σε <b>πλήρη χάρτη (⛶)</b> — με το που ορίζεις στόχο, η εφαρμογή περνά αυτόματα σε πλήρη χάρτη· κλείνοντάς τον (⛶ ξανά) ο χάρτης καθαρίζει, ενώ η πλοήγηση συνεχίζει στο παρασκήνιο και επανεμφανίζεται όταν ξανανοίξεις. Κάτω από 5 μ: «✅ Έφτασες!». Λειτουργεί σαν stakeout αναγνώρισης — σε πάει στο σωστό χωράφι, η ακριβής χάραξη γίνεται με RTK. Ακύρωση με ✕ ή ξαναπάτημα του 🧭.</p>
       <p><b style="color:#22d3ee">⌨ ΧΥ σημείο — εισαγωγή συντεταγμένων.</b> Όταν έχεις τις συντεταγμένες από τοπογραφικό, απόσπασμα ΚΤ ή πίνακα κορυφών, δεν χρειάζεται να «στρώνεις» τον χάρτη με το χέρι. Πάτα «⌨ ΧΥ σημείο», δώσε το ζεύγος και διάλεξε:</p>
       <p style="margin-left:12px"><b>🎯 Μετάβαση</b> — ο χάρτης κεντράρει στο σημείο με πλήρες zoom. Το σταυρόνημα πέφτει ακριβώς πάνω του, οπότε με ένα κλικ βλέπεις και το ΚΑΕΚ του γεωτεμαχίου εκεί.<br>
@@ -620,6 +686,10 @@ if('serviceWorker' in navigator){
       <b>⬇ DXF</b> — a GGRS87 drawing on four layers: <b>HEXIS_POINTS</b>, <b>HEXIS_TEXT</b> (K1, K2… labels), <b>HEXIS_LINE</b> (polyline, closed if the polygon was closed) and <b>HEXIS_DIM</b> (side lengths, rotated onto each side and always readable). Text height adapts to the drawing size.</p>
       <p><b style="color:#22d3ee">🗑 Clear selection.</b> When parcels are selected a «Clear» button appears at the bottom of the map — one tap removes main, neighbours, public parcels, cards and stats.</p>
       <p><b style="color:#22d3ee">📍 Live tracking (phone/tablet).</b> «My position» starts continuous tracking: your pin moves in real time with an accuracy circle (±m) and the map follows you. If you pan the map or search a KAEK, follow pauses and a «⌖ Back to my position» button appears. Tapping 📍 again stops tracking. <i style="opacity:.8">Note: phone GPS gives ±3–10 m — for field identification, not precision stakeout.</i></p>
+      <p><b style="color:#ef4444">🆘 Emergency fix.</b> The red button shows <b>your own position</b> — not the crosshair — in large digits you can read out over the phone: latitude/longitude in decimal degrees (the format emergency services ask for), accuracy ±m, fix age, and GGRS87 X/Y below. <b>📋 Copy</b> puts a ready message with coordinates, time and a map link on the clipboard; <b>↗ Send</b> shares it via SMS/Viber/WhatsApp; <b>📞 112</b> dials. A fix older than a minute is flagged in orange. With no tracking running it requests a fresh fix immediately. <b>No network needed</b> — GPS works without mobile signal.</p>
+      <p><b style="color:#22d3ee">⏺ Track log & back-track.</b> Independent of navigation: it records the path you walked (a point every ~8 m, ignoring fixes worse than ±60 m) and draws it as a cyan dashed line. The track <b>survives reload and closing</b> — it is stored locally within 3 seconds of any change, and immediately when you leave the app.</p>
+      <p style="margin-left:12px"><b>↩ Back-track</b> — takes the track, simplifies it into a few clean legs (keeping the turns, not every dot), reverses it and starts normal route navigation back to your starting point, with distance, compass and automatic advance at each point. <b>⬇</b> downloads the track as TXT (GGRS87).</p>
+      <p style="margin-left:12px;font-size:12.5px;opacity:.9">Two things to know: while GPS runs the <b>screen stays awake</b> (Wake Lock), because locking it stops positioning — watch your battery. And a <b>temporary signal loss</b> (gorge, dense forest) no longer stops tracking; only denying location permission does.</p>
       <p><b style="color:#22d3ee">🧭 Navigate to a point.</b> Centre the crosshair on your destination (or find it by KAEK) and press «To point»: GPS starts automatically if it is not already running, a flag 🚩 is dropped, an orange course line is drawn from your position, and a panel shows live <b>distance</b> and <b>bearing</b> (azimuth in degrees + compass point, computed in GGRS87). Your position is shown as an engineer with a white helmet and yellow hi-vis vest, walking while you move and standing still when you stop. Once you start moving, the initial start→target line locks and two dashed parallels appear on either side (±10 m corridor, Navionics style); the panel also shows your <b>off-track</b> error (metres, ◀ left / ▶ right) — green inside the corridor, flashing red outside. A <b>trail of red dots</b> (one every ~4 m) is left behind you. All navigation elements appear only in <b>full map (⛶)</b>; setting a target switches to full map automatically. Below 5 m: «✅ Arrived!». It works as a reconnaissance stakeout — it takes you to the right plot; precise setting out is done with RTK. Cancel with ✕ or by tapping 🧭 again.</p>
       <p><b style="color:#22d3ee">⌨ XY point — coordinate entry.</b> When you have the coordinates from a survey, a cadastral extract or a vertex table, there is no need to pan the map by hand. Press «⌨ XY point», enter the pair and choose:</p>
       <p style="margin-left:12px"><b>🎯 Go to</b> — centres the map on the point at full zoom, so one tap also gives you the KAEK there.<br>
@@ -804,6 +874,26 @@ const DICT_EN = {
   "🗑 Καθαρισμός διαδρομής":"🗑 Clear route", "Αναίρεση τελευταίου σημείου":"Undo last point",
   "Προηγούμενο σκέλος":"Previous leg", "Επόμενο σκέλος":"Next leg",
   "Καμία διαδρομή":"No route",
+  "Ίχνος":"Track", "Στίγμα SOS":"SOS fix",
+  "Καταγραφή ίχνους & επιστροφή":"Track recording & back-track",
+  "Η θέση μου — στίγμα έκτακτης ανάγκης":"My position — emergency fix",
+  "Η θέση μου":"My position", "Ίχνος πορείας":"Track log",
+  "Αναμονή για στίγμα GPS…":"Waiting for a GPS fix…",
+  "Ακρίβεια":"Accuracy",
+  "Παλιό στίγμα — άναψε το GPS (📍) για ενημέρωση.":"Old fix — turn on GPS (📍) to refresh.",
+  "📋 Αντιγραφή":"📋 Copy", "↗ Αποστολή":"↗ Send",
+  "Το στίγμα αντιγράφηκε.":"Position copied.",
+  "Η αποστολή δεν υποστηρίζεται — το στίγμα αντιγράφηκε.":"Sharing is not supported — position copied.",
+  "⏺ Έναρξη":"⏺ Start", "↩ Επιστροφή":"↩ Back-track",
+  "Ίχνος σε TXT (ΕΓΣΑ'87)":"Track as TXT (GGRS87)",
+  "Καθαρισμός ίχνους":"Clear track",
+  "Καταγραφή ίχνους ενεργή.":"Track recording on.",
+  "Η καταγραφή ίχνους σταμάτησε.":"Track recording stopped.",
+  "Το ίχνος καθαρίστηκε.":"Track cleared.",
+  "Δεν υπάρχει αρκετό ίχνος για επιστροφή.":"Not enough track to navigate back.",
+  "Δεν δόθηκε άδεια τοποθεσίας.":"Location permission was denied.",
+  "Προσωρινή απώλεια σήματος GPS — συνεχίζεται η αναζήτηση.":"Temporary GPS signal loss — still searching.",
+  "καταγραφή":"recording", "Κλείσιμο":"Close",
   "Δασικός χάρτης στο σημείο του σταυρονήματος — οι ΕΓΣΑ'87 αντιγράφηκαν.":"Forest map opened at the crosshair — GGRS87 coordinates copied.",
   "Αντιγράφηκαν οι ΕΓΣΑ'87 του σταυρονήματος — επικόλλησέ τες στη μετάβαση του viewer.":"GGRS87 coordinates of the crosshair copied — paste them into the viewer's go-to box.",
   "Δεν υπάρχουν σημεία για εξαγωγή.":"There are no points to export.",
@@ -856,6 +946,8 @@ const FRAG_EN = [
   ["επικόλλησέ τες στη μετάβαση του viewer.","paste them into the viewer's go-to box."],
   ["οι ΕΓΣΑ'87 αντιγράφηκαν.","GGRS87 coordinates copied."],
   ["γεωτεμαχίου","the parcel"],
+  ["Επιστροφή:","Back-track:"],
+  ["σημεία από το ίχνος σου.","points from your track."],
   ["Κατέβηκαν","Downloaded"],
   ["Κατέβηκε DXF με","Downloaded DXF with"],
   ["σημεία σε TXT","points as TXT"],
@@ -1745,7 +1837,10 @@ function openKtimViewer(era){
 }
 
 function toggleFull(){
-  setTimeout(()=>{ try{ homeRoutePanel(); }catch(e){} }, 0);
+  setTimeout(()=>{ try{ homeRoutePanel(); homeTrackPanel();
+    const tp = $("trackPanel");
+    document.body.classList.toggle("track-open", !!tp && tp.style.display === "block" && !tp.classList.contains("docked"));
+  }catch(e){} }, 0);
   document.body.classList.toggle("mapfull");
   try{ syncNavVisibility(); }catch(e){}
   setTimeout(()=>{ try{ map.invalidateSize(); }catch(e){} }, 120);
@@ -1982,6 +2077,7 @@ let gpsFollow = true;         // ο χάρτης ακολουθεί τη θέσ�
 let gpsFirstFix = true;       // πρώτο fix → zoom 19
 
 function stopGpsTracking(){
+  releaseWakeLock();
   if(gpsWatchId !== null){ navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
   if(liveMarker){ map.removeLayer(liveMarker); liveMarker = null; }
   if(gpsAccCircle){ map.removeLayer(gpsAccCircle); gpsAccCircle = null; }
@@ -2010,6 +2106,9 @@ $("gpsBtn").onclick = () => {
     const {latitude,longitude,accuracy} = pos.coords;
     const ll = [latitude, longitude];
     lastAcc = accuracy;              // ΠΡΙΝ το updateNav — η λογική άφιξης το χρειάζεται τώρα
+    saveLastFix({ lat: latitude, lon: longitude, acc: accuracy, t: Date.now() });
+    trackTick(latitude, longitude, accuracy);
+    renderSos();
 
     // Πινέζα: δημιουργία μία φορά, μετά μόνο setLatLng (ομαλή κίνηση)
     if(!liveMarker){
@@ -2045,10 +2144,136 @@ $("gpsBtn").onclick = () => {
     $("gpsBtn").classList.add("gps-live");
     setHint("Live tracking ενεργό — η πινέζα ακολουθεί τη θέση σου.", accuracy<=10?"ok":"");
   }, err=>{
-    setHint("Σφάλμα GPS: "+err.message, "err");
-    stopGpsTracking();
+    // Μόνο η άρνηση άδειας είναι μόνιμη. Ένα χαμένο στίγμα (σύννεφο, φαράγγι,
+    // κτίριο) είναι προσωρινό — αν σταματούσαμε εδώ, θα έμενες χωρίς GPS
+    // ακριβώς όταν το χρειάζεσαι.
+    if(err.code === 1){ setHint("Δεν δόθηκε άδεια τοποθεσίας.", "err"); stopGpsTracking(); }
+    else setHint("Προσωρινή απώλεια σήματος GPS — συνεχίζεται η αναζήτηση.", "err");
   }, { enableHighAccuracy:true, timeout:15000, maximumAge:0 });
+  acquireWakeLock();
 };
+
+
+// ═════════ ΑΣΦΑΛΕΙΑ ΠΕΔΙΟΥ: στίγμα, οθόνη, ίχνος ═════════
+// Το tracking εδώ δεν είναι εργαλείο μέτρησης. Αν κάποιος χαθεί ή τραυματιστεί,
+// αυτό που μετράει είναι να υπάρχει έγκυρο στίγμα και δρόμος επιστροφής —
+// ακόμη και χωρίς δίκτυο. Γι' αυτό: το τελευταίο fix κρατιέται πάντα (και σε
+// localStorage, να επιβιώνει reload), η οθόνη μένει αναμμένη όσο τρέχει το GPS,
+// και ένα προσωρινό σφάλμα GPS ΔΕΝ σταματά την παρακολούθηση.
+let lastFix = null;            // {lat, lon, acc, t}
+let wakeLock = null;
+
+function saveLastFix(f){
+  lastFix = f;
+  try{ localStorage.setItem("hexis_lastfix", JSON.stringify(f)); }catch(e){}
+}
+(function restoreLastFix(){
+  try{ const r = localStorage.getItem("hexis_lastfix"); if(r) lastFix = JSON.parse(r); }catch(e){}
+})();
+
+function fixAge(f){ return f ? Math.max(0, Math.round((Date.now() - f.t) / 1000)) : null; }
+function fmtAge(s){
+  if(s == null) return "—";
+  if(s < 60) return s + (LANG === "en" ? " s ago" : " δευτ. πριν");
+  const m = Math.round(s / 60);
+  if(m < 60) return m + (LANG === "en" ? " min ago" : " λεπτά πριν");
+  return Math.round(m / 60) + (LANG === "en" ? " h ago" : " ώρες πριν");
+}
+
+async function acquireWakeLock(){
+  try{
+    if("wakeLock" in navigator && !wakeLock){
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+    }
+  }catch(e){ wakeLock = null; }
+}
+function releaseWakeLock(){ try{ if(wakeLock){ wakeLock.release(); wakeLock = null; } }catch(e){} }
+document.addEventListener("visibilitychange", () => {
+  // Το wake lock χάνεται όταν φύγεις από την εφαρμογή — ξαναπιάσ' το μόλις γυρίσεις
+  if(document.visibilityState === "visible" && gpsWatchId !== null) acquireWakeLock();
+});
+
+// ── Στίγμα έκτακτης ανάγκης ──
+function sosText(f){
+  const [X, Y] = proj4("EPSG:4326","EPSG:2100",[f.lon, f.lat]);
+  const d = new Date(f.t), p = n => String(n).padStart(2,"0");
+  const when = p(d.getDate()) + "/" + p(d.getMonth()+1) + "/" + d.getFullYear() + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+  const L = LANG === "en";
+  return (L ? "MY POSITION\n" : "Η ΘΕΣΗ ΜΟΥ\n")
+    + f.lat.toFixed(6) + ", " + f.lon.toFixed(6) + "\n"
+    + (L ? "Accuracy " : "Ακρίβεια ") + "±" + Math.round(f.acc) + " m\n"
+    + "\u0395\u0393\u03a3\u0391'87: X " + X.toFixed(2) + "  Y " + Y.toFixed(2) + "\n"
+    + (L ? "Time " : "Ώρα ") + when + "\n"
+    + "https://maps.google.com/?q=" + f.lat.toFixed(6) + "," + f.lon.toFixed(6);
+}
+
+function buildSosPanel(){
+  let p = $("sosPanel");
+  if(p) return p;
+  p = document.createElement("div");
+  p.id = "sosPanel";
+  p.innerHTML =
+    '<div class="sos-head"><b>🆘 <span class="sos-title">Η θέση μου</span></b>' +
+      '<button id="sosClose" title="Κλείσιμο">✕</button></div>' +
+    '<div id="sosBody"></div>' +
+    '<div class="sos-acts">' +
+      '<button id="sosCopy">📋 Αντιγραφή</button>' +
+      '<button id="sosShare">↗ Αποστολή</button>' +
+      '<a id="sosCall" href="tel:112">📞 112</a>' +
+    "</div>";
+  document.body.appendChild(p);
+  p.querySelector("#sosClose").onclick = () => { p.style.display = "none"; };
+  p.querySelector("#sosCopy").onclick = () => {
+    if(!lastFix) return;
+    const t = sosText(lastFix);
+    if(navigator.clipboard && navigator.clipboard.writeText)
+      navigator.clipboard.writeText(t).then(()=>setHint("Το στίγμα αντιγράφηκε.","ok")).catch(()=>{});
+  };
+  p.querySelector("#sosShare").onclick = () => {
+    if(!lastFix) return;
+    const t = sosText(lastFix);
+    if(navigator.share) navigator.share({ text: t }).catch(()=>{});
+    else if(navigator.clipboard) navigator.clipboard.writeText(t).then(()=>setHint("Η αποστολή δεν υποστηρίζεται — το στίγμα αντιγράφηκε.","ok")).catch(()=>{});
+  };
+  applyLang(p);
+  return p;
+}
+
+function renderSos(){
+  const p = $("sosPanel"); if(!p || p.style.display === "none") return;
+  const b = p.querySelector("#sosBody");
+  if(!lastFix){
+    b.innerHTML = '<div class="sos-wait">' + trx("Αναμονή για στίγμα GPS…") + "</div>";
+    p.querySelectorAll(".sos-acts button, .sos-acts a").forEach(x => x.classList.add("off"));
+    return;
+  }
+  p.querySelectorAll(".sos-acts button, .sos-acts a").forEach(x => x.classList.remove("off"));
+  const f = lastFix, age = fixAge(f);
+  const [X, Y] = proj4("EPSG:4326","EPSG:2100",[f.lon, f.lat]);
+  const stale = age > 60;
+  b.innerHTML =
+    '<div class="sos-ll">' + f.lat.toFixed(6) + "<br>" + f.lon.toFixed(6) + "</div>" +
+    '<div class="sos-sub">' + trx("Ακρίβεια") + " ±" + Math.round(f.acc) + (LANG==="en"?" m":" μ") +
+      ' &nbsp;·&nbsp; <span class="' + (stale ? "sos-stale" : "") + '">' + fmtAge(age) + "</span></div>" +
+    '<div class="sos-egsa">ΕΓΣΑ\'87 &nbsp; X ' + X.toFixed(2) + " &nbsp; Y " + Y.toFixed(2) + "</div>" +
+    (stale ? '<div class="sos-warn">' + trx("Παλιό στίγμα — άναψε το GPS (📍) για ενημέρωση.") + "</div>" : "");
+}
+
+function openSOS(){
+  const p = buildSosPanel();
+  p.style.display = "block";
+  renderSos();
+  // Αν δεν τρέχει tracking, ζήτα άμεσα ένα στίγμα (δεν χρειάζεται δίκτυο)
+  if(gpsWatchId === null && navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      pos => { saveLastFix({ lat: pos.coords.latitude, lon: pos.coords.longitude,
+                             acc: pos.coords.accuracy, t: Date.now() }); renderSos(); },
+      () => renderSos(),
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    );
+  }
+}
 
 // ───────── Κουμπί επανεστίασης (⌖) ─────────
 // Εμφανίζεται όταν το follow απενεργοποιηθεί (drag ή αναζήτηση ΚΑΕΚ)
@@ -2786,6 +3011,184 @@ function routeTick(){
   if(needConfirm && _arriveHits < 2) return;
   _arriveHits = 0;
   setLeg(legIdx + 1);
+}
+
+
+// ───────── Καταγραφή ίχνους & επιστροφή ─────────
+// Ανεξάρτητη από την πλοήγηση: γράφει τον δρόμο που περπάτησες, επιβιώνει
+// reload (localStorage) και μπορεί να γυριστεί ανάποδα σε διαδρομή επιστροφής.
+let track = [];                 // [{lat, lon, t, acc}]
+let trackOn = false;
+let trackLine = null;
+let trackPanel = null;
+const TRACK_MIN_D = 8;          // νέο σημείο κάθε ~8 μ πραγματικής μετατόπισης
+const TRACK_MAX_ACC = 60;       // στίγματα χειρότερα από αυτό δεν μπαίνουν στο ίχνος
+let _trackSaveTimer = null;
+
+function _writeTrack(){
+  try{ localStorage.setItem("hexis_track", JSON.stringify({ on: trackOn, pts: track })); }catch(e){}
+}
+// Ντεμπάουνς με ουρά: δεν γράφει σε κάθε fix, αλλά η ΤΕΛΕΥΤΑΙΑ κατάσταση
+// γράφεται πάντα μέσα σε 3 δευτερόλεπτα — δεν χάνεται ίχνος σε κρασάρισμα.
+function saveTrack(force){
+  if(force){ clearTimeout(_trackSaveTimer); _trackSaveTimer = null; _writeTrack(); return; }
+  if(_trackSaveTimer) return;
+  _trackSaveTimer = setTimeout(() => { _trackSaveTimer = null; _writeTrack(); }, 3000);
+}
+// Κλείσιμο tab, μετάβαση στο παρασκήνιο, τερματισμός από το σύστημα → γράψε τώρα
+window.addEventListener("pagehide", () => saveTrack(true));
+document.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden") saveTrack(true); });
+(function restoreTrack(){
+  try{
+    const r = localStorage.getItem("hexis_track");
+    if(r){ const o = JSON.parse(r); if(o && Array.isArray(o.pts)) track = o.pts; }
+  }catch(e){}
+})();
+
+function trackDist(){
+  let d = 0;
+  for(let i = 1; i < track.length; i++)
+    d += distBearingEGSA(L.latLng(track[i-1].lat, track[i-1].lon), L.latLng(track[i].lat, track[i].lon)).dist;
+  return d;
+}
+function drawTrack(){
+  if(trackLine){ try{ map.removeLayer(trackLine); }catch(e){} trackLine = null; }
+  if(track.length < 2) return;
+  trackLine = L.polyline(track.map(p => [p.lat, p.lon]),
+    { color:"#22d3ee", weight:3, opacity:.75, dashArray:"1 7", lineCap:"round", interactive:false }).addTo(map);
+}
+
+// Καλείται από κάθε GPS fix
+function trackTick(lat, lon, acc){
+  if(!trackOn) return;
+  if(acc > TRACK_MAX_ACC) return;
+  const last = track[track.length - 1];
+  if(last){
+    const d = distBearingEGSA(L.latLng(last.lat, last.lon), L.latLng(lat, lon)).dist;
+    if(d < TRACK_MIN_D) return;
+  }
+  track.push({ lat, lon, t: Date.now(), acc });
+  drawTrack(); saveTrack(); renderTrack();
+}
+
+function toggleTrackRec(){
+  trackOn = !trackOn;
+  if(trackOn){
+    if(gpsWatchId === null) $("gpsBtn").onclick();     // χωρίς GPS δεν γράφεται τίποτα
+    setHint("Καταγραφή ίχνους ενεργή.", "ok");
+  } else setHint("Η καταγραφή ίχνους σταμάτησε.");
+  saveTrack(true); renderTrack();
+}
+function clearTrack(){
+  track = []; trackOn = false;
+  if(trackLine){ try{ map.removeLayer(trackLine); }catch(e){} trackLine = null; }
+  saveTrack(true); renderTrack();
+  setHint("Το ίχνος καθαρίστηκε.");
+}
+
+// Απλοποίηση: κράτα σημεία όπου αλλάζει η πορεία ή κάθε ~60 μ,
+// ώστε η επιστροφή να έχει λίγα, καθαρά σκέλη αντί για εκατοντάδες κουκκίδες.
+function simplifyTrack(pts){
+  if(pts.length <= 2) return pts.slice();
+  const out = [pts[0]];
+  let lastAz = null, acc = 0;
+  for(let i = 1; i < pts.length - 1; i++){
+    const a = L.latLng(out[out.length-1].lat, out[out.length-1].lon);
+    const b = L.latLng(pts[i].lat, pts[i].lon);
+    const { dist, az } = distBearingEGSA(a, b);
+    acc = dist;
+    let turn = lastAz === null ? 0 : Math.abs(((az - lastAz + 540) % 360) - 180);
+    if(turn > 25 || acc > 60){ out.push(pts[i]); lastAz = az; }
+    else if(lastAz === null) lastAz = az;
+  }
+  out.push(pts[pts.length - 1]);
+  return out;
+}
+
+// «Πίσω από τον δρόμο μου»: το ίχνος ανάποδα, ως διαδρομή πλοήγησης
+function backtrack(){
+  if(track.length < 2){ setHint("Δεν υπάρχει αρκετό ίχνος για επιστροφή.", "err"); return; }
+  const simp = simplifyTrack(track).slice().reverse();
+  if(routeActive) stopRoute();
+  route = simp.map(p => L.latLng(p.lat, p.lon));
+  routeClosed = false;
+  buildRoutePanel().style.display = "block";
+  const rb = $("routeBtn"); if(rb) rb.classList.add("on");
+  renderRoute();
+  startRoute();
+  setHint("Επιστροφή: " + route.length + " σημεία από το ίχνος σου.", "ok");
+}
+
+function trackTXT(){
+  if(!track.length){ setHint("Δεν υπάρχουν σημεία για εξαγωγή.", "err"); return; }
+  const lines = track.map((p, i) => {
+    const [E, N] = proj4("EPSG:4326","EPSG:2100",[p.lon, p.lat]);
+    return (i+1) + "," + E.toFixed(2) + "," + N.toFixed(2) + ",0.00";
+  });
+  saveBlob(lines.join("\r\n") + "\r\n", "text/plain;charset=utf-8", "hexis_ixnos_" + stamp() + ".txt");
+  setHint("Κατέβηκαν " + track.length + " σημεία σε TXT (ΕΓΣΑ'87).", "ok");
+}
+
+function buildTrackPanel(){
+  if(trackPanel) return trackPanel;
+  trackPanel = document.createElement("div");
+  trackPanel.id = "trackPanel";
+  trackPanel.innerHTML =
+    '<div class="tp-head"><b>⏺ <span>Ίχνος πορείας</span></b><button id="tpClose" title="Κλείσιμο">✕</button></div>' +
+    '<div id="tpInfo">—</div>' +
+    '<div class="tp-acts">' +
+      '<button id="tpRec" class="go">⏺ Έναρξη</button>' +
+      '<button id="tpBack">↩ Επιστροφή</button>' +
+      '<button id="tpTxt" title="Ίχνος σε TXT (ΕΓΣΑ\'87)">⬇</button>' +
+      '<button id="tpClear" title="Καθαρισμός ίχνους">🗑</button>' +
+    "</div>";
+  document.body.appendChild(trackPanel);
+  trackPanel.querySelector("#tpClose").onclick = () => { trackPanel.style.display = "none"; };
+  trackPanel.querySelector("#tpRec").onclick = toggleTrackRec;
+  trackPanel.querySelector("#tpBack").onclick = backtrack;
+  trackPanel.querySelector("#tpTxt").onclick = trackTXT;
+  trackPanel.querySelector("#tpClear").onclick = clearTrack;
+  homeTrackPanel();
+  applyLang(trackPanel);
+  return trackPanel;
+}
+function renderTrack(){
+  if(!trackPanel) return;
+  const d = trackDist();
+  trackPanel.querySelector("#tpInfo").innerHTML =
+    "<b>" + track.length + "</b> " + trx("σημεία") + " &nbsp;·&nbsp; <b>" + fmtDist(d) + "</b>" +
+    (trackOn ? ' &nbsp;·&nbsp; <span class="tp-live">' + trx("καταγραφή") + "</span>" : "");
+  const r = trackPanel.querySelector("#tpRec");
+  r.textContent = trackOn ? trx("⏸ Παύση") : trx("⏺ Έναρξη");
+  r.classList.toggle("go", !trackOn);
+  trackPanel.querySelector("#tpBack").disabled = track.length < 2;
+  applyLang(trackPanel);
+}
+// Σε οθόνη ≥900px κουμπώνει στο πλαϊνό· αλλιώς κάθεται στο κάτω μέρος του
+// χάρτη, πάνω από το κάτω panel — ποτέ επάνω του.
+function homeTrackPanel(){
+  if(!trackPanel) return;
+  const sheet = document.querySelector(".sheet"), mw = document.querySelector(".map-wrap");
+  const dock = window.matchMedia("(min-width: 900px)").matches
+               && !document.body.classList.contains("mapfull");
+  if(dock){
+    if(trackPanel.parentNode !== sheet) sheet.insertBefore(trackPanel, sheet.firstChild);
+    trackPanel.classList.add("docked");
+  } else {
+    if(trackPanel.parentNode !== mw) mw.appendChild(trackPanel);
+    trackPanel.classList.remove("docked");
+  }
+}
+window.addEventListener("resize", homeTrackPanel);
+
+function toggleTrackPanel(){
+  const p = buildTrackPanel();
+  const show = p.style.display === "none" || !p.style.display;
+  p.style.display = show ? "block" : "none";
+  const b = $("trackBtn"); if(b) b.classList.toggle("on", show);
+  document.body.classList.toggle("track-open", show && !p.classList.contains("docked"));
+  if(show){ homeTrackPanel(); drawTrack(); renderTrack();
+            document.body.classList.toggle("track-open", !p.classList.contains("docked")); }
 }
 
 // ───────── εξωτερικό maps.gov.gr ─────────
