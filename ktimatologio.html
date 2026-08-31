@@ -26,7 +26,7 @@
   body{
     color:var(--text);
     font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
-    display:flex;flex-direction:column;height:100dvh;
+    display:flex;flex-direction:column;height:100vh;height:100dvh;
     padding-top:env(safe-area-inset-top);
     padding-bottom:env(safe-area-inset-bottom);
   }
@@ -274,15 +274,15 @@
 
     /* Το sheet δεν ξεπερνά ποτέ το μισό της οθόνης — ο χάρτης μένει ο πρωταγωνιστής */
     .sheet{ padding:6px 10px calc(8px + env(safe-area-inset-bottom));
-            max-height:47dvh; overflow-y:auto; overscroll-behavior:contain; }
+            max-height:47vh; max-height:47dvh; overflow-y:auto; overscroll-behavior:contain; }
     .grip{ margin:0 auto 5px; }
     .kaek-head .kaek-label{ font-size:9px !important; letter-spacing:1.2px; }
     #egsaBig{ font-size:13px !important; }
 
     /* 4 κουμπιά αντιγραφής σε μία σειρά, χωρίς λεζάντες */
-    .copy-wrap{ display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin-top:5px; }
+    .copy-wrap{ display:flex; gap:5px; margin-top:5px; }
     .copy-wrap .cap{ display:none; }
-    .copy-row{ display:contents; }
+    .copy-row{ flex:1 1 0; min-width:0; gap:5px; margin-bottom:0 !important; }
     .copy-row button{ padding:7px 0 !important; font-size:11px !important; }
     .copy-row button span{ display:none; }
 
@@ -309,7 +309,7 @@
     #routePanel{ top:calc(env(safe-area-inset-top) + 54px); width:calc(100vw - 16px);
       padding:7px 8px; font-size:12px; border-radius:12px; }
     #routePanel .rp-leg{ font-size:12.5px; }
-    #rpList{ max-height:20dvh; }
+    #rpList{ max-height:20vh; max-height:20dvh; }
     #routePanel .rp-bot{ font-size:11px; gap:5px; }
     #routePanel .rp-bot button{ padding:0 10px; min-height:34px; font-size:11.5px; }
     #routePanel .rp-bot label{ min-height:34px; }
@@ -319,7 +319,7 @@
 
   /* Πολύ κοντές οθόνες (π.χ. τοπίο ή μικρό κινητό) */
   @media (max-height: 700px) and (max-width: 640px){
-    .sheet{ max-height:52dvh; }
+    .sheet{ max-height:52vh; max-height:52dvh; }
     .stats{ margin-top:8px; }
     #routeBtn{ top:190px !important; }
     #measureBtn{ top:10px !important; } #polyBtn{ top:45px !important; }
@@ -327,7 +327,7 @@
     #timeBtn{ top:150px !important; } #routeBtn{ top:185px !important; }
     .gear{ width:30px !important; height:30px !important; }
     #routePanel{ top:calc(env(safe-area-inset-top) + 50px); padding:6px 8px; }
-    #rpList{ max-height:15dvh; }
+    #rpList{ max-height:15vh; max-height:15dvh; }
     #routePanel .rp-bot{ padding-top:5px; margin-top:5px; }
   }
 
@@ -342,7 +342,7 @@
   /* ═══════════ ΔΙΑΤΑΞΗ: ΥΠΟΛΟΓΙΣΤΗΣ ═══════════ */
   @media (min-width: 900px){
     body{ display:grid; grid-template-columns:minmax(0,1fr) 380px;
-          grid-template-rows:auto minmax(0,1fr); height:100dvh; }
+          grid-template-rows:auto minmax(0,1fr); height:100vh; height:100dvh; }
     header{ grid-column:1 / -1; padding:12px 20px; }
     header h1{ font-size:17px; }
     .map-wrap{ grid-column:1; grid-row:2; min-height:0; }
@@ -852,10 +852,11 @@ function trx(s){
   return out;
 }
 
-function applyLang(){
+function applyLang(root){
+  const scope = root || document.body;
   const en = LANG === "en";
   // (α) κόμβοι κειμένου
-  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+  const w = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT, null);
   let n;
   while((n = w.nextNode())){
     const p = n.parentNode; if(!p) continue;
@@ -869,7 +870,7 @@ function applyLang(){
     n.__i18nOut = out;
   }
   // (β) attributes
-  document.querySelectorAll("[title],[placeholder],[data-lbl]").forEach(el=>{
+  scope.querySelectorAll("[title],[placeholder],[data-lbl]").forEach(el=>{
     ["title","placeholder","data-lbl"].forEach(a=>{
       if(!el.hasAttribute(a)) return;
       let s = el.getAttribute("data-i18n-" + a);
@@ -877,6 +878,7 @@ function applyLang(){
       el.setAttribute(a, en ? (DICT_EN[s.trim()] || s) : s);
     });
   });
+  if(root) return;                       // μερική σάρωση: τα καθολικά παρακάτω δεν χρειάζονται
   // (γ) μπλοκ ανά γλώσσα (οδηγίες)
   document.querySelectorAll("[data-lang]").forEach(el=>{
     el.style.display = (el.getAttribute("data-lang") === LANG) ? "" : "none";
@@ -1897,6 +1899,7 @@ $("gpsBtn").onclick = () => {
   gpsWatchId = navigator.geolocation.watchPosition(pos=>{
     const {latitude,longitude,accuracy} = pos.coords;
     const ll = [latitude, longitude];
+    lastAcc = accuracy;              // ΠΡΙΝ το updateNav — η λογική άφιξης το χρειάζεται τώρα
 
     // Πινέζα: δημιουργία μία φορά, μετά μόνο setLatLng (ομαλή κίνηση)
     if(!liveMarker){
@@ -2077,6 +2080,8 @@ function azToCompass(az){
   const en = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
   return (LANG === "en" ? en : el)[Math.round(az/22.5) % 16];
 }
+// Στρογγυλοποίηση αζιμουθίου: το 359.6° δεν γράφεται «360°»
+function fmtAz(az){ return (Math.round(az) % 360) + "°"; }
 function fmtDist(m){
   return m >= 1000 ? (m/1000).toFixed(2)+" km" : m.toFixed(m<100?1:0)+" m";
 }
@@ -2242,21 +2247,28 @@ function updateNav(){
   dropTrailDot(from);
 
   const {dist, az} = distBearingEGSA(from, navTarget);
+  const arriveR0 = (typeof routeActive !== "undefined" && routeActive && legList()[legIdx])
+                   ? arriveRadius(legList()[legIdx]) : ARRIVE_R;
   if(navLine) navLine.setLatLngs([from, navTarget]);
   else {
     navLine = L.polyline([from, navTarget], {color:"#e67e22", weight:3, dashArray:"8 6", opacity:.9}).addTo(map);
   }
   syncNavVisibility();
   if(navPanel){
-    let html = trx("Απόσταση")+": <b>"+fmtDist(dist)+"</b> &nbsp;·&nbsp; "+trx("Πορεία")+": <b>"+az.toFixed(0)+"°</b> ("+azToCompass(az)+")";
+    let html = trx("Απόσταση")+": <b>"+fmtDist(dist)+"</b> &nbsp;·&nbsp; "+trx("Πορεία")+": <b>"+fmtAz(az)+"</b> ("+azToCompass(az)+")";
     const xte = crossTrack(from);
-    if(xte !== null && dist > ARRIVE_R){
+    if(xte !== null && dist > arriveR0){
       const ax = Math.abs(xte);
-      const side = xte > 0 ? trx("▶ δεξιά") : trx("◀ αριστερά");
+      const side = ax < 0.5 ? "" : " " + (xte > 0 ? trx("▶ δεξιά") : trx("◀ αριστερά"));
       const cls = ax > NAV_XTE_W ? "xte-bad" : "xte-ok";
-      html += ' &nbsp;·&nbsp; <span class="'+cls+'">'+trx("Εκτροπή")+': <b>'+ax.toFixed(1)+(LANG==="en"?" m":" μ")+'</b> '+side+'</span>';
+      html += ' &nbsp;·&nbsp; <span class="'+cls+'">'+trx("Εκτροπή")+': <b>'+ax.toFixed(1)+(LANG==="en"?" m":" μ")+'</b>'+side+'</span>';
     }
-    if(dist <= ARRIVE_R){
+    if(lastAcc){
+      const bad = lastAcc > 15;
+      html += ' &nbsp;·&nbsp; <span style="opacity:.8' + (bad ? ";color:#f5b041" : "") + '">±' +
+              lastAcc.toFixed(0) + (LANG === "en" ? " m" : " μ") + "</span>";
+    }
+    if(dist <= arriveR0){
       const legs = (typeof routeActive !== "undefined" && routeActive) ? legList() : null;
       html += (legs && legIdx >= legs.length-1) ? " &nbsp;"+trx("✅ Η διαδρομή ολοκληρώθηκε!") : " &nbsp;"+trx("✅ Έφτασες!");
     }
@@ -2349,7 +2361,9 @@ let pendingApproach = false;  // περιμένουμε πρώτο fix για ν
 let routeWpMarkers = [];
 let routeLine = null;
 let routePanel = null;
-const ARRIVE_R = 5;           // ακτίνα άφιξης σε κορυφή (m)
+const ARRIVE_R = 5;           // ελάχιστη ακτίνα άφιξης σε κορυφή (m)
+let lastAcc = null;           // τελευταία ακρίβεια GPS (m)
+let _arriveHits = 0;          // διαδοχικά στίγματα που επιβεβαιώνουν άφιξη
 
 function legList(){
   const L2 = [];
@@ -2361,7 +2375,7 @@ function legList(){
 }
 function legInfo(leg){
   const { dist, az } = distBearingEGSA(leg.from, leg.to);
-  return { dist, az, txt: fmtDist(dist) + " " + azToCompass(az), az_txt: az.toFixed(0) + "°" };
+  return { dist, az, txt: fmtDist(dist) + " " + azToCompass(az), az_txt: fmtAz(az) };
 }
 function routeTotals(){
   let total = 0;
@@ -2448,7 +2462,7 @@ function buildRoutePanel(){
     if(routeActive) setLeg(legIdx);
   };
   homeRoutePanel();
-  applyLang();
+  applyLang(routePanel);
   return routePanel;
 }
 
@@ -2501,7 +2515,7 @@ function renderRoute(){
   routePanel.querySelector("#rpTot").innerHTML = tot;
 
   drawRouteGeometry();
-  applyLang();
+  applyLang(routePanel);
 }
 
 // Σε οθόνη ≥900px το πάνελ κουμπώνει στο πλαϊνό (τίποτα δεν καλύπτει τον χάρτη)·
@@ -2542,6 +2556,7 @@ function setLeg(i){
   const legs = legList();
   if(!legs.length) return;
   legIdx = Math.max(0, Math.min(i, legs.length - 1));
+  _arriveHits = 0;
   const leg = legs[legIdx];
   navTarget = leg.to;
   navOrigin = leg.from;
@@ -2557,6 +2572,7 @@ function startRoute(){
   routeActive = true;
   approachLL = null;
   legIdx = 0;
+  _arriveHits = 0;
 
   // πάνελ πλοήγησης = το πάνελ διαδρομής (έχει .nav-info)
   navPanel = routePanel;
@@ -2608,6 +2624,22 @@ function clearRoute(){
   setHint("Η διαδρομή καθαρίστηκε.");
 }
 
+// Πρόοδος κατά μήκος του σκέλους: 0 = στην αρχή, 1 = στο τέλος (μπορεί να ξεπεράσει το 1)
+function alongTrack(fromLL, leg){
+  const [x1,y1] = egsaOf(leg.from), [x2,y2] = egsaOf(leg.to), [x,y] = egsaOf(fromLL);
+  const dx = x2-x1, dy = y2-y1, L2 = dx*dx + dy*dy;
+  if(L2 < 0.25) return 1;
+  return ((x-x1)*dx + (y-y1)*dy) / L2;
+}
+// Ακτίνα άφιξης: ακολουθεί την πραγματική ακρίβεια, αλλά ποτέ τόσο μεγάλη
+// ώστε να «καταπίνει» κοντινές κορυφές (max 45% του μήκους του σκέλους).
+function arriveRadius(leg){
+  const acc = (lastAcc && isFinite(lastAcc)) ? lastAcc : ARRIVE_R;
+  const legLen = distBearingEGSA(leg.from, leg.to).dist;
+  const r = Math.max(ARRIVE_R, Math.min(acc, 12));
+  return Math.min(r, Math.max(2, legLen * 0.45));
+}
+
 // Καλείται από updateNav σε κάθε GPS fix
 function routeTick(){
   if(!routeActive || !liveMarker) return;
@@ -2623,8 +2655,27 @@ function routeTick(){
   const legs = legList();
   const leg = legs[legIdx];
   if(!leg) return;
+  if(legIdx >= legs.length - 1) return;                 // τελευταίο σκέλος: δεν προχωρά
+
+  // Στίγμα άχρηστο για απόφαση (σύννεφο, τούνελ, πρώτο fix) — μόνο εμφάνιση
+  if(lastAcc && lastAcc > 50){ _arriveHits = 0; return; }
+
   const d = distBearingEGSA(from, leg.to).dist;
-  if(d <= ARRIVE_R && legIdx < legs.length - 1) setLeg(legIdx + 1);   // αυτόματη μετάβαση
+  const t = alongTrack(from, leg);
+  const R = arriveRadius(leg);
+  const legLen = distBearingEGSA(leg.from, leg.to).dist;
+
+  // Δύο προϋποθέσεις: κοντά στην κορυφή ΚΑΙ έχεις όντως διανύσει το σκέλος.
+  // Χωρίς το δεύτερο, με ±10 μ σε πυκνές κορυφές θα προσπερνούσε σκέλη.
+  const near = d <= R && t >= 0.55;
+  if(!near){ _arriveHits = 0; return; }
+
+  // Όταν η αβεβαιότητα είναι συγκρίσιμη με το σκέλος, ζήτα επιβεβαίωση 2 στιγμάτων
+  const needConfirm = (lastAcc || 0) > legLen * 0.4;
+  _arriveHits++;
+  if(needConfirm && _arriveHits < 2) return;
+  _arriveHits = 0;
+  setLeg(legIdx + 1);
 }
 
 // ───────── εξωτερικό maps.gov.gr ─────────
