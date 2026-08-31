@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0e1f2e">
-<title>Hexis-app Cadastral v2.1 — ΚΑΕΚ & Όρια</title>
+<title>Hexis-app Cadastral v2.2 — ΚΑΕΚ, Όρια & Χάραξη</title>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -259,6 +259,11 @@
   .rp-wp.cur div{ background:#22d3ee; }
   .rp-wp.done div{ background:#7bd88f; }
 
+  .sp-exp{ display:flex; gap:6px; margin-top:7px; border-top:1px solid rgba(103,232,249,.3); padding-top:6px; }
+  .sp-exp button{ flex:1; padding:6px 4px; border-radius:7px; font-size:11.5px; font-weight:800;
+    background:var(--panel2); border:1px solid #f5a623; color:#f5a623; }
+  .sp-exp button:active{ transform:scale(.96); }
+
   /* ═══════════ ΔΙΑΤΑΞΗ: ΚΙΝΗΤΟ ═══════════ */
   .copy-wrap{ margin-top:6px; }
   .copy-wrap .cap{ font-size:10px;color:var(--muted);margin-bottom:3px; }
@@ -304,6 +309,7 @@
     #routeBtn{ top:202px !important; }
     #gear{ top:12px !important; } #fullBtn{ top:50px !important; }
     #langBtn{ top:88px !important; font-size:10.5px !important; }
+    #sidePanel{ top:128px !important; }
     #forestPanel,#timePanel{ left:50px; width:min(230px, calc(100vw - 70px)); }
 
     #routePanel{ top:calc(env(safe-area-inset-top) + 54px); width:calc(100vw - 16px);
@@ -379,6 +385,7 @@
     #timeBtn{ top:182px !important; } #routeBtn{ top:224px !important; }
     #gear{ top:14px !important; } #fullBtn{ top:56px !important; }
     #langBtn{ top:98px !important; }
+    #sidePanel{ top:146px !important; width:230px; }
     #forestPanel,#timePanel{ left:14px; top:270px; width:270px; }
 
     #routePanel.docked{ position:static; width:auto; transform:none;
@@ -494,7 +501,7 @@ if('serviceWorker' in navigator){
 
   <div id="forestPanel">
     <h4>🌲 Δασικοί χάρτες</h4>
-    <button onclick="window.open('https://gis.ktimanet.gr/gis/forestfinal','_blank')" style="width:100%;background:#0d2a1a;border:1px solid #22c55e;color:#22c55e;border-radius:7px;padding:6px 8px;cursor:pointer;font-size:12px;margin-bottom:6px">🗺 Άνοιγμα Κυρωμένου Δασικού Χάρτη</button>
+    <button onclick="openForestMap()" style="width:100%;background:#0d2a1a;border:1px solid #22c55e;color:#22c55e;border-radius:7px;padding:6px 8px;cursor:pointer;font-size:12px;margin-bottom:6px">🗺 Άνοιγμα Κυρωμένου Δασικού Χάρτη</button>
     <button onclick="document.getElementById('shpZipIn').click()" style="width:100%;background:#0a1e35;border:1px solid var(--neon);color:var(--neon);border-radius:7px;padding:6px 8px;cursor:pointer;font-size:12px;margin-bottom:8px">📂 Εισαγωγή SHP (.zip από KT)</button>
     <div id="forestLayers"><div style="opacity:.6;font-size:11.5px">Φόρτωσε .zip αρχείο SHP — τα layers εμφανίζονται εδώ.</div></div>
     <button onclick="clearAllForest()" style="width:100%;background:none;border:1px solid #ef4444;color:#ef4444;border-radius:7px;padding:5px 8px;cursor:pointer;font-size:11.5px;margin-top:6px">🗑 Καθαρισμός όλων</button>
@@ -576,6 +583,9 @@ if('serviceWorker' in navigator){
       <p><b style="color:#22d3ee">🔎 Αναζήτηση ΚΑΕΚ.</b> Ξέρεις τον αριθμό; Γράψ' τον στο πεδίο (12 ψηφία, δέχεται και ΕΚ) και το 🔎 σε πηγαίνει πάνω του με zoom.</p>
       <p><b style="color:#22d3ee">⬇ DXF.</b> Με επιλεγμένο γεωτεμάχιο, κατεβάζει σχέδιο σε ΕΓΣΑ'87: κύριο + όμορα + κοινόχρηστα σε layers (KAEK_MAIN / KAEK_OMORA / KAEK_EK) με ετικέτες ΚΑΕΚ — ανοίγει κατευθείαν στο CAD πάνω στο τοπογραφικό.</p>
       <p><b style="color:#22d3ee">📏 Χάρακας & ✏️ Πολύγωνο με κούμπωμα.</b> Πλησιάζοντας κορυφή γεωτεμαχίου εμφανίζεται πράσινος δακτύλιος και το κλικ κουμπώνει ακριβώς πάνω της (πράσινη κουκκίδα = δεμένο σε κορυφή ΚΤ). Δεξιά ανοίγει παράθυρο με κάθε κορυφή σε ΕΓΣΑ'87, μήκη πλευρών και — στο πολύγωνο — εμβαδόν, περίμετρο, κορυφές. Διπλό κλικ καθαρίζει, ξαναπάτημα του εργαλείου το κλείνει.</p>
+      <p><b style="color:#22d3ee">⬇ TXT / ⬇ DXF από τον χάρακα και το πολύγωνο.</b> Στο πλευρικό παράθυρο με τις κορυφές και τα μήκη υπάρχουν δύο κουμπιά:</p>
+      <p style="margin-left:12px"><b>⬇ TXT</b> — καθαρή λίστα σημείων <span style="font-variant-numeric:tabular-nums">id,X,Y,Z</span> σε ΕΓΣΑ'87 (π.χ. <span style="font-variant-numeric:tabular-nums">1,207420.72,4290398.95,0.00</span>), η μορφή που δέχονται CAD και GIS για εισαγωγή σημείων.<br>
+      <b>⬇ DXF</b> — σχέδιο σε ΕΓΣΑ'87 με τέσσερα layers: <b>HEXIS_POINTS</b> (σημεία), <b>HEXIS_TEXT</b> (ετικέτες K1, K2…), <b>HEXIS_LINE</b> (πολυγραμμή — κλειστή αν το πολύγωνο έχει κλείσει) και <b>HEXIS_DIM</b> (τα μήκη των πλευρών, στραμμένα πάνω σε κάθε πλευρά και πάντα αναγνώσιμα). Το ύψος κειμένου προσαρμόζεται στο μέγεθος του σχεδίου.</p>
       <p><b style="color:#22d3ee">🗑 Καθαρισμός επιλογών.</b> Όταν έχεις επιλεγμένα γεωτεμάχια, εμφανίζεται κουμπί «Καθαρισμός» στο κάτω μέρος του χάρτη — ένα πάτημα σβήνει κύριο, όμορα, ΕΚ, καρτελάκια και στατιστικά.</p>
       <p><b style="color:#22d3ee">📍 Live tracking (κινητό/tablet).</b> Το «Θέση μου» ξεκινά συνεχή παρακολούθηση: η πινέζα σου κινείται σε πραγματικό χρόνο με κύκλο ακρίβειας (±μ) και ο χάρτης σε ακολουθεί. Αν σύρεις τον χάρτη ή ψάξεις ΚΑΕΚ, το follow παύει και εμφανίζεται κουμπί «⌖ Επιστροφή στη θέση μου» — πάτα το για να ξαναγυρίσει πάνω σου. Ξαναπάτημα του 📍 (⏸ Stop) τερματίζει το tracking. <i style="opacity:.8">Σημ.: το GPS κινητού δίνει ±3–10 μ — για αναγνώριση στο πεδίο, όχι για χάραξη ακριβείας.</i></p>
       <p><b style="color:#22d3ee">🧭 Πλοήγηση σε σημείο.</b> Κεντράρισε το σταυρόνημα στο σημείο που θες να πας (ή βρες το με ΚΑΕΚ) και πάτα «Στο σημείο»: αν δεν τρέχει ήδη εντοπισμός, το GPS ξεκινά αυτόματα, μπαίνει σημαία 🚩, πορτοκαλί γραμμή πορείας από τη θέση σου, και πάνελ με ζωντανή <b>απόσταση</b> και <b>πορεία</b> (αζιμούθιο σε μοίρες + πυξίδα, υπολογισμένα σε ΕΓΣΑ'87). Στη θέση σου εμφανίζεται μηχανικός με λευκό κράνος και κίτρινο γιλέκο ασφαλείας, που περπατάει (πόδια και χέρια σε κίνηση) όσο κινείσαι και στέκεται ακίνητος όταν σταματάς. Μόλις ξεκινήσεις να κινείσαι, η αρχική ευθεία εκκίνηση→στόχος «κλειδώνει» και εμφανίζονται δύο παράλληλες διακεκομμένες εκατέρωθέν της (διάδρομος ±10 μ, όπως στο Navionics)· το πάνελ δείχνει και την <b>εκτροπή</b> σου από την πορεία (μέτρα, ◀ αριστερά / ▶ δεξιά) — πράσινη εντός διαδρόμου, κόκκινη που αναβοσβήνει αν βγεις έξω. Πίσω σου μένει <b>ίχνος από κόκκινες κουκκίδες</b> (μία κάθε ~4 μ) από την αφετηρία — βλέπεις ακριβώς από πού πέρασες σε σχέση με τον διάδρομο. Όλα τα στοιχεία πλοήγησης εμφανίζονται μόνο σε <b>πλήρη χάρτη (⛶)</b> — με το που ορίζεις στόχο, η εφαρμογή περνά αυτόματα σε πλήρη χάρτη· κλείνοντάς τον (⛶ ξανά) ο χάρτης καθαρίζει, ενώ η πλοήγηση συνεχίζει στο παρασκήνιο και επανεμφανίζεται όταν ξανανοίξεις. Κάτω από 5 μ: «✅ Έφτασες!». Λειτουργεί σαν stakeout αναγνώρισης — σε πάει στο σωστό χωράφι, η ακριβής χάραξη γίνεται με RTK. Ακύρωση με ✕ ή ξαναπάτημα του 🧭.</p>
@@ -595,6 +605,8 @@ if('serviceWorker' in navigator){
       <p style="margin-left:12px">Η λίστα δείχνει κάθε σκέλος όπως θα το περπατήσεις: <b>1 · 120 m ΒΒΔ (338°)</b>, <b>2 · 30 m Α (91°)</b>, <b>3 · 100 m Β (2°)</b> — μήκος, πυξίδα και αζιμούθιο, υπολογισμένα σε <b>ΕΓΣΑ'87</b> (επίπεδη γεωμετρία, ίδιες τιμές με το όργανο). Κάτω δεξιά το συνολικό μήκος.</p>
       <p style="margin-left:12px"><b>▶ Έναρξη</b> — ξεκινά η πλοήγηση. Αν είσαι μακριά από την πρώτη κορυφή, μπαίνει αυτόματα ένα σκέλος <b>Προσέγγιση (➜)</b> από τη θέση σου προς αυτήν. Το ενεργό σκέλος έχει τον διάδρομο ±10 μ, την εκτροπή και το ίχνος, ακριβώς όπως στην πλοήγηση ενός σημείου. <b>Μόλις φτάσεις σε κορυφή (&lt;5 μ) περνά μόνο του στο επόμενο σκέλος.</b> Με τα <b>‹ ›</b> παρακάμπτεις χειροκίνητα — χρήσιμο όταν το GPS χοροπηδάει ή δεν μπορείς να πατήσεις ακριβώς πάνω στην κορυφή. Πατώντας απευθείας μια γραμμή της λίστας πας σε εκείνο το σκέλος.</p>
       <p><b style="color:#22d3ee">EN — αλλαγή γλώσσας.</b> Το κουμπί <b>EN/ΕΛ</b> πάνω δεξιά αλλάζει όλο το περιβάλλον σε αγγλικά και πίσω. Η επιλογή θυμάται. Αλλάζουν και τα σημεία πυξίδας (Β→N, ΒΒΔ→NNW κ.λπ.).</p>
+      <p><b style="color:#22d3ee">🌲 · 🕐 ανοίγουν πάνω στο επιλεγμένο τεμάχιο.</b> Αν έχεις ήδη επιλέξει γεωτεμάχιο (κλικ ή αναζήτηση ΚΑΕΚ), ο <b>Κυρωμένος Δασικός Χάρτης</b> ανοίγει κεντραρισμένος σε σημείο μέσα στο τεμάχιο με πινέζα εκεί — όχι στην αρχική σελίδα. Χωρίς επιλογή, χρησιμοποιείται το σταυρόνημα. Σε κοίλα σχήματα (Γ ή Π με εσοχή) το σημείο υπολογίζεται ώστε να πέφτει πάντα <i>μέσα</i> στο τεμάχιο.</p>
+      <p style="margin-left:12px">Ο viewer των <b>ιστορικών αεροφωτογραφιών</b> είναι παλιά εφαρμογή που δεν δέχεται θέση από τον σύνδεσμο. Γι' αυτό, με το που τον ανοίγεις, οι <b>ΕΓΣΑ'87 Χ/Υ</b> του τεμαχίου (ή του σταυρονήματος) αντιγράφονται αυτόματα στο πρόχειρο — τις επικολλάς στη μετάβαση συντεταγμένων του viewer.</p>
       <p><b style="color:#22d3ee">ΚΤ · 🗺️.</b> Το «ΚΤ» ανάβει το επίσημο υπόβαθρο ορίων Κτηματολογίου (από zoom ~16). Το «Άνοιγμα Κτηματολογίου» ανοίγει τον επίσημο θεατή με τις τρέχουσες συντεταγμένες.</p>
       <p style="opacity:.75;font-size:12px;margin-bottom:0">Ο κόκκινος στόχος στο κέντρο δίνει τις συντεταγμένες ΕΓΣΑ'87/WGS84 του panel — σύρε τον χάρτη ώστε να πέσει στο σημείο και αντέγραψέ τες με τα 📋.</p>
       </div>
@@ -603,6 +615,9 @@ if('serviceWorker' in navigator){
       <p><b style="color:#22d3ee">🔎 KAEK search.</b> Type the 12-digit number (public-parcel codes accepted) and 🔎 zooms straight to it.</p>
       <p><b style="color:#22d3ee">⬇ DXF.</b> With a parcel selected, downloads a GGRS87 drawing: main + neighbours + public parcels on separate layers (KAEK_MAIN / KAEK_OMORA / KAEK_EK) with KAEK labels — opens directly in CAD over your survey.</p>
       <p><b style="color:#22d3ee">📏 Ruler &amp; ✏️ Polygon with snapping.</b> Near a parcel vertex a green ring appears and the tap snaps exactly onto it (green dot = locked to a cadastral vertex). A side panel lists every vertex in GGRS87, the side lengths and — for the polygon — area, perimeter and vertex count. Double tap clears; tapping the tool again closes it.</p>
+      <p><b style="color:#22d3ee">⬇ TXT / ⬇ DXF from the ruler and the polygon.</b> The side panel listing vertices and lengths has two buttons:</p>
+      <p style="margin-left:12px"><b>⬇ TXT</b> — a plain point list <span style="font-variant-numeric:tabular-nums">id,X,Y,Z</span> in GGRS87 (e.g. <span style="font-variant-numeric:tabular-nums">1,207420.72,4290398.95,0.00</span>), the format CAD and GIS accept for importing points.<br>
+      <b>⬇ DXF</b> — a GGRS87 drawing on four layers: <b>HEXIS_POINTS</b>, <b>HEXIS_TEXT</b> (K1, K2… labels), <b>HEXIS_LINE</b> (polyline, closed if the polygon was closed) and <b>HEXIS_DIM</b> (side lengths, rotated onto each side and always readable). Text height adapts to the drawing size.</p>
       <p><b style="color:#22d3ee">🗑 Clear selection.</b> When parcels are selected a «Clear» button appears at the bottom of the map — one tap removes main, neighbours, public parcels, cards and stats.</p>
       <p><b style="color:#22d3ee">📍 Live tracking (phone/tablet).</b> «My position» starts continuous tracking: your pin moves in real time with an accuracy circle (±m) and the map follows you. If you pan the map or search a KAEK, follow pauses and a «⌖ Back to my position» button appears. Tapping 📍 again stops tracking. <i style="opacity:.8">Note: phone GPS gives ±3–10 m — for field identification, not precision stakeout.</i></p>
       <p><b style="color:#22d3ee">🧭 Navigate to a point.</b> Centre the crosshair on your destination (or find it by KAEK) and press «To point»: GPS starts automatically if it is not already running, a flag 🚩 is dropped, an orange course line is drawn from your position, and a panel shows live <b>distance</b> and <b>bearing</b> (azimuth in degrees + compass point, computed in GGRS87). Your position is shown as an engineer with a white helmet and yellow hi-vis vest, walking while you move and standing still when you stop. Once you start moving, the initial start→target line locks and two dashed parallels appear on either side (±10 m corridor, Navionics style); the panel also shows your <b>off-track</b> error (metres, ◀ left / ▶ right) — green inside the corridor, flashing red outside. A <b>trail of red dots</b> (one every ~4 m) is left behind you. All navigation elements appear only in <b>full map (⛶)</b>; setting a target switches to full map automatically. Below 5 m: «✅ Arrived!». It works as a reconnaissance stakeout — it takes you to the right plot; precise setting out is done with RTK. Cancel with ✕ or by tapping 🧭 again.</p>
@@ -623,6 +638,8 @@ if('serviceWorker' in navigator){
       <p style="margin-left:12px">The list shows every leg the way you will walk it: <b>1 · 120 m NNW (338°)</b>, <b>2 · 30 m E (91°)</b>, <b>3 · 100 m N (2°)</b> — length, compass point and azimuth, computed in <b>GGRS87</b> (plane geometry, the same values your total station gives). Total length is shown at the bottom right.</p>
       <p style="margin-left:12px"><b>▶ Start</b> — navigation begins. If you are far from the first vertex, an <b>Approach (➜)</b> leg from your position to it is inserted automatically. The active leg gets the ±10 m corridor, the off-track reading and the trail, exactly as in single-point navigation. <b>On reaching a vertex (&lt;5 m) it advances to the next leg by itself.</b> Use <b>‹ ›</b> to skip manually — useful when GPS jitters or you cannot stand exactly on the vertex. Tapping a row in the list jumps straight to that leg.</p>
       <p><b style="color:#22d3ee">ΕΛ — language.</b> The <b>EN/ΕΛ</b> button at the top right switches the whole interface between Greek and English. The choice is remembered. Compass points switch too (N→Β, NNW→ΒΒΔ etc.).</p>
+      <p><b style="color:#22d3ee">🌲 · 🕐 open on the selected parcel.</b> If a parcel is already selected (by tap or KAEK search), the <b>ratified forest map</b> opens centred on a point inside that parcel with a marker on it — not on its home page. With no selection, the crosshair is used. For concave shapes (L or U with a recess) the point is computed so it always falls <i>inside</i> the parcel.</p>
+      <p style="margin-left:12px">The <b>historical aerial imagery</b> viewer is a legacy app that accepts no position in its URL. So when you open it, the <b>GGRS87 X/Y</b> of the parcel (or crosshair) are copied to the clipboard automatically — paste them into the viewer's go-to-coordinates box.</p>
       <p><b style="color:#22d3ee">ΚΤ · 🗺️.</b> «ΚΤ» turns on the official cadastral boundary overlay (from zoom ~16). «Open Cadastre» launches the official viewer at the current coordinates.</p>
       <p style="opacity:.75;font-size:12px;margin-bottom:0">The red target at the centre gives the GGRS87/WGS84 coordinates shown in the panel — pan the map onto your point and copy them with 📋.</p>
       </div>
@@ -786,7 +803,12 @@ const DICT_EN = {
   "➕ Σημείο":"➕ Point", "▶ Έναρξη":"▶ Start", "⏸ Παύση":"⏸ Pause",
   "🗑 Καθαρισμός διαδρομής":"🗑 Clear route", "Αναίρεση τελευταίου σημείου":"Undo last point",
   "Προηγούμενο σκέλος":"Previous leg", "Επόμενο σκέλος":"Next leg",
-  "Καμία διαδρομή":"No route"
+  "Καμία διαδρομή":"No route",
+  "Δασικός χάρτης στο σημείο του σταυρονήματος — οι ΕΓΣΑ'87 αντιγράφηκαν.":"Forest map opened at the crosshair — GGRS87 coordinates copied.",
+  "Αντιγράφηκαν οι ΕΓΣΑ'87 του σταυρονήματος — επικόλλησέ τες στη μετάβαση του viewer.":"GGRS87 coordinates of the crosshair copied — paste them into the viewer's go-to box.",
+  "Δεν υπάρχουν σημεία για εξαγωγή.":"There are no points to export.",
+  "Σημεία σε TXT (id,X,Y,Z — ΕΓΣΑ'87)":"Points as TXT (id,X,Y,Z — GGRS87)",
+  "Σημεία, πολυγραμμή και μήκη σε DXF (ΕΓΣΑ'87)":"Points, polyline and side lengths as DXF (GGRS87)"
 };
 
 // Τμηματική απόδοση για σύνθετα μηνύματα (μεγαλύτερα πρώτα)
@@ -829,6 +851,15 @@ const FRAG_EN = [
   ["όμορα","adjacent"],
   ["λίγα","a few"],
   ["κύριο","main"],
+  ["Δασικός χάρτης στο γεωτεμάχιο","Forest map opened at parcel"],
+  ["Αντιγράφηκαν οι ΕΓΣΑ'87 του","GGRS87 coordinates copied for"],
+  ["επικόλλησέ τες στη μετάβαση του viewer.","paste them into the viewer's go-to box."],
+  ["οι ΕΓΣΑ'87 αντιγράφηκαν.","GGRS87 coordinates copied."],
+  ["γεωτεμαχίου","the parcel"],
+  ["Κατέβηκαν","Downloaded"],
+  ["Κατέβηκε DXF με","Downloaded DXF with"],
+  ["σημεία σε TXT","points as TXT"],
+  ["σημεία","points"],
   ["Ψάχνω","Looking for"]
 ];
 
@@ -1621,17 +1652,96 @@ function addForestLayer(name,geojson){
 // ═══════ ΕSRI WAYBACK — αφαιρέθηκε (απαιτεί API key) ═══════
 
 // ═══════ ΚΤΗΜΑΤΟΛΟΓΙΟ ΑΕ ορθοφωτογραφίες — link στον επίσημο viewer ═══════
-function openKtimViewer(era){
+
+// ───────── Σημείο αναφοράς για τους εξωτερικούς viewers ─────────
+// Αν υπάρχει επιλεγμένο γεωτεμάχιο (κλικ ή αναζήτηση ΚΑΕΚ), χρησιμοποιείται
+// το κέντρο βάρους του· αλλιώς το σταυρόνημα. Έτσι ο δασικός και οι ιστορικές
+// ανοίγουν πάνω στο τεμάχιο, χωρίς να ξαναψάχνεις την περιοχή.
+function ringBboxCenter(ring){
+  let mnx=Infinity,mxx=-Infinity,mny=Infinity,mxy=-Infinity;
+  ring.forEach(([x,y])=>{ mnx=Math.min(mnx,x); mxx=Math.max(mxx,x); mny=Math.min(mny,y); mxy=Math.max(mxy,y); });
+  return [(mnx+mxx)/2, (mny+mxy)/2];
+}
+function ringCentroid(ring){
+  let a = 0, cx = 0, cy = 0;
+  for(let i = 0, j = ring.length - 1; i < ring.length; j = i++){
+    const [x1,y1] = ring[j], [x2,y2] = ring[i];
+    const f = x1*y2 - x2*y1;
+    a += f; cx += (x1+x2)*f; cy += (y1+y2)*f;
+  }
+  if(Math.abs(a) > 1e-9) return [cx/(3*a), cy/(3*a)];
+  return ringBboxCenter(ring);
+}
+function _inRing(px, py, ring){
+  let ins = false;
+  for(let i = 0, j = ring.length - 1; i < ring.length; j = i++){
+    const [xi,yi] = ring[i], [xj,yj] = ring[j];
+    if(((yi > py) !== (yj > py)) && (px < (xj-xi)*(py-yi)/(yj-yi) + xi)) ins = !ins;
+  }
+  return ins;
+}
+// Σημείο ΜΕΣΑ στο πολύγωνο. Σε κοίλα σχήματα (Γ, Π, οικόπεδα με εσοχή)
+// το κέντρο βάρους πέφτει έξω — τότε τομή με οριζόντια και μέσο του
+// μεγαλύτερου εσωτερικού διαστήματος.
+function pointOnSurface(ring){
+  const c = ringCentroid(ring);
+  if(_inRing(c[0], c[1], ring)) return c;
+  for(const y of [c[1], ringBboxCenter(ring)[1]]){
+    const xs = [];
+    for(let i = 0, j = ring.length - 1; i < ring.length; j = i++){
+      const [xi,yi] = ring[i], [xj,yj] = ring[j];
+      if((yi > y) !== (yj > y)) xs.push((xj-xi)*(y-yi)/(yj-yi) + xi);
+    }
+    xs.sort((p,q) => p - q);
+    let best = null, bw = 0;
+    for(let k = 0; k + 1 < xs.length; k += 2){
+      const w = xs[k+1] - xs[k];
+      if(w > bw){ bw = w; best = (xs[k] + xs[k+1]) / 2; }
+    }
+    if(best !== null && bw > 0) return [best, y];
+  }
+  return c;
+}
+function anchorPoint(){
+  const g = LASTP && LASTP.main && LASTP.main.geometry_egsa;
+  const ring = g ? (_rings(g)[0] || null) : null;
+  if(ring && ring.length >= 3){
+    const [x, y] = pointOnSurface(ring);
+    if(isFinite(x) && isFinite(y)){
+      const [lon, lat] = proj4("EPSG:2100","EPSG:4326",[x, y]);
+      if(isFinite(lon) && isFinite(lat))
+        return { ll: L.latLng(lat, lon), egsa: [x, y], kaek: LASTP.main.kaek || null, parcel: true };
+    }
+  }
   const c = map.getCenter();
-  const z = map.getZoom();
-  // Ο viewer του Κτηματολογίου δέχεται lat/lon/zoom ως hash params
-  const base = 'https://gis.ktimanet.gr/wms/ktbasemap/default.aspx';
-  // Χτίζω URL με position — ο viewer θα κεντράρει στο ίδιο σημείο
-  let url = `${base}#lat=${c.lat.toFixed(6)}&lon=${c.lng.toFixed(6)}&zoom=${z}`;
-  if(era==='1945') url += '&basemap=1945';
-  else if(era==='2007') url += '&basemap=2007';
-  window.open(url, '_blank');
-  setHint('Άνοιξε ο viewer Κτηματολογίου σε νέο tab','ok');
+  return { ll: c, egsa: proj4("EPSG:4326","EPSG:2100",[c.lng, c.lat]), kaek: null, parcel: false };
+}
+function copyQuiet(txt){
+  try{ if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).catch(()=>{}); }catch(e){}
+}
+
+// Κυρωμένος δασικός χάρτης — ArcGIS Web AppBuilder (δέχεται center/level/marker σε WGS84)
+function openForestMap(){
+  const a = anchorPoint();
+  const lon = a.ll.lng.toFixed(6), lat = a.ll.lat.toFixed(6);
+  const url = "https://gis.ktimanet.gr/gis/forestfinal/?center=" + lon + "," + lat
+            + "&level=18&marker=" + lon + "," + lat + ";;4326";
+  copyQuiet(a.egsa[0].toFixed(2) + "\t" + a.egsa[1].toFixed(2));
+  window.open(url, "_blank");
+  setHint(a.parcel
+    ? "Δασικός χάρτης στο γεωτεμάχιο " + (a.kaek || "") + " — οι ΕΓΣΑ'87 αντιγράφηκαν."
+    : "Δασικός χάρτης στο σημείο του σταυρονήματος — οι ΕΓΣΑ'87 αντιγράφηκαν.", "ok");
+}
+
+function openKtimViewer(era){
+  const a = anchorPoint();
+  // Ο ktbasemap είναι παλιά εφαρμογή χωρίς παραμέτρους θέσης στο URL: το μόνο
+  // που βοηθάει είναι να έχεις έτοιμες τις συντεταγμένες για επικόλληση.
+  copyQuiet(a.egsa[0].toFixed(2) + "\t" + a.egsa[1].toFixed(2));
+  window.open('https://gis.ktimanet.gr/wms/ktbasemap/default.aspx', '_blank');
+  setHint(a.parcel
+    ? "Αντιγράφηκαν οι ΕΓΣΑ'87 του " + (a.kaek || "γεωτεμαχίου") + " — επικόλλησέ τες στη μετάβαση του viewer."
+    : "Αντιγράφηκαν οι ΕΓΣΑ'87 του σταυρονήματος — επικόλλησέ τες στη μετάβαση του viewer.", "ok");
 }
 
 function toggleFull(){
@@ -2714,6 +2824,87 @@ map.on("mousemove", (e)=>{
   } else if(SNAPMK){ map.removeLayer(SNAPMK); SNAPMK = null; }
 });
 
+
+// ───────── Εξαγωγή σημείων μέτρησης/πολυγώνου (TXT & DXF) ─────────
+// Δουλεύει με ό,τι δείχνει εκείνη τη στιγμή το πλευρικό πάνελ:
+// τα σημεία του χάρακα (📏) ή τις κορυφές του πολυγώνου (✏️).
+function measureSet(){
+  if(typeof measuring !== "undefined" && measuring && measurePts.length)
+    return { pts: measurePts, closed: false, kind: "metrisi" };
+  if(typeof drawing !== "undefined" && drawing && polyPts.length)
+    return { pts: polyPts, closed: !!(polyShape), kind: "polygono" };
+  return null;
+}
+function egsaPoints(pts){
+  return pts.map((ll, i) => { const [E, N] = toEGSA(ll[0], ll[1]); return { id: i+1, E, N }; });
+}
+function saveBlob(text, mime, name){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: mime }));
+  a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+}
+function stamp(){
+  const d = new Date(), p = n => String(n).padStart(2,"0");
+  return d.getFullYear() + p(d.getMonth()+1) + p(d.getDate()) + "_" + p(d.getHours()) + p(d.getMinutes());
+}
+
+// TXT: id,X,Y,Z σε ΕΓΣΑ'87 — η μορφή που δέχονται CAD/GIS για εισαγωγή σημείων
+function exportMeasureTXT(){
+  const s = measureSet();
+  if(!s){ setHint("Δεν υπάρχουν σημεία για εξαγωγή.", "err"); return; }
+  const P = egsaPoints(s.pts);
+  const lines = P.map(p => p.id + "," + p.E.toFixed(2) + "," + p.N.toFixed(2) + ",0.00");
+  saveBlob(lines.join("\r\n") + "\r\n", "text/plain;charset=utf-8",
+           "hexis_" + s.kind + "_" + stamp() + ".txt");
+  setHint("Κατέβηκαν " + P.length + " σημεία σε TXT (ΕΓΣΑ'87).", "ok");
+}
+
+// DXF: σημεία + ετικέτες κορυφών + πολυγραμμή + μήκη πλευρών, σε ξεχωριστά layers
+function exportMeasureDXF(){
+  const s = measureSet();
+  if(!s){ setHint("Δεν υπάρχουν σημεία για εξαγωγή.", "err"); return; }
+  const P = egsaPoints(s.pts);
+  const LP = "HEXIS_POINTS", LT = "HEXIS_TEXT", LL = "HEXIS_LINE", LD = "HEXIS_DIM";
+  const layers = [[LP,2],[LT,4],[LL,3],[LD,1]];   // όνομα, χρώμα ACI
+  const out = ["0","SECTION","2","HEADER","9","$INSUNITS","70","6","0","ENDSEC",
+               "0","SECTION","2","TABLES","0","TABLE","2","LAYER","70",String(layers.length)];
+  layers.forEach(([nm,col]) => out.push("0","LAYER","2",nm,"70","0","62",String(col),"6","CONTINUOUS"));
+  out.push("0","ENDTAB","0","ENDSEC","0","SECTION","2","ENTITIES");
+
+  // ύψος κειμένου ανάλογο του μεγέθους του σχεδίου
+  let mnx=Infinity,mxx=-Infinity,mny=Infinity,mxy=-Infinity;
+  P.forEach(p=>{ mnx=Math.min(mnx,p.E); mxx=Math.max(mxx,p.E); mny=Math.min(mny,p.N); mxy=Math.max(mxy,p.N); });
+  const span = Math.max(mxx-mnx, mxy-mny, 10);
+  const h = Math.max(0.4, Math.min(span/60, 5));
+
+  P.forEach(p => {
+    out.push("0","POINT","8",LP,"10",p.E.toFixed(3),"20",p.N.toFixed(3),"30","0");
+    out.push("0","TEXT","8",LT,"10",(p.E+h*0.6).toFixed(3),"20",(p.N+h*0.6).toFixed(3),"30","0",
+             "40",h.toFixed(3),"1","K"+p.id);
+  });
+
+  if(P.length >= 2){
+    out.push("0","POLYLINE","8",LL,"66","1","70", s.closed ? "1" : "0");
+    P.forEach(p => out.push("0","VERTEX","8",LL,"10",p.E.toFixed(3),"20",p.N.toFixed(3),"30","0"));
+    out.push("0","SEQEND");
+    const segs = s.closed ? P.length : P.length - 1;
+    for(let i = 0; i < segs; i++){
+      const a = P[i], b = P[(i+1) % P.length];
+      const d = Math.hypot(b.E-a.E, b.N-a.N);
+      let rot = Math.atan2(b.N-a.N, b.E-a.E) * 180/Math.PI;
+      if(rot > 90 || rot <= -90) rot += 180;                 // κείμενο πάντα αναγνώσιμο
+      out.push("0","TEXT","8",LD,"10",((a.E+b.E)/2).toFixed(3),"20",((a.N+b.N)/2 + h*0.35).toFixed(3),"30","0",
+               "40",h.toFixed(3),"50",rot.toFixed(2),"1",d.toFixed(2)+"m","72","1","11",((a.E+b.E)/2).toFixed(3),
+               "21",((a.N+b.N)/2 + h*0.35).toFixed(3),"31","0");
+    }
+  }
+  out.push("0","ENDSEC","0","EOF");
+  saveBlob(out.join("\r\n"), "application/dxf", "hexis_" + s.kind + "_" + stamp() + ".dxf");
+  setHint("Κατέβηκε DXF με " + P.length + " σημεία (ΕΓΣΑ'87).", "ok");
+}
+
 function hideSidePanel(){ const sp = $("sidePanel"); if(sp) sp.style.display = "none"; }
 function renderSidePanel(closed){
   const sp = $("sidePanel"); if(!sp) return;
@@ -2748,7 +2939,13 @@ function renderSidePanel(closed){
               `<div>Περίμετρος: ${Math.round(perim)} m · Κορυφές: ${polyPts.length}</div></div>`;
     }
   }
-  if(html){ sp.innerHTML = trx(html); sp.style.display = "block"; sp.scrollTop = sp.scrollHeight; }
+  if(html){
+    html += '<div class="sp-exp">' +
+              '<button onclick="exportMeasureTXT()" title="Σημεία σε TXT (id,X,Y,Z — ΕΓΣΑ\'87)">⬇ TXT</button>' +
+              '<button onclick="exportMeasureDXF()" title="Σημεία, πολυγραμμή και μήκη σε DXF (ΕΓΣΑ\'87)">⬇ DXF</button>' +
+            "</div>";
+    sp.innerHTML = trx(html); sp.style.display = "block";
+  }
   else hideSidePanel();
 }
 
