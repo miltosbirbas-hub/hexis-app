@@ -208,6 +208,191 @@
   /* Στοιχεία πλοήγησης/tracking μόνο σε πλήρη χάρτη — καθαρή μισή οθόνη */
   body:not(.mapfull) #navPanel{ display:none !important; }
   body:not(.mapfull) #recenterBtn{ display:none !important; }
+
+  /* ── Γλώσσα ─────────────────────────────────────────── */
+  #langBtn{ top:106px; right:14px; left:auto; font-size:11px; font-weight:800; letter-spacing:.5px; color:var(--neon); }
+  body.mapfull #langBtn{ display:none !important; }
+
+  /* ── Πολυγωνική διαδρομή (χάραξη) ───────────────────── */
+  #routeBtn{ top:244px; left:14px; right:auto; font-size:17px; }
+  body.mapfull #routeBtn{ display:grid !important; top:14px; left:14px; }
+  #routeBtn.on{ background:#e67e22; color:#04101f; border-color:#e67e22; }
+  #routePanel{ position:fixed; top:12px; left:50%; transform:translateX(-50%);
+    z-index:10001; width:min(430px, calc(100vw - 20px));
+    background:rgba(6,16,32,.94); border:1px solid #e67e22; border-radius:14px;
+    padding:8px 10px; color:#fff; font-size:13px; box-shadow:0 4px 16px rgba(0,0,0,.45);
+    backdrop-filter:blur(4px); font-variant-numeric:tabular-nums; }
+  #routePanel .rp-top{ display:flex; align-items:center; gap:6px; }
+  #routePanel .rp-top button{ flex:none; width:28px; height:28px; padding:0; border-radius:8px;
+    background:rgba(230,126,34,.15); border:1px solid rgba(230,126,34,.5); color:#f5b041;
+    font-size:15px; font-weight:800; display:grid; place-items:center; }
+  #routePanel .rp-top button:disabled{ opacity:.3; }
+  #routePanel .rp-leg{ flex:1; min-width:0; text-align:center; font-size:13px; line-height:1.25; }
+  #routePanel .rp-leg b{ color:#f5b041; }
+  #routePanel .rp-leg .rp-sub{ display:block; font-size:11px; color:#9fc3dd; }
+  #routePanel .nav-info{ display:block; margin-top:5px; font-size:12.5px; line-height:1.35; text-align:center; }
+  #routePanel .nav-info b{ color:#f5b041; }
+  #routePanel .xte-ok b{ color:#7bd88f; }
+  #routePanel .xte-bad b{ color:#ef4444; }
+  #routePanel .xte-bad{ animation:gpsPulse 1s infinite; }
+  #rpList{ max-height:26vh; overflow-y:auto; margin-top:6px; border-top:1px solid rgba(230,126,34,.3); padding-top:5px; }
+  #rpList .rp-row{ display:flex; align-items:center; gap:7px; padding:3px 2px; font-size:12px; border-radius:6px; cursor:pointer; }
+  #rpList .rp-row .rp-n{ flex:none; width:20px; height:20px; border-radius:50%; display:grid; place-items:center;
+    background:rgba(230,126,34,.2); border:1px solid rgba(230,126,34,.6); color:#f5b041; font-size:10.5px; font-weight:800; }
+  #rpList .rp-row.done{ opacity:.45; }
+  #rpList .rp-row.done .rp-n{ background:rgba(123,216,143,.2); border-color:#7bd88f; color:#7bd88f; }
+  #rpList .rp-row.cur{ background:rgba(230,126,34,.18); }
+  #rpList .rp-row.cur .rp-n{ background:#e67e22; color:#04101f; }
+  #rpList .rp-row .rp-d{ flex:1; }
+  #rpList .rp-row .rp-az{ color:#9fc3dd; font-size:11px; }
+  #routePanel .rp-bot{ display:flex; align-items:center; gap:6px; margin-top:6px;
+    border-top:1px solid rgba(230,126,34,.3); padding-top:6px; font-size:11.5px; flex-wrap:wrap; }
+  #routePanel .rp-bot button{ flex:none; padding:0 10px; min-height:30px; border-radius:8px; font-size:11.5px; font-weight:700;
+    background:rgba(230,126,34,.15); border:1px solid rgba(230,126,34,.55); color:#f5b041; }
+  #routePanel .rp-bot button.go{ background:#e67e22; color:#04101f; border-color:#e67e22; }
+  #routePanel .rp-bot label{ display:flex; align-items:center; gap:4px; color:#cfe6f5; cursor:pointer; }
+  #routePanel .rp-bot .rp-tot{ margin-left:auto; color:#9fc3dd; text-align:right; }
+  .rp-wp{ line-height:0; }
+  .rp-wp div{ width:22px; height:22px; border-radius:50%; background:#e67e22; color:#04101f;
+    border:2px solid #fff; display:grid; place-items:center; font-size:11px; font-weight:800;
+    box-shadow:0 1px 4px rgba(0,0,0,.5); }
+  .rp-wp.cur div{ background:#22d3ee; }
+  .rp-wp.done div{ background:#7bd88f; }
+
+  /* ═══════════ ΔΙΑΤΑΞΗ: ΚΙΝΗΤΟ ═══════════ */
+  .copy-wrap{ margin-top:6px; }
+  .copy-wrap .cap{ font-size:10px;color:var(--muted);margin-bottom:3px; }
+  .copy-wrap .cap + .copy-row{ margin-bottom:5px; }
+  .copy-row{ display:flex;gap:8px; }
+  .copy-row button{ min-width:0; }
+
+  @media (max-width: 640px){
+    header{ padding:8px 12px; gap:9px; }
+    .glyph{ width:32px;height:32px; }
+    header h1{ font-size:14.5px; }
+    header .tag{ font-size:9px; letter-spacing:1.3px; margin-top:0; }
+
+    /* Το sheet δεν ξεπερνά ποτέ το μισό της οθόνης — ο χάρτης μένει ο πρωταγωνιστής */
+    .sheet{ padding:6px 10px calc(8px + env(safe-area-inset-bottom));
+            max-height:47dvh; overflow-y:auto; overscroll-behavior:contain; }
+    .grip{ margin:0 auto 5px; }
+    .kaek-head .kaek-label{ font-size:9px !important; letter-spacing:1.2px; }
+    #egsaBig{ font-size:13px !important; }
+
+    /* 4 κουμπιά αντιγραφής σε μία σειρά, χωρίς λεζάντες */
+    .copy-wrap{ display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin-top:5px; }
+    .copy-wrap .cap{ display:none; }
+    .copy-row{ display:contents; }
+    .copy-row button{ padding:7px 0 !important; font-size:11px !important; }
+    .copy-row button span{ display:none; }
+
+    .coords{ margin-top:5px; font-size:10.5px; }
+    .actions{ grid-template-columns:repeat(5,1fr); gap:4px; margin-top:6px; }
+    .b-act{ padding:5px 1px !important; }
+    .b-act .a-ico{ font-size:16px; }
+    .b-act .a-lbl{ font-size:9.5px; }
+
+    .kaek-row{ gap:6px !important; margin-top:6px !important; }
+    .kaek-row input{ padding:8px 10px !important; font-size:13px !important; }
+    .kaek-row button{ padding:8px 10px !important; font-size:13px !important; }
+
+    /* Στήλες εργαλείων: μικρότερα κουμπιά, πιο πυκνά (6 αριστερά, 3 δεξιά) */
+    .gear{ width:32px !important; height:32px !important; font-size:15px !important; }
+    #measureBtn{ top:12px !important; } #polyBtn{ top:50px !important; }
+    #ktimWmsBtn{ top:88px !important; font-size:14px !important; }
+    #forestBtn{ top:126px !important; } #timeBtn{ top:164px !important; }
+    #routeBtn{ top:202px !important; }
+    #gear{ top:12px !important; } #fullBtn{ top:50px !important; }
+    #langBtn{ top:88px !important; font-size:10.5px !important; }
+    #forestPanel,#timePanel{ left:50px; width:min(230px, calc(100vw - 70px)); }
+
+    #routePanel{ top:calc(env(safe-area-inset-top) + 54px); width:calc(100vw - 16px);
+      padding:7px 8px; font-size:12px; border-radius:12px; }
+    #routePanel .rp-leg{ font-size:12.5px; }
+    #rpList{ max-height:20dvh; }
+    #routePanel .rp-bot{ font-size:11px; gap:5px; }
+    #routePanel .rp-bot button{ padding:0 10px; min-height:34px; font-size:11.5px; }
+    #routePanel .rp-bot label{ min-height:34px; }
+    #routePanel .rp-top button{ width:32px; height:32px; }
+    #helpOvl > div{ margin:3vh auto !important; max-height:92vh !important; padding:14px 15px !important; font-size:12.5px !important; }
+  }
+
+  /* Πολύ κοντές οθόνες (π.χ. τοπίο ή μικρό κινητό) */
+  @media (max-height: 700px) and (max-width: 640px){
+    .sheet{ max-height:52dvh; }
+    .stats{ margin-top:8px; }
+    #routeBtn{ top:190px !important; }
+    #measureBtn{ top:10px !important; } #polyBtn{ top:45px !important; }
+    #ktimWmsBtn{ top:80px !important; } #forestBtn{ top:115px !important; }
+    #timeBtn{ top:150px !important; } #routeBtn{ top:185px !important; }
+    .gear{ width:30px !important; height:30px !important; }
+    #routePanel{ top:calc(env(safe-area-inset-top) + 50px); padding:6px 8px; }
+    #rpList{ max-height:15dvh; }
+    #routePanel .rp-bot{ padding-top:5px; margin-top:5px; }
+  }
+
+  /* Σύμπτυξη πάνελ διαδρομής (πάτημα στην κεφαλίδα) */
+  #routePanel .rp-leg{ cursor:pointer; }
+  #routePanel.collapsed #rpList,
+  #routePanel.collapsed .rp-bot{ display:none; }
+  #routePanel .rp-leg b::after{ content:" ▾"; font-size:9px; opacity:.55; font-weight:400; }
+  #routePanel.collapsed .rp-leg b::after{ content:" ▸"; }
+  #routePanel.collapsed .rp-leg .rp-sub{ display:inline; margin-left:6px; }
+
+  /* ═══════════ ΔΙΑΤΑΞΗ: ΥΠΟΛΟΓΙΣΤΗΣ ═══════════ */
+  @media (min-width: 900px){
+    body{ display:grid; grid-template-columns:minmax(0,1fr) 380px;
+          grid-template-rows:auto minmax(0,1fr); height:100dvh; }
+    header{ grid-column:1 / -1; padding:12px 20px; }
+    header h1{ font-size:17px; }
+    .map-wrap{ grid-column:1; grid-row:2; min-height:0; }
+    .sheet{ grid-column:2; grid-row:2; min-height:0;
+            margin-top:0; border-radius:0; border-top:0; border-left:1px solid var(--line);
+            box-shadow:none; overflow-y:auto; padding:14px 16px 20px; }
+    body.mapfull{ grid-template-columns:minmax(0,1fr); }
+    .grip{ display:none; }
+
+    /* Όλα ορατά με μια ματιά: μεγαλύτερα γράμματα, δύο στήλες ενεργειών */
+    .kaek-head .kaek-label{ font-size:10.5px; }
+    #egsaBig{ font-size:17px !important; }
+    .copy-wrap .cap{ font-size:11px; }
+    .copy-row button{ padding:9px 4px !important; font-size:12.5px !important; }
+    .coords{ font-size:12px; margin-top:10px; }
+    .actions{ grid-template-columns:1fr 1fr !important; gap:8px; margin-top:12px; }
+    .b-act{ flex-direction:row !important; justify-content:flex-start; gap:9px;
+            padding:10px 12px !important; }
+    .b-act .a-ico{ font-size:18px; }
+    .b-act .a-lbl{ font-size:12.5px; white-space:normal; text-align:left; }
+    .kaek-row{ flex-wrap:wrap; }
+    .kaek-row input{ flex:1 1 100%; }
+    .kaek-row button{ flex:1 1 0; min-width:0; }
+    .hint{ font-size:12px; margin-top:10px; text-align:left; }
+
+    /* Εργαλειοθήκη χάρτη με ορατές ετικέτες — τίποτα δεν ψάχνεται */
+    .gear{ width:auto; height:34px; min-width:34px; border-radius:17px; padding:0 11px;
+           grid-auto-flow:column; gap:7px; background:rgba(10,29,51,.92); }
+    .gear:hover{ border-color:var(--neon); color:var(--neon); }
+    .gear[data-lbl]::after{ content:attr(data-lbl); font-size:12px; font-weight:600;
+           color:#cfe6f5; white-space:nowrap; letter-spacing:.2px; }
+    #measureBtn{ top:14px !important; } #polyBtn{ top:56px !important; }
+    #ktimWmsBtn{ top:98px !important; } #forestBtn{ top:140px !important; }
+    #timeBtn{ top:182px !important; } #routeBtn{ top:224px !important; }
+    #gear{ top:14px !important; } #fullBtn{ top:56px !important; }
+    #langBtn{ top:98px !important; }
+    #forestPanel,#timePanel{ left:14px; top:270px; width:270px; }
+
+    #routePanel.docked{ position:static; width:auto; transform:none;
+      margin:0 0 12px; border-radius:12px; backdrop-filter:none; }
+    #routePanel:not(.docked){ left:50%; transform:translateX(-50%); top:14px; width:420px; }
+    #rpList{ max-height:22vh; }
+    #helpOvl > div{ max-width:780px !important; font-size:14px !important; }
+    .drawer-card{ max-width:520px; margin:0 auto; border-radius:18px 18px 0 0; }
+  }
+
+  /* Πολύ φαρδιές οθόνες: λίγο πιο πλατύ πλαϊνό */
+  @media (min-width: 1500px){
+    body{ grid-template-columns:minmax(0,1fr) 430px; }
+  }
 </style>
 <script>
 // Mini SW για auto-update — κάθε φόρτωση ελέγχει αν υπάρχει νέα έκδοση
@@ -293,16 +478,18 @@ if('serviceWorker' in navigator){
   </div>
 </header>
 
-<div style="position:relative;flex:1;display:flex">
+<div class="map-wrap" style="position:relative;flex:1;display:flex">
   <div id="map"></div>
   <div class="crosshair"><div class="dot"></div></div>
-  <div class="gear" id="gear">⚙</div>
-  <div class="gear" id="measureBtn" style="top:14px;left:14px;right:auto;font-size:18px" title="Μέτρηση απόστασης">📏</div>
-  <div class="gear" id="polyBtn" style="top:60px;left:14px;right:auto;font-size:18px" title="Σχεδίαση πολυγώνου / εμβαδόν">✏️</div>
-  <div class="gear" id="ktimWmsBtn" style="top:106px;left:14px;right:auto;font-size:16px;font-weight:800" title="Όρια κτηματογράφησης (on/off)" onclick="toggleKtim()">ΚΤ</div>
-  <div class="gear" id="fullBtn" style="top:60px;right:14px;left:auto;font-size:18px" title="Πλήρης χάρτης — απόκρυψη panel & κουμπιών" onclick="toggleFull()">⛶</div>
-  <div class="gear" id="forestBtn" style="top:152px;left:14px;right:auto;font-size:17px" title="Δασικοί χάρτες & SHP importer" onclick="toggleForestPanel()">🌲</div>
-  <div class="gear" id="timeBtn"   style="top:198px;left:14px;right:auto;font-size:17px" title="Ιστορικές αεροφωτογραφίες (Esri Wayback)" onclick="toggleTimePanel()">🕐</div>
+  <div class="gear" id="gear" data-lbl="Ρυθμίσεις">⚙</div>
+  <div class="gear" id="measureBtn" data-lbl="Χάρακας" style="top:14px;left:14px;right:auto;font-size:18px" title="Μέτρηση απόστασης">📏</div>
+  <div class="gear" id="polyBtn" data-lbl="Πολύγωνο" style="top:60px;left:14px;right:auto;font-size:18px" title="Σχεδίαση πολυγώνου / εμβαδόν">✏️</div>
+  <div class="gear" id="ktimWmsBtn" data-lbl="Όρια ΚΤ" style="top:106px;left:14px;right:auto;font-size:16px;font-weight:800" title="Όρια κτηματογράφησης (on/off)" onclick="toggleKtim()">ΚΤ</div>
+  <div class="gear" id="langBtn" title="Γλώσσα / Language" onclick="toggleLang()">EN</div>
+  <div class="gear" id="routeBtn" data-lbl="Διαδρομή" title="Πολυγωνική διαδρομή (χάραξη)" onclick="toggleRoutePanel()">🛣</div>
+  <div class="gear" id="fullBtn" data-lbl="Πλήρης χάρτης" style="top:60px;right:14px;left:auto;font-size:18px" title="Πλήρης χάρτης — απόκρυψη panel & κουμπιών" onclick="toggleFull()">⛶</div>
+  <div class="gear" id="forestBtn" data-lbl="Δασικά" style="top:152px;left:14px;right:auto;font-size:17px" title="Δασικοί χάρτες & SHP importer" onclick="toggleForestPanel()">🌲</div>
+  <div class="gear" id="timeBtn" data-lbl="Ιστορικά"   style="top:198px;left:14px;right:auto;font-size:17px" title="Ιστορικές αεροφωτογραφίες (Esri Wayback)" onclick="toggleTimePanel()">🕐</div>
   <input type="file" id="shpZipIn" accept=".zip" style="display:none" onchange="importShpZip(event)">
 
   <div id="forestPanel">
@@ -333,15 +520,17 @@ if('serviceWorker' in navigator){
       <div id="egsaBig" class="kaek-value" style="font-size:14px">Χ —  ·  Υ —</div>
     </div>
   </div>
-  <div style="font-size:10px;color:var(--muted);margin-top:6px;margin-bottom:3px">ΕΓΣΑ'87 (για τοπογραφικά)</div>
-  <div style="display:flex;gap:8px">
+  <div class="copy-wrap">
+  <div class="cap">ΕΓΣΑ'87 (για τοπογραφικά)</div>
+  <div class="copy-row">
     <button id="copyXBtn" onclick="copyOne('x')" title="Αντιγραφή Χ" style="flex:1;padding:6px 0;background:var(--panel2);border:1px solid var(--neon);color:var(--neon);border-radius:8px;font-weight:700;font-size:12px;cursor:pointer">📋 Χ <span id="copyXval" style="opacity:.7;font-weight:600">—</span></button>
     <button id="copyYBtn" onclick="copyOne('y')" title="Αντιγραφή Υ" style="flex:1;padding:6px 0;background:var(--panel2);border:1px solid var(--neon);color:var(--neon);border-radius:8px;font-weight:700;font-size:12px;cursor:pointer">📋 Υ <span id="copyYval" style="opacity:.7;font-weight:600">—</span></button>
   </div>
-  <div style="font-size:10px;color:var(--muted);margin-top:5px;margin-bottom:3px">Lon / Lat (για maps.ktimatologio.gr)</div>
-  <div style="display:flex;gap:8px">
+  <div class="cap">Lon / Lat (για maps.ktimatologio.gr)</div>
+  <div class="copy-row">
     <button id="copyLonBtn" onclick="copyOne('lon')" title="Αντιγραφή X (Lon)" style="flex:1;padding:6px 0;background:var(--panel2);border:1px solid #f5a623;color:#f5a623;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer">📋 X(Lon) <span id="copyLonval" style="opacity:.7;font-weight:600">—</span></button>
     <button id="copyLatBtn" onclick="copyOne('lat')" title="Αντιγραφή Y (Lat)" style="flex:1;padding:6px 0;background:var(--panel2);border:1px solid #f5a623;color:#f5a623;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer">📋 Y(Lat) <span id="copyLatval" style="opacity:.7;font-weight:600">—</span></button>
+  </div>
   </div>
 
   <div class="stats" id="stats" style="display:none">
@@ -368,11 +557,12 @@ if('serviceWorker' in navigator){
     <div style="display:flex;gap:6px">
       <input id="xyX" type="text" inputmode="decimal" placeholder="Χ / lon" style="flex:1;min-width:0;padding:8px 10px;background:var(--panel);border:1px solid var(--neon);border-radius:8px;color:var(--neon);font-weight:700;font-size:13px;font-variant-numeric:tabular-nums">
       <input id="xyY" type="text" inputmode="decimal" placeholder="Υ / lat" style="flex:1;min-width:0;padding:8px 10px;background:var(--panel);border:1px solid var(--neon);border-radius:8px;color:var(--neon);font-weight:700;font-size:13px;font-variant-numeric:tabular-nums"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();goToXY(false);}">
+        onkeydown="if(event.key==='Enter'){event.preventDefault();goToXY('go');}">
     </div>
     <div style="display:flex;gap:6px;margin-top:6px">
-      <button onclick="goToXY(false)" style="flex:1;padding:8px 0;background:var(--panel);border:1px solid var(--neon);color:var(--neon);border-radius:8px;font-weight:700;font-size:12px;cursor:pointer">🎯 Μετάβαση</button>
-      <button onclick="goToXY(true)" style="flex:1;padding:8px 0;background:var(--panel);border:1px solid #e67e22;color:#e67e22;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer">🧭 Ορισμός στόχου</button>
+      <button onclick="goToXY('go')" style="flex:1;padding:8px 0;background:var(--panel);border:1px solid var(--neon);color:var(--neon);border-radius:8px;font-weight:700;font-size:12px;cursor:pointer">🎯 Μετάβαση</button>
+      <button onclick="goToXY('target')" style="flex:1;padding:8px 0;background:var(--panel);border:1px solid #e67e22;color:#e67e22;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer">🧭 Ορισμός στόχου</button>
+      <button onclick="goToXY('route')" style="flex:1;padding:8px 0;background:var(--panel);border:1px solid #e67e22;color:#e67e22;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer">➕ Στη διαδρομή</button>
     </div>
   </div>
   <div id="helpOvl" style="display:none;position:fixed;inset:0;z-index:900;background:rgba(2,8,18,.82);backdrop-filter:blur(3px)" onclick="if(event.target===this)toggleHelp()">
@@ -381,6 +571,7 @@ if('serviceWorker' in navigator){
         <b style="color:var(--neon);font-size:16px">❔ Οδηγίες — Hexis Cadastral</b>
         <button onclick="toggleHelp()" style="background:none;border:1px solid var(--neon);color:var(--neon);border-radius:8px;padding:4px 10px;cursor:pointer;font-weight:800">✕</button>
       </div>
+      <div data-lang="el">
       <p><b style="color:#22d3ee">🖱 Κλικ οπουδήποτε → ΚΑΕΚ.</b> Πάτα πάνω σε γεωτεμάχιο: εμφανίζεται με έντονο περίγραμμα, ανοιχτό καρτελάκι (ΚΑΕΚ · εμβαδόν) και τα όμορά του γύρω-γύρω με διακεκομμένη γραμμή. <b>Κλικ σε όμορο</b> = γίνεται αυτό το επιλεγμένο, με δική του γειτονιά — «περπατάς» τα οικόπεδα κλικ-κλικ. Πιάνει και κοινόχρηστα ΕΚ (δρόμους, ρέματα, αιγιαλούς).</p>
       <p><b style="color:#22d3ee">🔎 Αναζήτηση ΚΑΕΚ.</b> Ξέρεις τον αριθμό; Γράψ' τον στο πεδίο (12 ψηφία, δέχεται και ΕΚ) και το 🔎 σε πηγαίνει πάνω του με zoom.</p>
       <p><b style="color:#22d3ee">⬇ DXF.</b> Με επιλεγμένο γεωτεμάχιο, κατεβάζει σχέδιο σε ΕΓΣΑ'87: κύριο + όμορα + κοινόχρηστα σε layers (KAEK_MAIN / KAEK_OMORA / KAEK_EK) με ετικέτες ΚΑΕΚ — ανοίγει κατευθείαν στο CAD πάνω στο τοπογραφικό.</p>
@@ -397,11 +588,47 @@ if('serviceWorker' in navigator){
       • <b>Επικολλημένο ζεύγος</b> σε ένα πεδίο («213815.25 4303326.02» ή με κόμμα) — σπάει μόνο του σε Χ και Υ.<br>
       • Κόμμα ως υποδιαστολή γίνεται δεκτό· Enter στο πεδίο Υ = Μετάβαση.<br>
       • Αν το σημείο βγαίνει εκτός Ελλάδας, απορρίπτεται ως λάθος εισαγωγή αντί να σε πάει «στη μέση του πουθενά».</p>
+      <p><b style="color:#22d3ee">🛣 Πολυγωνική διαδρομή — χάραξη διαδοχικών σημείων.</b> Όταν δεν πας σε ένα σημείο αλλά σε σειρά σημείων (κορυφές οικοπέδου, πασσάλωση άξονα, όρια απαλλοτρίωσης), πάτα το 🛣 αριστερά. Ανοίγει το πάνελ διαδρομής:</p>
+      <p style="margin-left:12px"><b>➕ Σημείο</b> — προσθέτει το σημείο του σταυρονήματος ως κορυφή. Εναλλακτικά, από το «⌨ ΧΥ σημείο» πάτα <b>➕ Στη διαδρομή</b> και δίνεις τις κορυφές γραπτά, μία-μία, από τον πίνακα συντεταγμένων.<br>
+      <b>↶</b> αναιρεί την τελευταία κορυφή, <b>🗑</b> καθαρίζει όλη τη διαδρομή.<br>
+      <b>Κλείσιμο πολυγώνου</b> — προσθέτει σκέλος επιστροφής από την τελευταία κορυφή στην πρώτη και εμφανίζει και το <b>εμβαδόν</b> (Shoelace σε ΕΓΣΑ'87), για χάραξη περιγράμματος.</p>
+      <p style="margin-left:12px">Η λίστα δείχνει κάθε σκέλος όπως θα το περπατήσεις: <b>1 · 120 m ΒΒΔ (338°)</b>, <b>2 · 30 m Α (91°)</b>, <b>3 · 100 m Β (2°)</b> — μήκος, πυξίδα και αζιμούθιο, υπολογισμένα σε <b>ΕΓΣΑ'87</b> (επίπεδη γεωμετρία, ίδιες τιμές με το όργανο). Κάτω δεξιά το συνολικό μήκος.</p>
+      <p style="margin-left:12px"><b>▶ Έναρξη</b> — ξεκινά η πλοήγηση. Αν είσαι μακριά από την πρώτη κορυφή, μπαίνει αυτόματα ένα σκέλος <b>Προσέγγιση (➜)</b> από τη θέση σου προς αυτήν. Το ενεργό σκέλος έχει τον διάδρομο ±10 μ, την εκτροπή και το ίχνος, ακριβώς όπως στην πλοήγηση ενός σημείου. <b>Μόλις φτάσεις σε κορυφή (&lt;5 μ) περνά μόνο του στο επόμενο σκέλος.</b> Με τα <b>‹ ›</b> παρακάμπτεις χειροκίνητα — χρήσιμο όταν το GPS χοροπηδάει ή δεν μπορείς να πατήσεις ακριβώς πάνω στην κορυφή. Πατώντας απευθείας μια γραμμή της λίστας πας σε εκείνο το σκέλος.</p>
+      <p><b style="color:#22d3ee">EN — αλλαγή γλώσσας.</b> Το κουμπί <b>EN/ΕΛ</b> πάνω δεξιά αλλάζει όλο το περιβάλλον σε αγγλικά και πίσω. Η επιλογή θυμάται. Αλλάζουν και τα σημεία πυξίδας (Β→N, ΒΒΔ→NNW κ.λπ.).</p>
       <p><b style="color:#22d3ee">ΚΤ · 🗺️.</b> Το «ΚΤ» ανάβει το επίσημο υπόβαθρο ορίων Κτηματολογίου (από zoom ~16). Το «Άνοιγμα Κτηματολογίου» ανοίγει τον επίσημο θεατή με τις τρέχουσες συντεταγμένες.</p>
       <p style="opacity:.75;font-size:12px;margin-bottom:0">Ο κόκκινος στόχος στο κέντρο δίνει τις συντεταγμένες ΕΓΣΑ'87/WGS84 του panel — σύρε τον χάρτη ώστε να πέσει στο σημείο και αντέγραψέ τες με τα 📋.</p>
+      </div>
+      <div data-lang="en" style="display:none">
+      <p><b style="color:#22d3ee">🖱 Tap anywhere → KAEK.</b> Tap a parcel: it is highlighted, a small card appears (KAEK · area) and its neighbours are outlined with a dashed line. <b>Tapping a neighbour</b> makes it the selected one, with its own neighbourhood — you walk the parcels tap by tap. Public parcels (roads, streams, foreshore) are included.</p>
+      <p><b style="color:#22d3ee">🔎 KAEK search.</b> Type the 12-digit number (public-parcel codes accepted) and 🔎 zooms straight to it.</p>
+      <p><b style="color:#22d3ee">⬇ DXF.</b> With a parcel selected, downloads a GGRS87 drawing: main + neighbours + public parcels on separate layers (KAEK_MAIN / KAEK_OMORA / KAEK_EK) with KAEK labels — opens directly in CAD over your survey.</p>
+      <p><b style="color:#22d3ee">📏 Ruler &amp; ✏️ Polygon with snapping.</b> Near a parcel vertex a green ring appears and the tap snaps exactly onto it (green dot = locked to a cadastral vertex). A side panel lists every vertex in GGRS87, the side lengths and — for the polygon — area, perimeter and vertex count. Double tap clears; tapping the tool again closes it.</p>
+      <p><b style="color:#22d3ee">🗑 Clear selection.</b> When parcels are selected a «Clear» button appears at the bottom of the map — one tap removes main, neighbours, public parcels, cards and stats.</p>
+      <p><b style="color:#22d3ee">📍 Live tracking (phone/tablet).</b> «My position» starts continuous tracking: your pin moves in real time with an accuracy circle (±m) and the map follows you. If you pan the map or search a KAEK, follow pauses and a «⌖ Back to my position» button appears. Tapping 📍 again stops tracking. <i style="opacity:.8">Note: phone GPS gives ±3–10 m — for field identification, not precision stakeout.</i></p>
+      <p><b style="color:#22d3ee">🧭 Navigate to a point.</b> Centre the crosshair on your destination (or find it by KAEK) and press «To point»: GPS starts automatically if it is not already running, a flag 🚩 is dropped, an orange course line is drawn from your position, and a panel shows live <b>distance</b> and <b>bearing</b> (azimuth in degrees + compass point, computed in GGRS87). Your position is shown as an engineer with a white helmet and yellow hi-vis vest, walking while you move and standing still when you stop. Once you start moving, the initial start→target line locks and two dashed parallels appear on either side (±10 m corridor, Navionics style); the panel also shows your <b>off-track</b> error (metres, ◀ left / ▶ right) — green inside the corridor, flashing red outside. A <b>trail of red dots</b> (one every ~4 m) is left behind you. All navigation elements appear only in <b>full map (⛶)</b>; setting a target switches to full map automatically. Below 5 m: «✅ Arrived!». It works as a reconnaissance stakeout — it takes you to the right plot; precise setting out is done with RTK. Cancel with ✕ or by tapping 🧭 again.</p>
+      <p><b style="color:#22d3ee">⌨ XY point — coordinate entry.</b> When you have the coordinates from a survey, a cadastral extract or a vertex table, there is no need to pan the map by hand. Press «⌨ XY point», enter the pair and choose:</p>
+      <p style="margin-left:12px"><b>🎯 Go to</b> — centres the map on the point at full zoom, so one tap also gives you the KAEK there.<br>
+      <b>🧭 Set target</b> — drops the flag 🚩 and starts navigation (course line, distance, azimuth, walker).<br>
+      <b>➕ Add to route</b> — appends the point as a vertex of the polyline route (see below).</p>
+      <p style="margin-left:12px;font-size:12.5px;opacity:.9">What the fields accept — detection is automatic:<br>
+      • <b>GGRS87</b> in metres, e.g. X <span style="font-variant-numeric:tabular-nums">213815.25</span>, Y <span style="font-variant-numeric:tabular-nums">4303326.02</span>. Swapped values are corrected automatically (Y is always the large one, &gt;3,800,000).<br>
+      • <b>WGS84</b> decimal degrees: lon,lat or lat,lon — for Greece it works out which is which.<br>
+      • <b>A pasted pair</b> in one field («213815.25 4303326.02» or comma-separated) is split automatically.<br>
+      • Comma as decimal separator is accepted; Enter in the Y field = Go to.<br>
+      • A point falling outside Greece is rejected as a typing error rather than taking you nowhere.</p>
+      <p><b style="color:#22d3ee">🛣 Polyline route — staking out consecutive points.</b> When you are not walking to one point but to a series of them (plot corners, axis pegging, expropriation limits), press 🛣 on the left. The route panel opens:</p>
+      <p style="margin-left:12px"><b>➕ Point</b> — adds the crosshair position as a vertex. Alternatively, from «⌨ XY point» press <b>➕ Add to route</b> and enter the vertices one by one from a coordinate table.<br>
+      <b>↶</b> undoes the last vertex, <b>🗑</b> clears the whole route.<br>
+      <b>Close polygon</b> — adds a closing leg from the last vertex back to the first and also shows the <b>area</b> (shoelace in GGRS87), for staking out a boundary.</p>
+      <p style="margin-left:12px">The list shows every leg the way you will walk it: <b>1 · 120 m NNW (338°)</b>, <b>2 · 30 m E (91°)</b>, <b>3 · 100 m N (2°)</b> — length, compass point and azimuth, computed in <b>GGRS87</b> (plane geometry, the same values your total station gives). Total length is shown at the bottom right.</p>
+      <p style="margin-left:12px"><b>▶ Start</b> — navigation begins. If you are far from the first vertex, an <b>Approach (➜)</b> leg from your position to it is inserted automatically. The active leg gets the ±10 m corridor, the off-track reading and the trail, exactly as in single-point navigation. <b>On reaching a vertex (&lt;5 m) it advances to the next leg by itself.</b> Use <b>‹ ›</b> to skip manually — useful when GPS jitters or you cannot stand exactly on the vertex. Tapping a row in the list jumps straight to that leg.</p>
+      <p><b style="color:#22d3ee">ΕΛ — language.</b> The <b>EN/ΕΛ</b> button at the top right switches the whole interface between Greek and English. The choice is remembered. Compass points switch too (N→Β, NNW→ΒΒΔ etc.).</p>
+      <p><b style="color:#22d3ee">ΚΤ · 🗺️.</b> «ΚΤ» turns on the official cadastral boundary overlay (from zoom ~16). «Open Cadastre» launches the official viewer at the current coordinates.</p>
+      <p style="opacity:.75;font-size:12px;margin-bottom:0">The red target at the centre gives the GGRS87/WGS84 coordinates shown in the panel — pan the map onto your point and copy them with 📋.</p>
+      </div>
     </div>
   </div>
-  <div style="display:flex;gap:8px;margin-top:8px">
+  <div class="kaek-row" style="display:flex;gap:8px;margin-top:8px">
     <input id="kaekQ" type="text" inputmode="numeric" placeholder="ΚΑΕΚ (12 ψηφία)"
       style="flex:1;padding:10px 12px;background:var(--panel2);border:1px solid var(--neon);border-radius:9px;color:var(--neon);font-weight:700;font-size:14px;letter-spacing:.5px"
       onkeydown="if(event.key==='Enter'){event.preventDefault();findByKaek();}">
@@ -435,6 +662,242 @@ proj4.defs("EPSG:2100",
   + "+ellps=GRS80 +towgs84=-199.87,74.79,246.62,0,0,0,0 +units=m +no_defs");
 
 const $ = id => document.getElementById(id);
+
+// ───────── Διγλωσσία ΕΛ / EN ─────────
+// Λεξικό «ελληνικό string → αγγλικό». Η μετάφραση γίνεται (α) με σάρωση των
+// κόμβων κειμένου του DOM (στατικό UI) και (β) με tr()/trx() στα δυναμικά
+// μηνύματα. Το πρωτότυπο ελληνικό κρατιέται σε κάθε κόμβο, ώστε η εναλλαγή
+// να είναι αντιστρεπτή όσες φορές θέλει ο χρήστης.
+let _rawHint = null, _rawMeasure = null;
+let LANG = (function(){ try{ return localStorage.getItem("hexis_lang") || "el"; }catch(e){ return "el"; } })();
+const LOCALES = { el: "el-GR", en: "en-US" };
+function LOC(){ return LOCALES[LANG] || LOCALES.el; }
+
+const DICT_EN = {
+  // Header
+  "ΕΓΣΑ'87 · ΜΕΤΡΗΣΕΙΣ":"GGRS87 · MEASUREMENTS",
+  // Tooltips / titles
+  "Μέτρηση απόστασης":"Distance measurement",
+  "Σχεδίαση πολυγώνου / εμβαδόν":"Draw polygon / area",
+  "Όρια κτηματογράφησης (on/off)":"Cadastral boundaries (on/off)",
+  "Πλήρης χάρτης — απόκρυψη panel & κουμπιών":"Full map — hide panel & buttons",
+  "Δασικοί χάρτες & SHP importer":"Forest maps & SHP importer",
+  "Ιστορικές αεροφωτογραφίες (Esri Wayback)":"Historical aerial imagery (Esri Wayback)",
+  "Πολυγωνική διαδρομή (χάραξη)":"Polyline route (stakeout)",
+  "Χάρακας":"Ruler", "Πολύγωνο":"Polygon", "Όρια ΚΤ":"Cadastral limits",
+  "Δασικά":"Forest maps", "Ιστορικά":"Historical", "Διαδρομή":"Route",
+  "Πλήρης χάρτης":"Full map",
+  "Καθαρισμός επιλογών":"Clear selection",
+  "Αντιγραφή Χ":"Copy X", "Αντιγραφή Υ":"Copy Y",
+  "Αντιγραφή X (Lon)":"Copy X (Lon)", "Αντιγραφή Y (Lat)":"Copy Y (Lat)",
+  "Κέντραρε στη θέση μου":"Centre on my position",
+  "Πλοήγηση στο σημείο του σταυρονήματος":"Navigate to the crosshair point",
+  "Εισαγωγή συντεταγμένων σημείου":"Enter point coordinates",
+  "Οδηγίες χρήσης":"How to use",
+  "Εύρεση γεωτεμαχίου από ΚΑΕΚ":"Find parcel by KAEK",
+  "Κατέβασμα DXF (ΕΓΣΑ'87): κύριο + όμορα + ΕΚ με ετικέτες ΚΑΕΚ":"Download DXF (GGRS87): main + adjacent + public parcels with KAEK labels",
+  "Ακύρωση":"Cancel",
+  // Πάνελ δασικών / ιστορικών
+  "🌲 Δασικοί χάρτες":"🌲 Forest maps",
+  "🗺 Άνοιγμα Κυρωμένου Δασικού Χάρτη":"🗺 Open ratified forest map",
+  "📂 Εισαγωγή SHP (.zip από KT)":"📂 Import SHP (.zip from Cadastre)",
+  "Φόρτωσε .zip αρχείο SHP — τα layers εμφανίζονται εδώ.":"Load a .zip SHP file — layers appear here.",
+  "Φόρτωσε .zip αρχείο SHP.":"Load a .zip SHP file.",
+  "🗑 Καθαρισμός όλων":"🗑 Clear all",
+  "🕐 Ιστορικές αεροφωτογραφίες":"🕐 Historical aerial imagery",
+  "Ο WMS του Κτηματολογίου δεν επιτρέπει ενσωμάτωση σε εξωτερικές εφαρμογές. Άνοιξε τον επίσημο viewer:":"The Cadastre WMS does not allow embedding in external apps. Open the official viewer:",
+  "🗺 Τρέχουσα (2015–2016)":"🗺 Current (2015–2016)",
+  "📷 1945–1960 (ΑΣΠ/Β)":"📷 1945–1960 (B/W)",
+  "📷 2007–2009 (έγχρωμη)":"📷 2007–2009 (colour)",
+  "🗑 Καθαρισμός":"🗑 Clear",
+  "📏 Μέτρηση: πάτα σημεία":"📏 Measure: tap points",
+  // Bottom sheet
+  "ΣΥΝΤΕΤΑΓΜΕΝΕΣ ΕΓΣΑ'87 (στόχος)":"GGRS87 COORDINATES (target)",
+  "Χ —  ·  Υ —":"X —  ·  Y —",
+  "ΕΓΣΑ'87 (για τοπογραφικά)":"GGRS87 (for survey drawings)",
+  "Lon / Lat (για maps.ktimatologio.gr)":"Lon / Lat (for maps.ktimatologio.gr)",
+  "Εμβαδόν":"Area", "Περίμετρος":"Perimeter", "Κορυφές":"Vertices",
+  "Χ":"X", "Υ":"Y", "📋 Χ":"📋 X", "📋 Υ":"📋 Y",
+  "Θέση μου":"My position", "Στο σημείο":"To point", "ΧΥ σημείο":"XY point",
+  "Κτηματολόγιο":"Cadastre", "Οδηγίες":"Help",
+  "Συντεταγμένες σημείου — ΕΓΣΑ'87 (Χ,Υ) ή WGS84 (lon,lat / lat,lon)":"Point coordinates — GGRS87 (X,Y) or WGS84 (lon,lat / lat,lon)",
+  "🎯 Μετάβαση":"🎯 Go to", "🧭 Ορισμός στόχου":"🧭 Set target", "➕ Στη διαδρομή":"➕ Add to route",
+  "❔ Οδηγίες — Hexis Cadastral":"❔ Help — Hexis Cadastral",
+  "🔎 ΚΑΕΚ":"🔎 KAEK",
+  "ΚΑΕΚ (12 ψηφία)":"KAEK (12 digits)", "Χ / lon":"X / lon", "Υ / lat":"Y / lat",
+  "Σύρε τον χάρτη ώστε ο κόκκινος στόχος να πέσει στο σημείο. Πάτα 📋 για αντιγραφή των ΕΓΣΑ'87 συντεταγμένων.":"Pan the map so the red target sits on your point. Tap 📋 to copy the GGRS87 coordinates.",
+  // Ρυθμίσεις
+  "Ρυθμίσεις":"Settings",
+  "Στόχευσε με το σταυρόνημα πάνω στο οικόπεδο και πάτα «Εύρεση ΚΑΕΚ».":"Aim the crosshair at the parcel and press «Find KAEK».",
+  "Ακτίνα αναζήτησης (μέτρα)":"Search radius (metres)",
+  "Κλείσιμο":"Close",
+  // Δυναμικά μηνύματα
+  "Live tracking ενεργό — η πινέζα ακολουθεί τη θέση σου.":"Live tracking on — the pin follows your position.",
+  "Το live tracking σταμάτησε.":"Live tracking stopped.",
+  "Εντοπισμός θέσης… (live)":"Locating… (live)",
+  "Δεν υποστηρίζεται GPS.":"GPS is not supported.",
+  "⌖ Επιστροφή στη θέση μου":"⌖ Back to my position",
+  "Η πλοήγηση σταμάτησε.":"Navigation stopped.",
+  "Πλοήγηση ενεργή προς το σημείο.":"Navigation active towards the point.",
+  "Στόχος ορίστηκε — ξεκινά εντοπισμός θέσης…":"Target set — starting positioning…",
+  "Στόχος ορίστηκε. Πάτα 📍 για live tracking και δες απόσταση/πορεία.":"Target set. Tap 📍 for live tracking to see distance and bearing.",
+  "Ο χάρτης κεντράρισε στο σημείο.":"Map centred on the point.",
+  "Άναψε το GPS (📍) για απόσταση/πορεία":"Turn on GPS (📍) for distance and bearing",
+  "Μη έγκυρες συντεταγμένες. Δώσε ΕΓΣΑ'87 (Χ Υ) ή WGS84 μοίρες.":"Invalid coordinates. Enter GGRS87 (X Y) or WGS84 degrees.",
+  "Οι επιλογές καθαρίστηκαν.":"Selection cleared.",
+  "Βρέθηκε γεωτεμάχιο.":"Parcel found.",
+  "Βρέθηκε! Η πινέζα είναι στο τεμάχιο.":"Found — the pin is on the parcel.",
+  "Δεν βρέθηκε γεωτεμάχιο εδώ":"No parcel found here",
+  "Δεν βρέθηκε γεωτεμάχιο εδώ — εκτός φορτωμένων περιφερειών ή εκτός κτηματογράφησης.":"No parcel here — outside the loaded regions or outside cadastral coverage.",
+  "Ο ΚΑΕΚ δεν βρέθηκε στη βάση — εκτός φορτωμένων περιφερειών ή εκτός κτηματογράφησης.":"KAEK not found in the database — outside the loaded regions or outside cadastral coverage.",
+  "Δεν βρέθηκε το ΚΑΕΚ":"KAEK not found",
+  "Δεν βρέθηκε":"Not found",
+  "Δεν βρέθηκαν γεωτεμάχια στην περιοχή.":"No parcels found in this area.",
+  "Βάλε ένα ΚΑΕΚ.":"Enter a KAEK.",
+  "Δώσε έγκυρο ΚΑΕΚ — 12 ψηφία.":"Enter a valid KAEK — 12 digits.",
+  "Έλεγξε τον αριθμό ΚΑΕΚ.":"Check the KAEK number.",
+  "Ίσως εκτός κτηματογραφημένης ζώνης ή λάθος στόχευση.":"Possibly outside the cadastral zone, or the aim is off.",
+  "Κάνε πρώτα κλικ σε γεωτεμάχιο ή αναζήτηση ΚΑΕΚ.":"First tap a parcel or search a KAEK.",
+  "Αναζήτηση ΚΑΕΚ…":"Searching KAEK…", "Αναζήτηση…":"Searching…",
+  "Ρωτάω το Κτηματολόγιο…":"Querying the Cadastre…",
+  "🔎 Ψάχνω γεωτεμάχιο στο σημείο…":"🔎 Looking for a parcel at this point…",
+  "🔎 Αναζήτηση ΚΑΕΚ στην περιοχή δασικού…":"🔎 Searching KAEK in the forest-map area…",
+  "🔎 Εμφάνιση ΚΑΕΚ στην περιοχή":"🔎 Show KAEK in this area",
+  "Άνοιξε το Κτηματολόγιο. Στο widget «Μετάβαση» επικόλλησε Lon/Lat για δείκτη στο σημείο.":"Cadastre opened. Paste Lon/Lat into the «Μετάβαση» widget to drop a marker.",
+  "Άνοιξε ο viewer Κτηματολογίου σε νέο tab":"Cadastre viewer opened in a new tab",
+  "Όρια κτηματογράφησης: ενεργά.":"Cadastral boundaries: on.",
+  "Όρια κτηματογράφησης: ανενεργά.":"Cadastral boundaries: off.",
+  "Ζούμαρε πιο κοντά για να φανούν τα όρια (κλίμακα ≥ 1:9000).":"Zoom in for the boundaries to appear (scale ≥ 1:9000).",
+  "✓ Αντιγράφηκε":"✓ Copied", "Αποτυχία αντιγραφής":"Copy failed",
+  "Δεν βρέθηκε .shp μέσα στο zip":"No .shp found inside the zip",
+  "Σφάλμα":"Error",
+  // Διαδρομή
+  "🛣 Πολυγωνική διαδρομή":"🛣 Polyline route",
+  "Πρόσθεσε σημεία με το ➕ (σταυρόνημα) ή από το «⌨ ΧΥ σημείο».":"Add points with ➕ (crosshair) or from «⌨ XY point».",
+  "Χρειάζονται τουλάχιστον 2 σημεία.":"At least 2 points are needed.",
+  "Η διαδρομή ξεκίνησε.":"Route started.",
+  "Η διαδρομή σταμάτησε.":"Route stopped.",
+  "Η διαδρομή καθαρίστηκε.":"Route cleared.",
+  "Το σημείο προστέθηκε στη διαδρομή.":"Point added to the route.",
+  "Προσέγγιση":"Approach", "Σκέλος":"Leg", "Κλείσιμο πολυγώνου":"Close polygon",
+  "Σύνολο":"Total", "Απόσταση":"Distance", "Πορεία":"Bearing", "Εκτροπή":"Off-track",
+  "▶ δεξιά":"▶ right", "◀ αριστερά":"◀ left",
+  "✅ Έφτασες!":"✅ Arrived!", "✅ Η διαδρομή ολοκληρώθηκε!":"✅ Route completed!",
+  "➕ Σημείο":"➕ Point", "▶ Έναρξη":"▶ Start", "⏸ Παύση":"⏸ Pause",
+  "🗑 Καθαρισμός διαδρομής":"🗑 Clear route", "Αναίρεση τελευταίου σημείου":"Undo last point",
+  "Προηγούμενο σκέλος":"Previous leg", "Επόμενο σκέλος":"Next leg",
+  "Καμία διαδρομή":"No route"
+};
+
+// Τμηματική απόδοση για σύνθετα μηνύματα (μεγαλύτερα πρώτα)
+const FRAG_EN = [
+  ["όμορα — κλικ πάνω τους για ΚΑΕΚ","adjacent — tap them for their KAEK"],
+  ["Το σημείο είναι εκτός γεωτεμαχίου (θάλασσα/κοινόχρηστο/ακάλυπτο) — πλησιέστερο","Point is outside any parcel (sea/public/uncovered) — nearest"],
+  ["το κλικ ήταν εκτός γεωτεμαχίου","the tap was outside the parcel"],
+  ["δασικά πολύγωνα","forest polygons"],
+  ["πλησιέστερο","nearest"],
+  ["Χωρίς χαρακτήρα","No category"],
+  ["εφαπτόμενα","adjacent"],
+  ["αντικείμενα ως","objects as"],
+  ["Φορτώθηκαν","Loaded"],
+  ["Φόρτωση","Loading"],
+  ["Σφάλμα δικτύου","Network error"],
+  ["Σφάλμα GPS","GPS error"],
+  ["Σφάλμα","Error"],
+  ["Αντιγράφηκαν","Copied"],
+  ["Αντιγράφηκε","Copied"],
+  ["Περίμετρος","Perimeter"],
+  ["Εμβαδόν","Area"],
+  ["Κορυφές","Vertices"],
+  ["Μέτρηση","Measurement"],
+  ["Πολύγωνο","Polygon"],
+  ["(κλειστό)","(closed)"],
+  ["πάτα στην αρχή για κλείσιμο","tap the first point to close"],
+  ["Πάτα κορυφές · 2 κλικ στην αρχή = κλείσιμο","Tap vertices · 2 taps on the first = close"],
+  ["Πάτα σημεία στον χάρτη","Tap points on the map"],
+  ["Τρέχον εμβαδόν","Current area"],
+  ["Σύνολο","Total"],
+  ["τμήμα","segment"],
+  ["Απόσταση","Distance"],
+  ["Πορεία","Bearing"],
+  ["Εκτροπή","Off-track"],
+  ["Σκέλος","Leg"],
+  ["Προσέγγιση","Approach"],
+  ["δεξιά","right"],
+  ["αριστερά","left"],
+  ["Έφτασες!","Arrived!"],
+  ["όμορα","adjacent"],
+  ["λίγα","a few"],
+  ["κύριο","main"],
+  ["Ψάχνω","Looking for"]
+];
+
+function tr(s){
+  if(LANG !== "en") return s;
+  const k = String(s).trim();
+  return DICT_EN[k] ? String(s).replace(k, DICT_EN[k]) : s;
+}
+// trx: πρώτα ακριβής αντιστοίχιση, αλλιώς τμηματική (για συνθετικά strings)
+function mInfo(v, asText){
+  _rawMeasure = { v: v, t: !!asText };
+  const mi = $("measureInfo"); if(!mi) return;
+  if(asText) mi.textContent = trx(v); else mi.innerHTML = trx(v);
+}
+function trx(s){
+  if(LANG !== "en") return s;
+  let out = String(s);
+  const k = out.trim();
+  if(DICT_EN[k]) return out.replace(k, DICT_EN[k]);
+  for(const [a,b] of FRAG_EN) out = out.split(a).join(b);
+  return out;
+}
+
+function applyLang(){
+  const en = LANG === "en";
+  // (α) κόμβοι κειμένου
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+  let n;
+  while((n = w.nextNode())){
+    const p = n.parentNode; if(!p) continue;
+    const tag = p.nodeName; if(tag === "SCRIPT" || tag === "STYLE") continue;
+    if(n.__i18nOut !== n.nodeValue) n.__i18nSrc = n.nodeValue;   // εξωτερική αλλαγή → νέα πηγή
+    const key = (n.__i18nSrc || "").trim();
+    if(!key) continue;
+    const tgt = en ? DICT_EN[key] : null;
+    const out = tgt ? n.__i18nSrc.replace(key, tgt) : n.__i18nSrc;
+    if(n.nodeValue !== out) n.nodeValue = out;
+    n.__i18nOut = out;
+  }
+  // (β) attributes
+  document.querySelectorAll("[title],[placeholder],[data-lbl]").forEach(el=>{
+    ["title","placeholder","data-lbl"].forEach(a=>{
+      if(!el.hasAttribute(a)) return;
+      let s = el.getAttribute("data-i18n-" + a);
+      if(s === null){ s = el.getAttribute(a); el.setAttribute("data-i18n-" + a, s); }
+      el.setAttribute(a, en ? (DICT_EN[s.trim()] || s) : s);
+    });
+  });
+  // (γ) μπλοκ ανά γλώσσα (οδηγίες)
+  document.querySelectorAll("[data-lang]").forEach(el=>{
+    el.style.display = (el.getAttribute("data-lang") === LANG) ? "" : "none";
+  });
+  // ξανα-απόδοση όσων εμφανίζονται ήδη (hint, ετικέτα μέτρησης)
+  if(_rawHint){ const h = $("hint"); if(h) h.textContent = trx(_rawHint); }
+  if(_rawMeasure){ const mi = $("measureInfo"); if(mi) mi[_rawMeasure.t ? "textContent" : "innerHTML"] = trx(_rawMeasure.v); }
+  const lb = $("langBtn"); if(lb) lb.textContent = en ? "ΕΛ" : "EN";
+  document.documentElement.lang = LANG;
+}
+
+function toggleLang(){
+  LANG = (LANG === "en") ? "el" : "en";
+  try{ localStorage.setItem("hexis_lang", LANG); }catch(e){}
+  applyLang();
+  try{ if(typeof renderRoute === "function") renderRoute(); }catch(e){}
+  try{ if(typeof updateNav === "function") updateNav(); }catch(e){}
+  try{ if(typeof renderForestList === "function" && $("forestPanel") && $("forestPanel").style.display === "block") renderForestList(); }catch(e){}
+}
+window.addEventListener("load", ()=>{ try{ applyLang(); }catch(e){} });
+
 
 // ───────── Map με ESRI δορυφόρο ─────────
 // Διάβασε lat/lon από το URL (αν ανοίξει από έργο του hexis)
@@ -1106,7 +1569,7 @@ function addForestLayer(name,geojson){
       const desc=DASIKA_CHAR[codeTrim]||codeTrim||'';
       const areaKey = pfkeys.find(k=>/^(SHAPE_AREA|AREA|EMVADON|Area)$/i.test(k));
       const areaVal=parseFloat(areaKey ? p[areaKey] : 0);
-      const area=areaVal>0?`<br>Εμβαδόν: ${areaVal.toLocaleString('el-GR',{maximumFractionDigits:0})} m²`:'';
+      const area=areaVal>0?`<br>Εμβαδόν: ${areaVal.toLocaleString(LOC(),{maximumFractionDigits:0})} m²`:'';
       // Hover highlight: έντονο περίγραμμα όταν περνάς πάνω
       const defStyle={color,weight:1.5,fillColor:color,fillOpacity:.18};
       const hiStyle ={color:'#ffffff',weight:3,  fillColor:color,fillOpacity:.4};
@@ -1126,7 +1589,7 @@ function addForestLayer(name,geojson){
         const fd=DASIKA_CHAR[fc]||fc||'';
         const faKey=fpkeys.find(k=>/^(SHAPE_AREA|AREA|EMVADON|Area)$/i.test(k));
         const fa=parseFloat(faKey?fp[faKey]:0);
-        const faStr=fa>0?`<br>Εμβαδόν: ${fa.toLocaleString('el-GR',{maximumFractionDigits:0})} m²`:'';
+        const faStr=fa>0?`<br>Εμβαδόν: ${fa.toLocaleString(LOC(),{maximumFractionDigits:0})} m²`:'';
         // Εμφάνιση μόνο non-numeric, non-empty attributes
         const allAttrs=fpkeys.filter(k=>{
           const v=String(fp[k]||'').trim();
@@ -1170,6 +1633,7 @@ function openKtimViewer(era){
 }
 
 function toggleFull(){
+  setTimeout(()=>{ try{ homeRoutePanel(); }catch(e){} }, 0);
   document.body.classList.toggle("mapfull");
   try{ syncNavVisibility(); }catch(e){}
   setTimeout(()=>{ try{ map.invalidateSize(); }catch(e){} }, 120);
@@ -1270,7 +1734,7 @@ function fail(msg){
   console.error("[ΚΑΕΚ] " + msg);
 }
 
-function setHint(t, cls=""){ const h=$("hint"); h.textContent=t; h.className="hint "+cls; }
+function setHint(t, cls=""){ _rawHint = t; const h=$("hint"); h.textContent=trx(t); h.className="hint "+cls; }
 
 let parcelLayers = [];
 function clearParcel(){
@@ -1341,7 +1805,7 @@ function drawParcel(parcel){
   parcelLayer.bindPopup(`<b>${parcel.kaek||"ΚΑΕΚ ;"}</b><br>${g.area.toFixed(1)} m²`);
   parcelLayer.on("click", (ev)=>{ if(measuring || drawing) return; L.DomEvent.stopPropagation(ev); parcelLayer.openPopup(ev.latlng); });
   updateClearBtn();
-  set("area",  el=> el.textContent = Math.round(g.area).toLocaleString("el-GR")+" m²");
+  set("area",  el=> el.textContent = Math.round(g.area).toLocaleString(LOC())+" m²");
   set("perim", el=> el.textContent = Math.round(g.perim)+" m");
   set("verts", el=> el.textContent = g.verts);
   set("stats", el=> el.style.display = "grid");
@@ -1394,7 +1858,7 @@ const IS_MOBILE = (window.matchMedia && window.matchMedia("(pointer: coarse)").m
 if(!IS_MOBILE){
   if($("gpsBtn")) $("gpsBtn").style.display = "none";
   if($("navBtn")) $("navBtn").style.display = "none";
-  const tb = document.querySelector('#xyPanel button[onclick="goToXY(true)"]');
+  const tb = document.querySelector('#xyPanel button[onclick="goToXY(\'target\')"]');
   if(tb) tb.style.display = "none";
   document.querySelector(".actions").style.gridTemplateColumns = "1fr 1.4fr 1fr";
 }
@@ -1537,12 +2001,21 @@ function parseXYInput(){
   }catch(e){ return null; }
 }
 
-function goToXY(asTarget){
+function goToXY(mode){
+  if(mode === true) mode = "target";
+  if(mode === false || !mode) mode = "go";
   const ll = parseXYInput();
   if(!ll){ setHint("Μη έγκυρες συντεταγμένες. Δώσε ΕΓΣΑ'87 (Χ Υ) ή WGS84 μοίρες.", "err"); return; }
+  if(mode === "route"){
+    addRoutePoint(ll);
+    map.setView(ll, 19);
+    $("xyX").value = ""; $("xyY").value = "";
+    $("xyX").focus();
+    return;
+  }
   if(typeof gpsWatchId !== "undefined" && gpsWatchId !== null){ gpsFollow = false; showRecenterBtn(); }
   map.setView(ll, 19);
-  if(asTarget){
+  if(mode === "target"){
     if(navTarget) stopNav();                 // αντικατάσταση τυχόν παλιού στόχου
     navTarget = ll;
     navMarker = L.marker(navTarget, {
@@ -1600,8 +2073,9 @@ function distBearingEGSA(fromLL, toLL){
   return {dist, az};
 }
 function azToCompass(az){
-  const dirs = ["Β","ΒΒΑ","ΒΑ","ΑΒΑ","Α","ΑΝΑ","ΝΑ","ΝΝΑ","Ν","ΝΝΔ","ΝΔ","ΔΝΔ","Δ","ΔΒΔ","ΒΔ","ΒΒΔ"];
-  return dirs[Math.round(az/22.5) % 16];
+  const el = ["Β","ΒΒΑ","ΒΑ","ΑΒΑ","Α","ΑΝΑ","ΝΑ","ΝΝΑ","Ν","ΝΝΔ","ΝΔ","ΔΝΔ","Δ","ΔΒΔ","ΒΔ","ΒΒΔ"];
+  const en = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+  return (LANG === "en" ? en : el)[Math.round(az/22.5) % 16];
 }
 function fmtDist(m){
   return m >= 1000 ? (m/1000).toFixed(2)+" km" : m.toFixed(m<100?1:0)+" m";
@@ -1751,9 +2225,14 @@ function syncNavVisibility(){
 }
 
 function updateNav(){
-  if(!navTarget) return;
+  if(typeof routeActive !== "undefined" && routeActive) routeTick();
+  if(!navTarget){
+    if(typeof routeActive !== "undefined" && routeActive && navPanel)
+      navPanel.querySelector(".nav-info").textContent = trx("Άναψε το GPS (📍) για απόσταση/πορεία");
+    return;
+  }
   if(!liveMarker){
-    if(navPanel) navPanel.querySelector(".nav-info").textContent = "Άναψε το GPS (📍) για απόσταση/πορεία";
+    if(navPanel) navPanel.querySelector(".nav-info").textContent = trx("Άναψε το GPS (📍) για απόσταση/πορεία");
     return;
   }
   const from = liveMarker.getLatLng();
@@ -1769,16 +2248,29 @@ function updateNav(){
   }
   syncNavVisibility();
   if(navPanel){
-    let html = "Απόσταση: <b>"+fmtDist(dist)+"</b> &nbsp;·&nbsp; Πορεία: <b>"+az.toFixed(0)+"°</b> ("+azToCompass(az)+")";
+    let html = trx("Απόσταση")+": <b>"+fmtDist(dist)+"</b> &nbsp;·&nbsp; "+trx("Πορεία")+": <b>"+az.toFixed(0)+"°</b> ("+azToCompass(az)+")";
     const xte = crossTrack(from);
-    if(xte !== null && dist > 5){
+    if(xte !== null && dist > ARRIVE_R){
       const ax = Math.abs(xte);
-      const side = xte > 0 ? "▶ δεξιά" : "◀ αριστερά";
+      const side = xte > 0 ? trx("▶ δεξιά") : trx("◀ αριστερά");
       const cls = ax > NAV_XTE_W ? "xte-bad" : "xte-ok";
-      html += ' &nbsp;·&nbsp; <span class="'+cls+'">Εκτροπή: <b>'+ax.toFixed(1)+' μ</b> '+side+'</span>';
+      html += ' &nbsp;·&nbsp; <span class="'+cls+'">'+trx("Εκτροπή")+': <b>'+ax.toFixed(1)+(LANG==="en"?" m":" μ")+'</b> '+side+'</span>';
     }
-    if(dist <= 5) html += " &nbsp;✅ Έφτασες!";
+    if(dist <= ARRIVE_R){
+      const legs = (typeof routeActive !== "undefined" && routeActive) ? legList() : null;
+      html += (legs && legIdx >= legs.length-1) ? " &nbsp;"+trx("✅ Η διαδρομή ολοκληρώθηκε!") : " &nbsp;"+trx("✅ Έφτασες!");
+    }
     navPanel.querySelector(".nav-info").innerHTML = html;
+    if(typeof routeActive !== "undefined" && routeActive && routePanel){
+      const legs = legList(), leg = legs[legIdx];
+      if(leg){
+        const li = legInfo(leg);
+        const name = leg.approach ? trx("Προσέγγιση")
+                   : trx("Σκέλος")+" "+(legIdx + (approachLL?0:1))+"/"+(legs.length-(approachLL?1:0));
+        const h = routePanel.querySelector("#rpLeg");
+        if(h) h.innerHTML = "<b>"+name+"</b><span class='rp-sub'>"+li.txt+" · "+li.az_txt+"</span>";
+      }
+    }
   }
 }
 
@@ -1792,7 +2284,7 @@ function stopNav(){
   if(liveMarker) liveMarker.setStyle({opacity:1, fillOpacity:.9});
   if(navMarker){ map.removeLayer(navMarker); navMarker = null; }
   if(navLine){ map.removeLayer(navLine); navLine = null; }
-  if(navPanel){ navPanel.remove(); navPanel = null; }
+  if(navPanel){ if(typeof routePanel === "undefined" || navPanel !== routePanel) navPanel.remove(); navPanel = null; }
   $("navBtn").querySelector(".a-ico").textContent="🧭"; $("navBtn").querySelector(".a-lbl").textContent="Στο σημείο";
   $("navBtn").classList.remove("gps-live");
 }
@@ -1840,6 +2332,300 @@ $("navBtn").onclick = () => {
 map.on("dragstart", ()=>{
   if(gpsWatchId !== null && gpsFollow){ gpsFollow = false; showRecenterBtn(); }
 });
+
+
+// ───────── Πολυγωνική διαδρομή / χάραξη ─────────
+// Λίστα σημείων (κορυφές). Τα σκέλη υπολογίζονται μεταξύ διαδοχικών σημείων
+// σε ΕΓΣΑ'87 (επίπεδη γεωμετρία, όπως στο όργανο): μήκος + αζιμούθιο/πυξίδα.
+// Το ενεργό σκέλος τροφοδοτεί τον υπάρχοντα μηχανισμό πλοήγησης
+// (navOrigin → navTarget), οπότε διάδρομος XTE, ίχνος και ανθρωπάκι δουλεύουν
+// αυτούσια — απλώς αλλάζει στόχο σε κάθε κορυφή.
+let route = [];               // [L.LatLng]
+let routeClosed = false;      // κλειστό πολύγωνο (τελευταίο → πρώτο)
+let routeActive = false;      // τρέχει πλοήγηση διαδρομής
+let legIdx = 0;               // ενεργό σκέλος
+let approachLL = null;        // σκέλος προσέγγισης: θέση εκκίνησης → κορυφή 1
+let pendingApproach = false;  // περιμένουμε πρώτο fix για να κλειδώσει η προσέγγιση
+let routeWpMarkers = [];
+let routeLine = null;
+let routePanel = null;
+const ARRIVE_R = 5;           // ακτίνα άφιξης σε κορυφή (m)
+
+function legList(){
+  const L2 = [];
+  if(!route.length) return L2;
+  if(approachLL) L2.push({ from: approachLL, to: route[0], approach: true });
+  for(let i = 0; i < route.length - 1; i++) L2.push({ from: route[i], to: route[i+1] });
+  if(routeClosed && route.length >= 3) L2.push({ from: route[route.length-1], to: route[0], close: true });
+  return L2;
+}
+function legInfo(leg){
+  const { dist, az } = distBearingEGSA(leg.from, leg.to);
+  return { dist, az, txt: fmtDist(dist) + " " + azToCompass(az), az_txt: az.toFixed(0) + "°" };
+}
+function routeTotals(){
+  let total = 0;
+  const legs = legList();
+  legs.forEach(l => { if(!l.approach) total += distBearingEGSA(l.from, l.to).dist; });
+  let area = 0;
+  if(routeClosed && route.length >= 3){
+    const p = route.map(ll => egsaOf(ll));
+    for(let i = 0; i < p.length; i++){
+      const q = p[(i+1) % p.length];
+      area += p[i][0] * q[1] - q[0] * p[i][1];
+    }
+    area = Math.abs(area) / 2;
+  }
+  return { total, area };
+}
+
+// ── Χάρτης: γραμμή + αριθμημένες κορυφές ──
+function drawRouteGeometry(){
+  routeWpMarkers.forEach(m => { try{ map.removeLayer(m); }catch(e){} });
+  routeWpMarkers = [];
+  if(routeLine){ try{ map.removeLayer(routeLine); }catch(e){} routeLine = null; }
+  if(!route.length) return;
+
+  const pts = route.slice();
+  if(routeClosed && route.length >= 3) pts.push(route[0]);
+  if(pts.length >= 2){
+    routeLine = L.polyline(pts, { color:"#e67e22", weight:3, opacity:.85, interactive:false }).addTo(map);
+  }
+  const legs = legList();
+  const cur = legs[legIdx];
+  route.forEach((ll, i) => {
+    let cls = "rp-wp";
+    if(routeActive && cur && cur.to === ll) cls += " cur";
+    else if(routeActive && legs.findIndex(l => l.to === ll) > -1 && legs.findIndex(l => l.to === ll) < legIdx) cls += " done";
+    routeWpMarkers.push(L.marker(ll, {
+      icon: L.divIcon({ className: cls, html: "<div>" + (i+1) + "</div>", iconSize:[22,22], iconAnchor:[11,11] })
+    }).addTo(map));
+  });
+}
+
+// ── Πάνελ ──
+function buildRoutePanel(){
+  if(routePanel) return routePanel;
+  routePanel = document.createElement("div");
+  routePanel.id = "routePanel";
+  routePanel.innerHTML =
+    '<div class="rp-top">' +
+      '<button id="rpPrev" title="Προηγούμενο σκέλος">‹</button>' +
+      '<div class="rp-leg" id="rpLeg">—</div>' +
+      '<button id="rpNext" title="Επόμενο σκέλος">›</button>' +
+      '<button id="rpClose2" title="Κλείσιμο">✕</button>' +
+    '</div>' +
+    '<span class="nav-info">—</span>' +
+    '<div id="rpList"></div>' +
+    '<div class="rp-bot">' +
+      '<button id="rpAdd">➕ Σημείο</button>' +
+      '<button id="rpUndo" title="Αναίρεση τελευταίου σημείου">↶</button>' +
+      '<button id="rpClear" title="🗑 Καθαρισμός διαδρομής">🗑</button>' +
+      '<button id="rpGo" class="go">▶ Έναρξη</button>' +
+      '<label><input type="checkbox" id="rpClosed"> <span>Κλείσιμο πολυγώνου</span></label>' +
+      '<span class="rp-tot" id="rpTot"></span>' +
+    '</div>';
+  document.body.appendChild(routePanel);
+
+  routePanel.querySelector("#rpLeg").onclick = () => routePanel.classList.toggle("collapsed");
+  if(typeof IS_MOBILE !== "undefined" && !IS_MOBILE) routePanel.querySelector("#rpGo").style.display = "none";
+  routePanel.querySelector("#rpPrev").onclick = () => { if(routeActive) setLeg(legIdx - 1); };
+  routePanel.querySelector("#rpNext").onclick = () => { if(routeActive) setLeg(legIdx + 1); };
+  routePanel.querySelector("#rpClose2").onclick = () => { toggleRoutePanel(); };
+  routePanel.querySelector("#rpAdd").onclick = () => addRoutePoint(map.getCenter());
+  routePanel.querySelector("#rpUndo").onclick = () => {
+    if(!route.length) return;
+    route.pop();
+    if(!route.length) stopRoute();
+    renderRoute();
+  };
+  routePanel.querySelector("#rpClear").onclick = () => clearRoute();
+  routePanel.querySelector("#rpGo").onclick = () => { routeActive ? stopRoute() : startRoute(); };
+  routePanel.querySelector("#rpClosed").onchange = (e) => {
+    routeClosed = e.target.checked;
+    if(routeActive) legIdx = Math.min(legIdx, Math.max(0, legList().length - 1));
+    renderRoute();
+    if(routeActive) setLeg(legIdx);
+  };
+  homeRoutePanel();
+  applyLang();
+  return routePanel;
+}
+
+function renderRoute(){
+  if(!routePanel){ drawRouteGeometry(); return; }
+  const legs = legList();
+  const { total, area } = routeTotals();
+
+  // κεφαλίδα ενεργού σκέλους
+  const head = routePanel.querySelector("#rpLeg");
+  if(routeActive && legs[legIdx]){
+    const li = legInfo(legs[legIdx]);
+    const name = legs[legIdx].approach ? trx("Προσέγγιση")
+               : trx("Σκέλος") + " " + (legIdx + (approachLL ? 0 : 1)) + "/" + (legs.length - (approachLL ? 1 : 0));
+    head.innerHTML = "<b>" + name + "</b><span class='rp-sub'>" + li.txt + " · " + li.az_txt + "</span>";
+  } else {
+    head.innerHTML = "<b>" + trx("🛣 Πολυγωνική διαδρομή") + "</b><span class='rp-sub'>" +
+      (route.length ? route.length + " " + (LANG === "en" ? "points" : "σημεία") : trx("Πρόσθεσε σημεία με το ➕ (σταυρόνημα) ή από το «⌨ ΧΥ σημείο»."))
+      + "</span>";
+  }
+
+  // λίστα σκελών
+  let html = "";
+  if(!legs.length){
+    html = '<div style="opacity:.6;padding:4px 2px;font-size:11.5px">' + trx("Καμία διαδρομή") + "</div>";
+  } else {
+    legs.forEach((l, i) => {
+      const li = legInfo(l);
+      const cls = routeActive ? (i < legIdx ? "done" : (i === legIdx ? "cur" : "")) : "";
+      const no = l.approach ? "➜" : (i + (approachLL ? 0 : 1));
+      html += '<div class="rp-row ' + cls + '" data-leg="' + i + '">' +
+                '<span class="rp-n">' + no + "</span>" +
+                '<span class="rp-d"><b>' + li.txt + "</b></span>" +
+                '<span class="rp-az">' + li.az_txt + "</span>" +
+              "</div>";
+    });
+  }
+  const list = routePanel.querySelector("#rpList");
+  list.innerHTML = html;
+  list.querySelectorAll(".rp-row").forEach(r => {
+    r.onclick = () => { if(routeActive) setLeg(+r.dataset.leg); };
+  });
+
+  // κάτω μπάρα
+  routePanel.querySelector("#rpGo").textContent = routeActive ? trx("⏸ Παύση") : trx("▶ Έναρξη");
+  routePanel.querySelector("#rpGo").classList.toggle("go", !routeActive);
+  routePanel.querySelector("#rpClosed").checked = routeClosed;
+  let tot = total > 0 ? trx("Σύνολο") + " " + fmtDist(total) : "";
+  if(area > 0) tot += "<br>" + trx("Εμβαδόν") + " " + Math.round(area).toLocaleString(LOC()) + " m²";
+  routePanel.querySelector("#rpTot").innerHTML = tot;
+
+  drawRouteGeometry();
+  applyLang();
+}
+
+// Σε οθόνη ≥900px το πάνελ κουμπώνει στο πλαϊνό (τίποτα δεν καλύπτει τον χάρτη)·
+// σε κινητό ή σε πλήρη χάρτη επιπλέει πάνω από τον χάρτη.
+function homeRoutePanel(){
+  if(!routePanel) return;
+  const sheet = document.querySelector(".sheet");
+  const dock = window.matchMedia("(min-width: 900px)").matches
+               && !document.body.classList.contains("mapfull");
+  if(dock){
+    if(routePanel.parentNode !== sheet) sheet.insertBefore(routePanel, sheet.firstChild);
+    routePanel.classList.add("docked");
+  } else {
+    if(routePanel.parentNode !== document.body) document.body.appendChild(routePanel);
+    routePanel.classList.remove("docked");
+  }
+}
+window.addEventListener("resize", homeRoutePanel);
+
+function toggleRoutePanel(){
+  const p = buildRoutePanel();
+  const show = p.style.display === "none" || !p.style.display;
+  p.style.display = show ? "block" : "none";
+  const b = $("routeBtn"); if(b) b.classList.toggle("on", show);
+  if(show) renderRoute();
+}
+
+function addRoutePoint(ll){
+  route.push(ll);
+  buildRoutePanel().style.display = "block";
+  const b = $("routeBtn"); if(b) b.classList.add("on");
+  setHint("Το σημείο προστέθηκε στη διαδρομή.", "ok");
+  renderRoute();
+  if(routeActive) setLeg(legIdx);
+}
+
+function setLeg(i){
+  const legs = legList();
+  if(!legs.length) return;
+  legIdx = Math.max(0, Math.min(i, legs.length - 1));
+  const leg = legs[legIdx];
+  navTarget = leg.to;
+  navOrigin = leg.from;
+  drawCorridor();
+  renderRoute();
+}
+
+function startRoute(){
+  if(route.length < 2 && !(routeClosed && route.length >= 3)){
+    setHint("Χρειάζονται τουλάχιστον 2 σημεία.", "err"); return;
+  }
+  if(navTarget && !routeActive) stopNav();          // κλείσε τυχόν πλοήγηση ενός σημείου
+  routeActive = true;
+  approachLL = null;
+  legIdx = 0;
+
+  // πάνελ πλοήγησης = το πάνελ διαδρομής (έχει .nav-info)
+  navPanel = routePanel;
+
+  if(gpsWatchId === null){
+    pendingApproach = true;
+    setHint("Στόχος ορίστηκε — ξεκινά εντοπισμός θέσης…");
+    $("gpsBtn").onclick();
+  } else if(liveMarker){
+    const from = liveMarker.getLatLng();
+    const d0 = distBearingEGSA(from, route[0]).dist;
+    approachLL = d0 > 8 ? from : null;
+    setLeg(0);
+    dropTrailDot(from);
+    updateWalker(from, { speed: 0 });
+    gpsFollow = true; hideRecenterBtn();
+    setHint("Η διαδρομή ξεκίνησε.", "ok");
+  } else {
+    pendingApproach = true;
+  }
+  renderRoute();
+  updateNav();
+  // κατά την πορεία θέλεις τον χάρτη, όχι τη λίστα — άνοιξέ την με ένα πάτημα στην κεφαλίδα
+  if(routePanel && !routePanel.classList.contains("docked")) routePanel.classList.add("collapsed");
+  if(!document.body.classList.contains("mapfull")) toggleFull();
+}
+
+function stopRoute(){
+  routeActive = false;
+  if(routePanel) routePanel.classList.remove("collapsed");
+  pendingApproach = false;
+  approachLL = null;
+  navTarget = null; navOrigin = null;
+  navCorridor.forEach(l => { try{ map.removeLayer(l); }catch(e){} });
+  navCorridor = [];
+  clearTrail();
+  if(walkerMarker){ map.removeLayer(walkerMarker); walkerMarker = null; }
+  if(liveMarker) liveMarker.setStyle({ opacity:1, fillOpacity:.9 });
+  if(navLine){ map.removeLayer(navLine); navLine = null; }
+  if(navPanel === routePanel) navPanel = null;
+  setHint("Η διαδρομή σταμάτησε.");
+  renderRoute();
+}
+
+function clearRoute(){
+  stopRoute();
+  route = []; routeClosed = false;
+  renderRoute();
+  setHint("Η διαδρομή καθαρίστηκε.");
+}
+
+// Καλείται από updateNav σε κάθε GPS fix
+function routeTick(){
+  if(!routeActive || !liveMarker) return;
+  const from = liveMarker.getLatLng();
+  if(pendingApproach){
+    pendingApproach = false;
+    const d0 = distBearingEGSA(from, route[0]).dist;
+    approachLL = d0 > 8 ? from : null;
+    setLeg(0);
+    dropTrailDot(from);
+    return;
+  }
+  const legs = legList();
+  const leg = legs[legIdx];
+  if(!leg) return;
+  const d = distBearingEGSA(from, leg.to).dist;
+  if(d <= ARRIVE_R && legIdx < legs.length - 1) setLeg(legIdx + 1);   // αυτόματη μετάβαση
+}
 
 // ───────── εξωτερικό maps.gov.gr ─────────
 // (extBtn αφαιρέθηκε — χρησιμοποιείται openKtimatologio)
@@ -1907,11 +2693,11 @@ function renderSidePanel(closed){
     if(polyPts.length>=3){
       const { area, perim } = polyArea(polyPts);
       html += `<div style="margin-top:5px;border-top:1px solid rgba(103,232,249,.3);padding-top:4px">`+
-              `<div style="font-weight:800">Εμβαδόν: ${Math.round(area).toLocaleString("el-GR")} m²</div>`+
+              `<div style="font-weight:800">Εμβαδόν: ${Math.round(area).toLocaleString(LOC())} m²</div>`+
               `<div>Περίμετρος: ${Math.round(perim)} m · Κορυφές: ${polyPts.length}</div></div>`;
     }
   }
-  if(html){ sp.innerHTML = html; sp.style.display = "block"; sp.scrollTop = sp.scrollHeight; }
+  if(html){ sp.innerHTML = trx(html); sp.style.display = "block"; sp.scrollTop = sp.scrollHeight; }
   else hideSidePanel();
 }
 
@@ -1939,12 +2725,13 @@ function toggleMeasure(){
     btn.style.background = "var(--neon)";
     btn.style.color = "#04101f";
     info.style.display = "block";
-    info.textContent = "📏 Πάτα σημεία στον χάρτη";
+    mInfo("📏 Πάτα σημεία στον χάρτη", true);
     map.getContainer().style.cursor = "crosshair";
   } else {
     btn.style.background = "";
     btn.style.color = "";
     info.style.display = "none";
+    _rawMeasure = null;
     map.getContainer().style.cursor = "";
     clearMeasure();
     hideSidePanel();
@@ -1952,7 +2739,7 @@ function toggleMeasure(){
 }
 $("measureBtn").onclick = toggleMeasure;
 // διπλό κλικ καθαρίζει τα σημεία (αλλά μένει σε λειτουργία μέτρησης)
-map.on("dblclick", (e) => { if(measuring){ clearMeasure(); $("measureInfo").textContent = "📏 Πάτα σημεία στον χάρτη"; renderSidePanel(); } });
+map.on("dblclick", (e) => { if(measuring){ clearMeasure(); mInfo("📏 Πάτα σημεία στον χάρτη", true); renderSidePanel(); } });
 
 map.on("click", (e) => {
   if(!measuring) return;
@@ -1981,8 +2768,8 @@ map.on("click", (e) => {
 
   if(measurePts.length >= 2){
     const fmt = m => m >= 1000 ? (m/1000).toFixed(3)+" km" : m.toFixed(2)+" m";
-    $("measureInfo").innerHTML = "📏 Σύνολο: <b>" + fmt(total) + "</b>" +
-      (measurePts.length>2 ? "  ·  τμήμα: " + fmt(lastSeg) : "");
+    mInfo("📏 Σύνολο: <b>" + fmt(total) + "</b>" +
+      (measurePts.length>2 ? "  ·  τμήμα: " + fmt(lastSeg) : ""));
     // ετικέτα στο μέσο του τελευταίου τμήματος
     const a = measurePts[measurePts.length-2], b = measurePts[measurePts.length-1];
     const mid = [(a[0]+b[0])/2, (a[1]+b[1])/2];
@@ -2017,12 +2804,13 @@ function togglePoly(){
     btn.style.background = "var(--neon)";
     btn.style.color = "#04101f";
     info.style.display = "block";
-    info.textContent = "✏️ Πάτα κορυφές · 2 κλικ στην αρχή = κλείσιμο";
+    mInfo("✏️ Πάτα κορυφές · 2 κλικ στην αρχή = κλείσιμο", true);
     map.getContainer().style.cursor = "crosshair";
   } else {
     btn.style.background = "";
     btn.style.color = "";
     info.style.display = "none";
+    _rawMeasure = null;
     map.getContainer().style.cursor = "";
     clearPoly();
     hideSidePanel();
@@ -2058,8 +2846,8 @@ map.on("click", (e) => {
       if(polyShape) map.removeLayer(polyShape);
       polyShape = L.polygon(polyPts, { color:"#22d3ee", weight:3, fillColor:"#22d3ee", fillOpacity:.2 }).addTo(map);
       const { area, perim } = polyArea(polyPts);
-      const fmtA = Math.round(area).toLocaleString("el-GR")+" m²";
-      $("measureInfo").innerHTML = "✏️ Εμβαδόν: <b>"+fmtA+"</b>  ·  Περίμετρος: "+Math.round(perim)+" m  ·  Κορυφές: "+polyPts.length;
+      const fmtA = Math.round(area).toLocaleString(LOC())+" m²";
+      mInfo("✏️ Εμβαδόν: <b>"+fmtA+"</b>  ·  Περίμετρος: "+Math.round(perim)+" m  ·  Κορυφές: "+polyPts.length);
       polyShape.bindPopup("Εμβαδόν: "+fmtA+"<br>Περίμετρος: "+Math.round(perim)+" m").openPopup();
       renderSidePanel(true);
       return;
@@ -2075,13 +2863,13 @@ map.on("click", (e) => {
 
   if(polyPts.length >= 3){
     const { area } = polyArea(polyPts);
-    const fmtA = Math.round(area).toLocaleString("el-GR")+" m²";
-    $("measureInfo").innerHTML = "✏️ Τρέχον εμβαδόν: <b>"+fmtA+"</b>  ·  πάτα στην αρχή για κλείσιμο";
+    const fmtA = Math.round(area).toLocaleString(LOC())+" m²";
+    mInfo("✏️ Τρέχον εμβαδόν: <b>"+fmtA+"</b>  ·  πάτα στην αρχή για κλείσιμο");
   }
   renderSidePanel();
 });
 map.on("dblclick", (e) => {
-  if(drawing){ clearPoly(); $("measureInfo").textContent = "✏️ Πάτα κορυφές · 2 κλικ στην αρχή = κλείσιμο"; }
+  if(drawing){ clearPoly(); mInfo("✏️ Πάτα κορυφές · 2 κλικ στην αρχή = κλείσιμο", true); }
 });
 
 // ───────── settings drawer ─────────
