@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0e1f2e">
-<title>Hexis-app Cadastral v2.3 — ΚΑΕΚ, Χάραξη & Ασφάλεια πεδίου</title>
+<title>Hexis-app Cadastral v2.3.1 — ΚΑΕΚ, Χάραξη & Ασφάλεια πεδίου</title>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -217,9 +217,16 @@
   #routeBtn{ top:244px; left:14px; right:auto; font-size:17px; }
   #trackBtn{ top:290px; left:14px; right:auto; font-size:17px; }
   #sosBtn{ top:336px; left:14px; right:auto; }
-  body.mapfull #routeBtn{ display:grid !important; top:14px; left:14px; }
-  body.mapfull #trackBtn{ top:14px; left:60px; right:auto; }
-  body.mapfull #sosBtn{ top:14px; left:106px; right:auto; }
+  /* Πλήρης χάρτης: καθαρή στήλη αριστερά, κάτω από το πάνελ διαδρομής.
+     Τα !important είναι απαραίτητα — οι θέσεις του κανονικού χάρτη τα έχουν. */
+  /* Το ύψος του πάνελ διαδρομής αλλάζει (σύμπτυξη, γραμμή πλοήγησης που
+     σπάει σε δύο σειρές), οπότε τα κουμπιά πεδίου ΔΕΝ μπορούν να έχουν
+     σταθερό top — ακολουθούν το --fieldtop που υπολογίζεται από το πάνελ.
+     Η έξοδος ⛶ μπαίνει στο ίδιο ύψος δεξιά: αν κρυφτεί, εγκλωβίζεσαι. */
+  body.mapfull #routeBtn{ display:grid !important; top:var(--fieldtop,84px) !important; left:14px !important; right:auto !important; }
+  body.mapfull #trackBtn{ display:grid !important; top:calc(var(--fieldtop,84px) + 42px) !important; left:14px !important; right:auto !important; }
+  body.mapfull #sosBtn  { display:grid !important; top:calc(var(--fieldtop,84px) + 84px) !important; left:14px !important; right:auto !important; }
+  body.mapfull #fullBtn { top:var(--fieldtop,84px) !important; right:14px !important; left:auto !important; }
   #routeBtn.on{ background:#e67e22; color:#04101f; border-color:#e67e22; }
   #routePanel{ position:fixed; top:12px; left:50%; transform:translateX(-50%);
     z-index:10001; width:min(430px, calc(100vw - 20px));
@@ -1840,6 +1847,7 @@ function toggleFull(){
   setTimeout(()=>{ try{ homeRoutePanel(); homeTrackPanel();
     const tp = $("trackPanel");
     document.body.classList.toggle("track-open", !!tp && tp.style.display === "block" && !tp.classList.contains("docked"));
+    layoutFieldButtons();
   }catch(e){} }, 0);
   document.body.classList.toggle("mapfull");
   try{ syncNavVisibility(); }catch(e){}
@@ -2776,7 +2784,11 @@ function buildRoutePanel(){
     '</div>';
   document.body.appendChild(routePanel);
 
-  routePanel.querySelector("#rpLeg").onclick = () => routePanel.classList.toggle("collapsed");
+  routePanel.querySelector("#rpLeg").onclick = () => {
+    routePanel.classList.toggle("collapsed"); layoutFieldButtons();
+  };
+  // Το πάνελ ψηλώνει/χαμηλώνει μόνο του όταν αλλάζει η γραμμή πλοήγησης
+  try{ new ResizeObserver(() => layoutFieldButtons()).observe(routePanel); }catch(e){}
   if(typeof IS_MOBILE !== "undefined" && !IS_MOBILE) routePanel.querySelector("#rpGo").style.display = "none";
   routePanel.querySelector("#rpPrev").onclick = () => { if(routeActive) setLeg(legIdx - 1); };
   routePanel.querySelector("#rpNext").onclick = () => { if(routeActive) setLeg(legIdx + 1); };
@@ -2851,6 +2863,7 @@ function renderRoute(){
 
   drawRouteGeometry();
   applyLang(routePanel);
+  layoutFieldButtons();
 }
 
 // Σε οθόνη ≥900px το πάνελ κουμπώνει στο πλαϊνό (τίποτα δεν καλύπτει τον χάρτη)·
@@ -2933,6 +2946,7 @@ function startRoute(){
   // κατά την πορεία θέλεις τον χάρτη, όχι τη λίστα — άνοιξέ την με ένα πάτημα στην κεφαλίδα
   if(routePanel && !routePanel.classList.contains("docked")) routePanel.classList.add("collapsed");
   if(!document.body.classList.contains("mapfull")) toggleFull();
+  layoutFieldButtons();
 }
 
 function stopRoute(){
@@ -3166,6 +3180,24 @@ function renderTrack(){
 }
 // Σε οθόνη ≥900px κουμπώνει στο πλαϊνό· αλλιώς κάθεται στο κάτω μέρος του
 // χάρτη, πάνω από το κάτω panel — ποτέ επάνω του.
+// Τοποθετεί τη στήλη κουμπιών πεδίου κάτω από το πάνελ διαδρομής, όποιο ύψος
+// κι αν έχει εκείνη τη στιγμή. Καλείται σε κάθε αλλαγή του πάνελ.
+function layoutFieldButtons(){
+  const mw = document.querySelector(".map-wrap");
+  if(!mw) return;
+  if(!document.body.classList.contains("mapfull")){
+    document.documentElement.style.removeProperty("--fieldtop"); return;
+  }
+  let top = 14;
+  const rp = $("routePanel");
+  if(rp && rp.style.display === "block" && !rp.classList.contains("docked")){
+    const pr = rp.getBoundingClientRect(), mr = mw.getBoundingClientRect();
+    if(pr.height > 0) top = Math.max(14, Math.round(pr.bottom - mr.top + 10));
+  }
+  document.documentElement.style.setProperty("--fieldtop", top + "px");
+}
+window.addEventListener("resize", layoutFieldButtons);
+
 function homeTrackPanel(){
   if(!trackPanel) return;
   const sheet = document.querySelector(".sheet"), mw = document.querySelector(".map-wrap");
