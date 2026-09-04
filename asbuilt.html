@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HEXIS AS-BUILT CLOUD — Έλεγχος πάχους & χωματουργικά cut/fill</title>
+<link rel="icon" type="image/svg+xml" href="asbuilt_icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  HEXIS AS-BUILT CLOUD v1.3
+  Έλεγχος πάχους/υψομετρικής διαφοράς κατασκευής από δύο επιφάνειες (νέφη σημείων ή ισοϋψείς DXF)
+  + Παραγωγή τεχνικής έκθεσης PDF κατά πρότυπο BRB.
+  Όλη η επεξεργασία γίνεται τοπικά στον browser — κανένα αρχείο δεν αποστέλλεται σε server.
+
+  ΕΝΤΑΞΗ ΣΤΟ HEXIS:
+  - Προσθήκη entry στο hexis-catalog.js (id: 'asbuilt', file: 'asbuilt.html')
+  - Bump APP_VERSION (app.html) + VERSION (sw.js)
+  - Το entitlement gating μπαίνει στο hook initEntitlement() παρακάτω (βλ. σχόλιο στο τέλος του script)
+-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+<style>
+  :root{
+    --bg:#0A1730;
+    --surface:#102240;
+    --surface2:#0D1C36;
+    --field:#0B1B38;
+    --border:#253B63;
+    --border-soft:#1B3358;
+    --text:#EEF2F8;
+    --muted:#93A5C4;
+    --accent:#E8772E;
+    --accent2:#FFB02E;
+    --blue:#4D8DFF;
+    --ok:#3DDC97;
+    --bad:#FF6B6B;
+    --radius:12px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'DM Sans',system-ui,sans-serif;color:var(--text);font-size:14.5px;line-height:1.45;
+    background:
+      radial-gradient(1100px 520px at 85% -10%, rgba(45,125,255,.14), transparent 60%),
+      radial-gradient(900px 480px at -10% 110%, rgba(232,119,46,.10), transparent 55%),
+      var(--bg);
+    min-height:100vh;
+  }
+  .topbar{
+    position:sticky;top:0;z-index:20;
+    background:rgba(13,28,54,.85);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+    padding:10px 18px;display:flex;align-items:center;gap:13px;flex-wrap:wrap;
+  }
+  .logo{width:40px;height:40px;flex:none;filter:drop-shadow(0 4px 10px rgba(232,119,46,.35))}
+  .brand{font-family:'Syne',sans-serif;font-weight:700;font-size:18px;letter-spacing:.4px}
+  .brand span{font-weight:600;background:linear-gradient(135deg,var(--accent2),var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .topbar .sub{font-size:12.5px;color:var(--muted);border-left:1px solid var(--border);padding-left:13px}
+  .topbar .ver{margin-left:auto;font-size:12px;color:var(--accent2);background:rgba(232,119,46,.12);border:1px solid rgba(232,119,46,.35);padding:2px 10px;border-radius:20px}
+  .wrap{display:grid;grid-template-columns:395px 1fr;gap:16px;padding:18px 16px;max-width:1520px;margin:0 auto}
+  @media(max-width:980px){.wrap{grid-template-columns:1fr}}
+  .panel{
+    background:linear-gradient(180deg,rgba(255,255,255,.025),transparent 40%),var(--surface);
+    border:1px solid var(--border);border-radius:14px;padding:15px 17px;margin-bottom:14px;
+    box-shadow:0 10px 28px rgba(3,10,24,.45);
+  }
+  .panel h2{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:9px;margin-bottom:11px;padding-bottom:9px;border-bottom:1px solid var(--border-soft)}
+  .stepnum{background:linear-gradient(135deg,var(--accent2),var(--accent));color:#0A1730;width:23px;height:23px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;flex:none;box-shadow:0 3px 8px rgba(232,119,46,.4)}
+  .hint{font-size:12.5px;color:var(--muted);margin:4px 0 8px}
+  label.fld{display:block;font-size:12.5px;color:var(--muted);margin:9px 0 4px}
+  input[type=text],input[type=number],input[type=date],select,textarea{
+    width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font:inherit;color:var(--text);background:var(--field);color-scheme:dark}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(232,119,46,.18)}
+  input[type=file]{color:var(--muted)}
+  textarea{resize:vertical;min-height:84px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .drop{border:1.5px dashed #2E4C7E;border-radius:10px;padding:13px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;margin-top:8px;background:rgba(11,27,56,.5)}
+  .drop:hover,.drop.over{border-color:var(--accent);background:rgba(232,119,46,.08)}
+  .drop .dtitle{font-weight:600;font-size:13.5px}
+  .drop .dsub{font-size:12px;color:var(--muted);margin-top:2px}
+  .fileinfo{font-size:12.5px;margin-top:7px;padding:8px 10px;border-radius:8px;background:rgba(77,141,255,.10);border:1px solid rgba(77,141,255,.30);color:#BBD3FF;display:none;text-align:left;white-space:pre-line}
+  .fileinfo.show{display:block}
+  .fileinfo.err{background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.35);color:var(--bad)}
+  button{font:inherit;cursor:pointer;border:none;border-radius:9px;padding:9px 14px}
+  .btn-main{
+    background:linear-gradient(135deg,#E8772E,#d0651f);color:#fff;font-weight:700;width:100%;font-size:15px;
+    box-shadow:0 6px 18px rgba(232,119,46,.35);transition:transform .12s,box-shadow .12s;
+  }
+  .btn-main:hover{transform:translateY(-1px);box-shadow:0 9px 22px rgba(232,119,46,.45)}
+  .btn-main:disabled{background:#31456B;color:#7E8FAD;box-shadow:none;transform:none;cursor:not-allowed}
+  .btn-sec{background:transparent;border:1px solid #2E4C7E;color:var(--text);font-weight:600;transition:border-color .12s,color .12s,background .12s}
+  .btn-sec:hover{border-color:var(--accent);color:var(--accent2);background:rgba(232,119,46,.07)}
+  .btn-sec:disabled{border-color:var(--border-soft);color:#5A6E92;cursor:not-allowed;background:transparent}
+  .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}
+  .btnrow .btn-sec{flex:1;min-width:110px}
+  progress{width:100%;height:9px;margin-top:9px;display:none;accent-color:var(--accent);border-radius:6px;overflow:hidden}
+  progress.show{display:block}
+  .status{font-size:12.5px;color:var(--muted);margin-top:5px;min-height:16px}
+  /* results */
+  .viewtabs{display:inline-flex;gap:4px;margin-bottom:11px;background:var(--field);border:1px solid var(--border-soft);border-radius:10px;padding:4px}
+  .viewtabs button{background:transparent;color:var(--muted);font-weight:600;font-size:13px;border-radius:7px;padding:7px 13px}
+  .viewtabs button.active{background:linear-gradient(135deg,var(--accent2),var(--accent));color:#0A1730}
+  .paper{background:#FFFFFF;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .mapbox{position:relative}
+  #map{display:block;width:100%;height:auto;image-rendering:pixelated;cursor:crosshair}
+  #readout{position:absolute;left:10px;bottom:10px;background:rgba(10,23,48,.92);border:1px solid var(--border);color:var(--text);font-size:12.5px;padding:6px 11px;border-radius:8px;pointer-events:none;display:none;white-space:pre}
+  #legend{display:block;width:100%;height:56px;margin-top:8px;background:#fff;border:1px solid var(--border);border-radius:10px}
+  .statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+  .stat{background:var(--field);border:1px solid var(--border-soft);border-radius:10px;padding:10px 13px;border-left:3px solid var(--blue)}
+  .stat .v{font-family:'Syne',sans-serif;font-size:19px;font-weight:700;color:var(--text)}
+  .stat .l{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .stat.good{border-left-color:var(--ok)}
+  .stat.good .v{color:var(--ok)}
+  .stat.bad{border-left-color:var(--bad)}
+  .stat.bad .v{color:var(--bad)}
+  #hist{display:block;width:100%;height:190px;background:#fff;border:1px solid var(--border);border-radius:10px}
+  .surfgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:1200px){.surfgrid{grid-template-columns:1fr}}
+  .surfcap{font-family:'Syne',sans-serif;font-size:12.5px;color:var(--muted);margin-bottom:6px;font-weight:600;letter-spacing:.3px}
+  .surfcv{display:block;width:100%;height:auto;image-rendering:pixelated}
+  .surfleg{display:block;width:100%;height:46px;background:#fff;border:1px solid var(--border);border-radius:8px;margin-top:6px}
+  .btn-help{background:transparent;border:1px solid var(--border);color:var(--muted);font-weight:600;font-size:12.5px;padding:5px 12px;border-radius:20px}
+  .btn-help:hover{border-color:var(--accent);color:var(--accent2)}
+  .modal-ov{position:fixed;inset:0;background:rgba(4,10,24,.72);backdrop-filter:blur(3px);z-index:60;display:none;align-items:flex-start;justify-content:center;padding:34px 14px;overflow-y:auto}
+  .modal-ov.open{display:flex}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:860px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.55)}
+  .modal-h{display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--border-soft)}
+  .modal-h h3{font-family:'Syne',sans-serif;font-size:16px;color:var(--text);flex:1}
+  .modal-x{background:transparent;border:none;color:var(--muted);font-size:21px;line-height:1;padding:4px 8px;border-radius:8px}
+  .modal-x:hover{color:var(--accent2);background:rgba(232,119,46,.1)}
+  .modal-b{padding:8px 22px 20px;max-height:calc(100vh - 140px);overflow-y:auto}
+  .modal-b h4{font-family:'Syne',sans-serif;font-size:14px;color:var(--accent2);margin:18px 0 8px}
+  .modal-b p{font-size:13.5px;color:var(--text);margin:0 0 8px;line-height:1.55}
+  .modal-b ol{margin:0 0 10px 22px}
+  .modal-b ol li{font-size:13.5px;margin-bottom:7px;line-height:1.5}
+  .modal-b li b,.modal-b p b{color:var(--accent2);font-weight:600}
+  .modal-b .mono{background:var(--field);border:1px solid var(--border-soft);border-radius:5px;padding:1px 6px;font-size:12.5px;white-space:nowrap}
+  .modal-b .warn{border-left:3px solid var(--accent);background:rgba(232,119,46,.07);padding:8px 12px;border-radius:0 8px 8px 0;margin:8px 0}
+  .hide{display:none!important}
+  .empty{color:var(--muted);text-align:center;padding:42px 10px;font-size:13.5px}
+  .footer{max-width:1520px;margin:0 auto;padding:4px 18px 22px;font-size:12px;color:var(--muted)}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <svg class="logo" viewBox="0 0 512 512" aria-hidden="true">
+    <defs>
+      <linearGradient id="hog" x1="100" y1="120" x2="430" y2="320" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#FFB02E"/><stop offset="1" stop-color="#E8772E"/>
+      </linearGradient>
+      <linearGradient id="hbg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#12274A"/><stop offset="1" stop-color="#0A1730"/>
+      </linearGradient>
+    </defs>
+    <rect width="512" height="512" rx="104" fill="url(#hbg)"/>
+    <rect x="10" y="10" width="492" height="492" rx="96" fill="none" stroke="#253B63" stroke-width="4"/>
+    <g stroke="#4D8DFF" stroke-width="7" stroke-linecap="round" stroke-dasharray="2 22" opacity=".95">
+      <line x1="180" y1="322" x2="150" y2="416"/><line x1="262" y1="326" x2="262" y2="420"/><line x1="344" y1="322" x2="376" y2="412"/>
+    </g>
+    <path d="M74 436 L160 436 L196 456 L252 456 L288 436 L344 420 L438 420" fill="none" stroke="#EEF2F8" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="108" cy="235" r="9" fill="url(#hog)"/><circle cx="111" cy="214" r="9" fill="url(#hog)"/><circle cx="120" cy="195" r="9" fill="url(#hog)"/><circle cx="134" cy="179" r="9" fill="url(#hog)"/><circle cx="152" cy="168" r="9" fill="url(#hog)"/><circle cx="173" cy="163" r="9" fill="url(#hog)"/><circle cx="187" cy="145" r="9" fill="url(#hog)"/><circle cx="197" cy="130" r="9" fill="url(#hog)"/><circle cx="210" cy="117" r="9" fill="url(#hog)"/><circle cx="225" cy="107" r="9" fill="url(#hog)"/><circle cx="241" cy="100" r="9" fill="url(#hog)"/><circle cx="259" cy="96" r="9" fill="url(#hog)"/><circle cx="277" cy="96" r="9" fill="url(#hog)"/><circle cx="295" cy="100" r="9" fill="url(#hog)"/><circle cx="311" cy="107" r="9" fill="url(#hog)"/><circle cx="326" cy="117" r="9" fill="url(#hog)"/><circle cx="339" cy="130" r="9" fill="url(#hog)"/><circle cx="349" cy="145" r="9" fill="url(#hog)"/><circle cx="356" cy="161" r="9" fill="url(#hog)"/><circle cx="358" cy="178" r="9" fill="url(#hog)"/><circle cx="376" cy="183" r="9" fill="url(#hog)"/><circle cx="393" cy="193" r="9" fill="url(#hog)"/><circle cx="405" cy="206" r="9" fill="url(#hog)"/><circle cx="413" cy="223" r="9" fill="url(#hog)"/><circle cx="416" cy="242" r="9" fill="url(#hog)"/><circle cx="413" cy="261" r="9" fill="url(#hog)"/><circle cx="405" cy="278" r="9" fill="url(#hog)"/><circle cx="393" cy="291" r="9" fill="url(#hog)"/><circle cx="376" cy="301" r="9" fill="url(#hog)"/><circle cx="358" cy="306" r="9" fill="url(#hog)"/><circle cx="340" cy="305" r="9" fill="url(#hog)"/><circle cx="322" cy="298" r="9" fill="url(#hog)"/><circle cx="299" cy="278" r="9" fill="url(#hog)"/><circle cx="277" cy="280" r="9" fill="url(#hog)"/><circle cx="259" cy="280" r="9" fill="url(#hog)"/><circle cx="241" cy="276" r="9" fill="url(#hog)"/><circle cx="226" cy="291" r="9" fill="url(#hog)"/><circle cx="208" cy="302" r="9" fill="url(#hog)"/><circle cx="187" cy="307" r="9" fill="url(#hog)"/><circle cx="166" cy="306" r="9" fill="url(#hog)"/><circle cx="146" cy="298" r="9" fill="url(#hog)"/><circle cx="129" cy="286" r="9" fill="url(#hog)"/><circle cx="117" cy="269" r="9" fill="url(#hog)"/><circle cx="281" cy="186" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="174" cy="225" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="324" cy="197" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="214" cy="225" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="358" cy="246" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="262" cy="240" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="238" cy="192" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="304" cy="147" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="198" cy="186" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="170" cy="259" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="252" cy="153" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="308" cy="243" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="209" cy="259" r="5.5" fill="#FFB02E" opacity=".85"/>
+
+  </svg>
+  <div class="brand">HEXIS <span>AS-BUILT CLOUD</span></div>
+  <div class="sub">Έλεγχος πάχους κατασκευής &amp; χωματουργικά cut/fill από νέφη σημείων</div>
+  <button class="btn-help" id="btnHelp">Οδηγίες</button>
+  <div class="ver" id="verBadge">v1.3</div>
+</header>
+
+<div class="modal-ov" id="helpOv">
+  <div class="modal" role="dialog" aria-label="Οδηγίες χρήσης">
+    <div class="modal-h">
+      <h3>Οδηγίες χρήσης & προετοιμασία δεδομένων</h3>
+      <button class="modal-x" id="btnHelpX" aria-label="Κλείσιμο">×</button>
+    </div>
+    <div class="modal-b">
+
+      <h4>1. Ροή εργασίας στην εφαρμογή</h4>
+      <ol>
+        <li>Φόρτωσε την επιφάνεια <b>ΠΡΙΝ</b> (νέφος ASCII με στήλες X Y Z ή ισοϋψείς τοπογραφικού σε DXF) και την επιφάνεια <b>ΜΕΤΑ</b> (νέφος ASCII).</li>
+        <li>Διάλεξε είδος υπολογισμού: <b>Πάχος κατασκευής</b> (μετρά το κατασκευασμένο πάχος και το συγκρίνει με το πάχος μελέτης ± ανοχή) ή <b>Cut/Fill</b> (όγκοι εκσκαφών – επιχώσεων).</li>
+        <li>Πάτησε υπολογισμό. Παίρνεις: υψομετρική απόδοση των δύο επιφανειών, χάρτη αποτελέσματος με κλίμακα, ιστόγραμμα, στατιστικά, και εξαγωγές: <b>Έκθεση PDF</b>, <b>κάναβο CSV</b>, <b>χάρτη PNG</b>.</li>
+      </ol>
+      <p>Όλη η επεξεργασία γίνεται τοπικά στη συσκευή σου — κανένα αρχείο δεν αποστέλλεται σε server.</p>
+
+      <h4>2. Προετοιμασία στο CloudCompare (SOP)</h4>
+      <ol>
+        <li><b>Κοινό Global Shift:</b> φόρτωσε πρώτα το νέφος ΠΡΙΝ· όταν φορτώνεις το ΜΕΤΑ, στο παράθυρο Global Shift επίλεξε <span class="mono">Last input</span> ώστε να πάρει το ίδιο shift. Διαφορετικά shift = άχρηστη σύγκριση.</li>
+        <li><b>Έλεγχος συνταύτισης:</b> κόψε την ίδια σταθερή (αμετάβλητη) περιοχή και από τα δύο νέφη και τρέξε <span class="mono">Tools → Distances → Cloud/Cloud dist</span>. Θέλεις μέση απόσταση ≈ 0 (±2–3 cm). Αν υπάρχει συστηματικό offset, κάνε <b>Fine registration (ICP)</b> στις σταθερές περιοχές και εφάρμοσε τον μετασχηματισμό στο πλήρες νέφος ΜΕΤΑ.</li>
+        <li><b>Καθαρισμός:</b> <span class="mono">Tools → Clean → SOR filter</span> και στα δύο. Με βλάστηση, πέρνα και CSF filter ώστε το ΠΡΙΝ να απεικονίζει έδαφος — θάμνοι μετράνε ως ψεύτικη επίχωση.</li>
+        <li><b>Κοπή περιοχής:</b> Segment (ψαλιδάκι) το ίδιο περίγραμμα και στα δύο. Για έλεγχο πάχους, κόψε 20–30 cm μέσα από τις ακμές του στοιχείου.</li>
+        <li><b>Subsample:</b> <span class="mono">Edit → Subsample → Space = 0.10 m</span> και στα δύο (για μεγάλα χωματουργικά: 0.20 m).</li>
+        <li><b>Εξαγωγή:</b> <span class="mono">File → Save → ASCII cloud (.txt)</span>, μόνο X Y Z, και στην ερώτηση για τις συντεταγμένες επίλεξε να σωθούν οι <b>πραγματικές (global)</b>.</li>
+      </ol>
+
+      <h4>3. Ισοϋψείς DXF αντί νέφους (επιφάνεια ΠΡΙΝ)</h4>
+      <p>Εξήγαγε από το CAD ένα DXF που περιέχει μόνο τις ισοϋψείς, με σωστό υψόμετρο στις πολυγραμμές (elevation — όχι όλες στο Z=0). Στο fileinfo μετά τη φόρτωση έλεγξε ότι το εύρος Z είναι λογικό· αν δείχνει 0–0, το DXF δεν έχει υψόμετρα. Η επιλογή «αραιή επιφάνεια» τσεκάρεται αυτόματα και τα κενά συμπληρώνονται με παρεμβολή. Ακρίβεια: κατάλληλη για χωματουργικά· για ελέγχους πάχους με ανοχή λίγων cm προτίμησε νέφος και στις δύο εποχές.</p>
+
+      <h4>4. Επιλογή παραμέτρων</h4>
+      <ol>
+        <li><b>Κάναβος:</b> 0.25 m για ελέγχους πάχους, 0.25–0.50 m για χωματουργικά. Κανόνας: βήμα κανάβου ≥ 2× την απόσταση σημείων (ώστε ≥ 2 σημεία/κελί — η εφαρμογή προειδοποιεί αν όχι, γιατί αλλιώς υποεκτιμώνται επιφάνειες και όγκοι).</li>
+        <li><b>Ανοχή (πάχος):</b> ό,τι ορίζει η μελέτη/προδιαγραφή (π.χ. ±2 cm για πλάκες, ±5 cm γενικά).</li>
+        <li><b>Κατώφλι ΔΖ (cut/fill):</b> ≥ 2× την αβεβαιότητα ανά κελί. Πρακτικά: 2–3 cm για καλές αποτυπώσεις drone/SLAM. Κόβει τους ψευδο-όγκους του θορύβου χωρίς να επηρεάζει το ισοζύγιο.</li>
+      </ol>
+
+      <h4>5. Συχνά προβλήματα</h4>
+      <div class="warn"><b>«Οι δύο επιφάνειες δεν επικαλύπτονται»:</b> σχεδόν πάντα διαφορετικό Global Shift ή εξαγωγή με shifted συντεταγμένες μόνο στο ένα αρχείο. Ξαναεξήγαγε και τα δύο με global συντεταγμένες.</div>
+      <div class="warn"><b>Παράλογοι όγκοι/πάχη παντού (σταθερό offset):</b> κακή συνταύτιση εποχών — γύρνα στο βήμα 2 του SOP (ICP σε σταθερό έδαφος). Offset 5 cm σε 1.000 m² = 50 m³ ανύπαρκτο χώμα.</div>
+      <div class="warn"><b>Προειδοποίηση «λίγα σημεία ανά κελί»:</b> αύξησε το βήμα κανάβου ή μείωσε το subsample spacing.</div>
+
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <!-- ΑΡΙΣΤΕΡΗ ΣΤΗΛΗ: ροή εργασίας -->
+  <section>
+    <div class="panel">
+      <h2><span class="stepnum">1</span> Επιφάνειες</h2>
+      <div class="hint">Δεκτά: νέφη ASCII (.txt, .csv, .xyz, .pts, .asc — στήλες X Y Z) και ισοϋψείς/σημεία από DXF (LWPOLYLINE, POLYLINE, LINE, POINT). Συντεταγμένες σε πραγματικό σύστημα (π.χ. ΕΓΣΑ'87).</div>
+
+      <div class="drop" id="dropA">
+        <div class="dtitle">Επιφάνεια ΠΡΙΝ (Α)</div>
+        <div class="dsub">νέφος πριν την κατασκευή ή ισοϋψείς τοπογραφικού (DXF) — κλικ ή σύρε αρχείο</div>
+        <input type="file" id="fileA" accept=".txt,.csv,.xyz,.pts,.asc,.dxf" hidden>
+      </div>
+      <div class="fileinfo" id="infoA"></div>
+
+      <div class="drop" id="dropB">
+        <div class="dtitle">Επιφάνεια ΜΕΤΑ (Β)</div>
+        <div class="dsub">νέφος μετά την κατασκευή — κλικ ή σύρε αρχείο</div>
+        <input type="file" id="fileB" accept=".txt,.csv,.xyz,.pts,.asc,.dxf" hidden>
+      </div>
+      <div class="fileinfo" id="infoB"></div>
+    </div>
+
+    <div class="panel">
+      <h2><span class="stepnum">2</span> Παράμετροι υπολογισμού</h2>
+      <label class="fld" for="calcMode">Είδος υπολογισμού</label>
+      <select id="calcMode">
+        <option value="thickness">Πάχος κατασκευής (as-built έναντι μελέτης)</option>
+        <option value="cutfill">Χωματουργικά — Cut / Fill (όγκοι εκσκαφής & επίχωσης)</option>
+      </select>
+      <div class="row3" style="margin-top:8px">
+        <div>
+          <label class="fld" for="gridStep">Κάναβος (m)</label>
+          <input type="number" id="gridStep" value="0.25" step="0.05" min="0.05">
+        </div>
+        <div id="wrapDesign">
+          <label class="fld" for="designTh">Πάχος μελέτης (cm)</label>
+          <input type="number" id="designTh" value="50" step="1" min="0">
+        </div>
+        <div id="wrapTol">
+          <label class="fld" for="tolTh">Ανοχή ± (cm)</label>
+          <input type="number" id="tolTh" value="5" step="0.5" min="0.5">
+        </div>
+        <div id="wrapCF" style="display:none">
+          <label class="fld" for="cfThresh">Κατώφλι ΔΖ (cm)</label>
+          <input type="number" id="cfThresh" value="2" step="0.5" min="0" title="Μεταβολές μικρότερες του κατωφλίου θεωρούνται θόρυβος και δεν προσμετρώνται στους όγκους">
+        </div>
+      </div>
+      <div class="row2">
+        <div>
+          <label class="fld" for="aggMode">Τιμή ανά κελί</label>
+          <select id="aggMode">
+            <option value="mean">Μέσος όρος Ζ</option>
+            <option value="min">Ελάχιστο Ζ</option>
+            <option value="max">Μέγιστο Ζ</option>
+          </select>
+        </div>
+        <div>
+          <label class="fld" for="fillDist">Μέγ. παρεμβολή κενών (m)</label>
+          <input type="number" id="fillDist" value="10" step="1" min="0" title="Για αραιά δεδομένα (ισοϋψείς): μέχρι πόσο μακριά από τα δεδομένα συμπληρώνονται κενά κελιά">
+        </div>
+      </div>
+      <label class="fld" style="display:flex;gap:7px;align-items:center;margin-top:10px;font-size:13px;color:var(--ink)">
+        <input type="checkbox" id="sparseA"> Η επιφάνεια Α είναι αραιή (ισοϋψείς/σκόρπια σημεία) — παρεμβολή κενών
+      </label>
+      <button class="btn-main" id="btnCompute" style="margin-top:12px" disabled>Υπολογισμός πάχους</button>
+      <progress id="prog" max="100" value="0"></progress>
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="panel">
+      <h2><span class="stepnum">3</span> Στοιχεία τεχνικής έκθεσης</h2>
+      <label class="fld" for="rTitle">Τίτλος έργου</label>
+      <input type="text" id="rTitle" placeholder="π.χ. Κατασκευή πλάκας οπλισμένου σκυροδέματος — ΦΤΕΡΝΟ">
+      <div class="row2">
+        <div>
+          <label class="fld" for="rClient">Πελάτης</label>
+          <input type="text" id="rClient">
+        </div>
+        <div>
+          <label class="fld" for="rLoc">Θέση</label>
+          <input type="text" id="rLoc">
+        </div>
+      </div>
+      <div class="row3">
+        <div>
+          <label class="fld" for="rRef">Αρ. αναφοράς</label>
+          <input type="text" id="rRef">
+        </div>
+        <div>
+          <label class="fld" for="rDateA">Αποτύπωση ΠΡΙΝ</label>
+          <input type="date" id="rDateA">
+        </div>
+        <div>
+          <label class="fld" for="rDateB">Αποτύπωση ΜΕΤΑ</label>
+          <input type="date" id="rDateB">
+        </div>
+      </div>
+      <label class="fld" for="rElement">Ελεγχόμενο στοιχείο</label>
+      <input type="text" id="rElement" value="Πλάκα οπλισμένου σκυροδέματος">
+      <label class="fld" for="rLogo">Λογότυπο (PNG/JPG — προαιρετικό)</label>
+      <input type="file" id="rLogo" accept="image/png,image/jpeg">
+      <label class="fld" for="rConcl">Συμπεράσματα (συμπληρώνονται αυτόματα — επεξεργάσιμα)</label>
+      <textarea id="rConcl"></textarea>
+      <div class="btnrow">
+        <button class="btn-sec" id="btnPDF" disabled>Έκθεση PDF</button>
+        <button class="btn-sec" id="btnCSV" disabled>Κάναβος CSV</button>
+        <button class="btn-sec" id="btnPNG" disabled>Χάρτης PNG</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ΔΕΞΙΑ ΣΤΗΛΗ: αποτελέσματα -->
+  <section>
+    <div class="panel">
+      <h2>Επιφάνειες εισόδου — υψομετρική απόδοση</h2>
+      <div class="surfgrid hide" id="surfWrap">
+        <div>
+          <div class="surfcap">ΠΡΙΝ (Α)</div>
+          <div class="paper"><canvas id="surfA" class="surfcv" width="560" height="380"></canvas></div>
+          <canvas id="legA" class="surfleg" width="560" height="46"></canvas>
+        </div>
+        <div>
+          <div class="surfcap">ΜΕΤΑ (Β)</div>
+          <div class="paper"><canvas id="surfB" class="surfcv" width="560" height="380"></canvas></div>
+          <canvas id="legB" class="surfleg" width="560" height="46"></canvas>
+        </div>
+      </div>
+      <div class="empty" id="surfEmpty">Οι επιφάνειες θα αποδοθούν μετά τον υπολογισμό.</div>
+    </div>
+
+    <div class="panel">
+      <h2>Χάρτης πάχους</h2>
+      <div class="viewtabs">
+        <button id="tabCont" class="active">Πάχος (συνεχής κλίμακα)</button>
+        <button id="tabComp">Συμμόρφωση (εντός/εκτός ανοχής)</button>
+      </div>
+      <div class="mapbox paper hide" id="mapPaper">
+        <canvas id="map" width="900" height="600"></canvas>
+        <div id="readout"></div>
+      </div>
+      <canvas id="legend" class="hide" width="900" height="56"></canvas>
+      <div class="empty" id="mapEmpty">Φόρτωσε τις δύο επιφάνειες και πάτησε «Υπολογισμός πάχους».</div>
+    </div>
+    <div class="panel">
+      <h2>Στατιστικά & κατανομή</h2>
+      <div class="statgrid" id="statgrid"></div>
+      <canvas id="hist" class="hide" width="900" height="190"></canvas>
+      <div class="empty" id="histEmpty">—</div>
+    </div>
+  </section>
+</main>
+<div class="footer">HEXIS AS-BUILT CLOUD · Η επεξεργασία γίνεται εξ ολοκλήρου τοπικά στη συσκευή σας · hexis-app.gr</div>
+<script>
+"use strict";
+const TOOL_VERSION="1.3";
+document.getElementById("verBadge").textContent="v"+TOOL_VERSION;
+
+/* ---------------- Οδηγίες ---------------- */
+document.getElementById("btnHelp").addEventListener("click",()=>document.getElementById("helpOv").classList.add("open"));
+document.getElementById("btnHelpX").addEventListener("click",()=>document.getElementById("helpOv").classList.remove("open"));
+document.getElementById("helpOv").addEventListener("click",e=>{if(e.target.id==="helpOv")e.target.classList.remove("open");});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")document.getElementById("helpOv").classList.remove("open");});
+
+/* ---------------- Κατάσταση ---------------- */
+const S={
+  A:null, B:null,            // {xs,ys,zs,n,name,bbox,isSparse}
+  grid:null,                 // αποτέλεσμα υπολογισμού
+  view:"cont"
+};
+const $=id=>document.getElementById(id);
+const fmt=(v,d=3)=>isFinite(v)?v.toFixed(d):"—";
+const fmtN=v=>v.toLocaleString("el-GR");
+
+/* ---------------- Δυναμικοί πίνακες Float64 ---------------- */
+function makeVec(){return {a:new Float64Array(1<<16),n:0,
+  push(v){if(this.n===this.a.length){const b=new Float64Array(this.a.length*2);b.set(this.a);this.a=b;}this.a[this.n++]=v;},
+  done(){return this.a.subarray(0,this.n);}};}
+
+/* ---------------- Ανάγνωση ASCII νέφους ---------------- */
+async function parseAscii(text,onProg){
+  const xs=makeVec(),ys=makeVec(),zs=makeVec();
+  const len=text.length;
+  let pos=0,line=0;
+  const sep=/[,;\t ]+/;
+  while(pos<len){
+    let nl=text.indexOf("\n",pos);
+    if(nl===-1)nl=len;
+    const ln=text.slice(pos,nl).trim();
+    pos=nl+1;line++;
+    if(ln){
+      const p=ln.split(sep);
+      if(p.length>=3){
+        const x=parseFloat(p[0]),y=parseFloat(p[1]),z=parseFloat(p[2]);
+        if(isFinite(x)&&isFinite(y)&&isFinite(z)){xs.push(x);ys.push(y);zs.push(z);}
+      }
+    }
+    if((line&0xFFFF)===0){onProg(pos/len*100);await new Promise(r=>setTimeout(r,0));}
+  }
+  return {xs:xs.done(),ys:ys.done(),zs:zs.done(),n:xs.n};
+}
+
+/* ---------------- Ανάγνωση DXF (ισοϋψείς/σημεία) ---------------- */
+async function parseDxf(text,densify,onProg){
+  const xs=makeVec(),ys=makeVec(),zs=makeVec();
+  const lines=text.split(/\r?\n/);
+  const N=lines.length;
+  let i=0;
+  function addSeg(x1,y1,z1,x2,y2,z2){
+    xs.push(x1);ys.push(y1);zs.push(z1);
+    const dx=x2-x1,dy=y2-y1,dz=z2-z1;
+    const L=Math.hypot(dx,dy);
+    const steps=Math.floor(L/densify);
+    for(let s=1;s<steps;s++){const t=s/steps;xs.push(x1+dx*t);ys.push(y1+dy*t);zs.push(z1+dz*t);}
+  }
+  while(i<N-1){
+    const code=lines[i].trim(),val=lines[i+1]?lines[i+1].trim():"";
+    if(code==="0"&&val==="LWPOLYLINE"){
+      i+=2;
+      let elev=0,closed=false;const vx=[],vy=[];
+      while(i<N-1){
+        const c=lines[i].trim(),v=lines[i+1].trim();
+        if(c==="0")break;
+        if(c==="38")elev=parseFloat(v)||0;
+        else if(c==="70")closed=(parseInt(v)&1)===1;
+        else if(c==="10")vx.push(parseFloat(v));
+        else if(c==="20")vy.push(parseFloat(v));
+        i+=2;
+      }
+      const m=Math.min(vx.length,vy.length);
+      for(let k=0;k<m-1;k++)addSeg(vx[k],vy[k],elev,vx[k+1],vy[k+1],elev);
+      if(closed&&m>2)addSeg(vx[m-1],vy[m-1],elev,vx[0],vy[0],elev);
+      else if(m>0){xs.push(vx[m-1]);ys.push(vy[m-1]);zs.push(elev);}
+      continue;
+    }
+    if(code==="0"&&val==="POLYLINE"){
+      i+=2;
+      let px=null,py=null,pz=null;
+      while(i<N-1){
+        const c=lines[i].trim(),v=lines[i+1].trim();
+        if(c==="0"&&v==="VERTEX"){
+          i+=2;let x=0,y=0,z=0;
+          while(i<N-1){
+            const c2=lines[i].trim(),v2=lines[i+1].trim();
+            if(c2==="0")break;
+            if(c2==="10")x=parseFloat(v2);
+            else if(c2==="20")y=parseFloat(v2);
+            else if(c2==="30")z=parseFloat(v2);
+            i+=2;
+          }
+          if(px!==null)addSeg(px,py,pz,x,y,z);
+          px=x;py=y;pz=z;
+          continue;
+        }
+        if(c==="0"&&v==="SEQEND"){i+=2;break;}
+        if(c==="0")break;
+        i+=2;
+      }
+      if(px!==null){xs.push(px);ys.push(py);zs.push(pz);}
+      continue;
+    }
+    if(code==="0"&&val==="LINE"){
+      i+=2;let x1=0,y1=0,z1=0,x2=0,y2=0,z2=0;
+      while(i<N-1){
+        const c=lines[i].trim(),v=lines[i+1].trim();
+        if(c==="0")break;
+        if(c==="10")x1=parseFloat(v);else if(c==="20")y1=parseFloat(v);else if(c==="30")z1=parseFloat(v);
+        else if(c==="11")x2=parseFloat(v);else if(c==="21")y2=parseFloat(v);else if(c==="31")z2=parseFloat(v);
+        i+=2;
+      }
+      addSeg(x1,y1,z1,x2,y2,z2);xs.push(x2);ys.push(y2);zs.push(z2);
+      continue;
+    }
+    if(code==="0"&&val==="POINT"){
+      i+=2;let x=0,y=0,z=0;
+      while(i<N-1){
+        const c=lines[i].trim(),v=lines[i+1].trim();
+        if(c==="0")break;
+        if(c==="10")x=parseFloat(v);else if(c==="20")y=parseFloat(v);else if(c==="30")z=parseFloat(v);
+        i+=2;
+      }
+      xs.push(x);ys.push(y);zs.push(z);
+      continue;
+    }
+    i+=2;
+    if((i&0xFFFF)===0){onProg(i/N*100);await new Promise(r=>setTimeout(r,0));}
+  }
+  return {xs:xs.done(),ys:ys.done(),zs:zs.done(),n:xs.n};
+}
+
+/* ---------------- Φόρτωση αρχείων ---------------- */
+function bbox(p){
+  let mnx=Infinity,mny=Infinity,mxx=-Infinity,mxy=-Infinity,mnz=Infinity,mxz=-Infinity;
+  for(let i=0;i<p.n;i++){
+    const x=p.xs[i],y=p.ys[i],z=p.zs[i];
+    if(x<mnx)mnx=x;if(x>mxx)mxx=x;
+    if(y<mny)mny=y;if(y>mxy)mxy=y;
+    if(z<mnz)mnz=z;if(z>mxz)mxz=z;
+  }
+  return {mnx,mny,mxx,mxy,mnz,mxz};
+}
+async function loadFile(file,slot){
+  const info=$(slot==="A"?"infoA":"infoB");
+  info.className="fileinfo show";
+  info.textContent="Ανάγνωση: "+file.name+" …";
+  $("prog").className="show";$("prog").value=0;
+  try{
+    const text=await file.text();
+    const isDxf=/\.dxf$/i.test(file.name);
+    const step=Math.max(parseFloat($("gridStep").value)||0.25,0.05);
+    const onProg=v=>{$("prog").value=v;};
+    const pts=isDxf?await parseDxf(text,step*0.5,onProg):await parseAscii(text,onProg);
+    if(pts.n<3)throw new Error("Δεν βρέθηκαν έγκυρα σημεία X Y Z στο αρχείο.");
+    const bb=bbox(pts);
+    S[slot]={...pts,name:file.name,bbox:bb,isDxf};
+    if(slot==="A"&&isDxf)$("sparseA").checked=true;
+    if(bb.mxx<10000&&bb.mxy<10000){
+      info.textContent="⚠ "+file.name+"\nΣημεία: "+fmtN(pts.n)+" — Οι συντεταγμένες φαίνονται μετατοπισμένες (shifted). Εξήγαγε από το CloudCompare με global συντεταγμένες, αλλιώς βεβαιώσου ότι ΚΑΙ τα δύο αρχεία έχουν το ίδιο shift.";
+    }else{
+      info.textContent="✔ "+file.name+"\nΣημεία: "+fmtN(pts.n)+" · X: "+fmt(bb.mnx,2)+"–"+fmt(bb.mxx,2)+" · Y: "+fmt(bb.mny,2)+"–"+fmt(bb.mxy,2)+" · Z: "+fmt(bb.mnz,2)+"–"+fmt(bb.mxz,2);
+    }
+  }catch(e){
+    S[slot]=null;
+    info.className="fileinfo show err";
+    info.textContent="✖ "+file.name+" — "+e.message;
+  }
+  $("prog").className="";
+  $("btnCompute").disabled=!(S.A&&S.B);
+}
+function wireDrop(dropId,inputId,slot){
+  const d=$(dropId),f=$(inputId);
+  d.addEventListener("click",()=>f.click());
+  f.addEventListener("change",()=>{if(f.files[0])loadFile(f.files[0],slot);});
+  d.addEventListener("dragover",e=>{e.preventDefault();d.classList.add("over");});
+  d.addEventListener("dragleave",()=>d.classList.remove("over"));
+  d.addEventListener("drop",e=>{e.preventDefault();d.classList.remove("over");if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0],slot);});
+}
+wireDrop("dropA","fileA","A");
+wireDrop("dropB","fileB","B");
+
+/* ---------------- Κάναβος ---------------- */
+function buildGrid(p,ox,oy,nx,ny,step,agg){
+  const sum=new Float64Array(nx*ny),cnt=new Uint32Array(nx*ny);
+  const ext=new Float64Array(nx*ny);
+  if(agg==="min")ext.fill(Infinity);
+  if(agg==="max")ext.fill(-Infinity);
+  for(let i=0;i<p.n;i++){
+    const ix=Math.floor((p.xs[i]-ox)/step),iy=Math.floor((p.ys[i]-oy)/step);
+    if(ix<0||iy<0||ix>=nx||iy>=ny)continue;
+    const k=iy*nx+ix,z=p.zs[i];
+    cnt[k]++;sum[k]+=z;
+    if(agg==="min"&&z<ext[k])ext[k]=z;
+    if(agg==="max"&&z>ext[k])ext[k]=z;
+  }
+  const g=new Float64Array(nx*ny);g.fill(NaN);
+  for(let k=0;k<nx*ny;k++){
+    if(!cnt[k])continue;
+    g[k]=agg==="mean"?sum[k]/cnt[k]:ext[k];
+  }
+  return g;
+}
+/* Παρεμβολή κενών με διαδοχική διαστολή (για ισοϋψείς) */
+async function fillGaps(g,nx,ny,maxIter,onProg){
+  let cur=g;
+  for(let it=0;it<maxIter;it++){
+    const nxt=new Float64Array(cur);
+    let changed=0;
+    for(let iy=0;iy<ny;iy++){
+      const base=iy*nx;
+      for(let ix=0;ix<nx;ix++){
+        const k=base+ix;
+        if(!isNaN(cur[k]))continue;
+        let s=0,c=0;
+        for(let dy=-1;dy<=1;dy++){
+          const yy=iy+dy;if(yy<0||yy>=ny)continue;
+          for(let dx=-1;dx<=1;dx++){
+            const xx=ix+dx;if(xx<0||xx>=nx)continue;
+            const v=cur[yy*nx+xx];
+            if(!isNaN(v)){s+=v;c++;}
+          }
+        }
+        if(c>0){nxt[k]=s/c;changed++;}
+      }
+    }
+    cur=nxt;
+    if(onProg){onProg(it/maxIter*100);await new Promise(r=>setTimeout(r,0));}
+    if(!changed)break;
+  }
+  return cur;
+}
+
+/* ---------------- Λειτουργία υπολογισμού (πάχος / cut-fill) ---------------- */
+function calcMode(){return $("calcMode").value;}
+$("calcMode").addEventListener("change",()=>{
+  const cf=calcMode()==="cutfill";
+  $("wrapDesign").style.display=cf?"none":"";
+  $("wrapTol").style.display=cf?"none":"";
+  $("wrapCF").style.display=cf?"":"none";
+  $("tabCont").textContent=cf?"ΔΖ (συνεχής κλίμακα)":"Πάχος (συνεχής κλίμακα)";
+  $("tabComp").textContent=cf?"Cut / Fill":"Συμμόρφωση (εντός/εκτός ανοχής)";
+  $("btnCompute").textContent=cf?"Υπολογισμός όγκων cut/fill":"Υπολογισμός πάχους";
+  /* παλιό αποτέλεσμα άλλης λειτουργίας δεν ισχύει */
+  S.grid=null;
+  $("mapEmpty").style.display="";$("histEmpty").style.display="";
+  $("mapPaper").classList.add("hide");
+  $("surfWrap").classList.add("hide");
+  $("surfEmpty").style.display="";
+  $("legend").classList.add("hide");
+  $("hist").classList.add("hide");
+  $("statgrid").innerHTML="";
+  const mc=$("map");mc.getContext("2d").clearRect(0,0,mc.width,mc.height);
+  const lc=$("legend");lc.getContext("2d").clearRect(0,0,lc.width,lc.height);
+  const hc=$("hist");hc.getContext("2d").clearRect(0,0,hc.width,hc.height);
+  $("btnPDF").disabled=$("btnCSV").disabled=$("btnPNG").disabled=true;
+});
+
+/* ---------------- Υπολογισμός ---------------- */
+$("btnCompute").addEventListener("click",compute);
+async function compute(){
+  const mode=calcMode();
+  const step=Math.max(parseFloat($("gridStep").value)||0.25,0.05);
+  const design=mode==="thickness"?(parseFloat($("designTh").value)||0)/100:0;
+  const tol=mode==="thickness"?(parseFloat($("tolTh").value)||5)/100:0;
+  const thr=mode==="cutfill"?Math.max((parseFloat($("cfThresh").value)||0)/100,0):0;
+  const agg=$("aggMode").value;
+  const fillDist=Math.max(parseFloat($("fillDist").value)||0,0);
+  const A=S.A,B=S.B;
+  const st=$("status");
+  $("btnCompute").disabled=true;
+  $("prog").className="show";$("prog").value=0;
+  try{
+    /* κοινό παράθυρο */
+    const ox=Math.max(A.bbox.mnx,B.bbox.mnx),oy=Math.max(A.bbox.mny,B.bbox.mny);
+    const ex=Math.min(A.bbox.mxx,B.bbox.mxx),ey=Math.min(A.bbox.mxy,B.bbox.mxy);
+    if(ex-ox<step||ey-oy<step)throw new Error("Οι δύο επιφάνειες δεν επικαλύπτονται. Έλεγξε συντεταγμένες / global shift.");
+    const nx=Math.ceil((ex-ox)/step),ny=Math.ceil((ey-oy)/step);
+    if(nx*ny>36e6)throw new Error("Πολύ πυκνός κάναβος ("+fmtN(nx*ny)+" κελιά). Αύξησε το βήμα κανάβου.");
+    st.textContent="Κατασκευή κανάβων "+nx+"×"+ny+" …";
+    await new Promise(r=>setTimeout(r,0));
+    let gA=buildGrid(A,ox,oy,nx,ny,step,agg);
+    $("prog").value=30;
+    const gB=buildGrid(B,ox,oy,nx,ny,step,agg);
+    $("prog").value=50;
+    if($("sparseA").checked&&fillDist>0){
+      st.textContent="Παρεμβολή κενών επιφάνειας Α …";
+      gA=await fillGaps(gA,nx,ny,Math.ceil(fillDist/step),v=>{$("prog").value=50+v*0.35;});
+    }
+    /* διαφορά ΔΖ = Β − Α */
+    st.textContent="Υπολογισμός διαφορών …";
+    const diff=new Float64Array(nx*ny);diff.fill(NaN);
+    const cellA=step*step;
+    let n=0,sum=0,sum2=0,mn=Infinity,mx=-Infinity;
+    let within=0,below=0,above=0;               /* λειτουργία πάχους */
+    let vCut=0,vFill=0,aCut=0,aFill=0,aNeu=0;   /* λειτουργία cut/fill */
+    for(let k=0;k<nx*ny;k++){
+      const a=gA[k],b=gB[k];
+      if(isNaN(a)||isNaN(b))continue;
+      const d=b-a;
+      diff[k]=d;n++;sum+=d;sum2+=d*d;
+      if(d<mn)mn=d;if(d>mx)mx=d;
+      if(mode==="thickness"){
+        if(d<design-tol)below++;
+        else if(d>design+tol)above++;
+        else within++;
+      }else{
+        if(d<-thr){vCut+=(-d)*cellA;aCut+=cellA;}
+        else if(d>thr){vFill+=d*cellA;aFill+=cellA;}
+        else aNeu+=cellA;
+      }
+    }
+    if(!n)throw new Error("Καμία κοινή περιοχή με δεδομένα και στις δύο επιφάνειες.");
+    const mean=sum/n,std=Math.sqrt(Math.max(sum2/n-mean*mean,0));
+    S.grid={mode,diff,gA,gB,nx,ny,ox,oy,step,design,tol,thr,
+      stats:{n,mean,std,mn,mx,area:n*cellA,
+        within,below,above,
+        pctWithin:within/n*100,pctBelow:below/n*100,pctAbove:above/n*100,
+        vCut,vFill,vNet:vFill-vCut,aCut,aFill,aNeu,
+        meanCut:aCut>0?vCut/aCut:0,meanFill:aFill>0?vFill/aFill:0}};
+    renderAll();
+    renderSurfaces();
+    autoConclusion();
+    $("btnPDF").disabled=$("btnCSV").disabled=$("btnPNG").disabled=false;
+    /* έλεγχος πυκνότητας: αν <2 σημεία/κελί στη Β, ο κάναβος είναι πολύ πυκνός και υποεκτιμώνται επιφάνειες/όγκοι */
+    let occB=0;for(let k=0;k<nx*ny;k++)if(!isNaN(gB[k]))occB++;
+    const dens=occB?B.n/occB:0;
+    st.textContent="Ολοκληρώθηκε: "+fmtN(n)+" κελιά · επιφάνεια "+fmt(n*cellA,1)+" m²."+
+      (dens<2?" ⚠ Λίγα σημεία ανά κελί ("+dens.toFixed(1)+") — αύξησε το βήμα κανάβου για αξιόπιστους όγκους.":"");
+  }catch(e){
+    st.textContent="Σφάλμα: "+e.message;
+  }
+  $("prog").className="";
+  $("btnCompute").disabled=false;
+}
+
+/* ---------------- Χρωματισμός ---------------- */
+function lerp(a,b,t){return a+(b-a)*t;}
+function mixRGB(c1,c2,t){return [Math.round(lerp(c1[0],c2[0],t)),Math.round(lerp(c1[1],c2[1],t)),Math.round(lerp(c1[2],c2[2],t))];}
+const C_RED=[198,40,40],C_ORANGE=[255,152,0],C_GREEN=[46,125,50],C_BLUE=[31,78,156],C_NEU=[226,232,238];
+/* λειτουργία πάχους: κέντρο = πάχος μελέτης */
+function colorCont(d,design,tol){
+  const span=Math.max(3*tol,1e-6);
+  let t=(d-design)/span; t=Math.max(-1,Math.min(1,t));
+  if(t<0){
+    const u=-t;
+    return u<0.5?mixRGB(C_GREEN,C_ORANGE,u*2):mixRGB(C_ORANGE,C_RED,(u-0.5)*2);
+  }
+  return mixRGB(C_GREEN,C_BLUE,t);
+}
+function colorComp(d,design,tol){
+  if(d<design-tol)return C_RED;
+  if(d>design+tol)return C_BLUE;
+  return C_GREEN;
+}
+/* λειτουργία cut/fill: κέντρο = 0, κόκκινο = εκσκαφή, μπλε = επίχωση */
+function cfSpan(G){return Math.max(Math.abs(G.stats.mn),Math.abs(G.stats.mx),G.thr*3,0.05);}
+function colorContCF(d,span,thr){
+  if(Math.abs(d)<=thr)return C_NEU;
+  let t=Math.max(-1,Math.min(1,d/span));
+  if(t<0){
+    const u=-t;
+    return u<0.5?mixRGB(C_NEU,C_ORANGE,u*2):mixRGB(C_ORANGE,C_RED,(u-0.5)*2);
+  }
+  return mixRGB(C_NEU,C_BLUE,t);
+}
+function colorCompCF(d,thr){
+  if(d<-thr)return C_RED;
+  if(d>thr)return C_BLUE;
+  return C_NEU;
+}
+
+/* ---------------- Υψομετρική απόδοση επιφανειών εισόδου ---------------- */
+const HYPSO=[[31,78,156],[77,141,255],[61,220,151],[255,176,46],[198,40,40]];
+function hypsoColor(t){
+  const n=HYPSO.length-1;
+  const s=Math.max(0,Math.min(0.9999,t))*n;
+  const i=Math.floor(s);
+  return mixRGB(HYPSO[i],HYPSO[i+1],s-i);
+}
+function renderSurfaceTo(g,nx,ny,step,cvId,legId){
+  let mn=Infinity,mx=-Infinity;
+  for(let k=0;k<nx*ny;k++){const v=g[k];if(!isNaN(v)){if(v<mn)mn=v;if(v>mx)mx=v;}}
+  if(!isFinite(mn))return null;
+  const span=(mx-mn)||1e-9;
+  /* φωτισμός ΒΔ για hillshade */
+  const lx=-0.5,ly=0.5,lz=0.85,ll=Math.hypot(lx,ly,lz);
+  const off=document.createElement("canvas");off.width=nx;off.height=ny;
+  const octx=off.getContext("2d");
+  const img=octx.createImageData(nx,ny);
+  const at=(ix,iy)=>{if(ix<0)ix=0;if(iy<0)iy=0;if(ix>=nx)ix=nx-1;if(iy>=ny)iy=ny-1;const v=g[iy*nx+ix];return isNaN(v)?null:v;};
+  for(let iy=0;iy<ny;iy++){
+    const row=(ny-1-iy)*nx;
+    for(let ix=0;ix<nx;ix++){
+      const q=(row+ix)*4,v=g[iy*nx+ix];
+      if(isNaN(v)){img.data[q]=235;img.data[q+1]=238;img.data[q+2]=243;img.data[q+3]=255;continue;}
+      const xl=at(ix-1,iy)??v,xr=at(ix+1,iy)??v,yd=at(ix,iy-1)??v,yu=at(ix,iy+1)??v;
+      const dzdx=(xr-xl)/(2*step),dzdy=(yu-yd)/(2*step);
+      let sh=(-dzdx*lx-dzdy*ly+lz)/(Math.hypot(dzdx,dzdy,1)*ll);
+      sh=Math.max(0,Math.min(1,sh));
+      const c=hypsoColor((v-mn)/span),f=0.55+0.45*sh;
+      img.data[q]=Math.round(c[0]*f);img.data[q+1]=Math.round(c[1]*f);img.data[q+2]=Math.round(c[2]*f);img.data[q+3]=255;
+    }
+  }
+  octx.putImageData(img,0,0);
+  const cv=$(cvId);
+  const scale=Math.max(1,Math.min(Math.floor(1100/nx),Math.floor(760/ny)));
+  cv.width=nx*scale;cv.height=ny*scale;
+  const ctx=cv.getContext("2d");
+  ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(off,0,0,cv.width,cv.height);
+  /* κλίμακα */
+  const lg=$(legId),lctx=lg.getContext("2d");
+  lctx.clearRect(0,0,lg.width,lg.height);
+  const x0=18,x1=lg.width-18,w=x1-x0,y0=6,h=16;
+  for(let px=0;px<w;px++){
+    const c=hypsoColor(px/w);
+    lctx.fillStyle=`rgb(${c[0]},${c[1]},${c[2]})`;
+    lctx.fillRect(x0+px,y0,1,h);
+  }
+  lctx.fillStyle="#22303F";lctx.font="11px DM Sans";lctx.textAlign="center";
+  for(let i=0;i<=4;i++){
+    const v=mn+span*i/4,px=x0+w*i/4;
+    lctx.fillRect(px,y0+h,1,4);
+    lctx.fillText(v.toFixed(2),px,y0+h+15);
+  }
+  lctx.textAlign="left";lctx.fillText("m",x1+3,y0+h+15);
+  return {mn,mx,cv,lg};
+}
+function renderSurfaces(){
+  const G=S.grid;if(!G)return;
+  const a=renderSurfaceTo(G.gA,G.nx,G.ny,G.step,"surfA","legA");
+  const b=renderSurfaceTo(G.gB,G.nx,G.ny,G.step,"surfB","legB");
+  if(a&&b){
+    G._surfA=a;G._surfB=b;
+    $("surfWrap").classList.remove("hide");
+    $("surfEmpty").style.display="none";
+  }
+}
+
+/* ---------------- Απόδοση χάρτη ---------------- */
+function renderAll(){
+  const G=S.grid;if(!G)return;
+  $("mapEmpty").style.display="none";
+  $("histEmpty").style.display="none";
+  $("mapPaper").classList.remove("hide");
+  $("legend").classList.remove("hide");
+  $("hist").classList.remove("hide");
+  const {diff,nx,ny,design,tol,thr}=G;
+  const cf=G.mode==="cutfill";
+  const span=cf?cfSpan(G):0;
+  const off=document.createElement("canvas");
+  off.width=nx;off.height=ny;
+  const octx=off.getContext("2d");
+  const img=octx.createImageData(nx,ny);
+  for(let iy=0;iy<ny;iy++){
+    const row=(ny-1-iy)*nx; /* βορράς πάνω */
+    for(let ix=0;ix<nx;ix++){
+      const d=diff[iy*nx+ix];
+      const q=(row+ix)*4;
+      if(isNaN(d)){img.data[q]=248;img.data[q+1]=249;img.data[q+2]=251;img.data[q+3]=255;continue;}
+      const c=cf
+        ?(S.view==="cont"?colorContCF(d,span,thr):colorCompCF(d,thr))
+        :(S.view==="cont"?colorCont(d,design,tol):colorComp(d,design,tol));
+      img.data[q]=c[0];img.data[q+1]=c[1];img.data[q+2]=c[2];img.data[q+3]=255;
+    }
+  }
+  octx.putImageData(img,0,0);
+  const cv=$("map");
+  const maxW=1200,scale=Math.max(1,Math.min(Math.floor(maxW/nx),Math.floor(800/ny)));
+  cv.width=nx*scale;cv.height=ny*scale;
+  const ctx=cv.getContext("2d");
+  ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(off,0,0,cv.width,cv.height);
+  S.grid._mapCanvas=cv;
+  drawLegend();
+  drawHist();
+  drawStats();
+}
+function drawLegend(){
+  const G=S.grid,cv=$("legend"),ctx=cv.getContext("2d");
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const cf=G.mode==="cutfill";
+  const x0=20,x1=cv.width-20,w=x1-x0,y0=8,h=20;
+  ctx.font="12px DM Sans";
+  if(S.view==="cont"){
+    if(cf){
+      const span=cfSpan(G);
+      for(let px=0;px<w;px++){
+        const d=((px/w)*2-1)*span;
+        const c=colorContCF(d,span,G.thr);
+        ctx.fillStyle=`rgb(${c[0]},${c[1]},${c[2]})`;
+        ctx.fillRect(x0+px,y0,1,h);
+      }
+      ctx.fillStyle="#22303F";ctx.textAlign="center";
+      [-span,-span/2,0,span/2,span].forEach(m=>{
+        const px=x0+(m/span/2+0.5)*w;
+        ctx.fillRect(px,y0+h,1,5);
+        ctx.fillText(m.toFixed(2)+" m",px,y0+h+18);
+      });
+      ctx.textAlign="left";
+      ctx.fillText("← εκσκαφή",x0,y0-1);
+      ctx.textAlign="right";
+      ctx.fillText("επίχωση →",x1,y0-1);
+    }else{
+      const {design,tol}=G;
+      for(let px=0;px<w;px++){
+        const d=design+((px/w)*2-1)*3*tol;
+        const c=colorCont(d,design,tol);
+        ctx.fillStyle=`rgb(${c[0]},${c[1]},${c[2]})`;
+        ctx.fillRect(x0+px,y0,1,h);
+      }
+      ctx.fillStyle="#22303F";ctx.textAlign="center";
+      [design-3*tol,design-tol,design,design+tol,design+3*tol].forEach(m=>{
+        const px=x0+((m-design)/(3*tol)/2+0.5)*w;
+        ctx.fillRect(px,y0+h,1,5);
+        ctx.fillText((m*100).toFixed(0)+" cm",px,y0+h+18);
+      });
+      ctx.strokeStyle="#22303F";
+      ctx.strokeRect(x0+(1/3)*w,y0,(1/3)*w,h);
+    }
+  }else{
+    const seg=cf
+      ?[["Εκσκαφή (cut)",C_RED],["Αμετάβλητο ±"+(G.thr*100).toFixed(0)+" cm",C_NEU],["Επίχωση (fill)",C_BLUE]]
+      :[["Έλλειμμα < "+((G.design-G.tol)*100).toFixed(0)+" cm",C_RED],["Εντός ανοχής",C_GREEN],["Υπέρβαση > "+((G.design+G.tol)*100).toFixed(0)+" cm",C_BLUE]];
+    const sw=w/3;
+    ctx.font="12.5px DM Sans";
+    seg.forEach((s,i)=>{
+      ctx.fillStyle=`rgb(${s[1][0]},${s[1][1]},${s[1][2]})`;
+      ctx.fillRect(x0+i*sw+8,y0,26,h);
+      ctx.strokeStyle="#B9C4D2";ctx.strokeRect(x0+i*sw+8,y0,26,h);
+      ctx.fillStyle="#22303F";
+      ctx.textAlign="left";
+      ctx.fillText(s[0],x0+i*sw+40,y0+15);
+    });
+  }
+}
+function drawStats(){
+  const G=S.grid,s=G.stats;
+  const el=$("statgrid");
+  if(G.mode==="cutfill"){
+    el.innerHTML=`
+      <div class="stat bad"><div class="v">${fmt(s.vCut,1)} m³</div><div class="l">Όγκος εκσκαφής (cut)</div></div>
+      <div class="stat"><div class="v">${fmt(s.vFill,1)} m³</div><div class="l">Όγκος επίχωσης (fill)</div></div>
+      <div class="stat"><div class="v">${s.vNet>=0?"+":""}${fmt(s.vNet,1)} m³</div><div class="l">Ισοζύγιο (fill − cut)</div></div>
+      <div class="stat"><div class="v">${fmt(s.aCut,0)} / ${fmt(s.aFill,0)}</div><div class="l">Επιφάνεια cut / fill (m²)</div></div>
+      <div class="stat"><div class="v">${fmt(s.meanCut,2)} / ${fmt(s.meanFill,2)}</div><div class="l">Μέσο βάθος cut / ύψος fill (m)</div></div>
+      <div class="stat"><div class="v">${fmt(s.area,0)} m²</div><div class="l">Ελεγχθείσα επιφάνεια (${fmtN(s.n)} κελιά)</div></div>`;
+  }else{
+    const ok=s.pctWithin>=95;
+    el.innerHTML=`
+      <div class="stat"><div class="v">${(s.mean*100).toFixed(1)} cm</div><div class="l">Μέσο πάχος (μελέτη: ${(G.design*100).toFixed(0)} cm)</div></div>
+      <div class="stat"><div class="v">${(s.mn*100).toFixed(1)} / ${(s.mx*100).toFixed(1)}</div><div class="l">Ελάχιστο / Μέγιστο (cm)</div></div>
+      <div class="stat"><div class="v">${(s.std*100).toFixed(1)} cm</div><div class="l">Τυπική απόκλιση</div></div>
+      <div class="stat ${ok?"good":"bad"}"><div class="v">${s.pctWithin.toFixed(1)}%</div><div class="l">Εντός ανοχής ±${(G.tol*100).toFixed(1)} cm</div></div>
+      <div class="stat"><div class="v">${s.pctBelow.toFixed(1)}%</div><div class="l">Έλλειμμα πάχους</div></div>
+      <div class="stat"><div class="v">${fmt(s.area,0)} m²</div><div class="l">Ελεγχθείσα επιφάνεια (${fmtN(s.n)} κελιά)</div></div>`;
+  }
+}
+function drawHist(){
+  const G=S.grid,cv=$("hist"),ctx=cv.getContext("2d");
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const {diff,design,tol,thr,stats}=G;
+  const cf=G.mode==="cutfill";
+  const lo=cf?Math.min(stats.mn,-cfSpan(G)*0.2):Math.min(stats.mn,design-3*tol);
+  const hi=cf?Math.max(stats.mx,cfSpan(G)*0.2):Math.max(stats.mx,design+3*tol);
+  const nb=64,bins=new Float64Array(nb);
+  for(let k=0;k<diff.length;k++){
+    const d=diff[k];if(isNaN(d))continue;
+    let b=Math.floor((d-lo)/(hi-lo)*nb);
+    if(b<0)b=0;if(b>=nb)b=nb-1;
+    bins[b]++;
+  }
+  const bmax=Math.max(...bins)||1;
+  const x0=34,x1=cv.width-10,y0=8,y1=cv.height-28,w=x1-x0,h=y1-y0;
+  const tx=v=>x0+(v-lo)/(hi-lo)*w;
+  const span=cf?cfSpan(G):0;
+  /* ζώνη αναφοράς */
+  ctx.fillStyle=cf?"rgba(90,107,125,.10)":"rgba(46,125,50,.12)";
+  if(cf)ctx.fillRect(tx(-thr),y0,tx(thr)-tx(-thr),h);
+  else ctx.fillRect(tx(design-tol),y0,tx(design+tol)-tx(design-tol),h);
+  /* μπάρες */
+  for(let b=0;b<nb;b++){
+    const cxm=lo+(b+0.5)/nb*(hi-lo);
+    const c=cf?colorContCF(cxm,span,thr):colorCont(cxm,design,tol);
+    ctx.fillStyle=`rgb(${c[0]},${c[1]},${c[2]})`;
+    const bh=bins[b]/bmax*h;
+    ctx.fillRect(x0+b/nb*w,y1-bh,w/nb-1,bh);
+  }
+  /* γραμμή αναφοράς */
+  const ref=cf?0:design;
+  ctx.strokeStyle="#22303F";ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(tx(ref),y0);ctx.lineTo(tx(ref),y1);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle="#22303F";ctx.font="12px DM Sans";ctx.textAlign="center";
+  if(cf){
+    [lo,lo/2,0,hi/2,hi].forEach(v=>ctx.fillText(v.toFixed(2),tx(v),y1+16));
+    ctx.textAlign="left";ctx.fillText("m",x1-14,y1+16);
+  }else{
+    [lo,design-tol,design,design+tol,hi].forEach(v=>ctx.fillText((v*100).toFixed(0),tx(v),y1+16));
+    ctx.textAlign="left";ctx.fillText("cm",x1-18,y1+16);
+  }
+  S.grid._histCanvas=cv;
+}
+/* εναλλαγή προβολής */
+$("tabCont").addEventListener("click",()=>{S.view="cont";$("tabCont").classList.add("active");$("tabComp").classList.remove("active");renderAll();});
+$("tabComp").addEventListener("click",()=>{S.view="comp";$("tabComp").classList.add("active");$("tabCont").classList.remove("active");renderAll();});
+
+/* hover ένδειξη */
+$("map").addEventListener("mousemove",e=>{
+  const G=S.grid;if(!G)return;
+  const cv=$("map"),r=cv.getBoundingClientRect();
+  const px=(e.clientX-r.left)/r.width*G.nx;
+  const py=(e.clientY-r.top)/r.height*G.ny;
+  const ix=Math.floor(px),iy=G.ny-1-Math.floor(py);
+  if(ix<0||iy<0||ix>=G.nx||iy>=G.ny)return;
+  const d=G.diff[iy*G.nx+ix];
+  const ro=$("readout");
+  ro.style.display="block";
+  const X=G.ox+(ix+0.5)*G.step,Y=G.oy+(iy+0.5)*G.step;
+  if(isNaN(d)){ro.textContent="Χωρίς δεδομένα";return;}
+  if(G.mode==="cutfill"){
+    const lbl=d<-G.thr?"Εκσκαφή: "+(-d).toFixed(2)+" m":d>G.thr?"Επίχωση: "+d.toFixed(2)+" m":"Αμετάβλητο (ΔΖ "+(d*100).toFixed(1)+" cm)";
+    ro.textContent="Χ: "+fmt(X,2)+"  Υ: "+fmt(Y,2)+"\n"+lbl;
+  }else{
+    ro.textContent="Χ: "+fmt(X,2)+"  Υ: "+fmt(Y,2)+"\nΠάχος: "+(d*100).toFixed(1)+" cm "+
+      (d<G.design-G.tol?"(έλλειμμα)":d>G.design+G.tol?"(υπέρβαση)":"(εντός)");
+  }
+});
+$("map").addEventListener("mouseleave",()=>{$("readout").style.display="none";});
+
+/* ---------------- Αυτόματα συμπεράσματα ---------------- */
+function autoConclusion(){
+  const G=S.grid,s=G.stats;
+  if(G.mode==="cutfill"){
+    let t="Από τη σύγκριση των δύο αποτυπώσεων προέκυψε όγκος εκσκαφών "+fmt(s.vCut,1)+" m³ σε επιφάνεια "+fmt(s.aCut,0)
+      +" m² (μέσο βάθος "+fmt(s.meanCut,2)+" m) και όγκος επιχώσεων "+fmt(s.vFill,1)+" m³ σε επιφάνεια "+fmt(s.aFill,0)
+      +" m² (μέσο ύψος "+fmt(s.meanFill,2)+" m). Το ισοζύγιο χωματισμών ανέρχεται σε "+(s.vNet>=0?"+":"")+fmt(s.vNet,1)
+      +" m³. Μεταβολές υψομέτρου μικρότερες του κατωφλίου ±"+(G.thr*100).toFixed(0)
+      +" cm θεωρήθηκαν εντός της αβεβαιότητας των αποτυπώσεων και δεν προσμετρήθηκαν.";
+    $("rConcl").value=t;
+    return;
+  }
+  const el=$("rElement").value||"κατασκευασμένη στρώση";
+  let t="Από τη σύγκριση των δύο αποτυπώσεων, το μέσο πάχος του στοιχείου «"+el+"» προσδιορίστηκε σε "
+    +(s.mean*100).toFixed(1)+" cm, έναντι πάχους μελέτης "+(G.design*100).toFixed(0)+" cm. "
+    +"Το "+s.pctWithin.toFixed(1)+"% της ελεγχθείσας επιφάνειας ("+fmt(s.area,0)+" m²) βρίσκεται εντός της ανοχής ±"
+    +(G.tol*100).toFixed(1)+" cm";
+  if(s.pctBelow>0.5)t+=", ενώ σε ποσοστό "+s.pctBelow.toFixed(1)+"% διαπιστώνεται έλλειμμα πάχους";
+  t+=". ";
+  t+=s.pctWithin>=95
+    ?"Η κατασκευή κρίνεται συμβατή με τις απαιτήσεις της μελέτης ως προς το πάχος."
+    :"Συνιστάται περαιτέρω διερεύνηση στις περιοχές που εμφανίζουν απόκλιση εκτός ανοχής (βλ. χάρτη συμμόρφωσης).";
+  $("rConcl").value=t;
+}
+
+/* ---------------- Εξαγωγές ---------------- */
+function download(name,blob){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=name;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+}
+$("btnCSV").addEventListener("click",()=>{
+  const G=S.grid;if(!G)return;
+  const cf=G.mode==="cutfill";
+  const rows=[cf?"X;Y;DZ_m":"X;Y;PAXOS_m"];
+  for(let iy=0;iy<G.ny;iy++)for(let ix=0;ix<G.nx;ix++){
+    const d=G.diff[iy*G.nx+ix];
+    if(isNaN(d))continue;
+    rows.push(fmt(G.ox+(ix+0.5)*G.step,3)+";"+fmt(G.oy+(iy+0.5)*G.step,3)+";"+fmt(d,3));
+  }
+  download(cf?"cutfill_kanavos.csv":"asbuilt_kanavos.csv",new Blob(["\uFEFF"+rows.join("\n")],{type:"text/csv;charset=utf-8"}));
+});
+$("btnPNG").addEventListener("click",()=>{
+  if(!S.grid)return;
+  $("map").toBlob(b=>download(S.grid.mode==="cutfill"?"cutfill_xartis.png":"asbuilt_xartis.png",b));
+});
+
+/* ---------------- Λογότυπο ---------------- */
+let logoData=null;
+$("rLogo").addEventListener("change",e=>{
+  const f=e.target.files[0];if(!f){logoData=null;return;}
+  const rd=new FileReader();
+  rd.onload=()=>{logoData=rd.result;};
+  rd.readAsDataURL(f);
+});
+
+/* ---------------- Τεχνική έκθεση PDF (πρότυπο BRB) ---------------- */
+$("btnPDF").addEventListener("click",makePdf);
+function todayGr(){return new Date().toLocaleDateString("el-GR");}
+function dGr(v){return v?new Date(v).toLocaleDateString("el-GR"):"—";}
+function makePdf(){
+  const G=S.grid;if(!G)return;
+  const s=G.stats;
+  const cf=G.mode==="cutfill";
+  const BLUE="#1F4E9C",PALE="#E8F0FB";
+  const mapImg=S.grid._mapCanvas.toDataURL("image/png");
+  const histImg=S.grid._histCanvas.toDataURL("image/png");
+  const legImg=$("legend").toDataURL("image/png");
+  const title=$("rTitle").value||(cf?"Επιμέτρηση χωματουργικών εργασιών":"Έλεγχος πάχους κατασκευής");
+  const el=$("rElement").value||"—";
+  const detRow=(a,b)=>[{text:a,bold:true,fillColor:PALE},{text:b||"—"}];
+  const statRow=(a,b)=>[{text:a},{text:b,alignment:"right"}];
+  const dd={
+    pageSize:"A4",
+    pageMargins:[46,46,46,56],
+    footer:(page,pages)=>({
+      columns:[
+        {text:"www.birbas.gr",fontSize:8.5,color:"#5A6B7D"},
+        {text:"Σελίδα "+page+" / "+pages,alignment:"right",fontSize:8.5,color:"#5A6B7D"}
+      ],margin:[46,18,46,0]
+    }),
+    content:[],
+    styles:{
+      h0:{fontSize:16,bold:true,color:BLUE,alignment:"center"},
+      h0s:{fontSize:11.5,color:"#5A6B7D",alignment:"center",margin:[0,3,0,0]},
+      h1:{fontSize:12.5,bold:true,color:BLUE,margin:[0,14,0,5]},
+      p:{fontSize:10.5,alignment:"justify",lineHeight:1.25},
+      cap:{fontSize:9,color:"#5A6B7D",alignment:"center",margin:[0,3,0,8]}
+    },
+    defaultStyle:{fontSize:10.5}
+  };
+  const c=dd.content;
+  if(logoData)c.push({image:logoData,fit:[150,60],alignment:"center",margin:[0,0,0,10]});
+  c.push({text:"ΤΕΧΝΙΚΗ ΕΚΘΕΣΗ",style:"h0"});
+  c.push({text:cf?"Επιμέτρηση χωματουργικών εργασιών με σύγκριση επιφανειών (cut/fill)"
+              :"Έλεγχος πάχους κατασκευής με σύγκριση επιφανειών (as-built)",style:"h0s"});
+  c.push({canvas:[{type:"line",x1:0,y1:0,x2:503,y2:0,lineWidth:1.4,lineColor:BLUE}],margin:[0,10,0,12]});
+  const detBody=[
+    detRow("Έργο",title),
+    detRow("Πελάτης",$("rClient").value),
+    detRow("Θέση",$("rLoc").value),
+    detRow("Αρ. αναφοράς",$("rRef").value)
+  ];
+  if(!cf)detBody.push(detRow("Ελεγχόμενο στοιχείο",el));
+  detBody.push(detRow("Ημερομηνία έκθεσης",todayGr()));
+  detBody.push(detRow("Ομάδα μελέτης","BRB DEVELOPMENT ΜΟΝ. Ι.Κ.Ε."));
+  c.push({table:{widths:[130,"*"],body:detBody},
+    layout:{hLineColor:()=>"#D7DEE8",vLineColor:()=>"#D7DEE8",hLineWidth:()=>0.6,vLineWidth:()=>0.6},fontSize:10});
+
+  c.push({text:"1. Αντικείμενο",style:"h1"});
+  c.push({text:cf
+    ?"Αντικείμενο της παρούσας έκθεσης είναι η επιμέτρηση των εκτελεσθεισών χωματουργικών εργασιών (εκσκαφές – επιχώσεις) στην περιοχή του έργου, μέσω σύγκρισης της επιφάνειας του εδάφους πριν και μετά την παρέμβαση."
+    :"Αντικείμενο της παρούσας έκθεσης είναι ο προσδιορισμός του πραγματικού πάχους του στοιχείου «"+el+
+      "» και ο έλεγχος συμμόρφωσής του με το προβλεπόμενο από τη μελέτη πάχος των "+(G.design*100).toFixed(0)+
+      " cm, με ανοχή ±"+(G.tol*100).toFixed(1)+" cm.",style:"p"});
+
+  c.push({text:"2. Δεδομένα & μεθοδολογία",style:"h1"});
+  c.push({text:"Ο υπολογισμός βασίστηκε στη σύγκριση δύο ανεξάρτητων ψηφιακών μοντέλων της επιφάνειας του έργου: "+
+    "(α) επιφάνεια προ της παρέμβασης (αρχείο: "+(S.A?S.A.name:"—")+", "+(S.A?fmtN(S.A.n):"—")+" σημεία, ημ/νία "+dGr($("rDateA").value)+") και "+
+    "(β) επιφάνεια μετά την παρέμβαση (αρχείο: "+(S.B?S.B.name:"—")+", "+(S.B?fmtN(S.B.n):"—")+" σημεία, ημ/νία "+dGr($("rDateB").value)+"). "+
+    "Αμφότερες οι επιφάνειες ανήχθησαν σε κοινό κάναβο βήματος "+G.step.toFixed(2)+" m στο κοινό τους αποτύπωμα. "+
+    "Σε κάθε κελί του κανάβου υπολογίστηκε η κατακόρυφη διαφορά υψομέτρων ΔΖ = Ζμετά − Ζπριν"+
+    (cf?", από την οποία προκύπτουν οι επιμέρους όγκοι: αρνητικές τιμές αντιστοιχούν σε εκσκαφή και θετικές σε επίχωση. Μεταβολές |ΔΖ| ≤ "+(G.thr*100).toFixed(0)+" cm θεωρήθηκαν εντός της αβεβαιότητας των αποτυπώσεων και δεν προσμετρήθηκαν στους όγκους."
+      :", η οποία αποδίδει το κατασκευασθέν πάχος.")+
+    " Η ελεγχθείσα επιφάνεια ανέρχεται σε "+fmt(s.area,0)+" m² ("+fmtN(s.n)+" κελιά).",style:"p"});
+
+  if(G._surfA&&G._surfB){
+    c.push({columns:[
+      {width:"50%",stack:[
+        {text:"Επιφάνεια ΠΡΙΝ (Α)",fontSize:9.5,bold:true,color:BLUE,alignment:"center",margin:[0,4,0,3]},
+        {image:G._surfA.cv.toDataURL("image/png"),fit:[240,185],alignment:"center"},
+        {image:G._surfA.lg.toDataURL("image/png"),fit:[235,22],alignment:"center",margin:[0,2,0,0]}
+      ]},
+      {width:"50%",stack:[
+        {text:"Επιφάνεια ΜΕΤΑ (Β)",fontSize:9.5,bold:true,color:BLUE,alignment:"center",margin:[0,4,0,3]},
+        {image:G._surfB.cv.toDataURL("image/png"),fit:[240,185],alignment:"center"},
+        {image:G._surfB.lg.toDataURL("image/png"),fit:[235,22],alignment:"center",margin:[0,2,0,0]}
+      ]}
+    ],columnGap:10});
+    c.push({text:"Εικόνα 1: Υψομετρική απόδοση των επιφανειών εισόδου με σκίαση αναγλύφου (υψόμετρα σε m). "+
+      "Α: "+G._surfA.mn.toFixed(2)+" – "+G._surfA.mx.toFixed(2)+" m · Β: "+G._surfB.mn.toFixed(2)+" – "+G._surfB.mx.toFixed(2)+" m.",style:"cap"});
+  }
+  c.push({text:"3. Αποτελέσματα",style:"h1"});
+  const resBody=[[{text:"Μέγεθος",bold:true,fillColor:PALE},{text:"Τιμή",bold:true,fillColor:PALE,alignment:"right"}]];
+  if(cf){
+    resBody.push(statRow("Όγκος εκσκαφών (cut)",fmt(s.vCut,1)+" m³"));
+    resBody.push(statRow("Όγκος επιχώσεων (fill)",fmt(s.vFill,1)+" m³"));
+    resBody.push(statRow("Ισοζύγιο χωματισμών (fill − cut)",(s.vNet>=0?"+":"")+fmt(s.vNet,1)+" m³"));
+    resBody.push(statRow("Επιφάνεια εκσκαφών",fmt(s.aCut,0)+" m²"));
+    resBody.push(statRow("Επιφάνεια επιχώσεων",fmt(s.aFill,0)+" m²"));
+    resBody.push(statRow("Μέσο βάθος εκσκαφής",fmt(s.meanCut,2)+" m"));
+    resBody.push(statRow("Μέσο ύψος επίχωσης",fmt(s.meanFill,2)+" m"));
+    resBody.push(statRow("Μέγιστο βάθος εκσκαφής",fmt(Math.max(-s.mn,0),2)+" m"));
+    resBody.push(statRow("Μέγιστο ύψος επίχωσης",fmt(Math.max(s.mx,0),2)+" m"));
+  }else{
+    resBody.push(statRow("Μέσο πάχος",(s.mean*100).toFixed(1)+" cm"));
+    resBody.push(statRow("Ελάχιστο πάχος",(s.mn*100).toFixed(1)+" cm"));
+    resBody.push(statRow("Μέγιστο πάχος",(s.mx*100).toFixed(1)+" cm"));
+    resBody.push(statRow("Τυπική απόκλιση",(s.std*100).toFixed(1)+" cm"));
+    resBody.push(statRow("Ποσοστό εντός ανοχής ±"+(G.tol*100).toFixed(1)+" cm",s.pctWithin.toFixed(1)+" %"));
+    resBody.push(statRow("Ποσοστό με έλλειμμα πάχους",s.pctBelow.toFixed(1)+" %"));
+    resBody.push(statRow("Ποσοστό με υπέρβαση πάχους",s.pctAbove.toFixed(1)+" %"));
+  }
+  c.push({table:{widths:["*",110],body:resBody},
+    layout:{hLineColor:()=>"#D7DEE8",vLineColor:()=>"#D7DEE8",hLineWidth:()=>0.6,vLineWidth:()=>0.6},fontSize:10,margin:[0,0,0,8]});
+  c.push({image:mapImg,fit:[500,330],alignment:"center"});
+  c.push({image:legImg,fit:[440,34],alignment:"center"});
+  c.push({text:cf?"Εικόνα 2: Χάρτης κατανομής μεταβολών ΔΖ (κόκκινο: εκσκαφή, μπλε: επίχωση)."
+              :"Εικόνα 2: Χάρτης κατανομής πάχους στην ελεγχθείσα επιφάνεια.",style:"cap"});
+  c.push({image:histImg,fit:[470,120],alignment:"center"});
+  c.push({text:cf?"Εικόνα 3: Ιστόγραμμα κατανομής ΔΖ (σκιασμένη ζώνη: κατώφλι αμελητέας μεταβολής)."
+              :"Εικόνα 3: Ιστόγραμμα κατανομής πάχους (σκιασμένη ζώνη: όρια ανοχής, διακεκομμένη: πάχος μελέτης).",style:"cap"});
+
+  c.push({text:"4. Συμπεράσματα",style:"h1"});
+  c.push({text:$("rConcl").value||"—",style:"p"});
+
+  c.push({text:" ",margin:[0,16,0,0]});
+  c.push({columns:[
+    {stack:[
+      {text:"Για την BRB DEVELOPMENT ΜΟΝ. Ι.Κ.Ε.",fontSize:9.5,alignment:"center",margin:[0,0,0,34]},
+      {text:"Μιλτιάδης Μπίρμπας",bold:true,fontSize:10.5,alignment:"center"},
+      {text:"Πολιτικός Μηχανικός Τ.Ε., MSc",fontSize:9.5,alignment:"center",color:"#5A6B7D"}
+    ]},
+    {stack:[
+      {text:" ",fontSize:9.5,margin:[0,0,0,34]},
+      {text:"Θεόδωρος Μορέλλας",bold:true,fontSize:10.5,alignment:"center"},
+      {text:"Διπλ. Πολιτικός Μηχανικός",fontSize:9.5,alignment:"center",color:"#5A6B7D"}
+    ]}
+  ]});
+  pdfMake.createPdf(dd).download(cf?"Texniki_Ekthesi_CutFill.pdf":"Texniki_Ekthesi_AsBuilt.pdf");
+}
+
+/* ---------------- Hook ένταξης στο HEXIS ----------------
+   Εδώ κουμπώνει το entitlement gating της πλατφόρμας, όπως στα υπόλοιπα εργαλεία:
+   έλεγχος συνδρομής μέσω Supabase πριν ενεργοποιηθεί το btnCompute.
+function initEntitlement(){ ... }
+--------------------------------------------------------- */
+</script>
+</body>
+</html>
