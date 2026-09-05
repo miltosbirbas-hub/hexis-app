@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!--
-  HEXIS AS-BUILT CLOUD v2.5
+  HEXIS AS-BUILT CLOUD v2.6
   Έλεγχος πάχους/υψομετρικής διαφοράς κατασκευής από δύο επιφάνειες (νέφη σημείων ή ισοϋψείς DXF)
   + Παραγωγή τεχνικής έκθεσης PDF κατά πρότυπο BRB.
   Όλη η επεξεργασία γίνεται τοπικά στον browser — κανένα αρχείο δεν αποστέλλεται σε server.
@@ -185,7 +185,7 @@
   <div class="brand">HEXIS <span>AS-BUILT CLOUD</span></div>
   <div class="sub">Έλεγχος πάχους κατασκευής &amp; χωματουργικά cut/fill από νέφη σημείων</div>
   <button class="btn-help" id="btnHelp">Οδηγίες</button>
-  <div class="ver" id="verBadge">v2.5</div>
+  <div class="ver" id="verBadge">v2.6</div>
 </header>
 
 <div class="modal-ov" id="helpOv">
@@ -299,6 +299,8 @@
       <input type="number" id="objCap" value="60" step="5" min="0" title="Υλικά, μηχανήματα ή αναμονές πάνω στην επιφάνεια δεν είναι μέρος της κατασκευής — σημεία ψηλότερα από αυτό το ύψος (πάνω από την επιφάνεια ΠΡΙΝ) δεν μετρούν. Προτείνεται: πάχος μελέτης + 10. Βάλε 0 για απενεργοποίηση.">
       <details class="adv">
         <summary>Προχωρημένες ρυθμίσεις</summary>
+        <label class="fld" for="objDelta">Αφαίρεση αντικειμένων πάνω στην επιφάνεια: τοπική υπερύψωση > (cm) — λειτουργία πάχους</label>
+        <input type="number" id="objDelta" value="2" step="0.5" min="0" title="Ξυλεία, μαδέρια, υλικά κ.λπ. που κάθονται ΠΑΝΩ στην επιφάνεια εντοπίζονται επειδή εξέχουν από τη γειτονιά τους (σύγκριση με τοπική διάμεσο ~2 m). Τα τετράγωνα αυτά εξαιρούνται. Βυθίσματα (πιθανά ελλείμματα) δεν αφαιρούνται ποτέ. 0 = ανενεργό.">
         <label class="fld" for="objLow">Απόρριψη σημείων ΜΕΤΑ βαθύτερα από (cm) κάτω από την επιφάνεια ΠΡΙΝ — λειτουργία πάχους</label>
         <input type="number" id="objLow" value="10" step="5" min="0" title="Η επιφάνεια της κατασκευής δεν μπορεί να είναι κάτω από τη βάση της. Σημεία βαθύτερα από αυτό (παρειές, τοιχία, σκάμμα, ανακλάσεις) απορρίπτονται. 0 = ανενεργό.">
         <div class="row2">
@@ -435,7 +437,7 @@
 <div class="footer">HEXIS AS-BUILT CLOUD · Η επεξεργασία γίνεται εξ ολοκλήρου τοπικά στη συσκευή σας · hexis-app.gr</div>
 <script>
 "use strict";
-const TOOL_VERSION="2.5";
+const TOOL_VERSION="2.6";
 document.getElementById("verBadge").textContent="v"+TOOL_VERSION;
 
 /* ---------------- Οδηγίες ---------------- */
@@ -856,6 +858,79 @@ async function compute(){
         else aNeu+=cellA;
       }
     }
+    /* --- Αφαίρεση χαμηλών αντικειμένων (ξυλεία, υλικά): τοπικά υπερυψωμένα κελιά --- */
+    let objCells=0;
+    const objDelta=(mode==="thickness")?Math.max((parseFloat($("objDelta").value)||0)/100,0):0;
+    if(objDelta>0&&n>0){
+      st.textContent="Αφαίρεση αντικειμένων επιφάνειας …";
+      await new Promise(r=>setTimeout(r,0));
+      const win=Math.max(2,Math.round(1.0/step));   /* ακτίνα ~1 m */
+      const flag=new Uint8Array(nx*ny);
+      const buf=new Float64Array((2*win+1)*(2*win+1));
+      for(let iy=0;iy<ny;iy++){
+        for(let ix=0;ix<nx;ix++){
+          const k=iy*nx+ix,d=diff[k];
+          if(isNaN(d))continue;
+          let m=0;
+          for(let dy=-win;dy<=win;dy++){
+            const yy=iy+dy;if(yy<0||yy>=ny)continue;
+            const base=yy*nx;
+            for(let dx=-win;dx<=win;dx++){
+              const xx=ix+dx;if(xx<0||xx>=nx)continue;
+              const v=diff[base+xx];
+              if(!isNaN(v))buf[m++]=v;
+            }
+          }
+          if(m<5)continue;
+          const a2=Array.prototype.slice.call(buf,0,m).sort((p,q)=>p-q);
+          const med=a2[Math.floor(m/2)];
+          if(d-med>objDelta)flag[k]=1;      /* μόνο ΥΠΕΡΥΨΩΜΕΝΑ — βυθίσματα κρατιούνται */
+        }
+      }
+      /* 2ο πέρασμα (υστέρηση): γείτονες φλεγμένων κελιών με υπερύψωση > objDelta/2
+         — μαζεύει τα «μισοκαλυμμένα» τετράγωνα στα χείλη κάθε αντικειμένου */
+      const flag2=new Uint8Array(flag);
+      for(let iy=0;iy<ny;iy++)for(let ix=0;ix<nx;ix++){
+        const k=iy*nx+ix;
+        if(flag[k]||isNaN(diff[k]))continue;
+        let nearObj=false;
+        for(let dy=-1;dy<=1&&!nearObj;dy++)for(let dx=-1;dx<=1;dx++){
+          const yy=iy+dy,xx=ix+dx;
+          if(yy<0||yy>=ny||xx<0||xx>=nx)continue;
+          if(flag[yy*nx+xx]){nearObj=true;break;}
+        }
+        if(!nearObj)continue;
+        let m=0;
+        for(let dy=-win;dy<=win;dy++){
+          const yy=iy+dy;if(yy<0||yy>=ny)continue;
+          const base=yy*nx;
+          for(let dx=-win;dx<=win;dx++){
+            const xx=ix+dx;if(xx<0||xx>=nx)continue;
+            const v=diff[base+xx];
+            if(!isNaN(v)&&!flag[base+xx])buf[m++]=v;
+          }
+        }
+        if(m<5)continue;
+        const a3=Array.prototype.slice.call(buf,0,m).sort((p,q)=>p-q);
+        if(diff[k]-a3[Math.floor(m/2)]>objDelta*0.5)flag2[k]=1;
+      }
+      /* αφαίρεση & επαναϋπολογισμός στατιστικών */
+      for(let k=0;k<nx*ny;k++)if(flag2[k]){diff[k]=NaN;objCells++;}
+      if(objCells>0){
+        n=0;sum=0;sum2=0;mn=Infinity;mx=-Infinity;within=0;below=0;above=0;
+        vCut=0;vFill=0;aCut=0;aFill=0;aNeu=0;
+        for(let k=0;k<nx*ny;k++){
+          const d=diff[k];if(isNaN(d))continue;
+          n++;sum+=d;sum2+=d*d;
+          if(d<mn)mn=d;if(d>mx)mx=d;
+          if(mode==="thickness"){
+            if(d<design-tol)below++;
+            else if(d>design+tol)above++;
+            else within++;
+          }
+        }
+      }
+    }
     if(!n){
       if(objCap>0&&rejected>0.3*B.n&&isFinite(medDZ))
         throw new Error("Το όριο +"+(objCap*100).toFixed(0)+" cm απέρριψε το "+(rejected/B.n*100).toFixed(0)+"% των σημείων ΜΕΤΑ και δεν έμεινε τίποτα — κόβει την ίδια την κατασκευή. Η τυπική υπερύψωση ΜΕΤΑ−ΠΡΙΝ είναι ≈ "+(medDZ*100).toFixed(0)+" cm: βάλε όριο ≈ "+(Math.ceil((medDZ*100+15)/5)*5)+" cm (και το αντίστοιχο πάχος μελέτης) και ξανατρέξε.");
@@ -863,7 +938,7 @@ async function compute(){
     }
     const mean=sum/n,std=Math.sqrt(Math.max(sum2/n-mean*mean,0));
     const s0mxNearCap=(objCap>0&&mode==="thickness"&&mx>objCap-0.01);
-    S.grid={mode,diff,gA,gB,nx,ny,ox,oy,step,design,tol,thr,objCap,objLow,rejected,rejectedLow,medDZ,
+    S.grid={mode,diff,gA,gB,nx,ny,ox,oy,step,design,tol,thr,objCap,objLow,objDelta,objCells,rejected,rejectedLow,medDZ,
       polyN:(S.poly&&S.poly.closed)?S.poly.pts.length:0,
       polyArea:(S.poly&&S.poly.closed)?polyArea(S.poly.pts):0,
       stats:{n,mean,std,mn,mx,area:n*cellA,
@@ -891,6 +966,7 @@ async function compute(){
       ((objCap>0&&(rejected/B.n>0.30||s0mxNearCap))?
         " 🛑 ΠΡΟΣΟΧΗ: το όριο +"+(objCap*100).toFixed(0)+" cm απέρριψε το "+(rejected/B.n*100).toFixed(0)+"% των σημείων ΜΕΤΑ — μάλλον κόβει την ίδια την κατασκευή! Η τυπική υπερύψωση ΜΕΤΑ−ΠΡΙΝ είναι ≈ "+(medDZ*100).toFixed(0)+" cm. Βάλε όριο ≈ "+(Math.ceil((medDZ*100+15)/5)*5)+" cm (και το αντίστοιχο πάχος μελέτης) και ξανατρέξε.":"")+
       (rejectedLow>0?" Απορρίφθηκαν "+fmtN(rejectedLow)+" σημεία κάτω από την επιφάνεια ΠΡΙΝ (−"+(objLow*100).toFixed(0)+" cm) — παρειές/τοιχία/θόρυβος.":"")+
+      (objCells>0?" Αφαιρέθηκαν "+fmtN(objCells)+" τετράγωνα ("+fmt(objCells*cellA,1)+" m²) ως αντικείμενα πάνω στην επιφάνεια (ξυλεία/υλικά).":"")+
       (cover<35?" ⚠ Το νέφος ΜΕΤΑ καλύπτει μόνο το "+cover.toFixed(0)+"% του αποτυπώματός του — μοιάζει να περιέχει μόνο περίμετρο/τοιχία και όχι την άνω επιφάνεια του στοιχείου. Έλεγξέ το σε κάτοψη πριν εμπιστευτείς το αποτέλεσμα.":"")+
       (dens<2?" ⚠ Λίγα σημεία ανά κελί ("+dens.toFixed(1)+") — αύξησε το βήμα κανάβου.":"");
   }catch(e){
@@ -1448,6 +1524,8 @@ function fillExplain(){
     t+="<b>⚠ Πιθανό πρόβλημα:</b> το όριο απέρριψε πάνω από το 30% των σημείων. Η τυπική υπερύψωση ΜΕΤΑ−ΠΡΙΝ στα δεδομένα σου είναι ≈ "+(G.medDZ*100).toFixed(0)+" cm — αν αυτό είναι το πραγματικό πάχος, το όριο πρέπει να είναι μεγαλύτερό του (π.χ. +10 ή +15 cm από αυτό).<br>";
   if(G.rejectedLow>0)
     t+="Αγνοήθηκαν <b>"+fmtN(G.rejectedLow)+" σημεία</b> βαθύτερα από "+(G.objLow*100).toFixed(0)+" cm κάτω από την επιφάνεια ΠΡΙΝ — παρειές, τοιχία ή θόρυβος, αδύνατα για πάχος.<br>";
+  if(G.objCells>0)
+    t+="Αφαιρέθηκαν <b>"+fmtN(G.objCells)+" τετράγωνα</b> ("+fmt(G.objCells*G.step*G.step,1)+" m²) που εξείχαν >"+(G.objDelta*100).toFixed(1)+" cm από τη γειτονιά τους — αντικείμενα πάνω στην επιφάνεια (ξυλεία, υλικά). Βυθίσματα δεν αφαιρούνται ποτέ.<br>";
   if(G.mode==="thickness"){
     t+="<b>Μέσο πάχος</b> = άθροισμα όλων των ΔΖ ÷ πλήθος τετραγώνων = <b>"+(s.mean*100).toFixed(1)+" cm</b>. ";
     t+="Κάθε τετράγωνο συγκρίθηκε με το πάχος μελέτης "+(G.design*100).toFixed(0)+" cm: όσα βρέθηκαν μέσα στην ανοχή ±"+(G.tol*100).toFixed(1)+" cm είναι το <b>"+s.pctWithin.toFixed(1)+"%</b> της επιφάνειας.";
@@ -1560,6 +1638,7 @@ function makePdf(){
     (G.polyN?", εντός πολυγώνου ελέγχου "+G.polyN+" κορυφών (εμβαδόν "+fmt(G.polyArea,1)+" m²) που ορίστηκε από τον χρήστη επί της υψομετρικής απεικόνισης":" στο κοινό τους αποτύπωμα")+". "+
     (G.objCap>0&&G.rejected>0?"Σημεία της επιφάνειας (β) υψηλότερα από "+(G.objCap*100).toFixed(0)+" cm άνω της επιφάνειας (α) απορρίφθηκαν ως μη ανήκοντα στην ελεγχόμενη επιφάνεια (εξοπλισμός, υλικά, αναμονές)· απορρίφθηκαν "+fmtN(G.rejected)+" σημεία. ":"")+
     (G.objLow>0&&G.rejectedLow>0?"Σημεία χαμηλότερα από "+(G.objLow*100).toFixed(0)+" cm κάτω της επιφάνειας (α) απορρίφθηκαν ως μη ανήκοντα στην άνω επιφάνεια του στοιχείου (παρειές/κατακόρυφες επιφάνειες)· απορρίφθηκαν "+fmtN(G.rejectedLow)+" σημεία. ":"")+
+    (G.objCells>0?"Επιπλέον, "+fmtN(G.objCells)+" κελιά ("+fmt(G.objCells*G.step*G.step,1)+" m²) με τοπική υπερύψωση άνω των "+(G.objDelta*100).toFixed(1)+" cm έναντι της περιβάλλουσας επιφάνειας εξαιρέθηκαν ως αντικείμενα επί της επιφάνειας (ξυλότυποι, υλικά κ.λπ.)· τα εν λόγω κελιά δεν προσμετρώνται στην ελεγχθείσα επιφάνεια. ":"")+
     "Σε κάθε κελί του κανάβου υπολογίστηκε η κατακόρυφη διαφορά υψομέτρων ΔΖ = Ζμετά − Ζπριν"+
     (cf?", από την οποία προκύπτουν οι επιμέρους όγκοι: αρνητικές τιμές αντιστοιχούν σε εκσκαφή και θετικές σε επίχωση. Μεταβολές |ΔΖ| ≤ "+(G.thr*100).toFixed(0)+" cm θεωρήθηκαν εντός της αβεβαιότητας των αποτυπώσεων και δεν προσμετρήθηκαν στους όγκους."
       :", η οποία αποδίδει το κατασκευασθέν πάχος.")+
