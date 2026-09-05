@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!--
-  HEXIS AS-BUILT CLOUD v2.3
+  HEXIS AS-BUILT CLOUD v2.4
   Έλεγχος πάχους/υψομετρικής διαφοράς κατασκευής από δύο επιφάνειες (νέφη σημείων ή ισοϋψείς DXF)
   + Παραγωγή τεχνικής έκθεσης PDF κατά πρότυπο BRB.
   Όλη η επεξεργασία γίνεται τοπικά στον browser — κανένα αρχείο δεν αποστέλλεται σε server.
@@ -185,7 +185,7 @@
   <div class="brand">HEXIS <span>AS-BUILT CLOUD</span></div>
   <div class="sub">Έλεγχος πάχους κατασκευής &amp; χωματουργικά cut/fill από νέφη σημείων</div>
   <button class="btn-help" id="btnHelp">Οδηγίες</button>
-  <div class="ver" id="verBadge">v2.3</div>
+  <div class="ver" id="verBadge">v2.4</div>
 </header>
 
 <div class="modal-ov" id="helpOv">
@@ -299,6 +299,8 @@
       <input type="number" id="objCap" value="60" step="5" min="0" title="Υλικά, μηχανήματα ή αναμονές πάνω στην επιφάνεια δεν είναι μέρος της κατασκευής — σημεία ψηλότερα από αυτό το ύψος (πάνω από την επιφάνεια ΠΡΙΝ) δεν μετρούν. Προτείνεται: πάχος μελέτης + 10. Βάλε 0 για απενεργοποίηση.">
       <details class="adv">
         <summary>Προχωρημένες ρυθμίσεις</summary>
+        <label class="fld" for="objLow">Απόρριψη σημείων ΜΕΤΑ βαθύτερα από (cm) κάτω από την επιφάνεια ΠΡΙΝ — λειτουργία πάχους</label>
+        <input type="number" id="objLow" value="10" step="5" min="0" title="Η επιφάνεια της κατασκευής δεν μπορεί να είναι κάτω από τη βάση της. Σημεία βαθύτερα από αυτό (παρειές, τοιχία, σκάμμα, ανακλάσεις) απορρίπτονται. 0 = ανενεργό.">
         <div class="row2">
           <div>
             <label class="fld" for="aggMode">Τιμή ανά τετράγωνο</label>
@@ -411,7 +413,7 @@
 <div class="footer">HEXIS AS-BUILT CLOUD · Η επεξεργασία γίνεται εξ ολοκλήρου τοπικά στη συσκευή σας · hexis-app.gr</div>
 <script>
 "use strict";
-const TOOL_VERSION="2.3";
+const TOOL_VERSION="2.4";
 document.getElementById("verBadge").textContent="v"+TOOL_VERSION;
 
 /* ---------------- Οδηγίες ---------------- */
@@ -770,9 +772,10 @@ async function compute(){
     }
     /* φίλτρο αντικειμένων: σημεία της Β υψηλότερα από objCap πάνω από την επιφάνεια Α απορρίπτονται */
     const objCap=Math.max((parseFloat($("objCap").value)||0)/100,0);
-    let Bf=B,rejected=0;
-    if(objCap>0){
-      st.textContent="Φίλτρο αντικειμένων (>"+(objCap*100).toFixed(0)+" cm) …";
+    const objLow=(mode==="thickness")?Math.max((parseFloat($("objLow").value)||0)/100,0):0;
+    let Bf=B,rejected=0,rejectedLow=0;
+    if(objCap>0||objLow>0){
+      st.textContent="Φίλτρο σημείων εκτός επιφάνειας …";
       await new Promise(r=>setTimeout(r,0));
       const xs=new Float64Array(B.n),ys=new Float64Array(B.n),zs=new Float64Array(B.n);
       let m=0;
@@ -780,7 +783,11 @@ async function compute(){
         const ix=Math.floor((B.xs[i]-ox)/step),iy=Math.floor((B.ys[i]-oy)/step);
         if(ix>=0&&iy>=0&&ix<nx&&iy<ny){
           const a=gA[iy*nx+ix];
-          if(!isNaN(a)&&B.zs[i]-a>objCap){rejected++;continue;}
+          if(!isNaN(a)){
+            const dz=B.zs[i]-a;
+            if(objCap>0&&dz>objCap){rejected++;continue;}
+            if(objLow>0&&dz<-objLow){rejectedLow++;continue;}
+          }
         }
         xs[m]=B.xs[i];ys[m]=B.ys[i];zs[m]=B.zs[i];m++;
       }
@@ -819,7 +826,7 @@ async function compute(){
     }
     if(!n)throw new Error(S.poly&&S.poly.closed?"Το περίγραμμα δεν περιέχει κοινά δεδομένα των δύο επιφανειών.":"Καμία κοινή περιοχή με δεδομένα και στις δύο επιφάνειες.");
     const mean=sum/n,std=Math.sqrt(Math.max(sum2/n-mean*mean,0));
-    S.grid={mode,diff,gA,gB,nx,ny,ox,oy,step,design,tol,thr,objCap,rejected,
+    S.grid={mode,diff,gA,gB,nx,ny,ox,oy,step,design,tol,thr,objCap,objLow,rejected,rejectedLow,
       polyN:(S.poly&&S.poly.closed)?S.poly.pts.length:0,
       polyArea:(S.poly&&S.poly.closed)?polyArea(S.poly.pts):0,
       stats:{n,mean,std,mn,mx,area:n*cellA,
@@ -833,11 +840,20 @@ async function compute(){
     fillExplain();
     $("btnPDF").disabled=$("btnCSV").disabled=$("btnPNG").disabled=false;
     /* έλεγχος πυκνότητας: αν <2 σημεία/κελί στη Β, ο κάναβος είναι πολύ πυκνός και υποεκτιμώνται επιφάνειες/όγκοι */
-    let occB=0;for(let k=0;k<nx*ny;k++)if(!isNaN(gB[k]))occB++;
+    let occA=0,occB=0;
+    for(let k=0;k<nx*ny;k++){if(!isNaN(gA[k]))occA++;if(!isNaN(gB[k]))occB++;}
     const dens=occB?Bf.n/occB:0;
+    /* κάλυψη: πόσο γεμίζει το ΜΕΤΑ το δικό του αποτύπωμα μέσα στο παράθυρο —
+       χαμηλή τιμή = νέφος μόνο με περίμετρο/τοιχία, όχι επιφάνεια */
+    const bbW=Math.max(0,Math.min(B.bbox.mxx,ex)-Math.max(B.bbox.mnx,ox));
+    const bbH=Math.max(0,Math.min(B.bbox.mxy,ey)-Math.max(B.bbox.mny,oy));
+    const bbCells=Math.max(1,Math.round(bbW/step)*Math.round(bbH/step));
+    const cover=occB/bbCells*100;
     st.textContent="Ολοκληρώθηκε: "+fmtN(n)+" κελιά · επιφάνεια "+fmt(n*cellA,1)+" m²."+
-      (rejected>0?" Απορρίφθηκαν "+fmtN(rejected)+" σημεία αντικειμένων (>"+(objCap*100).toFixed(0)+" cm).":"")+
-      (dens<2?" ⚠ Λίγα σημεία ανά κελί ("+dens.toFixed(1)+") — αύξησε το βήμα κανάβου για αξιόπιστους όγκους.":"");
+      (rejected>0?" Απορρίφθηκαν "+fmtN(rejected)+" σημεία πάνω από το όριο (+"+(objCap*100).toFixed(0)+" cm).":"")+
+      (rejectedLow>0?" Απορρίφθηκαν "+fmtN(rejectedLow)+" σημεία κάτω από την επιφάνεια ΠΡΙΝ (−"+(objLow*100).toFixed(0)+" cm) — παρειές/τοιχία/θόρυβος.":"")+
+      (cover<35?" ⚠ Το νέφος ΜΕΤΑ καλύπτει μόνο το "+cover.toFixed(0)+"% του αποτυπώματός του — μοιάζει να περιέχει μόνο περίμετρο/τοιχία και όχι την άνω επιφάνεια του στοιχείου. Έλεγξέ το σε κάτοψη πριν εμπιστευτείς το αποτέλεσμα.":"")+
+      (dens<2?" ⚠ Λίγα σημεία ανά κελί ("+dens.toFixed(1)+") — αύξησε το βήμα κανάβου.":"");
   }catch(e){
     st.textContent="Σφάλμα: "+e.message;
   }
@@ -1388,7 +1404,9 @@ function fillExplain(){
   let t="Η περιοχή χωρίστηκε σε τετράγωνα <b>"+sq+"×"+sq+" m</b>. Σε κάθε τετράγωνο πήραμε το μέσο υψόμετρο των σημείων της επιφάνειας ΠΡΙΝ και της επιφάνειας ΜΕΤΑ και υπολογίσαμε τη διαφορά τους <b>ΔΖ = ΜΕΤΑ − ΠΡΙΝ</b>. ";
   t+="Μετρήθηκαν <b>"+fmtN(s.n)+"</b> τετράγωνα με δεδομένα και στις δύο επιφάνειες, δηλαδή επιφάνεια <b>"+fmt(s.area,0)+" m²</b>"+(G.polyN?" (μόνο μέσα στο περίγραμμα που όρισες, "+G.polyN+" κορυφές)":"")+".<br>";
   if(G.rejected>0)
-    t+="Αγνοήθηκαν <b>"+fmtN(G.rejected)+" σημεία</b> που βρέθηκαν ψηλότερα από "+(G.objCap*100).toFixed(0)+" cm πάνω από την επιφάνεια ΠΡΙΝ — υλικά, μηχανήματα ή αναμονές, όχι μέρος της κατασκευής.<br>";
+    t+="Αγνοήθηκαν <b>"+fmtN(G.rejected)+" σημεία</b> ψηλότερα από "+(G.objCap*100).toFixed(0)+" cm πάνω από την επιφάνεια ΠΡΙΝ — υλικά, μηχανήματα ή αναμονές.<br>";
+  if(G.rejectedLow>0)
+    t+="Αγνοήθηκαν <b>"+fmtN(G.rejectedLow)+" σημεία</b> βαθύτερα από "+(G.objLow*100).toFixed(0)+" cm κάτω από την επιφάνεια ΠΡΙΝ — παρειές, τοιχία ή θόρυβος, αδύνατα για πάχος.<br>";
   if(G.mode==="thickness"){
     t+="<b>Μέσο πάχος</b> = άθροισμα όλων των ΔΖ ÷ πλήθος τετραγώνων = <b>"+(s.mean*100).toFixed(1)+" cm</b>. ";
     t+="Κάθε τετράγωνο συγκρίθηκε με το πάχος μελέτης "+(G.design*100).toFixed(0)+" cm: όσα βρέθηκαν μέσα στην ανοχή ±"+(G.tol*100).toFixed(1)+" cm είναι το <b>"+s.pctWithin.toFixed(1)+"%</b> της επιφάνειας.";
@@ -1499,7 +1517,8 @@ function makePdf(){
     "(β) επιφάνεια μετά την παρέμβαση (αρχείο: "+(S.B?S.B.name:"—")+", "+(S.B?fmtN(S.B.n):"—")+" σημεία, ημ/νία "+dGr($("rDateB").value)+"). "+
     "Αμφότερες οι επιφάνειες ανήχθησαν σε κοινό κάναβο βήματος "+G.step.toFixed(2)+" m"+
     (G.polyN?", εντός πολυγώνου ελέγχου "+G.polyN+" κορυφών (εμβαδόν "+fmt(G.polyArea,1)+" m²) που ορίστηκε από τον χρήστη επί της υψομετρικής απεικόνισης":" στο κοινό τους αποτύπωμα")+". "+
-    (G.objCap>0?"Σημεία της επιφάνειας (β) ευρισκόμενα υψηλότερα από "+(G.objCap*100).toFixed(0)+" cm άνω της επιφάνειας (α) απορρίφθηκαν ως μη ανήκοντα στην ελεγχόμενη επιφάνεια (εξοπλισμός, υλικά, αναμονές οπλισμού κ.λπ.)· απορρίφθηκαν "+fmtN(G.rejected)+" σημεία. ":"")+
+    (G.objCap>0&&G.rejected>0?"Σημεία της επιφάνειας (β) υψηλότερα από "+(G.objCap*100).toFixed(0)+" cm άνω της επιφάνειας (α) απορρίφθηκαν ως μη ανήκοντα στην ελεγχόμενη επιφάνεια (εξοπλισμός, υλικά, αναμονές)· απορρίφθηκαν "+fmtN(G.rejected)+" σημεία. ":"")+
+    (G.objLow>0&&G.rejectedLow>0?"Σημεία χαμηλότερα από "+(G.objLow*100).toFixed(0)+" cm κάτω της επιφάνειας (α) απορρίφθηκαν ως μη ανήκοντα στην άνω επιφάνεια του στοιχείου (παρειές/κατακόρυφες επιφάνειες)· απορρίφθηκαν "+fmtN(G.rejectedLow)+" σημεία. ":"")+
     "Σε κάθε κελί του κανάβου υπολογίστηκε η κατακόρυφη διαφορά υψομέτρων ΔΖ = Ζμετά − Ζπριν"+
     (cf?", από την οποία προκύπτουν οι επιμέρους όγκοι: αρνητικές τιμές αντιστοιχούν σε εκσκαφή και θετικές σε επίχωση. Μεταβολές |ΔΖ| ≤ "+(G.thr*100).toFixed(0)+" cm θεωρήθηκαν εντός της αβεβαιότητας των αποτυπώσεων και δεν προσμετρήθηκαν στους όγκους."
       :", η οποία αποδίδει το κατασκευασθέν πάχος.")+
