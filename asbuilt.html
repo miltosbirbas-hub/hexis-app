@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!--
-  HEXIS AS-BUILT CLOUD v2.4
+  HEXIS AS-BUILT CLOUD v2.5
   Έλεγχος πάχους/υψομετρικής διαφοράς κατασκευής από δύο επιφάνειες (νέφη σημείων ή ισοϋψείς DXF)
   + Παραγωγή τεχνικής έκθεσης PDF κατά πρότυπο BRB.
   Όλη η επεξεργασία γίνεται τοπικά στον browser — κανένα αρχείο δεν αποστέλλεται σε server.
@@ -185,7 +185,7 @@
   <div class="brand">HEXIS <span>AS-BUILT CLOUD</span></div>
   <div class="sub">Έλεγχος πάχους κατασκευής &amp; χωματουργικά cut/fill από νέφη σημείων</div>
   <button class="btn-help" id="btnHelp">Οδηγίες</button>
-  <div class="ver" id="verBadge">v2.4</div>
+  <div class="ver" id="verBadge">v2.5</div>
 </header>
 
 <div class="modal-ov" id="helpOv">
@@ -354,6 +354,28 @@
       </div>
       <label class="fld" for="rElement">Ελεγχόμενο στοιχείο</label>
       <input type="text" id="rElement" value="Πλάκα οπλισμένου σκυροδέματος">
+      <label class="fld" for="rTeam">Φορέας / Ομάδα μελέτης (προαιρετικό)</label>
+      <input type="text" id="rTeam" placeholder="π.χ. επωνυμία γραφείου">
+      <div class="row2">
+        <div>
+          <label class="fld" for="rSign1">Συντάκτης 1 — Όνομα (προαιρετικό)</label>
+          <input type="text" id="rSign1">
+        </div>
+        <div>
+          <label class="fld" for="rSign1t">Ιδιότητα</label>
+          <input type="text" id="rSign1t" placeholder="π.χ. Πολιτικός Μηχανικός">
+        </div>
+      </div>
+      <div class="row2">
+        <div>
+          <label class="fld" for="rSign2">Συντάκτης 2 — Όνομα (προαιρετικό)</label>
+          <input type="text" id="rSign2">
+        </div>
+        <div>
+          <label class="fld" for="rSign2t">Ιδιότητα</label>
+          <input type="text" id="rSign2t">
+        </div>
+      </div>
       <label class="fld" for="rLogo">Λογότυπο (PNG/JPG — προαιρετικό)</label>
       <input type="file" id="rLogo" accept="image/png,image/jpeg">
       <label class="fld" for="rConcl">Συμπεράσματα (συμπληρώνονται αυτόματα — επεξεργάσιμα)</label>
@@ -413,7 +435,7 @@
 <div class="footer">HEXIS AS-BUILT CLOUD · Η επεξεργασία γίνεται εξ ολοκλήρου τοπικά στη συσκευή σας · hexis-app.gr</div>
 <script>
 "use strict";
-const TOOL_VERSION="2.4";
+const TOOL_VERSION="2.5";
 document.getElementById("verBadge").textContent="v"+TOOL_VERSION;
 
 /* ---------------- Οδηγίες ---------------- */
@@ -773,7 +795,17 @@ async function compute(){
     /* φίλτρο αντικειμένων: σημεία της Β υψηλότερα από objCap πάνω από την επιφάνεια Α απορρίπτονται */
     const objCap=Math.max((parseFloat($("objCap").value)||0)/100,0);
     const objLow=(mode==="thickness")?Math.max((parseFloat($("objLow").value)||0)/100,0):0;
-    let Bf=B,rejected=0,rejectedLow=0;
+    let Bf=B,rejected=0,rejectedLow=0,medDZ=NaN;
+    {   /* δειγματοληπτική διάμεσος ΔΖ των σημείων ΜΕΤΑ έναντι της επιφάνειας ΠΡΙΝ */
+      const smp=[];const stp=Math.max(1,Math.floor(B.n/20000));
+      for(let i=0;i<B.n;i+=stp){
+        const ix=Math.floor((B.xs[i]-ox)/step),iy=Math.floor((B.ys[i]-oy)/step);
+        if(ix<0||iy<0||ix>=nx||iy>=ny)continue;
+        const a=gA[iy*nx+ix];
+        if(!isNaN(a))smp.push(B.zs[i]-a);
+      }
+      if(smp.length){smp.sort((p,q)=>p-q);medDZ=smp[Math.floor(smp.length/2)];}
+    }
     if(objCap>0||objLow>0){
       st.textContent="Φίλτρο σημείων εκτός επιφάνειας …";
       await new Promise(r=>setTimeout(r,0));
@@ -824,9 +856,14 @@ async function compute(){
         else aNeu+=cellA;
       }
     }
-    if(!n)throw new Error(S.poly&&S.poly.closed?"Το περίγραμμα δεν περιέχει κοινά δεδομένα των δύο επιφανειών.":"Καμία κοινή περιοχή με δεδομένα και στις δύο επιφάνειες.");
+    if(!n){
+      if(objCap>0&&rejected>0.3*B.n&&isFinite(medDZ))
+        throw new Error("Το όριο +"+(objCap*100).toFixed(0)+" cm απέρριψε το "+(rejected/B.n*100).toFixed(0)+"% των σημείων ΜΕΤΑ και δεν έμεινε τίποτα — κόβει την ίδια την κατασκευή. Η τυπική υπερύψωση ΜΕΤΑ−ΠΡΙΝ είναι ≈ "+(medDZ*100).toFixed(0)+" cm: βάλε όριο ≈ "+(Math.ceil((medDZ*100+15)/5)*5)+" cm (και το αντίστοιχο πάχος μελέτης) και ξανατρέξε.");
+      throw new Error(S.poly&&S.poly.closed?"Το περίγραμμα δεν περιέχει κοινά δεδομένα των δύο επιφανειών.":"Καμία κοινή περιοχή με δεδομένα και στις δύο επιφάνειες.");
+    }
     const mean=sum/n,std=Math.sqrt(Math.max(sum2/n-mean*mean,0));
-    S.grid={mode,diff,gA,gB,nx,ny,ox,oy,step,design,tol,thr,objCap,objLow,rejected,rejectedLow,
+    const s0mxNearCap=(objCap>0&&mode==="thickness"&&mx>objCap-0.01);
+    S.grid={mode,diff,gA,gB,nx,ny,ox,oy,step,design,tol,thr,objCap,objLow,rejected,rejectedLow,medDZ,
       polyN:(S.poly&&S.poly.closed)?S.poly.pts.length:0,
       polyArea:(S.poly&&S.poly.closed)?polyArea(S.poly.pts):0,
       stats:{n,mean,std,mn,mx,area:n*cellA,
@@ -851,6 +888,8 @@ async function compute(){
     const cover=occB/bbCells*100;
     st.textContent="Ολοκληρώθηκε: "+fmtN(n)+" κελιά · επιφάνεια "+fmt(n*cellA,1)+" m²."+
       (rejected>0?" Απορρίφθηκαν "+fmtN(rejected)+" σημεία πάνω από το όριο (+"+(objCap*100).toFixed(0)+" cm).":"")+
+      ((objCap>0&&(rejected/B.n>0.30||s0mxNearCap))?
+        " 🛑 ΠΡΟΣΟΧΗ: το όριο +"+(objCap*100).toFixed(0)+" cm απέρριψε το "+(rejected/B.n*100).toFixed(0)+"% των σημείων ΜΕΤΑ — μάλλον κόβει την ίδια την κατασκευή! Η τυπική υπερύψωση ΜΕΤΑ−ΠΡΙΝ είναι ≈ "+(medDZ*100).toFixed(0)+" cm. Βάλε όριο ≈ "+(Math.ceil((medDZ*100+15)/5)*5)+" cm (και το αντίστοιχο πάχος μελέτης) και ξανατρέξε.":"")+
       (rejectedLow>0?" Απορρίφθηκαν "+fmtN(rejectedLow)+" σημεία κάτω από την επιφάνεια ΠΡΙΝ (−"+(objLow*100).toFixed(0)+" cm) — παρειές/τοιχία/θόρυβος.":"")+
       (cover<35?" ⚠ Το νέφος ΜΕΤΑ καλύπτει μόνο το "+cover.toFixed(0)+"% του αποτυπώματός του — μοιάζει να περιέχει μόνο περίμετρο/τοιχία και όχι την άνω επιφάνεια του στοιχείου. Έλεγξέ το σε κάτοψη πριν εμπιστευτείς το αποτέλεσμα.":"")+
       (dens<2?" ⚠ Λίγα σημεία ανά κελί ("+dens.toFixed(1)+") — αύξησε το βήμα κανάβου.":"");
@@ -1405,6 +1444,8 @@ function fillExplain(){
   t+="Μετρήθηκαν <b>"+fmtN(s.n)+"</b> τετράγωνα με δεδομένα και στις δύο επιφάνειες, δηλαδή επιφάνεια <b>"+fmt(s.area,0)+" m²</b>"+(G.polyN?" (μόνο μέσα στο περίγραμμα που όρισες, "+G.polyN+" κορυφές)":"")+".<br>";
   if(G.rejected>0)
     t+="Αγνοήθηκαν <b>"+fmtN(G.rejected)+" σημεία</b> ψηλότερα από "+(G.objCap*100).toFixed(0)+" cm πάνω από την επιφάνεια ΠΡΙΝ — υλικά, μηχανήματα ή αναμονές.<br>";
+  if(G.objCap>0&&G.rejected>0.30*S.B.n&&isFinite(G.medDZ))
+    t+="<b>⚠ Πιθανό πρόβλημα:</b> το όριο απέρριψε πάνω από το 30% των σημείων. Η τυπική υπερύψωση ΜΕΤΑ−ΠΡΙΝ στα δεδομένα σου είναι ≈ "+(G.medDZ*100).toFixed(0)+" cm — αν αυτό είναι το πραγματικό πάχος, το όριο πρέπει να είναι μεγαλύτερό του (π.χ. +10 ή +15 cm από αυτό).<br>";
   if(G.rejectedLow>0)
     t+="Αγνοήθηκαν <b>"+fmtN(G.rejectedLow)+" σημεία</b> βαθύτερα από "+(G.objLow*100).toFixed(0)+" cm κάτω από την επιφάνεια ΠΡΙΝ — παρειές, τοιχία ή θόρυβος, αδύνατα για πάχος.<br>";
   if(G.mode==="thickness"){
@@ -1472,7 +1513,7 @@ function makePdf(){
     pageMargins:[46,46,46,56],
     footer:(page,pages)=>({
       columns:[
-        {text:"www.birbas.gr",fontSize:8.5,color:"#5A6B7D"},
+        {text:$("rTeam").value.trim(),fontSize:8.5,color:"#5A6B7D"},
         {text:"Σελίδα "+page+" / "+pages,alignment:"right",fontSize:8.5,color:"#5A6B7D"}
       ],margin:[46,18,46,0]
     }),
@@ -1500,7 +1541,7 @@ function makePdf(){
   ];
   if(!cf)detBody.push(detRow("Ελεγχόμενο στοιχείο",el));
   detBody.push(detRow("Ημερομηνία έκθεσης",todayGr()));
-  detBody.push(detRow("Ομάδα μελέτης","BRB DEVELOPMENT ΜΟΝ. Ι.Κ.Ε."));
+  if($("rTeam").value.trim())detBody.push(detRow("Ομάδα μελέτης",$("rTeam").value.trim()));
   c.push({table:{widths:[130,"*"],body:detBody},
     layout:{hLineColor:()=>"#D7DEE8",vLineColor:()=>"#D7DEE8",hLineWidth:()=>0.6,vLineWidth:()=>0.6},fontSize:10});
 
@@ -1574,19 +1615,19 @@ function makePdf(){
   c.push({text:"4. Συμπεράσματα",style:"h1"});
   c.push({text:$("rConcl").value||"—",style:"p"});
 
-  c.push({text:" ",margin:[0,16,0,0]});
-  c.push({columns:[
-    {stack:[
-      {text:"Για την BRB DEVELOPMENT ΜΟΝ. Ι.Κ.Ε.",fontSize:9.5,alignment:"center",margin:[0,0,0,34]},
-      {text:"Μιλτιάδης Μπίρμπας",bold:true,fontSize:10.5,alignment:"center"},
-      {text:"Πολιτικός Μηχανικός Τ.Ε., MSc",fontSize:9.5,alignment:"center",color:"#5A6B7D"}
-    ]},
-    {stack:[
-      {text:" ",fontSize:9.5,margin:[0,0,0,34]},
-      {text:"Θεόδωρος Μορέλλας",bold:true,fontSize:10.5,alignment:"center"},
-      {text:"Διπλ. Πολιτικός Μηχανικός",fontSize:9.5,alignment:"center",color:"#5A6B7D"}
-    ]}
-  ]});
+  const sig1={n:$("rSign1").value.trim(),t:$("rSign1t").value.trim()};
+  const sig2={n:$("rSign2").value.trim(),t:$("rSign2t").value.trim()};
+  const team=$("rTeam").value.trim();
+  const signers=[sig1,sig2].filter(sg=>sg.n);
+  if(signers.length){
+    c.push({text:" ",margin:[0,16,0,0]});
+    const stacks=signers.map((sg,idx)=>({stack:[
+      {text:(idx===0&&team)?"Για "+team:" ",fontSize:9.5,alignment:"center",margin:[0,0,0,34]},
+      {text:sg.n,bold:true,fontSize:10.5,alignment:"center"},
+      {text:sg.t||" ",fontSize:9.5,alignment:"center",color:"#5A6B7D"}
+    ]}));
+    c.push(signers.length===2?{columns:stacks}:{columns:[{width:"*",text:""},{width:260,...stacks[0]},{width:"*",text:""}]});
+  }
   pdfMake.createPdf(dd).download(cf?"Texniki_Ekthesi_CutFill.pdf":"Texniki_Ekthesi_AsBuilt.pdf");
 }
 
