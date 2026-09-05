@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!--
-  HEXIS AS-BUILT CLOUD v1.3
+  HEXIS AS-BUILT CLOUD v2.2
   Έλεγχος πάχους/υψομετρικής διαφοράς κατασκευής από δύο επιφάνειες (νέφη σημείων ή ισοϋψείς DXF)
   + Παραγωγή τεχνικής έκθεσης PDF κατά πρότυπο BRB.
   Όλη η επεξεργασία γίνεται τοπικά στον browser — κανένα αρχείο δεν αποστέλλεται σε server.
@@ -23,124 +23,142 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 <style>
   :root{
-    --bg:#0A1730;
-    --surface:#102240;
-    --surface2:#0D1C36;
-    --field:#0B1B38;
-    --border:#253B63;
-    --border-soft:#1B3358;
-    --text:#EEF2F8;
-    --muted:#93A5C4;
+    --bg:#F5F1E8;
+    --ink:#2B2A24;
+    --muted:#6E6A5C;
+    --line:rgba(122,104,74,.24);
+    --line-soft:rgba(122,104,74,.14);
     --accent:#E8772E;
+    --accent-deep:#C96A2B;
     --accent2:#FFB02E;
-    --blue:#4D8DFF;
-    --ok:#3DDC97;
-    --bad:#FF6B6B;
+    --blue:#2D7DFF;
+    --ok:#2E7D32;
+    --bad:#C62828;
+    --glass:rgba(255,255,255,.78);
+    --field:#FFFFFF;
     --radius:12px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
+  html{background:var(--bg)}
   body{
-    font-family:'DM Sans',system-ui,sans-serif;color:var(--text);font-size:14.5px;line-height:1.45;
-    background:
-      radial-gradient(1100px 520px at 85% -10%, rgba(45,125,255,.14), transparent 60%),
-      radial-gradient(900px 480px at -10% 110%, rgba(232,119,46,.10), transparent 55%),
-      var(--bg);
-    min-height:100vh;
+    font-family:'DM Sans',system-ui,sans-serif;color:var(--ink);font-size:14.5px;line-height:1.55;
+    background:transparent;min-height:100vh;
+  }
+  /* ---- Θεματικό φόντο: ισοϋψείς · τομή χωματουργικού · νέφος σημείων (ανοιχτοί γήινοι τόνοι) ---- */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:-2;
+    background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201600%20900%22%20preserveAspectRatio%3D%22xMidYMid%20slice%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22gA%22%20cx%3D%2280%25%22%20cy%3D%226%25%22%20r%3D%2260%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23FFE3C4%22%20stop-opacity%3D%22.70%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23FFE3C4%22%20stop-opacity%3D%220%22%2F%3E%3C%2FradialGradient%3E%3CradialGradient%20id%3D%22gB%22%20cx%3D%224%25%22%20cy%3D%2296%25%22%20r%3D%2255%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23E8B78A%22%20stop-opacity%3D%22.45%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23E8B78A%22%20stop-opacity%3D%220%22%2F%3E%3C%2FradialGradient%3E%3ClinearGradient%20id%3D%22cutg%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23E7DAC2%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23DCCBAC%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%221600%22%20height%3D%22900%22%20fill%3D%22%23F5F1E8%22%2F%3E%3Crect%20width%3D%221600%22%20height%3D%22900%22%20fill%3D%22url(%23gA)%22%2F%3E%3Crect%20width%3D%221600%22%20height%3D%22900%22%20fill%3D%22url(%23gB)%22%2F%3E%3Cpath%20d%3D%22M%20-50%2090%20L%20-15%2085.4%20L%2021%2096.5%20L%2056%20106.6%20L%2092%20114.2%20L%20127%20118.7%20L%20162%20119.6%20L%20198%20117.5%20L%20233%20113.5%20L%20269%20108.8%20L%20304%20104.6%20L%20340%20101.8%20L%20375%20100.5%20L%20410%20100.3%20L%20446%20100.3%20L%20481%2099.5%20L%20517%2096.9%20L%20552%2092.0%20L%20588%2084.8%20L%20623%2076.1%20L%20658%2067.3%20L%20694%2059.7%20L%20729%2054.9%20L%20765%2053.7%20L%20800%2056.5%20L%20835%2062.7%20L%20871%2071.3%20L%20906%2080.8%20L%20942%2089.7%20L%20977%2096.7%20L%201012%20101.2%20L%201048%20103.3%20L%201083%20103.5%20L%201119%20103.0%20L%201154%20102.8%20L%201190%20103.8%20L%201225%20106.2%20L%201260%20109.8%20L%201296%20113.7%20L%201331%20116.6%20L%201367%20117.5%20L%201402%20115.3%20L%201438%20109.7%20L%201473%20101.1%20L%201508%2090.6%20L%201544%2079.7%20L%201579%2069.9%20L%201615%2062.7%20L%201650%2059.0%20%22%20fill%3D%22none%22%20stroke%3D%22%23C9B58F%22%20stroke-width%3D%221.3%22%20opacity%3D%220.28%22%2F%3E%3Cpath%20d%3D%22M%20-50%20172%20L%20-15%20209.7%20L%2021%20207.3%20L%2056%20201.0%20L%2092%20192.8%20L%20127%20185.0%20L%20162%20179.0%20L%20198%20175.7%20L%20233%20174.3%20L%20269%20173.7%20L%20304%20172.1%20L%20340%20168.1%20L%20375%20161.4%20L%20410%20152.7%20L%20446%20143.6%20L%20481%20136.4%20L%20517%20133.1%20L%20552%20135.0%20L%20588%20142.2%20L%20623%20153.5%20L%20658%20166.6%20L%20694%20178.9%20L%20729%20188.5%20L%20765%20194.0%20L%20800%20195.5%20L%20835%20194.1%20L%20871%20191.6%20L%20906%20189.7%20L%20942%20189.6%20L%20977%20191.3%20L%201012%20193.8%20L%201048%20195.6%20L%201083%20194.6%20L%201119%20189.8%20L%201154%20180.9%20L%201190%20168.8%20L%201225%20155.7%20L%201260%20143.9%20L%201296%20135.9%20L%201331%20133.1%20L%201367%20135.5%20L%201402%20142.2%20L%201438%20151.1%20L%201473%20160.0%20L%201508%20167.1%20L%201544%20171.5%20L%201579%20173.4%20L%201615%20174.1%20L%201650%20175.2%20%22%20fill%3D%22none%22%20stroke%3D%22%23C9B58F%22%20stroke-width%3D%221.3%22%20opacity%3D%220.33%22%2F%3E%3Cpath%20d%3D%22M%20-50%20254%20L%20-15%20262.6%20L%2021%20253.1%20L%2056%20247.6%20L%2092%20245.7%20L%20127%20245.3%20L%20162%20243.8%20L%20198%20239.5%20L%20233%20232.3%20L%20269%20223.9%20L%20304%20217.2%20L%20340%20215.2%20L%20375%20219.9%20L%20410%20231.2%20L%20446%20247.0%20L%20481%20263.7%20L%20517%20277.6%20L%20552%20285.8%20L%20588%20287.7%20L%20623%20284.4%20L%20658%20278.6%20L%20694%20273.3%20L%20729%20270.3%20L%20765%20270.0%20L%20800%20270.8%20L%20835%20270.2%20L%20871%20265.9%20L%20906%20256.7%20L%20942%20243.5%20L%20977%20229.0%20L%201012%20216.7%20L%201048%20209.9%20L%201083%20210.6%20L%201119%20218.2%20L%201154%20230.6%20L%201190%20244.3%20L%201225%20255.8%20L%201260%20263.2%20L%201296%20266.2%20L%201331%20266.6%20L%201367%20266.7%20L%201402%20268.9%20L%201438%20274.1%20L%201473%20281.1%20L%201508%20287.7%20L%201544%20290.6%20L%201579%20287.5%20L%201615%20277.8%20L%201650%20262.9%20%22%20fill%3D%22none%22%20stroke%3D%22%23C9B58F%22%20stroke-width%3D%221.3%22%20opacity%3D%220.33%22%2F%3E%3Cpath%20d%3D%22M%20-50%20336%20L%20-15%20316.1%20L%2021%20317.4%20L%2056%20316.8%20L%2092%20312.6%20L%20127%20306.1%20L%20162%20301.1%20L%20198%20301.5%20L%20233%20309.9%20L%20269%20326.0%20L%20304%20346.0%20L%20340%20364.5%20L%20375%20376.4%20L%20410%20379.3%20L%20446%20373.9%20L%20481%20363.8%20L%20517%20353.6%20L%20552%20346.7%20L%20588%20343.9%20L%20623%20343.2%20L%20658%20341.0%20L%20694%20334.2%20L%20729%20322.2%20L%20765%20307.5%20L%20800%20294.4%20L%20835%20288.0%20L%20871%20291.1%20L%20906%20303.4%20L%20942%20321.2%20L%20977%20339.3%20L%201012%20352.8%20L%201048%20359.5%20L%201083%20360.0%20L%201119%20357.7%20L%201154%20356.3%20L%201190%20358.2%20L%201225%20362.9%20L%201260%20367.4%20L%201296%20367.6%20L%201331%20360.5%20L%201367%20345.8%20L%201402%20326.4%20L%201438%20307.6%20L%201473%20294.6%20L%201508%20290.6%20L%201544%20295.7%20L%201579%20306.5%20L%201615%20318.4%20L%201650%20327.4%20%22%20fill%3D%22none%22%20stroke%3D%22%23C9B58F%22%20stroke-width%3D%221.3%22%20opacity%3D%220.29%22%2F%3E%3Cpath%20d%3D%22M%20-50%20418%20L%20-15%20394.2%20L%2021%20390.6%20L%2056%20389.0%20L%2092%20394.8%20L%20127%20409.8%20L%20162%20431.4%20L%20198%20452.9%20L%20233%20466.9%20L%20269%20468.8%20L%20304%20459.3%20L%20340%20443.3%20L%20375%20427.7%20L%20410%20417.6%20L%20446%20413.7%20L%20481%20412.6%20L%20517%20409.3%20L%20552%20400.5%20L%20588%20387.4%20L%20623%20374.9%20L%20658%20369.5%20L%20694%20375.6%20L%20729%20392.9%20L%20765%20416.2%20L%20800%20437.7%20L%20835%20451.2%20L%20871%20454.4%20L%20906%20449.9%20L%20942%20443.3%20L%20977%20439.6%20L%201012%20440.3%20L%201048%20442.6%20L%201083%20441.1%20L%201119%20431.7%20L%201154%20414.0%20L%201190%20392.4%20L%201225%20374.0%20L%201260%20365.6%20L%201296%20369.8%20L%201331%20384.1%20L%201367%20402.1%20L%201402%20417.2%20L%201438%20425.5%20L%201473%20427.8%20L%201508%20428.6%20L%201544%20432.7%20L%201579%20441.9%20L%201615%20453.8%20L%201650%20462.8%20%22%20fill%3D%22none%22%20stroke%3D%22%23C9B58F%22%20stroke-width%3D%221.3%22%20opacity%3D%220.23%22%2F%3E%3Cpath%20d%3D%22M%20-50%20500%20L%20-15%20487.1%20L%2021%20503.0%20L%2056%20526.0%20L%2092%20547.2%20L%20127%20557.2%20L%20162%20551.3%20L%20198%20532.4%20L%20233%20509.2%20L%20269%20491.0%20L%20304%20482.6%20L%20340%20481.7%20L%20375%20481.6%20L%20410%20476.7%20L%20446%20466.5%20L%20481%20456.8%20L%20517%20455.6%20L%20552%20468.2%20L%20588%20492.6%20L%20623%20520.4%20L%20658%20541.1%20L%20694%20548.0%20L%20729%20541.9%20L%20765%20529.5%20L%20800%20519.0%20L%20835%20514.6%20L%20871%20514.1%20L%20906%20511.2%20L%20942%20499.9%20L%20977%20480.3%20L%201012%20458.6%20L%201048%20444.5%20L%201083%20445.3%20L%201119%20461.2%20L%201154%20485.2%20L%201190%20507.4%20L%201225%20520.5%20L%201260%20523.5%20L%201296%20521.8%20L%201331%20522.5%20L%201367%20528.8%20L%201402%20537.7%20L%201438%20541.9%20L%201473%20534.3%20L%201508%20513.7%20L%201544%20486.1%20L%201579%20461.9%20L%201615%20449.8%20L%201650%20452.5%20%22%20fill%3D%22none%22%20stroke%3D%22%23C9B58F%22%20stroke-width%3D%221.3%22%20opacity%3D%220.22%22%2F%3E%3Cpath%20d%3D%22M%20-50%20582%20L%20-15%20630.6%20L%2021%20641.9%20L%2056%20634.2%20L%2092%20609.7%20L%20127%20579.7%20L%20162%20557.4%20L%20198%20549.2%20L%20233%20551.8%20L%20269%20555.7%20L%20304%20553.7%20L%20340%20546.7%20L%20375%20543.6%20L%20410%20553.4%20L%20446%20578.1%20L%20481%20609.2%20L%20517%20633.2%20L%20552%20639.7%20L%20588%20628.4%20L%20623%20608.5%20L%20658%20591.7%20L%20694%20584.1%20L%20729%20582.1%20L%20765%20577.2%20L%20800%20563.3%20L%20835%20542.9%20L%20871%20526.5%20L%20906%20525.5%20L%20942%20543.5%20L%20977%20573.5%20L%201012%20601.9%20L%201048%20617.6%20L%201083%20618.6%20L%201119%20612.3%20L%201154%20608.3%20L%201190%20610.9%20L%201225%20615.6%20L%201260%20612.4%20L%201296%20595.1%20L%201331%20566.4%20L%201367%20538.0%20L%201402%20523.0%20L%201438%20527.4%20L%201473%20546.3%20L%201508%20568.1%20L%201544%20582.3%20L%201579%20587.0%20L%201615%20588.8%20L%201650%20596.3%20%22%20fill%3D%22none%22%20stroke%3D%22%23C9B58F%22%20stroke-width%3D%221.3%22%20opacity%3D%220.26%22%2F%3E%3Cpath%20d%3D%22M%20-50%20664%20L%20-15%20697.5%20L%2021%20661.7%20L%2056%20630.4%20L%2092%20617.1%20L%20127%20621.9%20L%20162%20633.1%20L%20198%20638.6%20L%20233%20636.8%20L%20269%20637.1%20L%20304%20650.9%20L%20340%20679.6%20L%20375%20711.3%20L%20410%20728.7%20L%20446%20722.4%20L%20481%20697.5%20L%20517%20669.9%20L%20552%20653.2%20L%20588%20649.0%20L%20623%20647.7%20L%20658%20639.0%20L%20694%20622.4%20L%20729%20609.2%20L%20765%20613.5%20L%20800%20639.1%20L%20835%20675.8%20L%20871%20705.3%20L%20906%20715.3%20L%20942%20707.1%20L%20977%20693.4%20L%201012%20686.0%20L%201048%20686.2%20L%201083%20684.0%20L%201119%20668.9%20L%201154%20640.5%20L%201190%20611.3%20L%201225%20598.2%20L%201260%20609.2%20L%201296%20637.3%20L%201331%20665.9%20L%201367%20682.0%20L%201402%20684.9%20L%201438%20684.9%20L%201473%20692.2%20L%201508%20706.5%20L%201544%20716.1%20L%201579%20708.0%20L%201615%20679.7%20L%201650%20642.9%20%22%20fill%3D%22none%22%20stroke%3D%22%23C9B58F%22%20stroke-width%3D%221.3%22%20opacity%3D%220.32%22%2F%3E%3Cpath%20d%3D%22M%20-50%20746%20L%20-15%20690.4%20L%2021%20688.0%20L%2056%20705.1%20L%2092%20723.5%20L%20127%20731.0%20L%20162%20732.3%20L%20198%20742.0%20L%20233%20767.6%20L%20269%20799.0%20L%20304%20815.3%20L%20340%20803.2%20L%20375%20769.2%20L%20410%20734.4%20L%20446%20716.5%20L%20481%20715.8%20L%20517%20718.3%20L%20552%20712.0%20L%20588%20700.2%20L%20623%20698.8%20L%20658%20720.5%20L%20694%20759.9%20L%20729%20796.1%20L%20765%20809.3%20L%20800%20796.7%20L%20835%20773.7%20L%20871%20758.1%20L%20906%20753.9%20L%20942%20749.9%20L%20977%20732.9%20L%201012%20704.3%20L%201048%20681.1%20L%201083%20681.9%20L%201119%20709.8%20L%201154%20748.6%20L%201190%20776.2%20L%201225%20783.0%20L%201260%20777.8%20L%201296%20776.2%20L%201331%20783.9%20L%201367%20790.0%20L%201402%20778.6%20L%201438%20745.5%20L%201473%20705.7%20L%201508%20681.9%20L%201544%20685.9%20L%201579%20709.3%20L%201615%20732.8%20L%201650%20743.5%20%22%20fill%3D%22none%22%20stroke%3D%22%23C9B58F%22%20stroke-width%3D%221.3%22%20opacity%3D%220.34%22%2F%3E%3Cpath%20d%3D%22M%20-50%20760%20L%20260%20760%20L%20420%20830%20L%20700%20830%20L%20830%20760%20L%201020%20742%20L%201220%20742%20L%201360%20700%20L%201700%20700%20L%201700%20950%20L%20-50%20950%20Z%22%20fill%3D%22url(%23cutg)%22%20opacity%3D%22.9%22%2F%3E%3Cpath%20d%3D%22M%20-50%20760%20L%20260%20760%20L%20420%20830%20L%20700%20830%20L%20830%20760%20L%201020%20742%20L%201220%20742%20L%201360%20700%20L%201700%20700%22%20fill%3D%22none%22%20stroke%3D%22%23B49A6C%22%20stroke-width%3D%222%22%20opacity%3D%22.65%22%2F%3E%3Cline%20x1%3D%22-50%22%20y1%3D%22758%22%20x2%3D%221700%22%20y2%3D%22758%22%20stroke%3D%22%23E8772E%22%20stroke-width%3D%221.5%22%20stroke-dasharray%3D%2210%2012%22%20opacity%3D%22.40%22%2F%3E%3Ccircle%20cx%3D%22724%22%20cy%3D%22418%22%20r%3D%222.7%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.32%22%2F%3E%3Ccircle%20cx%3D%22940%22%20cy%3D%22178%22%20r%3D%222.1%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.34%22%2F%3E%3Ccircle%20cx%3D%22151%22%20cy%3D%22254%22%20r%3D%221.4%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.32%22%2F%3E%3Ccircle%20cx%3D%2267%22%20cy%3D%22689%22%20r%3D%222.7%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.31%22%2F%3E%3Ccircle%20cx%3D%22252%22%20cy%3D%2270%22%20r%3D%222.1%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.26%22%2F%3E%3Ccircle%20cx%3D%22387%22%20cy%3D%2279%22%20r%3D%222.0%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.39%22%2F%3E%3Ccircle%20cx%3D%22831%22%20cy%3D%22470%22%20r%3D%222.0%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.28%22%2F%3E%3Ccircle%20cx%3D%22445%22%20cy%3D%22698%22%20r%3D%222.8%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.33%22%2F%3E%3Ccircle%20cx%3D%22504%22%20cy%3D%22207%22%20r%3D%221.7%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.37%22%2F%3E%3Ccircle%20cx%3D%22641%22%20cy%3D%22602%22%20r%3D%221.9%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.28%22%2F%3E%3Ccircle%20cx%3D%221%22%20cy%3D%22194%22%20r%3D%222.7%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.42%22%2F%3E%3Ccircle%20cx%3D%22636%22%20cy%3D%22107%22%20r%3D%222.2%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.25%22%2F%3E%3Ccircle%20cx%3D%22139%22%20cy%3D%22273%22%20r%3D%222.7%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.22%22%2F%3E%3Ccircle%20cx%3D%22394%22%20cy%3D%22125%22%20r%3D%221.4%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.23%22%2F%3E%3Ccircle%20cx%3D%22895%22%20cy%3D%22346%22%20r%3D%221.6%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.22%22%2F%3E%3Ccircle%20cx%3D%221030%22%20cy%3D%22135%22%20r%3D%221.9%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.27%22%2F%3E%3Ccircle%20cx%3D%221553%22%20cy%3D%22574%22%20r%3D%221.8%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.18%22%2F%3E%3Ccircle%20cx%3D%22631%22%20cy%3D%22607%22%20r%3D%222.3%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.42%22%2F%3E%3Ccircle%20cx%3D%22341%22%20cy%3D%22225%22%20r%3D%222.5%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.28%22%2F%3E%3Ccircle%20cx%3D%22117%22%20cy%3D%22118%22%20r%3D%222.2%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.34%22%2F%3E%3Ccircle%20cx%3D%22595%22%20cy%3D%22350%22%20r%3D%222.7%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.33%22%2F%3E%3Ccircle%20cx%3D%221386%22%20cy%3D%22177%22%20r%3D%221.5%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.27%22%2F%3E%3Ccircle%20cx%3D%22399%22%20cy%3D%22181%22%20r%3D%222.4%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.18%22%2F%3E%3Ccircle%20cx%3D%221520%22%20cy%3D%22625%22%20r%3D%222.2%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.24%22%2F%3E%3Ccircle%20cx%3D%2262%22%20cy%3D%22676%22%20r%3D%221.7%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.25%22%2F%3E%3Ccircle%20cx%3D%221318%22%20cy%3D%22442%22%20r%3D%221.7%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.36%22%2F%3E%3Ccircle%20cx%3D%22110%22%20cy%3D%22206%22%20r%3D%222.1%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.24%22%2F%3E%3Ccircle%20cx%3D%22448%22%20cy%3D%22647%22%20r%3D%221.6%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.27%22%2F%3E%3Ccircle%20cx%3D%22713%22%20cy%3D%2299%22%20r%3D%221.6%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.33%22%2F%3E%3Ccircle%20cx%3D%22211%22%20cy%3D%22292%22%20r%3D%222.6%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.25%22%2F%3E%3Ccircle%20cx%3D%221106%22%20cy%3D%22434%22%20r%3D%221.5%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.22%22%2F%3E%3Ccircle%20cx%3D%221456%22%20cy%3D%22509%22%20r%3D%222.7%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.35%22%2F%3E%3Ccircle%20cx%3D%22772%22%20cy%3D%22528%22%20r%3D%221.8%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.16%22%2F%3E%3Ccircle%20cx%3D%22874%22%20cy%3D%22532%22%20r%3D%222.7%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.33%22%2F%3E%3Ccircle%20cx%3D%221269%22%20cy%3D%22646%22%20r%3D%221.8%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.36%22%2F%3E%3Ccircle%20cx%3D%221394%22%20cy%3D%22327%22%20r%3D%222.5%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.24%22%2F%3E%3Ccircle%20cx%3D%221000%22%20cy%3D%22305%22%20r%3D%222.2%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.24%22%2F%3E%3Ccircle%20cx%3D%221023%22%20cy%3D%22696%22%20r%3D%222.6%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.27%22%2F%3E%3Ccircle%20cx%3D%221176%22%20cy%3D%22432%22%20r%3D%222.0%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.22%22%2F%3E%3Ccircle%20cx%3D%221200%22%20cy%3D%2279%22%20r%3D%222.2%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.27%22%2F%3E%3Ccircle%20cx%3D%221117%22%20cy%3D%22378%22%20r%3D%222.2%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.19%22%2F%3E%3Ccircle%20cx%3D%2218%22%20cy%3D%22253%22%20r%3D%222.3%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.25%22%2F%3E%3Ccircle%20cx%3D%221449%22%20cy%3D%22482%22%20r%3D%222.0%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.20%22%2F%3E%3Ccircle%20cx%3D%221065%22%20cy%3D%22187%22%20r%3D%221.9%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.36%22%2F%3E%3Ccircle%20cx%3D%221408%22%20cy%3D%22306%22%20r%3D%222.2%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.25%22%2F%3E%3Ccircle%20cx%3D%22794%22%20cy%3D%22596%22%20r%3D%222.6%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.37%22%2F%3E%3Ccircle%20cx%3D%22443%22%20cy%3D%22168%22%20r%3D%222.0%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.26%22%2F%3E%3Ccircle%20cx%3D%22662%22%20cy%3D%22460%22%20r%3D%222.0%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.39%22%2F%3E%3Ccircle%20cx%3D%221571%22%20cy%3D%22350%22%20r%3D%221.4%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.39%22%2F%3E%3Ccircle%20cx%3D%2266%22%20cy%3D%22514%22%20r%3D%222.2%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.38%22%2F%3E%3Ccircle%20cx%3D%2231%22%20cy%3D%22147%22%20r%3D%222.0%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.39%22%2F%3E%3Ccircle%20cx%3D%22380%22%20cy%3D%22150%22%20r%3D%221.4%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.28%22%2F%3E%3Ccircle%20cx%3D%221008%22%20cy%3D%22479%22%20r%3D%222.5%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.25%22%2F%3E%3Ccircle%20cx%3D%22319%22%20cy%3D%22364%22%20r%3D%221.6%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.31%22%2F%3E%3Ccircle%20cx%3D%221143%22%20cy%3D%22175%22%20r%3D%221.7%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.36%22%2F%3E%3Ccircle%20cx%3D%22833%22%20cy%3D%22453%22%20r%3D%222.4%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.38%22%2F%3E%3Ccircle%20cx%3D%221450%22%20cy%3D%22116%22%20r%3D%222.7%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.22%22%2F%3E%3Ccircle%20cx%3D%22726%22%20cy%3D%22460%22%20r%3D%222.7%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.33%22%2F%3E%3Ccircle%20cx%3D%221407%22%20cy%3D%22570%22%20r%3D%222.7%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.35%22%2F%3E%3Ccircle%20cx%3D%22328%22%20cy%3D%22522%22%20r%3D%222.5%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.33%22%2F%3E%3Ccircle%20cx%3D%22341%22%20cy%3D%22636%22%20r%3D%222.8%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.23%22%2F%3E%3Ccircle%20cx%3D%221265%22%20cy%3D%22265%22%20r%3D%222.7%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.20%22%2F%3E%3Ccircle%20cx%3D%22132%22%20cy%3D%22342%22%20r%3D%222.1%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.29%22%2F%3E%3Ccircle%20cx%3D%2245%22%20cy%3D%22578%22%20r%3D%221.4%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.23%22%2F%3E%3Ccircle%20cx%3D%22536%22%20cy%3D%22564%22%20r%3D%221.5%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.32%22%2F%3E%3Ccircle%20cx%3D%221158%22%20cy%3D%22598%22%20r%3D%222.3%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.22%22%2F%3E%3Ccircle%20cx%3D%221519%22%20cy%3D%22115%22%20r%3D%221.6%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.28%22%2F%3E%3Ccircle%20cx%3D%221166%22%20cy%3D%22469%22%20r%3D%222.1%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.30%22%2F%3E%3Ccircle%20cx%3D%22499%22%20cy%3D%22304%22%20r%3D%222.6%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.18%22%2F%3E%3Ccircle%20cx%3D%221361%22%20cy%3D%22680%22%20r%3D%222.1%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.26%22%2F%3E%3Ccircle%20cx%3D%22857%22%20cy%3D%22432%22%20r%3D%222.2%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.41%22%2F%3E%3Ccircle%20cx%3D%22826%22%20cy%3D%22368%22%20r%3D%222.5%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.32%22%2F%3E%3Ccircle%20cx%3D%221106%22%20cy%3D%22161%22%20r%3D%222.1%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.41%22%2F%3E%3Ccircle%20cx%3D%221477%22%20cy%3D%22287%22%20r%3D%222.0%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.31%22%2F%3E%3Ccircle%20cx%3D%221305%22%20cy%3D%22678%22%20r%3D%222.0%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.26%22%2F%3E%3Ccircle%20cx%3D%22989%22%20cy%3D%22694%22%20r%3D%221.5%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.20%22%2F%3E%3Ccircle%20cx%3D%22311%22%20cy%3D%22261%22%20r%3D%222.3%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.29%22%2F%3E%3Ccircle%20cx%3D%22992%22%20cy%3D%22185%22%20r%3D%222.4%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.32%22%2F%3E%3Ccircle%20cx%3D%22401%22%20cy%3D%22243%22%20r%3D%222.1%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.30%22%2F%3E%3Ccircle%20cx%3D%22661%22%20cy%3D%22448%22%20r%3D%221.5%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.35%22%2F%3E%3Ccircle%20cx%3D%221022%22%20cy%3D%22448%22%20r%3D%222.6%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.39%22%2F%3E%3Ccircle%20cx%3D%22372%22%20cy%3D%22579%22%20r%3D%222.5%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.20%22%2F%3E%3Ccircle%20cx%3D%22504%22%20cy%3D%22692%22%20r%3D%221.6%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.28%22%2F%3E%3Ccircle%20cx%3D%22214%22%20cy%3D%22268%22%20r%3D%222.4%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.24%22%2F%3E%3Ccircle%20cx%3D%221331%22%20cy%3D%22381%22%20r%3D%222.5%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.30%22%2F%3E%3Ccircle%20cx%3D%221096%22%20cy%3D%22131%22%20r%3D%221.6%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.36%22%2F%3E%3Ccircle%20cx%3D%221549%22%20cy%3D%22192%22%20r%3D%222.1%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.29%22%2F%3E%3Ccircle%20cx%3D%221097%22%20cy%3D%22237%22%20r%3D%221.4%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.23%22%2F%3E%3Ccircle%20cx%3D%22883%22%20cy%3D%22439%22%20r%3D%222.2%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.26%22%2F%3E%3Ccircle%20cx%3D%22326%22%20cy%3D%22641%22%20r%3D%222.8%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.16%22%2F%3E%3Ccircle%20cx%3D%2299%22%20cy%3D%22710%22%20r%3D%222.0%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.26%22%2F%3E%3Ccircle%20cx%3D%22747%22%20cy%3D%22439%22%20r%3D%221.9%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.22%22%2F%3E%3Ccircle%20cx%3D%221122%22%20cy%3D%22643%22%20r%3D%221.6%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.37%22%2F%3E%3Ccircle%20cx%3D%22648%22%20cy%3D%22241%22%20r%3D%221.5%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.22%22%2F%3E%3Ccircle%20cx%3D%221429%22%20cy%3D%22617%22%20r%3D%222.4%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.24%22%2F%3E%3Ccircle%20cx%3D%22647%22%20cy%3D%22492%22%20r%3D%222.1%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.27%22%2F%3E%3Ccircle%20cx%3D%22413%22%20cy%3D%22685%22%20r%3D%222.4%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.35%22%2F%3E%3Ccircle%20cx%3D%22649%22%20cy%3D%22676%22%20r%3D%222.6%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.34%22%2F%3E%3Ccircle%20cx%3D%221224%22%20cy%3D%22372%22%20r%3D%222.4%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.29%22%2F%3E%3Ccircle%20cx%3D%22750%22%20cy%3D%22127%22%20r%3D%221.8%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.31%22%2F%3E%3Ccircle%20cx%3D%22371%22%20cy%3D%22706%22%20r%3D%222.3%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.35%22%2F%3E%3Ccircle%20cx%3D%22911%22%20cy%3D%22451%22%20r%3D%221.9%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.25%22%2F%3E%3Ccircle%20cx%3D%221122%22%20cy%3D%22592%22%20r%3D%222.8%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.34%22%2F%3E%3Ccircle%20cx%3D%221182%22%20cy%3D%22279%22%20r%3D%221.9%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.26%22%2F%3E%3Ccircle%20cx%3D%22601%22%20cy%3D%22181%22%20r%3D%221.7%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.23%22%2F%3E%3Ccircle%20cx%3D%22813%22%20cy%3D%22720%22%20r%3D%222.2%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.25%22%2F%3E%3Ccircle%20cx%3D%221295%22%20cy%3D%22167%22%20r%3D%222.2%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.21%22%2F%3E%3Ccircle%20cx%3D%221488%22%20cy%3D%22219%22%20r%3D%222.0%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.32%22%2F%3E%3Ccircle%20cx%3D%22978%22%20cy%3D%22156%22%20r%3D%222.7%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.33%22%2F%3E%3Ccircle%20cx%3D%22957%22%20cy%3D%22347%22%20r%3D%221.7%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.30%22%2F%3E%3Ccircle%20cx%3D%22454%22%20cy%3D%22564%22%20r%3D%221.7%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.27%22%2F%3E%3Ccircle%20cx%3D%2268%22%20cy%3D%22217%22%20r%3D%222.4%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.40%22%2F%3E%3Ccircle%20cx%3D%221197%22%20cy%3D%22151%22%20r%3D%222.8%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.16%22%2F%3E%3Ccircle%20cx%3D%221449%22%20cy%3D%22386%22%20r%3D%222.0%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.19%22%2F%3E%3Ccircle%20cx%3D%22837%22%20cy%3D%22701%22%20r%3D%222.4%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.42%22%2F%3E%3Ccircle%20cx%3D%221307%22%20cy%3D%22494%22%20r%3D%221.5%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.28%22%2F%3E%3Ccircle%20cx%3D%22326%22%20cy%3D%22152%22%20r%3D%222.1%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.31%22%2F%3E%3Ccircle%20cx%3D%221069%22%20cy%3D%22402%22%20r%3D%221.7%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.30%22%2F%3E%3Ccircle%20cx%3D%221245%22%20cy%3D%22449%22%20r%3D%222.8%22%20fill%3D%22%232D7DFF%22%20opacity%3D%220.26%22%2F%3E%3Ccircle%20cx%3D%22381%22%20cy%3D%22191%22%20r%3D%222.6%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.31%22%2F%3E%3Ccircle%20cx%3D%22575%22%20cy%3D%22288%22%20r%3D%222.3%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.34%22%2F%3E%3Ccircle%20cx%3D%221013%22%20cy%3D%22587%22%20r%3D%221.6%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.42%22%2F%3E%3Ccircle%20cx%3D%221465%22%20cy%3D%22665%22%20r%3D%221.4%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.27%22%2F%3E%3Ccircle%20cx%3D%22680%22%20cy%3D%22506%22%20r%3D%221.5%22%20fill%3D%22%23C96A2B%22%20opacity%3D%220.23%22%2F%3E%3Ccircle%20cx%3D%22138%22%20cy%3D%22539%22%20r%3D%222.1%22%20fill%3D%22%23E8A23E%22%20opacity%3D%220.27%22%2F%3E%3Cline%20x1%3D%22300%22%20y1%3D%22-20%22%20x2%3D%22260%22%20y2%3D%22720%22%20stroke%3D%22%232D7DFF%22%20stroke-width%3D%221%22%20stroke-dasharray%3D%222%2016%22%20opacity%3D%22.16%22%2F%3E%3Cline%20x1%3D%22320%22%20y1%3D%22-20%22%20x2%3D%22360%22%20y2%3D%22720%22%20stroke%3D%22%232D7DFF%22%20stroke-width%3D%221%22%20stroke-dasharray%3D%222%2016%22%20opacity%3D%22.16%22%2F%3E%3Cline%20x1%3D%221180%22%20y1%3D%22-20%22%20x2%3D%221150%22%20y2%3D%22720%22%20stroke%3D%22%232D7DFF%22%20stroke-width%3D%221%22%20stroke-dasharray%3D%222%2016%22%20opacity%3D%22.16%22%2F%3E%3Cline%20x1%3D%221200%22%20y1%3D%22-20%22%20x2%3D%221250%22%20y2%3D%22720%22%20stroke%3D%22%232D7DFF%22%20stroke-width%3D%221%22%20stroke-dasharray%3D%222%2016%22%20opacity%3D%22.16%22%2F%3E%3C%2Fsvg%3E");
+    background-size:cover;background-position:center;
+  }
+  body::after{
+    content:"";position:fixed;inset:0;z-index:-1;
+    background:rgba(255,253,248,.30); /* απαλό πέπλο για ξεκούραστη ανάγνωση */
   }
   .topbar{
     position:sticky;top:0;z-index:20;
-    background:rgba(13,28,54,.85);backdrop-filter:blur(10px);
-    border-bottom:1px solid var(--border);
+    background:rgba(42,38,32,.92);backdrop-filter:blur(14px) saturate(1.15);-webkit-backdrop-filter:blur(14px) saturate(1.15);
+    border-bottom:1px solid rgba(232,119,46,.30);
     padding:10px 18px;display:flex;align-items:center;gap:13px;flex-wrap:wrap;
+    box-shadow:0 4px 22px rgba(60,45,25,.20);
   }
   .logo{width:40px;height:40px;flex:none;filter:drop-shadow(0 4px 10px rgba(232,119,46,.35))}
-  .brand{font-family:'Syne',sans-serif;font-weight:700;font-size:18px;letter-spacing:.4px}
+  .brand{font-family:'Syne',sans-serif;font-weight:700;font-size:18px;letter-spacing:.4px;color:#FAF6EE}
   .brand span{font-weight:600;background:linear-gradient(135deg,var(--accent2),var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
-  .topbar .sub{font-size:12.5px;color:var(--muted);border-left:1px solid var(--border);padding-left:13px}
-  .topbar .ver{margin-left:auto;font-size:12px;color:var(--accent2);background:rgba(232,119,46,.12);border:1px solid rgba(232,119,46,.35);padding:2px 10px;border-radius:20px}
+  .topbar .sub{font-size:12.5px;color:#C8BFAF;border-left:1px solid rgba(255,255,255,.18);padding-left:13px}
+  .topbar .ver{margin-left:auto;font-size:12px;color:var(--accent2);background:rgba(232,119,46,.14);border:1px solid rgba(232,119,46,.40);padding:2px 10px;border-radius:20px}
+  .btn-help{background:transparent;border:1px solid rgba(255,255,255,.25);color:#D9D0C0;font-weight:600;font-size:12.5px;padding:5px 12px;border-radius:20px}
+  .btn-help:hover{border-color:var(--accent2);color:var(--accent2)}
   .wrap{display:grid;grid-template-columns:395px 1fr;gap:16px;padding:18px 16px;max-width:1520px;margin:0 auto}
   @media(max-width:980px){.wrap{grid-template-columns:1fr}}
   .panel{
-    background:linear-gradient(180deg,rgba(255,255,255,.025),transparent 40%),var(--surface);
-    border:1px solid var(--border);border-radius:14px;padding:15px 17px;margin-bottom:14px;
-    box-shadow:0 10px 28px rgba(3,10,24,.45);
+    background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,0) 46%),var(--glass);
+    backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);
+    border:1px solid rgba(255,255,255,.65);outline:1px solid var(--line-soft);
+    border-radius:18px;padding:16px 18px;margin-bottom:16px;
+    box-shadow:0 16px 40px rgba(93,72,42,.14),0 2px 8px rgba(93,72,42,.08);
   }
-  .panel h2{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:9px;margin-bottom:11px;padding-bottom:9px;border-bottom:1px solid var(--border-soft)}
-  .stepnum{background:linear-gradient(135deg,var(--accent2),var(--accent));color:#0A1730;width:23px;height:23px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;flex:none;box-shadow:0 3px 8px rgba(232,119,46,.4)}
+  .panel h2{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:9px;margin-bottom:11px;padding-bottom:9px;border-bottom:1px solid var(--line-soft)}
+  .stepnum{background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff;width:23px;height:23px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;flex:none;box-shadow:0 3px 8px rgba(232,119,46,.35)}
   .hint{font-size:12.5px;color:var(--muted);margin:4px 0 8px}
   label.fld{display:block;font-size:12.5px;color:var(--muted);margin:9px 0 4px}
   input[type=text],input[type=number],input[type=date],select,textarea{
-    width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font:inherit;color:var(--text);background:var(--field);color-scheme:dark}
-  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(232,119,46,.18)}
+    width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:10px;font:inherit;color:var(--ink);background:var(--field);transition:border-color .15s,box-shadow .15s}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px rgba(232,119,46,.14)}
   input[type=file]{color:var(--muted)}
   textarea{resize:vertical;min-height:84px}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-  .drop{border:1.5px dashed #2E4C7E;border-radius:10px;padding:13px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;margin-top:8px;background:rgba(11,27,56,.5)}
-  .drop:hover,.drop.over{border-color:var(--accent);background:rgba(232,119,46,.08)}
+  .drop{border:1.5px dashed rgba(122,104,74,.45);border-radius:12px;padding:14px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s,box-shadow .2s;margin-top:8px;background:rgba(255,255,255,.55)}
+  .drop:hover,.drop.over{border-color:var(--accent);background:rgba(232,119,46,.06);box-shadow:0 0 22px rgba(232,119,46,.12)}
   .drop .dtitle{font-weight:600;font-size:13.5px}
   .drop .dsub{font-size:12px;color:var(--muted);margin-top:2px}
-  .fileinfo{font-size:12.5px;margin-top:7px;padding:8px 10px;border-radius:8px;background:rgba(77,141,255,.10);border:1px solid rgba(77,141,255,.30);color:#BBD3FF;display:none;text-align:left;white-space:pre-line}
+  .fileinfo{font-size:12.5px;margin-top:7px;padding:8px 10px;border-radius:8px;background:#EAF2FF;border:1px solid #BFD6F7;color:#1E4E9C;display:none;text-align:left;white-space:pre-line}
   .fileinfo.show{display:block}
-  .fileinfo.err{background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.35);color:var(--bad)}
+  .fileinfo.err{background:#FDECEA;border-color:#F3C1BB;color:var(--bad)}
   button{font:inherit;cursor:pointer;border:none;border-radius:9px;padding:9px 14px}
   .btn-main{
-    background:linear-gradient(135deg,#E8772E,#d0651f);color:#fff;font-weight:700;width:100%;font-size:15px;
-    box-shadow:0 6px 18px rgba(232,119,46,.35);transition:transform .12s,box-shadow .12s;
+    background:linear-gradient(135deg,#FFB02E,#E8772E 55%,#c95f1d);color:#fff;font-weight:700;width:100%;font-size:15px;border-radius:12px;
+    box-shadow:0 8px 22px rgba(232,119,46,.35),inset 0 1px 0 rgba(255,255,255,.30);transition:transform .12s,box-shadow .12s;
   }
-  .btn-main:hover{transform:translateY(-1px);box-shadow:0 9px 22px rgba(232,119,46,.45)}
-  .btn-main:disabled{background:#31456B;color:#7E8FAD;box-shadow:none;transform:none;cursor:not-allowed}
-  .btn-sec{background:transparent;border:1px solid #2E4C7E;color:var(--text);font-weight:600;transition:border-color .12s,color .12s,background .12s}
-  .btn-sec:hover{border-color:var(--accent);color:var(--accent2);background:rgba(232,119,46,.07)}
-  .btn-sec:disabled{border-color:var(--border-soft);color:#5A6E92;cursor:not-allowed;background:transparent}
+  .btn-main:hover{transform:translateY(-1px);box-shadow:0 11px 26px rgba(232,119,46,.42),inset 0 1px 0 rgba(255,255,255,.30)}
+  .btn-main:disabled{background:#D8D0C0;color:#9A927F;box-shadow:none;transform:none;cursor:not-allowed}
+  .btn-sec{background:#fff;border:1px solid rgba(232,119,46,.55);color:var(--accent-deep);font-weight:600;transition:border-color .12s,color .12s,background .12s}
+  .btn-sec:hover{background:rgba(232,119,46,.07);border-color:var(--accent)}
+  .btn-sec:disabled{border-color:var(--line-soft);color:#B7AF9E;cursor:not-allowed;background:#fff}
   .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}
   .btnrow .btn-sec{flex:1;min-width:110px}
   progress{width:100%;height:9px;margin-top:9px;display:none;accent-color:var(--accent);border-radius:6px;overflow:hidden}
   progress.show{display:block}
   .status{font-size:12.5px;color:var(--muted);margin-top:5px;min-height:16px}
-  /* results */
-  .viewtabs{display:inline-flex;gap:4px;margin-bottom:11px;background:var(--field);border:1px solid var(--border-soft);border-radius:10px;padding:4px}
+  .viewtabs{display:inline-flex;gap:4px;margin-bottom:11px;background:#EFE9DC;border:1px solid var(--line-soft);border-radius:10px;padding:4px}
   .viewtabs button{background:transparent;color:var(--muted);font-weight:600;font-size:13px;border-radius:7px;padding:7px 13px}
-  .viewtabs button.active{background:linear-gradient(135deg,var(--accent2),var(--accent));color:#0A1730}
-  .paper{background:#FFFFFF;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .viewtabs button.active{background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff}
+  .paper{background:#FFFFFF;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 20px rgba(93,72,42,.12)}
   .mapbox{position:relative}
   #map{display:block;width:100%;height:auto;image-rendering:pixelated;cursor:crosshair}
-  #readout{position:absolute;left:10px;bottom:10px;background:rgba(10,23,48,.92);border:1px solid var(--border);color:var(--text);font-size:12.5px;padding:6px 11px;border-radius:8px;pointer-events:none;display:none;white-space:pre}
-  #legend{display:block;width:100%;height:56px;margin-top:8px;background:#fff;border:1px solid var(--border);border-radius:10px}
+  #readout{position:absolute;left:10px;bottom:10px;background:rgba(42,38,32,.92);border:1px solid rgba(232,119,46,.35);color:#FAF6EE;font-size:12.5px;padding:6px 11px;border-radius:8px;pointer-events:none;display:none;white-space:pre}
+  #legend{display:block;width:100%;height:46px;margin-top:8px;background:#fff;border:1px solid var(--line);border-radius:10px}
+  #legend{height:56px}
   .statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
-  .stat{background:var(--field);border:1px solid var(--border-soft);border-radius:10px;padding:10px 13px;border-left:3px solid var(--blue)}
-  .stat .v{font-family:'Syne',sans-serif;font-size:19px;font-weight:700;color:var(--text)}
+  .stat{background:#FCFAF4;border:1px solid var(--line-soft);border-radius:12px;padding:11px 14px;border-left:3px solid var(--blue);box-shadow:0 2px 8px rgba(93,72,42,.06)}
+  .stat .v{font-family:'Syne',sans-serif;font-size:19px;font-weight:700;color:var(--ink)}
   .stat .l{font-size:11.5px;color:var(--muted);margin-top:2px}
   .stat.good{border-left-color:var(--ok)}
   .stat.good .v{color:var(--ok)}
   .stat.bad{border-left-color:var(--bad)}
   .stat.bad .v{color:var(--bad)}
-  #hist{display:block;width:100%;height:190px;background:#fff;border:1px solid var(--border);border-radius:10px}
+  #hist{display:block;width:100%;height:190px;background:#fff;border:1px solid var(--line);border-radius:10px}
+  .empty{color:var(--muted);text-align:center;padding:42px 10px;font-size:13.5px}
+  .footer{max-width:1520px;margin:0 auto;padding:4px 18px 22px;font-size:12px;color:var(--muted)}
   .surfgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   @media(max-width:1200px){.surfgrid{grid-template-columns:1fr}}
   .surfcap{font-family:'Syne',sans-serif;font-size:12.5px;color:var(--muted);margin-bottom:6px;font-weight:600;letter-spacing:.3px}
   .surfcv{display:block;width:100%;height:auto;image-rendering:pixelated}
-  .surfleg{display:block;width:100%;height:46px;background:#fff;border:1px solid var(--border);border-radius:8px;margin-top:6px}
-  .btn-help{background:transparent;border:1px solid var(--border);color:var(--muted);font-weight:600;font-size:12.5px;padding:5px 12px;border-radius:20px}
-  .btn-help:hover{border-color:var(--accent);color:var(--accent2)}
-  .modal-ov{position:fixed;inset:0;background:rgba(4,10,24,.72);backdrop-filter:blur(3px);z-index:60;display:none;align-items:flex-start;justify-content:center;padding:34px 14px;overflow-y:auto}
-  .modal-ov.open{display:flex}
-  .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:860px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.55)}
-  .modal-h{display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--border-soft)}
-  .modal-h h3{font-family:'Syne',sans-serif;font-size:16px;color:var(--text);flex:1}
-  .modal-x{background:transparent;border:none;color:var(--muted);font-size:21px;line-height:1;padding:4px 8px;border-radius:8px}
-  .modal-x:hover{color:var(--accent2);background:rgba(232,119,46,.1)}
-  .modal-b{padding:8px 22px 20px;max-height:calc(100vh - 140px);overflow-y:auto}
-  .modal-b h4{font-family:'Syne',sans-serif;font-size:14px;color:var(--accent2);margin:18px 0 8px}
-  .modal-b p{font-size:13.5px;color:var(--text);margin:0 0 8px;line-height:1.55}
-  .modal-b ol{margin:0 0 10px 22px}
-  .modal-b ol li{font-size:13.5px;margin-bottom:7px;line-height:1.5}
-  .modal-b li b,.modal-b p b{color:var(--accent2);font-weight:600}
-  .modal-b .mono{background:var(--field);border:1px solid var(--border-soft);border-radius:5px;padding:1px 6px;font-size:12.5px;white-space:nowrap}
-  .modal-b .warn{border-left:3px solid var(--accent);background:rgba(232,119,46,.07);padding:8px 12px;border-radius:0 8px 8px 0;margin:8px 0}
+  .surfleg{display:block;width:100%;height:46px;background:#fff;border:1px solid var(--line);border-radius:8px;margin-top:6px}
+  details.adv{margin-top:10px;border:1px solid var(--line-soft);border-radius:10px;padding:8px 12px;background:rgba(255,255,255,.55)}
+  details.adv summary{cursor:pointer;font-size:12.5px;color:var(--muted);user-select:none}
+  details.adv summary:hover{color:var(--accent-deep)}
+  details.explain{margin:2px 0 12px;border:1px solid rgba(45,125,255,.25);border-radius:12px;padding:9px 14px;background:rgba(45,125,255,.05)}
+  details.explain summary{cursor:pointer;font-size:13px;color:#1E4E9C;font-weight:600;user-select:none}
+  details.explain div{font-size:13px;color:var(--ink);line-height:1.6;margin-top:8px}
+  details.explain b{color:var(--accent-deep)}
   .hide{display:none!important}
-  .empty{color:var(--muted);text-align:center;padding:42px 10px;font-size:13.5px}
-  .footer{max-width:1520px;margin:0 auto;padding:4px 18px 22px;font-size:12px;color:var(--muted)}
+  /* ---- Modal οδηγιών ---- */
+  .modal-ov{position:fixed;inset:0;background:rgba(60,50,34,.42);backdrop-filter:blur(3px);z-index:60;display:none;align-items:flex-start;justify-content:center;padding:34px 14px;overflow-y:auto}
+  .modal-ov.open{display:flex}
+  .modal{background:#FFFDF8;border:1px solid var(--line);border-radius:16px;max-width:860px;width:100%;box-shadow:0 24px 60px rgba(60,45,25,.30)}
+  .modal-h{display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--line-soft)}
+  .modal-h h3{font-family:'Syne',sans-serif;font-size:16px;color:var(--ink);flex:1}
+  .modal-x{background:transparent;border:none;color:var(--muted);font-size:21px;line-height:1;padding:4px 8px;border-radius:8px}
+  .modal-x:hover{color:var(--accent-deep);background:rgba(232,119,46,.10)}
+  .modal-b{padding:8px 22px 20px;max-height:calc(100vh - 140px);overflow-y:auto}
+  .modal-b h4{font-family:'Syne',sans-serif;font-size:14px;color:var(--accent-deep);margin:18px 0 8px}
+  .modal-b p{font-size:13.5px;color:var(--ink);margin:0 0 8px;line-height:1.6}
+  .modal-b ol{margin:0 0 10px 22px}
+  .modal-b ol li{font-size:13.5px;margin-bottom:7px;line-height:1.55}
+  .modal-b li b,.modal-b p b{color:var(--accent-deep);font-weight:600}
+  .modal-b .mono{background:#F2EDE2;border:1px solid var(--line-soft);border-radius:5px;padding:1px 6px;font-size:12.5px;white-space:nowrap}
+  .modal-b .warn{border-left:3px solid var(--accent);background:rgba(232,119,46,.07);padding:8px 12px;border-radius:0 8px 8px 0;margin:8px 0}
   @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -167,7 +185,7 @@
   <div class="brand">HEXIS <span>AS-BUILT CLOUD</span></div>
   <div class="sub">Έλεγχος πάχους κατασκευής &amp; χωματουργικά cut/fill από νέφη σημείων</div>
   <button class="btn-help" id="btnHelp">Οδηγίες</button>
-  <div class="ver" id="verBadge">v1.3</div>
+  <div class="ver" id="verBadge">v2.2</div>
 </header>
 
 <div class="modal-ov" id="helpOv">
@@ -180,20 +198,21 @@
 
       <h4>1. Ροή εργασίας στην εφαρμογή</h4>
       <ol>
-        <li>Φόρτωσε την επιφάνεια <b>ΠΡΙΝ</b> (νέφος ASCII με στήλες X Y Z ή ισοϋψείς τοπογραφικού σε DXF) και την επιφάνεια <b>ΜΕΤΑ</b> (νέφος ASCII).</li>
+        <li>Φόρτωσε την επιφάνεια <b>ΠΡΙΝ</b> (νέφος ASCII με στήλες X Y Z, νέφος <b>OBJ</b> από SLAM/drone, ή ισοϋψείς DXF) και την επιφάνεια <b>ΜΕΤΑ</b> (νέφος ASCII/OBJ). Πολύ μεγάλα αρχεία (εκατομμύρια σημεία) φορτώνονται τμηματικά και αραιώνονται αυτόματα — η αραίωση αναγράφεται στο πλαίσιο του αρχείου.</li>
         <li>Διάλεξε είδος υπολογισμού: <b>Πάχος κατασκευής</b> (μετρά το κατασκευασμένο πάχος και το συγκρίνει με το πάχος μελέτης ± ανοχή) ή <b>Cut/Fill</b> (όγκοι εκσκαφών – επιχώσεων).</li>
         <li>Πάτησε υπολογισμό. Παίρνεις: υψομετρική απόδοση των δύο επιφανειών, χάρτη αποτελέσματος με κλίμακα, ιστόγραμμα, στατιστικά, και εξαγωγές: <b>Έκθεση PDF</b>, <b>κάναβο CSV</b>, <b>χάρτη PNG</b>.</li>
       </ol>
       <p>Όλη η επεξεργασία γίνεται τοπικά στη συσκευή σου — κανένα αρχείο δεν αποστέλλεται σε server.</p>
 
-      <h4>2. Προετοιμασία στο CloudCompare (SOP)</h4>
+      <h4>2. Δύο ροές εργασίας</h4>
+      <p><b>Α΄ Γρήγορη — Χωματουργικά cut/fill ολόκληρης περιοχής:</b> αν τα αρχεία σου είναι ήδη OBJ με πραγματικές (global) συντεταγμένες (π.χ. εξαγωγές SLAM/drone), τα φορτώνεις <b>απευθείας</b> — χωρίς CloudCompare. Η εφαρμογή βρίσκει μόνη της το κοινό αποτύπωμα, αραιώνει αυτόματα τα μεγάλα αρχεία και υπολογίζει όγκους. Προϋπόθεση: οι δύο αποτυπώσεις να «κάθονται» σωστά μεταξύ τους (βλ. έλεγχο συνταύτισης παρακάτω — αν δεν τον έχεις κάνει ποτέ για το ζεύγος αισθητήρων σου, κάν' τον μία φορά).</p>
+      <p><b>Β΄ Πάχος στοιχείου (πλάκα, στρώση) — πλήρως μέσα στην εφαρμογή:</b> φόρτωσε τα δύο νέφη και όρισε το περίγραμμα του στοιχείου στο βήμα 1β: είτε <b>σχεδιάζοντάς το με κλικ</b> πάνω στην προεπισκόπηση (ανάγλυφη απεικόνιση με χρώμα υψομέτρου — φαίνονται οι ακμές και το σχήμα της κατασκευής, όπως στο CloudCompare), είτε <b>φορτώνοντας DXF</b> με την πολυγραμμή του περιγράμματος από το CAD (σε ΕΓΣΑ΄87 — αν το DXF έχει πολλές πολυγραμμές, επιλέγεται αυτή με το μεγαλύτερο εμβαδόν). Κράτα το περίγραμμα 20–30 cm μέσα από τις ακμές. Ο υπολογισμός περιορίζεται αυτόματα στο πολύγωνο και το εμβαδόν του αναφέρεται στην έκθεση. Το CloudCompare χρειάζεται πλέον <b>μόνο</b> αν οι δύο αποτυπώσεις δεν συμπίπτουν σωστά (έλεγχος/ICP σε σταθερό έδαφος — βλ. παρακάτω):</p>
       <ol>
-        <li><b>Κοινό Global Shift:</b> φόρτωσε πρώτα το νέφος ΠΡΙΝ· όταν φορτώνεις το ΜΕΤΑ, στο παράθυρο Global Shift επίλεξε <span class="mono">Last input</span> ώστε να πάρει το ίδιο shift. Διαφορετικά shift = άχρηστη σύγκριση.</li>
+        <li><b>Κοινό Global Shift:</b> φόρτωσε πρώτα το νέφος ΠΡΙΝ· όταν φορτώνεις το ΜΕΤΑ, στο παράθυρο Global Shift επίλεξε <span class="mono">Last input</span>. Διαφορετικά shift = άχρηστη σύγκριση.</li>
         <li><b>Έλεγχος συνταύτισης:</b> κόψε την ίδια σταθερή (αμετάβλητη) περιοχή και από τα δύο νέφη και τρέξε <span class="mono">Tools → Distances → Cloud/Cloud dist</span>. Θέλεις μέση απόσταση ≈ 0 (±2–3 cm). Αν υπάρχει συστηματικό offset, κάνε <b>Fine registration (ICP)</b> στις σταθερές περιοχές και εφάρμοσε τον μετασχηματισμό στο πλήρες νέφος ΜΕΤΑ.</li>
-        <li><b>Καθαρισμός:</b> <span class="mono">Tools → Clean → SOR filter</span> και στα δύο. Με βλάστηση, πέρνα και CSF filter ώστε το ΠΡΙΝ να απεικονίζει έδαφος — θάμνοι μετράνε ως ψεύτικη επίχωση.</li>
-        <li><b>Κοπή περιοχής:</b> Segment (ψαλιδάκι) το ίδιο περίγραμμα και στα δύο. Για έλεγχο πάχους, κόψε 20–30 cm μέσα από τις ακμές του στοιχείου.</li>
-        <li><b>Subsample:</b> <span class="mono">Edit → Subsample → Space = 0.10 m</span> και στα δύο (για μεγάλα χωματουργικά: 0.20 m).</li>
-        <li><b>Εξαγωγή:</b> <span class="mono">File → Save → ASCII cloud (.txt)</span>, μόνο X Y Z, και στην ερώτηση για τις συντεταγμένες επίλεξε να σωθούν οι <b>πραγματικές (global)</b>.</li>
+        <li><b>Καθαρισμός:</b> <span class="mono">Tools → Clean → SOR filter</span> και στα δύο. Με βλάστηση, πέρνα και CSF filter ώστε το ΠΡΙΝ να απεικονίζει έδαφος. Τα αντικείμενα ΠΑΝΩ στην κατασκευή (υλικά, εξοπλισμός, αναμονές) δεν χρειάζεται να τα κυνηγήσεις — τα καθαρίζει το Φίλτρο αντικειμένων της εφαρμογής.</li>
+        <li><b>Κοπή περιοχής:</b> Segment (ψαλιδάκι) το περίγραμμα του στοιχείου και στα δύο νέφη — 20–30 cm μέσα από τις ακμές. Το πολύγωνο δεν χρειάζεται να είναι πανομοιότυπο· η εφαρμογή δουλεύει στην τομή.</li>
+        <li><b>Εξαγωγή:</b> <span class="mono">File → Save</span> ως ASCII (.txt, στήλες X Y Z) ή OBJ, με <b>πραγματικές (global)</b> συντεταγμένες. Το Subsample είναι πλέον προαιρετικό — η εφαρμογή αραιώνει μόνη της ό,τι ξεπερνά τα 8 εκατ. σημεία.</li>
       </ol>
 
       <h4>3. Ισοϋψείς DXF αντί νέφους (επιφάνεια ΠΡΙΝ)</h4>
@@ -203,6 +222,7 @@
       <ol>
         <li><b>Κάναβος:</b> 0.25 m για ελέγχους πάχους, 0.25–0.50 m για χωματουργικά. Κανόνας: βήμα κανάβου ≥ 2× την απόσταση σημείων (ώστε ≥ 2 σημεία/κελί — η εφαρμογή προειδοποιεί αν όχι, γιατί αλλιώς υποεκτιμώνται επιφάνειες και όγκοι).</li>
         <li><b>Ανοχή (πάχος):</b> ό,τι ορίζει η μελέτη/προδιαγραφή (π.χ. ±2 cm για πλάκες, ±5 cm γενικά).</li>
+        <li><b>Φίλτρο αντικειμένων:</b> σε πλάκες/επιφάνειες με εξοπλισμό, υλικά ή αναμονές, όρισε μέγιστο αποδεκτό ύψος πάνω από την επιφάνεια ΠΡΙΝ (π.χ. <b>60 cm</b> για πλάκα 50 cm) — ό,τι σημείο είναι ψηλότερα απορρίπτεται αυτόματα και δεν μετρά ως πάχος. Το πλήθος των απορριφθέντων αναφέρεται στο αποτέλεσμα και στην έκθεση.</li>
         <li><b>Κατώφλι ΔΖ (cut/fill):</b> ≥ 2× την αβεβαιότητα ανά κελί. Πρακτικά: 2–3 cm για καλές αποτυπώσεις drone/SLAM. Κόβει τους ψευδο-όγκους του θορύβου χωρίς να επηρεάζει το ισοζύγιο.</li>
       </ol>
 
@@ -220,21 +240,34 @@
   <section>
     <div class="panel">
       <h2><span class="stepnum">1</span> Επιφάνειες</h2>
-      <div class="hint">Δεκτά: νέφη ASCII (.txt, .csv, .xyz, .pts, .asc — στήλες X Y Z) και ισοϋψείς/σημεία από DXF (LWPOLYLINE, POLYLINE, LINE, POINT). Συντεταγμένες σε πραγματικό σύστημα (π.χ. ΕΓΣΑ'87).</div>
+      <div class="hint">Δεκτά: νέφη ASCII (.txt, .csv, .xyz, .pts, .asc — στήλες X Y Z), νέφη OBJ (κορυφές «v x y z», π.χ. εξαγωγές SLAM/drone) και ισοϋψείς/σημεία από DXF. Μεγάλα αρχεία φορτώνονται τμηματικά με αυτόματη αραίωση. Συντεταγμένες σε πραγματικό σύστημα (π.χ. ΕΓΣΑ'87).</div>
 
       <div class="drop" id="dropA">
         <div class="dtitle">Επιφάνεια ΠΡΙΝ (Α)</div>
-        <div class="dsub">νέφος πριν την κατασκευή ή ισοϋψείς τοπογραφικού (DXF) — κλικ ή σύρε αρχείο</div>
-        <input type="file" id="fileA" accept=".txt,.csv,.xyz,.pts,.asc,.dxf" hidden>
+        <div class="dsub">νέφος (ASCII/OBJ) πριν την κατασκευή ή ισοϋψείς DXF — κλικ ή σύρε αρχείο</div>
+        <input type="file" id="fileA" accept=".txt,.csv,.xyz,.pts,.asc,.dxf,.obj" hidden>
       </div>
       <div class="fileinfo" id="infoA"></div>
 
       <div class="drop" id="dropB">
         <div class="dtitle">Επιφάνεια ΜΕΤΑ (Β)</div>
-        <div class="dsub">νέφος μετά την κατασκευή — κλικ ή σύρε αρχείο</div>
-        <input type="file" id="fileB" accept=".txt,.csv,.xyz,.pts,.asc,.dxf" hidden>
+        <div class="dsub">νέφος (ASCII/OBJ) μετά την κατασκευή — κλικ ή σύρε αρχείο</div>
+        <input type="file" id="fileB" accept=".txt,.csv,.xyz,.pts,.asc,.dxf,.obj" hidden>
       </div>
       <div class="fileinfo" id="infoB"></div>
+    </div>
+
+    <div class="panel" id="cropPanel" style="display:none">
+      <h2><span class="stepnum">1β</span> Περιοχή ελέγχου — σχεδίασε το περίγραμμα</h2>
+      <div class="hint">Κλικ πάνω στην απεικόνιση (επιφάνεια ΜΕΤΑ) για κορυφές · κλικ στην πρώτη κορυφή ή διπλό κλικ για κλείσιμο. Χωρίς περίγραμμα, ο υπολογισμός γίνεται σε όλο το κοινό αποτύπωμα. Για πάχος πλάκας, μείνε 20–30 cm μέσα από τις ακμές.</div>
+      <div class="paper"><canvas id="cropCv" class="surfcv" style="cursor:crosshair" width="700" height="420"></canvas></div>
+      <div class="btnrow">
+        <button class="btn-sec" id="cropUndo">Αναίρεση κορυφής</button>
+        <button class="btn-sec" id="cropClear">Καθαρισμός</button>
+        <button class="btn-sec" id="cropDxfBtn">Φόρτωση περιγράμματος DXF</button>
+        <input type="file" id="cropDxf" accept=".dxf" hidden>
+      </div>
+      <div class="status" id="cropStatus">Καμία περιοχή — θα χρησιμοποιηθεί όλο το κοινό αποτύπωμα.</div>
     </div>
 
     <div class="panel">
@@ -246,39 +279,44 @@
       </select>
       <div class="row3" style="margin-top:8px">
         <div>
-          <label class="fld" for="gridStep">Κάναβος (m)</label>
-          <input type="number" id="gridStep" value="0.25" step="0.05" min="0.05">
+          <label class="fld" for="gridStep">Μέγεθος τετραγώνου (m)</label>
+          <input type="number" id="gridStep" value="0.25" step="0.05" min="0.05" title="Η περιοχή χωρίζεται σε τετράγωνα αυτού του μεγέθους και σε καθένα υπολογίζεται μία τιμή. Προτείνεται 0.25 (τετράγωνο 25×25 εκ.).">
         </div>
         <div id="wrapDesign">
           <label class="fld" for="designTh">Πάχος μελέτης (cm)</label>
-          <input type="number" id="designTh" value="50" step="1" min="0">
+          <input type="number" id="designTh" value="50" step="1" min="0" title="Το πάχος που προβλέπει η μελέτη — τιμή σύγκρισης.">
         </div>
         <div id="wrapTol">
           <label class="fld" for="tolTh">Ανοχή ± (cm)</label>
-          <input type="number" id="tolTh" value="5" step="0.5" min="0.5">
+          <input type="number" id="tolTh" value="5" step="0.5" min="0.5" title="Πόση απόκλιση από το πάχος μελέτης θεωρείται αποδεκτή.">
         </div>
         <div id="wrapCF" style="display:none">
-          <label class="fld" for="cfThresh">Κατώφλι ΔΖ (cm)</label>
-          <input type="number" id="cfThresh" value="2" step="0.5" min="0" title="Μεταβολές μικρότερες του κατωφλίου θεωρούνται θόρυβος και δεν προσμετρώνται στους όγκους">
+          <label class="fld" for="cfThresh">Αγνόησε μεταβολές έως (cm)</label>
+          <input type="number" id="cfThresh" value="2" step="0.5" min="0" title="Μικρές διαφορές που οφείλονται στην ακρίβεια της αποτύπωσης και όχι σε πραγματικές εργασίες. Προτείνεται 2.">
         </div>
       </div>
-      <div class="row2">
-        <div>
-          <label class="fld" for="aggMode">Τιμή ανά κελί</label>
-          <select id="aggMode">
-            <option value="mean">Μέσος όρος Ζ</option>
-            <option value="min">Ελάχιστο Ζ</option>
-            <option value="max">Μέγιστο Ζ</option>
-          </select>
+      <label class="fld" for="objCap">Ό,τι βρίσκεται ψηλότερα από (cm) θεωρείται αντικείμενο και αγνοείται</label>
+      <input type="number" id="objCap" value="60" step="5" min="0" title="Υλικά, μηχανήματα ή αναμονές πάνω στην επιφάνεια δεν είναι μέρος της κατασκευής — σημεία ψηλότερα από αυτό το ύψος (πάνω από την επιφάνεια ΠΡΙΝ) δεν μετρούν. Προτείνεται: πάχος μελέτης + 10. Βάλε 0 για απενεργοποίηση.">
+      <details class="adv">
+        <summary>Προχωρημένες ρυθμίσεις</summary>
+        <div class="row2">
+          <div>
+            <label class="fld" for="aggMode">Τιμή ανά τετράγωνο</label>
+            <select id="aggMode">
+              <option value="mean">Μέσος όρος Ζ</option>
+              <option value="min">Ελάχιστο Ζ</option>
+              <option value="max">Μέγιστο Ζ</option>
+            </select>
+          </div>
+          <div>
+            <label class="fld" for="fillDist">Μέγ. παρεμβολή κενών (m)</label>
+            <input type="number" id="fillDist" value="10" step="1" min="0" title="Για αραιά δεδομένα (ισοϋψείς): μέχρι πόσο μακριά από τα δεδομένα συμπληρώνονται κενά.">
+          </div>
         </div>
-        <div>
-          <label class="fld" for="fillDist">Μέγ. παρεμβολή κενών (m)</label>
-          <input type="number" id="fillDist" value="10" step="1" min="0" title="Για αραιά δεδομένα (ισοϋψείς): μέχρι πόσο μακριά από τα δεδομένα συμπληρώνονται κενά κελιά">
-        </div>
-      </div>
-      <label class="fld" style="display:flex;gap:7px;align-items:center;margin-top:10px;font-size:13px;color:var(--ink)">
-        <input type="checkbox" id="sparseA"> Η επιφάνεια Α είναι αραιή (ισοϋψείς/σκόρπια σημεία) — παρεμβολή κενών
-      </label>
+        <label class="fld" style="display:flex;gap:7px;align-items:center;margin-top:10px;font-size:13px;color:var(--text)">
+          <input type="checkbox" id="sparseA"> Η επιφάνεια Α είναι αραιή (ισοϋψείς/σκόρπια σημεία) — παρεμβολή κενών
+        </label>
+      </details>
       <button class="btn-main" id="btnCompute" style="margin-top:12px" disabled>Υπολογισμός πάχους</button>
       <progress id="prog" max="100" value="0"></progress>
       <div class="status" id="status"></div>
@@ -361,6 +399,10 @@
     <div class="panel">
       <h2>Στατιστικά & κατανομή</h2>
       <div class="statgrid" id="statgrid"></div>
+      <details class="explain hide" id="explainBox">
+        <summary>Πώς προέκυψαν τα νούμερα</summary>
+        <div id="explainTxt"></div>
+      </details>
       <canvas id="hist" class="hide" width="900" height="190"></canvas>
       <div class="empty" id="histEmpty">—</div>
     </div>
@@ -369,7 +411,7 @@
 <div class="footer">HEXIS AS-BUILT CLOUD · Η επεξεργασία γίνεται εξ ολοκλήρου τοπικά στη συσκευή σας · hexis-app.gr</div>
 <script>
 "use strict";
-const TOOL_VERSION="1.3";
+const TOOL_VERSION="2.2";
 document.getElementById("verBadge").textContent="v"+TOOL_VERSION;
 
 /* ---------------- Οδηγίες ---------------- */
@@ -377,6 +419,16 @@ document.getElementById("btnHelp").addEventListener("click",()=>document.getElem
 document.getElementById("btnHelpX").addEventListener("click",()=>document.getElementById("helpOv").classList.remove("open"));
 document.getElementById("helpOv").addEventListener("click",e=>{if(e.target.id==="helpOv")e.target.classList.remove("open");});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")document.getElementById("helpOv").classList.remove("open");});
+
+/* Το φίλτρο αντικειμένων ακολουθεί το πάχος μελέτης (+10 cm) μέχρι να το πειράξει ο χρήστης */
+let objCapTouched=false;
+document.getElementById("objCap").addEventListener("input",()=>{objCapTouched=true;});
+document.getElementById("designTh").addEventListener("input",()=>{
+  if(!objCapTouched){
+    const d=parseFloat(document.getElementById("designTh").value)||0;
+    document.getElementById("objCap").value=String(Math.round(d+10));
+  }
+});
 
 /* ---------------- Κατάσταση ---------------- */
 const S={
@@ -392,6 +444,58 @@ const fmtN=v=>v.toLocaleString("el-GR");
 function makeVec(){return {a:new Float64Array(1<<16),n:0,
   push(v){if(this.n===this.a.length){const b=new Float64Array(this.a.length*2);b.set(this.a);this.a=b;}this.a[this.n++]=v;},
   done(){return this.a.subarray(0,this.n);}};}
+
+/* ---------------- Streaming ανάγνωση νέφους (ASCII & OBJ) ----------------
+   Διαβάζει το αρχείο σε τμήματα 8 MB (δεν φορτώνει όλο το κείμενο στη μνήμη)
+   και εφαρμόζει αυτόματη αραίωση όταν τα σημεία ξεπεράσουν το όριο MAXPTS. */
+const MAXPTS=8000000;
+async function parseStream(file,onProg){
+  const isObj=/\.obj$/i.test(file.name);
+  const sep=/[,;\t ]+/;
+  let xs=makeVec(),ys=makeVec(),zs=makeVec();
+  let stride=1,seen=0;
+  function compactHalf(v){const m=Math.floor(v.n/2);for(let i=0;i<m;i++)v.a[i]=v.a[2*i];v.n=m;}
+  function push(x,y,z){
+    if(!isFinite(x)||!isFinite(y)||!isFinite(z))return;
+    if(seen++%stride!==0)return;
+    if(xs.n>=MAXPTS){compactHalf(xs);compactHalf(ys);compactHalf(zs);stride*=2;}
+    xs.push(x);ys.push(y);zs.push(z);
+  }
+  function line(ln){
+    if(!ln)return;
+    const c=ln.charCodeAt(0);
+    if(c===35)return;               /* # σχόλιο */
+    const p=ln.split(sep);
+    if(isObj){
+      if(p[0]==="v"&&p.length>=4)push(parseFloat(p[1]),parseFloat(p[2]),parseFloat(p[3]));
+      return;                        /* vn, vt, f, g, o κ.λπ. αγνοούνται */
+    }
+    if(p.length>=3){
+      if(p[0]==="v"&&p.length>=4){push(parseFloat(p[1]),parseFloat(p[2]),parseFloat(p[3]));return;}
+      push(parseFloat(p[0]),parseFloat(p[1]),parseFloat(p[2]));
+    }
+  }
+  const CH=8*1024*1024,size=file.size;
+  let off=0,rem="";
+  while(off<size){
+    const chunk=await file.slice(off,Math.min(off+CH,size)).text();
+    off+=CH;
+    const data=rem+chunk;
+    let start=0;
+    for(;;){
+      const nl=data.indexOf("\n",start);
+      if(nl===-1){rem=data.slice(start);break;}
+      let end=nl;
+      if(end>start&&data.charCodeAt(end-1)===13)end--;   /* \r */
+      line(data.slice(start,end).trim());
+      start=nl+1;
+    }
+    onProg(Math.min(off,size)/size*100);
+    await new Promise(r=>setTimeout(r,0));
+  }
+  if(rem.trim())line(rem.trim());
+  return {xs:xs.done(),ys:ys.done(),zs:zs.done(),n:xs.n,stride};
+}
 
 /* ---------------- Ανάγνωση ASCII νέφους ---------------- */
 async function parseAscii(text,onProg){
@@ -521,11 +625,10 @@ async function loadFile(file,slot){
   info.textContent="Ανάγνωση: "+file.name+" …";
   $("prog").className="show";$("prog").value=0;
   try{
-    const text=await file.text();
     const isDxf=/\.dxf$/i.test(file.name);
     const step=Math.max(parseFloat($("gridStep").value)||0.25,0.05);
     const onProg=v=>{$("prog").value=v;};
-    const pts=isDxf?await parseDxf(text,step*0.5,onProg):await parseAscii(text,onProg);
+    const pts=isDxf?await parseDxf(await file.text(),step*0.5,onProg):await parseStream(file,onProg);
     if(pts.n<3)throw new Error("Δεν βρέθηκαν έγκυρα σημεία X Y Z στο αρχείο.");
     const bb=bbox(pts);
     S[slot]={...pts,name:file.name,bbox:bb,isDxf};
@@ -533,7 +636,8 @@ async function loadFile(file,slot){
     if(bb.mxx<10000&&bb.mxy<10000){
       info.textContent="⚠ "+file.name+"\nΣημεία: "+fmtN(pts.n)+" — Οι συντεταγμένες φαίνονται μετατοπισμένες (shifted). Εξήγαγε από το CloudCompare με global συντεταγμένες, αλλιώς βεβαιώσου ότι ΚΑΙ τα δύο αρχεία έχουν το ίδιο shift.";
     }else{
-      info.textContent="✔ "+file.name+"\nΣημεία: "+fmtN(pts.n)+" · X: "+fmt(bb.mnx,2)+"–"+fmt(bb.mxx,2)+" · Y: "+fmt(bb.mny,2)+"–"+fmt(bb.mxy,2)+" · Z: "+fmt(bb.mnz,2)+"–"+fmt(bb.mxz,2);
+      const dec=pts.stride&&pts.stride>1?" (αραίωση 1:"+pts.stride+")":"";
+      info.textContent="✔ "+file.name+"\nΣημεία: "+fmtN(pts.n)+dec+" · X: "+fmt(bb.mnx,2)+"–"+fmt(bb.mxx,2)+" · Y: "+fmt(bb.mny,2)+"–"+fmt(bb.mxy,2)+" · Z: "+fmt(bb.mnz,2)+"–"+fmt(bb.mxz,2);
     }
   }catch(e){
     S[slot]=null;
@@ -542,6 +646,7 @@ async function loadFile(file,slot){
   }
   $("prog").className="";
   $("btnCompute").disabled=!(S.A&&S.B);
+  if(S.A&&S.B)buildPreview();
 }
 function wireDrop(dropId,inputId,slot){
   const d=$(dropId),f=$(inputId);
@@ -615,12 +720,16 @@ $("calcMode").addEventListener("change",()=>{
   $("tabCont").textContent=cf?"ΔΖ (συνεχής κλίμακα)":"Πάχος (συνεχής κλίμακα)";
   $("tabComp").textContent=cf?"Cut / Fill":"Συμμόρφωση (εντός/εκτός ανοχής)";
   $("btnCompute").textContent=cf?"Υπολογισμός όγκων cut/fill":"Υπολογισμός πάχους";
+  if(!objCapTouched){
+    $("objCap").value=cf?"0":String(Math.round((parseFloat($("designTh").value)||0)+10));
+  }
   /* παλιό αποτέλεσμα άλλης λειτουργίας δεν ισχύει */
   S.grid=null;
   $("mapEmpty").style.display="";$("histEmpty").style.display="";
   $("mapPaper").classList.add("hide");
   $("surfWrap").classList.add("hide");
   $("surfEmpty").style.display="";
+  $("explainBox").classList.add("hide");
   $("legend").classList.add("hide");
   $("hist").classList.add("hide");
   $("statgrid").innerHTML="";
@@ -655,12 +764,30 @@ async function compute(){
     await new Promise(r=>setTimeout(r,0));
     let gA=buildGrid(A,ox,oy,nx,ny,step,agg);
     $("prog").value=30;
-    const gB=buildGrid(B,ox,oy,nx,ny,step,agg);
-    $("prog").value=50;
     if($("sparseA").checked&&fillDist>0){
       st.textContent="Παρεμβολή κενών επιφάνειας Α …";
-      gA=await fillGaps(gA,nx,ny,Math.ceil(fillDist/step),v=>{$("prog").value=50+v*0.35;});
+      gA=await fillGaps(gA,nx,ny,Math.ceil(fillDist/step),v=>{$("prog").value=30+v*0.25;});
     }
+    /* φίλτρο αντικειμένων: σημεία της Β υψηλότερα από objCap πάνω από την επιφάνεια Α απορρίπτονται */
+    const objCap=Math.max((parseFloat($("objCap").value)||0)/100,0);
+    let Bf=B,rejected=0;
+    if(objCap>0){
+      st.textContent="Φίλτρο αντικειμένων (>"+(objCap*100).toFixed(0)+" cm) …";
+      await new Promise(r=>setTimeout(r,0));
+      const xs=new Float64Array(B.n),ys=new Float64Array(B.n),zs=new Float64Array(B.n);
+      let m=0;
+      for(let i=0;i<B.n;i++){
+        const ix=Math.floor((B.xs[i]-ox)/step),iy=Math.floor((B.ys[i]-oy)/step);
+        if(ix>=0&&iy>=0&&ix<nx&&iy<ny){
+          const a=gA[iy*nx+ix];
+          if(!isNaN(a)&&B.zs[i]-a>objCap){rejected++;continue;}
+        }
+        xs[m]=B.xs[i];ys[m]=B.ys[i];zs[m]=B.zs[i];m++;
+      }
+      Bf={xs:xs.subarray(0,m),ys:ys.subarray(0,m),zs:zs.subarray(0,m),n:m};
+    }
+    const gB=buildGrid(Bf,ox,oy,nx,ny,step,agg);
+    $("prog").value=55;
     /* διαφορά ΔΖ = Β − Α */
     st.textContent="Υπολογισμός διαφορών …";
     const diff=new Float64Array(nx*ny);diff.fill(NaN);
@@ -668,9 +795,15 @@ async function compute(){
     let n=0,sum=0,sum2=0,mn=Infinity,mx=-Infinity;
     let within=0,below=0,above=0;               /* λειτουργία πάχους */
     let vCut=0,vFill=0,aCut=0,aFill=0,aNeu=0;   /* λειτουργία cut/fill */
+    const usePoly=S.poly&&S.poly.closed&&S.poly.pts.length>=3;
+    const ppts=usePoly?S.poly.pts:null;
     for(let k=0;k<nx*ny;k++){
       const a=gA[k],b=gB[k];
       if(isNaN(a)||isNaN(b))continue;
+      if(usePoly){
+        const cx=ox+((k%nx)+0.5)*step,cy=oy+(Math.floor(k/nx)+0.5)*step;
+        if(!pointInPoly(cx,cy,ppts))continue;
+      }
       const d=b-a;
       diff[k]=d;n++;sum+=d;sum2+=d*d;
       if(d<mn)mn=d;if(d>mx)mx=d;
@@ -684,9 +817,11 @@ async function compute(){
         else aNeu+=cellA;
       }
     }
-    if(!n)throw new Error("Καμία κοινή περιοχή με δεδομένα και στις δύο επιφάνειες.");
+    if(!n)throw new Error(S.poly&&S.poly.closed?"Το περίγραμμα δεν περιέχει κοινά δεδομένα των δύο επιφανειών.":"Καμία κοινή περιοχή με δεδομένα και στις δύο επιφάνειες.");
     const mean=sum/n,std=Math.sqrt(Math.max(sum2/n-mean*mean,0));
-    S.grid={mode,diff,gA,gB,nx,ny,ox,oy,step,design,tol,thr,
+    S.grid={mode,diff,gA,gB,nx,ny,ox,oy,step,design,tol,thr,objCap,rejected,
+      polyN:(S.poly&&S.poly.closed)?S.poly.pts.length:0,
+      polyArea:(S.poly&&S.poly.closed)?polyArea(S.poly.pts):0,
       stats:{n,mean,std,mn,mx,area:n*cellA,
         within,below,above,
         pctWithin:within/n*100,pctBelow:below/n*100,pctAbove:above/n*100,
@@ -695,11 +830,13 @@ async function compute(){
     renderAll();
     renderSurfaces();
     autoConclusion();
+    fillExplain();
     $("btnPDF").disabled=$("btnCSV").disabled=$("btnPNG").disabled=false;
     /* έλεγχος πυκνότητας: αν <2 σημεία/κελί στη Β, ο κάναβος είναι πολύ πυκνός και υποεκτιμώνται επιφάνειες/όγκοι */
     let occB=0;for(let k=0;k<nx*ny;k++)if(!isNaN(gB[k]))occB++;
-    const dens=occB?B.n/occB:0;
+    const dens=occB?Bf.n/occB:0;
     st.textContent="Ολοκληρώθηκε: "+fmtN(n)+" κελιά · επιφάνεια "+fmt(n*cellA,1)+" m²."+
+      (rejected>0?" Απορρίφθηκαν "+fmtN(rejected)+" σημεία αντικειμένων (>"+(objCap*100).toFixed(0)+" cm).":"")+
       (dens<2?" ⚠ Λίγα σημεία ανά κελί ("+dens.toFixed(1)+") — αύξησε το βήμα κανάβου για αξιόπιστους όγκους.":"");
   }catch(e){
     st.textContent="Σφάλμα: "+e.message;
@@ -744,6 +881,211 @@ function colorCompCF(d,thr){
   return C_NEU;
 }
 
+/* ---------------- Περιοχή ελέγχου: προεπισκόπηση & σχεδίαση πολυγώνου ---------------- */
+S.prev=null;                        /* {ox,oy,ex,ey} χαρτογράφηση προεπισκόπησης */
+S.poly={pts:[],closed:false};
+function polyArea(pts){
+  let a=0;
+  for(let i=0;i<pts.length;i++){
+    const [x1,y1]=pts[i],[x2,y2]=pts[(i+1)%pts.length];
+    a+=x1*y2-x2*y1;
+  }
+  return Math.abs(a)/2;
+}
+function pointInPoly(x,y,pts){
+  let inside=false;
+  for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+    const xi=pts[i][0],yi=pts[i][1],xj=pts[j][0],yj=pts[j][1];
+    if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))inside=!inside;
+  }
+  return inside;
+}
+async function buildPreview(){
+  if(!(S.A&&S.B))return;
+  const A=S.A,B=S.B;
+  const ox=Math.max(A.bbox.mnx,B.bbox.mnx),oy=Math.max(A.bbox.mny,B.bbox.mny);
+  const ex=Math.min(A.bbox.mxx,B.bbox.mxx),ey=Math.min(A.bbox.mxy,B.bbox.mxy);
+  if(ex-ox<0.5||ey-oy<0.5){$("cropPanel").style.display="none";return;}
+  const pstep=Math.max((ex-ox)/1000,(ey-oy)/640,0.05);
+  const pnx=Math.max(2,Math.floor((ex-ox)/pstep)),pny=Math.max(2,Math.floor((ey-oy)/pstep));
+  let g=buildGrid(B,ox,oy,pnx,pny,pstep,"mean");
+  g=await fillGaps(g,pnx,pny,2,null);   /* κλείσιμο μικρο-κενών */
+  let mn=Infinity,mx=-Infinity;
+  for(let k=0;k<pnx*pny;k++){const v=g[k];if(!isNaN(v)){if(v<mn)mn=v;if(v>mx)mx=v;}}
+  S.prev={ox,oy,ex,ey,g,pnx,pny,pstep,mn,mx,base:null};
+  renderPreviewBase();
+  S.poly={pts:[],closed:false};
+  $("cropPanel").style.display="";
+  drawCrop();
+  updateCropStatus();
+}
+/* Απόδοση βάσης προεπισκόπησης: "relief" (γκρι ανάγλυφο τύπου CloudCompare/EDL)
+   ή "hypso" (χρώμα υψομέτρου). */
+function renderPreviewBase(){
+  const P=S.prev;if(!P)return;
+  const {g,pnx,pny,pstep,mn,mx}=P;
+  const span=(mx-mn)||1e-9;
+  const at=(ix,iy)=>{if(ix<0)ix=0;if(iy<0)iy=0;if(ix>=pnx)ix=pnx-1;if(iy>=pny)iy=pny-1;const v=g[iy*pnx+ix];return isNaN(v)?null:v;};
+  const lx=-0.5,ly=0.5,lz=0.85,ll=Math.hypot(lx,ly,lz);
+  const base=document.createElement("canvas");base.width=pnx;base.height=pny;
+  const bctx=base.getContext("2d");
+  const img=bctx.createImageData(pnx,pny);
+  for(let iy=0;iy<pny;iy++){
+    const row=(pny-1-iy)*pnx;
+    for(let ix=0;ix<pnx;ix++){
+      const q=(row+ix)*4,v=g[iy*pnx+ix];
+      if(isNaN(v)){img.data[q]=225;img.data[q+1]=228;img.data[q+2]=233;img.data[q+3]=255;continue;}
+      const xl=at(ix-1,iy)??v,xr=at(ix+1,iy)??v,yd=at(ix,iy-1)??v,yu=at(ix,iy+1)??v;
+      const dzdx=(xr-xl)/(2*pstep),dzdy=(yu-yd)/(2*pstep);
+      let sh=(-dzdx*lx-dzdy*ly+lz)/(Math.hypot(dzdx,dzdy,1)*ll);
+      sh=Math.max(0,Math.min(1,sh));
+      const c=terrainRGB((v-mn)/span,sh,Math.hypot(dzdx,dzdy));
+      img.data[q]=c[0];img.data[q+1]=c[1];img.data[q+2]=c[2];img.data[q+3]=255;
+    }
+  }
+  bctx.putImageData(img,0,0);
+  P.base=base;
+}
+function cropToCanvas(wx,wy){
+  const cv=$("cropCv"),P=S.prev;
+  return [(wx-P.ox)/(P.ex-P.ox)*cv.width,(P.ey-wy)/(P.ey-P.oy)*cv.height];
+}
+function drawCrop(){
+  const cv=$("cropCv"),P=S.prev;if(!P)return;
+  const ar=(P.ey-P.oy)/(P.ex-P.ox);
+  cv.width=900;cv.height=Math.max(120,Math.round(900*ar));
+  const ctx=cv.getContext("2d");
+  ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(P.base,0,0,cv.width,cv.height);
+  const pts=S.poly.pts;
+  if(!pts.length)return;
+  ctx.lineWidth=2;ctx.strokeStyle="#E8772E";ctx.fillStyle="rgba(232,119,46,.20)";
+  ctx.beginPath();
+  const [x0,y0]=cropToCanvas(pts[0][0],pts[0][1]);
+  ctx.moveTo(x0,y0);
+  for(let i=1;i<pts.length;i++){const[cx,cy]=cropToCanvas(pts[i][0],pts[i][1]);ctx.lineTo(cx,cy);}
+  if(S.poly.closed){ctx.closePath();ctx.fill();}
+  ctx.stroke();
+  for(let i=0;i<pts.length;i++){
+    const[cx,cy]=cropToCanvas(pts[i][0],pts[i][1]);
+    ctx.beginPath();ctx.arc(cx,cy,i===0?6:4,0,2*Math.PI);
+    ctx.fillStyle=i===0?"#FFB02E":"#E8772E";ctx.fill();
+    ctx.strokeStyle="#0A1730";ctx.lineWidth=1.5;ctx.stroke();
+  }
+}
+function updateCropStatus(){
+  const st=$("cropStatus"),pts=S.poly.pts;
+  if(S.poly.closed)
+    st.textContent="Περίγραμμα "+pts.length+" κορυφών · εμβαδόν ≈ "+fmt(polyArea(pts),1)+" m². Ο υπολογισμός θα περιοριστεί σε αυτό.";
+  else if(pts.length)
+    st.textContent=pts.length+" κορυφές — κλικ στην πρώτη (πορτοκαλί) ή διπλό κλικ για κλείσιμο.";
+  else
+    st.textContent="Καμία περιοχή — θα χρησιμοποιηθεί όλο το κοινό αποτύπωμα.";
+}
+function cropEventWorld(e){
+  const cv=$("cropCv"),r=cv.getBoundingClientRect(),P=S.prev;
+  const wx=P.ox+(e.clientX-r.left)/r.width*(P.ex-P.ox);
+  const wy=P.ey-(e.clientY-r.top)/r.height*(P.ey-P.oy);
+  return [wx,wy];
+}
+/* Περίγραμμα από DXF: διαβάζει πολυγραμμές (LWPOLYLINE/POLYLINE),
+   επιλέγει αυτή με το μεγαλύτερο εμβαδόν και την ορίζει ως περιοχή ελέγχου. */
+function parseBoundaryDxf(text){
+  const lines=text.split(/\r?\n/),N=lines.length;
+  const polys=[];
+  let i=0;
+  while(i<N-1){
+    const code=lines[i].trim(),val=lines[i+1]?lines[i+1].trim():"";
+    if(code==="0"&&val==="LWPOLYLINE"){
+      i+=2;const vx=[],vy=[];
+      while(i<N-1){
+        const c=lines[i].trim(),v=lines[i+1].trim();
+        if(c==="0")break;
+        if(c==="10")vx.push(parseFloat(v));
+        else if(c==="20")vy.push(parseFloat(v));
+        i+=2;
+      }
+      const m=Math.min(vx.length,vy.length);
+      if(m>=3){const pts=[];for(let k=0;k<m;k++)pts.push([vx[k],vy[k]]);polys.push(pts);}
+      continue;
+    }
+    if(code==="0"&&val==="POLYLINE"){
+      i+=2;const pts=[];
+      while(i<N-1){
+        const c=lines[i].trim(),v=lines[i+1].trim();
+        if(c==="0"&&v==="VERTEX"){
+          i+=2;let x=NaN,y=NaN;
+          while(i<N-1){
+            const c2=lines[i].trim(),v2=lines[i+1].trim();
+            if(c2==="0")break;
+            if(c2==="10")x=parseFloat(v2);
+            else if(c2==="20")y=parseFloat(v2);
+            i+=2;
+          }
+          if(isFinite(x)&&isFinite(y))pts.push([x,y]);
+          continue;
+        }
+        if(c==="0"&&v==="SEQEND"){i+=2;break;}
+        if(c==="0")break;
+        i+=2;
+      }
+      if(pts.length>=3)polys.push(pts);
+      continue;
+    }
+    i+=2;
+  }
+  if(!polys.length)return null;
+  /* διπλή πρώτη/τελευταία κορυφή → αφαίρεση */
+  for(const p of polys){
+    const a=p[0],b=p[p.length-1];
+    if(Math.hypot(a[0]-b[0],a[1]-b[1])<1e-6)p.pop();
+  }
+  polys.sort((a,b)=>polyArea(b)-polyArea(a));
+  return polys[0].length>=3?polys[0]:null;
+}
+$("cropDxfBtn").addEventListener("click",()=>$("cropDxf").click());
+$("cropDxf").addEventListener("change",async e=>{
+  const f=e.target.files[0];if(!f||!S.prev)return;
+  try{
+    const pts=parseBoundaryDxf(await f.text());
+    if(!pts)throw new Error("Δεν βρέθηκε πολυγραμμή με ≥3 κορυφές στο DXF.");
+    const P=S.prev;
+    const inside=pts.some(([x,y])=>x>=P.ox&&x<=P.ex&&y>=P.oy&&y<=P.ey);
+    if(!inside)throw new Error("Το περίγραμμα πέφτει εκτός της περιοχής των νεφών — έλεγξε συντεταγμένες/ΕΓΣΑ.");
+    S.poly={pts,closed:true};
+    drawCrop();
+    $("cropStatus").textContent="Περίγραμμα από "+f.name+": "+pts.length+" κορυφές · εμβαδόν ≈ "+fmt(polyArea(pts),1)+" m². Ο υπολογισμός θα περιοριστεί σε αυτό.";
+  }catch(err){
+    $("cropStatus").textContent="✖ "+err.message;
+  }
+  e.target.value="";
+});
+$("cropCv").addEventListener("click",e=>{
+  if(!S.prev||S.poly.closed)return;
+  const [wx,wy]=cropEventWorld(e);
+  const pts=S.poly.pts;
+  if(pts.length>=3){
+    const cv=$("cropCv"),r=cv.getBoundingClientRect();
+    const [fx,fy]=cropToCanvas(pts[0][0],pts[0][1]);
+    const px=(e.clientX-r.left)/r.width*cv.width,py=(e.clientY-r.top)/r.height*cv.height;
+    if(Math.hypot(px-fx,py-fy)<12){S.poly.closed=true;drawCrop();updateCropStatus();return;}
+  }
+  pts.push([wx,wy]);drawCrop();updateCropStatus();
+});
+$("cropCv").addEventListener("dblclick",e=>{
+  e.preventDefault();
+  if(!S.prev||S.poly.closed||S.poly.pts.length<3)return;
+  S.poly.closed=true;drawCrop();updateCropStatus();
+});
+$("cropUndo").addEventListener("click",()=>{
+  if(S.poly.closed)S.poly.closed=false;
+  else S.poly.pts.pop();
+  drawCrop();updateCropStatus();
+});
+$("cropClear").addEventListener("click",()=>{
+  S.poly={pts:[],closed:false};drawCrop();updateCropStatus();
+});
+
 /* ---------------- Υψομετρική απόδοση επιφανειών εισόδου ---------------- */
 const HYPSO=[[31,78,156],[77,141,255],[61,220,151],[255,176,46],[198,40,40]];
 function hypsoColor(t){
@@ -751,6 +1093,17 @@ function hypsoColor(t){
   const s=Math.max(0,Math.min(0.9999,t))*n;
   const i=Math.floor(s);
   return mixRGB(HYPSO[i],HYPSO[i+1],s-i);
+}
+/* Ενιαία απεικόνιση εδάφους: χρώμα υψομέτρου (παστέλ) × φωτισμός × σκοτείνιασμα ακμών.
+   Έτσι διακρίνεται το σχήμα της κατασκευής (ακμές, αντικείμενα) ΚΑΙ οι στάθμες (κλίμακα). */
+function terrainRGB(t,sh,slope){
+  const c=hypsoColor(t);
+  const f=Math.max(0.16,(0.38+0.62*sh)*Math.exp(-1.4*Math.min(slope,3)));
+  return [Math.round((c[0]*0.55+114.75)*f),Math.round((c[1]*0.55+114.75)*f),Math.round((c[2]*0.55+114.75)*f)];
+}
+function terrainLegendRGB(t){
+  const c=hypsoColor(t),f=0.86;
+  return [Math.round((c[0]*0.55+114.75)*f),Math.round((c[1]*0.55+114.75)*f),Math.round((c[2]*0.55+114.75)*f)];
 }
 function renderSurfaceTo(g,nx,ny,step,cvId,legId){
   let mn=Infinity,mx=-Infinity;
@@ -772,8 +1125,8 @@ function renderSurfaceTo(g,nx,ny,step,cvId,legId){
       const dzdx=(xr-xl)/(2*step),dzdy=(yu-yd)/(2*step);
       let sh=(-dzdx*lx-dzdy*ly+lz)/(Math.hypot(dzdx,dzdy,1)*ll);
       sh=Math.max(0,Math.min(1,sh));
-      const c=hypsoColor((v-mn)/span),f=0.55+0.45*sh;
-      img.data[q]=Math.round(c[0]*f);img.data[q+1]=Math.round(c[1]*f);img.data[q+2]=Math.round(c[2]*f);img.data[q+3]=255;
+      const c=terrainRGB((v-mn)/span,sh,Math.hypot(dzdx,dzdy));
+      img.data[q]=c[0];img.data[q+1]=c[1];img.data[q+2]=c[2];img.data[q+3]=255;
     }
   }
   octx.putImageData(img,0,0);
@@ -788,7 +1141,7 @@ function renderSurfaceTo(g,nx,ny,step,cvId,legId){
   lctx.clearRect(0,0,lg.width,lg.height);
   const x0=18,x1=lg.width-18,w=x1-x0,y0=6,h=16;
   for(let px=0;px<w;px++){
-    const c=hypsoColor(px/w);
+    const c=terrainLegendRGB(px/w);
     lctx.fillStyle=`rgb(${c[0]},${c[1]},${c[2]})`;
     lctx.fillRect(x0+px,y0,1,h);
   }
@@ -1028,6 +1381,26 @@ function autoConclusion(){
   $("rConcl").value=t;
 }
 
+/* ---------------- Επεξήγηση υπολογισμού σε απλή γλώσσα ---------------- */
+function fillExplain(){
+  const G=S.grid,s=G.stats;if(!G)return;
+  const sq=G.step.toFixed(2),sqA=(G.step*G.step).toFixed(G.step<0.3?4:2);
+  let t="Η περιοχή χωρίστηκε σε τετράγωνα <b>"+sq+"×"+sq+" m</b>. Σε κάθε τετράγωνο πήραμε το μέσο υψόμετρο των σημείων της επιφάνειας ΠΡΙΝ και της επιφάνειας ΜΕΤΑ και υπολογίσαμε τη διαφορά τους <b>ΔΖ = ΜΕΤΑ − ΠΡΙΝ</b>. ";
+  t+="Μετρήθηκαν <b>"+fmtN(s.n)+"</b> τετράγωνα με δεδομένα και στις δύο επιφάνειες, δηλαδή επιφάνεια <b>"+fmt(s.area,0)+" m²</b>"+(G.polyN?" (μόνο μέσα στο περίγραμμα που όρισες, "+G.polyN+" κορυφές)":"")+".<br>";
+  if(G.rejected>0)
+    t+="Αγνοήθηκαν <b>"+fmtN(G.rejected)+" σημεία</b> που βρέθηκαν ψηλότερα από "+(G.objCap*100).toFixed(0)+" cm πάνω από την επιφάνεια ΠΡΙΝ — υλικά, μηχανήματα ή αναμονές, όχι μέρος της κατασκευής.<br>";
+  if(G.mode==="thickness"){
+    t+="<b>Μέσο πάχος</b> = άθροισμα όλων των ΔΖ ÷ πλήθος τετραγώνων = <b>"+(s.mean*100).toFixed(1)+" cm</b>. ";
+    t+="Κάθε τετράγωνο συγκρίθηκε με το πάχος μελέτης "+(G.design*100).toFixed(0)+" cm: όσα βρέθηκαν μέσα στην ανοχή ±"+(G.tol*100).toFixed(1)+" cm είναι το <b>"+s.pctWithin.toFixed(1)+"%</b> της επιφάνειας.";
+  }else{
+    t+="Σε κάθε τετράγωνο (εμβαδόν "+sqA+" m²): αν ΔΖ &lt; −"+(G.thr*100).toFixed(0)+" cm μετρήθηκε ως <b>εκσκαφή</b> με όγκο |ΔΖ| × "+sqA+" m³, αν ΔΖ &gt; +"+(G.thr*100).toFixed(0)+" cm ως <b>επίχωση</b>. Μικρότερες μεταβολές θεωρήθηκαν ακρίβεια οργάνου και δεν μετρήθηκαν.<br>";
+    t+="Άθροισμα: εκσκαφές <b>"+fmt(s.vCut,1)+" m³</b> · επιχώσεις <b>"+fmt(s.vFill,1)+" m³</b> · ισοζύγιο <b>"+(s.vNet>=0?"+":"")+fmt(s.vNet,1)+" m³</b>.";
+  }
+  t+="<br>Σημεία που διαβάστηκαν: ΠΡΙΝ "+fmtN(S.A.n)+" · ΜΕΤΑ "+fmtN(S.B.n)+".";
+  $("explainTxt").innerHTML=t;
+  $("explainBox").classList.remove("hide");
+}
+
 /* ---------------- Εξαγωγές ---------------- */
 function download(name,blob){
   const a=document.createElement("a");
@@ -1124,7 +1497,9 @@ function makePdf(){
   c.push({text:"Ο υπολογισμός βασίστηκε στη σύγκριση δύο ανεξάρτητων ψηφιακών μοντέλων της επιφάνειας του έργου: "+
     "(α) επιφάνεια προ της παρέμβασης (αρχείο: "+(S.A?S.A.name:"—")+", "+(S.A?fmtN(S.A.n):"—")+" σημεία, ημ/νία "+dGr($("rDateA").value)+") και "+
     "(β) επιφάνεια μετά την παρέμβαση (αρχείο: "+(S.B?S.B.name:"—")+", "+(S.B?fmtN(S.B.n):"—")+" σημεία, ημ/νία "+dGr($("rDateB").value)+"). "+
-    "Αμφότερες οι επιφάνειες ανήχθησαν σε κοινό κάναβο βήματος "+G.step.toFixed(2)+" m στο κοινό τους αποτύπωμα. "+
+    "Αμφότερες οι επιφάνειες ανήχθησαν σε κοινό κάναβο βήματος "+G.step.toFixed(2)+" m"+
+    (G.polyN?", εντός πολυγώνου ελέγχου "+G.polyN+" κορυφών (εμβαδόν "+fmt(G.polyArea,1)+" m²) που ορίστηκε από τον χρήστη επί της υψομετρικής απεικόνισης":" στο κοινό τους αποτύπωμα")+". "+
+    (G.objCap>0?"Σημεία της επιφάνειας (β) ευρισκόμενα υψηλότερα από "+(G.objCap*100).toFixed(0)+" cm άνω της επιφάνειας (α) απορρίφθηκαν ως μη ανήκοντα στην ελεγχόμενη επιφάνεια (εξοπλισμός, υλικά, αναμονές οπλισμού κ.λπ.)· απορρίφθηκαν "+fmtN(G.rejected)+" σημεία. ":"")+
     "Σε κάθε κελί του κανάβου υπολογίστηκε η κατακόρυφη διαφορά υψομέτρων ΔΖ = Ζμετά − Ζπριν"+
     (cf?", από την οποία προκύπτουν οι επιμέρους όγκοι: αρνητικές τιμές αντιστοιχούν σε εκσκαφή και θετικές σε επίχωση. Μεταβολές |ΔΖ| ≤ "+(G.thr*100).toFixed(0)+" cm θεωρήθηκαν εντός της αβεβαιότητας των αποτυπώσεων και δεν προσμετρήθηκαν στους όγκους."
       :", η οποία αποδίδει το κατασκευασθέν πάχος.")+
