@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!--
-  HEXIS AS-BUILT CLOUD v2.8
+  HEXIS AS-BUILT CLOUD v2.9
   Έλεγχος πάχους/υψομετρικής διαφοράς κατασκευής από δύο επιφάνειες (νέφη σημείων ή ισοϋψείς DXF)
   + Παραγωγή τεχνικής έκθεσης PDF κατά πρότυπο BRB.
   Όλη η επεξεργασία γίνεται τοπικά στον browser — κανένα αρχείο δεν αποστέλλεται σε server.
@@ -197,7 +197,7 @@
   <div class="brand">HEXIS <span>AS-BUILT CLOUD</span></div>
   <div class="sub">Έλεγχος πάχους κατασκευής &amp; χωματουργικά cut/fill από νέφη σημείων</div>
   <button class="btn-help" id="btnHelp">Οδηγίες</button>
-  <div class="ver" id="verBadge">v2.8</div>
+  <div class="ver" id="verBadge">v2.9</div>
 </header>
 
 <div class="modal-ov" id="helpOv">
@@ -453,7 +453,7 @@
 <div class="footer">HEXIS AS-BUILT CLOUD · Η επεξεργασία γίνεται εξ ολοκλήρου τοπικά στη συσκευή σας · hexis-app.gr</div>
 <script>
 "use strict";
-const TOOL_VERSION="2.8";
+const TOOL_VERSION="2.9";
 document.getElementById("verBadge").textContent="v"+TOOL_VERSION;
 
 /* ---------------- Οδηγίες ---------------- */
@@ -1597,11 +1597,14 @@ $("map").addEventListener("mousemove",e=>{
   ro.style.display="block";
   const X=G.ox+(ix+0.5)*G.step,Y=G.oy+(iy+0.5)*G.step;
   if(isNaN(d)){ro.textContent="Χωρίς δεδομένα";return;}
+  const k=iy*G.nx+ix;
+  const za=G.gA?G.gA[k]:NaN,zb=G.gB?G.gB[k]:NaN;
+  const zline=(!isNaN(za)&&!isNaN(zb))?"\nΖ ΠΡΙΝ: "+za.toFixed(3)+"  Ζ ΜΕΤΑ: "+zb.toFixed(3):"";
   if(G.mode==="cutfill"){
     const lbl=d<-G.thr?"Εκσκαφή: "+(-d).toFixed(2)+" m":d>G.thr?"Επίχωση: "+d.toFixed(2)+" m":"Αμετάβλητο (ΔΖ "+(d*100).toFixed(1)+" cm)";
-    ro.textContent="Χ: "+fmt(X,2)+"  Υ: "+fmt(Y,2)+"\n"+lbl;
+    ro.textContent="Χ: "+fmt(X,2)+"  Υ: "+fmt(Y,2)+zline+"\n"+lbl;
   }else{
-    ro.textContent="Χ: "+fmt(X,2)+"  Υ: "+fmt(Y,2)+"\nΠάχος: "+(d*100).toFixed(1)+" cm "+
+    ro.textContent="Χ: "+fmt(X,2)+"  Υ: "+fmt(Y,2)+zline+"\nΠάχος ΔΖ: "+(d*100).toFixed(1)+" cm "+
       (d<G.design-G.tol?"(έλλειμμα)":d>G.design+G.tol?"(υπέρβαση)":"(εντός)");
   }
 });
