@@ -123,6 +123,11 @@ main{max-width:880px;margin:0 auto;padding:16px 14px 96px}
 .subans b{color:var(--navy)}
 .subloading{display:flex;gap:7px;align-items:center;color:var(--muted);font-size:12.8px;padding:2px 0}
 .artactions{display:flex;gap:8px;flex-wrap:wrap}
+.feklink{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--blue);border:1.5px solid var(--blue);border-radius:8px;padding:5px 9px;text-decoration:none;background:transparent}
+.feklink:hover{background:var(--blue);color:#fff}
+.fekrow{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 2px}
+.fekrow .lbl{font-size:11.5px;color:var(--muted);align-self:center;margin-right:2px}
+a.feka{color:var(--blue);font-weight:700;text-decoration:underline;text-underline-offset:2px}
 .askbtn{appearance:none;border:1.5px solid var(--blue);background:#fff;color:var(--blue);font-weight:600;font-size:13px;border-radius:8px;padding:7px 12px;cursor:pointer;font-family:var(--sans)}
 .askbtn:hover{background:var(--soft)}
 .note{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:10px 13px;font-size:12.5px;color:#33415C;margin:14px 0}
@@ -846,6 +851,56 @@ async function askAIFull(payload, maxRounds=3){
 }
 
 // Κατάλογος όλων των άρθρων για το AI (id → τίτλος + λέξεις-κλειδιά)
+/* ================= ΜΗΤΡΩΟ ΦΕΚ — σύνδεσμοι στο αυθεντικό κείμενο (v4.33) =========
+   id = YYYY + ΤΕΥΧΟΣ(01=Α΄, 02=Β΄) + ΑΡΙΘΜΟΣ(5 ψηφία) — μορφή Εθνικού Τυπογραφείου.
+   Προσθήκη νέου νόμου = μία γραμμή εδώ και δουλεύει παντού (καρτέλες + AI). */
+const FEK_BASE = "https://www.et.gr/api/DownloadFeksApi/?fek_pdf=";
+const FEK_REG = {
+  "5306/2026":  {id:"20260100088", fek:"ΦΕΚ Α΄88/2026",   t:"ν. 5306/2026 — Κώδικας Χωροταξίας & Πολεοδομίας (Ταγαράς)"},
+  "5317/2026":  {id:"",            fek:"ν. 5317/2026",     t:"ν. 5317/2026 — τροποποιήσεις Κώδικα"},
+  "5325/2026":  {id:"20260100122", fek:"ΦΕΚ Α΄122/2026",   t:"ν. 5325/2026 — τροποποίηση Κώδικα (Ε.Σ.ΠΕΡ.Α.Α., ιδιωτική πολεοδόμηση, φθίνοντες οικισμοί)"},
+  "4067/2012":  {id:"20120100079", fek:"ΦΕΚ Α΄79/2012",    t:"ν. 4067/2012 — Νέος Οικοδομικός Κανονισμός"},
+  "4495/2017":  {id:"20170100167", fek:"ΦΕΚ Α΄167/2017",   t:"ν. 4495/2017 — Έλεγχος & προστασία δομημένου περιβάλλοντος"},
+  "66006/2360": {id:"20230203985", fek:"ΦΕΚ Β΄3985/2023",  t:"ΥΑ 66006/2360 — Κτιριοδομικός Κανονισμός 2023"},
+  "2971/2001":  {id:"20010100285", fek:"ΦΕΚ Α΄285/2001",   t:"ν. 2971/2001 — Αιγιαλός, παραλία"},
+  "5092/2024":  {id:"20240100033", fek:"ΦΕΚ Α΄33/2024",    t:"ν. 5092/2024 — Αξιοποίηση παραθαλάσσιας δημόσιας περιουσίας"},
+  "998/1979":   {id:"19790100289", fek:"ΦΕΚ Α΄289/1979",   t:"ν. 998/1979 — Προστασία δασών"},
+  "41/2018":    {id:"20180100080", fek:"ΦΕΚ Α΄80/2018",    t:"π.δ. 41/2018 — Κανονισμός Πυροπροστασίας Κτιρίων"},
+  "55904/2019": {id:"20230203475", fek:"ΦΕΚ Β΄3475/2023",  t:"ΚΥΑ ΥΠΕΝ/ΔΑΟΚΑ/55904/2019 — Πυροπροστασία ακινήτων σε δασικές εκτάσεις"},
+  "2664/1998":  {id:"19980100275", fek:"ΦΕΚ Α΄275/1998",   t:"ν. 2664/1998 — Εθνικό Κτηματολόγιο"},
+  "5326/2026":  {id:"20260100125", fek:"ΦΕΚ Α΄125/2026",   t:"ν. 5326/2026 — Υποχρεωτική κτηματολογική διαμεσολάβηση"}
+};
+/* Ποια ΦΕΚ αντιστοιχούν σε κάθε καρτέλα */
+const LAW_FEK = {
+  tagaras:["5306/2026","5325/2026"], nok:["4067/2012"], n4495:["4495/2017"], ktir:["66006/2360"],
+  aig:["2971/2001","5092/2024"], pyr:["55904/2019","41/2018"],
+  das:["998/1979"], ktim:["2664/1998","5326/2026"]
+};
+function fekUrl(k){
+  const e = FEK_REG[k];
+  if(e && e.id) return FEK_BASE + e.id;
+  return "https://www.google.com/search?q=" + encodeURIComponent("ΦΕΚ " + ((e&&e.t)||k) + " site:et.gr");
+}
+function fekLabel(k){ const e=FEK_REG[k]; return e ? (e.fek||k) : k; }
+function fekTitle(k){ const e=FEK_REG[k]; return e ? (e.t||k) : ("ΦΕΚ "+k); }
+/* Σειρά κουμπιών ΦΕΚ για έναν νόμο */
+function fekRow(key, small){
+  const ks = LAW_FEK[key]; if(!ks || !ks.length) return "";
+  const btns = ks.map(k=>`<a class="feklink" href="${fekUrl(k)}" target="_blank" rel="noopener" title="${esc(fekTitle(k))}">📄 ${esc(fekLabel(k))}</a>`).join("");
+  return `<div class="fekrow">${small?'<span class="lbl">Αυθεντικό κείμενο:</span>':""}${btns}</div>`;
+}
+/* Αυτόματη μετατροπή παραπομπών σε συνδέσμους ΦΕΚ μέσα σε κείμενο AI */
+function linkifyLaws(html){
+  const RX = /(?:ν\.?\s?|νόμο[υς]?\s|π\.?\s?δ\.?\s?|ΥΑ\s|ΚΥΑ\s)?(\d{1,5})\/(\d{4})/g;
+  return html.split(/(<[^>]*>)/).map(seg=>{
+    if(seg.startsWith("<")) return seg;
+    return seg.replace(RX,(m,num,yr)=>{
+      const k = num+"/"+yr;
+      if(!FEK_REG[k]) return m;
+      return `<a class="feka" href="${fekUrl(k)}" target="_blank" rel="noopener" title="${esc(fekTitle(k))} — άνοιγμα ΦΕΚ">${m}</a>`;
+    });
+  }).join("");
+}
 const LAW_LABEL = {tagaras:"Κώδικας 5306/26", nok:"ΝΟΚ", n4495:"ν.4495/17", ktir:"Κτιριοδομικός 23", aig:"Αιγιαλός/Ρέματα", pyr:"Πυροπροστασία", das:"Δασικά", ktim:"Κτηματολόγιο"};
 function buildCatalog(){
   const lines = [];
@@ -860,7 +915,7 @@ function buildCatalog(){
 }
 const CATALOG = buildCatalog();
 
-const CTX_5306 = `ΣΗΜΑΝΤΙΚΟ ΠΛΑΙΣΙΟ: Ο ν.5306/2026 «Κώδικας Χωροταξίας-Πολεοδομίας Νικόλαος Ταγαράς» (ΦΕΚ Α'88/08.06.2026) ΥΠΑΡΧΕΙ και ισχύει — δημοσιεύτηκε μετά το training σου. ΜΗΝ πεις ποτέ ότι δεν τον γνωρίζεις και ΜΗΝ αναφέρεις όρια γνώσης. Είναι ΚΩΔΙΚΟΠΟΙΗΣΗ: το περιεχόμενό του ταυτίζεται με νόμους που γνωρίζεις καλά: άρθ.195-225 = ΝΟΚ 4067/2012 (π.χ. 206↔ΝΟΚ 11 ΣΔ, 210↔15 ύψος, 211↔16 εξώστες, 212↔17 ακάλυπτοι), άρθ.249-273 = εκτός σχεδίου ν.4759/2020 (250↔32, 251↔33), άρθ.284-304 = χρήσεις γης π.δ.59/2018, άρθ.313-340 = οικοδομικές άδειες ν.4495/2017, άρθ.341-351 = ταυτότητα κτιρίου, άρθ.366-447 = αυθαίρετα ν.4495/2017 (383↔96, 368↔83, 387↔100). Οι παλιοί νόμοι καταργήθηκαν ως αυτοτελείς (άρθ. 477) αλλά το περιεχόμενο ισχύει μέσω του Κώδικα. Ο Κτιριοδομικός Κανονισμός 2023 (ΦΕΚ Β'3985) ισχύει αυτοτελώς. Απαντάς με βάση αυτή τη γνώση, δίνοντας πάντα και τις δύο αριθμήσεις.
+const CTX_5306 = `ΣΗΜΑΝΤΙΚΟ ΠΛΑΙΣΙΟ: Ο ν.5306/2026 «Κώδικας Χωροταξίας-Πολεοδομίας Νικόλαος Ταγαράς» (ΦΕΚ Α'88/08.06.2026) ΥΠΑΡΧΕΙ και ισχύει — δημοσιεύτηκε μετά το training σου. ΜΗΝ πεις ποτέ ότι δεν τον γνωρίζεις και ΜΗΝ αναφέρεις όρια γνώσης. Είναι ΚΩΔΙΚΟΠΟΙΗΣΗ: το περιεχόμενό του ταυτίζεται με νόμους που γνωρίζεις καλά: άρθ.195-225 = ΝΟΚ 4067/2012 (π.χ. 206↔ΝΟΚ 11 ΣΔ, 210↔15 ύψος, 211↔16 εξώστες, 212↔17 ακάλυπτοι), άρθ.249-273 = εκτός σχεδίου ν.4759/2020 (250↔32, 251↔33), άρθ.284-304 = χρήσεις γης π.δ.59/2018, άρθ.313-340 = οικοδομικές άδειες ν.4495/2017, άρθ.341-351 = ταυτότητα κτιρίου, άρθ.366-447 = αυθαίρετα ν.4495/2017 (383↔96, 368↔83, 387↔100). Ο Κώδικας ισχύει ΟΠΩΣ ΚΩΔΙΚΟΠΟΙΗΘΗΚΕ με τον ν.5325/2026 (Α΄122/31.7.2026). Οι παλιοί νόμοι καταργήθηκαν ως αυτοτελείς (άρθ. 477) αλλά το περιεχόμενο ισχύει μέσω του Κώδικα. Ο Κτιριοδομικός Κανονισμός 2023 (ΦΕΚ Β'3985) ισχύει αυτοτελώς. Απαντάς με βάση αυτή τη γνώση, δίνοντας πάντα και τις δύο αριθμήσεις.
 
 ΚΑΝΟΝΑΣ ΚΑΘΕΣΤΩΤΟΣ (κρίσιμο για ορθότητα): Πριν δώσεις αριθμούς, προσδιόρισε ΣΕ ΠΟΙΟ ΚΑΘΕΣΤΩΣ αναφέρεται το ερώτημα και εφάρμοσε ΜΟΝΟ τους κανόνες του:
 1) ΕΝΤΟΣ εγκεκριμένου σχεδίου → ΝΟΚ/Κώδικας 195-225 (π.χ. απόσταση Δ = 3,00 + 0,10Η).
@@ -911,14 +966,31 @@ function hl(text, q){
     return t.replace(rx,"<mark>$1</mark>");
   }catch(e){ return t; }
 }
-function norm(s){ return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
+function norm(s){
+  return (s==null?"":String(s)).toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/\u03c2/g,"\u03c3")          /* τελικό σίγμα ς -> σ : «ύψος»≡«ύψους» */
+    .replace(/\u00a0/g," ");
+}
+/* Greeklish -> ελληνικά (μόνο για καθαρά λατινικά tokens): pisina -> πισινα */
+const _GL=[["ps","ψ"],["th","θ"],["ch","χ"],["kh","χ"],["ph","φ"],["ks","ξ"],["gh","γ"],
+  ["ou","ου"],["ai","αι"],["ei","ει"],["oi","οι"],["mp","μπ"],["nt","ντ"],["gg","γγ"],
+  ["ts","τσ"],["tz","τζ"],["a","α"],["b","β"],["c","κ"],["d","δ"],["e","ε"],["f","φ"],
+  ["g","γ"],["h","η"],["i","ι"],["j","ζ"],["k","κ"],["l","λ"],["m","μ"],["n","ν"],
+  ["o","ο"],["p","π"],["q","κ"],["r","ρ"],["s","σ"],["t","τ"],["u","υ"],["v","β"],
+  ["w","ω"],["x","χ"],["y","υ"],["z","ζ"]];
+function deGreeklish(t){
+  if(!/^[a-z0-9]+$/.test(t) || /^\d+$/.test(t)) return t;
+  let o=t; for(const pr of _GL) o=o.split(pr[0]).join(pr[1]);
+  return o;
+}
 function mdLite(t){
-  return esc(t)
+  return linkifyLaws(esc(t)
     .replace(/^\s*---+\s*$/gm,'<span style="display:block;border-top:1px solid #D7DEE9;margin:6px 0"></span>')
     .replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")
     .replace(/^### (.+)$/gm,"<b>$1</b>")
     .replace(/^## (.+)$/gm,"<b>$1</b>")
-    .replace(/^# (.+)$/gm,"<b>$1</b>");
+    .replace(/^# (.+)$/gm,"<b>$1</b>"));
 }
 function getItem(id){
   const [k,ci,ii] = id.split("|");
@@ -1022,19 +1094,21 @@ function renderLaw(key, q=""){
     <div class="fek">${esc(law.fek).replace("\n","<br>")}</div>
     <p>${esc(law.meta)}</p>
   </div>
+  ${fekRow(key, true)}
   <div class="searchwrap">
     <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
     <input id="filter" type="search" placeholder="Αναζήτηση στα περιεχόμενα (π.χ. πισίνα, ύψος, αρτιότητα)…" value="${esc(q)}">
   </div>`;
   let hits = 0;
+  /* v4.32: το φιλτράρισμα περνάει από τη μηχανή ακριβείας — ποτέ κενό αποτέλεσμα */
+  let hitSet = null, findMode = "exact";
+  if(nq){
+    const fr = localFindScored(q, {key, limit:40});
+    hitSet = new Set(fr.ids);
+    findMode = fr.mode;
+  }
   law.chapters.forEach((ch,ci)=>{
-    const items = ch.items.map((it,ii)=>({it,ii})).filter(({it})=>{
-      if(!nq) return true;
-      const hayRaw = norm(it.n+" "+it.t+" "+it.d+" "+(it.k||"")+" "+(it.p||""));
-      if(hayRaw.includes(nq)) return true;                 /* ακριβής φράση */
-      const need = toksOf(nq);                              /* αλλιώς: όλα τα stems */
-      return need.length > 0 && need.every(t=> itemStems(it).has(t) || hayRaw.includes(t));
-    });
+    const items = ch.items.map((it,ii)=>({it,ii})).filter(({ii})=> !hitSet || hitSet.has(key+"|"+ci+"|"+ii));
     if(!items.length) return;
     hits += items.length;
     html += `<div class="chapter"><h2>${esc(ch.title)}</h2>`;
@@ -1054,13 +1128,17 @@ function renderLaw(key, q=""){
           <div class="artactions">
             <button type="button" class="askbtn morebtn">💬 Ρώτησε το AI γι' αυτό</button>
             <button type="button" class="printbtn morebtn" title="Εκτύπωση/Αποθήκευση σε PDF">🖨 PDF</button>
+            ${(LAW_FEK[key]||[]).map(fk=>`<a class="feklink" href="${fekUrl(fk)}" target="_blank" rel="noopener" title="${esc(fekTitle(fk))} — αυθεντικό κείμενο">📄 ${esc(fekLabel(fk))}</a>`).join("")}
           </div>
         </div>
       </div>`;
     });
     html += `</div>`;
   });
-  if(nq && !hits) html += `<div class="noresults">Κανένα άρθρο δεν ταιριάζει με «${esc(q)}».<br>Δοκίμασε την <b>AI Αναζήτηση</b> — περιγράφεις τι ψάχνεις και σε παραπέμπει στο σωστό άρθρο.</div>`;
+  if(nq && hits && findMode!=="exact")
+    html += `<div class="noresults">Δεν υπάρχει ακριβής αντιστοίχιση για «${esc(q)}» — παραπάνω τα <b>πιο κοντινά άρθρα</b>. Για ερμηνεία δοκίμασε την <b>AI Αναζήτηση</b>.</div>`;
+  if(nq && !hits)
+    html += `<div class="noresults">Ο όρος «${esc(q)}» δεν υπάρχει σε αυτόν τον νόμο. Δοκίμασε την καρτέλα <b>🔍 ΑΝΑΖΗΤΗΣΗ + AI</b> — ψάχνει ταυτόχρονα σε ΟΛΟΥΣ τους νόμους.</div>`;
   html += `<div class="note"><b>Σημείωση:</b> Πατάς στο άρθρο και ανοίγει αμέσως, offline. Για ερμηνεία, τρέχουσες προθεσμίες ή σύνθετα ερωτήματα χρησιμοποίησε την AI Αναζήτηση.</div>`;
   main.innerHTML = html;
 
@@ -1525,11 +1603,20 @@ function renderAI(){
       html += `<div class="msg ${m.err?"err":"ai"}">${m.err?esc(m.text):mdLite(m.text)}</div>`;
       if(m.refs && m.refs.length){
         html += `<div class="refs">`;
+        const seen = new Set();
         m.refs.forEach(id=>{
           const f = getItem(id);
-          if(f) html += `<button data-go="${esc(id)}">📖 ${esc(LAW_LABEL[f.key])} · ${esc(f.it.n)} — ${esc(f.it.t)}</button>`;
+          if(f){
+            html += `<button data-go="${esc(id)}">📖 ${esc(LAW_LABEL[f.key])} · ${esc(f.it.n)} — ${esc(f.it.t)}</button>`;
+            (LAW_FEK[f.key]||[]).forEach(k=> seen.add(k));
+          }
         });
         html += `</div>`;
+        if(seen.size){                       /* v4.33: πήγαινε στο αυθεντικό ΦΕΚ */
+          html += `<div class="fekrow"><span class="lbl">Διάβασε το αυθεντικό:</span>` +
+            [...seen].map(k=>`<a class="feklink" href="${fekUrl(k)}" target="_blank" rel="noopener" title="${esc(fekTitle(k))}">📄 ${esc(fekLabel(k))}</a>`).join("") +
+            `</div>`;
+        }
       }
       if(m.local){
         html += `<div class="refs"><button class="askaibtn" style="border:none;background:#1F4E9C;color:#fff;font-family:inherit;font-size:14.5px;font-weight:700;border-radius:10px;padding:12px 18px;width:100%;cursor:pointer;box-shadow:0 2px 6px rgba(31,78,156,.35)">🤖 Ρώτησε το AI γι' αυτό — αναλυτική απάντηση</button></div>`;
@@ -1585,44 +1672,71 @@ async function verifyQuestion(q){
   renderAI();
 }
 
-/* ---------- ΔΩΡΕΑΝ τοπική εύρεση σε ΟΛΟΥΣ τους νόμους (χωρίς AI/API) ---------- */
-const STOPWORDS = new Set(["και","η","ο","το","τα","τον","την","τις","της","του","των","σε","στο","στη","στην","στον","στα","στις","στους","με","για","που","πως","τι","να","θελω","θα","ειναι","εχω","εχει","εχεις","απο","ενα","μια","ποσο","ποσα","ποια","ποιο","ποιος","ισχυει","μπορω","πρεπει","αν","οταν","μου","σου","δεν","κανω","βαλω","οτι","ως","κατι","ρε","οχι","ναι"]);
+/* ===== v4.32 ΜΗΧΑΝΗ ΑΚΡΙΒΕΙΑΣ «ΠΑΝΤΑ ΑΠΟΤΕΛΕΣΜΑ» =========================
+   prefix + fuzzy + greeklish + συνώνυμα + BM25 + κλιμακωτή χαλάρωση.
+   Ποτέ δεν επιστρέφει κενό: αν δεν βρεθεί ακριβές, πέφτει σε loose (υπο-
+   συμβολοσειρά) και τελικά σε fuzzy (ομοιότητα τριγραμμάτων).           */
+const NOISE = new Set(["αρθρ","αρθρο","αρθ","αρθρα","παραγραφ","παρ","εδαφι","περιπτωσ","νομοσ","νομ","φεκ","διαταξ"]);
+const STOPWORDS = new Set(["και","η","ο","το","τα","τον","την","τισ","τησ","του","των","σε","στο","στη","στην","στον","στα","στισ","στουσ","με","για","που","πωσ","τι","να","θελω","θα","ειναι","εχω","εχει","εχεισ","απο","ενα","μια","ποσο","ποσα","ποια","ποιο","ποιοσ","ισχυει","μπορω","πρεπει","αν","οταν","μου","σου","δεν","κανω","βαλω","οτι","ωσ","κατι","ρε","οχι","ναι"]);
 
-/* ---------- v4.30 ΑΛΓΟΡΙΘΜΟΣ ΑΚΡΙΒΕΙΑΣ: stemming + συνώνυμα + BM25 + τεκμηριωμένη 1η απάντηση ---------- */
+/* --- Stemming: ΣΥΝΕΠΕΣ (ελάχιστο μήκος θέματος 3, με σ αντί ς) --- */
+const _END=["ιασεων","ησεων","ωσεων","οτητασ","οτητεσ","ματων","ματοσ","ουσασ","ουσεσ",
+  "οτητα","σεων","ματα","ησησ","ησεισ","ωσησ","ωσεισ","ικοσ","ικησ","ικων","ικεσ","ικοι",
+  "ειασ","ειεσ","ουσ","ικα","ιασ","ιεσ","εων","εισ","ουν","ονται","ηκε",
+  "ων","οσ","ησ","ασ","εσ","οι","αι","ου","α","η","ο","ι","υ","ε","σ"];
 function stemGr(t){
   if(/^\d/.test(t)) return t;
-  const END = ["ιασεων","ησεων","ωσεων","οτητας","οτητες","σεων","ματων","ματος","ματα","ουσας","ουσες","οτητα","ησης","ησεις","ωσης","ωσεις","ικος","ικης","ικων","ικες","ικοι","ειας","ειες","ικα","ιας","ιες","εων","εις","ους","ων","ος","ης","ας","ες","οι","αι","α","η","ο","ι","υ","ε","ς"];
-  for(const e of END){ if(t.length - e.length >= 4 && t.endsWith(e)) return t.slice(0, -e.length); }
+  for(const e of _END){ if(t.length-e.length>=3 && t.endsWith(e)) return t.slice(0,-e.length); }
   return t;
 }
-/* Συνώνυμα/καθομιλουμένη μηχανικού → όροι νομοθεσίας (τα extra tokens μετράνε με μειωμένο βάρος) */
+/* --- Levenshtein με early-exit (ανοχή τυπογραφικών) --- */
+function lev(a,b,max){
+  if(Math.abs(a.length-b.length)>max) return max+1;
+  const m=a.length,n=b.length; let prev=new Array(n+1),cur=new Array(n+1);
+  for(let j=0;j<=n;j++) prev[j]=j;
+  for(let i=1;i<=m;i++){
+    cur[0]=i; let best=cur[0];
+    for(let j=1;j<=n;j++){
+      cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
+      if(cur[j]<best) best=cur[j];
+    }
+    if(best>max) return max+1;
+    const t=prev; prev=cur; cur=t;
+  }
+  return prev[n];
+}
+function tri(s){ const o=new Set(); const x="  "+s+" "; for(let i=0;i<x.length-2;i++) o.add(x.slice(i,i+3)); return o; }
+function triSim(A,b){ const B=tri(b); let h=0; A.forEach(g=>{ if(B.has(g)) h++; }); return h/Math.max(1,Math.min(A.size,B.size)); }
+
+/* Συνώνυμα/καθομιλουμένη μηχανικού → όροι νομοθεσίας (μειωμένο βάρος) */
 const SYN = {
-  "σδ":["συντελεστ","δομησ"], "σ.δ":["συντελεστ","δομησ"],
+  "σδ":["συντελεστ","δομησ"], "σ.δ":["συντελεστ","δομησ"], "συντελεστ":["δομησ","καλυψ"],
   "νοκ":["4067"], "ταγαρ":["5306","κωδικ"],
-  "αυθαιρετ":["4495","τακτοποιησ","προστιμ"],
-  "τακτοποιησ":["4495","αυθαιρετ"],
+  "αυθαιρετ":["4495","τακτοποιησ","προστιμ"], "τακτοποιησ":["4495","αυθαιρετ"],
   "ημιυπαιθρ":["υπαιθρ","χωρ"],
   "μπαλκον":["εξωστ","προεξοχ"], "βεραντ":["εξωστ"],
   "παταρ":["σοφιτ","εσωτερικ"],
   "πισιν":["κολυμβητικ","δεξαμεν","ακαλυπτ"],
-  "παρκινγκ":["σταθμευσ"], "παρκιν":["σταθμευσ"], "γκαραζ":["σταθμευσ"],
+  "παρκιν":["σταθμευσ"], "γκαραζ":["σταθμευσ"], "θεση":["σταθμευσ"],
   "ασανσερ":["ανελκυστηρ"], "σκαλ":["κλιμακοστασι","κλιμακ"],
   "τζακ":["καπνοδοχ","εστι"],
   "μαντρ":["περιφραξ","περιτοιχισ"], "φραχτ":["περιφραξ"],
   "ρευμα":["οκω","συνδεσ"], "φωτοβολταικ":["απε","στεγ"],
-  "γηπεδ":["εκτος","σχεδι","αρτιοτητ"],
-  "οικοπεδ":["αρτιοτητ","οικοδομησιμ"],
+  "γηπεδ":["εκτοσ","σχεδι","αρτιοτητ"], "οικοπεδ":["αρτιοτητ","οικοδομησιμ"],
   "πρασι":["προκηπι"], "προκηπι":["πρασι"],
   "δωμα":["στεγ","φυτεμεν"], "ταρατσ":["δωμα","στεγ"],
-  "υψος":["μεγιστ","υψ"],
+  "υψο":["μεγιστ","ιδεατ"], "υψ":["μεγιστ"],
   "δασ":["δασικ"], "ρεμα":["υδατορεμ","οριοθετησ"], "ρεματ":["υδατορεμ"],
   "αιγιαλ":["παραλι"], "θαλασσ":["αιγιαλ","παραλι"],
   "κοτετσ":["σταβλ","αγροτικ"], "στανη":["σταβλ"],
   "διατηρητε":["μνημει","παραδοσιακ"],
   "μικροεργασι":["μικρ","κλιμακ"], "48":["εργασι","δομησ"],
   "καεκ":["κτηματολογι"], "εγσα":["κτηματολογι","συντεταγμεν"],
-  "χρησικτησ":["αγνωστ","διαμεσολαβ","κτηματολογι"], "διαμεσολαβ":["χρησικτησ","κτηματολογι"], "αγνωστ":["χρησικτησ","ιδιοκτητ"],
-  "φωτια":["πυροπροστασι"], "πυρκαγι":["πυροπροστασι"]
+  "χρησικτησ":["αγνωστ","διαμεσολαβ","κτηματολογι"], "διαμεσολαβ":["χρησικτησ","κτηματολογι"],
+  "αγνωστ":["χρησικτησ","ιδιοκτητ"],
+  "φωτια":["πυροπροστασι"], "πυρκαγι":["πυροπροστασι"],
+  "αδει":["οικοδομικ","εγκρισ"], "βεβαιωσ":["μηχανικ","μεταβιβασ"],
+  "προστιμ":["ενιαι","ειδικ"], "χρησ":["γησ","κατηγορι"]
 };
 const LAW_HINT = {
   tagaras:["ταγαρ","5306","κωδικ"], nok:["νοκ","4067"],
@@ -1631,9 +1745,9 @@ const LAW_HINT = {
   aig:["αιγιαλ","παραλι"], pyr:["πυροπροστασι","πυρασφαλει"]
 };
 function toksOf(s){
-  return norm(s).replace(/[;,.·!?()«»""'\/\-–—:]/g," ").split(/\s+/)
+  return norm(s).replace(/[;,.·!?()«»""'\/\-–—:_\[\]]/g," ").split(/\s+/)
     .filter(t=> t && !STOPWORDS.has(t) && (t.length>=3 || /^\d+$/.test(t)))
-    .map(stemGr);
+    .map(deGreeklish).map(stemGr);
 }
 const _stemCache = new WeakMap();
 function itemStems(it){
@@ -1649,52 +1763,133 @@ function buildIdx(){
     LAWS[key].chapters.forEach((ch,ci)=> ch.items.forEach((it,ii)=>{
       const t1 = new Set(toksOf(it.n+" "+it.t+" "+(it.k||"")));
       const t2 = new Set(toksOf((it.d||"")+" "+(it.p||"")));
-      docs.push({id:key+"|"+ci+"|"+ii, key, t1, t2, nums:artNums(it.n),
+      docs.push({id:key+"|"+ci+"|"+ii, key, ci, ii, it, t1, t2, nums:artNums(it.n),
         raw:norm(it.n+" "+it.t+" "+(it.d||"")+" "+(it.k||"")+" "+(it.p||"")),
-        len:t1.size + t2.size});
+        title:norm(it.n+" "+it.t), len:t1.size + t2.size});
     }));
   }
-  const df = {};
-  docs.forEach(d=>{ new Set([...d.t1, ...d.t2]).forEach(t=> df[t] = (df[t]||0)+1); });
+  const df = {}, vocab = new Set();
+  docs.forEach(d=>{ new Set([...d.t1, ...d.t2]).forEach(t=>{ df[t]=(df[t]||0)+1; vocab.add(t); }); });
   const N = docs.length, avg = docs.reduce((a,d)=>a+d.len,0)/Math.max(1,N);
-  _IDX = {docs, df, N, avg};
+  _IDX = {docs, df, N, avg, vocab:[...vocab]};
   return _IDX;
 }
-function localFindScored(q){
-  const IDX = buildIdx();
-  const raw = norm(q).replace(/[;,.·!?()«»""'\/\-–—:]/g," ").split(/\s+/).filter(Boolean);
-  let extra = [];
-  for(const r of raw){ for(const k in SYN){ if(r===k || r.startsWith(k)) extra = extra.concat(SYN[k]); } }
-  const qt = [...new Set(raw.filter(t=> !STOPWORDS.has(t) && (t.length>=3 || /^\d+$/.test(t))).map(stemGr))];
-  const et = [...new Set(extra.map(stemGr))].filter(t=> !qt.includes(t));
-  if(!qt.length && !et.length) return {ids:[], conf:0, list:[]};
-  const lawBoost = {};
-  for(const k in LAW_HINT){ if(LAW_HINT[k].some(h=> raw.some(r=> r===h || r.startsWith(h)))) lawBoost[k] = 1.6; }
-  const bigrams = [];
-  for(let i=0;i<raw.length-1;i++){ if(!STOPWORDS.has(raw[i]) && !STOPWORDS.has(raw[i+1])) bigrams.push(raw[i]+" "+raw[i+1]); }
-  const idf = t=>{ const d = IDX.df[t]||0; return Math.log(1 + (IDX.N - d + 0.5)/(d + 0.5)); };
+/* Επέκταση όρου: ακριβές -> prefix (και προς τις δύο κατευθύνσεις) -> fuzzy */
+const _expCache = new Map();
+function expandTerm(IDX,t){
+  if(_expCache.has(t)) return _expCache.get(t);
   const out = [];
-  for(const doc of IDX.docs){
-    let s = 0, matched = 0;
-    for(const t of qt){
-      if(/^\d+$/.test(t) && doc.nums.includes(+t)){ s += 6; matched++; continue; }
-      if(doc.t1.has(t)){ s += 2.4*idf(t); matched++; }
-      else if(doc.t2.has(t)){ s += 1.0*idf(t); matched++; }
-    }
-    for(const t of et){ if(doc.t1.has(t)) s += 0.9*idf(t); else if(doc.t2.has(t)) s += 0.45*idf(t); }
-    if(!s) continue;
-    for(const bg of bigrams){ if(doc.raw.includes(bg)) s += 3; }
-    const cov = qt.length ? matched/qt.length : 1;
-    s *= (0.35 + 0.65*cov);                       /* κάλυψη όρων ερώτησης */
-    s *= 1/(0.55 + 0.45*doc.len/IDX.avg);          /* κανονικοποίηση μήκους */
-    if(lawBoost[doc.key]) s *= lawBoost[doc.key];  /* στόχευση νόμου */
-    out.push({id:doc.id, s, matched});
+  if(IDX.df[t]) out.push({t, w:1});
+  const minP = Math.min(4, t.length);
+  for(const v of IDX.vocab){
+    if(v===t) continue;
+    if(t.length>=3 && v.startsWith(t))            out.push({t:v, w:0.9});
+    else if(v.length>=minP && t.startsWith(v))    out.push({t:v, w:0.8});
   }
-  out.sort((a,b)=> b.s - a.s);
+  if(!out.length && t.length>=4 && !/^\d+$/.test(t)){
+    const max = t.length>=7 ? 2 : 1;
+    for(const v of IDX.vocab){
+      if(Math.abs(v.length-t.length)>max) continue;
+      if(lev(t,v,max)<=max) out.push({t:v, w:0.55});
+    }
+  }
+  out.sort((a,b)=> b.w-a.w);
+  const r = out.slice(0,12);
+  _expCache.set(t,r);
+  return r;
+}
+function compileQuery(IDX,q){
+  const nq = norm(q).trim();
+  const raw = nq.replace(/[;,.·!?()«»""'\/\-–—:_\[\]]/g," ").split(/\s+/).filter(Boolean).map(deGreeklish);
+  let kept = raw.filter(t=> !STOPWORDS.has(t) && (t.length>=3 || /^\d+$/.test(t)));
+  const noNoise = kept.filter(t=> !NOISE.has(t) && !NOISE.has(stemGr(t)));
+  if(noNoise.length) kept = noNoise;
+  if(!kept.length) kept = raw.filter(t=> t.length>=2);
+  if(!kept.length) kept = raw.slice();
+  const stems = [...new Set(kept.map(stemGr))];
+  let ex = [];
+  for(const r of raw) for(const k in SYN){ if(r===k || r.startsWith(k) || (k.startsWith(r) && r.length>=4)) ex = ex.concat(SYN[k]); }
+  const et = [...new Set(ex.map(stemGr))].filter(t=> !stems.includes(t));
+  const terms  = stems.map(t=>({base:t, vars:expandTerm(IDX,t)}));
+  const extras = et.map(t=>({base:t, vars:expandTerm(IDX,t)}));
+  const bigrams = [];
+  for(let i=0;i<raw.length-1;i++) if(!STOPWORDS.has(raw[i]) && !STOPWORDS.has(raw[i+1])) bigrams.push(raw[i]+" "+raw[i+1]);
+  const qnums = kept.filter(t=>/^\d+$/.test(t)).map(Number);
+  const lawBoost = {};
+  for(const k in LAW_HINT) if(LAW_HINT[k].some(h=> raw.some(r=> r===h || r.startsWith(h)))) lawBoost[k]=1.6;
+  return {nq, raw, stems, terms, extras, bigrams, lawBoost, qnums};
+}
+function scoreDoc(IDX,Q,doc){
+  const idf = t=>{ const d=IDX.df[t]||0; return Math.log(1+(IDX.N-d+0.5)/(d+0.5)); };
+  let s=0, matched=0;
+  for(const term of Q.terms){
+    let best=0;
+    if(/^\d+$/.test(term.base) && doc.nums.includes(+term.base)) best=Math.max(best,7);
+    for(const v of term.vars){
+      if(doc.t1.has(v.t))      best=Math.max(best, 2.4*idf(v.t)*v.w);
+      else if(doc.t2.has(v.t)) best=Math.max(best, 1.0*idf(v.t)*v.w);
+    }
+    if(!best && term.base.length>=4 && doc.raw.includes(term.base)) best=0.8;
+    if(best>0){ s+=best; matched++; }
+  }
+  for(const term of Q.extras){
+    let best=0;
+    for(const v of term.vars){
+      if(doc.t1.has(v.t))      best=Math.max(best, 0.9*idf(v.t)*v.w);
+      else if(doc.t2.has(v.t)) best=Math.max(best, 0.45*idf(v.t)*v.w);
+    }
+    s+=best;
+  }
+  if(!s) return null;
+  for(const bg of Q.bigrams) if(doc.raw.includes(bg)) s+=3;
+  if(Q.nq.length>=4 && doc.raw.includes(Q.nq)) s+=4;
+  if(Q.nq.length>=4 && doc.title.includes(Q.nq)) s+=8;                     /* ο όρος στον τίτλο */
+  else if(Q.stems.length && Q.stems.every(t=> doc.title.includes(t))) s+=5;
+  if(Q.qnums.length && Q.qnums.some(v=> doc.nums.includes(v))) s*=2.2;     /* ρητός αριθμός άρθρου */
+  const cov = Q.terms.length ? matched/Q.terms.length : 1;
+  s *= (0.45 + 0.55*cov);
+  s *= 1/(0.55 + 0.45*doc.len/IDX.avg);
+  if(Q.lawBoost[doc.key]) s *= Q.lawBoost[doc.key];
+  return {s, matched, cov};
+}
+/* ΔΗΜΟΣΙΑ ΣΥΝΑΡΤΗΣΗ — δεν γυρίζει ΠΟΤΕ κενό */
+function localFindScored(q, opts){
+  opts = opts || {};
+  const IDX = buildIdx();
+  const Q = compileQuery(IDX, q);
+  const pool = opts.key ? IDX.docs.filter(d=> d.key===opts.key) : IDX.docs;
+  let out = [];
+  for(const doc of pool){
+    const r = scoreDoc(IDX, Q, doc);
+    if(r) out.push({id:doc.id, doc, s:r.s, matched:r.matched, cov:r.cov});
+  }
+  let mode = "exact";
+  if(!out.length){                       /* χαλάρωση 1: υποσυμβολοσειρά */
+    mode = "loose";
+    const frags = [...new Set(Q.raw.concat(Q.stems).filter(t=> t.length>=3))];
+    for(const doc of pool){
+      let s=0;
+      for(const f of frags) if(doc.raw.includes(f)) s += 1.2 + f.length*0.08;
+      if(s) out.push({id:doc.id, doc, s, matched:1, cov:0.3});
+    }
+  }
+  if(!out.length){                       /* χαλάρωση 2: ομοιότητα τριγραμμάτων */
+    mode = "fuzzy";
+    const A = tri(Q.nq);
+    for(const doc of pool){
+      const s = triSim(A, doc.raw.slice(0,600))*5 + triSim(A, doc.title)*8;
+      if(s>0.05) out.push({id:doc.id, doc, s, matched:0, cov:0});
+    }
+  }
+  out.sort((a,b)=> b.s-a.s);
+  const lim = mode==="exact" ? (opts.limit||8) : Math.min(opts.limit||6, 6);
+  out = out.slice(0, lim);
   const top = out[0];
   let conf = 0;
-  if(top) conf = Math.min(1, (top.matched >= Math.min(2, qt.length) ? 0.55 : 0.25) + Math.min(0.45, top.s/22));
-  return {ids: out.slice(0,8).map(o=>o.id), conf, list: out.slice(0,8)};
+  if(top && mode==="exact")      conf = Math.min(1,(top.matched>=Math.min(2,Q.terms.length)?0.55:0.28)+Math.min(0.45, top.s/22));
+  else if(top && mode==="loose") conf = 0.22;
+  else if(top)                   conf = 0.10;
+  return {ids: out.map(o=>o.id), conf, mode, list: out};
 }
 function localFind(q){ return localFindScored(q).ids; }
 /* Τεκμηρίωση 1ης απάντησης: τα πλήρη κείμενα των κορυφαίων λημμάτων μπαίνουν στο prompt */
@@ -1712,7 +1907,7 @@ function groundContext(qtext){
 function groundBlock(qtext){
   const ctx = groundContext(qtext);
   if(!ctx) return "";
-  return `\n\n=== ΑΥΘΕΝΤΙΚΟ ΠΛΑΙΣΙΟ ΕΥΡΕΤΗΡΙΟΥ HEXIS (ελεγμένες περιλήψεις διατάξεων) ===\n${ctx}\n=== ΚΑΝΟΝΕΣ ΑΚΡΙΒΕΙΑΣ (ΥΠΟΧΡΕΩΤΙΚΟΙ) ===\n1. Κάθε αριθμητικό μέγεθος (ποσοστά, μέτρα, τ.μ., προθεσμίες, πρόστιμα) το δίνεις ΜΟΝΟ αν προκύπτει από το παραπάνω ΠΛΑΙΣΙΟ ή είσαι απολύτως βέβαιος· διαφορετικά γράφεις δίπλα του «⚠ προς live επαλήθευση» — ΠΟΤΕ δεν μαντεύεις νούμερο.\n2. Κάθε ισχυρισμός συνοδεύεται από νόμο + άρθρο.\n3. Αν το ΠΛΑΙΣΙΟ δεν καλύπτει πλήρως την ερώτηση, το δηλώνεις ρητά και προτείνεις το κουμπί live επαλήθευσης.`;
+  return `\n\n=== ΑΥΘΕΝΤΙΚΟ ΠΛΑΙΣΙΟ ΕΥΡΕΤΗΡΙΟΥ HEXIS (ελεγμένες περιλήψεις διατάξεων) ===\n${ctx}\n=== ΚΑΝΟΝΕΣ ΑΚΡΙΒΕΙΑΣ (ΥΠΟΧΡΕΩΤΙΚΟΙ) ===\n1. Κάθε αριθμητικό μέγεθος (ποσοστά, μέτρα, τ.μ., προθεσμίες, πρόστιμα) το δίνεις ΜΟΝΟ αν προκύπτει από το παραπάνω ΠΛΑΙΣΙΟ ή είσαι απολύτως βέβαιος· διαφορετικά γράφεις δίπλα του «⚠ προς live επαλήθευση» — ΠΟΤΕ δεν μαντεύεις νούμερο.\n2. Κάθε ισχυρισμός συνοδεύεται από νόμο + άρθρο.\n3. Αν το ΠΛΑΙΣΙΟ δεν καλύπτει πλήρως την ερώτηση, το δηλώνεις ρητά και προτείνεις το κουμπί live επαλήθευσης.\n4. ΜΟΡΦΗ ΠΑΡΑΠΟΜΠΩΝ: γράφε ΠΑΝΤΑ τον νόμο ως «ν. ΧΧΧΧ/ΥΥΥΥ» και το π.δ. ως «π.δ. ΧΧ/ΥΥΥΥ» (με κάθετο και τετραψήφιο έτος) — η εφαρμογή τα μετατρέπει αυτόματα σε συνδέσμους προς το αυθεντικό ΦΕΚ.`;
 }
 
 async function sendQuestion(){
@@ -1728,10 +1923,10 @@ async function sendQuestion(){
   chatHistory.push({
     role:"assistant", local:true, q:text, refs,
     text: refs.length
-      ? ((found.conf>=0.7 ? "🎯 **Υψηλή συνάφεια ευρετηρίου.** " : found.conf<0.4 ? "ℹ️ **Χαμηλή βεβαιότητα** — πιθανώς σχετικά. " : "") + (isQuestion
+      ? ((found.mode!=="exact" ? "🧭 **Χωρίς ακριβή αντιστοίχιση** — τα πιο κοντινά άρθρα του ευρετηρίου. " : found.conf>=0.7 ? "🎯 **Υψηλή συνάφεια ευρετηρίου.** " : found.conf<0.4 ? "ℹ️ **Χαμηλή βεβαιότητα** — πιθανώς σχετικά. " : "") + (isQuestion
           ? "🔎 Αυτά τα άρθρα αφορούν την ερώτησή σου. Για **τεκμηριωμένη απάντηση πάνω στα κείμενά τους**, πάτα το μπλε κουμπί από κάτω:"
           : "🔎 **Δωρεάν εύρεση στο ευρετήριο** (χωρίς AI) — σχετικά άρθρα:"))
-      : "🔎 Δεν βρέθηκε κάτι στο ευρετήριο για αυτούς τους όρους. Πάτα το μπλε κουμπί για να απαντήσει το AI:"
+      : "🔎 Το ευρετήριο δεν έχει λήμμα για αυτούς τους όρους. Πάτα το μπλε κουμπί για τεκμηριωμένη απάντηση από το AI:"
   });
   renderAI();
 }
@@ -1888,7 +2083,13 @@ function renderCorr(q=""){
   </div>`;
   let any = false;
   for(const t of CORR_TABLES){
-    const rows = t.rows.filter(r=> !nq || norm(r.slice(0,3).join(" ")).includes(nq));
+    const rows = t.rows.filter(r=>{
+      if(!nq) return true;
+      const hay = norm(r.slice(0,3).join(" "));
+      if(hay.includes(nq)) return true;
+      const tk = toksOf(nq);                       /* v4.32: OR σε stems, όχι AND σε φράση */
+      return tk.length>0 && tk.some(x=> hay.includes(x));
+    });
     if(!rows.length) continue;
     any = true;
     html += `<table class="corrtable"><caption>${esc(t.title)}</caption>
@@ -1980,7 +2181,7 @@ async function runUpdateCheck(auto){
     const answer = await askAIFull({
       model:"claude-sonnet-4-6",
       max_tokens:900,
-      system:"Είσαι ο μηχανισμός ελέγχου ενημερώσεων της εφαρμογής HEXIS Νομοθεσία. Με web search σε επίσημες/έγκυρες πηγές (ΦΕΚ/et.gr, ypen.gov.gr, e-nomothesia, b2green, michanikos) ελέγχεις αν υπάρχουν ΝΕΕΣ τροποποιήσεις ΜΕΤΑ τις "+CONTENT_DATE+" στα εξής: (1) Κώδικας Χωροταξίας-Πολεοδομίας ν.5306/2026 «Ταγαράς» (γνωστές ήδη: ν.5317/2026), (2) Κτιριοδομικός Κανονισμός 2023 (γνωστή ήδη: ΦΕΚ Β'6995/2025), (3) ν.4495/2017 (γνωστή ήδη: κωδικοποίηση έως ν.5297/2026), (4) προθεσμίες δηλώσεων αυθαιρέτων, (5) ν.2971/2001 & ν.5092/2024 αιγιαλός-παραλία (γνωστές ήδη: ν.5301/2026, ν.5313/2026, ΚΥΑ 11996 ΕΞ 2026), (6) ν.4258/2014 υδατορέματα, (7) πυροπροστασία δασικών ακινήτων (ΚΥΑ 55904/2023, ν.5281/2026) & π.δ. 41/2018, (8) δασικοί χάρτες/ν.998/1979, (9) ν.2664/1998 κτηματολόγιο (προθεσμίες αρχικών εγγραφών, πρόδηλα, γνωστή ήδη: ν.5326/2026 — υποχρεωτική κτηματολογική διαμεσολάβηση για έκτακτη χρησικτησία σε «αγνώστου ιδιοκτήτη», ΦΕΚ Α'125/4.8.2026). ΜΟΡΦΗ ΑΠΑΝΤΗΣΗΣ, ΑΥΣΤΗΡΑ: Πρώτη γραμμή ΜΟΝΟ τη λέξη ΚΑΜΙΑ ή τη λέξη ΑΛΛΑΓΕΣ. Αν ΑΛΛΑΓΕΣ, ακολουθούν bullets: «• [νομοθέτημα] — άρθ. Χ: τι άλλαξε (ΦΕΚ/νόμος τροποποίησης, ημερομηνία)». Μόνο ΕΠΙΒΕΒΑΙΩΜΕΝΕΣ αλλαγές με πηγή — όχι σχέδια νόμων, όχι φήμες.",
+      system:"Είσαι ο μηχανισμός ελέγχου ενημερώσεων της εφαρμογής HEXIS Νομοθεσία. Με web search σε επίσημες/έγκυρες πηγές (ΦΕΚ/et.gr, ypen.gov.gr, e-nomothesia, b2green, michanikos) ελέγχεις αν υπάρχουν ΝΕΕΣ τροποποιήσεις ΜΕΤΑ τις "+CONTENT_DATE+" στα εξής: (1) Κώδικας Χωροταξίας-Πολεοδομίας ν.5306/2026 «Ταγαράς» (γνωστές ήδη: ν.5317/2026 και ν.5325/2026 — ΦΕΚ Α΄122/31.7.2026, ενοποιημένο κείμενο 4.8.2026: Ε.Σ.ΠΕΡ.Α.Α., εκτάσεις περιβαλλοντικής αναβάθμισης/ιδιωτικής πολεοδόμησης, αναβίωση εγκαταλελειμμένων και φθινόντων οικισμών), (2) Κτιριοδομικός Κανονισμός 2023 (γνωστή ήδη: ΦΕΚ Β'6995/2025), (3) ν.4495/2017 (γνωστή ήδη: κωδικοποίηση έως ν.5297/2026), (4) προθεσμίες δηλώσεων αυθαιρέτων, (5) ν.2971/2001 & ν.5092/2024 αιγιαλός-παραλία (γνωστές ήδη: ν.5301/2026, ν.5313/2026, ΚΥΑ 11996 ΕΞ 2026), (6) ν.4258/2014 υδατορέματα, (7) πυροπροστασία δασικών ακινήτων (ΚΥΑ 55904/2023, ν.5281/2026) & π.δ. 41/2018, (8) δασικοί χάρτες/ν.998/1979, (9) ν.2664/1998 κτηματολόγιο (προθεσμίες αρχικών εγγραφών, πρόδηλα, γνωστή ήδη: ν.5326/2026 — υποχρεωτική κτηματολογική διαμεσολάβηση για έκτακτη χρησικτησία σε «αγνώστου ιδιοκτήτη», ΦΕΚ Α'125/4.8.2026). ΜΟΡΦΗ ΑΠΑΝΤΗΣΗΣ, ΑΥΣΤΗΡΑ: Πρώτη γραμμή ΜΟΝΟ τη λέξη ΚΑΜΙΑ ή τη λέξη ΑΛΛΑΓΕΣ. Αν ΑΛΛΑΓΕΣ, ακολουθούν bullets: «• [νομοθέτημα] — άρθ. Χ: τι άλλαξε (ΦΕΚ/νόμος τροποποίησης, ημερομηνία)». Μόνο ΕΠΙΒΕΒΑΙΩΜΕΝΕΣ αλλαγές με πηγή — όχι σχέδια νόμων, όχι φήμες.",
       messages:[{role:"user", content:"Έλεγξε για τροποποιήσεις μετά τις "+CONTENT_DATE+". Σήμερα: "+new Date().toLocaleDateString("el-GR")+"."}],
       tools:[{type:"web_search_20250305",name:"web_search"}]
     });
@@ -2025,7 +2226,7 @@ scheduleUpdateCheck();
 </script>
 <script>
 /* ---- Έκδοση (ίδια με sw.js/app.html — άλλαξέ τη ΜΑΖΙ τους) ---- */
-const NOMO_VERSION = "v4.31";
+const NOMO_VERSION = "v4.34";
 document.getElementById("nomover").textContent = NOMO_VERSION;
 
 /* ---- Κοινός service worker του HEXIS + ΑΥΤΟΜΑΤΗ αναβάθμιση ----
