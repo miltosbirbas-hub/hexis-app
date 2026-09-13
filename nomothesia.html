@@ -880,6 +880,12 @@ async function askAIFull(payload, maxRounds=3){
 /* ================= ΜΗΤΡΩΟ ΦΕΚ — σύνδεσμοι στο αυθεντικό κείμενο (v4.33) =========
    id = YYYY + ΤΕΥΧΟΣ(01=Α΄, 02=Β΄) + ΑΡΙΘΜΟΣ(5 ψηφία) — μορφή Εθνικού Τυπογραφείου.
    Προσθήκη νέου νόμου = μία γραμμή εδώ και δουλεύει παντού (καρτέλες + AI). */
+/* ΤΡΟΠΟΣ ΑΝΟΙΓΜΑΤΟΣ ΦΕΚ — μία γραμμή αλλάζει τη συμπεριφορά παντού:
+     "search" → αναζήτηση που καταλήγει στο επίσημο PDF (ΠΡΟΕΠΙΛΟΓΗ, δουλεύει πάντα)
+     "direct" → απευθείας PDF από et.gr (ταχύτερο ΟΤΑΝ δουλεύει το endpoint)
+   Σεπτ. 2026: το endpoint του et.gr κάνει βρόχο ανακατευθύνσεων και επιστρέφει 404,
+   γι' αυτό η προεπιλογή είναι "search". Δοκίμασε περιοδικά το "direct". */
+const FEK_MODE = "search";
 const FEK_BASE = "https://www.et.gr/api/DownloadFeksApi/?fek_pdf=";
 const FEK_REG = {
   "5306/2026":  {id:"20260100088", fek:"ΦΕΚ Α΄88/2026",   t:"ν. 5306/2026 — Κώδικας Χωροταξίας & Πολεοδομίας (Ταγαράς)"},
@@ -904,16 +910,28 @@ const LAW_FEK = {
 };
 function fekUrl(k){
   const e = FEK_REG[k];
-  if(e && e.id) return FEK_BASE + e.id;
-  return "https://www.google.com/search?q=" + encodeURIComponent("ΦΕΚ " + ((e&&e.t)||k) + " site:et.gr");
+  if(FEK_MODE === "direct" && e && e.id) return FEK_BASE + e.id;
+  /* Αναζήτηση που οδηγεί στο επίσημο PDF — ανθεκτική σε αλλαγές του et.gr */
+  const q = [ (e && e.fek) || "", (e && e.t) ? e.t.split("—")[0].trim() : k, "ΦΕΚ pdf" ]
+              .filter(Boolean).join(" ");
+  return "https://www.google.com/search?q=" + encodeURIComponent(q);
+}
+/* Πάντα διαθέσιμος ο απευθείας σύνδεσμος, για όποιον τον θέλει */
+function fekDirectUrl(k){
+  const e = FEK_REG[k];
+  return (e && e.id) ? FEK_BASE + e.id : "";
 }
 function fekLabel(k){ const e=FEK_REG[k]; return e ? (e.fek||k) : k; }
 function fekTitle(k){ const e=FEK_REG[k]; return e ? (e.t||k) : ("ΦΕΚ "+k); }
 /* Σειρά κουμπιών ΦΕΚ για έναν νόμο */
+function fekBtn(k){
+  const d = fekDirectUrl(k);
+  return `<a class="feklink" href="${fekUrl(k)}" target="_blank" rel="noopener" title="${esc(fekTitle(k))} — εύρεση του επίσημου PDF">📄 ${esc(fekLabel(k))}</a>` +
+    (d ? `<a class="feklink" style="border-style:dashed;font-weight:600;padding:5px 7px" href="${d}" target="_blank" rel="noopener" title="Απευθείας PDF από et.gr — αν το Εθνικό Τυπογραφείο το σερβίρει">⤓</a>` : "");
+}
 function fekRow(key, small){
   const ks = LAW_FEK[key]; if(!ks || !ks.length) return "";
-  const btns = ks.map(k=>`<a class="feklink" href="${fekUrl(k)}" target="_blank" rel="noopener" title="${esc(fekTitle(k))}">📄 ${esc(fekLabel(k))}</a>`).join("");
-  return `<div class="fekrow">${small?'<span class="lbl">Αυθεντικό κείμενο:</span>':""}${btns}</div>`;
+  return `<div class="fekrow">${small?'<span class="lbl">Αυθεντικό κείμενο:</span>':""}${ks.map(fekBtn).join("")}</div>`;
 }
 /* Αυτόματη μετατροπή παραπομπών σε συνδέσμους ΦΕΚ μέσα σε κείμενο AI */
 function linkifyLaws(html){
@@ -1184,7 +1202,7 @@ function renderLaw(key, q=""){
           <div class="artactions">
             <button type="button" class="askbtn morebtn">💬 Ρώτησε το AI γι' αυτό</button>
             <button type="button" class="printbtn morebtn" title="Εκτύπωση/Αποθήκευση σε PDF">🖨 PDF</button>
-            ${(LAW_FEK[key]||[]).map(fk=>`<a class="feklink" href="${fekUrl(fk)}" target="_blank" rel="noopener" title="${esc(fekTitle(fk))} — αυθεντικό κείμενο">📄 ${esc(fekLabel(fk))}</a>`).join("")}
+            ${(LAW_FEK[key]||[]).map(fekBtn).join("")}
           </div>
         </div>
       </div>`;
@@ -1722,7 +1740,7 @@ function renderAI(){
         html += `</div>`;
         if(seen.size){                       /* v4.33: πήγαινε στο αυθεντικό ΦΕΚ */
           html += `<div class="fekrow"><span class="lbl">Διάβασε το αυθεντικό:</span>` +
-            [...seen].map(k=>`<a class="feklink" href="${fekUrl(k)}" target="_blank" rel="noopener" title="${esc(fekTitle(k))}">📄 ${esc(fekLabel(k))}</a>`).join("") +
+            [...seen].map(fekBtn).join("") +
             `</div>`;
         }
       }
@@ -2415,7 +2433,7 @@ scheduleUpdateCheck();
 </script>
 <script>
 /* ---- Έκδοση (ίδια με sw.js/app.html — άλλαξέ τη ΜΑΖΙ τους) ---- */
-const NOMO_VERSION = "v4.51";
+const NOMO_VERSION = "v4.52";
 document.getElementById("nomover").textContent = NOMO_VERSION;
 
 /* ---- Κοινός service worker του HEXIS + ΑΥΤΟΜΑΤΗ αναβάθμιση ----
