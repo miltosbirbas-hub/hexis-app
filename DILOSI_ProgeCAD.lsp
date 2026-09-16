@@ -1,5 +1,5 @@
 ;;; ================================================================
-;;; DILOSI.LSP v1.1 - HEXIS CAD Tools / BRB DEVELOPMENT MON. I.K.E.
+;;; DILOSI.LSP v1.2 - HEXIS CAD Tools / BRB DEVELOPMENT MON. I.K.E.
 ;;; Δηλώσεις τοπογραφικού διαγράμματος:
 ;;;   - Δήλωση Μηχανικού Ν.651/77 & Ν.1337/83 (εντός / εκτός σχεδίου)
 ;;;   - Δήλωση Ιδιοκτήτη Ν.4030/2011 (θέση - όρια - ανάθεση)
@@ -113,6 +113,9 @@
   (if (> n 1) (/ s (float (1- n))) 1.0))
 
 ;; ---- η βασική: διαβάζει την ιδιοκτησία από το layer TOPO_PROP ----
+;; XData ιδιοκτησίας: προαιρετικό, δεν υπάρχουν ακόμα δεδομένα -> ασφαλές κενό
+(defun dl:xd-read (e) nil)
+
 (defun dl:prop-info (silent / ss e o n i j pts txts tol best bd d nm fst used s ar)
   (setq ss (ssget "_X" (list (cons 0 "LWPOLYLINE") (cons 8 *DL-LAYER*)
                              (cons 410 (getvar "CTAB")))))
@@ -667,32 +670,60 @@
   (setq res nil)
   (while (> (strlen s) 250)
     (setq n 240)
-    (setq p (vl-string-position 32 (substr s 1 n) nil T))
-    (if (or (null p) (< p 100)) (setq p n) (setq p (1+ p)))
+    (setq p n)
+    (while (and (> p 100) (/= (substr s p 1) " ")) (setq p (1- p)))
+    (if (<= p 100) (setq p n))
     (setq res (cons (cons 3 (substr s 1 p)) res))
     (setq s (substr s (1+ p))))
   (setq res (cons (cons 1 s) res))
   (reverse res))
 
-(defun dl:block (pt title body lay / th wd e mn mx x1 y1 x2 y2 pad hh)
+;; εναλλακτική δημιουργία MTEXT μέσω ActiveX, αν αποτύχει το entmake
+(defun dl:mt-vla (ip th wd body lay / doc sp o)
+  (setq doc (vla-get-ActiveDocument (vlax-get-acad-object)))
+  (setq sp (if (= (getvar "CVPORT") 1) (vla-get-PaperSpace doc) (vla-get-ModelSpace doc)))
+  (setq o (vla-AddMText sp (vlax-3d-point ip) wd body))
+  (vla-put-Height o th)
+  (vla-put-Layer o lay)
+  (vl-catch-all-apply (function vla-put-StyleName) (list o "BRB_GR"))
+  (vl-catch-all-apply (function vla-put-AttachmentPoint) (list o 1))
+  (vl-catch-all-apply (function vla-put-InsertionPoint) (list o (vlax-3d-point ip)))
+  (vlax-vla-object->ename o))
+
+(defun dl:count-P (s / p n)
+  (setq p 0 n 0)
+  (while (setq p (vl-string-search "\\P" s p)) (setq n (1+ n) p (+ p 2)))
+  n)
+
+;; κάτω άκρο του MTEXT: bounding box, αλλιώς εκτίμηση από το μήκος
+(defun dl:mt-bottom (e ip th wd body / r mn mx)
+  (setq r (vl-catch-all-apply
+            (function (lambda ()
+              (vla-getboundingbox (vlax-ename->vla-object e) (quote mn) (quote mx))
+              (cadr (vlax-safearray->list mn))))))
+  (if (or (null e) (vl-catch-all-error-p r) (not (numberp r)))
+    (- (cadr ip) (* th 1.67 (+ 1 (dl:count-P body) (fix (/ (* (strlen body) th 0.55) wd)))))
+    r))
+
+(defun dl:block (pt title body lay / th wd e ip x1 y1 x2 y2 pad hh)
   (setq th (* (atof (dl:get "hmm")) (dl:sc)))
   (setq wd (* (atof (dl:get "wmm")) (dl:sc)))
   (setq pad (* 0.6 th) hh (* 1.15 th))
   (dl:style) (dl:layer lay 7)
   ;; κυρίως κείμενο
-  (entmake (append
+  (setq ip (list (car pt) (- (cadr pt) (* 2.2 hh)) 0.0))
+  (if (entmake (append
     (list (cons 0 "MTEXT") (cons 100 "AcDbEntity") (cons 8 lay)
           (cons 100 "AcDbMText")
-          (cons 10 (list (car pt) (- (cadr pt) (* 2.2 hh)) 0.0))
+          (cons 10 ip)
           (cons 40 th) (cons 41 wd) (cons 71 1) (cons 72 5)
           (cons 7 "BRB_GR"))
     (dl:mt-codes body)))
-  (setq e (entlast))
-  (vla-getboundingbox (vlax-ename->vla-object e) (quote mn) (quote mx))
-  (setq mn (vlax-safearray->list mn) mx (vlax-safearray->list mx))
+    (setq e (entlast))
+    (setq e (dl:mt-vla ip th wd body lay)))
   (setq x1 (- (car pt) pad)
         x2 (+ (car pt) wd pad)
-        y1 (- (cadr mn) pad)
+        y1 (- (dl:mt-bottom e ip th wd body) pad)
         y2 (cadr pt))
   ;; πλαίσιο
   (entmake (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 lay)
@@ -723,9 +754,15 @@
   (princ))
 
 ;; ---------------- εντολές ----------------
-(defun c:DILOSI ( / res pt th gap box lay)
+(defun c:DILOSI ( / res pt th gap box lay *error* oldecho)
+  (defun *error* (msg)
+    (if oldecho (setvar "CMDECHO" oldecho))
+    (if (not (member msg (list "Function cancelled" "quit / exit abort" "console break")))
+      (princ (strcat "\nDILOSI - σφάλμα: " msg)))
+    (princ))
+  (setq oldecho (getvar "CMDECHO"))
   (setvar "CMDECHO" 0)
-  (vl-cmdf "._UNDO" "_BEGIN")
+  (command "._UNDO" "_BEGIN")
   (setq res (dl:dialog))
   (if (= res 1)
     (progn
@@ -759,7 +796,8 @@
           (princ "\nΟι δηλώσεις εισήχθησαν."))
         (princ "\nΑκυρώθηκε.")))
     (princ "\nΑκυρώθηκε."))
-  (vl-cmdf "._UNDO" "_END")
+  (command "._UNDO" "_END")
+  (setvar "CMDECHO" oldecho)
   (princ))
 
 (defun c:DILOSI4030 ( / )
@@ -778,5 +816,5 @@
   (princ "\nΟΚ.")
   (princ))
 
-(princ "\nHEXIS DILOSI v1.1 φορτώθηκε. Εντολές: DILOSI | DILOSI4030 | DILOSISET")
+(princ "\nHEXIS DILOSI v1.2 φορτώθηκε. Εντολές: DILOSI | DILOSI4030 | DILOSISET")
 (princ)
