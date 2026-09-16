@@ -158,10 +158,12 @@ footer{margin-top:34px;text-align:center;color:var(--faint);font-family:var(--fm
 </div>
 
 <script>
-const LISPLIB_VERSION = 'v3.6';
+const LISPLIB_VERSION = 'v3.7';
 /* ============================================================
    ΠΡΟΣΘΗΚΗ ΝΕΟΥ LISP: 1) ανέβασε το .lsp στη ρίζα του repo
    2) πρόσθεσε μία εγγραφή εδώ — τίποτα άλλο.
+   Προαιρετικό πεδίο alt: {file, label} → δεύτερο κουμπί λήψης
+   (π.χ. έκδοση σε ANSI Windows-1253 για progeCAD).
    ============================================================ */
 const LISPS = [
   {
@@ -280,10 +282,11 @@ const LISPS = [
       'Οικισμοί &lt;2000 κατ. &amp; προ \'23: ΣΔ βάσει ΦΕΚ 289/ΑΑΠ/4-11-2011 — Ε&lt;200m²=ΣΔ1,0 | 200–699m²=max 240m² | ≥700m²=max 400m²',
       'Εκτός σχεδίου (άρ.250-256 ν.5306/2026): αρτιότητα 4.000m² · ΣΔ=0,18 · κάλυψη 10% · μέγ. κατοικία 186m² · αποστάσεις ≥15m · δεν υπάρχει πλέον παρέκκλιση για &lt;4.000m²',
       'Πεδίο ΦΕΚ απόφασης Νομάρχη για εξειδίκευση αρτιότητας (π.χ. 831/Δ/1986 για Λευκάδα)',
-      'Γράφει 3 layers: OD-FRAME (πλαίσιο) · OD-HDR (τίτλος) · OD-TXT (τιμές)',
+      'Γράφει στο layer OD-PIN (λευκό) · αυτόματο πλάτος στηλών',
       'Νομική βάση: ΠΔ 24.4/1985 (μεταβατικά βάσει ν.5306/2026 άρ.247§3) + ΦΕΚ 289/ΑΑΠ/2011'
     ],
-    meta: 'AutoCAD · progeCAD'
+    meta: 'AutoCAD · progeCAD (ξεχωριστό αρχείο)',
+    alt: { file: 'OROIDOM_ProgeCAD.lsp', label: '⬇ Λήψη για progeCAD' }
   },
   {
     file: 'DILOSI.lsp',
@@ -402,6 +405,7 @@ function render(){
     <div class="lmeta">Συμβατότητα: ${l.meta}</div>
     <div class="lbtns">
       <a class="btn btn-o" href="${l.file}" download>⬇ Λήψη .lsp</a>
+      ${l.alt ? `<a class="btn btn-o" href="${l.alt.file}" download>${l.alt.label}</a>` : ''}
       <button class="btn btn-l" onclick="toggleCode(${i},'${l.file}')">Κώδικας</button>
     </div>
     <div class="codebox" id="cb${i}">Φόρτωση…</div>
@@ -419,9 +423,9 @@ async function toggleCode(i, file){
       let raw;
       try { raw = new TextDecoder('utf-8', {fatal:true}).decode(buf); }
       catch(e){ raw = new TextDecoder('windows-1253').decode(buf); }
-      // Το πραγματικό .lsp περιέχει \U+XXXX αντί για ελληνικά (το χρειάζεται
-      // το progeCAD ώστε να μη βγάζει mojibake στη γραμμή εντολών). Εδώ τα
-      // αποκωδικοποιούμε μόνο για την προβολή — το αρχείο λήψης μένει ως έχει.
+      // Τα .lsp για AutoCAD περιέχουν \U+XXXX αντί για ελληνικά. Το progeCAD
+      // ΔΕΝ τα μεταφράζει (δείχνει U+03BF...), γι' αυτό έχει ξεχωριστό αρχείο
+      // σε Windows-1253 (πεδίο alt). Εδώ αποκωδικοποιούμε μόνο για την προβολή.
       box.textContent = raw.replace(/\\U\+([0-9A-Fa-f]{4})/g,
         (_, hex) => String.fromCodePoint(parseInt(hex, 16)));
       box.dataset.done = 1;
