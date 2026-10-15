@@ -206,6 +206,35 @@ table.t td.n{font-weight:800;width:30px;cursor:pointer;font-family:var(--f-mono)
 .lmenu .lm-o button:hover{background:rgba(255,61,129,.14)}
 .lmenu i{width:10px;height:10px;border-radius:3px;flex:none}
 .lmenu .lm-x{all:unset;cursor:pointer;margin-top:8px;font-size:12px;color:var(--dim)}
+.status{display:flex;align-items:center;gap:12px;margin:12px 0 10px;padding:12px 14px;border-radius:14px;border:1px solid var(--glass-line);background:rgba(10,18,36,.55)}
+.status i{flex:none;width:11px;height:11px;border-radius:50%;background:var(--mint);box-shadow:0 0 12px var(--mint)}
+.status.warn i{background:var(--amber);box-shadow:0 0 12px var(--amber)}
+.status.bad i{background:var(--rose);box-shadow:0 0 12px var(--rose)}
+.status>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.status b{font-size:13.5px}
+.status small{font-size:12px;color:var(--muted);line-height:1.45}
+.status .btn.sm{padding:8px 14px;font-size:12.5px;white-space:nowrap}
+.tools{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 8px;font-size:12px;color:var(--muted)}
+.tools button{border:1px solid var(--glass-line);background:rgba(5,10,20,.85);border-radius:9px;padding:5px 10px;font-size:11.5px;font-weight:800;cursor:pointer;color:var(--ink)}
+.tools button.on{background:var(--cyan);color:#04101F;border-color:var(--cyan)}
+details.advbox{margin:4px 0 0}
+details.advbox>summary small{display:block;font-weight:500;font-size:11.5px;color:var(--dim);margin-top:2px}
+details.advbox>.in{padding-top:8px}
+details.hts{display:block;padding:10px 14px}
+details.hts[open]{padding:14px}
+details.hts[open]>summary{margin-bottom:4px}
+details.hts>.hgrid,details.hts>.hdiag,details.hts>p{display:none}
+details.hts[open]>.hgrid{display:grid}
+details.hts[open]>.hdiag{display:block}
+details.hts[open]>p{display:block}
+details.hts>summary{cursor:pointer;list-style:none;display:flex;flex-wrap:wrap;align-items:center;gap:9px}
+details.hts>summary::-webkit-details-marker{display:none}
+details.hts>summary::before{display:none}
+details.hts .hts-sum{font-weight:500;font-size:12px;color:var(--muted);flex:1;min-width:0}
+details.hts .hts-sum b{color:var(--ink)}
+details.hts>summary em{font-style:normal;font-size:11.5px;color:var(--cyan);border:1px solid rgba(61,232,255,.3);border-radius:999px;padding:3px 9px}
+details.hts[open]>summary em{background:rgba(61,232,255,.12)}
+details.hts .hgrid{margin-top:12px}
 .lyr-help{font-size:12px;line-height:1.5;color:var(--muted);margin:2px 0 10px;padding:9px 11px;border-radius:10px;background:rgba(61,232,255,.06);border:1px solid rgba(61,232,255,.14)}
 .lyr small{color:var(--dim);font-family:var(--f-mono)}
 .lyr select{border:1px solid var(--glass-line);border-radius:8px;padding:4px 5px;font-size:12px;background:rgba(4,10,22,.8)}
@@ -3199,17 +3228,21 @@ async function loadFile(file, fi, src){
       throw new Error('Δεκτά αρχεία: PDF ή DXF.');
     }
     f[src]=fs;
-    if (src==='arch') f.askA=false; else f.askS=false;
+    f.askA=true; f.askS=true;
     var plans=findPlans(fs); fs.plans=plans.length>1? plans : null;
     if (fs.plans){ fs.crop=plans[0].crop; fs.planCid=plans[0].cid; if (fs.fmt==='pdf' && !fs.hasOC) guessPdfRoles(fs); }
     recompute(fs, f); applyLevel(fs, f);
+    if (fs.plans && src==='arch'){
+      var m0=/· στάθμη (.+)$/.exec(plans[0].title); if (/^(Ισόγειο|Όροφος|Επίπεδο)/.test(f.name)) f.name = m0 ? 'Επίπεδο '+m0[1] : plans[0].title.slice(0,40);
+      addPlansAsLevels(f, fs, plans.slice(1));
+    }
     var ref = src==='struct'? f.arch : (fi>0? S.floors[fi-1].arch : (f.struct||null));
     if (ref && ref.res && fs.res && !sameSheet(ref, fs) && (fs.fmt==='pdf' || ref.fmt==='pdf' || ref.dx || ref.dy)){
       if (autoAlign(fs, f, ref)) fs.autoAligned=true;
     }
     renderFloors(); schedule3D(true);
     if (fs.isScan) toast('Σκαναρισμένο PDF — δεν περιέχει γραμμές για αναγνώριση.');
-    else if (fs.plans) toast('Το φύλλο έχει '+fs.plans.length+' σχέδια. Πήρα το «'+fs.plans[0].title+'». Τα άλλα είναι πάνω από την προεπισκόπηση.');
+    else if (fs.plans) toast('Το φύλλο έχει '+fs.plans.length+' σχέδια — έγιναν '+S.floors.filter(function(x){ return x.arch&&x.arch.res&&x.arch.name===fs.name; }).length+' επίπεδα. Πάτα «3D».');
     else if (fs.fmt==='pdf' && fs.pages>=1 && !fs.crop) toast('Αναγνωρίστηκε: '+summaryText(fs)+'. Αν η σελίδα έχει πολλά σχέδια, πάτα «Περιοχή».');
     else toast('Αναγνωρίστηκε: '+summaryText(fs));
   } catch(e){ console.error(e); toast(e.message||'Σφάλμα ανάγνωσης'); }
@@ -3378,8 +3411,8 @@ function floorHTML(f,i){
 }
 function heightsHTML(f,i){
   var R=f.arch&&f.arch.res;
-  return '<div class="ask'+(f.askA?' done':'')+'">'+
-    '<div class="ask-h"><span class="pulse"></span>'+(f.askA?'Ύψη ορόφου':'Πες μου τα ύψη του ορόφου')+'</div>'+
+  var sum='καθαρό <b>'+fmt(f.hClear)+'</b> · μικτό <b>'+fmt(f.hGross)+'</b> · ποδιά <b>'+fmt(f.sillW)+'</b> · πρέκι <b>'+fmt(f.headW)+'</b> / <b>'+fmt(f.headD)+'</b> m';
+  return '<details class="ask done hts"'+(f._hOpen?' open':'')+'><summary class="ask-h"><span class="pulse"></span><span>Ύψη ορόφου</span><small class="hts-sum">'+sum+'</small><em>αλλαγή</em></summary>'+
     '<div class="hgrid">'+
       '<div class="fld"><label>ΚΑΘΑΡΟ ΥΨΟΣ<br><small>δάπεδο → οροφή</small></label><input data-k="hClear" inputmode="decimal" value="'+fmt(f.hClear)+'"></div>'+
       '<div class="fld"><label>ΜΙΚΤΟ ΥΨΟΣ<br><small>δάπεδο → δάπεδο</small></label><input data-k="hGross" inputmode="decimal" value="'+fmt(f.hGross)+'"></div>'+
@@ -3389,9 +3422,9 @@ function heightsHTML(f,i){
       '<div class="fld"><label>ΠΡΕΚΙ<br><small>θυρών</small></label><input data-k="headD" inputmode="decimal" value="'+fmt(f.headD)+'"></div>'+
     '</div>'+
     '<svg class="hdiag" viewBox="0 0 220 120" aria-hidden="true">'+hDiagram(f)+'</svg>'+
-    (f.askA?'':'<div class="ask-f"><button class="btn" data-act="okA">Επιβεβαίωση υψών</button><span class="note">Πρέκι = κάτω παρειά ανωφλίου από το δάπεδο.</span></div>')+
+    '<p class="note" style="grid-column:1/-1">Πρέκι = κάτω παρειά ανωφλίου από το δάπεδο. Οι τιμές ισχύουν αμέσως.</p>'+
     (R && R.openings.some(function(o){return o.fromXdata;})?'<p class="note">Κουφώματα από WINDOORS κρατούν τις δικές τους τιμές.</p>':'')+
-  '</div>';
+  '</details>';
 }
 function hDiagram(f){
   // μικρό σκαρίφημα τομής: δάπεδο, οροφή, πλάκα, παράθυρο
@@ -3468,60 +3501,89 @@ function slotHTML(f,i,src){
     h+='<div class="warnbox"><b>Σκαναρισμένο PDF / εικόνα.</b> Δεν περιέχει γραμμές σχεδίου. Εκτύπωσέ το σε PDF από το σχεδιαστικό πρόγραμμα ή αποθήκευσέ το σε DXF.</div>';
     return h+'</section>';
   }
-  h+='<div class="row">';
+  var R=fs.res, adv='';
+  // ---- κατάσταση με μια ματιά ----
+  if (R && isA){
+    var cnt={window:0,door:0,balcony:0,passage:0}; R.openings.forEach(function(o){ cnt[opVals(f,fs,o).type]++; });
+    var parts=[];
+    if (R.mass.length) parts.push(R.mass.length+' τοίχοι');
+    if (cnt.window+cnt.balcony) parts.push((cnt.window+cnt.balcony)+' παράθυρα');
+    if (cnt.door) parts.push(cnt.door+' πόρτες');
+    if (cnt.passage) parts.push(cnt.passage+' ανοίγματα');
+    if (R.rooms.length) parts.push(R.rooms.length+' χώροι');
+    if (R.balconies.length) parts.push(R.balconies.length+' εξώστες');
+    if (R.stairs&&R.stairs.length) parts.push(R.stairs.length+' σκάλες');
+    if (R.furniture&&R.furniture.length) parts.push(R.furniture.length+' έπιπλα');
+    if (R.fences&&R.fences.length) parts.push(R.fences.length+' μάντρες');
+    if (R.contours&&R.contours.lines.length) parts.push(R.contours.lines.length+' ισοϋψείς');
+    var ok = R.mass.length>0, warn = ok && R.openings.length===0;
+    h+='<div class="status '+(ok?(warn?'warn':'ok'):'bad')+'"><i></i><div><b>'+(ok?(warn?'Βρήκα τοίχους αλλά όχι κουφώματα':'Έτοιμο'):'Δεν βρήκα τοίχους')+'</b>'+
+       (parts.length?'<small>'+parts.join(' · ')+'</small>':'')+
+       (ok?'':'<small>Πιθανόν οι τοίχοι είναι σε layer με άλλο όνομα ή λάθος κλίμακα. Άνοιξε «Ρυθμίσεις» → Layers, πάτα ένα-ένα τα layers για να τα δεις ροζ στο σχέδιο, και όρισε ποιο είναι οι τοίχοι.</small>')+
+       (warn?'<small>Τα κουφώματα ίσως είναι σε layer που αγνοείται. Στις «Ρυθμίσεις» → Layers όρισέ το ως «Κουφώματα».</small>':'')+
+       '</div>'+(ok?'<button class="btn violet sm" data-act="go3d">▲ 3D</button>':'')+'</div>';
+  } else if (R && !isA){
+    h+='<div class="status ok"><i></i><div><b>Έτοιμο</b><small>'+R.columns.length+' υποστυλώματα · '+R.beams.length+' δοκοί · '+R.slabs.filter(function(s){return !s.container;}).length+' πλάκες</small></div><button class="btn violet sm" data-act="go3d">▲ 3D</button></div>';
+  }
+  adv+='<div class="row">';
   if (fs.fmt==='pdf'){
-    h+='<div class="fld sm"><label>ΚΛΙΜΑΚΑ 1:</label><select data-k="N">'+[20,25,50,100,200,500].map(function(n){return '<option'+(n===fs.N?' selected':'')+'>'+n+'</option>';}).join('')+'</select></div>';
+    adv+='<div class="fld sm"><label>ΚΛΙΜΑΚΑ 1:</label><select data-k="N">'+[20,25,50,100,200,500].map(function(n){return '<option'+(n===fs.N?' selected':'')+'>'+n+'</option>';}).join('')+'</select></div>';
   } else {
     var u = fs.scale===1?'m':fs.scale===0.01?'cm':fs.scale===0.001?'mm':'other';
-    h+='<div class="fld sm"><label>ΜΟΝΑΔΕΣ</label><select data-k="units"><option value="1"'+(u==='m'?' selected':'')+'>μέτρα</option><option value="0.01"'+(u==='cm'?' selected':'')+'>εκατοστά</option><option value="0.001"'+(u==='mm'?' selected':'')+'>χιλιοστά</option></select></div>';
+    adv+='<div class="fld sm"><label>ΜΟΝΑΔΕΣ</label><select data-k="units"><option value="1"'+(u==='m'?' selected':'')+'>μέτρα</option><option value="0.01"'+(u==='cm'?' selected':'')+'>εκατοστά</option><option value="0.001"'+(u==='mm'?' selected':'')+'>χιλιοστά</option></select></div>';
   }
-  h+='<span class="tag '+(fs.scaleSrc==='εκτίμηση'||fs.scaleSrc==='προεπιλογή'?'warn':'ok')+'">'+esc(fs.scaleSrc||'')+'</span>';
-  var gb=geomBBox(fs); if (gb) h+='<span class="tag dim" title="Σύγκρινέ το με τις διαστάσεις του σχεδίου">'+fmt(gb[2]-gb[0],2)+' × '+fmt(gb[3]-gb[1],2)+' m</span>';
-  h+='</div>';
+  adv+='<span class="tag '+(fs.scaleSrc==='εκτίμηση'||fs.scaleSrc==='προεπιλογή'?'warn':'ok')+'">'+esc(fs.scaleSrc||'')+'</span>';
+  var gb=geomBBox(fs); if (gb) adv+='<span class="tag dim" title="Σύγκρινέ το με τις διαστάσεις του σχεδίου">'+fmt(gb[2]-gb[0],2)+' × '+fmt(gb[3]-gb[1],2)+' m</span>';
+  adv+='</div>';
   if (fs.plans && fs.plans.length>1){
-    h+='<div class="plans"><span>Σχέδια σε αυτό το φύλλο:</span>'+fs.plans.map(function(g,k){ var on=fs.crop && Math.abs(fs.crop[0]-g.crop[0])<1e-6 && Math.abs(fs.crop[1]-g.crop[1])<1e-6;
+    adv+='<div class="plans"><span>Σχέδια σε αυτό το φύλλο (το καθένα έγινε επίπεδο):</span>'+fs.plans.map(function(g,k){ var on=fs.crop && Math.abs(fs.crop[0]-g.crop[0])<1e-6 && Math.abs(fs.crop[1]-g.crop[1])<1e-6;
       var used=S.floors.some(function(fl){ var x=fl.arch; return x && x!==fs && x.name===fs.name && x.crop && Math.abs(x.crop[0]-g.crop[0])<1e-6 && Math.abs(x.crop[1]-g.crop[1])<1e-6 && Math.abs(x.crop[2]-g.crop[2])<1e-6; });
       return '<span class="plan'+(on?' on':'')+'"><button data-act="planPick" data-k="'+k+'">'+esc(g.title)+'</button>'+(on?'':used?'<button class="add" disabled>✓ επίπεδο</button>':'<button class="add" data-act="planAdd" data-k="'+k+'" title="Πρόσθεσέ το ως νέο επίπεδο">＋ επίπεδο</button>')+'</span>'; }).join('')+'</div>';
   }
-  if (isA && fs.levelTxt!==null && fs.levelTxt!==undefined) h+='<p class="note lvlnote">Στάθμη δαπέδου από το σχέδιο: <b>'+(fs.levelTxt>0?'+':fs.levelTxt===0?'±':'')+fmt(fs.levelTxt)+'</b>'+(f.elevAuto?' · ορίστηκε αυτόματα':'')+'</p>';
+  if (isA && fs.levelTxt!==null && fs.levelTxt!==undefined) adv+='<p class="note lvlnote">Στάθμη δαπέδου από το σχέδιο: <b>'+(fs.levelTxt>0?'+':fs.levelTxt===0?'±':'')+fmt(fs.levelTxt)+'</b>'+(f.elevAuto?' · ορίστηκε αυτόματα':'')+'</p>';
   h+='<div class="pv'+(fs._crop?' crop':'')+(fs._lasso?' lasso':'')+(fs._full?' full':'')+'"><canvas data-pv="'+src+'"></canvas><div class="pvbar">'+
-     '<button data-act="crop" class="'+(fs._crop?'on':'')+'">✂ Περιοχή</button>'+'<button data-act="lasso" class="'+(fs._lasso?'on':'')+'" title="Κύκλωσε γραμμές και πες τι είναι">◌ Λάσο</button>'+(fs.lassos&&fs.lassos.length?'<button data-act="lassoUndo" title="Αναίρεση τελευταίου λάσο">↶</button>':'')+(fs.crop?'<button data-act="uncrop">Όλη η σελίδα</button>':'')+
+     (fs._crop?'<button data-act="crop" class="on">✂ Περιοχή</button>':'')+(fs._lasso?'<button data-act="lasso" class="on">◌ Λάσο</button>':'')+
      '<span class="pvz"><button data-act="zin" aria-label="Μεγέθυνση">＋</button><button data-act="zout" aria-label="Σμίκρυνση">－</button><button data-act="zfit" aria-label="Όλο το σχέδιο">⊡</button><button data-act="zfull" aria-label="Πλήρης οθόνη">⤢</button></span></div>'+
      '<div class="pvleg">'+(isA?'<span><i style="background:#E6EEF8"></i>τοίχος</span><span><i style="background:#3DE8FF"></i>παράθυρο</span><span><i style="background:#A78BFA"></i>πόρτα</span><span><i style="background:#4ADE9B"></i>εξώστης</span><span><i style="background:#FFE08A"></i>σκάλα</span><span><i style="background:#9C8CFF"></i>έπιπλο</span>'
        :'<span><i style="background:#FF5C8A"></i>υποστ.</span><span><i style="background:#FFB547"></i>δοκοί</span><span><i style="background:#4ADE9B"></i>πλάκες</span>')+'</div></div>';
+  var tools='<div class="tools"><span>Διορθώσεις:</span>'+
+     '<button data-act="crop" class="'+(fs._crop?'on':'')+'">✂ Περιοχή</button>'+
+     '<button data-act="lasso" class="'+(fs._lasso?'on':'')+'" title="Κύκλωσε γραμμές και πες τι είναι">◌ Λάσο</button>'+
+     (fs.lassos&&fs.lassos.length?'<button data-act="lassoUndo" title="Αναίρεση τελευταίου λάσο">↶ Αναίρεση λάσο</button>':'')+
+     (fs.crop?'<button data-act="uncrop">Όλη η σελίδα</button>':'')+'</div>';
   if (fs._lasso) h+='<p class="note hint lassohint">Λάσο: ζωγράφισε με το δάχτυλο ή το ποντίκι γύρω από τις γραμμές. Μόλις αφήσεις, διαλέγεις τι είναι (τοίχος, σκάλα, έπιπλο…). Οι γραμμές που είναι ολόκληρες μέσα στο λάσο παίρνουν αυτόν τον ρόλο.</p>';
   if (fs._crop) h+='<p class="note hint">Σύρε ορθογώνιο γύρω από την κάτοψη. Οι γραμμές που περνούν το όριο κόβονται εκεί.</p>';
-  else if (isA) h+='<p class="note hint">Ζουμ με ροδέλα ή δύο δάχτυλα, μετακίνηση με σύρσιμο. Πάτα πάνω στο σχέδιο για διόρθωση: τοίχος ↔ χώρος, τύπος κουφώματος, φορά σκάλας, ύψος επίπλου.</p>';
-  var R=fs.res;
+  var hint = isA? 'Ζουμ με ροδέλα ή δύο δάχτυλα, μετακίνηση με σύρσιμο. Πάτα πάνω σε κάτι για να το αλλάξεις: τοίχος ↔ χώρος, τύπος κουφώματος, φορά σκάλας, ύψος επίπλου.' : '';
   if (R){
-    h+='<div class="chips">';
+    adv+=tools+'<p class="note hint">'+hint+'</p>';
+    adv+='<div class="chips">';
     if (isA){
       var cnt={window:0,door:0,balcony:0,passage:0}; R.openings.forEach(function(o){ cnt[opVals(f,fs,o).type]++; });
-      h+='<span class="chip"><b>'+cnt.window+'</b> παράθυρα</span><span class="chip"><b>'+cnt.door+'</b> πόρτες</span>';
-      if (cnt.balcony) h+='<span class="chip"><b>'+cnt.balcony+'</b> μπαλκονόπορτες</span>';
-      if (cnt.passage) h+='<span class="chip"><b>'+cnt.passage+'</b> ανοίγματα</span>';
-      if (R.balconies.length) h+='<span class="chip"><b>'+R.balconies.length+'</b> εξώστες</span>';
-      if (R.rooms.length) h+='<span class="chip"><b>'+R.rooms.length+'</b> χώροι</span>';
-      if (R.stairs&&R.stairs.length) h+='<span class="chip"><b>'+R.stairs.length+'</b> σκάλες</span>';
-      if (R.fences&&R.fences.length) h+='<span class="chip"><b>'+R.fences.length+'</b> μάντρες</span>';
-      if (R.curbs&&R.curbs.length) h+='<span class="chip"><b>'+R.curbs.length+'</b> πεζούλια</span>';
-      if (R.furniture&&R.furniture.length) h+='<span class="chip"><b>'+R.furniture.length+'</b> έπιπλα</span>';
-      if (R.contours&&R.contours.lines.length) h+='<span class="chip"><b>'+R.contours.lines.length+'</b> ισοϋψείς</span>';
+      adv+='<span class="chip"><b>'+cnt.window+'</b> παράθυρα</span><span class="chip"><b>'+cnt.door+'</b> πόρτες</span>';
+      if (cnt.balcony) adv+='<span class="chip"><b>'+cnt.balcony+'</b> μπαλκονόπορτες</span>';
+      if (cnt.passage) adv+='<span class="chip"><b>'+cnt.passage+'</b> ανοίγματα</span>';
+      if (R.balconies.length) adv+='<span class="chip"><b>'+R.balconies.length+'</b> εξώστες</span>';
+      if (R.rooms.length) adv+='<span class="chip"><b>'+R.rooms.length+'</b> χώροι</span>';
+      if (R.stairs&&R.stairs.length) adv+='<span class="chip"><b>'+R.stairs.length+'</b> σκάλες</span>';
+      if (R.fences&&R.fences.length) adv+='<span class="chip"><b>'+R.fences.length+'</b> μάντρες</span>';
+      if (R.curbs&&R.curbs.length) adv+='<span class="chip"><b>'+R.curbs.length+'</b> πεζούλια</span>';
+      if (R.furniture&&R.furniture.length) adv+='<span class="chip"><b>'+R.furniture.length+'</b> έπιπλα</span>';
+      if (R.contours&&R.contours.lines.length) adv+='<span class="chip"><b>'+R.contours.lines.length+'</b> ισοϋψείς</span>';
     } else {
-      h+='<span class="chip"><b>'+R.columns.length+'</b> υποστυλώματα</span><span class="chip"><b>'+R.beams.length+'</b> δοκοί</span><span class="chip"><b>'+R.slabs.filter(function(s){return !s.container;}).length+'</b> πλάκες</span>';
+      adv+='<span class="chip"><b>'+R.columns.length+'</b> υποστυλώματα</span><span class="chip"><b>'+R.beams.length+'</b> δοκοί</span><span class="chip"><b>'+R.slabs.filter(function(s){return !s.container;}).length+'</b> πλάκες</span>';
     }
-    h+='</div>';
-    if (isA) h+=siteBoxHTML(f,fs,i);
-    if (isA && !R.mass.length) h+='<div class="warnbox">Δεν βρέθηκαν τοίχοι. Όρισε στη λίστα «Layers» ποια είναι οι τοίχοι ή διόρθωσε την κλίμακα.</div>';
+    adv+='</div>';
+    if (isA) adv+=siteBoxHTML(f,fs,i);
+    if (isA && !R.mass.length) adv+='<div class="warnbox">Δεν βρέθηκαν τοίχοι. Όρισε στη λίστα «Layers» ποια είναι οι τοίχοι ή διόρθωσε την κλίμακα.</div>';
   }
   if (!isA){
-    h+='<div class="ask mini'+(f.askS?' done':'')+'"><div class="ask-h"><span class="pulse"></span>Στοιχεία χωρίς ετικέτα</div><div class="hgrid two">'+
+    adv+='<div class="ask mini done"><div class="ask-h"><span class="pulse"></span>Στοιχεία χωρίς ετικέτα</div><div class="hgrid two">'+
        '<div class="fld"><label>ΥΨΟΣ ΔΟΚΩΝ (m)</label><input data-k="beamH" inputmode="decimal" value="'+fmt(f.beamH)+'"></div>'+
        '<div class="fld calc"><label>ΠΑΧΟΣ ΠΛΑΚΑΣ</label><output data-o="slab">'+fmt(slabT(f))+'</output></div>'+
-       '</div>'+(f.askS?'':'<div class="ask-f"><button class="btn" data-act="okS">Επιβεβαίωση</button><span class="note">Οι ετικέτες «25/60», «d=18» υπερισχύουν.</span></div>')+'</div>';
+       '</div><p class="note">Οι ετικέτες «25/60», «d=18» του σχεδίου υπερισχύουν.</p></div>';
   }
   if (R && isA && R.openings.length){
-    h+='<details'+(fs.hl?' open':'')+'><summary>Κουφώματα <em>'+R.openings.length+'</em></summary><div class="in"><table class="t"><tr><th>#</th><th>Τύπος</th><th>Πλάτος</th><th>Ποδιά</th><th>Πρέκι</th></tr>'+
+    adv+='<details'+(fs.hl?' open':'')+'><summary>Κουφώματα <em>'+R.openings.length+'</em></summary><div class="in"><table class="t"><tr><th>#</th><th>Τύπος</th><th>Πλάτος</th><th>Ποδιά</th><th>Πρέκι</th></tr>'+
       R.openings.map(function(o){ var v=opVals(f,fs,o);
         return '<tr data-op="'+o.key+'"'+(fs.hl===o.key?' class="hl"':'')+'><td class="n" data-act="hl" style="color:'+TYPE_COL[v.type]+'">'+o.id+'</td><td><select data-k="opType">'+
           Object.keys(TYPE_LBL).map(function(t){ return '<option value="'+t+'"'+(t===v.type?' selected':'')+'>'+TYPE_LBL[t]+'</option>'; }).join('')+'</select></td>'+
@@ -3529,28 +3591,30 @@ function slotHTML(f,i,src){
       '</table></div></details>';
   }
   if (R && !isA){
-    if (R.beams.length) h+='<details><summary>Δοκοί <em>'+R.beams.length+'</em></summary><div class="in"><table class="t"><tr><th>#</th><th>Ετικέτα</th><th>b</th><th>h</th></tr>'+
+    if (R.beams.length) adv+='<details><summary>Δοκοί <em>'+R.beams.length+'</em></summary><div class="in"><table class="t"><tr><th>#</th><th>Ετικέτα</th><th>b</th><th>h</th></tr>'+
       R.beams.map(function(b){ return '<tr data-bm="'+b.id+'"'+(fs.hl==='b'+b.id?' class="hl"':'')+'><td class="n" data-act="hlb">'+b.id+'</td><td>'+esc(b.lbl||(b.inherited?'(συνέχεια)':'—'))+'</td><td class="num">'+fmt(b.t)+'</td><td><input data-k="bmH" inputmode="decimal" value="'+fmt(beamH(f,fs,b))+'"></td></tr>'; }).join('')+'</table></div></details>';
     var sl=R.slabs.filter(function(s){return !s.container;});
-    if (sl.length) h+='<details><summary>Πλάκες <em>'+sl.length+'</em></summary><div class="in"><table class="t"><tr><th>#</th><th>Ετικέτα</th><th>m²</th><th>d</th><th>Κενό</th></tr>'+
+    if (sl.length) adv+='<details><summary>Πλάκες <em>'+sl.length+'</em></summary><div class="in"><table class="t"><tr><th>#</th><th>Ετικέτα</th><th>m²</th><th>d</th><th>Κενό</th></tr>'+
       sl.map(function(s){ var v=slabVals(f,fs,s); return '<tr data-sl="'+s.id+'"'+(fs.hl==='s'+s.id?' class="hl"':'')+'><td class="n" data-act="hls">'+s.id+'</td><td>'+esc(s.lbl||'—')+'</td><td class="num">'+fmt(Math.abs(P3.polyArea(s.poly)),1)+'</td><td><input data-k="slD" inputmode="decimal" value="'+fmt(v.d)+'"></td><td><input type="checkbox" data-k="slV"'+(v.isVoid?' checked':'')+'></td></tr>'; }).join('')+'</table></div></details>';
   }
   var st = P3.layerStats(workRaw(fs)), keys=Object.keys(st).filter(function(k){ return k!=='Κείμενα'; }).sort(function(a,b){ return st[b].n-st[a].n; });
   var opts = isA? ROLE_ARCH : ROLE_STRUCT;
   var hints=(R&&R.hints)||{};
   keys.sort(function(a,b){ var ra=(fs.roles[a]||'ignore')==='ignore'?1:0, rb=(fs.roles[b]||'ignore')==='ignore'?1:0; return ra-rb || st[b].n-st[a].n; });
-  h+='<details class="lyrs"'+(fs._layerHL?' open':'')+'><summary>'+(fs.fmt==='pdf'&&!fs.hasOC?'Πένες / χρώματα':'Layers')+' <em>'+keys.length+'</em></summary><div class="in">'+
+  adv+='<details class="lyrs"'+(fs._layerHL?' open':'')+'><summary>'+(fs.fmt==='pdf'&&!fs.hasOC?'Πένες / χρώματα':'Layers')+' <em>'+keys.length+'</em></summary><div class="in">'+
     '<p class="lyr-help"><b>Πάτα το όνομα</b> ενός layer και οι γραμμές του φωτίζονται <b style="color:#FF3D81">ροζ</b> στο σχέδιο, για να δεις τι περιέχει. Μετά διάλεξε δεξιά τι είναι. Ό,τι μένει «Αγνόησε» δεν σηκώνεται, εκτός από σκάλες και έπιπλα που βρίσκω μόνος μου από το σχήμα τους.</p>'+
     keys.map(function(k){ var role=fs.roles[k]||'ignore', col=ROLE_COL[role], hn=hints[k], tag='';
       if (role==='ignore' && hn){ var t=[]; if (hn.stair) t.push('σκάλα'); if (hn.furn) t.push(hn.furn+' έπιπλα'); tag='<em class="lyr-auto">βρέθηκαν: '+t.join(', ')+'</em>'; }
       return '<div class="lyr'+(fs._layerHL===k?' on':'')+(role==='ignore'?' off':'')+'" data-l="'+esc(k)+'"><i style="background:'+col+'"></i><button class="lyr-n" data-act="lyrHL" title="Δείξε στο σχέδιο"><span>'+esc(k.replace(/ #[0-9a-f]{6}$/i,''))+'</span>'+tag+'</button><small>'+st[k].n+'</small><select data-k="role">'+
         opts.map(function(o){ return '<option value="'+o[0]+'"'+(role===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+'</select></div>'; }).join('')+
     '</div></details>';
-  h+='<details><summary>Θέση στο κτίριο</summary><div class="in"><div class="row">'+
+  adv+='<details><summary>Θέση στο κτίριο</summary><div class="in"><div class="row">'+
      '<div class="fld sm"><label>ΜΕΤΑΤΟΠΙΣΗ Χ (m)</label><input data-k="dx" inputmode="decimal" value="'+fmt(fs.dx,3)+'"></div>'+
      '<div class="fld sm"><label>ΜΕΤΑΤΟΠΙΣΗ Υ (m)</label><input data-k="dy" inputmode="decimal" value="'+fmt(fs.dy,3)+'"></div>'+
      '<button class="ghost" data-act="align">Ευθυγράμμιση με '+(isA?(i>0?'κάτοψη από κάτω':'—'):'την κάτοψη')+'</button></div>'+
      (fs.autoAligned?'<p class="note">✓ Ευθυγραμμίστηκε αυτόματα κατά τη φόρτωση.</p>':'')+'</div></details>';
+  var advOpen = fs._advOpen || fs._crop || fs._lasso || fs._layerHL || (R && isA && !R.mass.length);
+  h+='<details class="advbox"'+(advOpen?' open':'')+' data-adv="1"><summary>Ρυθμίσεις &amp; διορθώσεις <small>κλίμακα · layers · στέγη · κουφώματα · σκάλες</small></summary><div class="in">'+adv+'</div></details>';
   return h+'</section>';
 }
 
@@ -3758,6 +3822,22 @@ function sendToStegh(c){
   try { localStorage.setItem('hexis-stegh-import', JSON.stringify(data)); } catch(e){ toast('Δεν ήταν δυνατή η μεταφορά.'); return; }
   window.location.href='stegh.html?from=plan3d';
 }
+/* όλα τα σχέδια του φύλλου → επίπεδα, αυτόματα */
+function addPlansAsLevels(f, fs, rest){
+  rest.forEach(function(g){
+    var nf=newFloor((/· στάθμη (.+)$/.exec(g.title)? 'Επίπεδο '+/· στάθμη (.+)$/.exec(g.title)[1] : g.title).slice(0,40));
+    ['hClear','hGross','sillW','headW','headD','beamH'].forEach(function(k){ nf[k]=f[k]; }); nf.askA=true; nf.askS=true;
+    var cf=cloneFS(fs); cf.crop=g.crop; cf.planCid=g.cid; cf.plans=fs.plans; cf.dx=fs.dx; cf.dy=fs.dy; cf._view=null; resetOv(cf); nf.arch=cf; recompute(cf,nf); applyLevel(cf,nf);
+    if (!cf.res || !cf.res.mass.length) return;   // σχέδιο χωρίς τοίχους (όψη, λεπτομέρεια) δεν γίνεται επίπεδο
+    var ez=nf.elevManual, cand=S.floors.filter(function(x){ return x.arch && x.arch.res && x.arch.planCid!==cf.planCid; });
+    cand.sort(function(p,q){ var dp=(ez===null||p.elevManual===null)?0:Math.abs(p.elevManual-ez), dq=(ez===null||q.elevManual===null)?0:Math.abs(q.elevManual-ez); return dp-dq; });
+    if (cand[0] && autoAlign(cf, nf, cand[0].arch)) cf.autoAligned=true;
+    S.floors.push(nf);
+  });
+  sortFloorsByLevel();
+  // αν δεν υπάρχουν στάθμες στο σχέδιο, τα επίπεδα στοιβάζονται με τη σειρά
+  S.floors.forEach(function(x){ if (x.elevManual===null) x.elevManual=null; });
+}
 function sortFloorsByLevel(){
   if (!S.floors.every(function(f){ return f.elevManual!==null && f.elevManual!==undefined; })) return;
   S.floors.sort(function(a,b){ return a.elevManual-b.elevManual; });
@@ -3769,6 +3849,8 @@ function updateElevs(){
     var z=$('.lvl-z',fc); if (z) z.textContent=(e>=0?'+':'')+fmt(e); });
   updateStackMini();
 }
+$('#floors').addEventListener('toggle', function(e){ var d=e.target; if (!d.matches) return; var c=ctx(d); if (!c||!c.fs) return;
+  if (d.matches('details.advbox')) c.fs._advOpen=d.open; if (d.matches('details.hts')) c.f._hOpen=d.open; }, true);
 $('#floors').addEventListener('click', function(e){
   var b=e.target.closest('[data-act]'); if (!b) return;
   var c=ctx(b); if (!c) return; var a=b.dataset.act, f=c.f, fs=c.fs;
@@ -3778,6 +3860,7 @@ $('#floors').addEventListener('click', function(e){
     S.floors.splice(c.fi,1); renderFloors(); schedule3D(true); return; }
   if (a==='copyPrev'){ var p=S.floors[c.fi-1]; ['arch','struct'].forEach(function(s){ if (p[s]) { f[s]=cloneFS(p[s]); recompute(f[s],f); } }); ['hClear','hGross','sillW','headW','headD','beamH'].forEach(function(k){ f[k]=p[k]; }); renderFloors(); schedule3D(true); toast('Αντιγράφηκαν τα σχέδια του «'+p.name+'». Πάτα «Περιοχή» για άλλη κάτοψη της ίδιας σελίδας.'); return; }
   if (a==='rmFile'){ f[c.src]=null; renderFloors(); schedule3D(true); return; }
+  if (a==='go3d'){ showTab('model'); return; }
   if (a==='okA'){ f.askA=true; renderFloors(); schedule3D(); return; }
   if (a==='okS'){ f.askS=true; renderFloors(); schedule3D(); return; }
   if (a==='crop'){ fs._crop=!fs._crop; fs._lasso=false; renderFloors(); return; }
@@ -3986,7 +4069,7 @@ function showTab(t){
 $('#bSave').onclick = function(){
   var data = { app:'hexis-plan3d', v:2, saved:new Date().toISOString(), site:S.site, floors:S.floors.map(function(f){
     var o={}; Object.keys(f).forEach(function(k){ if (k!=='arch'&&k!=='struct') o[k]=f[k]; });
-    ['arch','struct'].forEach(function(s){ o[s]= f[s]? JSON.parse(JSON.stringify(f[s], function(k,v){ if (k==='res'||k==='m'||k==='_drag'||k==='_crop'||k==='_view'||k==='_roofErr'||k==='_layerHL'||k==='_full'||k==='_lasso'||k==='_lpath'||k==='_lpend'||k==='plans') return undefined; if (typeof v==='number') return Math.round(v*1e5)/1e5; return v; })) : null; });
+    ['arch','struct'].forEach(function(s){ o[s]= f[s]? JSON.parse(JSON.stringify(f[s], function(k,v){ if (k==='res'||k==='m'||k==='_drag'||k==='_crop'||k==='_view'||k==='_roofErr'||k==='_layerHL'||k==='_full'||k==='_lasso'||k==='_lpath'||k==='_lpend'||k==='_advOpen'||k==='plans') return undefined; if (typeof v==='number') return Math.round(v*1e5)/1e5; return v; })) : null; });
     return o; }) };
   download(new Blob([JSON.stringify(data)],{type:'application/json'}), 'Ktirio3D_'+(S.floors[0]&&S.floors[0].name||'ergo').replace(/\s+/g,'_')+'.h3d');
 };
