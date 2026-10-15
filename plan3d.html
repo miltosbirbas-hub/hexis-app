@@ -694,6 +694,7 @@ function guessRole(name, kind, st){
   var s = norm(name);
   if (kind==='arch'){
     if (/ισουψ|isoy|isoips|isoups|contour|cntr|υψομετρ|ypsometr|σημει.*αποτ|survey|ταχυμ|kampyl|καμπυλ.*στ/.test(s)) return 'contour';
+    if (/closet|kitcbath|kitch|bath|sanit|wc\b|ντουλαπ/.test(s) && !/dim|διαστ/.test(s)) return 'furniture';
     if (/epipl|επιπλ|furn|εξοπλ|eksopl|equip|sanit|υγιειν|ygiein|κρεβατ|τραπεζ|καναπ|ντουλαπ|ntoulap|kitch|κουζιν|kouzin|δεντρ|φυτ|plant|tree/.test(s)) return 'furniture';
     if (/axis|αξον|aksona|text|κειμ|keim|diast|διαστ|dim|etics|θερμομον|monos|hatch|γραμμοσκ|mark|symbol|note|level/.test(s)) return 'ignore';
     if (/stair|κλιμακ|klimak|σκαλ|skal|βαθμιδ|vathmid/.test(s)) return 'stair';
@@ -1755,10 +1756,18 @@ function recognizeArchExact(prims, roles, opt){
   var balc = findBalconies(T2, prims, roles);
   var railings = segmentsOf(prims.filter(function(p){ return roles[p.L]==='railing'; }));
   var balcSegs=[]; balc.slabs.concat(balc.parapets).forEach(function(F){ for (var i=0;i<F.outer.length;i++) balcSegs.push([F.outer[i],F.outer[(i+1)%F.outer.length]]); });
-  var stairs = recognizeStairs(prims, roles, T2, balcSegs);
+  var hasStairRole = prims.some(function(p){ return roles[p.L]==='stair' && p.k!=='text'; });
+  var stairs;
+  if (hasStairRole) stairs = recognizeStairs(prims, roles, T2, balcSegs);
+  else {
+    var auto=autoStairPrims(prims, roles, T2);
+    stairs = auto.length ? recognizeStairs(auto, {'__auto_stair':'stair'}, T2, balcSegs) : [];
+    stairs.forEach(function(st){ st.auto=true; });
+  }
   var fences = recognizeLowWalls(prims, roles, 'fence', T2);
   var curbs  = recognizeLowWalls(prims, roles, 'curb', T2);
-  var furniture = recognizeFurniture(prims, roles, T2);
+  var hasFurnRole = prims.some(function(p){ return roles[p.L]==='furniture' && p.k!=='text'; });
+  var furniture = hasFurnRole ? recognizeFurniture(prims, roles, T2) : autoFurniture(prims, roles, T2, stairs);
   var contours = recognizeContours(prims, roles);
   return {
     exact:true, T:T2, faces:T2.faces, bridgeEdge:bridgeEdge, balconies:balc.slabs, parapets:balc.parapets, railings:railings, stairs:stairs, fences:fences, curbs:curbs, furniture:furniture, contours:contours,
@@ -2100,9 +2109,15 @@ var FURN_H = [
   [/φυτ|fyt|plant|γλαστρ|δεντρ|tree/, 0.90, 'φυτό']
 ];
 function furnGuess(poly, name){
-  var s=norm(name||'');
+  var s=norm(name||''), r=minRect(poly), a=Math.min(r.w,r.l), b=Math.max(r.w,r.l), A=Math.abs(polyArea(poly));
+  if (/kitc|bath|sanit|υγιειν|ygiein|kouzin|κουζιν|μπαν|mpan|wc/.test(s) && !/krevat|κρεβατ|bed/.test(s)){
+    if (b>=1.4 && b<=2.1 && a>=0.6 && a<=1.0) return { h:0.55, type:'μπανιέρα' };
+    if (a>=0.5 && a<=0.75 && b>=0.8) return { h:0.90, type:'πάγκος' };
+    if (A<0.45) return { h:0.42, type:'είδος υγιεινής' };
+    return /kitc|kouzin|κουζιν/.test(s) && !/bath|μπαν/.test(s) ? { h:0.90, type:'πάγκος' } : { h:0.85, type:'εξοπλισμός' };
+  }
+  if (/closet|ντουλαπ|ntoulap|wardrob/.test(s) && A>0.3) return { h:2.20, type:'ντουλάπα' };
   for (var i=0;i<FURN_H.length;i++) if (FURN_H[i][0].test(s)) return { h:FURN_H[i][1], type:FURN_H[i][2] };
-  var r=minRect(poly), a=Math.min(r.w,r.l), b=Math.max(r.w,r.l), A=Math.abs(polyArea(poly));
   if (b>=1.85 && b<=2.3 && a>=0.8 && a<=2.1) return { h:0.55, type:'κρεβάτι' };
   if (a>=0.5 && a<=0.7 && b>=1.0 && A>0.5*a*b*0.9) return { h:0.90, type:'πάγκος' };
   if (A<0.35) return { h:0.45, type:'αντικείμενο' };
@@ -2156,6 +2171,24 @@ function recognizeFurniture(prims, roles, T){
   });
   // απόρριψη διπλών (ίδιο κέντρο)
   var seen={}; return out.filter(function(o){ if (seen[o.key]) return false; seen[o.key]=1; return true; });
+}
+/* αυτόματα έπιπλα χωρίς layer: κλειστά σχήματα από «αδιάφορες» πένες μέσα στους χώρους */
+function autoFurniture(prims, roles, T, stairs){
+  if (!T) return [];
+  var ann=/dim|διαστ|axis|αξον|text|κειμ|note|symbol|level|σταθμ|mark|hatch|γραμμοσκ|title|section|τομ|footprint|περιγραμ/;
+  var r2={}, any=false;
+  prims.forEach(function(p){ if (p.k==='text'||p.k==='pt'||p.dash) return; var ro=roles[p.L]||'ignore'; if (ro!=='ignore' || ann.test(norm(p.L))) return; r2[p.L]='furniture'; any=true; });
+  if (!any) return [];
+  var P=prims.filter(function(p){ return r2[p.L] && !p.dash && p.k!=='text' && p.k!=='pt'; });
+  var rooms=T.faces.filter(function(F){ return F.kind==='room'; });
+  var stF=[]; (stairs||[]).forEach(function(st){ stF=stF.concat(st.faces); });
+  return recognizeFurniture(P, r2, T).filter(function(o){
+    var A=Math.abs(polyArea(o.outer)); if (A<0.08 || A>6) return false;
+    var rm=rooms.filter(function(F){ return pointInFace(o.ctr,F); })[0]; if (!rm) return false;
+    if (A > 0.6*Math.abs(rm.area)) return false;
+    if (stF.some(function(F){ return pointInFace(o.ctr,F); })) return false;
+    o.auto=true; return true;
+  });
 }
 function P3loops(TF){
   return massLoops(TF, function(F){ return F.kind==='mat'; }).map(function(L){ return L.map(function(h){ return TF.V[TF.from(h)]; }); });
@@ -2223,6 +2256,60 @@ function recognizeContours(prims, roles){
   var zs=out.map(function(p){return p[2];});
   return { lines:lines.filter(function(l){ return l.z!==undefined || l.zs; }).map(function(l){ return { P:l.P, z:l.z, zs:l.zs, inf:!!l.inf }; }), pts:out,
            zmin: zs.length? Math.min.apply(null,zs) : 0, zmax: zs.length? Math.max.apply(null,zs) : 0, step:step };
+}
+
+/* αυτόματος εντοπισμός σκάλας χωρίς layer: ≥4 παράλληλες γραμμές ίσου μήκους με σταθερό βήμα 0.22–0.36 */
+function autoStairPrims(prims, roles, T){
+  var skip={wall:1,column:1,opening:1,door:1,fence:1,curb:1,contour:1};
+  var src=prims.filter(function(p){ return p.k!=='text' && p.k!=='pt' && !skip[roles[p.L]||'ignore']; });
+  var S=mergeCollinear(segmentsOf(src)).filter(function(s){ var L=len(sub(s[1],s[0])); return L>=0.55 && L<=2.8; });
+  if (S.length<4) return [];
+  var it=S.map(function(s){ var u=unit(sub(s[1],s[0])); if (u[0]<-1e-9 || (Math.abs(u[0])<1e-9 && u[1]<0)) u=[-u[0],-u[1]];
+    var n=[-u[1],u[0]], t0=dot(u,s[0]), t1=dot(u,s[1]); return { s:s, u:u, n:n, ang:Math.atan2(u[1],u[0]), off:dot(n,s[0]), t0:Math.min(t0,t1), t1:Math.max(t0,t1) }; });
+  it.sort(function(a,b){ return a.ang-b.ang; });
+  // ομάδες διεύθυνσης (±1.5°)
+  var groups=[], cur=[];
+  it.forEach(function(x){ if (cur.length && x.ang-cur[0].ang>0.026){ groups.push(cur); cur=[]; } cur.push(x); }); if (cur.length) groups.push(cur);
+  if (groups.length>1 && Math.abs(groups[0][0].ang-(groups[groups.length-1][0].ang-Math.PI))<0.026){ groups[0]=groups[0].concat(groups.pop().map(function(x){ x.u=[-x.u[0],-x.u[1]]; x.n=[-x.n[0],-x.n[1]]; x.off=-x.off; var t0=-x.t1, t1=-x.t0; x.t0=t0; x.t1=t1; return x; })); }
+  var flights=[];
+  groups.forEach(function(G){
+    var u=G[0].u, n=G[0].n;
+    G.forEach(function(x){ x.off=dot(n,x.s[0]); var a=dot(u,x.s[0]), b=dot(u,x.s[1]); x.t0=Math.min(a,b); x.t1=Math.max(a,b); });
+    G.sort(function(a,b){ return a.off-b.off; });
+    var used={};
+    for (var i=0;i<G.length;i++){
+      if (used[i]) continue;
+      var chain=[i], last=G[i], gap=null;
+      for (var j=i+1;j<G.length;j++){
+        if (used[j]) continue;
+        var x=G[j], d=x.off-last.off; if (d<0.15) continue; if (d>0.40) break;
+        var ov=Math.min(x.t1,last.t1)-Math.max(x.t0,last.t0), mn=Math.min(x.t1-x.t0,last.t1-last.t0);
+        if (ov < 0.85*mn || Math.abs((x.t1-x.t0)-(last.t1-last.t0))>0.12) continue;
+        if (d<0.22 || d>0.36) continue;
+        if (gap!==null && Math.abs(d-gap)>0.03) continue;
+        if (gap===null) gap=d;
+        chain.push(j); last=x;
+      }
+      if (chain.length>=4){ chain.forEach(function(k){ used[k]=1; }); flights.push(chain.map(function(k){ return G[k]; })); }
+    }
+  });
+  var out=[];
+  flights.forEach(function(F){
+    var c=[0,0]; F.forEach(function(x){ var m=mul(add(x.s[0],x.s[1]),0.5); c=add(c,m); }); c=mul(c,1/F.length);
+    if (T && T.faces.some(function(B){ return B.kind==='mat' && pointInFace(c,B); })) return;
+    // ολόκληρο το σχέδιο της σκάλας: γραμμές που ακουμπούν τη σκάλα (περίγραμμα, βέλος, πλατύσκαλο)
+    var bb=[Infinity,Infinity,-Infinity,-Infinity]; F.forEach(function(x){ x.s.forEach(function(q){ bb[0]=Math.min(bb[0],q[0]); bb[1]=Math.min(bb[1],q[1]); bb[2]=Math.max(bb[2],q[0]); bb[3]=Math.max(bb[3],q[1]); }); });
+    var pad=1.6, inB=function(q){ return q[0]>=bb[0]-pad && q[0]<=bb[2]+pad && q[1]>=bb[1]-pad && q[1]<=bb[3]+pad; };
+    var segs=F.map(function(x){ return x.s; }), pool=segmentsOf(src).filter(function(s){ return inB(s[0]) && inB(s[1]); });
+    var take=segs.slice(), changed=true, guard=0, inTake=pool.map(function(){ return false; });
+    while (changed && guard++<6){ changed=false;
+      pool.forEach(function(s,k){ if (inTake[k]) return;
+        var touch = take.some(function(t){ return distPtSeg(s[0],t[0],t[1])<0.03 || distPtSeg(s[1],t[0],t[1])<0.03 || distPtSeg(t[0],s[0],s[1])<0.03 || distPtSeg(t[1],s[0],s[1])<0.03; });
+        if (touch){ inTake[k]=true; take.push(s); changed=true; } }); }
+    take.forEach(function(s){ out.push({ k:'seg', a:s[0], b:s[1], L:'__auto_stair' }); });
+  });
+  // μικρά βέλη ανόδου που δεν ακουμπούν
+  return out;
 }
 
 /* βέλος ανόδου: «V» από δύο σκέλη 0.08–0.6 m με γωνία 15°–80° (ή μικρό κλειστό τρίγωνο) */
@@ -2381,7 +2468,7 @@ function stripPoly(a,b,t){
   return [sub(a,n), sub(b,n), add(b,n), add(a,n)];
 }
 
-return { recognizeContours:recognizeContours, recognizeFurniture:recognizeFurniture, minRect:minRect, arrowTips:arrowTips, recognizeStairs:recognizeStairs, clipPrims:clipPrims, recognizeArchExact:recognizeArchExact, massLoops:massLoops, loopRuns:loopRuns, chordAt:chordAt, faceKey:faceKey, pointInFace:pointInFace, decodeDXF:decodeDXF, parseDXF:parseDXF, flatten:flatten, layerStats:layerStats, guessRole:guessRole,
+return { autoStairPrims:autoStairPrims, recognizeContours:recognizeContours, recognizeFurniture:recognizeFurniture, minRect:minRect, arrowTips:arrowTips, recognizeStairs:recognizeStairs, clipPrims:clipPrims, recognizeArchExact:recognizeArchExact, massLoops:massLoops, loopRuns:loopRuns, chordAt:chordAt, faceKey:faceKey, pointInFace:pointInFace, decodeDXF:decodeDXF, parseDXF:parseDXF, flatten:flatten, layerStats:layerStats, guessRole:guessRole,
   guessUnits:guessUnits, toMeters:toMeters, bbox:bbox, recognizeArch:recognizeArch, recognizeStruct:recognizeStruct,
   stripPoly:stripPoly, arcRadius:arcRadius, footprint:footprint, alignShapes:alignShapes, polyArea:polyArea, centroid:centroid, primPts:primPts, norm:norm, hull:hull };
 })();
@@ -4128,6 +4215,22 @@ function buildSiteParts(f, fs, out, isLowest, gLocal){
   var inBalc=function(p){ return R.balconies.some(function(F){ return P3.pointInFace(p,F); }); };
   (R.stairs||[]).forEach(function(st){
     var info=stairTops(f,fs,st);
+    // εξωτερική σκάλα ορόφου: συνεχίζει προς τα κάτω μέχρι το έδαφος με το ίδιο πάτημα
+    if (!st.inside && !isLowest && gLocal < -0.3){
+      var flip=fs.stairFlip&&fs.stairFlip[st.key], ord=st.faces.slice().sort(function(a,b){ return (flip? b.step-a.step : a.step-b.step); });
+      var tr=ord.filter(function(F){ return F.kind!=='landing'; });
+      if (tr.length>=2){
+        var last=ord[ord.length-1], off=(last.kind==='landing')?0:1, n=st.n;
+        var N=Math.max(n+off+1, Math.round(-gLocal/sv.riser)), r=-gLocal/N;
+        info={ tops:{}, r:r }; st.faces.forEach(function(F){ var k=flip? (n+1-F.step) : F.step; info.tops[F.step]=(k-n-off)*r; });
+        var t1=tr[0], t2=tr[1], v=[t1.ip[0]-t2.ip[0], t1.ip[1]-t2.ip[1]];
+        for (var j=1;j<=N-n-off;j++){
+          var P=t1.outer.map(function(q){ return [q[0]+v[0]*j, q[1]+v[1]*j]; }), top=(1-j-n-off)*r;
+          prism(out.stair, P, [], gLocal, top);
+          var e=0.004; P.forEach(function(p,i){ var q=P[(i+1)%P.length]; out.edges.seg(W(p,top+e), W(q,top+e)); });
+        }
+      }
+    }
     st.faces.forEach(function(F){
       var top=info.tops[F.step];
       if (F.kind==='landing' && Math.abs(top)<0.02 && inBalc(F.ip)) return;      // το πλατύσκαλο είναι ο εξώστης
