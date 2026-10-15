@@ -190,6 +190,22 @@ table.t td.n{font-weight:800;width:30px;cursor:pointer;font-family:var(--f-mono)
 .lyr.off .lyr-n span{color:var(--dim)}
 .lyr-auto{font-style:normal;font-size:10.5px;color:#FFE08A}
 .slot:has(details.lyrs[open]) .pv:not(.full){position:sticky;top:70px;z-index:6;box-shadow:0 12px 30px rgba(0,0,0,.55)}
+.plans{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0 2px;font-size:12px;color:var(--muted)}
+.plans>span:first-child{width:100%;font-weight:700;letter-spacing:.04em}
+.plans .plan{display:inline-flex;border:1px solid var(--glass-line);border-radius:999px;overflow:hidden;background:rgba(6,12,25,.7)}
+.plans .plan button{all:unset;cursor:pointer;padding:6px 11px;font-size:12px;color:var(--ink)}
+.plans .plan.on{border-color:var(--cyan);box-shadow:0 0 14px rgba(61,232,255,.25)}
+.plans .plan.on button{color:#fff;background:rgba(61,232,255,.14)}
+.plans .plan .add{border-left:1px solid var(--glass-line);color:var(--cyan);font-weight:700}
+.lvlnote{margin:6px 0 0}
+.pv.lasso canvas{cursor:crosshair!important}
+.lmenu{position:absolute;z-index:20;width:220px;background:rgba(6,12,25,.96);border:1px solid #FF3D81;border-radius:14px;padding:10px;box-shadow:0 18px 40px rgba(0,0,0,.6),0 0 24px rgba(255,61,129,.25);backdrop-filter:blur(8px)}
+.lmenu .lm-h{font-size:12px;color:var(--muted);margin-bottom:8px}
+.lmenu .lm-o{display:flex;flex-direction:column;gap:3px;max-height:260px;overflow:auto}
+.lmenu .lm-o button{all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;font-size:12.5px;color:var(--ink)}
+.lmenu .lm-o button:hover{background:rgba(255,61,129,.14)}
+.lmenu i{width:10px;height:10px;border-radius:3px;flex:none}
+.lmenu .lm-x{all:unset;cursor:pointer;margin-top:8px;font-size:12px;color:var(--dim)}
 .lyr-help{font-size:12px;line-height:1.5;color:var(--muted);margin:2px 0 10px;padding:9px 11px;border-radius:10px;background:rgba(61,232,255,.06);border:1px solid rgba(61,232,255,.14)}
 .lyr small{color:var(--dim);font-family:var(--f-mono)}
 .lyr select{border:1px solid var(--glass-line);border-radius:8px;padding:4px 5px;font-size:12px;background:rgba(4,10,22,.8)}
@@ -1897,7 +1913,7 @@ function findBridges(T, G){
       if (dot(q.d, r.d) < Math.cos(1.2*Math.PI/180)) return;
       if (distLine(q.a, r.b, r.d) > 0.02) return;
       var t=dot(sub(q.a, r.b), r.d);
-      if (t <= 0.004 || t > 4.5) return;
+      if (t <= 0.004 || t > 7.0) return;
       if (!best || t<best.t) best={q:q, qi:qi, t:t};
     });
     if (!best || best.t < 0.25 || usedStart[best.qi]) return;
@@ -1973,12 +1989,13 @@ function distToPoly(p,P){ var m=Infinity; for (var i=0;i<P.length;i++) m=Math.mi
 
 function buildOpenings(T, G, bridgeEdge, prims, roles){
   var ann=/dim|διαστ|furn|επιπλ|level|σταθμ|symbol|note|text|κειμ|title|axis|αξον|hatch|kitc|bath|κουζ|μπαν|closet|ντουλ|floor|δαπεδ|apox|kagkel|καγκελ|mark/;
-  var arcs=[], marks=[];
+  var arcs=[], marks=[], gen=[];
   prims.forEach(function(p){
     if (roles[p.L]==='wall' || roles[p.L]==='column') return;
     if (ann.test(norm(p.L))) return;
     if (p.k==='poly' && p.pts.length>=5 && !p.closed){ var c=arcFit(p.pts); if (c && c.sweep>0.85 && c.sweep<3.3) arcs.push({c:c.c, r:c.r, dash:!!p.dash, L:p.L}); }
     if ((p.k==='seg' || p.k==='poly') && (roles[p.L]==='opening' || roles[p.L]==='door')) marks.push(p);
+    else if ((p.k==='seg' || p.k==='poly') && !p.dash && (roles[p.L]||'ignore')==='ignore') gen.push(p);
   });
   var wdPrims = prims.filter(function(p){ return p.wd; });
   var res=[];
@@ -2016,6 +2033,20 @@ function buildOpenings(T, G, bridgeEdge, prims, roles){
       var e=Infinity; for (var i=0;i<P.length;i++) e=Math.min(e, distPtSeg(mid,P[i],P[(i+1)%P.length]));
       return e > 0.012;
     });
+    // κουφώματα σχεδιασμένα σε «γενικά» layers: ≥2 παράλληλες γραμμές μέσα στο άνοιγμα (τζάμι/κάσα)
+    if (!inside.length){
+      var gl=[];
+      gen.forEach(function(p){ segmentsOf([p]).forEach(function(sg){
+        var L=len(sub(sg[1],sg[0])); if (L < 0.45*w) return;
+        if (Math.abs(crs(unit(sub(sg[1],sg[0])), u)) > 0.05) return;
+        var mid=mul(add(sg[0],sg[1]),0.5); if (!pip(mid,P)) return;
+        if (!(distToPoly(sg[0],P)<0.03 || pip(sg[0],P)) || !(distToPoly(sg[1],P)<0.03 || pip(sg[1],P))) return;
+        var e=Infinity; for (var i=0;i<P.length;i++) e=Math.min(e, distPtSeg(mid,P[i],P[(i+1)%P.length]));
+        if (e > 0.012) gl.push({k:'seg', a:sg[0], b:sg[1]});
+      }); });
+      var offs={}; gl.forEach(function(g){ offs[Math.round(dot(sub(g.a,bestB.a),n)*100)]=1; });
+      if (Object.keys(offs).length>=2) inside=gl;
+    }
     var type;
     if (single || (dbl>=2 && w>=1.2)) type='door';
     else if (inside.length || shutters || dbl) type='window';
@@ -2030,6 +2061,8 @@ function buildOpenings(T, G, bridgeEdge, prims, roles){
     // XData WINDOORS
     var wd=null; wdPrims.forEach(function(p){ if (wd) return; var c=centroid(primPts(p)); if (distToPoly(c,P) < 0.1) wd=p.wd; });
     var forced = F.manual;
+    // ένα άνοιγμα έχει βάθος τοίχου· πολύ «παχιά» περιοχή είναι χώρος (π.χ. κλιμακοστάσιο), όχι κούφωμα
+    if (!forced && (t1-t0) > 0.9 && F.thick > 0.65 && !wd) { F.kind='room'; F.rejected=true; return; }
     if (!forced && (!bothSides || !(hasSymbol || wd))) { F.kind='room'; F.rejected=true; return; }
     var sill=null, head=null, code=null;
     if (wd && wd.s.length){ code=wd.s[0].toUpperCase();
@@ -2305,8 +2338,13 @@ function autoStairPrims(prims, roles, T){
       if (chain.length>=4){ chain.forEach(function(k){ used[k]=1; }); flights.push(chain.map(function(k){ return G[k]; })); }
     }
   });
+  // οι σκάλες είναι παράλληλες/κάθετες στους τοίχους (όχι γραμμοσκίαση υπό γωνία)
+  var wallAng=[];
+  if (T) for (var h=0; h<T.E.length*2; h+=2){ var fa=T.heFace[h], fb=T.heFace[h+1]; if ((fa>=0&&T.faces[fa].kind==='mat') !== (fb>=0&&T.faces[fb].kind==='mat')){ var A=T.V[T.from(h)], B=T.V[T.to(h)], Lw=len(sub(B,A)); if (Lw>0.5) wallAng.push(Math.atan2(B[1]-A[1],B[0]-A[0])); } }
+  function aligned(u){ if (!wallAng.length) return true; var a=Math.atan2(u[1],u[0]); return wallAng.some(function(w){ var d=Math.abs(((a-w)%(Math.PI/2)+Math.PI/2)%(Math.PI/2)); return Math.min(d, Math.PI/2-d) < 0.09; }); }
   var out=[];
   flights.forEach(function(F){
+    if (!aligned(F[0].u)) return;
     var c=[0,0]; F.forEach(function(x){ var m=mul(add(x.s[0],x.s[1]),0.5); c=add(c,m); }); c=mul(c,1/F.length);
     if (T && T.faces.some(function(B){ return B.kind==='mat' && pointInFace(c,B); })) return;
     // ολόκληρο το σχέδιο της σκάλας: γραμμές που ακουμπούν τη σκάλα (περίγραμμα, βέλος, πλατύσκαλο)
@@ -2318,6 +2356,10 @@ function autoStairPrims(prims, roles, T){
       pool.forEach(function(s,k){ if (inTake[k]) return;
         var touch = take.some(function(t){ return distPtSeg(s[0],t[0],t[1])<0.03 || distPtSeg(s[1],t[0],t[1])<0.03 || distPtSeg(t[0],s[0],s[1])<0.03 || distPtSeg(t[1],s[0],s[1])<0.03; });
         if (touch){ inTake[k]=true; take.push(s); changed=true; } }); }
+    // γραμμές κατά μήκος της σκάλας στο εσωτερικό της (μεσαίο κουπαστή/άξονας) δεν χωρίζουν τα σκαλοπάτια
+    var uu=unit(sub(F[0].s[1],F[0].s[0])), tmin=Math.max.apply(null,F.map(function(x){ return Math.min(dot(x.s[0],uu),dot(x.s[1],uu)); })), tmax=Math.min.apply(null,F.map(function(x){ return Math.max(dot(x.s[0],uu),dot(x.s[1],uu)); }));
+    take=take.filter(function(sg){ var d=unit(sub(sg[1],sg[0])); if (Math.abs(dot(d,uu))>0.15) return true;
+      var tm=dot(mul(add(sg[0],sg[1]),0.5),uu), keep=!(tm>tmin+0.08 && tm<tmax-0.08); return keep; });
     var t0=F[0].s, mid=mul(add(t0[0],t0[1]),0.5), srcL=null;
     src.some(function(p){ return segmentsOf([p]).some(function(q){ if (distPtSeg(mid,q[0],q[1])<0.01){ srcL=p.L; return true; } return false; }); });
     if (srcL) (autoStairPrims.layers=autoStairPrims.layers||{})[srcL]=1;
@@ -3108,13 +3150,16 @@ async function loadFile(file, fi, src){
     }
     f[src]=fs;
     if (src==='arch') f.askA=false; else f.askS=false;
-    recompute(fs, f);
+    var plans=findPlans(fs); fs.plans=plans.length>1? plans : null;
+    if (fs.plans){ fs.crop=plans[0].crop; if (fs.fmt==='pdf' && !fs.hasOC) guessPdfRoles(fs); }
+    recompute(fs, f); applyLevel(fs, f);
     var ref = src==='struct'? f.arch : (fi>0? S.floors[fi-1].arch : (f.struct||null));
-    if (ref && ref.res && fs.res && (fs.fmt==='pdf' || ref.fmt==='pdf' || ref.dx || ref.dy)){
+    if (ref && ref.res && fs.res && !sameSheet(ref, fs) && (fs.fmt==='pdf' || ref.fmt==='pdf' || ref.dx || ref.dy)){
       if (autoAlign(fs, f, ref)) fs.autoAligned=true;
     }
     renderFloors(); schedule3D(true);
     if (fs.isScan) toast('Σκαναρισμένο PDF — δεν περιέχει γραμμές για αναγνώριση.');
+    else if (fs.plans) toast('Το φύλλο έχει '+fs.plans.length+' σχέδια. Πήρα το «'+fs.plans[0].title+'». Τα άλλα είναι πάνω από την προεπισκόπηση.');
     else if (fs.fmt==='pdf' && fs.pages>=1 && !fs.crop) toast('Αναγνωρίστηκε: '+summaryText(fs)+'. Αν η σελίδα έχει πολλά σχέδια, πάτα «Περιοχή».');
     else toast('Αναγνωρίστηκε: '+summaryText(fs));
   } catch(e){ console.error(e); toast(e.message||'Σφάλμα ανάγνωσης'); }
@@ -3133,6 +3178,86 @@ function pdfScaleGuess(fs, raw){
   var wl={}, ol={}; Object.keys(fs.roles).forEach(function(k){ var r=fs.roles[k]; if (r==='wall'||r==='beam') wl[k]=1; if (r==='opening'||r==='door') ol[k]=1; });
   return P3PDF.guessScale(raw, wl, fs.kind==='arch'? ol : null);
 }
+/* σχέδια μέσα στο ίδιο φύλλο: ομάδες τοίχων που απέχουν μεταξύ τους */
+function findPlans(fs){
+  var W=fs.raw.filter(function(p){ var r=fs.roles[p.L]; return (r==='wall'||r==='column'||r==='beam') && p.k!=='text'; });
+  if (W.length<8) return [];
+  var gap=3.0/fs.scale, B=W.map(function(p){ return P3.bbox([p]); }).filter(Boolean);
+  var n=B.length, par=B.map(function(_,i){return i;});
+  function F(i){ while (par[i]!==i){ par[i]=par[par[i]]; i=par[i]; } return i; }
+  var idx=B.map(function(_,i){return i;}).sort(function(a,b){ return B[a][0]-B[b][0]; });
+  for (var ii=0; ii<n; ii++){ var i=idx[ii];
+    for (var jj=ii+1; jj<n; jj++){ var j=idx[jj]; if (B[j][0] > B[i][2]+gap) break;
+      if (B[j][1] <= B[i][3]+gap && B[i][1] <= B[j][3]+gap){ var a=F(i), b=F(j); if (a!==b) par[a]=b; } } }
+  var G={}; B.forEach(function(b,i){ var r=F(i); var g=G[r]||(G[r]={bb:[Infinity,Infinity,-Infinity,-Infinity], n:0}); g.n++; g.bb=[Math.min(g.bb[0],b[0]),Math.min(g.bb[1],b[1]),Math.max(g.bb[2],b[2]),Math.max(g.bb[3],b[3])]; });
+  var minW=4/fs.scale;
+  var plans=Object.keys(G).map(function(k){ return G[k]; }).filter(function(g){ return g.n>=10 && (g.bb[2]-g.bb[0])>minW && (g.bb[3]-g.bb[1])>minW*0.5; });
+  var tx=fs.raw.filter(function(p){ return p.k==='text' && /ΚΑΤΟΨΗ|ΥΠΟΓΕΙ|ΙΣΟΓΕΙ|ΟΡΟΦΟ|ΔΩΜΑ|ΣΤΑΘΜΗ|PLAN|FLOOR/i.test(p.s||''); });
+  plans.forEach(function(g){
+    var m=1.5/fs.scale; g.crop=[g.bb[0]-m, g.bb[1]-m, g.bb[2]+m, g.bb[3]+m];
+    var R=8/fs.scale, best=null;
+    tx.forEach(function(t){ var dx=Math.max(g.bb[0]-t.p[0],0,t.p[0]-g.bb[2]), dy=Math.max(g.bb[1]-t.p[1],0,t.p[1]-g.bb[3]), d=Math.hypot(dx,dy); if (d<R && (!best||d<best.d)) best={t:t,d:d}; });
+    if (best){ var lines=tx.filter(function(t){ return Math.abs(t.p[0]-best.t.p[0])<2/fs.scale && Math.abs(t.p[1]-best.t.p[1])<1.5/fs.scale; }).sort(function(a,b){ return b.p[1]-a.p[1]; });
+      g.title=lines.map(function(t){ return String(t.s).trim(); }).join(' ').replace(/\s+/g,' ').slice(0,60); }
+  });
+  // σπαστά επίπεδα στην ίδια κάτοψη: αν οι δύο συχνότερες στάθμες χωρίζονται καθαρά (σε x ή y), το σχέδιο χωρίζεται στα δύο
+  var LV=fs.raw.filter(function(p){ return p.k==='text' && /^[+\-±]\s?\d{1,2}[.,]\d{2}$/.test(String(p.s||'').trim()); })
+    .map(function(p){ var s=String(p.s).trim().replace(',','.'); var v=(s[0]==='-'?-1:1)*parseFloat(s.replace(/^[+\-±]\s?/,'')); return { p:p.p, v:+v.toFixed(2) }; });
+  var out=[];
+  plans.forEach(function(g){
+    var inside=LV.filter(function(l){ return l.p[0]>=g.crop[0] && l.p[0]<=g.crop[2] && l.p[1]>=g.crop[1] && l.p[1]<=g.crop[3]; });
+    var cnt={}; inside.forEach(function(l){ cnt[l.v]=(cnt[l.v]||0)+1; });
+    var top=Object.keys(cnt).filter(function(k){ return cnt[k]>=3; }).sort(function(a,b){ return cnt[b]-cnt[a]; });
+    var done=false;
+    if (top.length>=2){
+      var A=inside.filter(function(l){ return l.v===+top[0]; }), B=inside.filter(function(l){ return l.v===+top[1]; });
+      [0,1].forEach(function(ax){ if (done) return;
+        var aMax=Math.max.apply(null,A.map(function(l){return l.p[ax];})), aMin=Math.min.apply(null,A.map(function(l){return l.p[ax];}));
+        var bMax=Math.max.apply(null,B.map(function(l){return l.p[ax];})), bMin=Math.min.apply(null,B.map(function(l){return l.p[ax];}));
+        var cut=null; if (aMax < bMin) cut=(aMax+bMin)/2; else if (bMax < aMin) cut=(bMax+aMin)/2;
+        if (cut===null) return;
+        var lo=Object.assign({}, g, { crop:g.crop.slice() }), hi=Object.assign({}, g, { crop:g.crop.slice() });
+        lo.crop[ax+2]=cut; hi.crop[ax]=cut;
+        var vLo = aMax < bMin ? +top[0] : +top[1], vHi = aMax < bMin ? +top[1] : +top[0];
+        function L(v){ return (v>0?'+':v===0?'±':'')+v.toFixed(2); }
+        lo.title=(g.title||'Σχέδιο')+' · στάθμη '+L(vLo); hi.title=(g.title||'Σχέδιο')+' · στάθμη '+L(vHi);
+        lo.n=g.n*0.5+cnt[vLo]; hi.n=g.n*0.5+cnt[vHi];
+        out.push(lo, hi); done=true;
+      });
+    }
+    if (!done) out.push(g);
+  });
+  plans=out;
+  plans.sort(function(a,b){ return b.n-a.n; });
+  plans.forEach(function(g,i){ if (!g.title) g.title='Σχέδιο '+(i+1); });
+  return plans;
+}
+/* στάθμη δαπέδου από τις ενδείξεις του σχεδίου (π.χ. «−3.80», «±0.00»): η συχνότερη μέσα στην περιοχή */
+function levelFromDrawing(fs){
+  var c={}; croppedRaw(fs).forEach(function(p){ if (p.k!=='text') return; var s=String(p.s||'').trim().replace(',','.');
+    var m=/^([+\-±])\s?(\d{1,2}\.\d{2})$/.exec(s); if (!m) return; var v=(m[1]==='-'?-1:1)*parseFloat(m[2]); var k=v.toFixed(2); c[k]=(c[k]||0)+1; });
+  var ks=Object.keys(c); if (!ks.length) return null;
+  ks.sort(function(a,b){ return c[b]-c[a] || Math.abs(a)-Math.abs(b); }); return parseFloat(ks[0]);
+}
+function applyLevel(fs, f){
+  if (!fs || fs.kind!=='arch') return;
+  var lv=levelFromDrawing(fs); fs.levelTxt=lv;
+  if (lv!==null && (f.elevManual===null || f.elevAuto)){ f.elevManual=lv; f.elevAuto=true; }
+}
+function sameSheet(a, b){ return a && b && a.name===b.name && a.page===b.page && Math.abs(a.scale-b.scale)<1e-9; }
+/* λάσο: ο χρήστης κυκλώνει γραμμές και τους δίνει ρόλο → γίνονται δικό τους «layer» */
+function pipRaw(q,P){ var c=false; for (var i=0,j=P.length-1;i<P.length;j=i++){ var a=P[i], b=P[j]; if (((a[1]>q[1])!==(b[1]>q[1])) && (q[0] < (b[0]-a[0])*(q[1]-a[1])/(b[1]-a[1])+a[0])) c=!c; } return c; }
+function lassoHit(p, P){
+  if (p.k==='seg') return pipRaw(p.a,P) && pipRaw(p.b,P);
+  if (p.k==='poly'){ var n=0; p.pts.forEach(function(q){ if (pipRaw(q,P)) n++; }); return n >= Math.max(2, 0.7*p.pts.length); }
+  if (p.k==='circle') return pipRaw(p.c,P);
+  if (p.k==='text' || p.k==='pt') return pipRaw(p.p,P);
+  return false;
+}
+function workRaw(fs){
+  var R=croppedRaw(fs); if (!fs.lassos || !fs.lassos.length) return R;
+  return R.map(function(p){ var L=null; fs.lassos.forEach(function(l){ if (lassoHit(p, l.poly)) L=l.key; }); return L? Object.assign({}, p, { L:L }) : p; });
+}
 function croppedRaw(fs){ return fs.crop ? P3.clipPrims(fs.raw, fs.crop) : fs.raw; }
 function guessPdfRoles(fs){
   var st = P3.layerStats(croppedRaw(fs));
@@ -3142,7 +3267,7 @@ function guessPdfRoles(fs){
 }
 function recompute(fs, f){
   if (!fs || fs.isScan){ if (fs) fs.res=null; return; }
-  var m = P3.toMeters(croppedRaw(fs), fs.scale, fs.dx, fs.dy);
+  var m = P3.toMeters(workRaw(fs), fs.scale, fs.dx, fs.dy);
   try {
     fs.res = fs.kind==='arch' ? P3.recognizeArchExact(m, fs.roles, { faceOvr: fs.faceOvr||{} }) : P3.recognizeStruct(m, fs.roles, {});
     if (fs.kind==='arch') fs.res.openings.forEach(function(o){ o.key = P3.faceKey(o.face); });
@@ -3298,11 +3423,18 @@ function slotHTML(f,i,src){
   h+='<span class="tag '+(fs.scaleSrc==='εκτίμηση'||fs.scaleSrc==='προεπιλογή'?'warn':'ok')+'">'+esc(fs.scaleSrc||'')+'</span>';
   var gb=geomBBox(fs); if (gb) h+='<span class="tag dim" title="Σύγκρινέ το με τις διαστάσεις του σχεδίου">'+fmt(gb[2]-gb[0],2)+' × '+fmt(gb[3]-gb[1],2)+' m</span>';
   h+='</div>';
-  h+='<div class="pv'+(fs._crop?' crop':'')+(fs._full?' full':'')+'"><canvas data-pv="'+src+'"></canvas><div class="pvbar">'+
-     '<button data-act="crop" class="'+(fs._crop?'on':'')+'">✂ Περιοχή</button>'+(fs.crop?'<button data-act="uncrop">Όλη η σελίδα</button>':'')+
+  if (fs.plans && fs.plans.length>1){
+    h+='<div class="plans"><span>Σχέδια σε αυτό το φύλλο:</span>'+fs.plans.map(function(g,k){ var on=fs.crop && Math.abs(fs.crop[0]-g.crop[0])<1e-6 && Math.abs(fs.crop[1]-g.crop[1])<1e-6;
+      var used=S.floors.some(function(fl){ var x=fl.arch; return x && x!==fs && x.name===fs.name && x.crop && Math.abs(x.crop[0]-g.crop[0])<1e-6 && Math.abs(x.crop[1]-g.crop[1])<1e-6 && Math.abs(x.crop[2]-g.crop[2])<1e-6; });
+      return '<span class="plan'+(on?' on':'')+'"><button data-act="planPick" data-k="'+k+'">'+esc(g.title)+'</button>'+(on?'':used?'<button class="add" disabled>✓ επίπεδο</button>':'<button class="add" data-act="planAdd" data-k="'+k+'" title="Πρόσθεσέ το ως νέο επίπεδο">＋ επίπεδο</button>')+'</span>'; }).join('')+'</div>';
+  }
+  if (isA && fs.levelTxt!==null && fs.levelTxt!==undefined) h+='<p class="note lvlnote">Στάθμη δαπέδου από το σχέδιο: <b>'+(fs.levelTxt>0?'+':fs.levelTxt===0?'±':'')+fmt(fs.levelTxt)+'</b>'+(f.elevAuto?' · ορίστηκε αυτόματα':'')+'</p>';
+  h+='<div class="pv'+(fs._crop?' crop':'')+(fs._lasso?' lasso':'')+(fs._full?' full':'')+'"><canvas data-pv="'+src+'"></canvas><div class="pvbar">'+
+     '<button data-act="crop" class="'+(fs._crop?'on':'')+'">✂ Περιοχή</button>'+'<button data-act="lasso" class="'+(fs._lasso?'on':'')+'" title="Κύκλωσε γραμμές και πες τι είναι">◌ Λάσο</button>'+(fs.lassos&&fs.lassos.length?'<button data-act="lassoUndo" title="Αναίρεση τελευταίου λάσο">↶</button>':'')+(fs.crop?'<button data-act="uncrop">Όλη η σελίδα</button>':'')+
      '<span class="pvz"><button data-act="zin" aria-label="Μεγέθυνση">＋</button><button data-act="zout" aria-label="Σμίκρυνση">－</button><button data-act="zfit" aria-label="Όλο το σχέδιο">⊡</button><button data-act="zfull" aria-label="Πλήρης οθόνη">⤢</button></span></div>'+
      '<div class="pvleg">'+(isA?'<span><i style="background:#E6EEF8"></i>τοίχος</span><span><i style="background:#3DE8FF"></i>παράθυρο</span><span><i style="background:#A78BFA"></i>πόρτα</span><span><i style="background:#4ADE9B"></i>εξώστης</span><span><i style="background:#FFE08A"></i>σκάλα</span><span><i style="background:#9C8CFF"></i>έπιπλο</span>'
        :'<span><i style="background:#FF5C8A"></i>υποστ.</span><span><i style="background:#FFB547"></i>δοκοί</span><span><i style="background:#4ADE9B"></i>πλάκες</span>')+'</div></div>';
+  if (fs._lasso) h+='<p class="note hint lassohint">Λάσο: ζωγράφισε με το δάχτυλο ή το ποντίκι γύρω από τις γραμμές. Μόλις αφήσεις, διαλέγεις τι είναι (τοίχος, σκάλα, έπιπλο…). Οι γραμμές που είναι ολόκληρες μέσα στο λάσο παίρνουν αυτόν τον ρόλο.</p>';
   if (fs._crop) h+='<p class="note hint">Σύρε ορθογώνιο γύρω από την κάτοψη. Οι γραμμές που περνούν το όριο κόβονται εκεί.</p>';
   else if (isA) h+='<p class="note hint">Ζουμ με ροδέλα ή δύο δάχτυλα, μετακίνηση με σύρσιμο. Πάτα πάνω στο σχέδιο για διόρθωση: τοίχος ↔ χώρος, τύπος κουφώματος, φορά σκάλας, ύψος επίπλου.</p>';
   var R=fs.res;
@@ -3348,7 +3480,7 @@ function slotHTML(f,i,src){
     if (sl.length) h+='<details><summary>Πλάκες <em>'+sl.length+'</em></summary><div class="in"><table class="t"><tr><th>#</th><th>Ετικέτα</th><th>m²</th><th>d</th><th>Κενό</th></tr>'+
       sl.map(function(s){ var v=slabVals(f,fs,s); return '<tr data-sl="'+s.id+'"'+(fs.hl==='s'+s.id?' class="hl"':'')+'><td class="n" data-act="hls">'+s.id+'</td><td>'+esc(s.lbl||'—')+'</td><td class="num">'+fmt(Math.abs(P3.polyArea(s.poly)),1)+'</td><td><input data-k="slD" inputmode="decimal" value="'+fmt(v.d)+'"></td><td><input type="checkbox" data-k="slV"'+(v.isVoid?' checked':'')+'></td></tr>'; }).join('')+'</table></div></details>';
   }
-  var st = P3.layerStats(croppedRaw(fs)), keys=Object.keys(st).filter(function(k){ return k!=='Κείμενα'; }).sort(function(a,b){ return st[b].n-st[a].n; });
+  var st = P3.layerStats(workRaw(fs)), keys=Object.keys(st).filter(function(k){ return k!=='Κείμενα'; }).sort(function(a,b){ return st[b].n-st[a].n; });
   var opts = isA? ROLE_ARCH : ROLE_STRUCT;
   var hints=(R&&R.hints)||{};
   keys.sort(function(a,b){ var ra=(fs.roles[a]||'ignore')==='ignore'?1:0, rb=(fs.roles[b]||'ignore')==='ignore'?1:0; return ra-rb || st[b].n-st[a].n; });
@@ -3489,6 +3621,15 @@ function drawPreview(fi, src){
     g.fillStyle='#FF5C8A';
     R.columns.forEach(function(c){ path(c.poly,true); g.fill(); });
   }
+  // λάσο: αποθηκευμένα (διακεκομμένα), εκκρεμές (γραμμές μέσα φωτίζονται), τρέχον ίχνος
+  function RX(q){ return [q[0]*fs.scale+fs.dx, q[1]*fs.scale+fs.dy]; }
+  (fs.lassos||[]).forEach(function(l){ var P=l.poly.map(RX); g.setLineDash([5,4]); g.strokeStyle=ROLE_COL[l.role]||'#fff'; g.lineWidth=1.3; path(P,true); g.stroke(); g.setLineDash([]); g.lineWidth=0.7; });
+  if (fs._lpend){ var LP=fs._lpend;
+    g.fillStyle='rgba(255,61,129,.08)'; path(LP.map(RX),true); g.fill(); g.strokeStyle='#FF3D81'; g.lineWidth=1.6; g.stroke();
+    g.strokeStyle='#FF3D81'; g.lineWidth=1.8; croppedRaw(fs).forEach(function(p){ if (p.k==='text' || !lassoHit(p,LP)) return; var q=P3.toMeters([p], fs.scale, fs.dx, fs.dy)[0];
+      if (q.k==='seg'){ g.beginPath(); g.moveTo(X(q.a),Y(q.a)); g.lineTo(X(q.b),Y(q.b)); g.stroke(); } else if (q.k==='poly'){ path(q.pts,q.closed); g.stroke(); } else if (q.k==='circle'){ g.beginPath(); g.arc(X(q.c),Y(q.c),Math.max(0.5,q.r*s),0,7); g.stroke(); } });
+    g.lineWidth=0.7; }
+  if (fs._lpath && fs._lpath.length>1){ g.strokeStyle='#FF3D81'; g.lineWidth=2; g.setLineDash([]); g.beginPath(); fs._lpath.forEach(function(q,j){ if (j) g.lineTo(q[0],q[1]); else g.moveTo(q[0],q[1]); }); g.stroke(); g.lineWidth=0.7; }
   if (showAll && fs.crop){
     var c0=P3.toMeters([{k:'seg',a:[fs.crop[0],fs.crop[1]],b:[fs.crop[2],fs.crop[3]],L:''}], fs.scale, fs.dx, fs.dy)[0];
     g.strokeStyle='#3DE8FF'; g.setLineDash([5,4]); g.lineWidth=1.5; g.strokeRect(X(c0.a),Y(c0.b),X(c0.b)-X(c0.a),Y(c0.a)-Y(c0.b)); g.setLineDash([]);
@@ -3526,7 +3667,7 @@ $('#floors').addEventListener('input', function(e){
   var k=el.dataset.k, f=c.f, fs=c.fs, v=el.value;
   if (!k || el.tagName==='SELECT' || el.type==='checkbox') return;
   if (k==='name'){ f.name=v; if (window.HX3) HX3.floorChips(); updateStackMini(); return; }
-  if (k==='elevManual'){ f.elevManual = v.trim()===''? null : num(v,null); updateElevs(); schedule3D(); return; }
+  if (k==='elevManual'){ f.elevAuto=false; f.elevManual = v.trim()===''? null : num(v,null); updateElevs(); schedule3D(); return; }
   if (['hClear','hGross','sillW','headW','headD','beamH'].indexOf(k)>=0){
     var x=num(v,NaN); if (isNaN(x)) return;
     if ((k==='hClear'||k==='hGross') && (x<1.5||x>12)) return;
@@ -3562,6 +3703,10 @@ function sendToStegh(c){
   try { localStorage.setItem('hexis-stegh-import', JSON.stringify(data)); } catch(e){ toast('Δεν ήταν δυνατή η μεταφορά.'); return; }
   window.location.href='stegh.html?from=plan3d';
 }
+function sortFloorsByLevel(){
+  if (!S.floors.every(function(f){ return f.elevManual!==null && f.elevManual!==undefined; })) return;
+  S.floors.sort(function(a,b){ return a.elevManual-b.elevManual; });
+}
 function resetOv(fs){ fs.ovr={}; fs.beamOvr={}; fs.slabOvr={}; fs.faceOvr={}; fs.hl=null; }
 function updateElevs(){
   S.floors.forEach(function(f,i){ var fc=$('.floor[data-f="'+i+'"]'); if (!fc) return; var e=floorElev(i);
@@ -3580,7 +3725,13 @@ $('#floors').addEventListener('click', function(e){
   if (a==='rmFile'){ f[c.src]=null; renderFloors(); schedule3D(true); return; }
   if (a==='okA'){ f.askA=true; renderFloors(); schedule3D(); return; }
   if (a==='okS'){ f.askS=true; renderFloors(); schedule3D(); return; }
-  if (a==='crop'){ fs._crop=!fs._crop; renderFloors(); return; }
+  if (a==='crop'){ fs._crop=!fs._crop; fs._lasso=false; renderFloors(); return; }
+  if (a==='lasso'){ fs._lasso=!fs._lasso; fs._crop=false; fs._lpath=null; renderFloors(); return; }
+  if (a==='lassoUndo'){ var lx=fs.lassos.pop(); if (lx && !fs.lassos.some(function(l){ return l.key===lx.key; })) delete fs.roles[lx.key]; resetOv(fs); recompute(fs,f); renderFloors(); schedule3D(); toast('Αναιρέθηκε το τελευταίο λάσο.'); return; }
+  if (a==='lassoRole'){ var pend=fs._lpend; if (!pend) return; var role=b.dataset.v, lbl=b.textContent; var key='◌ Λάσο · '+lbl;
+    fs.lassos=fs.lassos||[]; fs.lassos.push({ poly:pend, role:role, key:key }); fs.roles[key]=role; fs.rolesTouched=true; fs._lpend=null;
+    resetOv(fs); recompute(fs,f); renderFloors(); schedule3D(); toast('Ορίστηκε: '+lbl); return; }
+  if (a==='lassoCancel'){ fs._lpend=null; drawPreview(c.fi,c.src); var mm=b.closest('.lmenu'); if (mm) mm.remove(); return; }
   if (a==='uncrop'){ fs.crop=null; fs._crop=false; if (fs.fmt==='pdf' && !fs.rolesTouched && !fs.hasOC) guessPdfRoles(fs); resetOv(fs); recompute(fs,f); renderFloors(); schedule3D(true); return; }
   if (a==='hl'){ var key=b.closest('tr').dataset.op; fs.hl = fs.hl===key? null : key; markHL(b); drawPreview(c.fi,c.src); return; }
   if (a==='hlb'){ var bid='b'+b.closest('tr').dataset.bm; fs.hl = fs.hl===bid? null : bid; markHL(b); drawPreview(c.fi,c.src); return; }
@@ -3598,6 +3749,11 @@ $('#floors').addEventListener('click', function(e){
     $$('.lyr', b.closest('.lyrs')).forEach(function(r){ r.classList.toggle('on', r.dataset.l===fs._layerHL); });
     drawPreview(c.fi,c.src); var pv=$('.floor[data-f="'+c.fi+'"] .slot[data-src="'+c.src+'"] .pv'); if (pv && fs._layerHL){ var r0=pv.getBoundingClientRect(); if (r0.top<60 || r0.bottom>innerHeight) pv.scrollIntoView({behavior:'smooth', block:'center'}); }
     return; }
+  if (a==='planPick'){ var g=fs.plans[+b.dataset.k]; fs.crop=g.crop; fs._view=null; fs._layerHL=null; if (fs.fmt==='pdf' && !fs.rolesTouched && !fs.hasOC) guessPdfRoles(fs);
+    resetOv(fs); recompute(fs,f); applyLevel(fs,f); renderFloors(); schedule3D(true); toast('Σχέδιο: '+g.title); return; }
+  if (a==='planAdd'){ var g2=fs.plans[+b.dataset.k], nf=newFloor((/· στάθμη (.+)$/.exec(g2.title)? 'Επίπεδο '+/· στάθμη (.+)$/.exec(g2.title)[1] : g2.title).slice(0,40)); ['hClear','hGross','sillW','headW','headD','beamH'].forEach(function(k){ nf[k]=f[k]; });
+    var cf=cloneFS(fs); cf.crop=g2.crop; cf._view=null; resetOv(cf); nf.arch=cf; recompute(cf,nf); applyLevel(cf,nf);
+    S.floors.push(nf); sortFloorsByLevel(); renderFloors(); schedule3D(true); toast('Προστέθηκε επίπεδο: '+g2.title+(nf.elevManual!==null?' (στάθμη '+fmt(nf.elevManual)+')':'')); return; }
   if (a==='toStegh'){ sendToStegh(c); return; }
   if (a==='zin'||a==='zout'){ zoomPv(c, a==='zin'?1.5:1/1.5); return; }
   if (a==='zfit'){ c.fs._view=null; drawPreview(c.fi,c.src); return; }
@@ -3632,6 +3788,11 @@ $('#floors').addEventListener('wheel', function(e){
 $('#floors').addEventListener('pointerdown', function(e){
   var cv=e.target.closest('canvas[data-pv]'); if (!cv) return; var c=ctx(cv); if (!c.fs) return;
   var r=cv.getBoundingClientRect();
+  if (c.fs._lasso && e.isPrimary){
+    if (c.fs._lpend) return;
+    e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch(_){}
+    c.fs._lpath=[[e.clientX-r.left, e.clientY-r.top]]; return;
+  }
   if (!c.fs._crop){
     PZ.pts[e.pointerId]={x:e.clientX, y:e.clientY}; try { cv.setPointerCapture(e.pointerId); } catch(_){}
     var ids=Object.keys(PZ.pts);
@@ -3643,6 +3804,8 @@ $('#floors').addEventListener('pointerdown', function(e){
 });
 $('#floors').addEventListener('pointermove', function(e){
   var cv=e.target.closest('canvas[data-pv]'); if (!cv) return; var c=ctx(cv); if (!c.fs) return;
+  if (c.fs._lasso && c.fs._lpath){ var r1=cv.getBoundingClientRect(), q=[e.clientX-r1.left, e.clientY-r1.top], l=c.fs._lpath[c.fs._lpath.length-1];
+    if (Math.hypot(q[0]-l[0],q[1]-l[1])>3){ c.fs._lpath.push(q); drawPreview(c.fi,c.src); } return; }
   if (!c.fs._crop && PZ.pts[e.pointerId] && cv._map){
     var r0=cv.getBoundingClientRect(); PZ.pts[e.pointerId]={x:e.clientX, y:e.clientY};
     var ids=Object.keys(PZ.pts);
@@ -3659,6 +3822,12 @@ $('#floors').addEventListener('pointermove', function(e){
 $('#floors').addEventListener('pointerup', function(e){
   var cv=e.target.closest('canvas[data-pv]'); if (!cv) return; var c=ctx(cv); if (!c.fs) return;
   var r=cv.getBoundingClientRect();
+  if (c.fs._lasso && c.fs._lpath){
+    var path=c.fs._lpath; c.fs._lpath=null;
+    if (path.length<6){ drawPreview(c.fi,c.src); return; }
+    c.fs._lpend=path.map(function(q){ return canvasToRaw(cv,q[0],q[1]); });
+    drawPreview(c.fi,c.src); showLassoMenu(c, cv, path[path.length-1]); return;
+  }
   if (!c.fs._drag){
     var wasPinch=!!PZ.pinch; delete PZ.pts[e.pointerId]; if (!Object.keys(PZ.pts).length){ PZ.pinch=null; } var moved=PZ.pan&&PZ.pan.moved; PZ.pan=null;
     if (wasPinch||moved){ tapStart=null; return; }
@@ -3677,12 +3846,24 @@ $('#floors').addEventListener('pointerup', function(e){
   }
   busy(true,'Αναγνώριση…');
   setTimeout(function(){
-    resetOv(c.fs); recompute(c.fs,c.f);
+    resetOv(c.fs); recompute(c.fs,c.f); applyLevel(c.fs, c.f);
     var ref = c.src==='struct'? c.f.arch : (c.fi>0? S.floors[c.fi-1].arch : null);
-    if (ref && ref.res && c.fs.res && autoAlign(c.fs, c.f, ref)) c.fs.autoAligned=true;
+    if (ref && ref.res && c.fs.res && !sameSheet(ref, c.fs) && autoAlign(c.fs, c.f, ref)) c.fs.autoAligned=true;
     renderFloors(); schedule3D(true); busy(false);
   }, 30);
 });
+function showLassoMenu(c, cv, at){
+  var pv=cv.closest('.pv'), old=$('.lmenu',pv); if (old) old.remove();
+  var opts=(c.fs.kind==='arch'? ROLE_ARCH : ROLE_STRUCT);
+  var n=0, P=c.fs._lpend; croppedRaw(c.fs).forEach(function(p){ if (p.k!=='text' && lassoHit(p,P)) n++; });
+  var d=document.createElement('div'); d.className='lmenu';
+  d.innerHTML='<div class="lm-h"><b>'+n+'</b> γραμμές μέσα στο λάσο. Τι είναι;</div><div class="lm-o">'+
+    opts.map(function(o){ return '<button data-act="lassoRole" data-v="'+o[0]+'"><i style="background:'+ROLE_COL[o[0]]+'"></i>'+o[1]+'</button>'; }).join('')+
+    '</div><button class="lm-x" data-act="lassoCancel">Άκυρο</button>';
+  pv.appendChild(d);
+  var W=pv.clientWidth, H=pv.clientHeight, x=Math.min(Math.max(8, at[0]+10), W-230), y=Math.min(Math.max(8, at[1]-20), Math.max(8,H-320));
+  d.style.left=x+'px'; d.style.top=y+'px';
+}
 /* πάτημα πάνω στο σχέδιο: εναλλαγή τοίχος ↔ χώρος, κύκλος τύπων κουφώματος */
 function tapFix(c, p){
   var fs=c.fs, R=fs.res;
@@ -3742,7 +3923,7 @@ function showTab(t){
 $('#bSave').onclick = function(){
   var data = { app:'hexis-plan3d', v:2, saved:new Date().toISOString(), site:S.site, floors:S.floors.map(function(f){
     var o={}; Object.keys(f).forEach(function(k){ if (k!=='arch'&&k!=='struct') o[k]=f[k]; });
-    ['arch','struct'].forEach(function(s){ o[s]= f[s]? JSON.parse(JSON.stringify(f[s], function(k,v){ if (k==='res'||k==='m'||k==='_drag'||k==='_crop'||k==='_view'||k==='_roofErr'||k==='_layerHL'||k==='_full') return undefined; if (typeof v==='number') return Math.round(v*1e5)/1e5; return v; })) : null; });
+    ['arch','struct'].forEach(function(s){ o[s]= f[s]? JSON.parse(JSON.stringify(f[s], function(k,v){ if (k==='res'||k==='m'||k==='_drag'||k==='_crop'||k==='_view'||k==='_roofErr'||k==='_layerHL'||k==='_full'||k==='_lasso'||k==='_lpath'||k==='_lpend'||k==='plans') return undefined; if (typeof v==='number') return Math.round(v*1e5)/1e5; return v; })) : null; });
     return o; }) };
   download(new Blob([JSON.stringify(data)],{type:'application/json'}), 'Ktirio3D_'+(S.floors[0]&&S.floors[0].name||'ergo').replace(/\s+/g,'_')+'.h3d');
 };
@@ -4236,11 +4417,13 @@ function stairTops(f, fs, st){
   var lastK = flip? 1 : st.n, last=byStep[lastK];
   var off = (last && last.kind==='landing') ? 0 : 1;
   var sv=siteV(), tops={};
+  // μεγάλη εξωτερική σκάλα (> 1.20 m) δεν «σκάβει» κάτω από το κτίριο: ανεβαίνει από τη στάθμη του ορόφου προς τα έξω
+  var up = !st.inside && (st.n+off)*sv.riser > 1.2;
   st.faces.forEach(function(F){
     var k = flip? (st.n+1-F.step) : F.step;
-    tops[F.step] = st.inside ? k*f.hGross/(st.n+off) : (k-st.n-off)*sv.riser;
+    tops[F.step] = st.inside ? k*f.hGross/(st.n+off) : up ? (st.n+1-k)*sv.riser : (k-st.n-off)*sv.riser;
   });
-  return { tops:tops, r: st.inside ? f.hGross/(st.n+off) : sv.riser, bottom: st.inside ? 0 : -(st.n+off)*sv.riser };
+  return { tops:tops, r: st.inside ? f.hGross/(st.n+off) : sv.riser, bottom: (st.inside||up) ? 0 : -(st.n+off)*sv.riser, up:up };
 }
 function stairDrop(f, fs){
   var R=fs&&fs.res, d=0; if (!R||!R.stairs) return 0;
@@ -4357,15 +4540,25 @@ function rebuild(rise){
   var st={walls:0,ops:0,cols:0,beams:0,slabs:0,balc:0,top:-Infinity,bottom:Infinity,area:0};
   var any=false, lowest=-1, topmost=-1;
   S.floors.forEach(function(f,i){ if ((f.arch&&f.arch.res)||(f.struct&&f.struct.res)){ if (lowest<0) lowest=i; topmost=i; } });
-  var groundAbs = 0;
-  if (lowest>=0){ var fl=S.floors[lowest], zl=floorElev(lowest); groundAbs = zl<-0.01 ? 0 : zl - stairDrop(fl, fl.arch); }
+  // επίπεδα «βάσης»: χωρίς άλλο επίπεδο από κάτω τους (σπαστά επίπεδα / κτίριο σε πρανές)
+  var FB=S.floors.map(function(f){ var A=f.arch&&f.arch.res, Sr=f.struct&&f.struct.res, pts=[];
+    if (A) (A.mass||[]).forEach(function(F){ pts=pts.concat(F.outer); }); else if (Sr) (Sr.columns||[]).forEach(function(c){ pts=pts.concat(c.poly); });
+    return pts.length? P3.bbox(pts.map(function(q){ return {k:'seg',a:q,b:q}; })) : null; });
+  var ZE=S.floors.map(function(f,i){ return floorElev(i); });
+  function ovl(a,b){ if (!a||!b) return false; var w=Math.min(a[2],b[2])-Math.max(a[0],b[0]), h=Math.min(a[3],b[3])-Math.max(a[1],b[1]); if (w<=0||h<=0) return false;
+    var A1=(a[2]-a[0])*(a[3]-a[1]), A2=(b[2]-b[0])*(b[3]-b[1]); return w*h > 0.3*Math.min(A1,A2); }
+  var BASE=S.floors.map(function(f,i){ return !S.floors.some(function(g,j){ return j!==i && ZE[j]<ZE[i]-0.05 && ovl(FB[i],FB[j]); }); });
+  var TOPF=S.floors.map(function(f,i){ return !S.floors.some(function(g,j){ return j!==i && ZE[j]>ZE[i]+0.05 && ovl(FB[i],FB[j]); }); });
+  var GA=S.floors.map(function(f,i){ return BASE[i] ? ZE[i] - stairDrop(f, f.arch) : null; });
+  var groundAbs = 0, gs0=GA.filter(function(v){ return v!==null; });
+  if (gs0.length) groundAbs=Math.min.apply(null, gs0);
   // έδαφος από ισοϋψείς: το βάθρο κατεβαίνει ως το χαμηλότερο σημείο του εδάφους κάτω από το κτίριο
   TERR=terrainData(); var zRef=0;
   if (TERR){
     zRef=terrRef(TERR); TERR.zRef=zRef;
     if (lowest>=0 && S.floors[lowest].arch && S.floors[lowest].arch.res){
       var mn=Infinity; (S.floors[lowest].arch.res.mass||[]).forEach(function(F){ F.outer.forEach(function(q){ var z=terrZ(TERR,q); if (z!==null) mn=Math.min(mn, z-zRef); }); });
-      if (isFinite(mn)) groundAbs=Math.min(groundAbs, mn);
+      if (isFinite(mn)){ groundAbs=Math.min(groundAbs, mn); GA[lowest]=Math.min(GA[lowest]===null? mn : GA[lowest], mn); }
     }
     var tg=new THREE.Group(); tg.userData.terrain=true; root.add(tg); tg.add(buildTerrainMesh(TERR, zRef));
   }
@@ -4377,7 +4570,7 @@ function rebuild(rise){
     var gs=new THREE.Group(); gs.userData.kind='struct'; g.add(gs);
     CUR_Z0=z0;
     if (A && A.T){
-      var o=buildArchFloor(f, f.arch, (roofOf(f).sloped ? f.hClear : H)+0.01, i===topmost, i===lowest, !!Sr, groundAbs - z0);
+      var o=buildArchFloor(f, f.arch, (roofOf(f).sloped ? f.hClear : H)+0.01, TOPF[i], BASE[i], !!Sr, (GA[i]!==null? GA[i] : groundAbs) - z0);
       addMesh(ga, o.wall, MAT.wall, MAT.cutA, 'wall');
       addMesh(ga, o.sill, MAT.wall, MAT.cutA, 'wall');
       addMesh(ga, o.slab, MAT.slab, MAT.cutA, 'slab');
@@ -4399,7 +4592,7 @@ function rebuild(rise){
       st.walls+=A.mass.length; st.ops+=A.openings.length; st.balc+=A.balconies.length;
       A.rooms.forEach(function(F){ st.area+=Math.abs(F.area); });
       // κάτοψη ως ολόγραμμα στη στάθμη του ορόφου
-      var pg=buildPlan(f.arch, z0+0.006, i===lowest, Math.min(z0, groundAbs)+0.006); pg.userData.floor=f.id; pg.userData.idx=i; planRoot.add(pg);
+      var pY=(BASE[i]? Math.min(z0, GA[i]) : z0)+0.006; var pg=buildPlan(f.arch, pY, BASE[i], pY); pg.userData.base=BASE[i]; pg.userData.floor=f.id; pg.userData.idx=i; planRoot.add(pg);
     }
     if (Sr){
       var s=buildStructFloor(f, f.struct, H);
@@ -4483,7 +4676,7 @@ function applyVisibility(){
   var low=Infinity; R3.planRoot.children.forEach(function(p){ if (p.userData.idx!==undefined) low=Math.min(low,p.userData.idx); });
   R3.planRoot.children.forEach(function(p){
     var ok = VIEW.show.plan && (p.userData.floor===undefined || VIEW.floorsOn[p.userData.floor]!==false);
-    if (ok && p.userData.idx!==undefined && p.userData.idx!==low){
+    if (ok && p.userData.idx!==undefined && p.userData.idx!==low && !p.userData.base){
       var f=S.floors[p.userData.idx], z0=f? floorElev(p.userData.idx) : 0;
       ok = VIEW.hOn && !VIEW.hFlip && f && VIEW.hPos > z0 && VIEW.hPos < z0+f.hGross;
     }
