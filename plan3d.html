@@ -3201,7 +3201,7 @@ async function loadFile(file, fi, src){
     f[src]=fs;
     if (src==='arch') f.askA=false; else f.askS=false;
     var plans=findPlans(fs); fs.plans=plans.length>1? plans : null;
-    if (fs.plans){ fs.crop=plans[0].crop; if (fs.fmt==='pdf' && !fs.hasOC) guessPdfRoles(fs); }
+    if (fs.plans){ fs.crop=plans[0].crop; fs.planCid=plans[0].cid; if (fs.fmt==='pdf' && !fs.hasOC) guessPdfRoles(fs); }
     recompute(fs, f); applyLevel(fs, f);
     var ref = src==='struct'? f.arch : (fi>0? S.floors[fi-1].arch : (f.struct||null));
     if (ref && ref.res && fs.res && !sameSheet(ref, fs) && (fs.fmt==='pdf' || ref.fmt==='pdf' || ref.dx || ref.dy)){
@@ -3243,8 +3243,8 @@ function findPlans(fs){
   var minW=4/fs.scale;
   var plans=Object.keys(G).map(function(k){ return G[k]; }).filter(function(g){ return g.n>=10 && (g.bb[2]-g.bb[0])>minW && (g.bb[3]-g.bb[1])>minW*0.5; });
   var tx=fs.raw.filter(function(p){ return p.k==='text' && /ΚΑΤΟΨΗ|ΥΠΟΓΕΙ|ΙΣΟΓΕΙ|ΟΡΟΦΟ|ΔΩΜΑ|ΣΤΑΘΜΗ|PLAN|FLOOR/i.test(p.s||''); });
-  plans.forEach(function(g){
-    var m=1.5/fs.scale; g.crop=[g.bb[0]-m, g.bb[1]-m, g.bb[2]+m, g.bb[3]+m];
+  plans.forEach(function(g,ci){
+    g.cid=ci; var m=1.5/fs.scale; g.crop=[g.bb[0]-m, g.bb[1]-m, g.bb[2]+m, g.bb[3]+m];
     var R=8/fs.scale, best=null;
     tx.forEach(function(t){ var dx=Math.max(g.bb[0]-t.p[0],0,t.p[0]-g.bb[2]), dy=Math.max(g.bb[1]-t.p[1],0,t.p[1]-g.bb[3]), d=Math.hypot(dx,dy); if (d<R && (!best||d<best.d)) best={t:t,d:d}; });
     if (best){ var lines=tx.filter(function(t){ return Math.abs(t.p[0]-best.t.p[0])<2/fs.scale && Math.abs(t.p[1]-best.t.p[1])<1.5/fs.scale; }).sort(function(a,b){ return b.p[1]-a.p[1]; });
@@ -3804,11 +3804,15 @@ $('#floors').addEventListener('click', function(e){
     $$('.lyr', b.closest('.lyrs')).forEach(function(r){ r.classList.toggle('on', r.dataset.l===fs._layerHL); });
     drawPreview(c.fi,c.src); var pv=$('.floor[data-f="'+c.fi+'"] .slot[data-src="'+c.src+'"] .pv'); if (pv && fs._layerHL){ var r0=pv.getBoundingClientRect(); if (r0.top<60 || r0.bottom>innerHeight) pv.scrollIntoView({behavior:'smooth', block:'center'}); }
     return; }
-  if (a==='planPick'){ var g=fs.plans[+b.dataset.k]; fs.crop=g.crop; fs._view=null; fs._layerHL=null; if (fs.fmt==='pdf' && !fs.rolesTouched && !fs.hasOC) guessPdfRoles(fs);
+  if (a==='planPick'){ var g=fs.plans[+b.dataset.k]; fs.crop=g.crop; fs.planCid=g.cid; fs._view=null; fs._layerHL=null; if (fs.fmt==='pdf' && !fs.rolesTouched && !fs.hasOC) guessPdfRoles(fs);
     resetOv(fs); recompute(fs,f); applyLevel(fs,f); renderFloors(); schedule3D(true); toast('Σχέδιο: '+g.title); return; }
   if (a==='planAdd'){ var g2=fs.plans[+b.dataset.k], nf=newFloor((/· στάθμη (.+)$/.exec(g2.title)? 'Επίπεδο '+/· στάθμη (.+)$/.exec(g2.title)[1] : g2.title).slice(0,40)); ['hClear','hGross','sillW','headW','headD','beamH'].forEach(function(k){ nf[k]=f[k]; });
-    var cf=cloneFS(fs); cf.crop=g2.crop; cf._view=null; resetOv(cf); nf.arch=cf; recompute(cf,nf); applyLevel(cf,nf);
-    S.floors.push(nf); sortFloorsByLevel(); renderFloors(); schedule3D(true); toast('Προστέθηκε επίπεδο: '+g2.title+(nf.elevManual!==null?' (στάθμη '+fmt(nf.elevManual)+')':'')); return; }
+    var cf=cloneFS(fs); cf.crop=g2.crop; cf.planCid=g2.cid; cf.dx=fs.dx; cf.dy=fs.dy; cf._view=null; resetOv(cf); nf.arch=cf; recompute(cf,nf); applyLevel(cf,nf);
+    // άλλο σχέδιο του φύλλου (όχι κομμάτι της ίδιας κάτοψης): μπαίνει πάνω/κάτω από το αντίστοιχο επίπεδο, όχι δίπλα όπως στο χαρτί
+    var ez=nf.elevManual, cand=S.floors.filter(function(x){ return x.arch && x.arch.res && x.arch.planCid!==cf.planCid; });
+    cand.sort(function(p,q){ var dp=(ez===null||p.elevManual===null)?0:Math.abs(p.elevManual-ez), dq=(ez===null||q.elevManual===null)?0:Math.abs(q.elevManual-ez); return dp-dq; });
+    var aligned=false; if (cand[0] && cf.res && autoAlign(cf, nf, cand[0].arch)){ cf.autoAligned=true; aligned=true; }
+    S.floors.push(nf); sortFloorsByLevel(); renderFloors(); schedule3D(true); toast('Προστέθηκε επίπεδο: '+g2.title+(nf.elevManual!==null?' (στάθμη '+fmt(nf.elevManual)+')':'')+(aligned?' · ευθυγραμμίστηκε με το «'+cand[0].name+'»':'')); return; }
   if (a==='toStegh'){ sendToStegh(c); return; }
   if (a==='zin'||a==='zout'){ zoomPv(c, a==='zin'?1.5:1/1.5); return; }
   if (a==='zfit'){ c.fs._view=null; drawPreview(c.fi,c.src); return; }
@@ -4409,9 +4413,18 @@ function buildTerrainMesh(TD, zr){
 function closedFootprint(fs){
   var R=fs.res; if (!R || !R.T) return [];
   if (R._fp) return R._fp;
-  var polys=[]; R.T.faces.forEach(function(F){ if (F.kind==='mat'||F.kind==='open'||F.kind==='room') polys.push(F.outer); });
-  (R.balconies||[]).forEach(function(F){ /* εξώστες εκτός */ });
-  if (!polys.length) return (R._fp=[]);
+  var polys0=[]; R.T.faces.forEach(function(F){ if (F.kind==='mat'||F.kind==='open'||F.kind==='room') polys0.push(F.outer); });
+  if (!polys0.length) return (R._fp=[]);
+  // κύρια διεύθυνση των τοίχων (ώστε λοξά κτίρια να κλείνουν με ευθείες, όχι «σκαλάκια»)
+  var cx4=0, sy4=0; (R.mass||[]).forEach(function(F){ var P=F.outer; for (var i=0;i<P.length;i++){ var p=P[i], q=P[(i+1)%P.length], L=Math.hypot(q[0]-p[0],q[1]-p[1]), an=Math.atan2(q[1]-p[1],q[0]-p[0]); cx4+=L*Math.cos(4*an); sy4+=L*Math.sin(4*an); } });
+  var th=Math.atan2(sy4,cx4)/4, ct=Math.cos(th), st0=Math.sin(th);
+  function rot(q,sg){ return [q[0]*ct+sg*q[1]*st0, -sg*q[0]*st0+q[1]*ct]; }      // sg=+1: −θ, sg=−1: +θ
+  var polys=polys0.map(function(P){ return P.map(function(q){ return rot(q,1); }); });
+  var fpRes=closedFootprintRaw(polys);
+  R._fp=fpRes.map(function(o){ return { outer:o.outer.map(function(q){ return rot(q,-1); }), holes:o.holes.map(function(h){ return h.map(function(q){ return rot(q,-1); }); }) }; });
+  return R._fp;
+}
+function closedFootprintRaw(polys){
   var bb=[Infinity,Infinity,-Infinity,-Infinity]; polys.forEach(function(P){ P.forEach(function(q){ bb[0]=Math.min(bb[0],q[0]); bb[1]=Math.min(bb[1],q[1]); bb[2]=Math.max(bb[2],q[0]); bb[3]=Math.max(bb[3],q[1]); }); });
   var rad=1.6, pad=rad+0.5, cs=Math.max(0.04, Math.max(bb[2]-bb[0], bb[3]-bb[1])/900);
   var W=Math.ceil((bb[2]-bb[0]+2*pad)/cs), Hh=Math.ceil((bb[3]-bb[1]+2*pad)/cs);
@@ -4457,11 +4470,10 @@ function closedFootprint(fs){
   loops.forEach(function(L){ var P=L.map(toM); var Ac=P3.polyArea(P); if (Math.abs(Ac)<1) return;
     // απλοποίηση: κλειστός βρόχος → σπάσιμο στο πιο μακρινό σημείο
     var far=0, fd=0; P.forEach(function(q,i){ var d=Math.hypot(q[0]-P[0][0],q[1]-P[0][1]); if (d>fd){ fd=d; far=i; } });
-    var S1=dp(P.slice(0,far+1), cs*1.2), S2=dp(P.slice(far).concat([P[0]]), cs*1.2), Q=S1.slice(0,-1).concat(S2.slice(0,-1));
+    var S1=dp(P.slice(0,far+1), cs*1.7), S2=dp(P.slice(far).concat([P[0]]), cs*1.7), Q=S1.slice(0,-1).concat(S2.slice(0,-1));
     if (Q.length>=3) res.push(Q); });
   var outers=res.filter(function(P){ return P3.polyArea(P)>0; }), holes=res.filter(function(P){ return P3.polyArea(P)<0; });
-  R._fp = outers.map(function(O){ return { outer:O, holes:holes.filter(function(h){ return inPoly(h[0],O,[]); }) }; });
-  return R._fp;
+  return outers.map(function(O){ return { outer:O, holes:holes.filter(function(h){ return inPoly(h[0],O,[]); }) }; });
 }
 /* ---------------- Έπιπλα ---------------- */
 function furnH(fs, o){ var v=fs.furnOvr && fs.furnOvr[o.key]; return v===undefined? o.h : v; }
