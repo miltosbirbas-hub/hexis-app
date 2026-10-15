@@ -1579,6 +1579,24 @@ for(const id of ['pit','ovh','base','km2','hcap'])
 
 resize();
 
+/* Περίγραμμα από το «3D Κτίριο» (ίδια συσκευή): κάτοψη, τύπος, κλίση, γείσο, βάση */
+(function(){
+  let d=null;
+  try{ d=JSON.parse(localStorage.getItem('hexis-stegh-import')||'null'); localStorage.removeItem('hexis-stegh-import'); }catch(e){ d=null; }
+  if(!d||!Array.isArray(d.pts)||d.pts.length<3) return;
+  verts=d.pts.map(p=>[+p[0],+p[1]]);
+  if(area2(verts)<0) verts.reverse();
+  holes=[]; closed=false; sol=null; gp=null;
+  const set=(id,v)=>{ if(v!==undefined&&v!==null&&isFinite(v)) document.getElementById(id).value=v; };
+  set('pit',d.pit); set('ovh',d.ovh); set('base',d.base);
+  const t=['hip','gable','mono'].includes(d.type)?d.type:'hip';
+  document.getElementById('t_'+t).onclick();
+  refEdge=Math.max(0,Math.min(verts.length-1,d.ref|0));
+  document.getElementById('refside').textContent='Πλευρά '+(refEdge+1);
+  finish();
+  if(closed) hint('Από το 3D Κτίριο'+(d.name?' · '+d.name:''));
+})();
+
 /* Καταχωρείται το ΙΔΙΟ sw.js της ρίζας του HEXIS (idempotent) —
    ώστε να δουλεύει offline και όποιος εγκαθιστά ΜΟΝΟ το ΣΤΕΓΗ,
    χωρίς να έχει ανοίξει ποτέ το app.html. Η έκδοση ορίζεται

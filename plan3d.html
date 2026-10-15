@@ -24,6 +24,7 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/delaunator@5.0.1/delaunator.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
 /* Διάταξη: γραμμή εντολών πάνω · όροφοι ως στοίβα (ο ψηλότερος πρώτος) · το 3D γεμίζει την οθόνη με πλωτά γυάλινα πάνελ */
@@ -152,7 +153,7 @@ body[data-tab="model"] main{max-width:none;padding:0}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
 .pv{position:relative;margin:12px 0 6px;border:1px solid var(--glass-line);border-radius:14px;overflow:hidden;
   background:radial-gradient(circle at 50% 50%,#0B1830,#060C19);box-shadow:inset 0 0 40px rgba(0,0,0,.6)}
-.pv canvas{display:block;width:100%;height:320px;touch-action:manipulation;cursor:pointer}
+.pv canvas{display:block;width:100%;height:380px;touch-action:manipulation;cursor:pointer}
 .pv.crop canvas{cursor:crosshair;touch-action:none}
 .pvbar{position:absolute;right:8px;top:8px;display:flex;gap:5px}
 .pvbar button{border:1px solid var(--glass-line);background:rgba(5,10,20,.85);border-radius:9px;padding:5px 9px;font-size:11.5px;font-weight:800;cursor:pointer}
@@ -254,6 +255,33 @@ body.sunmode .v3{background:linear-gradient(180deg,var(--sky1),var(--sky2))}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 @media (max-width:640px){.brand small,.brand h1{display:none}.top{gap:8px;padding:8px 12px}nav.seg{margin-left:0}nav.seg button{padding:7px 11px;font-size:12.5px}#bOpen{display:none}#bSave{margin-left:auto;padding:8px 9px}}
+
+/* ζουμ / πλήρης οθόνη προεπισκόπησης */
+.pv:not(.crop) canvas{touch-action:none;cursor:grab}
+.pv:not(.crop) canvas:active{cursor:grabbing}
+.pvz{display:inline-flex;gap:4px;margin-left:auto}
+.pvz button{min-width:30px}
+.pv.full{position:fixed;inset:0;z-index:300;margin:0;border-radius:0;background:#040812;display:flex;flex-direction:column}
+.pv.full canvas{flex:1;width:100%!important;height:auto!important;min-height:0}
+.pv.full .pvbar{position:absolute;top:calc(10px + env(safe-area-inset-top));left:10px;right:10px;display:flex;gap:6px}
+.pv.full .pvleg{position:absolute;bottom:calc(10px + env(safe-area-inset-bottom));left:10px;right:10px}
+body.pvfull{overflow:hidden}
+body.pvfull .top{visibility:hidden}
+body.pvfull *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+body.pvfull .floor{overflow:visible;transform:none}
+/* στέγη */
+.roofbox .in{display:flex;flex-direction:column;gap:12px}
+.roofpick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.roofpick button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border-radius:12px;border:1px solid rgba(61,232,255,.18);background:rgba(10,20,40,.6);color:#B9C8E4;font:600 11px Manrope,system-ui,sans-serif;cursor:pointer;transition:.2s}
+.roofpick button svg{width:44px;height:30px}
+.roofpick button svg path{fill:rgba(184,103,90,.85);stroke:#FFC9A8;stroke-width:1.2;stroke-linejoin:round}
+.roofpick button svg path.w{fill:none;stroke:#7FA3D6}
+.roofpick button.on{border-color:#3DE8FF;background:linear-gradient(160deg,rgba(61,232,255,.16),rgba(139,92,255,.16));color:#fff;box-shadow:0 0 18px rgba(61,232,255,.25)}
+.seg2{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.seg2 span{font:600 11px Manrope,system-ui,sans-serif;color:#8FA3C7;letter-spacing:.06em;text-transform:uppercase;margin-right:4px}
+.seg2 button{padding:8px 12px;border-radius:999px;border:1px solid rgba(61,232,255,.2);background:transparent;color:#B9C8E4;font:600 12px Manrope,system-ui,sans-serif;cursor:pointer}
+.seg2 button.on{background:rgba(61,232,255,.15);border-color:#3DE8FF;color:#fff}
+@media (max-width:520px){ .roofpick{grid-template-columns:repeat(2,1fr)} }
 </style>
 </head>
 <body data-tab="floors">
@@ -305,7 +333,7 @@ body.sunmode .v3{background:linear-gradient(180deg,var(--sky1),var(--sky2))}
 })();
 </script>
 <header class="top">
-  <a href="app.html" class="ibtn back" aria-label="Πίσω στο HEXIS">← HEXIS</a>
+  <a href="app.html" class="ibtn back" aria-label="Πίσω στο HEXIS">← HEXIS</a><script>window.HX_IN_HEXIS=true;</script>
   <div class="brand">
     <svg viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3DE8FF"/><stop offset="1" stop-color="#8B5CFF"/></linearGradient></defs>
       <polygon points="24,3 42.2,13.5 42.2,34.5 24,45 5.8,34.5 5.8,13.5" fill="#07101F" stroke="url(#lg)" stroke-width="2.4" stroke-linejoin="round"/>
@@ -366,6 +394,9 @@ body.sunmode .v3{background:linear-gradient(180deg,var(--sky1),var(--sky2))}
             <label class="tgl"><input type="checkbox" data-show="arch" checked><span>Αρχιτεκτονικό</span></label>
             <label class="tgl"><input type="checkbox" data-show="struct" checked><span>Φέρων</span></label>
             <label class="tgl"><input type="checkbox" data-show="plan" checked><span>Κάτοψη στο δάπεδο</span></label>
+            <label class="tgl"><input type="checkbox" data-show="roof" checked><span>Στέγη</span></label>
+            <label class="tgl"><input type="checkbox" data-show="terrain" checked><span>Έδαφος</span></label>
+            <label class="tgl"><input type="checkbox" data-show="furn" checked><span>Έπιπλα</span></label>
             <label class="tgl"><input type="checkbox" data-show="glass" checked><span>Τζάμια</span></label>
             <label class="tgl"><input type="checkbox" data-show="edges" checked><span>Ακμές</span></label>
             <label class="tgl"><input type="checkbox" data-show="ghost"><span>Διαφανές</span></label>
@@ -497,10 +528,10 @@ function parseDXF(text){
       else if (c===230) o.ex = num(v);
       else if (o.type==='LWPOLYLINE'){
         if (c===10){ xs.push(num(v)); bul.push(0); } else if (c===20) ys.push(num(v));
-        else if (c===42) bul[bul.length-1]=num(v); else if (c===70) o.flags=parseInt(v,10);
+        else if (c===42) bul[bul.length-1]=num(v); else if (c===70) o.flags=parseInt(v,10); else if (c===38) o.z=num(v);
       } else {
         switch(c){
-          case 10:o.x=num(v);break; case 20:o.y=num(v);break;
+          case 10:o.x=num(v);break; case 20:o.y=num(v);break; case 30:o.z=num(v);break; case 31:o.z2=num(v);break;
           case 11:o.x2=num(v);break; case 21:o.y2=num(v);break;
           case 40:o.r=num(v);break; case 41:o.sx=num(v);break; case 42:o.sy=num(v);break;
           case 50:o.a0=num(v);break; case 51:o.a1=num(v);break;
@@ -525,9 +556,10 @@ function parseDXF(text){
         e.pts=[]; e.bul=[]; e.closed=!!(e.flags&1);
         while (k<N && codes[k]===0 && vals[k].trim()==='VERTEX'){
           var v = build(readEntity());
-          if (!(v.flags&16)) { e.pts.push([v.x||0,v.y||0]); e.bul.push(v.sy||0); } // 42 bulge → sy slot
+          if (!(v.flags&16)) { e.pts.push([v.x||0,v.y||0]); e.bul.push(v.sy||0); (e.zs=e.zs||[]).push(v.z||0); } // 42 bulge → sy slot
         }
         if (k<N && codes[k]===0 && vals[k].trim()==='SEQEND') readEntity();
+        if (e.zs){ var zmin=Math.min.apply(null,e.zs), zmax=Math.max.apply(null,e.zs); if (zmax-zmin<1e-6){ if (zmin!==0) e.z=zmin; e.zs=null; } }
         e.type='LWPOLYLINE';
       }
       list.push(e);
@@ -583,20 +615,23 @@ function bulgePts(a,b,bul,out){
 
 function flatten(doc){
   var prims = [];
-  var gidSeq = 0;
+  var gidSeq = 0, gidName = {};
   function emit(e, M, layer, gid, depth){
     var lay = (e.layer==='0' && layer)? layer : e.layer;
     var ocs = (e.ex<0);
     function W(x,y){ return mApp(M, ocs? [-x,y] : [x,y]); }
     switch(e.type){
       case 'LINE':
-        prims.push({k:'seg', a:mApp(M,[e.x||0,e.y||0]), b:mApp(M,[e.x2||0,e.y2||0]), L:lay, g:gid, wd:e.wd}); break;
+        prims.push({k:'seg', a:mApp(M,[e.x||0,e.y||0]), b:mApp(M,[e.x2||0,e.y2||0]), L:lay, g:gid, wd:e.wd, z:(e.z||e.z2)? (e.z||0) : undefined, z2:(e.z||e.z2)? (e.z2||0) : undefined}); break;
+      case 'POINT':
+        prims.push({k:'pt', p:W(e.x||0,e.y||0), z:e.z, L:lay, g:gid}); break;
       case 'LWPOLYLINE':
         if (!e.pts || e.pts.length<2) break;
         var pts=[e.pts[0].slice()], nn=e.pts.length;
         for (var q=0;q<nn-1;q++) bulgePts(e.pts[q], e.pts[q+1], e.bul[q], pts);
         if (e.closed){ bulgePts(e.pts[nn-1], e.pts[0], e.bul[nn-1], pts); pts.pop(); }
-        prims.push({k:'poly', pts:pts.map(function(p){return W(p[0],p[1]);}), closed:e.closed, L:lay, g:gid, wd:e.wd}); break;
+        var zz=(e.zs && e.zs.length===nn && e.bul.every(function(b){return !b;}))? e.zs.slice() : null;
+        prims.push({k:'poly', pts:pts.map(function(p){return W(p[0],p[1]);}), closed:e.closed, L:lay, g:gid, wd:e.wd, z:e.z, zs:zz}); break;
       case 'CIRCLE':
         var c=W(e.x||0,e.y||0), sc=Math.sqrt(Math.abs(M[0]*M[3]-M[1]*M[2]));
         prims.push({k:'circle', c:c, r:(e.r||0)*sc, L:lay, g:gid}); break;
@@ -622,12 +657,14 @@ function flatten(doc){
         if (ocs) Tm = mMul([-1,0,0,1,0,0], Tm);
         var Mi = mMul(M, mMul(Tm, [1,0,0,1,-B.bx,-B.by]));
         var g2 = (gid===null)? ('i'+(gidSeq++)) : gid;
+        if (gid===null) gidName[g2]=e.name;
         var lay2 = (e.layer==='0' && layer)? layer : e.layer;
         for (var q3=0;q3<B.ents.length;q3++) emit(B.ents[q3], Mi, lay2, g2, depth+1);
         break;
     }
   }
   for (var j=0;j<doc.entities.length;j++) emit(doc.entities[j], I6, null, null, 0);
+  prims.forEach(function(p){ if (p.g && gidName[p.g]) p.bn=gidName[p.g]; });
   return prims;
 }
 
@@ -656,7 +693,12 @@ function layerStats(prims){
 function guessRole(name, kind, st){
   var s = norm(name);
   if (kind==='arch'){
-    if (/axis|αξον|aksona|text|κειμ|keim|diast|διαστ|dim|etics|θερμομον|monos|hatch|γραμμοσκ|epipl|επιπλ|furn|mark|symbol|note|level/.test(s)) return 'ignore';
+    if (/ισουψ|isoy|isoips|isoups|contour|cntr|υψομετρ|ypsometr|σημει.*αποτ|survey|ταχυμ|kampyl|καμπυλ.*στ/.test(s)) return 'contour';
+    if (/epipl|επιπλ|furn|εξοπλ|eksopl|equip|sanit|υγιειν|ygiein|κρεβατ|τραπεζ|καναπ|ντουλαπ|ntoulap|kitch|κουζιν|kouzin|δεντρ|φυτ|plant|tree/.test(s)) return 'furniture';
+    if (/axis|αξον|aksona|text|κειμ|keim|diast|διαστ|dim|etics|θερμομον|monos|hatch|γραμμοσκ|mark|symbol|note|level/.test(s)) return 'ignore';
+    if (/stair|κλιμακ|klimak|σκαλ|skal|βαθμιδ|vathmid/.test(s)) return 'stair';
+    if (/μαντρ|mantr|περιφρ|perifr|fence|περιτοιχ|peritoix|τοιχι[οα]|toixio|αντιστηρ|antisti|retain|μανδρ/.test(s)) return 'fence';
+    if (/πεζουλ|pezoul|κρασπ|kraspe|curb|ζαρντ|zardin|planter|παρτερ|parter/.test(s)) return 'curb';
     if (/column|υποστ|ypost|κολων|kolon/.test(s)) return 'column';
     if (/footprint|περιγραμ|perigram/.test(s)) return 'ignore';
     if (/kagkel|καγκελ|railing|κιγκλιδ|handrail/.test(s)) return 'railing';
@@ -715,7 +757,7 @@ function clipPrims(prims, R){
   var out=[];
   function inR(q){ return q[0]>=R[0]&&q[0]<=R[2]&&q[1]>=R[1]&&q[1]<=R[3]; }
   prims.forEach(function(p){
-    if (p.k==='text'){ if (inR(p.p)) out.push(p); return; }
+    if (p.k==='text' || p.k==='pt'){ if (inR(p.p)) out.push(p); return; }
     if (p.k==='circle'){ if (inR(p.c)) out.push(p); return; }
     if (p.k==='seg'){ var c=clipSeg(p.a,p.b,R); if (c){ var o=Object.assign({},p); o.a=c[0]; o.b=c[1]; out.push(o); } return; }
     if (p.k==='poly'){
@@ -727,7 +769,7 @@ function clipPrims(prims, R){
         var c=clipSeg(e[0],e[1],R);
         if (!c){ if (run){ out.push(run); run=null; } return; }
         if (run && !c[2]) run.pts.push(c[1]);
-        else { if (run) out.push(run); run=Object.assign({},p,{pts:[c[0],c[1]], closed:false, arc:false}); }
+        else { if (run) out.push(run); run=Object.assign({},p,{pts:[c[0],c[1]], closed:false, arc:false, zs:null}); }
         if (c[3]){ out.push(run); run=null; }
       });
       if (run) out.push(run);
@@ -741,11 +783,12 @@ function toMeters(prims, s, dx, dy){
   dx=dx||0; dy=dy||0;
   function T(q){ return [q[0]*s+dx, q[1]*s+dy]; }
   return prims.map(function(p){
-    var o = { k:p.k, L:p.L, g:p.g, wd:p.wd, arc:p.arc, sweep:p.sweep, closed:p.closed, rot:p.rot, s:p.s, dash:p.dash };
+    var o = { k:p.k, L:p.L, g:p.g, wd:p.wd, arc:p.arc, sweep:p.sweep, closed:p.closed, rot:p.rot, s:p.s, dash:p.dash, bn:p.bn };
+    if (p.z!==undefined && p.z!==null) o.z=p.z*s; if (p.z2!==undefined) o.z2=p.z2*s; if (p.zs) o.zs=p.zs.map(function(z){ return z*s; });
     if (p.k==='seg'){ o.a=T(p.a); o.b=T(p.b); }
     else if (p.k==='poly'){ o.pts=p.pts.map(T); }
     else if (p.k==='circle'){ o.c=T(p.c); o.r=p.r*s; }
-    else if (p.k==='text'){ o.p=T(p.p); }
+    else if (p.k==='text' || p.k==='pt'){ o.p=T(p.p); }
     if (p.wd) o.wd = { s:p.wd.s.slice(), n:p.wd.n.map(function(x){return x*s;}) };
     return o;
   });
@@ -1656,7 +1699,7 @@ function recognizeArchExact(prims, roles, opt){
   });
   var S=segmentsOf(matP);
   matP.forEach(function(p){ if (p.k==='circle'){ var C=circlePoly(p.c,p.r,32); for (var i=0;i<C.length;i++) S.push([C[i],C[(i+1)%C.length]]); } });
-  if (!S.length) return emptyArch();
+  if (!S.length) { var ea=emptyArch(); ea.contours=recognizeContours(prims, roles); ea.fences=recognizeLowWalls(prims, roles, "fence", null); ea.curbs=recognizeLowWalls(prims, roles, "curb", null); return ea; }
   var healed = healSegments(S, opt);
   var G = pruneDangling(buildGraph(healed.segs));
   var T = traceFaces(G);
@@ -1711,15 +1754,21 @@ function recognizeArchExact(prims, roles, opt){
   }
   var balc = findBalconies(T2, prims, roles);
   var railings = segmentsOf(prims.filter(function(p){ return roles[p.L]==='railing'; }));
+  var balcSegs=[]; balc.slabs.concat(balc.parapets).forEach(function(F){ for (var i=0;i<F.outer.length;i++) balcSegs.push([F.outer[i],F.outer[(i+1)%F.outer.length]]); });
+  var stairs = recognizeStairs(prims, roles, T2, balcSegs);
+  var fences = recognizeLowWalls(prims, roles, 'fence', T2);
+  var curbs  = recognizeLowWalls(prims, roles, 'curb', T2);
+  var furniture = recognizeFurniture(prims, roles, T2);
+  var contours = recognizeContours(prims, roles);
   return {
-    exact:true, T:T2, faces:T2.faces, bridgeEdge:bridgeEdge, balconies:balc.slabs, parapets:balc.parapets, railings:railings,
+    exact:true, T:T2, faces:T2.faces, bridgeEdge:bridgeEdge, balconies:balc.slabs, parapets:balc.parapets, railings:railings, stairs:stairs, fences:fences, curbs:curbs, furniture:furniture, contours:contours,
     mass: T2.faces.filter(function(F){ return F.kind==='mat'; }),
     rooms: T2.faces.filter(function(F){ return F.kind==='room'; }),
     walls: T2.faces.filter(function(F){ return F.kind==='mat'; }),
     openings: openings, healed: healed.added.length, nSegs:S.length
   };
 }
-function emptyArch(){ return { exact:true, faces:[], mass:[], rooms:[], walls:[], openings:[], balconies:[], parapets:[], railings:[], healed:0, nSegs:0 }; }
+function emptyArch(){ return { exact:true, faces:[], mass:[], rooms:[], walls:[], openings:[], balconies:[], parapets:[], railings:[], stairs:[], fences:[], curbs:[], furniture:[], healed:0, nSegs:0 }; }
 
 /* εξώστες: περιγράμματα πλακών έξω από το κτίριο, κλειστά με την παρειά του κτιρίου */
 function findBalconies(T, prims, roles){
@@ -1991,13 +2040,348 @@ function chordAt(P, p, u){
   return [ss[0], ss[ss.length-1]];
 }
 
+/* ============================================================
+   ΣΚΑΛΕΣ · ΜΑΝΤΡΕΣ / ΤΟΙΧΙΑ · ΠΕΖΟΥΛΙΑ / ΚΡΑΣΠΕΔΑ
+   ============================================================ */
+function segsOfRole(prims, roles, role, minLen){
+  return segmentsOf(prims.filter(function(p){ return roles[p.L]===role && p.k!=='text'; }))
+         .filter(function(s){ return len(sub(s[1],s[0])) >= (minLen||0.02); });
+}
+function buildingEdges(T){
+  var out=[]; if (!T) return out;
+  for (var h=0; h<T.E.length*2; h+=2){
+    var f=T.heFace[h], g=T.heFace[h+1];
+    var a=f>=0? T.faces[f].kind : 'out', b=g>=0? T.faces[g].kind : 'out';
+    if (a!==b || a==='mat') out.push([T.V[T.from(h)], T.V[T.to(h)]]);
+  }
+  return out;
+}
+function insideBuilding(p, T){
+  if (!T) return false;
+  return T.faces.some(function(F){ return (F.kind==='mat'||F.kind==='open'||F.kind==='room') && pointInFace(p,F); });
+}
+function onAnySeg(p, S, tol){ for (var i=0;i<S.length;i++) if (distPtSeg(p,S[i][0],S[i][1])<tol) return true; return false; }
+
+/* μάντρες, τοιχία, πεζούλια: κλειστές λωρίδες → στερεά· μονές γραμμές → λωρίδα σταθερού πάχους */
+function recognizeLowWalls(prims, roles, role, T){
+  var S=segsOfRole(prims, roles, role, 0.03);
+  if (!S.length) return [];
+  var heal=healSegments(S, {ext:0.2, cap:1.0, join:0.3});
+  var G=pruneDangling(buildGraph(heal.segs)), TF=traceFaces(G), out=[];
+  TF.faces.forEach(function(F){
+    faceMetrics(F);
+    if (Math.abs(F.area)<0.02 || F.thick>0.9) return;
+    if (insideBuilding(F.ip, T)) return;
+    out.push({ outer:F.outer, holes:F.holes });
+  });
+  // γραμμές που δεν ανήκουν σε κλειστή λωρίδα → λωρίδα 0.20
+  var faceEdges=[]; out.forEach(function(F){ for (var i=0;i<F.outer.length;i++) faceEdges.push([F.outer[i], F.outer[(i+1)%F.outer.length]]); });
+  mergeCollinear(S).forEach(function(s){
+    var m=mul(add(s[0],s[1]),0.5);
+    if (onAnySeg(m, faceEdges, 0.01)) return;
+    if (len(sub(s[1],s[0]))<0.3) return;
+    if (insideBuilding(m, T)) return;
+    out.push({ outer:stripPoly(s[0],s[1],0.20), holes:[], line:true });
+  });
+  return out;
+}
+
+/* έπιπλα / εξοπλισμός: κάθε μπλοκ ή κάθε συνεκτικό σύνολο γραμμών → περίγραμμα + εκτιμώμενο ύψος */
+var FURN_H = [
+  [/ντουλαπ|ntoulap|wardrob|closet|ερμαρ|ψυγει|psygei|fridge|refrig|βιβλιοθ|bookc|shelf|ραφι/, 2.20, 'ντουλάπα'],
+  [/κρεβατ|krevat|bed|κουνι|στρωμ/, 0.55, 'κρεβάτι'],
+  [/καναπ|kanap|sofa|πολυθρ|armch|couch/, 0.80, 'καναπές'],
+  [/τραπεζ|trapez|table|desk|γραφει/, 0.75, 'τραπέζι'],
+  [/καρεκλ|karekl|chair|σκαμπ|stool/, 0.85, 'καρέκλα'],
+  [/πάγκ|παγκ|pagk|counter|κουζιν|kouzin|kitch|νεροχ|sink|κουζινα|εστι|stove|oven|πλυντ|wash/, 0.90, 'πάγκος'],
+  [/λεκαν|lekan|wc|toilet|μπιντε|bidet/, 0.42, 'λεκάνη'],
+  [/νιπτ|nipt|basin|lavab/, 0.85, 'νιπτήρας'],
+  [/μπανι|mpani|bath|ντουζ|ntouz|shower/, 0.55, 'μπανιέρα'],
+  [/φυτ|fyt|plant|γλαστρ|δεντρ|tree/, 0.90, 'φυτό']
+];
+function furnGuess(poly, name){
+  var s=norm(name||'');
+  for (var i=0;i<FURN_H.length;i++) if (FURN_H[i][0].test(s)) return { h:FURN_H[i][1], type:FURN_H[i][2] };
+  var r=minRect(poly), a=Math.min(r.w,r.l), b=Math.max(r.w,r.l), A=Math.abs(polyArea(poly));
+  if (b>=1.85 && b<=2.3 && a>=0.8 && a<=2.1) return { h:0.55, type:'κρεβάτι' };
+  if (a>=0.5 && a<=0.7 && b>=1.0 && A>0.5*a*b*0.9) return { h:0.90, type:'πάγκος' };
+  if (A<0.35) return { h:0.45, type:'αντικείμενο' };
+  if (a>=0.6 && b<=2.6) return { h:0.75, type:'τραπέζι' };
+  return { h:0.75, type:'έπιπλο' };
+}
+function minRect(P){
+  var H=hull(P), best=null;
+  for (var i=0;i<H.length;i++){
+    var a=H[i], b=H[(i+1)%H.length], u=unit(sub(b,a)); if (!isFinite(u[0])) continue; var v=[-u[1],u[0]];
+    var x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+    H.forEach(function(p){ var x=dot(p,u), y=dot(p,v); x0=Math.min(x0,x); x1=Math.max(x1,x); y0=Math.min(y0,y); y1=Math.max(y1,y); });
+    var A=(x1-x0)*(y1-y0); if (!best||A<best.A) best={A:A, l:x1-x0, w:y1-y0, u:u, v:v, x0:x0, x1:x1, y0:y0, y1:y1};
+  }
+  if (!best) return {A:0,l:0,w:0,poly:P};
+  var B=best, Q=function(x,y){ return [B.u[0]*x+B.v[0]*y, B.u[1]*x+B.v[1]*y]; };
+  best.poly=[Q(B.x0,B.y0),Q(B.x1,B.y0),Q(B.x1,B.y1),Q(B.x0,B.y1)];
+  return best;
+}
+function recognizeFurniture(prims, roles, T){
+  var P=prims.filter(function(p){ return roles[p.L]==='furniture' && p.k!=='text'; }).map(function(p){
+    if (p.k!=='circle') return p;
+    var pts=[]; for (var i=0;i<24;i++){ var t=2*Math.PI*i/24; pts.push([p.c[0]+p.r*Math.cos(t), p.c[1]+p.r*Math.sin(t)]); }
+    return { k:'poly', pts:pts, closed:true, L:p.L, g:p.g, bn:p.bn };
+  });
+  if (!P.length) return [];
+  var groups={}; P.forEach(function(p){ var k=p.g? 'g'+p.g : 'L:'+p.L; (groups[k]=groups[k]||[]).push(p); });
+  var out=[];
+  Object.keys(groups).forEach(function(k){
+    var G=groups[k], single=(k.charAt(0)==='g'), name=(G[0].L||'')+' '+(G[0].bn||'');
+    var S=segmentsOf(G); if (!S.length) return;
+    var found=[];
+    try {
+      var TF=traceFaces(buildGraph(S));
+      TF.faces.forEach(function(F){ F.kind = Math.abs(F.area)>=0.004 ? 'mat' : 'x'; });
+      var loops=P3loops(TF);
+      var outers=loops.filter(function(L){ return polyArea(L)>0; }), holes=loops.filter(function(L){ return polyArea(L)<=0; });
+      outers.forEach(function(O){ var A=polyArea(O); if (A<0.03 || A>16) return; found.push({ outer:O, holes:holes.filter(function(h){ return pip(h[0],O) && Math.abs(polyArea(h))<A; }) }); });
+    } catch(e){}
+    if (single && !found.length){
+      var pts=[]; S.forEach(function(s){ pts.push(s[0],s[1]); }); var r=minRect(pts);
+      if (r.A>=0.05 && r.A<=16) found.push({ outer:r.poly, holes:[] });
+    }
+    // από ένα μπλοκ κρατάμε τα κομμάτια· αν είναι πολλά μικρά (καρέκλες γύρω από τραπέζι) μένουν χωριστά
+    found.forEach(function(o){
+      var c=centroid(o.outer);
+      if (T && T.faces.some(function(F){ return F.kind==='mat' && pointInFace(c,F); })) return;
+      var gs=furnGuess(o.outer, name);
+      out.push({ outer:o.outer, holes:o.holes, h:gs.h, type:gs.type, key:Math.round(c[0]*20)+':'+Math.round(c[1]*20), ctr:c });
+    });
+  });
+  // απόρριψη διπλών (ίδιο κέντρο)
+  var seen={}; return out.filter(function(o){ if (seen[o.key]) return false; seen[o.key]=1; return true; });
+}
+function P3loops(TF){
+  return massLoops(TF, function(F){ return F.kind==='mat'; }).map(function(L){ return L.map(function(h){ return TF.V[TF.from(h)]; }); });
+}
+
+/* ισοϋψείς → σημεία (x,y,z): υψόμετρο από το σχέδιο (Z) ή από τις ετικέτες, τα ενδιάμεσα με παρεμβολή */
+function recognizeContours(prims, roles){
+  var C=prims.filter(function(p){ return roles[p.L]==='contour'; });
+  if (!C.length) return null;
+  var lines=[], pts=[];
+  C.forEach(function(p){
+    if (p.k==='pt'){ if (isFinite(p.z)) pts.push([p.p[0],p.p[1],p.z]); return; }
+    if (p.k==='seg'){ lines.push({ P:[p.a,p.b], z:(p.z!==undefined && Math.abs(p.z-(p.z2||p.z))<1e-6)? p.z : undefined, zs:(p.z!==undefined && p.z2!==undefined && p.z!==p.z2)? [p.z,p.z2] : null }); return; }
+    if (p.k==='poly' && p.pts.length>=2){ var P=p.pts.slice(); if (p.closed) P.push(P[0]); lines.push({ P:P, z:p.z, zs:p.zs&&p.zs.length===p.pts.length? (p.closed? p.zs.concat([p.zs[0]]) : p.zs) : null }); }
+  });
+  // ενώνω τμήματα με κοινά άκρα (ισοϋψείς σπασμένες σε γραμμές)
+  var hasZ = lines.some(function(l){ return (l.z!==undefined && l.z!==0) || l.zs; });
+  // ετικέτες: αριθμοί κοντά στις γραμμές
+  var labels=prims.filter(function(p){ return p.k==='text' && /^[+-]?\d{1,4}([.,]\d{1,3})?$/.test(String(p.s||'').trim()); })
+    .map(function(p){ return { p:p.p, v:parseFloat(String(p.s).trim().replace(',','.')) }; });
+  function nearOnLine(q, l){ var best=null, bd=Infinity; for (var i=0;i<l.P.length-1;i++){ var a=l.P[i], b=l.P[i+1], d=sub(b,a), L2=dot(d,d)||1e-12, t=Math.max(0,Math.min(1,dot(sub(q,a),d)/L2)), p=add(a,mul(d,t)), dd=len(sub(q,p)); if (dd<bd){ bd=dd; best=p; } } return best; }
+  function dLine(q, l){ var m=Infinity; for (var i=0;i<l.P.length-1;i++){ var d=distPtSeg(q,l.P[i],l.P[i+1]); if (d<m) m=d; } return m; }
+  if (!hasZ){
+    if (!labels.length && !pts.length) return { lines:[], pts:[], need:true };
+    var votes=lines.map(function(){ return {}; });
+    labels.forEach(function(lb){
+      var best=-1, bd=2.5; lines.forEach(function(l,i){ var d=dLine(lb.p,l); if (d<bd){ bd=d; best=i; } });
+      if (best>=0){ var k=String(lb.v); votes[best][k]=(votes[best][k]||0)+1; }
+    });
+    lines.forEach(function(l,i){ var ks=Object.keys(votes[i]); if (ks.length){ ks.sort(function(a,b){ return votes[i][b]-votes[i][a]; }); l.z=parseFloat(ks[0]); l.lab=true; } else l.z=undefined; });
+    var lab=lines.filter(function(l){ return l.lab; });
+    if (lab.length>=2){
+      var vals=lab.map(function(l){return l.z;}).sort(function(a,b){return a-b;}), eq=Infinity;
+      for (var i=1;i<vals.length;i++){ var d=vals[i]-vals[i-1]; if (d>0.05 && d<eq) eq=d; }
+      if (!isFinite(eq)) eq=1;
+      lines.forEach(function(l){
+        if (l.lab) return;
+        var q=l.P[Math.floor(l.P.length/2)], near=lab.map(function(m){ return { z:m.z, d:dLine(q,m), l:m }; }).sort(function(a,b){ return a.d-b.d; });
+        var a=near[0], b=null; for (var j=1;j<near.length;j++) if (Math.abs(near[j].z-a.z)>1e-6){ b=near[j]; break; }
+        var z=a.z;
+        if (b){
+          var qa=nearOnLine(q, a.l), dab=dLine(qa, b.l);
+          var between = Math.abs(a.d+b.d-dab) <= Math.abs(b.d-a.d-dab);
+          z = between ? (a.z*b.d + b.z*a.d)/(a.d+b.d) : a.z + (a.z-b.z)*a.d/Math.max(1e-6,dab);
+        }
+        var snap = eq>=1? 0.5 : (eq>=0.2? 0.1 : 0.05);
+        l.z = Math.round(z/snap)*snap; l.inf=true;
+      });
+    } else lines=lines.filter(function(l){ return l.lab; });
+  }
+  // δειγματοληψία
+  var bb=[Infinity,Infinity,-Infinity,-Infinity]; lines.forEach(function(l){ l.P.forEach(function(q){ bb[0]=Math.min(bb[0],q[0]); bb[1]=Math.min(bb[1],q[1]); bb[2]=Math.max(bb[2],q[0]); bb[3]=Math.max(bb[3],q[1]); }); });
+  var tot=0; lines.forEach(function(l){ for (var i=0;i<l.P.length-1;i++) tot+=len(sub(l.P[i+1],l.P[i])); });
+  var step=Math.max(0.4, tot/15000), out=[];
+  lines.forEach(function(l){
+    if (l.z===undefined && !l.zs) return;
+    for (var i=0;i<l.P.length-1;i++){
+      var a=l.P[i], b=l.P[i+1], L=len(sub(b,a)), n=Math.max(1, Math.ceil(L/step));
+      var za=l.zs? l.zs[i] : l.z, zb=l.zs? l.zs[i+1] : l.z;
+      for (var k=0;k<n;k++){ var t=k/n; out.push([a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, za+(zb-za)*t, i===0&&k===0? 1:0]); }
+      if (i===l.P.length-2) out.push([b[0],b[1],zb,1]);
+    }
+  });
+  pts.forEach(function(p){ out.push([p[0],p[1],p[2],2]); });
+  var zs=out.map(function(p){return p[2];});
+  return { lines:lines.filter(function(l){ return l.z!==undefined || l.zs; }).map(function(l){ return { P:l.P, z:l.z, zs:l.zs, inf:!!l.inf }; }), pts:out,
+           zmin: zs.length? Math.min.apply(null,zs) : 0, zmax: zs.length? Math.max.apply(null,zs) : 0, step:step };
+}
+
+/* βέλος ανόδου: «V» από δύο σκέλη 0.08–0.6 m με γωνία 15°–80° (ή μικρό κλειστό τρίγωνο) */
+function arrowTips(prims){
+  var tips=[], S=[];
+  prims.forEach(function(p){
+    if (p.k==='poly'){
+      var P=p.pts;
+      if (p.closed && P.length===3 && Math.abs(polyArea(P))<0.12){
+        var best=null; for (var i=0;i<3;i++){ var a=P[(i+2)%3], b=P[i], c=P[(i+1)%3]; var u=unit(sub(a,b)), v=unit(sub(c,b)), an=Math.acos(Math.max(-1,Math.min(1,dot(u,v)))); if (!best||an<best.an) best={an:an,p:b}; }
+        if (best && best.an<1.2) tips.push(best.p);
+      }
+      for (var k=0;k<P.length-1;k++) S.push([P[k],P[k+1]]);
+    } else if (p.k==='seg') S.push([p.a,p.b]);
+  });
+  var short=S.filter(function(s){ var L=len(sub(s[1],s[0])); return L>=0.06 && L<=0.6; });
+  for (var i=0;i<short.length;i++) for (var j=i+1;j<short.length;j++){
+    var A=short[i], B=short[j];
+    [[0,0],[0,1],[1,0],[1,1]].forEach(function(c){
+      var pa=A[c[0]], pb=B[c[1]]; if (len(sub(pa,pb))>0.01) return;
+      var u=unit(sub(A[1-c[0]],pa)), v=unit(sub(B[1-c[1]],pb)), an=Math.acos(Math.max(-1,Math.min(1,dot(u,v))));
+      if (an>0.26 && an<2.2 && Math.abs(len(sub(A[1],A[0]))-len(sub(B[1],B[0])))<0.12) tips.push(pa);
+    });
+  }
+  // πραγματικό βέλος = «V» στο άκρο ενός μακριού άξονα
+  var longS=S.filter(function(s){ return len(sub(s[1],s[0]))>=0.3; });
+  var real=[], shafts=[];
+  tips.forEach(function(t){
+    longS.forEach(function(s){ if (len(sub(s[0],t))<0.02 || len(sub(s[1],t))<0.02){ if (real.indexOf(t)<0) real.push(t); shafts.push(s); } });
+    prims.forEach(function(p){ if (p.k!=='poly' || p.closed || p.pts.length<3) return; var P=p.pts;
+      if (len(sub(P[0],t))<0.02 || len(sub(P[P.length-1],t))<0.02){ if (real.indexOf(t)<0) real.push(t); for (var k=0;k<P.length-1;k++) shafts.push([P[k],P[k+1]]); } });
+  });
+  arrowTips.shafts = shafts;
+  return real;
+}
+
+/* σκάλες: όψεις μεταξύ γραμμών σκαλοπατιών, διάταξη από κάτω προς τα πάνω */
+function recognizeStairs(prims, roles, T, extraSegs){
+  var sp = prims.filter(function(p){ return roles[p.L]==='stair' && p.k!=='text'; });
+  if (!sp.length) return [];
+  var tips = arrowTips(sp), shafts = arrowTips.shafts || [];
+  // ο άξονας του βέλους (και οι συνευθειακές του προεκτάσεις) δεν χωρίζει σκαλοπάτια
+  var S = segmentsOf(sp).filter(function(s){
+    if (len(sub(s[1],s[0]))<0.3) return false;
+    return !shafts.some(function(a){ var d=unit(sub(a[1],a[0])); return Math.abs(crs(d, unit(sub(s[1],s[0]))))<0.02 && distLine(s[0],a[0],d)<0.01 && distLine(s[1],a[0],d)<0.01; });
+  });
+  var all = S.concat(buildingEdges(T)).concat(extraSegs||[]);
+  var heal=healSegments(all, {ext:0.12, cap:0, join:0.08});
+  var G=pruneDangling(buildGraph(heal.segs)), TF=traceFaces(G);
+  var Sm=mergeCollinear(S);
+  var cand={};
+  TF.faces.forEach(function(F){
+    faceMetrics(F);
+    var A=Math.abs(F.area); if (A<0.04 || A>12) return;
+    if (T && T.faces.some(function(B){ return (B.kind==='mat'||B.kind==='open') && pointInFace(F.ip,B); })) return;
+    // ακμές πάνω σε γραμμές σκάλας
+    var onStair=0, longest=0;
+    F.hes.forEach(function(h){ var a=TF.V[TF.from(h)], b=TF.V[TF.to(h)], m=mul(add(a,b),0.5), L=len(sub(b,a));
+      if (onAnySeg(m, Sm, 0.006)){ onStair++; longest=Math.max(longest,L); } });
+    if (onStair<1 || longest<0.45) return;
+    if (F.thick>=0.10 && F.thick<=0.55) F.stairKind='tread';
+    else if (F.thick>0.55 && F.thick<=3.2 && onStair>=1) F.stairKind='landing';
+    else return;
+    cand[F.id]=F;
+  });
+  // συνεκτικές ομάδες
+  var seen={}, groups=[];
+  Object.keys(cand).forEach(function(id){
+    if (seen[id]) return;
+    var comp=[], st=[+id]; seen[id]=1;
+    while (st.length){ var f=st.pop(), F=TF.faces[f]; comp.push(F);
+      F.hes.forEach(function(h){ var g=TF.heFace[h^1]; if (g>=0 && cand[g] && !seen[g]){ seen[g]=1; st.push(g); } }); }
+    var nt=comp.filter(function(F){ return F.stairKind==='tread'; }).length;
+    if (nt>=2) groups.push(comp);
+  });
+  var stairs=[];
+  var bE=buildingEdges(T);
+  function dBld(p){ var m=Infinity; bE.forEach(function(e){ m=Math.min(m, distPtSeg(p,e[0],e[1])); }); return m; }
+  function dTip(p){ var m=Infinity; tips.forEach(function(t){ m=Math.min(m,len(sub(t,p))); }); return m; }
+  function adj(F, pred){ var r=[]; F.hes.forEach(function(h){ var g=TF.heFace[h^1]; if (g>=0 && cand[g] && pred(cand[g]) && r.indexOf(cand[g])<0) r.push(cand[g]); }); return r; }
+  groups.forEach(function(comp){
+    var treads=comp.filter(function(F){ return F.stairKind==='tread'; }), lands=comp.filter(function(F){ return F.stairKind==='landing'; });
+    // σκέλη: συνεκτικά σκαλοπάτια
+    var seenT={}, flights=[];
+    treads.forEach(function(F){
+      if (seenT[F.id]) return; var fl=[], st=[F]; seenT[F.id]=1;
+      while (st.length){ var X=st.pop(); fl.push(X); adj(X,function(Y){ return Y.stairKind==='tread'; }).forEach(function(Y){ if (!seenT[Y.id]){ seenT[Y.id]=1; st.push(Y); } }); }
+      // άξονας ανόδου: κάθετος στη μεγαλύτερη ακμή του σκαλοπατιού
+      var best=null; for (var i=0;i<fl[0].outer.length;i++){ var p=fl[0].outer[i], q=fl[0].outer[(i+1)%fl[0].outer.length], L=len(sub(q,p)); if (!best||L>best.L) best={L:L,d:unit(sub(q,p))}; }
+      var ax=[-best.d[1], best.d[0]];
+      fl.sort(function(x,y){ return dot(x.ip,ax)-dot(y.ip,ax); });
+      flights.push(fl);
+    });
+    // όψη πέρα από την ακμή ανόδου του ακραίου σκαλιού (όχι από τα πλάγια)
+    function beyond(fl, top, pred){
+      if (fl.length<2) return adj(top? fl[fl.length-1] : fl[0], pred)[0];
+      var T0=top? fl[fl.length-1] : fl[0], ax=unit(sub(fl[fl.length-1].ip, fl[0].ip)), sg=top?1:-1, best=null;
+      T0.hes.forEach(function(h){
+        var a=TF.V[TF.from(h)], b=TF.V[TF.to(h)], d=unit(sub(b,a)); if (Math.abs(dot(d,ax))>0.3) return;
+        var pr=dot(sub(mul(add(a,b),0.5), T0.ip), ax)*sg; if (pr<0.03) return;
+        var g=TF.heFace[h^1]; if (g<0 || !cand[g] || !pred(cand[g])) return;
+        if (!best || pr>best.pr) best={F:cand[g], pr:pr};
+      });
+      return best && best.F;
+    }
+    function endsAt(f, L){ var isL=function(Y){return Y===L;}; return { a: !!beyond(f,false,isL), z: !!beyond(f,true,isL) }; }
+    function flightDist(f, p){ var m=Infinity; f.forEach(function(F){ m=Math.min(m,len(sub(F.ip,p))); }); return m; }
+    var chain=[], usedF={}, usedL={};
+    var useTip = tips.length && flights.some(function(f){ return tips.some(function(t){ return flightDist(f,t)<1.2; }); });
+    if (useTip){
+      // κορυφαίο σκέλος = αυτό που έχει την αιχμή· η άκρη κοντά στην αιχμή είναι πάνω
+      var tbest=null; flights.forEach(function(f){ tips.forEach(function(t){ var d=flightDist(f,t); if (!tbest||d<tbest.d) tbest={f:f,t:t,d:d}; }); });
+      var cur=tbest.f; if (len(sub(cur[0].ip,tbest.t)) < len(sub(cur[cur.length-1].ip,tbest.t))) cur.reverse();
+      var LT0=beyond(cur, true, function(Y){ return Y.stairKind==='landing'; });
+      if (LT0) usedL[LT0.id]=1;
+      var down=[], g=0;
+      while (cur && g++<20){
+        usedF[flights.indexOf(cur)]=1; down.unshift({flight:cur});
+        var L=beyond(cur, false, function(Y){ return Y.stairKind==='landing' && !usedL[Y.id]; });
+        if (!L) break; usedL[L.id]=1; down.unshift({landing:L});
+        var prev=null; flights.forEach(function(f,i){ if (usedF[i]||prev) return; var e=endsAt(f,L); if (e.z) prev=f; else if (e.a){ f.reverse(); prev=f; } });
+        cur=prev;
+      }
+      chain=down;
+      // πλατύσκαλο στην κορυφή του τελευταίου σκέλους
+      if (LT0) chain.push({landing:LT0});
+    } else {
+      // χωρίς βέλος: κάτω άκρο = το πιο απομακρυσμένο από κτίριο/πλατύσκαλο
+      flights.forEach(function(fl){
+        var a=fl[0], z=fl[fl.length-1], isLd=function(Y){return Y.stairKind==='landing';}, la=beyond(fl,false,isLd)?1:0, lz=beyond(fl,true,isLd)?1:0;
+        var up = la!==lz ? lz>la : dBld(z.ip) <= dBld(a.ip); if (!up) fl.reverse();
+      });
+      var cur2=flights.slice().sort(function(x,y){ return dBld(y[0].ip)-dBld(x[0].ip); })[0], g2=0;
+      while (cur2 && g2++<20){
+        usedF[flights.indexOf(cur2)]=1; chain.push({flight:cur2});
+        var L2=beyond(cur2, true, function(Y){ return Y.stairKind==='landing' && !usedL[Y.id]; });
+        if (!L2) break; usedL[L2.id]=1; chain.push({landing:L2});
+        var nx=null; flights.forEach(function(f,i){ if (usedF[i]||nx) return; var e=endsAt(f,L2); if (e.a) nx=f; else if (e.z){ f.reverse(); nx=f; } });
+        cur2=nx;
+      }
+    }
+    var ordered=[], step=0;
+    chain.forEach(function(c){ if (c.flight) c.flight.forEach(function(F){ step++; ordered.push({F:F, step:step}); }); else { step++; ordered.push({F:c.landing, step:step}); } });
+    flights.forEach(function(f,i){ if (!usedF[i]) f.forEach(function(F){ step++; ordered.push({F:F, step:step}); }); });
+    var c=[0,0]; treads.forEach(function(F){ c[0]+=F.ip[0]; c[1]+=F.ip[1]; }); c=[c[0]/treads.length, c[1]/treads.length];
+    stairs.push({ faces:ordered.map(function(o){ return { outer:o.F.outer, holes:o.F.holes, step:o.step, kind:o.F.stairKind, ip:o.F.ip }; }),
+                  n: step, treads: treads.length, key: Math.round(c[0]*10)+':'+Math.round(c[1]*10), ctr:c,
+                  inside: insideBuilding(c, T), arrow: tips.length>0 });
+  });
+  return stairs;
+}
+
 /* ορθογώνιο κάτοψης από κεντρική γραμμή + πάχος */
 function stripPoly(a,b,t){
   var u=unit(sub(b,a)), n=mul([-u[1],u[0]], t/2);
   return [sub(a,n), sub(b,n), add(b,n), add(a,n)];
 }
 
-return { clipPrims:clipPrims, recognizeArchExact:recognizeArchExact, massLoops:massLoops, loopRuns:loopRuns, chordAt:chordAt, faceKey:faceKey, pointInFace:pointInFace, decodeDXF:decodeDXF, parseDXF:parseDXF, flatten:flatten, layerStats:layerStats, guessRole:guessRole,
+return { recognizeContours:recognizeContours, recognizeFurniture:recognizeFurniture, minRect:minRect, arrowTips:arrowTips, recognizeStairs:recognizeStairs, clipPrims:clipPrims, recognizeArchExact:recognizeArchExact, massLoops:massLoops, loopRuns:loopRuns, chordAt:chordAt, faceKey:faceKey, pointInFace:pointInFace, decodeDXF:decodeDXF, parseDXF:parseDXF, flatten:flatten, layerStats:layerStats, guessRole:guessRole,
   guessUnits:guessUnits, toMeters:toMeters, bbox:bbox, recognizeArch:recognizeArch, recognizeStruct:recognizeStruct,
   stripPoly:stripPoly, arcRadius:arcRadius, footprint:footprint, alignShapes:alignShapes, polyArea:polyArea, centroid:centroid, primPts:primPts, norm:norm, hull:hull };
 })();
@@ -2233,6 +2617,325 @@ return { loadPage:loadPage, ptScale:ptScale, guessScale:guessScale, guessRoles:g
 })();
 if (typeof module!=='undefined') module.exports = P3PDF;
 </script>
+<script>/* ============================================================
+   HEXIS ΣΤΕΓΗ — ίδιος επιλύτης με την εφαρμογή «Στέγη & Προμέτρηση»
+   (ευθύς σκελετός για τετράρριχτη · πλαίσιο αναφοράς για δίρριχτη/μονόρριχτη)
+   ============================================================ */
+var HXROOF = (function(){
+/* ============================================================
+   STRAIGHT SKELETON — port του τεσταρισμένου πυρήνα (40/40 σχήματα)
+   Wavefront propagation: edge events + split events.
+   ============================================================ */
+const PX=0,PY=1,VT=2,EA=3,EB=4,PRV=5,NXT=6,ACT=7,BX=8,BY=9,RFX=10;
+const QPX=0,QPY=1,QQX=2,QQY=3,EDX=4,EDY=5,ENX=6,ENY=7,ECC=8;
+const dist=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
+function area2(p){let s=0;for(let i=0;i<p.length;i++){const q=p[(i+1)%p.length];s+=p[i][0]*q[1]-q[0]*p[i][1];}return s;}
+
+function mkedge(p,q){let dx=q[0]-p[0],dy=q[1]-p[1],L=Math.hypot(dx,dy)||1;dx/=L;dy/=L;
+  const nx=-dy,ny=dx;return [p[0],p[1],q[0],q[1],dx,dy,nx,ny,nx*p[0]+ny*p[1]];}
+function bisect(ea,eb){const n1x=ea[ENX],n1y=ea[ENY],n2x=eb[ENX],n2y=eb[ENY];
+  const det=n1x*n2y-n1y*n2x;if(Math.abs(det)<1e-12)return[n1x,n1y];
+  return [(n2y-n1y)/det,(n1x-n2x)/det];}
+function reflexp(ea,eb){return ea[EDX]*eb[EDY]-ea[EDY]*eb[EDX] < -1e-12;}
+function vpos(v,t){const d=t-v[VT];return [v[PX]+v[BX]*d, v[PY]+v[BY]*d];}
+
+function build(loops){
+  /* loops: εξωτερικό (CCW) + τρύπες (CW). Δέχεται και σκέτο περίγραμμα. */
+  if(typeof loops[0][0]==='number') loops=[loops];
+  const E=[],V=[];
+  for(const lp of loops){
+    const n=lp.length, e0=E.length, v0=V.length;
+    for(let i=0;i<n;i++)E.push(mkedge(lp[i],lp[(i+1)%n]));
+    for(let i=0;i<n;i++){const ea=e0+(i-1+n)%n, eb=e0+i, b=bisect(E[ea],E[eb]);
+      V.push([lp[i][0],lp[i][1],0,ea,eb,v0+(i-1+n)%n,v0+(i+1)%n,1,b[0],b[1],reflexp(E[ea],E[eb])?1:0]);}
+  }
+  return [V,E];}
+
+function evEdge(V,ia,ib){const a=V[ia],b=V[ib];
+  const ax=a[PX]-a[BX]*a[VT],ay=a[PY]-a[BY]*a[VT];
+  const bx=b[PX]-b[BX]*b[VT],by=b[PY]-b[BY]*b[VT];
+  const ddx=a[BX]-b[BX],ddy=a[BY]-b[BY],den=ddx*ddx+ddy*ddy;
+  if(den<1e-16)return null;
+  const t=((bx-ax)*ddx+(by-ay)*ddy)/den;
+  const px=ax+a[BX]*t,py=ay+a[BY]*t,qx=bx+b[BX]*t,qy=by+b[BY]*t;
+  if(Math.hypot(px-qx,py-qy)>1e-6)return null;
+  if(t<Math.max(a[VT],b[VT])-1e-9)return null;
+  return [t,[px,py]];}
+
+function evSplit(V,E,iv,ie){const v=V[iv],e=E[ie];
+  const den=e[ENX]*v[BX]+e[ENY]*v[BY]-1;
+  if(Math.abs(den)<1e-12)return null;
+  const bx=v[PX]-v[BX]*v[VT],by=v[PY]-v[BY]*v[VT];
+  const t=(e[ECC]-(e[ENX]*bx+e[ENY]*by))/den;
+  if(t<v[VT]+1e-9)return null;
+  const px=bx+v[BX]*t,py=by+v[BY]*t;
+  if(e[ENX]*px+e[ENY]*py-e[ECC] < -1e-6)return null;
+  const s=(px-e[QPX])*e[EDX]+(py-e[QPY])*e[EDY];
+  const L=(e[QQX]-e[QPX])*e[EDX]+(e[QQY]-e[QPY])*e[EDY];
+  if(s < -t-1e-6 || s > L+t+1e-6)return null;
+  return [t,[px,py]];}
+
+function opposite(V,E,iv,ie,P,t){let best=null,bd=null;const e=E[ie];
+  for(let cur=0;cur<V.length;cur++){const c=V[cur];
+    if(cur===iv||!c[ACT]||c[EB]!==ie||c[NXT]<0||!V[c[NXT]][ACT])continue;
+    const A=vpos(c,t),B=vpos(V[c[NXT]],t);
+    const s=(P[0]-A[0])*e[EDX]+(P[1]-A[1])*e[EDY];
+    const L=(B[0]-A[0])*e[EDX]+(B[1]-A[1])*e[EDY];
+    if(s>=-1e-6&&s<=L+1e-6)return cur;
+    const d=Math.min(Math.abs(s),Math.abs(s-L));
+    if(bd===null||d<bd){bd=d;best=cur;}}
+  return best;}
+
+function newvert(V,E,P,t,ea,eb){const b=bisect(E[ea],E[eb]);
+  V.push([P[0],P[1],t,ea,eb,-1,-1,1,b[0],b[1],reflexp(E[ea],E[eb])?1:0]);return V.length-1;}
+
+function skeleton(pts,holes){
+  let loops;
+  if(typeof pts[0][0]==='number'){
+    if(area2(pts)<0)pts=pts.slice().reverse();
+    loops=[pts];
+  } else { loops=pts; pts=loops[0]; }
+  if(holes&&holes.length){
+    loops=[area2(pts)<0?pts.slice().reverse():pts];
+    for(const h of holes) loops.push(area2(h)>0?h.slice().reverse():h);  /* τρύπες ΔΕΞΙΟΣΤΡΟΦΑ */
+    pts=loops[0];
+  }
+  const nAll=loops.reduce((s,l)=>s+l.length,0);
+  const [V,E]=build(loops);const arcs=[],nodes=[];
+  const maxit=60+16*nAll;
+  for(let it=0;it<maxit;it++){
+    let best=null;
+    for(let i=0;i<V.length;i++){const v=V[i];if(!v[ACT])continue;
+      const j=v[NXT];if(j<0||j===i||!V[j][ACT])continue;
+      const r=evEdge(V,i,j);
+      if(r&&(!best||r[0]<best[0]-1e-9))best=[r[0],'E',i,j,r[1],-1];}
+    for(let i=0;i<V.length;i++){const v=V[i];if(!v[ACT]||!v[RFX])continue;
+      for(let k=0;k<E.length;k++){if(k===v[EA]||k===v[EB])continue;
+        const r=evSplit(V,E,i,k);if(!r)continue;
+        if(best&&r[0]>=best[0]-1e-9)continue;
+        if(opposite(V,E,i,k,r[1],r[0])===null)continue;
+        best=[r[0],'S',i,-1,r[1],k];}}
+    if(!best)break;
+    const [t,kind,ia,ib,P,ie]=best;
+    if(kind==='E'){const a=V[ia],b=V[ib];
+      arcs.push([[a[PX],a[PY]],P]);arcs.push([[b[PX],b[PY]],P]);nodes.push([P,t]);
+      const ip=a[PRV],inx=b[NXT];a[ACT]=0;b[ACT]=0;
+      if(ip===ib||inx===ia)continue;
+      const nv=newvert(V,E,P,t,a[EA],b[EB]);
+      V[nv][PRV]=ip;V[nv][NXT]=inx;V[ip][NXT]=nv;V[inx][PRV]=nv;
+      if(V[nv][PRV]===V[nv][NXT]){const o=V[nv][PRV];
+        arcs.push([P,[V[o][PX],V[o][PY]]]);V[nv][ACT]=0;V[o][ACT]=0;}
+    }else{
+      const io=opposite(V,E,ia,ie,P,t);if(io===null)continue;
+      const v=V[ia];arcs.push([[v[PX],v[PY]],P]);nodes.push([P,t]);
+      const iy=V[io][NXT],ip=v[PRV],inx=v[NXT];v[ACT]=0;
+      const v1=newvert(V,E,P,t,v[EA],ie),v2=newvert(V,E,P,t,ie,v[EB]);
+      V[v1][PRV]=ip;V[v1][NXT]=iy;V[ip][NXT]=v1;V[iy][PRV]=v1;
+      V[v2][PRV]=io;V[v2][NXT]=inx;V[io][NXT]=v2;V[inx][PRV]=v2;
+      for(const nv of [v1,v2]){
+        if(V[nv][PRV]===V[nv][NXT]&&V[nv][PRV]>=0){const o=V[nv][PRV];
+          arcs.push([[V[nv][PX],V[nv][PY]],[V[o][PX],V[o][PY]]]);V[nv][ACT]=0;V[o][ACT]=0;}}
+    }
+    if(!V.some(v=>v[ACT]))break;
+  }
+  const clean=[];
+  for(const a of arcs){if(dist(a[0],a[1])<1e-7)continue;
+    if(!clean.some(x=>(dist(a[0],x[0])<1e-6&&dist(a[1],x[1])<1e-6)||(dist(a[0],x[1])<1e-6&&dist(a[1],x[0])<1e-6)))clean.push(a);}
+  return {arcs:clean,nodes,pts,loops};
+}
+
+/* γείσο: κάθε κορυφή -> P - ovh*διχοτόμος (σωστό και σε ανακλαστικές) */
+function offsetPoly(pts,d){const [V]=build(pts);
+  return V.map(v=>[v[PX]-v[BX]*d, v[PY]-v[BY]*d]);}
+function perim(p){let s=0;for(let i=0;i<p.length;i++)s+=dist(p[i],p[(i+1)%p.length]);return s;}
+
+/* ============================================================
+   ΕΛΕΓΧΟΣ ΓΕΩΜΕΤΡΙΑΣ — τι δεν λύνεται και γιατί
+   ============================================================ */
+function segX(a,b,c,d){                       /* τέμνονται τα τμήματα; */
+  const o=(p,q,r)=>{const v=(q[1]-p[1])*(r[0]-q[0])-(q[0]-p[0])*(r[1]-q[1]);
+    return Math.abs(v)<1e-12?0:(v>0?1:2);};
+  const on=(p,q,r)=>Math.min(p[0],r[0])-1e-9<=q[0]&&q[0]<=Math.max(p[0],r[0])+1e-9&&
+                    Math.min(p[1],r[1])-1e-9<=q[1]&&q[1]<=Math.max(p[1],r[1])+1e-9;
+  const o1=o(a,b,c),o2=o(a,b,d),o3=o(c,d,a),o4=o(c,d,b);
+  if(o1!==o2&&o3!==o4)return true;
+  if(!o1&&on(a,c,b))return true; if(!o2&&on(a,d,b))return true;
+  if(!o3&&on(c,a,d))return true; if(!o4&&on(c,b,d))return true;
+  return false;
+}
+function checkGeom(P){
+  if(P.length<3) return 'Χρειάζονται τουλάχιστον 3 κορυφές.';
+  const n=P.length;
+  for(let i=0;i<n;i++) if(dist(P[i],P[(i+1)%n])<0.05)
+    return 'Η πλευρά '+(i+1)+' είναι σχεδόν μηδενική. Σβήσε τη διπλή κορυφή.';
+  for(let i=0;i<n;i++)for(let j=i+2;j<n;j++){
+    if(i===0&&j===n-1)continue;
+    if(segX(P[i],P[(i+1)%n],P[j],P[(j+1)%n]))
+      return 'Οι πλευρές '+(i+1)+' και '+(j+1)+' τέμνονται. Το περίγραμμα δεν επιτρέπεται να διασταυρώνεται.';
+  }
+  const A=Math.abs(area2(P)/2);
+  if(A<0.5) return 'Το σχήμα είναι πολύ μικρό ή εκφυλισμένο (εμβαδόν '+A.toFixed(2)+' m²).';
+  for(let i=0;i<n;i++){
+    const a=P[(i-1+n)%n],c=P[i],b=P[(i+1)%n];
+    const u=[a[0]-c[0],a[1]-c[1]],w=[b[0]-c[0],b[1]-c[1]];
+    const ang=Math.acos(Math.max(-1,Math.min(1,(u[0]*w[0]+u[1]*w[1])/(Math.hypot(...u)*Math.hypot(...w)))))*180/Math.PI;
+    if(ang<8) return 'Η γωνία στην κορυφή '+(i+1)+' είναι '+ang.toFixed(0)+'° — πολύ οξεία για να λυθεί στέγη.';
+  }
+  return null;
+}
+function checkSolution(sol,P){
+  for(const v of P){
+    const c=sol.arcs.filter(a=>dist(a[0],v)<1e-6||dist(a[1],v)<1e-6).length;
+    if(c!==1) return 'Ο επιλύτης δεν κατέληξε σε έγκυρη στέγη σε αυτό το σχήμα.';
+  }
+  const K=p=>p[0].toFixed(5)+','+p[1].toFixed(5), adj={};
+  for(const [a,b] of sol.arcs){(adj[K(a)]=adj[K(a)]||[]).push(K(b));(adj[K(b)]=adj[K(b)]||[]).push(K(a));}
+  const ks=Object.keys(adj);
+  if(ks.length){const seen=new Set(),st=[ks[0]];
+    while(st.length){const k=st.pop(); if(seen.has(k))continue; seen.add(k); for(const w of adj[k])st.push(w);}
+    if(seen.size!==ks.length) return 'Ο σκελετός βγήκε ασύνδετος — δοκίμασε απλούστερο περίγραμμα.';}
+  return null;
+}
+
+/* ============================================================
+   ΤΥΠΟΙ ΣΤΕΓΗΣ — τετράρριχτη (σκελετός) · δίρριχτη · μονόρριχτη
+   Για δίρριχτη/μονόρριχτη το ύψος ορίζεται από την ΑΠΟΣΤΑΣΗ
+   από μια πλευρά αναφοράς, όχι από τον σκελετό.
+   ============================================================ */
+function clipLine(P,p0,dir){                  /* διαστήματα της ευθείας μέσα στο πολύγωνο */
+  const ts=[], n=P.length;
+  for(let i=0;i<n;i++){
+    const a=P[i],b=P[(i+1)%n];
+    const ex=b[0]-a[0], ey=b[1]-a[1];
+    const den=dir[0]*ey-dir[1]*ex; if(Math.abs(den)<1e-12)continue;
+    const ax=a[0]-p0[0], ay=a[1]-p0[1];
+    const t=(ax*ey-ay*ex)/den, ss=(ax*dir[1]-ay*dir[0])/den;
+    if(ss>=-1e-9&&ss<=1+1e-9) ts.push(t);
+  }
+  ts.sort((x,y)=>x-y);
+  const out=[];
+  for(let i=0;i+1<ts.length;i+=2) if(ts[i+1]-ts[i]>1e-6) out.push([ts[i],ts[i+1]]);
+  return out;
+}
+function splitAt(P,pts){
+  /* βάζει τα σημεία pts ως κορυφές πάνω στις ακμές — αλλιώς ο κορφιάς
+     δεν συνδέεται με το περίγραμμα και οι έδρες βγαίνουν λάθος */
+  let Q=P.map(p=>p.slice());
+  for(const q of pts){
+    let bi=-1,bt=0,bd=1e9;
+    for(let i=0;i<Q.length;i++){
+      const a=Q[i],b=Q[(i+1)%Q.length];
+      const dx=b[0]-a[0],dy=b[1]-a[1],L2=dx*dx+dy*dy; if(L2<1e-12)continue;
+      const t=Math.max(0,Math.min(1,((q[0]-a[0])*dx+(q[1]-a[1])*dy)/L2));
+      const d=Math.hypot(q[0]-a[0]-t*dx,q[1]-a[1]-t*dy);
+      if(d<bd){bd=d;bi=i;bt=t;}
+    }
+    if(bi>=0&&bd<1e-6&&bt>1e-6&&bt<1-1e-6) Q.splice(bi+1,0,q.slice());
+  }
+  return Q;
+}
+function refFrame(P,ei){                      /* πλαίσιο πλευράς αναφοράς */
+  const n=P.length, a=P[ei], b=P[(ei+1)%n], L=dist(a,b);
+  const d=[(b[0]-a[0])/L,(b[1]-a[1])/L], nv=[-d[1],d[0]];
+  let umax=0;
+  for(const p of P) umax=Math.max(umax,(p[0]-a[0])*nv[0]+(p[1]-a[1])*nv[1]);
+  return {a,d,nv,umax};
+}
+/* συνθέτει sol {arcs,nodes,pts} συμβατό με τα υπόλοιπα */
+function buildSimpleRoof(P,type,ei,th){
+  const F=refFrame(P,ei), arcs=[], nodes=[];
+  if(type==='gable'){
+    const u=F.umax/2;
+    const p0=[F.a[0]+F.nv[0]*u, F.a[1]+F.nv[1]*u];
+    for(const [t0,t1] of clipLine(P,p0,F.d)){
+      const A=[p0[0]+F.d[0]*t0,p0[1]+F.d[1]*t0], B=[p0[0]+F.d[0]*t1,p0[1]+F.d[1]*t1];
+      arcs.push([A,B]); nodes.push([A,u]); nodes.push([B,u]);
+    }
+  } else {                                     /* μονόρριχτη: κορφιάς = η απέναντι ακμή */
+    const u=F.umax;
+    const p0=[F.a[0]+F.nv[0]*u, F.a[1]+F.nv[1]*u];
+    for(const [t0,t1] of clipLine(P,p0,F.d)){
+      const A=[p0[0]+F.d[0]*t0,p0[1]+F.d[1]*t0], B=[p0[0]+F.d[0]*t1,p0[1]+F.d[1]*t1];
+      nodes.push([A,u]); nodes.push([B,u]);
+    }
+  }
+  const ends=[]; for(const ar of arcs){ends.push(ar[0],ar[1]);}
+  for(const nd of nodes) ends.push(nd[0]);
+  return {arcs,nodes,pts:splitAt(P,ends),frame:F,type};
+}
+
+/* ============================================================
+   ΕΔΡΕΣ ΑΠΟ ΤΟΝ ΓΡΑΦΟ — μία έδρα ανά πλευρά, άθροισμα = εμβαδόν
+   Διάσχιση: "επόμενη ακμή = η αμέσως δεξιόστροφα μετά την αντίστροφη"
+   ============================================================ */
+function faces(pts,arcs){
+  const K=p=>p[0].toFixed(6)+','+p[1].toFixed(6);
+  const pos={},adj={};
+  const add=(u,v)=>{pos[K(u)]=u;pos[K(v)]=v;(adj[K(u)]=adj[K(u)]||new Set()).add(K(v));};
+  const n=pts.length;
+  for(let i=0;i<n;i++){add(pts[i],pts[(i+1)%n]);add(pts[(i+1)%n],pts[i]);}
+  for(const ab of arcs){add(ab[0],ab[1]);add(ab[1],ab[0]);}
+  const nb={};
+  for(const k in adj) nb[k]=[...adj[k]].sort((x,y)=>
+    Math.atan2(pos[x][1]-pos[k][1],pos[x][0]-pos[k][0])-
+    Math.atan2(pos[y][1]-pos[k][1],pos[y][0]-pos[k][0]));
+  const seen=new Set(), out=[];
+  for(const u in adj) for(const v of nb[u]){
+    if(seen.has(u+'|'+v))continue;
+    const f=[];let cu=u,cv=v,g=0;
+    while(!seen.has(cu+'|'+cv)&&g<5000){
+      g++;seen.add(cu+'|'+cv);f.push(pos[cu]);
+      const L=nb[cv],ix=L.indexOf(cu);cu=cv;cv=L[(ix-1+L.length)%L.length];
+    }
+    if(f.length>=3&&area2(f)/2>1e-6)out.push(f);
+  }
+  return out;
+}
+
+/* καθαρισμός περιγράμματος κάτοψης για επίλυση: διπλές/συνευθειακές κορυφές */
+function cleanPoly(P){
+  var p=P.filter(function(v,i){ return i===0 || dist(v,P[i-1])>0.03; });
+  if (p.length>1 && dist(p[0],p[p.length-1])<0.03) p.pop();
+  for (var guard=0; guard<4; guard++){
+    var cl=[];
+    for (var i=0;i<p.length;i++){ var a=p[(i-1+p.length)%p.length], c=p[i], b=p[(i+1)%p.length];
+      var la=dist(a,c), lb=dist(c,b); if (la<1e-9||lb<1e-9) continue;
+      var cr=Math.abs((c[0]-a[0])*(b[1]-c[1])-(c[1]-a[1])*(b[0]-c[0]))/(la*lb);
+      if (cr>0.012 && Math.min(la,lb)>0.025) cl.push(c); else if (cr>0.35) cl.push(c); }
+    if (cl.length===p.length || cl.length<3) break; p=cl;
+  }
+  if (area2(p)<0) p=p.slice().reverse();
+  return p;
+}
+function longestEdge(P){ var bi=0,bl=-1; for (var i=0;i<P.length;i++){ var l=dist(P[i],P[(i+1)%P.length]); if (l>bl){bl=l;bi=i;} } return bi; }
+/* επίλυση: P κάτοψη (m), opt {type:'hip'|'gable'|'mono', pit:% , ovh:m, ref:ακμή}
+   επιστρέφει έδρες με ύψη ΣΧΕΤΙΚΑ με τη γραμμή του τοίχου (γείσο κάτω από 0) */
+function solve(P0, opt){
+  var P=cleanPoly(P0), e=checkGeom(P); if (e) return { err:e, P:P };
+  var th=(opt.pit>0? opt.pit : 35)/100, ovh=Math.max(0, opt.ovh||0), type=opt.type||'hip';
+  var ref = (opt.ref>=0 && opt.ref<P.length)? opt.ref : longestEdge(P);
+  var G = ovh>0.001 ? offsetPoly(P, ovh) : P.map(function(q){ return q.slice(); });
+  var sol, zf;
+  try {
+    if (type==='hip'){
+      sol=skeleton(G,[]); var bad=checkSolution(sol,G); if (bad) return { err:bad, P:P };
+      var K=function(p){ return p[0].toFixed(5)+','+p[1].toFixed(5); }, T={};
+      sol.nodes.forEach(function(n){ T[K(n[0])]=n[1]; });
+      zf=function(p){ var t=T[K(p)]; if (t===undefined){ var best=null; sol.nodes.forEach(function(n){ var d=dist(n[0],p); if (d<1e-4 && (!best||d<best.d)) best={d:d,t:n[1]}; }); t=best? best.t : 0; } return (t-ovh)*th; };
+    } else {
+      sol=buildSimpleRoof(G, type, ref, th); var F=sol.frame;
+      zf=function(p){ var u=(p[0]-F.a[0])*F.nv[0]+(p[1]-F.a[1])*F.nv[1]; return ((type==='gable'? Math.min(u, F.umax-u) : u) - ovh)*th; };
+    }
+  } catch(err){ return { err:'Ο επιλύτης απέτυχε σε αυτό το σχήμα.', P:P }; }
+  var pts = sol.pts || G, fc = faces(pts, sol.arcs||[]);
+  if (!fc.length) fc=[pts];
+  var tmax=0; fc.forEach(function(f){ f.forEach(function(p){ tmax=Math.max(tmax, zf(p)); }); });
+  return { P:P, G:pts, faces:fc.map(function(f){ return f.map(function(p){ return [p[0],p[1],zf(p)]; }); }), arcs:(sol.arcs||[]).map(function(a){ return [[a[0][0],a[0][1],zf(a[0])],[a[1][0],a[1][1],zf(a[1])]]; }),
+           zf:zf, ref:ref, th:th, ovh:ovh, type:type, top:tmax };
+}
+return { solve:solve, cleanPoly:cleanPoly, longestEdge:longestEdge, skeleton:skeleton, faces:faces };
+})();
+</script>
 <script>(function(){
 /* ============================================================
    HEXIS 3D ΚΤΙΡΙΟ — διεπαφή (όροφοι, σχέδια, ερωτήσεις, διορθώσεις)
@@ -2242,9 +2945,9 @@ var $ = function(s,r){ return (r||document).querySelector(s); };
 var $$ = function(s,r){ return Array.prototype.slice.call((r||document).querySelectorAll(s)); };
 if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-var ROLE_ARCH = [['wall','Τοίχοι'],['column','Υποστυλώματα'],['opening','Κουφώματα'],['door','Πόρτες'],['balcony','Εξώστες / πλάκες'],['railing','Κάγκελα'],['ignore','—']];
+var ROLE_ARCH = [['wall','Τοίχοι'],['column','Υποστυλώματα'],['opening','Κουφώματα'],['door','Πόρτες'],['balcony','Εξώστες / πλάκες'],['railing','Κάγκελα'],['stair','Σκάλες'],['fence','Μάντρες / τοιχία'],['curb','Πεζούλια / ζαρντινιέρες'],['furniture','Έπιπλα / εξοπλισμός'],['contour','Ισοϋψείς / σημεία εδάφους'],['ignore','—']];
 var ROLE_STRUCT = [['column','Υποστυλώματα'],['beam','Δοκοί'],['slab','Πλάκες'],['ignore','—']];
-var ROLE_COL = { wall:'#E6EEF8', column:'#FF5C8A', opening:'#3DE8FF', door:'#A78BFA', balcony:'#4ADE9B', railing:'#9EE7FF', beam:'#FFB547', slab:'#4ADE9B', ignore:'#3A4A66' };
+var ROLE_COL = { wall:'#E6EEF8', column:'#FF5C8A', opening:'#3DE8FF', door:'#A78BFA', balcony:'#4ADE9B', railing:'#9EE7FF', stair:'#FFE08A', fence:'#C9B79C', curb:'#B7A6FF', furniture:'#9C8CFF', contour:'#3DBFA8', beam:'#FFB547', slab:'#4ADE9B', ignore:'#3A4A66' };
 var TYPE_LBL = { window:'Παράθυρο', door:'Πόρτα', balcony:'Μπαλκονόπορτα', passage:'Άνοιγμα' };
 var TYPE_COL = { window:'#3DE8FF', door:'#A78BFA', balcony:'#4ADE9B', passage:'#FFB547' };
 var fmt = function(v,d){ return (v===null||v===undefined||isNaN(v))? '' : (+v).toFixed(d===undefined?2:d); };
@@ -2373,7 +3076,7 @@ function renderFloors(){
   if (!S.floors.length){ S.floors.push(newFloor('Ισόγειο')); }
   host.innerHTML = S.floors.map(function(f,i){ return floorHTML(f,i); }).reverse().join('');
   S.floors.forEach(function(f,i){ ['arch','struct'].forEach(function(src){ if (f[src]) drawPreview(i,src); }); });
-  updateStackMini();
+  updateStackMini(); document.body.classList.toggle('pvfull', S.floors.some(function(f){ return (f.arch&&f.arch._full)||(f.struct&&f.struct._full); }));
 }
 function floorHTML(f,i){
   var el = floorElev(i);
@@ -2421,6 +3124,46 @@ function hDiagram(f){
     '<line x1="100" y1="'+y0+'" x2="100" y2="'+yc+'" class="d-dim"/><text x="104" y="'+((y0+yc)/2+3)+'" class="d-t">'+fmt(f.hClear)+'</text>'+
     '<line x1="206" y1="'+y0+'" x2="206" y2="'+yg+'" class="d-dim2"/><text x="182" y="'+(yg+10)+'" class="d-t2">'+fmt(H)+'</text>';
 }
+var ROOF_LBL={ flat:'Δώμα (επίπεδη)', hip:'Τετράρριχτη', gable:'Δίρριχτη', mono:'Μονόρριχτη' };
+function siteBoxHTML(f,fs,i){
+  var R=fs.res, h='', sv=(window.HX3&&HX3.siteV)? HX3.siteV() : {fenceH:1.5,curbH:0.4,riser:0.17};
+  var C=R.contours;
+  if (C && (C.lines.length || C.need) && S.floors.filter(function(g){ return g.arch&&g.arch.res&&g.arch.res.contours&&g.arch.res.contours.lines.length; })[0]===f || (C && C.need)){
+    var zr = (window.HX3 && HX3.terrRef)? HX3.terrRef() : null;
+    h+='<div class="ask mini done"><div class="ask-h"><span class="pulse"></span>Έδαφος από ισοϋψείς</div>';
+    if (C.need || !C.lines.length) h+='<div class="warnbox">Οι ισοϋψείς δεν έχουν υψόμετρο (Z) ούτε αριθμητικές ετικέτες κοντά τους. Βάλε υψόμετρα στις γραμμές ή ετικέτες στο σχέδιο.</div>';
+    else h+='<p class="note"><b>'+C.lines.length+'</b> ισοϋψείς · από <b>'+fmt(C.zmin)+'</b> ως <b>'+fmt(C.zmax)+'</b> m'+(C.lines.some(function(l){return l.inf;})?' · όσες δεν είχαν ετικέτα πήραν υψόμετρο με παρεμβολή (φαίνεται στο σχέδιο)':'')+'</p>'+
+      '<div class="hgrid two"><div class="fld"><label>ΥΨΟΜΕΤΡΟ ±0.00<br><small>δάπεδο ισογείου (απόλυτο)</small></label><input data-k="zRef" inputmode="decimal" value="'+(isFinite(parseFloat(S.site.zRef))? fmt(parseFloat(S.site.zRef)) : '')+'" placeholder="'+(zr!==null&&zr!==undefined? fmt(zr)+' (αυτόματο)' : 'αυτόματο')+'"></div></div>';
+    h+='</div>';
+  }
+  var hasSite=(R.stairs&&R.stairs.length)||(R.fences&&R.fences.length)||(R.curbs&&R.curbs.length);
+  if (hasSite){
+    h+='<div class="ask mini done"><div class="ask-h"><span class="pulse"></span>Περιβάλλων χώρος & σκάλες</div><div class="hgrid">'+
+      '<div class="fld"><label>ΥΨΟΣ ΜΑΝΤΡΑΣ<br><small>από το έδαφος</small></label><input data-k="fenceH" inputmode="decimal" value="'+fmt(sv.fenceH)+'"></div>'+
+      '<div class="fld"><label>ΥΨΟΣ ΠΕΖΟΥΛΙΟΥ<br><small>ζαρντινιέρες</small></label><input data-k="curbH" inputmode="decimal" value="'+fmt(sv.curbH)+'"></div>'+
+      '<div class="fld"><label>ΡΙΧΤΙ<br><small>εξωτ. σκαλοπατιών</small></label><input data-k="riser" inputmode="decimal" value="'+fmt(sv.riser)+'"></div>'+
+      '</div><p class="note">Οι εσωτερικές σκάλες μοιράζουν το μικτό ύψος του ορόφου. Πάτα πάνω σε σκάλα για αντιστροφή φοράς.</p></div>';
+  }
+  var top=-1; S.floors.forEach(function(g,k){ if (g.arch&&g.arch.res) top=k; });
+  var r=f.roof||{}, type=r.type||'flat', open = i===top || type!=='flat';
+  h+='<details class="roofbox"'+(open?' open':'')+'><summary>Στέγη <em>'+ROOF_LBL[type]+'</em></summary><div class="in">'+
+     '<div class="roofpick">'+Object.keys(ROOF_LBL).map(function(k){ return '<button data-act="roofType" data-v="'+k+'" class="'+(k===type?'on':'')+'">'+roofIcon(k)+'<span>'+ROOF_LBL[k]+'</span></button>'; }).join('')+'</div>';
+  if (type!=='flat'){
+    h+='<div class="hgrid">'+
+       '<div class="fld"><label>ΚΛΙΣΗ<br><small>%</small></label><input data-k="roofPit" inputmode="decimal" value="'+fmt(r.pit>0?r.pit:35,1)+'"></div>'+
+       '<div class="fld"><label>ΓΕΙΣΟ<br><small>m</small></label><input data-k="roofOvh" inputmode="decimal" value="'+fmt(r.ovh>=0?r.ovh:0.6)+'"></div>'+
+       '<div class="fld"><label>ΠΑΧΟΣ<br><small>στέγης m</small></label><input data-k="roofTh" inputmode="decimal" value="'+fmt(r.th>0?r.th:0.25)+'"></div>'+
+       '</div><div class="seg2"><span>Οροφή χώρων</span><button data-act="ceil" data-v="flat" class="'+((r.ceil||'flat')==='flat'?'on':'')+'">Επίπεδη πλάκα</button><button data-act="ceil" data-v="sloped" class="'+(r.ceil==='sloped'?'on':'')+'">Κεκλιμένη (ακολουθεί τη στέγη)</button></div>'+
+       '<div class="row">'+(type!=='hip'?'<button class="ghost" data-act="roofRef">↻ Κατεύθυνση κορφιά</button>':'')+
+       (window.HX_IN_HEXIS?'<button class="btn" data-act="toStegh">Στη Στέγη & Προμέτρηση →</button>':'')+'</div>';
+    if (fs._roofErr && fs._roofErr.length) h+='<div class="warnbox">'+esc(fs._roofErr[0])+'</div>';
+  }
+  return h+'</div></details>';
+}
+function roofIcon(k){
+  var p={ flat:'M4 15h24v3H4z', hip:'M3 18 L10 9 H22 L29 18 Z', gable:'M3 18 L16 6 L29 18 Z', mono:'M3 18 L3 12 L29 6 L29 18 Z' }[k];
+  return '<svg viewBox="0 0 32 22" aria-hidden="true"><path d="'+p+'"/><path d="M6 18v3h20v-3" class="w"/></svg>';
+}
 function slotHTML(f,i,src){
   var fs=f[src], isA = src==='arch';
   var title = isA? 'Κάτοψη' : 'Ξυλότυπος οροφής';
@@ -2453,12 +3196,13 @@ function slotHTML(f,i,src){
   h+='<span class="tag '+(fs.scaleSrc==='εκτίμηση'||fs.scaleSrc==='προεπιλογή'?'warn':'ok')+'">'+esc(fs.scaleSrc||'')+'</span>';
   var gb=geomBBox(fs); if (gb) h+='<span class="tag dim" title="Σύγκρινέ το με τις διαστάσεις του σχεδίου">'+fmt(gb[2]-gb[0],2)+' × '+fmt(gb[3]-gb[1],2)+' m</span>';
   h+='</div>';
-  h+='<div class="pv'+(fs._crop?' crop':'')+'"><canvas data-pv="'+src+'"></canvas><div class="pvbar">'+
-     '<button data-act="crop" class="'+(fs._crop?'on':'')+'">✂ Περιοχή</button>'+(fs.crop?'<button data-act="uncrop">Όλη η σελίδα</button>':'')+'</div>'+
-     '<div class="pvleg">'+(isA?'<span><i style="background:#E6EEF8"></i>τοίχος</span><span><i style="background:#3DE8FF"></i>παράθυρο</span><span><i style="background:#A78BFA"></i>πόρτα</span><span><i style="background:#4ADE9B"></i>εξώστης</span>'
+  h+='<div class="pv'+(fs._crop?' crop':'')+(fs._full?' full':'')+'"><canvas data-pv="'+src+'"></canvas><div class="pvbar">'+
+     '<button data-act="crop" class="'+(fs._crop?'on':'')+'">✂ Περιοχή</button>'+(fs.crop?'<button data-act="uncrop">Όλη η σελίδα</button>':'')+
+     '<span class="pvz"><button data-act="zin" aria-label="Μεγέθυνση">＋</button><button data-act="zout" aria-label="Σμίκρυνση">－</button><button data-act="zfit" aria-label="Όλο το σχέδιο">⊡</button><button data-act="zfull" aria-label="Πλήρης οθόνη">⤢</button></span></div>'+
+     '<div class="pvleg">'+(isA?'<span><i style="background:#E6EEF8"></i>τοίχος</span><span><i style="background:#3DE8FF"></i>παράθυρο</span><span><i style="background:#A78BFA"></i>πόρτα</span><span><i style="background:#4ADE9B"></i>εξώστης</span><span><i style="background:#FFE08A"></i>σκάλα</span><span><i style="background:#9C8CFF"></i>έπιπλο</span>'
        :'<span><i style="background:#FF5C8A"></i>υποστ.</span><span><i style="background:#FFB547"></i>δοκοί</span><span><i style="background:#4ADE9B"></i>πλάκες</span>')+'</div></div>';
   if (fs._crop) h+='<p class="note hint">Σύρε ορθογώνιο γύρω από την κάτοψη. Οι γραμμές που περνούν το όριο κόβονται εκεί.</p>';
-  else if (isA) h+='<p class="note hint">Πάτα πάνω στο σχέδιο για διόρθωση: τοίχος ↔ χώρος, ή αλλαγή τύπου κουφώματος.</p>';
+  else if (isA) h+='<p class="note hint">Ζουμ με ροδέλα ή δύο δάχτυλα, μετακίνηση με σύρσιμο. Πάτα πάνω στο σχέδιο για διόρθωση: τοίχος ↔ χώρος, τύπος κουφώματος, φορά σκάλας, ύψος επίπλου.</p>';
   var R=fs.res;
   if (R){
     h+='<div class="chips">';
@@ -2469,10 +3213,16 @@ function slotHTML(f,i,src){
       if (cnt.passage) h+='<span class="chip"><b>'+cnt.passage+'</b> ανοίγματα</span>';
       if (R.balconies.length) h+='<span class="chip"><b>'+R.balconies.length+'</b> εξώστες</span>';
       if (R.rooms.length) h+='<span class="chip"><b>'+R.rooms.length+'</b> χώροι</span>';
+      if (R.stairs&&R.stairs.length) h+='<span class="chip"><b>'+R.stairs.length+'</b> σκάλες</span>';
+      if (R.fences&&R.fences.length) h+='<span class="chip"><b>'+R.fences.length+'</b> μάντρες</span>';
+      if (R.curbs&&R.curbs.length) h+='<span class="chip"><b>'+R.curbs.length+'</b> πεζούλια</span>';
+      if (R.furniture&&R.furniture.length) h+='<span class="chip"><b>'+R.furniture.length+'</b> έπιπλα</span>';
+      if (R.contours&&R.contours.lines.length) h+='<span class="chip"><b>'+R.contours.lines.length+'</b> ισοϋψείς</span>';
     } else {
       h+='<span class="chip"><b>'+R.columns.length+'</b> υποστυλώματα</span><span class="chip"><b>'+R.beams.length+'</b> δοκοί</span><span class="chip"><b>'+R.slabs.filter(function(s){return !s.container;}).length+'</b> πλάκες</span>';
     }
     h+='</div>';
+    if (isA) h+=siteBoxHTML(f,fs,i);
     if (isA && !R.mass.length) h+='<div class="warnbox">Δεν βρέθηκαν τοίχοι. Όρισε στη λίστα «Layers» ποια είναι οι τοίχοι ή διόρθωσε την κλίμακα.</div>';
   }
   if (!isA){
@@ -2542,8 +3292,9 @@ function drawPreview(fi, src){
   var bb = P3.bbox(m.filter(function(p){ return p.k!=='text'; })) || [0,0,1,1];
   var pad=12, sx=(W-2*pad)/Math.max(1e-6,bb[2]-bb[0]), sy=(H-2*pad)/Math.max(1e-6,bb[3]-bb[1]), s=Math.min(sx,sy);
   var ox=pad+((W-2*pad)-(bb[2]-bb[0])*s)/2, oy=pad+((H-2*pad)-(bb[3]-bb[1])*s)/2;
+  var vw=fs._view; if (vw){ s=s*vw.z; ox=W/2-(vw.cx-bb[0])*s; oy=H/2-(vw.cy-bb[1])*s; }
   function X(p){ return ox+(p[0]-bb[0])*s; } function Y(p){ return H-(oy+(p[1]-bb[1])*s); }
-  cv._map = { bb:bb, s:s, ox:ox, oy:oy, H:H, fs:fs };
+  cv._map = { bb:bb, s:s, ox:ox, oy:oy, H:H, W:W, fs:fs, s0:(vw? s/vw.z : s) };
   function path(P,close){ g.beginPath(); P.forEach(function(q,j){ if(j)g.lineTo(X(q),Y(q)); else g.moveTo(X(q),Y(q)); }); if (close) g.closePath(); }
   function facePath(F){ g.beginPath(); [F.outer].concat(F.holes).forEach(function(R){ R.forEach(function(q,j){ if(j)g.lineTo(X(q),Y(q)); else g.moveTo(X(q),Y(q)); }); g.closePath(); }); }
   var R = !showAll && fs.res;
@@ -2566,6 +3317,36 @@ function drawPreview(fi, src){
     g.fillStyle='rgba(230,238,248,.92)';
     R.mass.forEach(function(F){ facePath(F); g.fill('evenodd'); });
     R.parapets.forEach(function(F){ facePath(F); g.fill('evenodd'); });
+    // ισοϋψείς: υψόμετρο πάνω στη γραμμή (με * όσες βγήκαν με παρεμβολή)
+    if (R.contours && R.contours.lines.length){
+      g.font='700 10px "JetBrains Mono",monospace'; g.textAlign='center'; g.textBaseline='middle';
+      R.contours.lines.forEach(function(l){ if (l.z===undefined) return; var q=l.P[Math.floor(l.P.length/2)], t=fmt(l.z)+(l.inf?'*':'');
+        var w=g.measureText(t).width+8; g.fillStyle='rgba(4,16,20,.85)'; g.fillRect(X(q)-w/2, Y(q)-7, w, 14);
+        g.fillStyle= l.inf? '#FFE08A' : '#8FF5E0'; g.fillText(t, X(q), Y(q)); });
+    }
+    // περιβάλλων χώρος
+    g.fillStyle='rgba(201,183,156,.75)'; (R.fences||[]).forEach(function(F){ facePath(F); g.fill('evenodd'); });
+    g.fillStyle='rgba(183,166,255,.6)'; (R.curbs||[]).forEach(function(F){ facePath(F); g.fill('evenodd'); });
+    // σκάλες: αρίθμηση βαθμίδων από κάτω προς τα πάνω
+    (R.stairs||[]).forEach(function(st){
+      var flip=fs.stairFlip&&fs.stairFlip[st.key];
+      st.faces.forEach(function(F){
+        var k=flip? st.n+1-F.step : F.step;
+        g.fillStyle = F.kind==='landing'? 'rgba(255,224,138,.28)' : 'rgba(255,224,138,'+(0.18+0.5*k/st.n)+')';
+        facePath(F); g.fill('evenodd'); g.strokeStyle='rgba(255,224,138,.9)'; g.lineWidth=0.8; g.stroke();
+        var px=Math.min(1e9, s*0.22);
+        if (px>=7){ g.fillStyle='#1A1405'; g.font='700 '+Math.min(12,Math.max(7,px*0.7))+'px Manrope,system-ui,sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(k, X(F.ip), Y(F.ip)); }
+      });
+      if (fs.hl==='st'+st.key){ g.strokeStyle='#fff'; g.lineWidth=2.5; st.faces.forEach(function(F){ facePath(F); g.stroke(); }); }
+      g.lineWidth=0.7;
+    });
+    // έπιπλα
+    (R.furniture||[]).forEach(function(o){
+      var hh=window.HX3? HX3.furnH(fs,o) : o.h;
+      g.fillStyle = hh>0? 'rgba(156,140,255,.38)' : 'rgba(156,140,255,.08)'; facePath(o); g.fill('evenodd');
+      g.strokeStyle= fs.hl==='fu'+o.key? '#FFFFFF' : 'rgba(190,178,255,.95)'; g.lineWidth= fs.hl==='fu'+o.key? 2.2 : 0.9; facePath(o); g.stroke(); g.lineWidth=0.7;
+      var mr=P3.minRect(o.outer); if (Math.min(mr.w,mr.l)*s >= 26){ g.fillStyle='#E9E4FF'; g.font='600 9px Manrope,system-ui,sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(hh>0? fmt(hh)+' m' : '—', X(o.ctr), Y(o.ctr)); }
+    });
     R.openings.forEach(function(o){
       var v=opVals(f,fs,o), col=TYPE_COL[v.type];
       g.fillStyle = col; g.globalAlpha=.85; facePath(o.face); g.fill('evenodd'); g.globalAlpha=1;
@@ -2635,11 +3416,32 @@ $('#floors').addEventListener('input', function(e){
     var svg=$('.floor[data-f="'+c.fi+'"] .hdiag'); if (svg) svg.innerHTML=hDiagram(f);
     updateElevs(); schedule3D(); return;
   }
+  if (k==='zRef'){ var zz=v.trim()===''? null : num(v,NaN); if (zz!==null && isNaN(zz)) return; S.site.zRef = zz; schedule3D(); return; }
+  if (k==='fenceH'||k==='curbH'||k==='riser'){ var y2=num(v,NaN); if (isNaN(y2)||y2<=0) return; S.site[k]=y2; schedule3D(); return; }
+  if (k==='roofPit'||k==='roofOvh'||k==='roofTh'){ var y3=num(v,NaN); if (isNaN(y3)||y3<0) return; f.roof=f.roof||{}; f.roof[{roofPit:'pit',roofOvh:'ovh',roofTh:'th'}[k]]=y3; schedule3D(); clearTimeout(roofMsgT); roofMsgT=setTimeout(function(){ refreshRoofErr(c.fi); }, 600); return; }
   if (k==='dx'||k==='dy'){ var y=num(v,NaN); if (isNaN(y)) return; fs[k]=y; recompute(fs,f); softRefresh(c.fi,c.src); return; }
   if (k==='opSill'||k==='opHead'){ var key=el.closest('tr').dataset.op, z=num(v,NaN); if (isNaN(z)) return; (fs.ovr[key]=fs.ovr[key]||{})[k==='opSill'?'sill':'head']=z; softRefresh(c.fi,c.src); return; }
   if (k==='bmH'){ var bid=+el.closest('tr').dataset.bm, hh=num(v,NaN); if (isNaN(hh)||hh<=0) return; fs.beamOvr[bid]=hh; softRefresh(c.fi,c.src); return; }
   if (k==='slD'){ var sid=+el.closest('tr').dataset.sl, dd=num(v,NaN); if (isNaN(dd)||dd<=0) return; (fs.slabOvr[sid]=fs.slabOvr[sid]||{}).d=dd; softRefresh(c.fi,c.src); return; }
 });
+var roofMsgT;
+function refreshRoofErr(fi){ var f=S.floors[fi], fs=f&&f.arch; if (!fs||!window.HX3) return; var e=HX3.solveRoofs(f,fs).filter(function(s){return s.err;}).map(function(s){return s.err;});
+  fs._roofErr=e; var box=$('.floor[data-f="'+fi+'"] .roofbox .in'); if (!box) return; var w=$('.warnbox',box); if (w) w.remove(); if (e.length){ var d=document.createElement('div'); d.className='warnbox'; d.textContent=e[0]; box.appendChild(d); } }
+document.addEventListener('keydown', function(e){ if (e.key==='Escape' && document.body.classList.contains('pvfull')){ S.floors.forEach(function(g){ ['arch','struct'].forEach(function(k){ if (g[k]) g[k]._full=false; }); }); renderFloors(); } });
+$('#floors').addEventListener('pointercancel', function(e){ delete PZ.pts[e.pointerId]; PZ.pinch=null; PZ.pan=null; tapStart=null; });
+/* αποστολή περιγράμματος στη «Στέγη & Προμέτρηση» (ίδιος επιλύτης) */
+function sendToStegh(c){
+  var f=c.f, fs=f.arch; if (!fs||!fs.res||!window.HX3){ toast('Χρειάζεται αναγνωρισμένη κάτοψη.'); return; }
+  var sol=HX3.solveRoofs(f, fs)[0], P=sol&&sol.P;
+  if (!P){ var fp=HX3.roofFootprints(fs)[0]; if (!fp){ toast('Δεν βρέθηκε περίγραμμα κτιρίου.'); return; } P=fp; }
+  var x0=Infinity,y0=Infinity; P.forEach(function(q){ x0=Math.min(x0,q[0]); y0=Math.min(y0,q[1]); });
+  var rv=HX3.roofOf(f), i=S.floors.indexOf(f);
+  var data={ v:1, from:'plan3d', name:f.name, pts:P.map(function(q){ return [Math.round((q[0]-x0)*1000)/1000, Math.round((q[1]-y0)*1000)/1000]; }),
+             type: rv.type==='flat'? 'hip' : rv.type, pit:rv.pit, ovh:rv.ovh, ref: sol&&sol.ref>=0? sol.ref : 0,
+             base: Math.round((floorElev(i)+(rv.sloped? f.hClear+rv.th : f.hGross))*100)/100 };
+  try { localStorage.setItem('hexis-stegh-import', JSON.stringify(data)); } catch(e){ toast('Δεν ήταν δυνατή η μεταφορά.'); return; }
+  window.location.href='stegh.html?from=plan3d';
+}
 function resetOv(fs){ fs.ovr={}; fs.beamOvr={}; fs.slabOvr={}; fs.faceOvr={}; fs.hl=null; }
 function updateElevs(){
   S.floors.forEach(function(f,i){ var fc=$('.floor[data-f="'+i+'"]'); if (!fc) return; var e=floorElev(i);
@@ -2664,9 +3466,21 @@ $('#floors').addEventListener('click', function(e){
   if (a==='hlb'){ var bid='b'+b.closest('tr').dataset.bm; fs.hl = fs.hl===bid? null : bid; markHL(b); drawPreview(c.fi,c.src); return; }
   if (a==='hls'){ var sid='s'+b.closest('tr').dataset.sl; fs.hl = fs.hl===sid? null : sid; markHL(b); drawPreview(c.fi,c.src); return; }
   if (a==='align'){ alignFile(c); return; }
+  if (a==='roofType'){ f.roof=f.roof||{}; f.roof.type=b.dataset.v; f.roof.ref=-1; renderFloors(); schedule3D(); setTimeout(function(){ refreshRoofErr(c.fi); }, 30); return; }
+  if (a==='ceil'){ f.roof=f.roof||{}; f.roof.ceil=b.dataset.v; renderFloors(); schedule3D(); return; }
+  if (a==='roofRef'){ f.roof=f.roof||{}; var sol=window.HX3? HX3.solveRoofs(f, f.arch)[0] : null; var n=sol&&sol.P? sol.P.length : 4, cur=sol&&sol.ref>=0? sol.ref : 0;
+    // επόμενη ακμή με διαφορετική διεύθυνση
+    var P=sol&&sol.P, nx=(cur+1)%n;
+    if (P){ var d0=Math.atan2(P[(cur+1)%n][1]-P[cur][1], P[(cur+1)%n][0]-P[cur][0]);
+      for (var t=1;t<=n;t++){ var j=(cur+t)%n, dj=Math.atan2(P[(j+1)%n][1]-P[j][1], P[(j+1)%n][0]-P[j][0]), df=Math.abs(Math.sin(dj-d0)); if (df>0.3 && Math.hypot(P[(j+1)%n][0]-P[j][0],P[(j+1)%n][1]-P[j][1])>1){ nx=j; break; } } }
+    f.roof.ref=nx; schedule3D(); toast('Ο κορφιάς άλλαξε κατεύθυνση.'); return; }
+  if (a==='toStegh'){ sendToStegh(c); return; }
+  if (a==='zin'||a==='zout'){ zoomPv(c, a==='zin'?1.5:1/1.5); return; }
+  if (a==='zfit'){ c.fs._view=null; drawPreview(c.fi,c.src); return; }
+  if (a==='zfull'){ var on=!c.fs._full; S.floors.forEach(function(g){ ['arch','struct'].forEach(function(k){ if (g[k]) g[k]._full=false; }); }); c.fs._full=on; renderFloors(); return; }
 });
 function markHL(b){ var tr=b.closest('tr'), on=!tr.classList.contains('hl'); $$('tr.hl', tr.closest('table')).forEach(function(r){ r.classList.remove('hl'); }); if (on) tr.classList.add('hl'); }
-function cloneFS(fs){ var o=JSON.parse(JSON.stringify(fs, function(k,v){ return (k==='res'||k==='m'||k==='_drag')? undefined : v; })); o.id=fs.id; o._crop=false; return o; }
+function cloneFS(fs){ var o=JSON.parse(JSON.stringify(fs, function(k,v){ return (k==='res'||k==='m'||k==='_drag'||k==='_view'||k==='_roofErr')? undefined : v; })); o.id=fs.id; o._crop=false; return o; }
 function alignFile(c){
   var ref = c.src==='struct' ? c.f.arch : (c.fi>0 ? S.floors[c.fi-1].arch : null);
   if (!ref || !ref.res){ toast('Δεν υπάρχει σχέδιο αναφοράς για ευθυγράμμιση.'); return; }
@@ -2677,22 +3491,53 @@ $('#floors').addEventListener('dragover', function(e){ var d=e.target.closest('.
 $('#floors').addEventListener('dragleave', function(e){ var d=e.target.closest('.drop'); if (d) d.classList.remove('over'); });
 $('#floors').addEventListener('drop', function(e){ var d=e.target.closest('.drop'); if (!d) return; e.preventDefault(); var c=ctx(d); if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0], c.fi, d.dataset.drop); });
 // επιλογή περιοχής & διόρθωση με πάτημα
-var tapStart=null;
+var tapStart=null, PZ={ pts:{}, pan:null, pinch:null };
+function pvView(cv){ var M=cv._map, fs=M.fs; if (!fs._view){ var c=canvasToM(cv, M.W/2, M.H/2); fs._view={ z:1, cx:c[0], cy:c[1] }; } return fs._view; }
+function zoomAt(cv, px, py, k){
+  var M=cv._map; if (!M) return; var fs=M.fs, v=pvView(cv), q=canvasToM(cv, px, py);
+  var z=Math.max(0.5, Math.min(80, v.z*k)); k=z/v.z; v.z=z;
+  // το σημείο κάτω από τον δείκτη μένει στη θέση του
+  v.cx = q[0] - (q[0]-v.cx)/k; v.cy = q[1] - (q[1]-v.cy)/k;
+}
+function zoomPv(c, k){ var cv=$('.floor[data-f="'+c.fi+'"] canvas[data-pv="'+c.src+'"]'); if (!cv||!cv._map) return; zoomAt(cv, cv._map.W/2, cv._map.H/2, k); drawPreview(c.fi,c.src); }
+$('#floors').addEventListener('wheel', function(e){
+  var cv=e.target.closest('canvas[data-pv]'); if (!cv || !cv._map) return; var c=ctx(cv); if (!c.fs) return;
+  e.preventDefault(); var r=cv.getBoundingClientRect();
+  zoomAt(cv, e.clientX-r.left, e.clientY-r.top, Math.exp(-e.deltaY*0.0016)); drawPreview(c.fi,c.src);
+}, { passive:false });
 $('#floors').addEventListener('pointerdown', function(e){
   var cv=e.target.closest('canvas[data-pv]'); if (!cv) return; var c=ctx(cv); if (!c.fs) return;
   var r=cv.getBoundingClientRect();
-  if (!c.fs._crop){ tapStart={x:e.clientX, y:e.clientY, t:Date.now()}; return; }
+  if (!c.fs._crop){
+    PZ.pts[e.pointerId]={x:e.clientX, y:e.clientY}; try { cv.setPointerCapture(e.pointerId); } catch(_){}
+    var ids=Object.keys(PZ.pts);
+    if (ids.length===2){ var a=PZ.pts[ids[0]], b=PZ.pts[ids[1]]; PZ.pinch={ d:Math.hypot(a.x-b.x,a.y-b.y) }; PZ.pan=null; tapStart=null; }
+    else { tapStart={x:e.clientX, y:e.clientY, t:Date.now()}; PZ.pan={ x:e.clientX, y:e.clientY, moved:false }; }
+    return; }
   e.preventDefault(); cv.setPointerCapture(e.pointerId);
   c.fs._drag={x0:e.clientX-r.left,y0:e.clientY-r.top,x1:e.clientX-r.left,y1:e.clientY-r.top};
 });
 $('#floors').addEventListener('pointermove', function(e){
-  var cv=e.target.closest('canvas[data-pv]'); if (!cv) return; var c=ctx(cv); if (!c.fs || !c.fs._drag) return;
+  var cv=e.target.closest('canvas[data-pv]'); if (!cv) return; var c=ctx(cv); if (!c.fs) return;
+  if (!c.fs._crop && PZ.pts[e.pointerId] && cv._map){
+    var r0=cv.getBoundingClientRect(); PZ.pts[e.pointerId]={x:e.clientX, y:e.clientY};
+    var ids=Object.keys(PZ.pts);
+    if (PZ.pinch && ids.length===2){ var a=PZ.pts[ids[0]], b=PZ.pts[ids[1]], d=Math.hypot(a.x-b.x,a.y-b.y);
+      if (PZ.pinch.d>10){ zoomAt(cv, (a.x+b.x)/2-r0.left, (a.y+b.y)/2-r0.top, d/PZ.pinch.d); PZ.pinch.d=d; drawPreview(c.fi,c.src); } return; }
+    if (PZ.pan){ var dx=e.clientX-PZ.pan.x, dy=e.clientY-PZ.pan.y;
+      if (!PZ.pan.moved && Math.hypot(e.clientX-tapStart.x, e.clientY-tapStart.y)<6) return;
+      PZ.pan.moved=true; var v=pvView(cv); v.cx-=dx/cv._map.s; v.cy+=dy/cv._map.s; PZ.pan.x=e.clientX; PZ.pan.y=e.clientY; drawPreview(c.fi,c.src); }
+    return;
+  }
+  if (!c.fs._drag) return;
   var r=cv.getBoundingClientRect(); c.fs._drag.x1=e.clientX-r.left; c.fs._drag.y1=e.clientY-r.top; drawPreview(c.fi,c.src);
 });
 $('#floors').addEventListener('pointerup', function(e){
   var cv=e.target.closest('canvas[data-pv]'); if (!cv) return; var c=ctx(cv); if (!c.fs) return;
   var r=cv.getBoundingClientRect();
   if (!c.fs._drag){
+    var wasPinch=!!PZ.pinch; delete PZ.pts[e.pointerId]; if (!Object.keys(PZ.pts).length){ PZ.pinch=null; } var moved=PZ.pan&&PZ.pan.moved; PZ.pan=null;
+    if (wasPinch||moved){ tapStart=null; return; }
     if (tapStart && Math.hypot(e.clientX-tapStart.x, e.clientY-tapStart.y)<6 && c.fs.kind==='arch' && c.fs.res) tapFix(c, canvasToM(cv, e.clientX-r.left, e.clientY-r.top));
     tapStart=null; return;
   }
@@ -2724,6 +3569,15 @@ function tapFix(c, p){
     else { (fs.ovr[op.key]=fs.ovr[op.key]||{}).type=nx; delete fs.ovr[op.key].sill; delete fs.ovr[op.key].head; toast('Κούφωμα '+op.id+': '+TYPE_LBL[nx]); }
     renderFloors(); schedule3D(); return;
   }
+  var fu=(R.furniture||[]).filter(function(o){ return P3.pointInFace(p,o); }).sort(function(a,b){ return Math.abs(P3.polyArea(a.outer))-Math.abs(P3.polyArea(b.outer)); })[0];
+  if (fu){
+    var cur2=HX3.furnH(fs,fu), seq=[fu.h,0.45,0.75,0.90,2.20,0].filter(function(v,i,A){ return A.indexOf(v)===i; }), ix=seq.indexOf(cur2), nv=seq[(ix+1)%seq.length];
+    fs.furnOvr=fs.furnOvr||{}; if (nv===fu.h) delete fs.furnOvr[fu.key]; else fs.furnOvr[fu.key]=nv; fs.hl='fu'+fu.key;
+    toast(fu.type+': '+(nv>0? 'ύψος '+fmt(nv)+' m' : 'κρυφό'));
+    drawPreview(c.fi,c.src); schedule3D(); return;
+  }
+  var stp=(R.stairs||[]).filter(function(st){ return st.faces.some(function(F){ return P3.pointInFace(p,F); }); })[0];
+  if (stp){ fs.stairFlip=fs.stairFlip||{}; fs.stairFlip[stp.key]=!fs.stairFlip[stp.key]; fs.hl='st'+stp.key; toast('Η σκάλα άλλαξε φορά ανόδου.'); drawPreview(c.fi,c.src); schedule3D(); return; }
   var F = R.faces.filter(function(F){ return P3.pointInFace(p, F); }).sort(function(a,b){ return Math.abs(a.area)-Math.abs(b.area); })[0];
   if (!F){ toast('Πάτα μέσα σε τοίχο ή χώρο για διόρθωση.'); return; }
   var key=P3.faceKey(F);
@@ -2764,7 +3618,7 @@ function showTab(t){
 $('#bSave').onclick = function(){
   var data = { app:'hexis-plan3d', v:2, saved:new Date().toISOString(), site:S.site, floors:S.floors.map(function(f){
     var o={}; Object.keys(f).forEach(function(k){ if (k!=='arch'&&k!=='struct') o[k]=f[k]; });
-    ['arch','struct'].forEach(function(s){ o[s]= f[s]? JSON.parse(JSON.stringify(f[s], function(k,v){ if (k==='res'||k==='m'||k==='_drag'||k==='_crop') return undefined; if (typeof v==='number') return Math.round(v*1e5)/1e5; return v; })) : null; });
+    ['arch','struct'].forEach(function(s){ o[s]= f[s]? JSON.parse(JSON.stringify(f[s], function(k,v){ if (k==='res'||k==='m'||k==='_drag'||k==='_crop'||k==='_view'||k==='_roofErr') return undefined; if (typeof v==='number') return Math.round(v*1e5)/1e5; return v; })) : null; });
     return o; }) };
   download(new Blob([JSON.stringify(data)],{type:'application/json'}), 'Ktirio3D_'+(S.floors[0]&&S.floors[0].name||'ergo').replace(/\s+/g,'_')+'.h3d');
 };
@@ -2792,7 +3646,7 @@ function schedule3D(rise){ if (rise) b3Rise=true; clearTimeout(b3T); b3T=setTime
    ============================================================ */
 var HX3 = (function(){
 var R3=null, MAT={}, clipH=null, clipV=null, built=false, firstFit=true;
-var VIEW={ show:{arch:true,struct:true,glass:true,edges:true,ghost:false,plan:true}, floorsOn:{},
+var VIEW={ show:{arch:true,struct:true,glass:true,edges:true,ghost:false,plan:true,furn:true,roof:true,terrain:true}, floorsOn:{},
            hOn:false, hPos:1.2, hFlip:false, vOn:false, vPos:0, vAng:90, vFlip:false, vPlane:true, mode:'studio' };
 var ANIM=null;                 // ανέγερση
 var MEAS={ on:false, kind:'dist', pts:[], items:[] };
@@ -2817,12 +3671,23 @@ function makeMaterials(){
   MAT.plan   = new THREE.LineBasicMaterial({ color:0x3DE8FF, transparent:true, opacity:0.85 });
   MAT.planDim= new THREE.LineBasicMaterial({ color:0x2A6C9A, transparent:true, opacity:0.45 });
   // γραμμές λίγο μπροστά από τις επιφάνειες (σταθερή μικρή μετατόπιση βάθους)
-  ['edge','edgeS','frame','plan','planDim'].forEach(function(k){
-    MAT[k].onBeforeCompile=function(sh){ sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n gl_Position.z -= 0.000005 * gl_Position.w;'); };
-  });
   MAT.planBase = new THREE.MeshBasicMaterial({ color:0x061226, transparent:true, opacity:0.78, depthWrite:false });
+  MAT.stair  = M({ color:0xE2E9F3 });
+  MAT.fence  = M({ color:0xB8C2D1, roughness:0.85 });
+  MAT.curb   = M({ color:0xA9B6C8, roughness:0.85 });
+  MAT.roof   = M({ color:0x9E5446, roughness:0.75 });
+  MAT.furn   = M({ color:0x9C8CFF, roughness:0.5, metalness:0.1, transparent:true, opacity:0.82, emissive:0x1A0F4A, emissiveIntensity:0.5 });
+  MAT.cutF   = new THREE.MeshBasicMaterial({ color:0xB8A6FF, side:THREE.BackSide, polygonOffset:true, polygonOffsetFactor:4, polygonOffsetUnits:4 });
+  MAT.furnEdge = new THREE.LineBasicMaterial({ color:0xD9CCFF, transparent:true, opacity:0.75 });
+  MAT.ridge  = new THREE.LineBasicMaterial({ color:0xFFC9A8, transparent:true, opacity:0.9 });
+  MAT.terrain = new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.95, metalness:0, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:1, polygonOffsetUnits:1 });
+  MAT.contour = new THREE.LineBasicMaterial({ color:0x8FF5E0, transparent:true, opacity:0.45 });
+  MAT.contourMaj = new THREE.LineBasicMaterial({ color:0xE6FFF8, transparent:true, opacity:0.85 });
   MAT.groundStudio = new THREE.MeshBasicMaterial({ color:0x050A16 });
   MAT.groundSun = new THREE.MeshStandardMaterial({ color:0xA9B1BD, roughness:1, metalness:0 });
+  ['edge','edgeS','frame','plan','planDim','furnEdge','ridge','contour','contourMaj'].forEach(function(k){
+    MAT[k].onBeforeCompile=function(sh){ sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n gl_Position.z -= 0.000005 * gl_Position.w;'); };
+  });
 }
 
 /* ---------------- Βοηθοί γεωμετρίας ---------------- */
@@ -3002,8 +3867,8 @@ function onResize(){
 }
 
 /* ---------------- Κατασκευή αρχιτεκτονικού ορόφου (ακριβής) ---------------- */
-function buildArchFloor(f, fs, H, isTop, isLowest, hasStruct){
-  var R=fs.res, T=R.T, out={ wall:new TB(), sill:new TB(), slab:new TB(), balc:new TB(), door:new TB(), glass:new TB(), rail:new TB(), edges:new LB(), frames:new LB() };
+function buildArchFloor(f, fs, H, isTop, isLowest, hasStruct, gLocal){
+  var R=fs.res, T=R.T, out={ wall:new TB(), sill:new TB(), slab:new TB(), balc:new TB(), door:new TB(), glass:new TB(), rail:new TB(), stair:new TB(), fence:new TB(), curb:new TB(), furn:new TB(), roof:new TB(), edges:new LB(), frames:new LB(), fedges:new LB(), ridges:new LB() };
   if (!T) return out;
   var opByFace={}; R.openings.forEach(function(o){ opByFace[o.face.id]=o; });
   function vals(o){ return opVals(f, fs, o); }
@@ -3074,7 +3939,10 @@ function buildArchFloor(f, fs, H, isTop, isLowest, hasStruct){
     }
   });
   // πλάκα οροφής πάνω από τους χώρους (αν δεν υπάρχει ξυλότυπος)
-  if (!hasStruct){
+  var RV=roofOf(f);
+  if (RV.sloped){ T.faces.forEach(function(F){ if (F.kind==='mat') cap(out.wall, F.outer, F.holes, H, true);
+      else if (F.kind==='open'){ var o=opByFace[F.id]; if (o && vals(o).head < f.hClear-0.005) cap(out.wall, F.outer, F.holes, H, true); } }); }
+  else if (!hasStruct){
     R.rooms.forEach(function(F){ cap(out.slab, F.outer, F.holes, f.hClear, false); });   // οροφή χώρων· τα πλάγια τα κλείνουν οι τοίχοι
     // ενιαία άνω επιφάνεια (τοίχοι + ανώφλια + πλάκα) χωρίς ραφές
     var inTop=function(F){ if (F.kind==='mat'||F.kind==='room') return true; if (F.kind==='open'){ var o=opByFace[F.id]; if (!o) return false; var v=vals(o); return v.head < f.hClear-0.005; } return false; };
@@ -3090,7 +3958,202 @@ function buildArchFloor(f, fs, H, isTop, isLowest, hasStruct){
   R.balconies.forEach(function(F){ prism(out.balc, F.outer, F.holes, -t, 0); });
   R.parapets.forEach(function(F){ prism(out.balc, F.outer, F.holes, -t, 1.0); });
   R.railings.forEach(function(s){ quad(out.rail, s[0], s[1], 0, 1.0); out.frames.seg(W(s[0],1.0),W(s[1],1.0)); });
+  buildSiteParts(f, fs, out, isLowest, gLocal);
+  buildFurniture(fs, out);
+  fs._roofErr = buildRoof(f, fs, RV.sloped ? H-0.01+RV.th : H, out, RV.sloped ? T : null, H);
   return out;
+}
+/* ---------------- Έδαφος από ισοϋψείς ---------------- */
+var TERR=null, CUR_Z0=0;
+function terrainData(){
+  var P=[], L=[];
+  S.floors.forEach(function(f){ var c=f.arch&&f.arch.res&&f.arch.res.contours; if (c&&c.pts&&c.pts.length){ P=P.concat(c.pts); L=L.concat(c.lines); } });
+  if (P.length<3 || !window.Delaunator) return null;
+  // διπλά σημεία
+  var seen={}, Q=[]; P.forEach(function(p){ var k=Math.round(p[0]*50)+':'+Math.round(p[1]*50); if (seen[k]) return; seen[k]=1; Q.push(p); });
+  var d; try { d=Delaunator.from(Q, function(p){return p[0];}, function(p){return p[1];}); } catch(e){ return null; }
+  var T=d.triangles, el=[];
+  for (var i=0;i<T.length;i+=3) for (var j=0;j<3;j++){ var a=Q[T[i+j]], b=Q[T[i+(j+1)%3]]; el.push(Math.hypot(a[0]-b[0],a[1]-b[1])); }
+  var srt=el.slice().sort(function(a,b){return a-b;}), med=srt[Math.floor(srt.length/2)]||1, thr=Math.max(med*10, srt[Math.floor(srt.length*0.9)]*2.5);
+  var tris=[];
+  for (var t=0;t<T.length;t+=3){ var A=Q[T[t]], B=Q[T[t+1]], C=Q[T[t+2]];
+    if (Math.max(el[t],el[t+1],el[t+2])>thr) continue; tris.push([A,B,C]); }
+  var zs=Q.map(function(p){return p[2];});
+  return { tris:tris, lines:L, zmin:Math.min.apply(null,zs), zmax:Math.max.apply(null,zs) };
+}
+function terrZ(TD, p){
+  if (!TD) return null;
+  for (var i=0;i<TD.tris.length;i++){ var t=TD.tris[i], a=t[0], b=t[1], c=t[2];
+    var den=(b[1]-c[1])*(a[0]-c[0])+(c[0]-b[0])*(a[1]-c[1]); if (Math.abs(den)<1e-12) continue;
+    var l1=((b[1]-c[1])*(p[0]-c[0])+(c[0]-b[0])*(p[1]-c[1]))/den, l2=((c[1]-a[1])*(p[0]-c[0])+(a[0]-c[0])*(p[1]-c[1]))/den, l3=1-l1-l2;
+    if (l1>=-1e-6 && l2>=-1e-6 && l3>=-1e-6) return l1*a[2]+l2*b[2]+l3*c[2]; }
+  return null;
+}
+function terrRef(TD){
+  var s=S.site||{}; if (isFinite(parseFloat(s.zRef))) return parseFloat(s.zRef);
+  // αυτόματα: υψόμετρο εδάφους στο κέντρο του κτιρίου του χαμηλότερου ορόφου
+  var low=null; S.floors.forEach(function(f){ if (!low && f.arch&&f.arch.res&&f.arch.res.mass&&f.arch.res.mass.length) low=f; });
+  if (low){ var pts=[]; low.arch.res.mass.forEach(function(F){ pts=pts.concat(F.outer); }); var c=[0,0]; pts.forEach(function(q){ c[0]+=q[0]; c[1]+=q[1]; }); c=[c[0]/pts.length, c[1]/pts.length];
+    var z=terrZ(TD,c); if (z!==null) return Math.round(z*100)/100; }
+  return Math.round(((TD.zmin+TD.zmax)/2)*100)/100;
+}
+function buildTerrainMesh(TD, zr){
+  var g=new THREE.Group(); g.userData.kind='terrain';
+  var pos=[], col=[], c0=new THREE.Color(0x0A2E3C), c1=new THREE.Color(0x16705F), c2=new THREE.Color(0x7A6B48), tmp=new THREE.Color();
+  function C(z){ var t=(z-TD.zmin)/Math.max(1e-6,TD.zmax-TD.zmin); if (t<0.5) tmp.copy(c0).lerp(c1,t*2); else tmp.copy(c1).lerp(c2,(t-0.5)*2); return tmp; }
+  TD.tris.forEach(function(t){
+    var A=t[0], B=t[1], Cc=t[2], cr=(B[0]-A[0])*(Cc[1]-A[1])-(B[1]-A[1])*(Cc[0]-A[0]); var arr= cr>0? [A,B,Cc] : [A,Cc,B];
+    arr.forEach(function(p){ pos.push(p[0], p[2]-zr, -p[1]); var cc=C(p[2]); col.push(cc.r,cc.g,cc.b); });
+  });
+  var geo=new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos,3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col,3)); geo.computeVertexNormals();
+  var m=new THREE.Mesh(geo, MAT.terrain); m.userData.tag='terrain'; m.receiveShadow=true; m.castShadow=true; g.add(m);
+  var lb=new LB(), lb2=new LB();
+  TD.lines.forEach(function(l){ var major = l.z!==undefined && Math.abs(l.z/5-Math.round(l.z/5))<1e-6;
+    for (var i=0;i<l.P.length-1;i++){ var za=(l.zs? l.zs[i] : l.z)-zr+0.03, zb=(l.zs? l.zs[i+1] : l.z)-zr+0.03; (major?lb2:lb).seg([l.P[i][0],za,-l.P[i][1]],[l.P[i+1][0],zb,-l.P[i+1][1]]); } });
+  var a=lb.geom(); if (a){ var L1=new THREE.LineSegments(a, MAT.contour); L1.userData.tag='contour'; g.add(L1); }
+  var b=lb2.geom(); if (b){ var L2=new THREE.LineSegments(b, MAT.contourMaj); L2.userData.tag='contour'; g.add(L2); }
+  return g;
+}
+/* ---------------- Έπιπλα ---------------- */
+function furnH(fs, o){ var v=fs.furnOvr && fs.furnOvr[o.key]; return v===undefined? o.h : v; }
+function buildFurniture(fs, out){
+  (fs.res.furniture||[]).forEach(function(o){
+    var h=furnH(fs,o); if (!(h>0)) return;
+    prism(out.furn, o.outer, o.holes, 0.002, h);
+    var e=0.004; o.outer.forEach(function(p,i){ var q=o.outer[(i+1)%o.outer.length]; out.fedges.seg(W(p,h+e), W(q,h+e)); });
+  });
+}
+/* ---------------- Κεκλιμένη στέγη ---------------- */
+function roofOf(f){ var r=f.roof||{}; var o={ type:r.type||'flat', pit:r.pit>0? r.pit:35, ovh:r.ovh>=0? r.ovh:0.60, ref:(r.ref===undefined? -1 : r.ref), th:r.th>0? r.th:0.25, ceil:r.ceil||'flat' }; o.sloped = o.type!=='flat' && o.ceil==='sloped'; return o; }
+function roofFootprints(fs){
+  var R=fs.res, T=R&&R.T; if (!T) return [];
+  var inB=function(F){ return F.kind==='mat'||F.kind==='room'||F.kind==='open'; };
+  return P3.massLoops(T, inB).map(function(L){ return L.map(function(h){ return T.V[T.from(h)]; }); }).filter(function(P){ return P3.polyArea(P)>1; });
+}
+function solveRoofs(f, fs){
+  var rv=roofOf(f); if (rv.type==='flat' || !window.HXROOF) return [];
+  return roofFootprints(fs).map(function(P, i){ return HXROOF.solve(P, { type:rv.type, pit:rv.pit, ovh:rv.ovh, ref: i===0? rv.ref : -1 }); });
+}
+function buildRoof(f, fs, H, out, TW, Hw){
+  var rv=roofOf(f), sols=solveRoofs(f, fs), errs=[];
+  sols.forEach(function(s){
+    if (s.err){ errs.push(s.err); return; }
+    var T=rv.th;
+    function lift(p, dz){ return [p[0], H+p[2]+dz, -p[1]]; }
+    s.faces.forEach(function(F){
+      if (F.length<3) return;
+      // κάθετος της έδρας (προς τα πάνω)
+      var a=F[0], n=[0,0,0];
+      for (var i=0;i<F.length;i++){ var p=F[i], q=F[(i+1)%F.length]; n[0]+=(p[1]-q[1])*(p[2]+q[2]); n[1]+=(p[2]-q[2])*(p[0]+q[0]); n[2]+=(p[0]-q[0])*(p[1]+q[1]); }
+      var nw=[n[0], n[2], -n[1]]; if (nw[1]<0) nw=[-nw[0],-nw[1],-nw[2]];
+      var V2=F.map(function(p){ return new THREE.Vector2(p[0],p[1]); });
+      if (THREE.ShapeUtils.isClockWise(V2)) { V2.reverse(); F=F.slice().reverse(); }
+      var tris; try { tris=THREE.ShapeUtils.triangulateShape(V2, []); } catch(e){ return; }
+      tris.forEach(function(t){
+        out.roof.tri(lift(F[t[0]],0), lift(F[t[1]],0), lift(F[t[2]],0), nw);
+        out.roof.tri(lift(F[t[0]],-T), lift(F[t[1]],-T), lift(F[t[2]],-T), [-nw[0],-nw[1],-nw[2]]);
+      });
+    });
+    // μέτωπο γείσου
+    var G=s.G, zf=s.zf;
+    for (var i=0;i<G.length;i++){
+      var p=G[i], q=G[(i+1)%G.length], d=[q[0]-p[0],q[1]-p[1]], L=Math.hypot(d[0],d[1]); if (L<1e-6) continue;
+      var nd=[d[1]/L,0,d[0]/L], zp=H+zf(p), zq=H+zf(q);
+      var A0=[p[0],zp-T,-p[1]], B0=[q[0],zq-T,-q[1]], B1=[q[0],zq,-q[1]], A1=[p[0],zp,-p[1]];
+      out.roof.tri(A0,B0,B1,nd); out.roof.tri(A0,B1,A1,nd);
+      out.ridges.seg([p[0],zp+0.004,-p[1]],[q[0],zq+0.004,-q[1]]);
+    }
+    s.arcs.forEach(function(a){ out.ridges.seg([a[0][0],H+a[0][2]+0.006,-a[0][1]],[a[1][0],H+a[1][2]+0.006,-a[1][1]]); });
+    // κεκλιμένη οροφή: όλοι οι τοίχοι (εξωτ. + εσωτ.) ανεβαίνουν ως την κάτω παρειά της στέγης
+    if (TW){
+      TW.faces.forEach(function(F){ if (F.kind!=='mat' && F.kind!=='open') return;
+        [F.outer].concat(F.holes).forEach(function(Rg){ for (var k=0;k<Rg.length;k++){ var a3=Rg[k], b3=Rg[(k+1)%Rg.length];
+          upWall(out.wall, a3, b3, Hw, function(p){ return H+zf(p)-T; }); } }); });
+      return;
+    }
+    // αετώματα: τοίχοι κάτω από τη στέγη (δίρριχτη/μονόρριχτη)
+    if (s.type!=='hip'){
+      var P=s.P;
+      for (var k=0;k<P.length;k++){
+        var a2=P[k], b2=P[(k+1)%P.length], dd=[b2[0]-a2[0],b2[1]-a2[1]], LL=Math.hypot(dd[0],dd[1]); if (LL<0.05) continue;
+        var us=[0,LL], N=24; for (var j=1;j<N;j++) us.push(LL*j/N);
+        us.sort(function(x,y){return x-y;});
+        var top=us.map(function(u){ var pp=[a2[0]+dd[0]/LL*u, a2[1]+dd[1]/LL*u]; return [u, Math.max(0, zf(pp)-T*0.5)]; });
+        if (Math.max.apply(null, top.map(function(t){return t[1];})) < 0.03) continue;
+        var poly=[[0,0],[LL,0]].concat(top.slice().reverse().map(function(t){ return [t[0],t[1]]; }));
+        var V2b=poly.map(function(p){ return new THREE.Vector2(p[0],p[1]); }); if (THREE.ShapeUtils.isClockWise(V2b)) V2b.reverse();
+        var tr2; try { tr2=THREE.ShapeUtils.triangulateShape(V2b,[]); } catch(e){ continue; }
+        var ux=dd[0]/LL, uy=dd[1]/LL, ndo=[uy,0,ux];
+        var Wp=function(v){ return [a2[0]+ux*v.x, H+v.y, -(a2[1]+uy*v.x)]; };
+        tr2.forEach(function(t){ out.wall.tri(Wp(V2b[t[0]]),Wp(V2b[t[1]]),Wp(V2b[t[2]]), ndo); out.wall.tri(Wp(V2b[t[0]]),Wp(V2b[t[1]]),Wp(V2b[t[2]]), [-ndo[0],0,-ndo[2]]); });
+      }
+    }
+  });
+  return errs;
+}
+/* κατακόρυφο κομμάτι τοίχου a→b από y0 ως top(p) (δύο όψεις) */
+function upWall(tb, a, b, y0, top){
+  var d=[b[0]-a[0],b[1]-a[1]], L=Math.hypot(d[0],d[1]); if (L<0.01) return;
+  var N=Math.max(2, Math.ceil(L/0.2)), pts=[];
+  for (var j=0;j<=N;j++){ var u=L*j/N, p=[a[0]+d[0]/L*u, a[1]+d[1]/L*u]; pts.push([u, Math.max(0, top(p)-y0)]); }
+  if (Math.max.apply(null, pts.map(function(t){return t[1];})) < 0.01) return;
+  var poly=[[0,0],[L,0]].concat(pts.slice().reverse());
+  var V2=poly.map(function(p){ return new THREE.Vector2(p[0],p[1]); }); if (THREE.ShapeUtils.isClockWise(V2)) V2.reverse();
+  var tr; try { tr=THREE.ShapeUtils.triangulateShape(V2,[]); } catch(e){ return; }
+  var ux=d[0]/L, uy=d[1]/L, nd=[uy,0,ux], Wp=function(v){ return [a[0]+ux*v.x, y0+v.y, -(a[1]+uy*v.x)]; };
+  tr.forEach(function(t){ tb.tri(Wp(V2[t[0]]),Wp(V2[t[1]]),Wp(V2[t[2]]), nd); tb.tri(Wp(V2[t[0]]),Wp(V2[t[1]]),Wp(V2[t[2]]), [-nd[0],0,-nd[2]]); });
+}
+/* ---------------- Σκάλες, μάντρες, πεζούλια ---------------- */
+function siteV(){ var s=S.site||{}; return { fenceH: s.fenceH>0? s.fenceH : 1.50, curbH: s.curbH>0? s.curbH : 0.40, riser: s.riser>0? s.riser : 0.17 }; }
+/* ύψη βαθμίδων μιας σκάλας: top[k] για k=1..n (τοπικά, ως προς το δάπεδο του ορόφου) */
+function stairTops(f, fs, st){
+  var flip = fs.stairFlip && fs.stairFlip[st.key];
+  var byStep={}; st.faces.forEach(function(F){ byStep[F.step]=F; });
+  var lastK = flip? 1 : st.n, last=byStep[lastK];
+  var off = (last && last.kind==='landing') ? 0 : 1;
+  var sv=siteV(), tops={};
+  st.faces.forEach(function(F){
+    var k = flip? (st.n+1-F.step) : F.step;
+    tops[F.step] = st.inside ? k*f.hGross/(st.n+off) : (k-st.n-off)*sv.riser;
+  });
+  return { tops:tops, r: st.inside ? f.hGross/(st.n+off) : sv.riser, bottom: st.inside ? 0 : -(st.n+off)*sv.riser };
+}
+function stairDrop(f, fs){
+  var R=fs&&fs.res, d=0; if (!R||!R.stairs) return 0;
+  R.stairs.forEach(function(st){ if (!st.inside) d=Math.max(d, -stairTops(f,fs,st).bottom); });
+  return d;
+}
+function buildSiteParts(f, fs, out, isLowest, gLocal){
+  var R=fs.res, sv=siteV();
+  var inBalc=function(p){ return R.balconies.some(function(F){ return P3.pointInFace(p,F); }); };
+  (R.stairs||[]).forEach(function(st){
+    var info=stairTops(f,fs,st);
+    st.faces.forEach(function(F){
+      var top=info.tops[F.step];
+      if (F.kind==='landing' && Math.abs(top)<0.02 && inBalc(F.ip)) return;      // το πλατύσκαλο είναι ο εξώστης
+      var bot = st.inside ? Math.max(0, top-info.r-0.22) : (isLowest ? Math.min(gLocal, top-0.05) : Math.min(top-info.r-0.25, gLocal));
+      if (!st.inside && !isLowest) bot = gLocal;                                // εξωτερική σκάλα ορόφου: πατά στο έδαφος
+      if (F.kind==='landing' && st.inside) bot=Math.max(0, top-0.20);
+      prism(out.stair, F.outer, F.holes, bot, top);
+      var e=0.004; F.outer.forEach(function(p,i){ var q=F.outer[(i+1)%F.outer.length]; out.edges.seg(W(p,top+e), W(q,top+e)); });
+    });
+  });
+  function base(F){
+    if (!TERR) return { lo:gLocal, mid:gLocal };
+    var zs=[]; F.outer.forEach(function(q){ var z=terrZ(TERR,q); if (z!==null) zs.push(z-TERR.zRef-CUR_Z0); });
+    if (!zs.length) return { lo:gLocal, mid:gLocal };
+    var lo=Math.min.apply(null,zs), mid=zs.reduce(function(a,b){return a+b;},0)/zs.length; return { lo:lo-0.05, mid:mid };
+  }
+  (R.fences||[]).forEach(function(F){ var b=base(F); prism(out.fence, F.outer, F.holes, b.lo, b.mid+sv.fenceH); });
+  (R.curbs||[]).forEach(function(F){ var b=base(F); prism(out.curb, F.outer, F.holes, b.lo, b.mid+sv.curbH); });
+  // βάθρο κάτω από το ισόγειο όταν οι εξωτερικές σκάλες κατεβαίνουν
+  if (isLowest && gLocal < -0.02){
+    var T=R.T, inB=function(F){ return F.kind==='mat'||F.kind==='room'||F.kind==='open'; };
+    var tl=P3.massLoops(T, inB).map(function(L){ return L.map(function(h){ return T.V[T.from(h)]; }); });
+    var outers=tl.filter(function(P){ return P3.polyArea(P)>0; }), holesL=tl.filter(function(P){ return P3.polyArea(P)<=0; });
+    outers.forEach(function(O){ var hs=holesL.filter(function(Hh){ return inPoly(Hh[0], O, []); }); prism(out.fence, O, hs, gLocal, -0.004); });
+    R.balconies.forEach(function(F){ prism(out.fence, F.outer, F.holes, gLocal, -slabT(f), true); });
+  }
 }
 function len2(a,b){ return Math.hypot(b[0]-a[0], b[1]-a[1]); }
 
@@ -3117,7 +4180,8 @@ function growPoly(P, d){
   return out;
 }
 /* ---------------- Κάτοψη στο δάπεδο (ολόγραμμα) ---------------- */
-function buildPlan(fs, y, withBase){
+function buildPlan(fs, y, withBase, baseY){
+  if (baseY===undefined) baseY=y;
   var g=new THREE.Group(), bright=new LB(), dim=new LB(), bb=[Infinity,Infinity,-Infinity,-Infinity];
   var ann=/dim|διαστ|axis|αξον|note|level|symbol|title|κειμ|text|hatch/;
   (fs.m||[]).forEach(function(p){
@@ -3134,11 +4198,11 @@ function buildPlan(fs, y, withBase){
   if (isFinite(bb[0]) && withBase){
     var pad=0.6, w=bb[2]-bb[0]+2*pad, h=bb[3]-bb[1]+2*pad;
     var base=new THREE.Mesh(new THREE.PlaneGeometry(w,h), MAT.planBase);
-    base.rotation.x=-Math.PI/2; base.position.set((bb[0]+bb[2])/2, y-0.003, -(bb[1]+bb[3])/2); base.renderOrder=-1;
+    base.rotation.x=-Math.PI/2; base.position.set((bb[0]+bb[2])/2, baseY-0.003, -(bb[1]+bb[3])/2); base.renderOrder=-1;
     base.userData.planBase=true; g.add(base);
     // περίγραμμα «φύλλου»
     var fr=new LB(), x0=bb[0]-pad, x1=bb[2]+pad, y0=bb[1]-pad, y1=bb[3]+pad;
-    fr.seg(W([x0,y0],y),W([x1,y0],y)); fr.seg(W([x1,y0],y),W([x1,y1],y)); fr.seg(W([x1,y1],y),W([x0,y1],y)); fr.seg(W([x0,y1],y),W([x0,y0],y));
+    var yb=baseY; fr.seg(W([x0,y0],yb),W([x1,y0],yb)); fr.seg(W([x1,y0],yb),W([x1,y1],yb)); fr.seg(W([x1,y1],yb),W([x0,y1],yb)); fr.seg(W([x0,y1],yb),W([x0,y0],yb));
     g.add(new THREE.LineSegments(fr.geom(), MAT.edge));
   }
   return g;
@@ -3153,14 +4217,27 @@ function rebuild(rise){
   var st={walls:0,ops:0,cols:0,beams:0,slabs:0,balc:0,top:-Infinity,bottom:Infinity,area:0};
   var any=false, lowest=-1, topmost=-1;
   S.floors.forEach(function(f,i){ if ((f.arch&&f.arch.res)||(f.struct&&f.struct.res)){ if (lowest<0) lowest=i; topmost=i; } });
+  var groundAbs = 0;
+  if (lowest>=0){ var fl=S.floors[lowest], zl=floorElev(lowest); groundAbs = zl<-0.01 ? 0 : zl - stairDrop(fl, fl.arch); }
+  // έδαφος από ισοϋψείς: το βάθρο κατεβαίνει ως το χαμηλότερο σημείο του εδάφους κάτω από το κτίριο
+  TERR=terrainData(); var zRef=0;
+  if (TERR){
+    zRef=terrRef(TERR); TERR.zRef=zRef;
+    if (lowest>=0 && S.floors[lowest].arch && S.floors[lowest].arch.res){
+      var mn=Infinity; (S.floors[lowest].arch.res.mass||[]).forEach(function(F){ F.outer.forEach(function(q){ var z=terrZ(TERR,q); if (z!==null) mn=Math.min(mn, z-zRef); }); });
+      if (isFinite(mn)) groundAbs=Math.min(groundAbs, mn);
+    }
+    var tg=new THREE.Group(); tg.userData.terrain=true; root.add(tg); tg.add(buildTerrainMesh(TERR, zRef));
+  }
   S.floors.forEach(function(f,i){
     var z0=floorElev(i), H=f.hGross, A=f.arch&&f.arch.res, Sr=f.struct&&f.struct.res;
     var g=new THREE.Group(); g.userData.floor=f.id; g.userData.idx=i; g.name=f.name; g.position.y=z0; root.add(g);
     if (A||Sr){ any=true; st.bottom=Math.min(st.bottom,z0); st.top=Math.max(st.top,z0+H); }
     var ga=new THREE.Group(); ga.userData.kind='arch'; g.add(ga);
     var gs=new THREE.Group(); gs.userData.kind='struct'; g.add(gs);
+    CUR_Z0=z0;
     if (A && A.T){
-      var o=buildArchFloor(f, f.arch, H+0.01, i===topmost, i===lowest, !!Sr);
+      var o=buildArchFloor(f, f.arch, (roofOf(f).sloped ? f.hClear : H)+0.01, i===topmost, i===lowest, !!Sr, groundAbs - z0);
       addMesh(ga, o.wall, MAT.wall, MAT.cutA, 'wall');
       addMesh(ga, o.sill, MAT.wall, MAT.cutA, 'wall');
       addMesh(ga, o.slab, MAT.slab, MAT.cutA, 'slab');
@@ -3168,12 +4245,21 @@ function rebuild(rise){
       addMesh(ga, o.door, MAT.door, null, 'door');
       addMesh(ga, o.glass, MAT.glass, null, 'glass', true);
       addMesh(ga, o.rail, MAT.rail, null, 'glass', true);
+      addMesh(ga, o.stair, MAT.stair, MAT.cutA, 'stair');
+      addMesh(ga, o.fence, MAT.fence, MAT.cutA, 'fence');
+      addMesh(ga, o.curb, MAT.curb, MAT.cutA, 'curb');
+      addMesh(ga, o.roof, MAT.roof, MAT.cutA, 'roof');
+      var gf=new THREE.Group(); gf.userData.kind='furn'; g.add(gf);
+      addMesh(gf, o.furn, MAT.furn, MAT.cutF, 'furn');
+      var fe=o.fedges.geom(); if (fe){ var L3=new THREE.LineSegments(fe, MAT.furnEdge); L3.userData.tag='edges'; gf.add(L3); }
+      var rg=o.ridges.geom(); if (rg){ var L4=new THREE.LineSegments(rg, MAT.ridge); L4.userData.tag='ridge'; ga.add(L4); }
+      st.furn=(st.furn||0)+(A.furniture||[]).length; st.stairs=(st.stairs||0)+(A.stairs||[]).length;
       var e=o.edges.geom(); if (e){ var L=new THREE.LineSegments(e, MAT.edge); L.userData.tag='edges'; ga.add(L); }
       var fr=o.frames.geom(); if (fr){ var L2=new THREE.LineSegments(fr, MAT.frame); L2.userData.tag='frames'; ga.add(L2); }
       st.walls+=A.mass.length; st.ops+=A.openings.length; st.balc+=A.balconies.length;
       A.rooms.forEach(function(F){ st.area+=Math.abs(F.area); });
       // κάτοψη ως ολόγραμμα στη στάθμη του ορόφου
-      var pg=buildPlan(f.arch, z0+0.006, i===lowest); pg.userData.floor=f.id; pg.userData.idx=i; planRoot.add(pg);
+      var pg=buildPlan(f.arch, z0+0.006, i===lowest, Math.min(z0, groundAbs)+0.006); pg.userData.floor=f.id; pg.userData.idx=i; planRoot.add(pg);
     }
     if (Sr){
       var s=buildStructFloor(f, f.struct, H);
@@ -3238,7 +4324,7 @@ function floorChips(){
 function applyVisibility(){
   if (!R3) return;
   var ghost=VIEW.show.ghost;
-  [MAT.wall,MAT.slab,MAT.balc].forEach(function(m){ m.transparent=ghost; m.opacity=ghost?0.18:1; m.depthWrite=!ghost; m.needsUpdate=true; });
+  [MAT.wall,MAT.slab,MAT.balc,MAT.stair,MAT.fence,MAT.curb,MAT.roof].forEach(function(m){ m.transparent=ghost; m.opacity=ghost?0.18:1; m.depthWrite=!ghost; m.needsUpdate=true; });
   R3.root.children.forEach(function(g){
     var fon = VIEW.floorsOn[g.userData.floor]!==false; g.visible=fon;
     g.children.forEach(function(k){
@@ -3246,6 +4332,8 @@ function applyVisibility(){
       k.children.forEach(function(o){
         var t=o.userData.tag;
         if (t==='glass') o.visible=VIEW.show.glass;
+        else if (t==='roof'||t==='ridge') o.visible=VIEW.show.roof;
+        else if (t==='roofCut') o.visible=VIEW.show.roof && !ghost;
         else if (t==='edges') o.visible=VIEW.show.edges && !(k.userData.kind==='struct' && VIEW.show.arch && !ghost);
         else if (o.userData.cut) o.visible = !(ghost && k.userData.kind==='arch');
       });
@@ -3625,7 +4713,7 @@ function show(){
 var bound=false;
 function ensureBound(){ if (!bound){ bound=true; bind(); } }
 ensureBound();
-window.HX3 = { show:show, rebuild:function(r){ if (R3) rebuild(r); }, setView:setView, VIEW:VIEW, SUN:SUN, applyClipping:applyClipping, updateSun:updateSun, floorChips:function(){ if (R3) floorChips(); }, siteUI:siteUI,
+window.HX3 = { terrRef:function(){ var T=TERR||terrainData(); return T? terrRef(T) : null; }, show:show, roofFootprints:roofFootprints, solveRoofs:solveRoofs, roofOf:roofOf, siteV:siteV, stairTops:stairTops, furnH:furnH, rebuild:function(r){ if (R3) rebuild(r); }, setView:setView, VIEW:VIEW, SUN:SUN, applyClipping:applyClipping, updateSun:updateSun, floorChips:function(){ if (R3) floorChips(); }, siteUI:siteUI,
          egsaToLatLon:egsaToLatLon, sunPos:sunPos, R:function(){ return R3; }, startRise:startRise, measure:MEAS };
 return window.HX3;
 })();
