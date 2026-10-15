@@ -3303,7 +3303,12 @@ function lassoHit(p, P){
 }
 function workRaw(fs){
   var R=croppedRaw(fs); if (!fs.lassos || !fs.lassos.length) return R;
-  return R.map(function(p){ var L=null; fs.lassos.forEach(function(l){ if (lassoHit(p, l.poly)) L=l.key; }); return L? Object.assign({}, p, { L:L }) : p; });
+  // για τοίχους/υποστυλώματα κρατάμε μόνο τις «κανονικές» γραμμές: όχι γραμμοσκίαση/πέτρα/μικροκομμάτια
+  var minL=0.25/(fs.scale||1);
+  function longEnough(p){ if (p.k==='seg') return Math.hypot(p.b[0]-p.a[0],p.b[1]-p.a[1])>=minL;
+    if (p.k==='poly'){ var mx=0, n=p.pts.length; for (var i=0;i<n-1;i++) mx=Math.max(mx, Math.hypot(p.pts[i+1][0]-p.pts[i][0], p.pts[i+1][1]-p.pts[i][1])); return mx>=minL && n<=12; }
+    return true; }
+  return R.map(function(p){ var L=null; fs.lassos.forEach(function(l){ if (lassoHit(p, l.poly) && ((l.role!=='wall' && l.role!=='column') || longEnough(p))) L=l.key; }); return L? Object.assign({}, p, { L:L }) : p; });
 }
 function croppedRaw(fs){ return fs.crop ? P3.clipPrims(fs.raw, fs.crop) : fs.raw; }
 function guessPdfRoles(fs){
@@ -4039,9 +4044,11 @@ function makeMaterials(){
   MAT.terrain = new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.95, metalness:0, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:1, polygonOffsetUnits:1 });
   MAT.contour = new THREE.LineBasicMaterial({ color:0x8FF5E0, transparent:true, opacity:0.45 });
   MAT.contourMaj = new THREE.LineBasicMaterial({ color:0xE6FFF8, transparent:true, opacity:0.85 });
+  MAT.baseGlass = new THREE.MeshStandardMaterial({ color:0x8FEFFF, transparent:true, opacity:0.16, roughness:0.08, metalness:0.1, emissive:0x0B4A66, emissiveIntensity:0.35, depthWrite:false, side:THREE.DoubleSide });
+  MAT.glow = new THREE.LineBasicMaterial({ color:0x7FF3FF, transparent:true, opacity:0.95 });
   MAT.groundStudio = new THREE.MeshBasicMaterial({ color:0x050A16 });
   MAT.groundSun = new THREE.MeshStandardMaterial({ color:0xA9B1BD, roughness:1, metalness:0 });
-  ['edge','edgeS','frame','plan','planDim','furnEdge','ridge','contour','contourMaj'].forEach(function(k){
+  ['edge','edgeS','frame','plan','planDim','furnEdge','ridge','contour','contourMaj','glow'].forEach(function(k){
     MAT[k].onBeforeCompile=function(sh){ sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n gl_Position.z -= 0.000005 * gl_Position.w;'); };
   });
 }
@@ -4224,7 +4231,7 @@ function onResize(){
 
 /* ---------------- Κατασκευή αρχιτεκτονικού ορόφου (ακριβής) ---------------- */
 function buildArchFloor(f, fs, H, isTop, isLowest, hasStruct, gLocal){
-  var R=fs.res, T=R.T, out={ wall:new TB(), sill:new TB(), slab:new TB(), balc:new TB(), door:new TB(), glass:new TB(), rail:new TB(), stair:new TB(), fence:new TB(), curb:new TB(), furn:new TB(), roof:new TB(), edges:new LB(), frames:new LB(), fedges:new LB(), ridges:new LB() };
+  var R=fs.res, T=R.T, out={ wall:new TB(), sill:new TB(), slab:new TB(), balc:new TB(), door:new TB(), glass:new TB(), rail:new TB(), stair:new TB(), fence:new TB(), curb:new TB(), furn:new TB(), roof:new TB(), base:new TB(), edges:new LB(), frames:new LB(), fedges:new LB(), ridges:new LB(), glow:new LB() };
   if (!T) return out;
   var opByFace={}; R.openings.forEach(function(o){ opByFace[o.face.id]=o; });
   function vals(o){ return opVals(f, fs, o); }
@@ -4299,7 +4306,11 @@ function buildArchFloor(f, fs, H, isTop, isLowest, hasStruct, gLocal){
   if (RV.sloped){ T.faces.forEach(function(F){ if (F.kind==='mat') cap(out.wall, F.outer, F.holes, H, true);
       else if (F.kind==='open'){ var o=opByFace[F.id]; if (o && vals(o).head < f.hClear-0.005) cap(out.wall, F.outer, F.holes, H, true); } }); }
   else if (!hasStruct){
-    R.rooms.forEach(function(F){ cap(out.slab, F.outer, F.holes, f.hClear, false); });   // οροφή χώρων· τα πλάγια τα κλείνουν οι τοίχοι
+    // πλάκα οροφής: ενιαία, με το κλειστό περίγραμμα του κτιρίου (και όπου οι τοίχοι δεν κλείνουν)
+    var FP=closedFootprint(fs);
+    FP.forEach(function(P){ prism(out.slab, P.outer, P.holes, f.hClear, H+0.002);
+      var e=0.004; [P.outer].concat(P.holes).forEach(function(Rg){ Rg.forEach(function(p,i){ var q=Rg[(i+1)%Rg.length]; out.edges.seg(W(p,H+0.002+e),W(q,H+0.002+e)); out.edges.seg(W(p,f.hClear-e),W(q,f.hClear-e)); }); }); });
+    if (!FP.length) R.rooms.forEach(function(F){ cap(out.slab, F.outer, F.holes, f.hClear, false); });
     // ενιαία άνω επιφάνεια (τοίχοι + ανώφλια + πλάκα) χωρίς ραφές
     var inTop=function(F){ if (F.kind==='mat'||F.kind==='room') return true; if (F.kind==='open'){ var o=opByFace[F.id]; if (!o) return false; var v=vals(o); return v.head < f.hClear-0.005; } return false; };
     var tl=P3.massLoops(T, inTop).map(function(L){ return L.map(function(h){ return T.V[T.from(h)]; }); });
@@ -4371,6 +4382,65 @@ function buildTerrainMesh(TD, zr){
   var a=lb.geom(); if (a){ var L1=new THREE.LineSegments(a, MAT.contour); L1.userData.tag='contour'; g.add(L1); }
   var b=lb2.geom(); if (b){ var L2=new THREE.LineSegments(b, MAT.contourMaj); L2.userData.tag='contour'; g.add(L2); }
   return g;
+}
+/* ---------------- Κλειστό περίγραμμα κτιρίου (για πλάκα βάσης & οροφής) ----------------
+   τοίχοι + κουφώματα + χώροι → ψηφίδες 5 εκ. → «κλείσιμο» κενών έως ~3 μ. → γέμισμα εσωτερικού → περίγραμμα */
+function closedFootprint(fs){
+  var R=fs.res; if (!R || !R.T) return [];
+  if (R._fp) return R._fp;
+  var polys=[]; R.T.faces.forEach(function(F){ if (F.kind==='mat'||F.kind==='open'||F.kind==='room') polys.push(F.outer); });
+  (R.balconies||[]).forEach(function(F){ /* εξώστες εκτός */ });
+  if (!polys.length) return (R._fp=[]);
+  var bb=[Infinity,Infinity,-Infinity,-Infinity]; polys.forEach(function(P){ P.forEach(function(q){ bb[0]=Math.min(bb[0],q[0]); bb[1]=Math.min(bb[1],q[1]); bb[2]=Math.max(bb[2],q[0]); bb[3]=Math.max(bb[3],q[1]); }); });
+  var rad=1.6, pad=rad+0.5, cs=Math.max(0.04, Math.max(bb[2]-bb[0], bb[3]-bb[1])/900);
+  var W=Math.ceil((bb[2]-bb[0]+2*pad)/cs), Hh=Math.ceil((bb[3]-bb[1]+2*pad)/cs);
+  var cv=document.createElement('canvas'); cv.width=W; cv.height=Hh; var g=cv.getContext('2d');
+  function X(q){ return (q[0]-bb[0]+pad)/cs; } function Y(q){ return (q[1]-bb[1]+pad)/cs; }
+  g.fillStyle='#fff';
+  polys.forEach(function(P){ g.beginPath(); P.forEach(function(q,i){ if (i) g.lineTo(X(q),Y(q)); else g.moveTo(X(q),Y(q)); }); g.closePath(); g.fill(); });
+  var D=g.getImageData(0,0,W,Hh).data, M0=new Uint8Array(W*Hh), i, x, y, k, v; for (i=0;i<W*Hh;i++) M0[i]=D[i*4]>127?1:0;
+  // απόσταση «σκακιέρας» (τετράγωνο στοιχείο: κρατά ορθές γωνίες)
+  function dist(src){ var Dt=new Float32Array(W*Hh); for (i=0;i<W*Hh;i++) Dt[i]=src[i]?0:1e9;
+    for (y=0;y<Hh;y++) for (x=0;x<W;x++){ k=y*W+x; v=Dt[k]; if (!v) continue;
+      if (x>0) v=Math.min(v,Dt[k-1]+1); if (y>0){ v=Math.min(v,Dt[k-W]+1); if (x>0) v=Math.min(v,Dt[k-W-1]+1); if (x<W-1) v=Math.min(v,Dt[k-W+1]+1); } Dt[k]=v; }
+    for (y=Hh-1;y>=0;y--) for (x=W-1;x>=0;x--){ k=y*W+x; v=Dt[k]; if (!v) continue;
+      if (x<W-1) v=Math.min(v,Dt[k+1]+1); if (y<Hh-1){ v=Math.min(v,Dt[k+W]+1); if (x<W-1) v=Math.min(v,Dt[k+W+1]+1); if (x>0) v=Math.min(v,Dt[k+W-1]+1); } Dt[k]=v; }
+    return Dt; }
+  var rc=rad/cs, Din=dist(M0), M=new Uint8Array(W*Hh); for (i=0;i<W*Hh;i++) M[i]=Din[i]<=rc?1:0;
+  // γέμισμα κενών (ό,τι δεν φτάνει από το εξωτερικό)
+  var out=new Uint8Array(W*Hh), st=[]; for (x=0;x<W;x++){ st.push(x, (Hh-1)*W+x); } for (y=0;y<Hh;y++){ st.push(y*W, y*W+W-1); }
+  while (st.length){ k=st.pop(); if (out[k]||M[k]) continue; out[k]=1; var cx=k%W, cy=(k/W)|0;
+    if (cx>0) st.push(k-1); if (cx<W-1) st.push(k+1); if (cy>0) st.push(k-W); if (cy<Hh-1) st.push(k+W); }
+  var Dt=dist(out);
+  var F2=new Uint8Array(W*Hh); for (i=0;i<W*Hh;i++) F2[i]= (Dt[i]>rc || M0[i]) ? 1 : 0;
+  // περίγραμμα: ακμές ψηφίδων → βρόχοι
+  var E={}, key=function(x,y){ return x+','+y; };
+  function addE(x0,y0,x1,y1){ E[key(x0,y0)]=(E[key(x0,y0)]||[]); E[key(x0,y0)].push([x1,y1]); }
+  for (y=0;y<Hh;y++) for (x=0;x<W;x++){ if (!F2[y*W+x]) continue;
+    if (y===0 || !F2[(y-1)*W+x]) addE(x,y, x+1,y);            // κάτω
+    if (x===W-1 || !F2[y*W+x+1]) addE(x+1,y, x+1,y+1);        // δεξιά
+    if (y===Hh-1 || !F2[(y+1)*W+x]) addE(x+1,y+1, x,y+1);     // πάνω
+    if (x===0 || !F2[y*W+x-1]) addE(x,y+1, x,y); }            // αριστερά
+  var loops=[];
+  Object.keys(E).forEach(function(k0){
+    while (E[k0] && E[k0].length){ var p=k0.split(',').map(Number), L=[p], cur=E[k0].pop(), guard=0;
+      while (guard++<200000){ var ck=key(cur[0],cur[1]); if (ck===k0) break; L.push(cur); var nx=E[ck]; if (!nx||!nx.length) break; cur=nx.pop(); }
+      if (L.length>=4) loops.push(L); }
+  });
+  function toM(q){ return [q[0]*cs+bb[0]-pad, q[1]*cs+bb[1]-pad]; }
+  function dp(P, tol){ if (P.length<3) return P; var dmax=0, id=0, A=P[0], B=P[P.length-1];
+    for (var i=1;i<P.length-1;i++){ var d=distPS(P[i],A,B); if (d>dmax){ dmax=d; id=i; } }
+    if (dmax>tol){ var l=dp(P.slice(0,id+1),tol), r=dp(P.slice(id),tol); return l.slice(0,-1).concat(r); } return [A,B]; }
+  function distPS(p,a,b){ var dx=b[0]-a[0], dy=b[1]-a[1], L2=dx*dx+dy*dy; if (L2<1e-12) return Math.hypot(p[0]-a[0],p[1]-a[1]); var t=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L2)); return Math.hypot(p[0]-a[0]-t*dx, p[1]-a[1]-t*dy); }
+  var res=[];
+  loops.forEach(function(L){ var P=L.map(toM); var Ac=P3.polyArea(P); if (Math.abs(Ac)<1) return;
+    // απλοποίηση: κλειστός βρόχος → σπάσιμο στο πιο μακρινό σημείο
+    var far=0, fd=0; P.forEach(function(q,i){ var d=Math.hypot(q[0]-P[0][0],q[1]-P[0][1]); if (d>fd){ fd=d; far=i; } });
+    var S1=dp(P.slice(0,far+1), cs*1.2), S2=dp(P.slice(far).concat([P[0]]), cs*1.2), Q=S1.slice(0,-1).concat(S2.slice(0,-1));
+    if (Q.length>=3) res.push(Q); });
+  var outers=res.filter(function(P){ return P3.polyArea(P)>0; }), holes=res.filter(function(P){ return P3.polyArea(P)<0; });
+  R._fp = outers.map(function(O){ return { outer:O, holes:holes.filter(function(h){ return inPoly(h[0],O,[]); }) }; });
+  return R._fp;
 }
 /* ---------------- Έπιπλα ---------------- */
 function furnH(fs, o){ var v=fs.furnOvr && fs.furnOvr[o.key]; return v===undefined? o.h : v; }
@@ -4522,13 +4592,12 @@ function buildSiteParts(f, fs, out, isLowest, gLocal){
   }
   (R.fences||[]).forEach(function(F){ var b=base(F); prism(out.fence, F.outer, F.holes, b.lo, b.mid+sv.fenceH); });
   (R.curbs||[]).forEach(function(F){ var b=base(F); prism(out.curb, F.outer, F.holes, b.lo, b.mid+sv.curbH); });
-  // βάθρο κάτω από το ισόγειο όταν οι εξωτερικές σκάλες κατεβαίνουν
-  if (isLowest && gLocal < -0.02){
-    var T=R.T, inB=function(F){ return F.kind==='mat'||F.kind==='room'||F.kind==='open'; };
-    var tl=P3.massLoops(T, inB).map(function(L){ return L.map(function(h){ return T.V[T.from(h)]; }); });
-    var outers=tl.filter(function(P){ return P3.polyArea(P)>0; }), holesL=tl.filter(function(P){ return P3.polyArea(P)<=0; });
-    outers.forEach(function(O){ var hs=holesL.filter(function(Hh){ return inPoly(Hh[0], O, []); }); prism(out.fence, O, hs, gLocal, -0.004); });
-    R.balconies.forEach(function(F){ prism(out.fence, F.outer, F.holes, gLocal, -slabT(f), true); });
+  // πλάκα βάσης: διάφανη, με το κλειστό περίγραμμα· από κάτω φαίνεται η κάτοψη
+  if (isLowest){
+    var bot = gLocal < -0.02 ? gLocal : -slabT(f);
+    closedFootprint(fs).forEach(function(P){ prism(out.base, P.outer, P.holes, bot, -0.003);
+      [P.outer].concat(P.holes).forEach(function(Rg){ Rg.forEach(function(p,i){ var q=Rg[(i+1)%Rg.length]; out.glow.seg(W(p,0.001),W(q,0.001)); out.glow.seg(W(p,bot),W(q,bot)); }); });
+      P.outer.forEach(function(p){ out.glow.seg(W(p,bot),W(p,0.001)); }); });
   }
 }
 function len2(a,b){ return Math.hypot(b[0]-a[0], b[1]-a[1]); }
@@ -4635,6 +4704,8 @@ function rebuild(rise){
       addMesh(ga, o.fence, MAT.fence, MAT.cutA, 'fence');
       addMesh(ga, o.curb, MAT.curb, MAT.cutA, 'curb');
       addMesh(ga, o.roof, MAT.roof, MAT.cutA, 'roof');
+      addMesh(ga, o.base, MAT.baseGlass, null, 'baseglass', true);
+      var gw=o.glow.geom(); if (gw){ var L5=new THREE.LineSegments(gw, MAT.glow); L5.userData.tag='frames'; ga.add(L5); }
       var gf=new THREE.Group(); gf.userData.kind='furn'; g.add(gf);
       addMesh(gf, o.furn, MAT.furn, MAT.cutF, 'furn');
       var fe=o.fedges.geom(); if (fe){ var L3=new THREE.LineSegments(fe, MAT.furnEdge); L3.userData.tag='edges'; gf.add(L3); }
@@ -4779,7 +4850,7 @@ function setView(v, instant){
 
 /* ---------------- Μετρήσεις ---------------- */
 var ray=new THREE.Raycaster(), mouse=new THREE.Vector2();
-function pickables(){ var arr=[]; R3.root.traverse(function(o){ if (o.isMesh && o.visible && !o.userData.cut && o.userData.tag!=='glass' && isVisibleChain(o)) arr.push(o); }); return arr; }
+function pickables(){ var arr=[]; R3.root.traverse(function(o){ if (o.isMesh && o.visible && !o.userData.cut && o.userData.tag!=='glass' && o.userData.tag!=='baseglass' && isVisibleChain(o)) arr.push(o); }); return arr; }
 function isVisibleChain(o){ while (o){ if (!o.visible) return false; o=o.parent; } return true; }
 function hit(ev){
   var r=R3.renderer.domElement.getBoundingClientRect();
