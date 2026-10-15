@@ -2036,7 +2036,7 @@ function buildOpenings(T, G, bridgeEdge, prims, roles){
   prims.forEach(function(p){
     if (roles[p.L]==='wall' || roles[p.L]==='column') return;
     if (ann.test(norm(p.L))) return;
-    if (p.k==='poly' && p.pts.length>=5 && !p.closed){ var c=arcFit(p.pts); if (c && c.sweep>0.85 && c.sweep<3.3) arcs.push({c:c.c, r:c.r, dash:!!p.dash, L:p.L}); }
+    if (p.k==='poly' && p.pts.length>=5 && !p.closed){ var c=arcFit(p.pts); if (c && c.sweep>0.85 && c.sweep<3.3) arcs.push({c:c.c, r:c.r, dash:!!p.dash, L:p.L, mid:p.pts[Math.floor(p.pts.length/2)]}); }
     if ((p.k==='seg' || p.k==='poly') && (roles[p.L]==='opening' || roles[p.L]==='door')) marks.push(p);
     else if ((p.k==='seg' || p.k==='poly') && !p.dash && (roles[p.L]||'ignore')==='ignore') gen.push(p);
   });
@@ -2066,6 +2066,7 @@ function buildOpenings(T, G, bridgeEdge, prims, roles){
     var near = arcs.filter(function(a){ return distToPoly(a.c, P) < 0.15; });
     var solid = near.filter(function(a){ return !a.dash; });
     var single = solid.filter(function(a){ return a.r > 0.55*w && a.r < 1.4*w; }).length;
+    if (!single && solid.length===1 && solid[0].r >= 0.4*w && solid[0].r < 1.4*w) single=1;
     var dbl = solid.filter(function(a){ return a.r > 0.3*w && a.r <= 0.55*w; }).length;
     var shutters = near.filter(function(a){ return a.dash; }).length;
     var inside = marks.filter(function(p){
@@ -2081,15 +2082,16 @@ function buildOpenings(T, G, bridgeEdge, prims, roles){
     if (!inside.length){
       var gl=[], fb=[Infinity,Infinity,-Infinity,-Infinity]; P.forEach(function(q){ fb[0]=Math.min(fb[0],q[0]); fb[1]=Math.min(fb[1],q[1]); fb[2]=Math.max(fb[2],q[0]); fb[3]=Math.max(fb[3],q[1]); });
       genS.forEach(function(G){ if (G.b[0]>fb[2]+0.03||G.b[2]<fb[0]-0.03||G.b[1]>fb[3]+0.03||G.b[3]<fb[1]-0.03) return; [G.s].forEach(function(sg){
-        var L=len(sub(sg[1],sg[0])); if (L < 0.45*w) return;
+        var L=len(sub(sg[1],sg[0])); if (L < Math.min(0.45*w, Math.max(0.35, 0.22*w))) return;
         if (Math.abs(crs(unit(sub(sg[1],sg[0])), u)) > 0.05) return;
         var mid=mul(add(sg[0],sg[1]),0.5); if (!pip(mid,P)) return;
         if (!(distToPoly(sg[0],P)<0.03 || pip(sg[0],P)) || !(distToPoly(sg[1],P)<0.03 || pip(sg[1],P))) return;
         var e=Infinity; for (var i=0;i<P.length;i++) e=Math.min(e, distPtSeg(mid,P[i],P[(i+1)%P.length]));
         if (e > 0.012) gl.push({k:'seg', a:sg[0], b:sg[1]});
       }); });
-      var offs={}; gl.forEach(function(g){ offs[Math.round(dot(sub(g.a,bestB.a),n)*100)]=1; });
-      if (Object.keys(offs).length>=2) inside=gl;
+      var offs={}, iv=[]; gl.forEach(function(g){ offs[Math.round(dot(sub(g.a,bestB.a),n)*100)]=1; var a=dot(sub(g.a,bestB.a),u), b=dot(sub(g.b,bestB.a),u); iv.push([Math.min(a,b),Math.max(a,b)]); });
+      iv.sort(function(a,b){return a[0]-b[0];}); var cov=0, ce=-Infinity; iv.forEach(function(x){ if (x[1]>ce){ cov+=x[1]-Math.max(x[0],ce); ce=x[1]; } });
+      if (Object.keys(offs).length>=2 && cov >= 0.4*w) inside=gl;
     }
     var type;
     if (single || (dbl>=2 && w>=1.2)) type='door';
@@ -2106,8 +2108,8 @@ function buildOpenings(T, G, bridgeEdge, prims, roles){
     var wd=null; wdPrims.forEach(function(p){ if (wd) return; var c=centroid(primPts(p)); if (distToPoly(c,P) < 0.1) wd=p.wd; });
     var forced = F.manual;
     // ένα άνοιγμα έχει βάθος τοίχου· πολύ «παχιά» περιοχή είναι χώρος (π.χ. κλιμακοστάσιο), όχι κούφωμα
-    if (!forced && (t1-t0) > 0.9 && F.thick > 0.65 && !wd) { F.kind='room'; F.rejected=true; return; }
-    if (!forced && (!bothSides || !(hasSymbol || wd))) { F.kind='room'; F.rejected=true; return; }
+    if (!forced && (t1-t0) > 0.9 && F.thick > 0.65 && !wd && !single && !dbl) { F.kind='room'; F.rejected=true; if (buildOpenings.dbg) buildOpenings.dbg.push(['thick',ctr,w]); return; }
+    if (!forced && (!bothSides || !(hasSymbol || wd))) { F.kind='room'; F.rejected=true; if (buildOpenings.dbg) buildOpenings.dbg.push([!bothSides?'sides':'nosym',ctr,w,near.length]); return; }
     var sill=null, head=null, code=null;
     if (wd && wd.s.length){ code=wd.s[0].toUpperCase();
       type = /^D(IN|EX)/.test(code)? 'door' : /^(BAL|SLB)/.test(code)? 'balcony' : 'window';
@@ -2119,7 +2121,8 @@ function buildOpenings(T, G, bridgeEdge, prims, roles){
     var chord = chordAt(P, add(bestB.a, mul(n,tPanel)), u) || [s0,s1];
     res.push({ face:F, poly:P, type:type, w:+w.toFixed(3), u:u, n:n, o:bestB.a, s0:s0, s1:s1, t0:t0, t1:t1,
       panel:{ a:add(bestB.a, add(mul(u,chord[0]), mul(n,tPanel))), b:add(bestB.a, add(mul(u,chord[1]), mul(n,tPanel))) },
-      sill:sill, head:head, code:code, fromXdata: !!(wd && wd.n.length>=3), shutters:shutters>0, ctr:ctr });
+      sill:sill, head:head, code:code, fromXdata: !!(wd && wd.n.length>=3), shutters:shutters>0, ctr:ctr,
+      leaves: solid.filter(function(a){ return a.r > 0.3*w && a.r < 1.4*w; }).map(function(a){ return { c:a.c, r:a.r, mid:a.mid }; }) });
   });
   res.sort(function(p,q){ return (Math.round(p.ctr[1]*2)-Math.round(q.ctr[1]*2)) || (p.ctr[0]-q.ctr[0]); });
   res.forEach(function(o,i){ o.id=i+1; o.face.oid=o.id; });
@@ -2572,7 +2575,7 @@ function stripPoly(a,b,t){
   return [sub(a,n), sub(b,n), add(b,n), add(a,n)];
 }
 
-return { autoStairPrims:autoStairPrims, recognizeContours:recognizeContours, recognizeFurniture:recognizeFurniture, minRect:minRect, arrowTips:arrowTips, recognizeStairs:recognizeStairs, clipPrims:clipPrims, recognizeArchExact:recognizeArchExact, massLoops:massLoops, loopRuns:loopRuns, chordAt:chordAt, faceKey:faceKey, pointInFace:pointInFace, decodeDXF:decodeDXF, parseDXF:parseDXF, flatten:flatten, layerStats:layerStats, guessRole:guessRole,
+return { buildOpenings:buildOpenings, autoStairPrims:autoStairPrims, recognizeContours:recognizeContours, recognizeFurniture:recognizeFurniture, minRect:minRect, arrowTips:arrowTips, recognizeStairs:recognizeStairs, clipPrims:clipPrims, recognizeArchExact:recognizeArchExact, massLoops:massLoops, loopRuns:loopRuns, chordAt:chordAt, faceKey:faceKey, pointInFace:pointInFace, decodeDXF:decodeDXF, parseDXF:parseDXF, flatten:flatten, layerStats:layerStats, guessRole:guessRole,
   guessUnits:guessUnits, toMeters:toMeters, bbox:bbox, recognizeArch:recognizeArch, recognizeStruct:recognizeStruct,
   stripPoly:stripPoly, arcRadius:arcRadius, footprint:footprint, alignShapes:alignShapes, polyArea:polyArea, centroid:centroid, primPts:primPts, norm:norm, hull:hull };
 })();
@@ -4294,8 +4297,26 @@ function buildArchFloor(f, fs, H, isTop, isLowest, hasStruct, gLocal){
         if (len2(pa,pb) > 0.9){ var mid=[(pa[0]+pb[0])/2,(pa[1]+pb[1])/2]; out.frames.seg(W(mid,v.sill),W(mid,head)); }
       } else if (v.type==='door'){
         var dd=[pb[0]-pa[0],pb[1]-pa[1]], L=Math.hypot(dd[0],dd[1]), nn=[-dd[1]/L*0.022, dd[0]/L*0.022];
-        var poly=[[pa[0]-nn[0],pa[1]-nn[1]],[pb[0]-nn[0],pb[1]-nn[1]],[pb[0]+nn[0],pb[1]+nn[1]],[pa[0]+nn[0],pa[1]+nn[1]]];
-        prism(out.door, poly, [], 0.0, head-0.005);
+        var lv=(o.leaves||[]).slice(0,2);
+        if (lv.length){
+          // φύλλο ανοιχτό στις 45°: μεντεσές στο κέντρο του τόξου, προς την πλευρά που ανοίγει το τόξο
+          var ud=[dd[0]/L, dd[1]/L], un=[-ud[1], ud[0]], c45=Math.SQRT1_2;
+          lv.forEach(function(a){
+            var t=Math.max(0, Math.min(L, (a.c[0]-pa[0])*ud[0]+(a.c[1]-pa[1])*ud[1])), hg=[pa[0]+ud[0]*t, pa[1]+ud[1]*t];
+            var cl = t < L/2 ? ud : [-ud[0],-ud[1]];
+            var sg = a.mid ? (((a.mid[0]-hg[0])*un[0]+(a.mid[1]-hg[1])*un[1]) >= 0 ? 1 : -1) : 1;
+            var dir=[cl[0]*c45+un[0]*sg*c45, cl[1]*c45+un[1]*sg*c45], len=Math.min(a.r, L), th=[-dir[1]*0.02, dir[0]*0.02];
+            var tip=[hg[0]+dir[0]*len, hg[1]+dir[1]*len];
+            prism(out.door, [[hg[0]-th[0],hg[1]-th[1]],[tip[0]-th[0],tip[1]-th[1]],[tip[0]+th[0],tip[1]+th[1]],[hg[0]+th[0],hg[1]+th[1]]], [], 0.005, head-0.01);
+            out.frames.seg(W(tip,0.005),W(tip,head-0.01)); out.frames.seg(W(hg,head-0.01),W(tip,head-0.01));
+            // ίχνος ανοίγματος στο δάπεδο
+            var A0=Math.atan2(cl[1],cl[0]), A1=Math.atan2(dir[1],dir[0]), da=A1-A0; while (da>Math.PI) da-=2*Math.PI; while (da<-Math.PI) da+=2*Math.PI;
+            for (var q=0;q<8;q++){ var x0=A0+da*q/8, x1=A0+da*(q+1)/8; out.frames.seg(W([hg[0]+Math.cos(x0)*len, hg[1]+Math.sin(x0)*len],0.01), W([hg[0]+Math.cos(x1)*len, hg[1]+Math.sin(x1)*len],0.01)); }
+          });
+        } else {
+          var poly=[[pa[0]-nn[0],pa[1]-nn[1]],[pb[0]-nn[0],pb[1]-nn[1]],[pb[0]+nn[0],pb[1]+nn[1]],[pa[0]+nn[0],pa[1]+nn[1]]];
+          prism(out.door, poly, [], 0.0, head-0.005);
+        }
         out.frames.seg(W(pa,head),W(pb,head)); out.frames.seg(W(pa,0),W(pa,head)); out.frames.seg(W(pb,0),W(pb,head));
         if (L>1.2){ var mm=[(pa[0]+pb[0])/2,(pa[1]+pb[1])/2]; out.frames.seg(W(mm,0.01),W(mm,head)); }
       }
