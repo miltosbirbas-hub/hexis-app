@@ -157,8 +157,8 @@ async function init(){
   q('t-features').innerHTML = t.feats.map(f => '<div class="feat"><span class="tick">✓</span><span>' + f + '</span></div>').join('');
   if (t.note) { q('t-note').textContent = t.note; q('t-note').style.display = 'block'; }
 
-  let has = false;
-  try {
+  let has = !!t.free;
+  if (!has) try {
     const { data, error } = await sb.from('entitlements').select('module,active,expires_at');
     if (error) throw error;
     const now = new Date();
@@ -170,7 +170,7 @@ async function init(){
     const open = t.download ? 'Λήψη αρχείου ⬇' : 'Άνοιγμα εφαρμογής →';
     const extra = t.download ? ' download' : (t.external ? ' target="_blank" rel="noopener"' : '');
     row.innerHTML = '<a class="btn btn-orange" href="' + t.href + '"' + extra + '>' + open + '</a>'
-      + '<span class="status-on">✓ Ενεργό στον λογαριασμό σου</span>';
+      + '<span class="status-on">' + (t.free ? 'Δωρεάν για όλους τους χρήστες του HEXIS' : '✓ Ενεργό στον λογαριασμό σου') + '</span>';
   } else {
     row.innerHTML = '<button class="btn btn-orange" id="req-btn">Ενεργοποίηση</button>'
       + '<span class="price-tag">' + t.price + ' <small>ετήσια χρέωση</small></span>';

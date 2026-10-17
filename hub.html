@@ -237,14 +237,14 @@ function render() {
         + '<span><h3>' + t.name + '</h3><p>' + t.desc + '</p></span>'
         + '<span class="primary-cta">Άνοιγμα →</span></a>';
     }
-    const has = myModules.has(t.mod || t.id);
-    const attrs = 'href="tool.html?id=' + t.id + '"';
+    const has = !!t.free || myModules.has(t.mod || t.id);
+    const attrs = 'href="' + (t.free ? t.href : 'tool.html?id=' + t.id) + '"' + (t.free && t.external ? ' target="_blank" rel="noopener"' : '');
     return '<a class="tile' + (has ? '' : ' locked') + '" ' + attrs + '>'
       + (has ? '' : '<span class="lockico">🔒</span>')
       + '<span class="ico">' + (ICONS[t.id] || '') + '</span>'
       + '<h3>' + t.name + '</h3><p>' + t.desc + '</p>'
       + '<span class="foot">'
-      + (has ? '<span class="badge on">✓ Ενεργό</span>' : '<span class="badge lock">Add-on</span>')
+      + (t.free ? '<span class="badge on">Δωρεάν</span>' : has ? '<span class="badge on">✓ Ενεργό</span>' : '<span class="badge lock">Add-on</span>')
       + '<span class="go">' + (has ? (t.download ? 'Λήψη →' : 'Άνοιγμα →') : 'Ξεκλείδωμα →') + '</span>'
       + '</span></a>';
   }).join('');
