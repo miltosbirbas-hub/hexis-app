@@ -4099,7 +4099,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     try { j = JSON.parse(txt); } catch (e) { j = { error: txt.slice(0, 200) }; }
     if (res.status === 401 && !(j.error && /σύνδεση|έληξε/.test(j.error))) throw new Error('Το Supabase απέρριψε τη σύνδεση πριν φτάσει στη function (401). Στις ρυθμίσεις της function «' + HEXIS.aiFunction + '» απενεργοποίησε το «Verify JWT with legacy secret»: ο έλεγχος σύνδεσης γίνεται μέσα στον κώδικα.');
     if (!res.ok) throw new Error((j.error || j.msg || j.message || ('Η υπηρεσία απάντησε ' + res.status)) + ' [' + res.status + ']');
-    if (body.mode === 'locate' && !Array.isArray(j.regions)) throw new Error('Η function «' + HEXIS.aiFunction + '» τρέχει την παλιά έκδοση του κώδικα. Ανέβασε τον νέο κώδικα και κάνε ξανά deploy.');
+    if (body.mode === 'locate' && !Array.isArray(j.regions)) throw new Error('Η function «' + HEXIS.aiFunction + '» δεν απάντησε όπως περιμένω (' + res.status + ', ' + (res.headers.get('content-type') || 'χωρίς τύπο') + '): ' + txt.slice(0, 160).replace(/\s+/g, ' ') + (j.v ? '' : ' — μάλλον τρέχει παλιό κώδικα.'));
     return j;
   }
   function setAIMsg(m) {
