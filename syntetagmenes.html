@@ -2943,6 +2943,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   // ---------- ρυθμίσεις ενσωμάτωσης στο HEXIS ----------
   var HEXIS = {
     supabaseRef: 'oucqqudfdimccgowvpqp',
+    anonKey: 'sb_publishable_AjcKB0okxSvA9SUBazKEHQ_-HR0FMHP',
     aiFunction: 'rapid-endpoint',
     ktimaPage: 'ktimatologio.html#coords',
     handoffKey: 'hexis_coords_handoff'
@@ -4087,7 +4088,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     var ctl = new AbortController(), to = setTimeout(function () { ctl.abort(); }, 170000);
     if (S.ai) { S.ai.ctl = ctl; if (S.ai.cancelled) throw new Error('Ακυρώθηκε.'); }
     var res;
-    try { res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(body), signal: ctl.signal }); }
+    try { res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, 'apikey': HEXIS.anonKey }, body: JSON.stringify(body), signal: ctl.signal }); }
     catch (e) {
       clearTimeout(to);
       if (e.name === 'AbortError') throw new Error(S.ai && S.ai.cancelled ? 'Η ανάγνωση ακυρώθηκε.' : 'Η υπηρεσία ανάγνωσης δεν απάντησε σε 3 λεπτά. Έλεγξε στο Supabase τα logs της function «' + HEXIS.aiFunction + '».');
@@ -4096,6 +4097,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     clearTimeout(to);
     var txt = await res.text(), j = {};
     try { j = JSON.parse(txt); } catch (e) { j = { error: txt.slice(0, 200) }; }
+    if (res.status === 401 && !(j.error && /σύνδεση|έληξε/.test(j.error))) throw new Error('Το Supabase απέρριψε τη σύνδεση πριν φτάσει στη function (401). Στις ρυθμίσεις της function «' + HEXIS.aiFunction + '» απενεργοποίησε το «Verify JWT with legacy secret»: ο έλεγχος σύνδεσης γίνεται μέσα στον κώδικα.');
     if (!res.ok) throw new Error((j.error || j.msg || j.message || ('Η υπηρεσία απάντησε ' + res.status)) + ' [' + res.status + ']');
     if (body.mode === 'locate' && !Array.isArray(j.regions)) throw new Error('Η function «' + HEXIS.aiFunction + '» τρέχει την παλιά έκδοση του κώδικα. Ανέβασε τον νέο κώδικα και κάνε ξανά deploy.');
     return j;
