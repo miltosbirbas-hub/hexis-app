@@ -205,6 +205,15 @@ button { cursor: pointer; }
 .georef .facts { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; font-size: 12px; }
 .georef .facts span b { color: var(--text); font-family: var(--f-mono); font-weight: 500; }
 .notes { margin: 0; padding-left: 18px; color: var(--muted); font-size: 12.5px; display: grid; gap: 3px; }
+.kaek-list { display: grid; gap: 6px; }
+.kaek-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); }
+.kaek-row.main { border-color: color-mix(in oklab, var(--cyan) 50%, var(--line)); }
+.kaek-row .sw { width: 10px; height: 26px; border-radius: 3px; background: var(--cyan); opacity: .55; }
+.kaek-row.main .sw { opacity: 1; }
+.kaek-row b { font: 600 13px var(--f-mono); }
+.kaek-row small { display: block; color: var(--muted); font-size: 11.5px; }
+.kaek-row .bar { height: 5px; border-radius: 3px; background: var(--surface-3); overflow: hidden; margin-top: 4px; }
+.kaek-row .bar i { display: block; height: 100%; background: var(--cyan); }
 .legend-line { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
 .legend-line i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
 
@@ -1623,6 +1632,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       P.forEach(function (q) { ents.push('0', 'VERTEX', '8', lname, '10', q[0].toFixed(3), '20', q[1].toFixed(3), '30', '0.0'); });
       ents.push('0', 'SEQEND', '8', lname);
       var th = opts.labelHeight || 0.4;
+      if (t.labelText && t.labelAt) ents.push('0', 'TEXT', '8', lname, '10', t.labelAt[0].toFixed(3), '20', t.labelAt[1].toFixed(3), '30', '0.0', '40', (th * 1.6).toFixed(3), '1', String(t.labelText), '72', '1', '11', t.labelAt[0].toFixed(3), '21', t.labelAt[1].toFixed(3), '31', '0.0');
+      if (t.noPoints) return;
       t.points.forEach(function (p, i) {
         if (i === t.points.length - 1 && i > 2 && p.X.canon === t.points[0].X.canon && p.Y.canon === t.points[0].Y.canon) return;
         ents.push('0', 'POINT', '8', lpt, '10', p.X.canon, '20', p.Y.canon, '30', '0.0');
@@ -2844,6 +2855,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       P.forEach(function (q) { ents.push('0', 'VERTEX', '8', lname, '10', q[0].toFixed(3), '20', q[1].toFixed(3), '30', '0.0'); });
       ents.push('0', 'SEQEND', '8', lname);
       var th = opts.labelHeight || 0.4;
+      if (t.labelText && t.labelAt) ents.push('0', 'TEXT', '8', lname, '10', t.labelAt[0].toFixed(3), '20', t.labelAt[1].toFixed(3), '30', '0.0', '40', (th * 1.6).toFixed(3), '1', String(t.labelText), '72', '1', '11', t.labelAt[0].toFixed(3), '21', t.labelAt[1].toFixed(3), '31', '0.0');
+      if (t.noPoints) return;
       t.points.forEach(function (p, i) {
         if (i === t.points.length - 1 && i > 2 && p.X.canon === t.points[0].X.canon && p.Y.canon === t.points[0].Y.canon) return;
         ents.push('0', 'POINT', '8', lpt, '10', p.X.canon, '20', p.Y.canon, '30', '0.0');
@@ -2946,6 +2959,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     anonKey: 'sb_publishable_AjcKB0okxSvA9SUBazKEHQ_-HR0FMHP',
     aiFunction: 'rapid-handler',
     ktimaPage: 'ktimatologio.html#coords',
+    kaekGeo: 'https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/kaek-geo',
     handoffKey: 'hexis_coords_handoff'
   };
   var LIBS = {
@@ -3139,7 +3153,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       await Engine.call('init', { pages: pages.map(function (p) { return { num: p.num, items: p.items, paths: p.paths, width: p.width, height: p.height }; }) }, [], 120000);
       var r = await Engine.call('extract', {}, [], 120000);
       S.name = name; S.doc = doc; S.pages = pages; S.tables = r.tables; S.notes = r.notes; S.pageNumbers = r.pageNumbers;
-      S.scales = r.scales; S.res = {}; S.geo = {}; S.residOk = {}; S.ai = null; S.aiDone = false; S.rot = {}; S.selMode = false; S.drag = null;
+      S.scales = r.scales; S.res = {}; S.geo = {}; S.residOk = {}; S.kaek = null; S.ai = null; S.aiDone = false; S.rot = {}; S.selMode = false; S.drag = null;
       var textCount = pages.reduce(function (a, p) { return a + p.items.filter(function (it) { return it.str.trim(); }).length; }, 0);
       S.textless = textCount < 15;
       stage('find', 'done', r.tables.length + (r.tables.length === 1 ? ' πίνακας' : ' πίνακες'));
@@ -3160,6 +3174,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       if (S.pages.length) renderPage();
       // χωρίς κείμενο ή χωρίς πίνακες: ανάγνωση AI αμέσως, αν υπάρχει σύνδεση
       if ((S.textless || !S.tables.length) && authToken() && !S.isSample) runAI();
+      else if (!S.isSample) findKaek();
     } catch (err) {
       console.error(err);
       $('#progress').hidden = true; $('#landing').hidden = false;
@@ -3243,6 +3258,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     try {
       if (refit) await fitAllGeo();
       await recompute();
+      if (refit && !S.isSample) { var pk = plotKey(); if (pk && pk !== (S.kaek && S.kaek.key)) findKaek(); }
     } catch (e) { console.error(e); toast('Ο έλεγχος δεν ολοκληρώθηκε: ' + e.message, true); }
     setBusy(false);
     renderAll(); drawOverlay(); renderPlan(); if (S.map) drawMap();
@@ -3256,6 +3272,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   }
   function renderAll() {
     var L = $('#left'); var html = renderSummary();
+    html += renderKaekPanel();
     if (S.textless || !S.tables.length) html += renderAIPanel();
     html += S.tables.map(renderCard).join('');
     if (S.tables.length && !S.textless) html += '<p style="text-align:center;color:var(--faint);font-size:12.5px;margin:4px 0 0">Λείπει κάποιος πίνακας; <button class="btn small ghost" data-act="ai-open">Ανάγνωση με AI</button> <button class="btn small ghost" data-act="add-table">Νέος πίνακας</button></p>';
@@ -3373,6 +3390,141 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     return h;
   }
 
+  // ---------- Κτηματολόγιο: γεωτεμάχια ΚΑΕΚ στη θέση του οικοπέδου ----------
+  function mainPlot() { return S.tables.filter(function (t) { return t.include && t.type === 'plot' && t.points.length >= 3; })[0] || S.tables.filter(function (t) { return t.include && isPoly(t); })[0] || null; }
+  function plotKey() { var t = mainPlot(); return t ? t.points.map(function (p) { return p.X.canon + ',' + p.Y.canon; }).join(';') : null; }
+  function centroid(P) {
+    var A = 0, cx = 0, cy = 0, n = P.length;
+    for (var i = 0; i < n; i++) { var p = P[i], q = P[(i + 1) % n], f = p[0] * q[1] - q[0] * p[1]; A += f; cx += (p[0] + q[0]) * f; cy += (p[1] + q[1]) * f; }
+    if (Math.abs(A) < 1e-9) return [P.reduce(function (a, p) { return a + p[0]; }, 0) / n, P.reduce(function (a, p) { return a + p[1]; }, 0) / n];
+    return [cx / (3 * A), cy / (3 * A)];
+  }
+  function rings(geom) {
+    if (!geom) return [];
+    if (geom.type === 'Polygon') return geom.coordinates.map(function (r) { return r.map(function (c) { return [c[0], c[1]]; }); });
+    if (geom.type === 'MultiPolygon') return geom.coordinates.map(function (pg) { return pg[0].map(function (c) { return [c[0], c[1]]; }); });
+    return [];
+  }
+  // εμβαδό τομής με δειγματοληψία πλέγματος (ανοχή ~0,5%)
+  function overlapArea(A, Brings) {
+    var xs = A.map(function (p) { return p[0]; }), ys = A.map(function (p) { return p[1]; });
+    var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+    var N = 160, dx = (x1 - x0) / N, dy = (y1 - y0) / N, hit = 0, tot = 0;
+    for (var i = 0; i < N; i++) for (var j = 0; j < N; j++) {
+      var pt = [x0 + (i + 0.5) * dx, y0 + (j + 0.5) * dy];
+      if (!CoordParser.pointInPoly(pt, A, 0)) continue;
+      tot++;
+      if (Brings.some(function (r) { return CoordParser.pointInPoly(pt, r, 0); })) hit++;
+    }
+    var areaA = Math.abs(CoordParser.polyArea(A));
+    return tot ? areaA * hit / tot : 0;
+  }
+  async function findKaek() {
+    var t = mainPlot(); if (!t) { S.kaek = null; return; }
+    var key = plotKey();
+    S.kaek = { key: key, status: 'loading', parcels: [], plotId: t.id }; renderAll();
+    try {
+      await loadScript(LIBS.proj4); proj4.defs('EPSG:2100', EGSA87);
+      var P = world(t); if (P.length > 3 && P[0][0] === P[P.length - 1][0] && P[0][1] === P[P.length - 1][1]) P = P.slice(0, -1);
+      var c = centroid(P), samples = [c];
+      P.forEach(function (v) { var m = [(c[0] + v[0]) / 2, (c[1] + v[1]) / 2]; if (CoordParser.pointInPoly(m, P, 0)) samples.push(m); });
+      if (!CoordParser.pointInPoly(c, P, 0)) samples.shift();
+      samples = samples.slice(0, 4);
+      var seen = {}, parcels = [], region = null, approxOnly = true;
+      for (var i = 0; i < samples.length; i++) {
+        var ll = proj4('EPSG:2100', 'WGS84', samples[i]);
+        var ctl = new AbortController(), to = setTimeout(function () { ctl.abort(); }, 25000);
+        var r; try { r = await fetch(HEXIS.kaekGeo + '?lat=' + ll[1].toFixed(7) + '&lon=' + ll[0].toFixed(7) + '&neighbors=1&r=150', { signal: ctl.signal }); } finally { clearTimeout(to); }
+        if (!r.ok) continue;
+        var j = await r.json().catch(function () { return {}; });
+        if (!j || j.error || !j.kaek) continue;
+        region = region || j.region || null;
+        var all = [{ kaek: j.kaek, area: j.area_m2, geom: j.geometry_egsa, hit: !j.approx }].concat((j.neighbors || []).map(function (n) { return { kaek: n.kaek, area: n.area_m2, geom: n.geometry_egsa, hit: false }; }));
+        all.forEach(function (p) { if (!p.kaek || !p.geom) return; if (seen[p.kaek]) { if (p.hit) seen[p.kaek].hit = true; return; } seen[p.kaek] = p; parcels.push(p); });
+        if (!j.approx) approxOnly = false;
+      }
+      var areaPlot = Math.abs(CoordParser.polyArea(P));
+      parcels.forEach(function (p) {
+        p.rings = rings(p.geom);
+        p.area = p.area || p.rings.reduce(function (a, r) { return a + Math.abs(CoordParser.polyArea(r)); }, 0);
+        p.ovl = overlapArea(P, p.rings);
+        p.ovlPlot = areaPlot ? p.ovl / areaPlot : 0;
+        p.ovlParcel = p.area ? p.ovl / p.area : 0;
+      });
+      parcels.sort(function (a, b) { return b.ovl - a.ovl; });
+      S.kaek = { key: key, status: parcels.length ? 'ok' : 'empty', parcels: parcels, plotId: t.id, region: region, approx: approxOnly, areaPlot: areaPlot };
+    } catch (e) {
+      console.warn('kaek', e);
+      S.kaek = { key: key, status: 'error', parcels: [], plotId: t.id, error: e.name === 'AbortError' ? 'Η βάση ΚΑΕΚ δεν απάντησε εγκαίρως.' : e.message };
+    }
+    renderAll(); renderPlan(); if (S.map) drawMap(false);
+  }
+  function renderKaekPanel() {
+    var t = mainPlot(); if (!t) return '';
+    var k = S.kaek;
+    var h = '<section class="panel summary" id="kaekPanel"><div class="file-row"><span class="fname">Κτηματολόγιο</span><span class="chip">γεωτεμάχια ΚΑΕΚ στη θέση του «' + esc(shortTitle(t)) + '»</span></div>';
+    if (!k || k.key !== plotKey()) {
+      h += '<p style="margin:0;color:var(--muted);font-size:13px">Αναζήτηση των γεωτεμαχίων του Κτηματολογίου που βρίσκονται στη θέση του οικοπέδου, από τη βάση ΚΑΕΚ του HEXIS.</p><div><button class="btn primary" data-act="kaek-find">Εύρεση ΚΑΕΚ</button></div>';
+    } else if (k.status === 'loading') {
+      h += '<p style="margin:0;color:var(--muted);font-size:13px">Αναζήτηση στη βάση ΚΑΕΚ…</p>';
+    } else if (k.status === 'error') {
+      h += '<p style="margin:0;color:var(--err);font-size:13px">' + esc(k.error) + '</p><div><button class="btn small" data-act="kaek-find">Δοκίμασε ξανά</button></div>';
+    } else if (k.status === 'empty') {
+      h += '<p style="margin:0;color:var(--muted);font-size:13px">Δεν βρέθηκε γεωτεμάχιο σε αυτή τη θέση. Η βάση ΚΑΕΚ του HEXIS δεν καλύπτει ακόμα όλη τη χώρα, ή οι συντεταγμένες δεν είναι σωστές.</p><div><button class="btn small" data-act="kaek-find">Δοκίμασε ξανά</button></div>';
+    } else {
+      var mains = k.parcels.filter(function (p) { return p.ovlPlot >= 0.02; }), others = k.parcels.filter(function (p) { return p.ovlPlot < 0.02; });
+      var covered = mains.reduce(function (a, p) { return a + p.ovl; }, 0);
+      h += '<div class="kpis"><div class="kpi"><label>Γεωτεμάχια</label><b>' + mains.length + '</b><div class="sub">' + (mains.length === 1 ? 'συμπίπτει με το οικόπεδο' : 'μέσα στο οικόπεδο') + '</div></div>';
+      h += '<div class="kpi"><label>Κάλυψη οικοπέδου</label><b>' + fmt(100 * covered / (k.areaPlot || 1), 1) + '<small>%</small></b><div class="sub">από τα γεωτεμάχια ΚΑΕΚ</div></div>';
+      h += '<div class="kpi"><label>Όμορα</label><b>' + others.length + '</b><div class="sub">γύρω από το οικόπεδο</div></div>';
+      h += '<div class="kpi"><label>Περιοχή</label><b style="font-size:14px">' + esc(k.region || '—') + '</b><div class="sub">βάση ΚΑΕΚ HEXIS</div></div></div>';
+      h += '<div class="kaek-list">' + mains.map(function (p) {
+        return '<div class="kaek-row main"><span class="sw"></span><div><b>ΚΑΕΚ ' + esc(p.kaek) + '</b><small>' + fmt(p.area, 2) + ' m² · τομή με το οικόπεδο ' + fmt(p.ovl, 2) + ' m² (' + fmt(100 * p.ovlPlot, 1) + '% του οικοπέδου · ' + fmt(100 * p.ovlParcel, 1) + '% του γεωτεμαχίου)</small><div class="bar"><i style="width:' + Math.round(100 * p.ovlParcel) + '%"></i></div></div><button class="btn small" data-act="kaek-show" data-kaek="' + esc(p.kaek) + '">Στον χάρτη</button></div>';
+      }).join('') + '</div>';
+      if (others.length) h += '<details><summary style="cursor:pointer;color:var(--muted);font-size:12.5px">Όμορα γεωτεμάχια (' + others.length + ')</summary><div class="kaek-list" style="margin-top:8px">' + others.map(function (p) { return '<div class="kaek-row"><span class="sw"></span><div><b>ΚΑΕΚ ' + esc(p.kaek) + '</b><small>' + fmt(p.area, 2) + ' m²</small></div><button class="btn small" data-act="kaek-show" data-kaek="' + esc(p.kaek) + '">Στον χάρτη</button></div>'; }).join('') + '</div></details>';
+      h += '<div class="file-row"><button class="btn small" data-exp="kaek-dxf">DXF γεωτεμαχίων</button><button class="btn small" data-exp="kaek-txt">TXT κορυφών</button><button class="btn small" data-exp="kaek-geojson">GeoJSON</button><label class="toggle" style="margin-left:auto"><input type="checkbox" id="kaekOnlyMain"' + (S.kaekOnlyMain !== false ? ' checked' : '') + '>Μόνο όσα τέμνουν το οικόπεδο</label></div>';
+    }
+    h += '</section>';
+    return h;
+  }
+  function kaekSelected() {
+    var k = S.kaek; if (!k || k.status !== 'ok') return [];
+    return S.kaekOnlyMain === false ? k.parcels : k.parcels.filter(function (p) { return p.ovlPlot >= 0.02; });
+  }
+  function kaekAsTables(list) {
+    var out = [];
+    list.forEach(function (p) {
+      p.rings.forEach(function (r, i) {
+        var R = r.slice(); if (R.length > 3 && R[0][0] === R[R.length - 1][0] && R[0][1] === R[R.length - 1][1]) R = R.slice(0, -1);
+        out.push({ type: 'kaek', include: true, noPoints: true, labelText: i === 0 ? 'ΚΑΕΚ ' + p.kaek : null, labelAt: i === 0 ? centroid(R) : null, points: R.map(function (q) { return { label: null, X: { value: q[0], canon: q[0].toFixed(2) }, Y: { value: q[1], canon: q[1].toFixed(2) } }; }) });
+      });
+    });
+    return out;
+  }
+  async function exportKaek(kind) {
+    var list = kaekSelected(); if (!list.length) { toast('Δεν υπάρχουν γεωτεμάχια για εξαγωγή.', true); return; }
+    var base = baseName();
+    if (kind === 'kaek-geojson') {
+      var fc = { type: 'FeatureCollection', crs: { type: 'name', properties: { name: 'urn:ogc:def:crs:EPSG::2100' } }, features: list.map(function (p) { return { type: 'Feature', properties: { kaek: p.kaek, area_m2: p.area, overlap_m2: Math.round(p.ovl * 100) / 100 }, geometry: p.geom }; }) };
+      download(base + '_ΚΑΕΚ.geojson', JSON.stringify(fc), 'application/geo+json'); toast('Έτοιμο το GeoJSON.');
+    } else if (kind === 'kaek-txt') {
+      list.forEach(function (p, i) {
+        var lines = []; p.rings.forEach(function (r, ri) { r.forEach(function (q, k) { lines.push((p.rings.length > 1 ? (ri + 1) + '-' : '') + (k + 1) + ',' + q[0].toFixed(2) + ',' + q[1].toFixed(2)); }); });
+        setTimeout(function () { download('ΚΑΕΚ_' + p.kaek + '.txt', lines.join('\r\n') + '\r\n', 'text/plain;charset=utf-8'); }, i * 250);
+      });
+      toast(list.length === 1 ? 'Έτοιμο το TXT.' : 'Έτοιμα ' + list.length + ' αρχεία TXT, ένα ανά ΚΑΕΚ.');
+    } else {
+      var inc = S.tables.filter(function (t) { return t.include; });
+      var tbl = inc.map(function (t) { return { type: t.type, include: true, points: t.points.map(function (p) { return { label: p.label, X: { value: p.X.value, canon: p.X.canon }, Y: { value: p.Y.value, canon: p.Y.canon } }; }) }; });
+      var typeLayer = { kaek: 'KTIMATOLOGIO_KAEK' }, typeColor = { kaek: 4 }; Object.keys(TYPE).forEach(function (k) { typeLayer[k] = TYPE[k].layer; typeColor[k] = TYPE[k].aci; });
+      setBusy(true);
+      try {
+        var d = await Engine.call('dxf', { pageNums: [], geo: null, tables: tbl.concat(kaekAsTables(list)), typeLayer: typeLayer, typeColor: typeColor, labelHeight: 0.6 }, [], 60000);
+        download(base + '_ΚΑΕΚ_ΕΓΣΑ87.dxf', new Blob([d.bytes], { type: 'application/dxf' })); toast('Έτοιμο το DXF: πίνακες + γεωτεμάχια ΚΑΕΚ.');
+      } finally { setBusy(false); }
+    }
+  }
+
   function renderAIPanel() {
     var running = S.ai && S.ai.running;
     var h = '<section class="panel ai-panel">';
@@ -3441,11 +3593,15 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     }
     afterEdit(t, refit);
   });
+  left.addEventListener('change', function (ev) { if (ev.target.id === 'kaekOnlyMain') { S.kaekOnlyMain = ev.target.checked; renderPlan(); if (S.map) drawMap(false); } });
   left.addEventListener('click', function (ev) {
+    var x = ev.target.closest('[data-exp]'); if (x && /^kaek-/.test(x.dataset.exp)) { exportKaek(x.dataset.exp).catch(function (e) { toast('Η εξαγωγή απέτυχε: ' + e.message, true); }); return; }
     var b = ev.target.closest('[data-act]'); if (!b) return;
     var act = b.dataset.act, card = b.closest('.tcard'), t = card ? tableById(card.dataset.id) : null;
     var row = b.closest('tr[data-row]'), i = row ? +row.dataset.row : -1;
     if (act === 'ai-run') return runAI();
+    if (act === 'kaek-find') { S.kaek = null; return findKaek(); }
+    if (act === 'kaek-show') { S.kaekFocus = b.dataset.kaek; setView('map'); return; }
     if (act === 'ai-cancel') { if (S.ai && S.ai.running) { S.ai.cancelled = true; if (S.ai.ctl) S.ai.ctl.abort(); } return; }
     if (act === 'ai-open') { S.ai = S.ai || {}; S.forceAI = true; showAIGate(); return; }
     if (act === 'add-table') return addTable();
@@ -3749,6 +3905,13 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     var gy0 = Math.floor((y0 - (oy / k)) / step) * step, gy1 = y0 + (H - oy) / k;
     for (var gx = gx0; gx <= gx1; gx += step) { var a = P(gx, 0)[0]; if (a < 0 || a > W) continue; h += '<line x1="' + a + '" y1="0" x2="' + a + '" y2="' + H + '" stroke="' + line + '" stroke-width="1"/><text x="' + (a + 4) + '" y="' + (H - 8) + '" font-size="10" font-family="JetBrains Mono, monospace" fill="' + muted + '">' + fixed(gx, 0) + '</text>'; }
     for (var gy = gy0; gy <= gy1; gy += step) { var b = P(0, gy)[1]; if (b < 0 || b > H) continue; h += '<line x1="0" y1="' + b + '" x2="' + W + '" y2="' + b + '" stroke="' + line + '" stroke-width="1"/><text x="6" y="' + (b - 4) + '" font-size="10" font-family="JetBrains Mono, monospace" fill="' + muted + '">' + fixed(gy, 0) + '</text>'; }
+    kaekSelected().forEach(function (p) {
+      p.rings.forEach(function (r) {
+        var pts = r.map(function (q) { return P(q[0], q[1]); }).map(function (q) { return q[0].toFixed(1) + ',' + q[1].toFixed(1); }).join(' ');
+        h += '<polygon points="' + pts + '" fill="' + css('--cyan') + '" fill-opacity="0.05" stroke="' + css('--cyan') + '" stroke-width="1.2" stroke-dasharray="5 4"/>';
+      });
+      var c = P.apply(null, centroid(p.rings[0])); h += '<text x="' + c[0].toFixed(1) + '" y="' + c[1].toFixed(1) + '" text-anchor="middle" font-size="10" font-family="JetBrains Mono, monospace" fill="' + muted + '">ΚΑΕΚ ' + esc(p.kaek) + '</text>';
+    });
     ts.forEach(function (t) {
       var col = css(TYPE[t.type].css), isSel = t === sel, r = S.res[t.id];
       var pts = t.points.map(function (p) { return P(p.X.value, p.Y.value); });
@@ -3796,7 +3959,15 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   function drawMap(fit) {
     if (!S.map) return;
     S.mapLayer.clearLayers();
-    var all = [];
+    var all = [], focusLL = null;
+    kaekSelected().forEach(function (p) {
+      var ll = p.rings.map(function (r) { return r.map(function (q) { var g = proj4('EPSG:2100', 'WGS84', q); return [g[1], g[0]]; }); });
+      var isF = S.kaekFocus === p.kaek;
+      var shape = L.polygon(ll, { color: '#67e8f9', weight: isF ? 3 : 1.5, dashArray: '5,4', fillColor: '#67e8f9', fillOpacity: isF ? 0.18 : 0.06 });
+      shape.bindTooltip('ΚΑΕΚ ' + esc(p.kaek) + ' · ' + fixed(p.area, 0) + ' m²', { sticky: true });
+      shape.addTo(S.mapLayer);
+      if (isF) focusLL = ll[0];
+    });
     S.tables.forEach(function (t) {
       if (!t.include) return;
       var ll = t.points.map(function (p) { var q = proj4('EPSG:2100', 'WGS84', [p.X.value, p.Y.value]); return [q[1], q[0]]; });
@@ -3808,6 +3979,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       shape.addTo(S.mapLayer);
       if (t.id === S.sel) ll.forEach(function (q, i) { L.circleMarker(q, { radius: 4, color: col, fillColor: col, fillOpacity: 1, weight: 1 }).bindTooltip(esc(t.points[i].label || String(i + 1)), { permanent: ll.length < 30, direction: 'top', className: '' }).addTo(S.mapLayer); });
     });
+    if (focusLL) { S.map.fitBounds(L.latLngBounds(focusLL), { padding: [40, 40], maxZoom: 20 }); S.kaekFocus = null; return; }
     if (fit && all.length) {
       var sel = tableById(S.sel);
       var b = sel ? sel.points.map(function (p) { var q = proj4('EPSG:2100', 'WGS84', [p.X.value, p.Y.value]); return [q[1], q[0]]; }) : all;
