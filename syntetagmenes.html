@@ -1811,6 +1811,20 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     return tpl.slice(0, start + 1) + out + tpl.slice(end + 1);
   }
 
+  // Στυλ κειμένου Arial (TrueType) στον πίνακα STYLE του προτύπου
+  function ensureStyle(tpl, name, next) {
+    if (new RegExp('\\nAcDbTextStyleTableRecord\\n  2\\n' + name + '\\n').test(tpl)) return tpl;
+    var start = tpl.indexOf('\n  0\nTABLE\n  2\nSTYLE\n'); if (start < 0) return tpl;
+    var end = tpl.indexOf('\n  0\nENDTAB\n', start); if (end < 0) return tpl;
+    var block = tpl.slice(start + 1, end + 1);
+    var th = /\n  5\n([0-9A-Fa-f]+)\n/.exec('\n' + block); var tableHandle = th ? th[1] : '5';
+    var cnt = (block.match(/\n  0\nSTYLE\n/g) || []).length + 1;
+    block = block.replace(/\n 70\n\d+\n/, '\n 70\n' + cnt + '\n');
+    var entry = ['  0', 'STYLE', '  5', next(), '330', tableHandle, '100', 'AcDbSymbolTableRecord', '100', 'AcDbTextStyleTableRecord', '  2', name, ' 70', '0', ' 40', '0.0', ' 41', '1.0', ' 50', '0.0', ' 71', '0', ' 42', '2.5', '  3', name.toLowerCase() + '.ttf', '  4', '', '1001', 'ACAD', '1000', name, '1071', '34'].join('\n') + '\n';
+    return tpl.slice(0, start + 1) + block + entry + tpl.slice(end + 1);
+  }
+  var FONT = 'Arial';
+
   // spec: { polys:[{layer, pts:[[x,y]...], bulges?, closed, color?, lw?}], texts:[{layer,x,y,text,h,rot,align,color}],
   //         mtexts:[{layer,x,y,text,h,rot,color}], lines:[{layer,a,b,color}], points:[{layer,x,y,xs?,ys?}], layers:{name:{color,ltype}} }
   // opts: { prune: αφαίρεση αχρησιμοποίητων layers του προτύπου, insunits }
@@ -1839,7 +1853,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       if (t.color) out.push('62', String(t.color));
       out.push('100', 'AcDbText', '10', f(t.x), '20', f(t.y), '30', '0.0', '40', f(h), '1', clean(t.text));
       if (t.rot) out.push('50', f(t.rot));
-      out.push('7', 'Standard');
+      out.push('7', FONT);
       if (t.align === 'center' || t.align === 'right') out.push('72', t.align === 'center' ? '1' : '2', '11', f(t.x), '21', f(t.y), '31', '0.0');
       out.push('100', 'AcDbText');
       ext(t.x, t.y);
@@ -1850,7 +1864,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       var x = t.x + Math.sin(r) * 0.25 * h, y = t.y - Math.cos(r) * 0.25 * h;
       out.push('0', 'MTEXT', '5', next(), '330', MSP_OWNER, '100', 'AcDbEntity', '8', U(t.layer));
       if (t.color) out.push('62', String(t.color));
-      out.push('100', 'AcDbMText', '10', f(x), '20', f(y), '30', '0.0', '40', f(h), '41', '0.0', '71', '7', '72', '1', '1', mtxt(t.text), '7', 'Standard', '11', (Math.round(Math.cos(r) * 1e9) / 1e9).toString(), '21', (Math.round(Math.sin(r) * 1e9) / 1e9).toString(), '31', '0.0');
+      out.push('100', 'AcDbMText', '10', f(x), '20', f(y), '30', '0.0', '40', f(h), '41', '0.0', '71', '7', '72', '1', '1', mtxt(t.text), '7', FONT, '11', (Math.round(Math.cos(r) * 1e9) / 1e9).toString(), '21', (Math.round(Math.sin(r) * 1e9) / 1e9).toString(), '31', '0.0');
       ext(t.x, t.y);
     });
     (spec.lines || []).forEach(function (l) {
@@ -1865,6 +1879,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     });
     var body = out.join('\r\n');
     tpl = rewriteLayers(tpl, used, spec.layers || {}, next, !!opts.prune);
+    tpl = ensureStyle(tpl, FONT, next);
+    tpl = tpl.replace(/(\$TEXTSTYLE\n  7\n)Standard/, '$1' + FONT);
     // ENTITIES: εισαγωγή πριν το ENDSEC της ενότητας
     var i = tpl.indexOf('ENTITIES'); if (i < 0) throw new Error('Πρότυπο DXF χωρίς ENTITIES');
     var j = tpl.indexOf('ENDSEC', i);
@@ -3279,6 +3295,20 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     return tpl.slice(0, start + 1) + out + tpl.slice(end + 1);
   }
 
+  // Στυλ κειμένου Arial (TrueType) στον πίνακα STYLE του προτύπου
+  function ensureStyle(tpl, name, next) {
+    if (new RegExp('\\nAcDbTextStyleTableRecord\\n  2\\n' + name + '\\n').test(tpl)) return tpl;
+    var start = tpl.indexOf('\n  0\nTABLE\n  2\nSTYLE\n'); if (start < 0) return tpl;
+    var end = tpl.indexOf('\n  0\nENDTAB\n', start); if (end < 0) return tpl;
+    var block = tpl.slice(start + 1, end + 1);
+    var th = /\n  5\n([0-9A-Fa-f]+)\n/.exec('\n' + block); var tableHandle = th ? th[1] : '5';
+    var cnt = (block.match(/\n  0\nSTYLE\n/g) || []).length + 1;
+    block = block.replace(/\n 70\n\d+\n/, '\n 70\n' + cnt + '\n');
+    var entry = ['  0', 'STYLE', '  5', next(), '330', tableHandle, '100', 'AcDbSymbolTableRecord', '100', 'AcDbTextStyleTableRecord', '  2', name, ' 70', '0', ' 40', '0.0', ' 41', '1.0', ' 50', '0.0', ' 71', '0', ' 42', '2.5', '  3', name.toLowerCase() + '.ttf', '  4', '', '1001', 'ACAD', '1000', name, '1071', '34'].join('\n') + '\n';
+    return tpl.slice(0, start + 1) + block + entry + tpl.slice(end + 1);
+  }
+  var FONT = 'Arial';
+
   // spec: { polys:[{layer, pts:[[x,y]...], bulges?, closed, color?, lw?}], texts:[{layer,x,y,text,h,rot,align,color}],
   //         mtexts:[{layer,x,y,text,h,rot,color}], lines:[{layer,a,b,color}], points:[{layer,x,y,xs?,ys?}], layers:{name:{color,ltype}} }
   // opts: { prune: αφαίρεση αχρησιμοποίητων layers του προτύπου, insunits }
@@ -3307,7 +3337,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       if (t.color) out.push('62', String(t.color));
       out.push('100', 'AcDbText', '10', f(t.x), '20', f(t.y), '30', '0.0', '40', f(h), '1', clean(t.text));
       if (t.rot) out.push('50', f(t.rot));
-      out.push('7', 'Standard');
+      out.push('7', FONT);
       if (t.align === 'center' || t.align === 'right') out.push('72', t.align === 'center' ? '1' : '2', '11', f(t.x), '21', f(t.y), '31', '0.0');
       out.push('100', 'AcDbText');
       ext(t.x, t.y);
@@ -3318,7 +3348,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       var x = t.x + Math.sin(r) * 0.25 * h, y = t.y - Math.cos(r) * 0.25 * h;
       out.push('0', 'MTEXT', '5', next(), '330', MSP_OWNER, '100', 'AcDbEntity', '8', U(t.layer));
       if (t.color) out.push('62', String(t.color));
-      out.push('100', 'AcDbMText', '10', f(x), '20', f(y), '30', '0.0', '40', f(h), '41', '0.0', '71', '7', '72', '1', '1', mtxt(t.text), '7', 'Standard', '11', (Math.round(Math.cos(r) * 1e9) / 1e9).toString(), '21', (Math.round(Math.sin(r) * 1e9) / 1e9).toString(), '31', '0.0');
+      out.push('100', 'AcDbMText', '10', f(x), '20', f(y), '30', '0.0', '40', f(h), '41', '0.0', '71', '7', '72', '1', '1', mtxt(t.text), '7', FONT, '11', (Math.round(Math.cos(r) * 1e9) / 1e9).toString(), '21', (Math.round(Math.sin(r) * 1e9) / 1e9).toString(), '31', '0.0');
       ext(t.x, t.y);
     });
     (spec.lines || []).forEach(function (l) {
@@ -3333,6 +3363,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     });
     var body = out.join('\r\n');
     tpl = rewriteLayers(tpl, used, spec.layers || {}, next, !!opts.prune);
+    tpl = ensureStyle(tpl, FONT, next);
+    tpl = tpl.replace(/(\$TEXTSTYLE\n  7\n)Standard/, '$1' + FONT);
     // ENTITIES: εισαγωγή πριν το ENDSEC της ενότητας
     var i = tpl.indexOf('ENTITIES'); if (i < 0) throw new Error('Πρότυπο DXF χωρίς ENTITIES');
     var j = tpl.indexOf('ENDSEC', i);
@@ -3516,6 +3548,20 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     return tpl.slice(0, start + 1) + out + tpl.slice(end + 1);
   }
 
+  // Στυλ κειμένου Arial (TrueType) στον πίνακα STYLE του προτύπου
+  function ensureStyle(tpl, name, next) {
+    if (new RegExp('\\nAcDbTextStyleTableRecord\\n  2\\n' + name + '\\n').test(tpl)) return tpl;
+    var start = tpl.indexOf('\n  0\nTABLE\n  2\nSTYLE\n'); if (start < 0) return tpl;
+    var end = tpl.indexOf('\n  0\nENDTAB\n', start); if (end < 0) return tpl;
+    var block = tpl.slice(start + 1, end + 1);
+    var th = /\n  5\n([0-9A-Fa-f]+)\n/.exec('\n' + block); var tableHandle = th ? th[1] : '5';
+    var cnt = (block.match(/\n  0\nSTYLE\n/g) || []).length + 1;
+    block = block.replace(/\n 70\n\d+\n/, '\n 70\n' + cnt + '\n');
+    var entry = ['  0', 'STYLE', '  5', next(), '330', tableHandle, '100', 'AcDbSymbolTableRecord', '100', 'AcDbTextStyleTableRecord', '  2', name, ' 70', '0', ' 40', '0.0', ' 41', '1.0', ' 50', '0.0', ' 71', '0', ' 42', '2.5', '  3', name.toLowerCase() + '.ttf', '  4', '', '1001', 'ACAD', '1000', name, '1071', '34'].join('\n') + '\n';
+    return tpl.slice(0, start + 1) + block + entry + tpl.slice(end + 1);
+  }
+  var FONT = 'Arial';
+
   // spec: { polys:[{layer, pts:[[x,y]...], bulges?, closed, color?, lw?}], texts:[{layer,x,y,text,h,rot,align,color}],
   //         mtexts:[{layer,x,y,text,h,rot,color}], lines:[{layer,a,b,color}], points:[{layer,x,y,xs?,ys?}], layers:{name:{color,ltype}} }
   // opts: { prune: αφαίρεση αχρησιμοποίητων layers του προτύπου, insunits }
@@ -3544,7 +3590,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       if (t.color) out.push('62', String(t.color));
       out.push('100', 'AcDbText', '10', f(t.x), '20', f(t.y), '30', '0.0', '40', f(h), '1', clean(t.text));
       if (t.rot) out.push('50', f(t.rot));
-      out.push('7', 'Standard');
+      out.push('7', FONT);
       if (t.align === 'center' || t.align === 'right') out.push('72', t.align === 'center' ? '1' : '2', '11', f(t.x), '21', f(t.y), '31', '0.0');
       out.push('100', 'AcDbText');
       ext(t.x, t.y);
@@ -3555,7 +3601,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       var x = t.x + Math.sin(r) * 0.25 * h, y = t.y - Math.cos(r) * 0.25 * h;
       out.push('0', 'MTEXT', '5', next(), '330', MSP_OWNER, '100', 'AcDbEntity', '8', U(t.layer));
       if (t.color) out.push('62', String(t.color));
-      out.push('100', 'AcDbMText', '10', f(x), '20', f(y), '30', '0.0', '40', f(h), '41', '0.0', '71', '7', '72', '1', '1', mtxt(t.text), '7', 'Standard', '11', (Math.round(Math.cos(r) * 1e9) / 1e9).toString(), '21', (Math.round(Math.sin(r) * 1e9) / 1e9).toString(), '31', '0.0');
+      out.push('100', 'AcDbMText', '10', f(x), '20', f(y), '30', '0.0', '40', f(h), '41', '0.0', '71', '7', '72', '1', '1', mtxt(t.text), '7', FONT, '11', (Math.round(Math.cos(r) * 1e9) / 1e9).toString(), '21', (Math.round(Math.sin(r) * 1e9) / 1e9).toString(), '31', '0.0');
       ext(t.x, t.y);
     });
     (spec.lines || []).forEach(function (l) {
@@ -3570,6 +3616,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     });
     var body = out.join('\r\n');
     tpl = rewriteLayers(tpl, used, spec.layers || {}, next, !!opts.prune);
+    tpl = ensureStyle(tpl, FONT, next);
+    tpl = tpl.replace(/(\$TEXTSTYLE\n  7\n)Standard/, '$1' + FONT);
     // ENTITIES: εισαγωγή πριν το ENDSEC της ενότητας
     var i = tpl.indexOf('ENTITIES'); if (i < 0) throw new Error('Πρότυπο DXF χωρίς ENTITIES');
     var j = tpl.indexOf('ENDSEC', i);
@@ -3804,7 +3852,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     function path(piece) { var d = 'M' + pts(piece.ring).replace(/ /g, ' L') + ' Z'; (piece.holes || []).forEach(function (h) { d += ' M' + pts(h).replace(/ /g, ' L') + ' Z'; }); return d; }
     function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
     function cen(r) { var A = 0, cx = 0, cy = 0, n = r.length; for (var i = 0; i < n; i++) { var p = r[i], q = r[(i + 1) % n], f = p[0] * q[1] - q[0] * p[1]; A += f; cx += (p[0] + q[0]) * f; cy += (p[1] + q[1]) * f; } return Math.abs(A) < 1e-9 ? r[0] : [cx / (3 * A), cy / (3 * A)]; }
-    var s = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" font-family="Manrope, Arial, sans-serif">';
+    var s = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" font-family="Arial, Liberation Sans, sans-serif">';
     s += '<defs><pattern id="hcut" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="' + C.cut + '" stroke-width="1.4"/></pattern>';
     s += '<pattern id="hgiv" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="6" stroke="' + C.given + '" stroke-width="1.4"/></pattern>';
     s += '<pattern id="hgap" width="5" height="5" patternUnits="userSpaceOnUse"><circle cx="2.5" cy="2.5" r="0.9" fill="' + C.gap + '"/></pattern></defs>';
@@ -3830,11 +3878,11 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     // υπόμνημα
     var ly = H - 18, lx = pad;
     function leg(sym, text) { s += sym + '<text x="' + (lx + 24) + '" y="' + (ly + 4) + '" font-size="10.5" fill="' + C.text + '">' + text + '</text>'; lx += 24 + text.length * 6.2 + 18; }
-    leg('<line x1="' + lx + '" y1="' + ly + '" x2="' + (lx + 18) + '" y2="' + ly + '" stroke="' + C.meas + '" stroke-width="2.6"/>', 'Μετρημένο όριο (τοπογραφικό)');
-    leg('<line x1="' + lx + '" y1="' + ly + '" x2="' + (lx + 18) + '" y2="' + ly + '" stroke="' + C.kaek + '" stroke-width="1.2" stroke-dasharray="6 4"/>', 'Όρια ΚΑΕΚ (Κτηματολόγιο)');
-    leg('<rect x="' + lx + '" y="' + (ly - 7) + '" width="18" height="14" fill="url(#hcut)" stroke="' + C.cut + '"/>', 'Από όμορα ΚΑΕΚ (Δi)');
-    leg('<rect x="' + lx + '" y="' + (ly - 7) + '" width="18" height="14" fill="url(#hgiv)" stroke="' + C.given + '"/>', 'Από το αρχικό ΚΑΕΚ (Αi)');
-    if (res.gaps.count) leg('<rect x="' + lx + '" y="' + (ly - 7) + '" width="18" height="14" fill="url(#hgap)" stroke="' + C.gap + '"/>', 'Εκτός ΚΑΕΚ (Ε)');
+    leg('<line x1="' + lx + '" y1="' + ly + '" x2="' + (lx + 18) + '" y2="' + ly + '" stroke="' + C.meas + '" stroke-width="2.6"/>', 'TOPO_PROP · Μετρημένο όριο');
+    leg('<line x1="' + lx + '" y1="' + ly + '" x2="' + (lx + 18) + '" y2="' + ly + '" stroke="' + C.kaek + '" stroke-width="1.2" stroke-dasharray="6 4"/>', 'PST_KAEK · Όρια ΚΑΕΚ');
+    leg('<rect x="' + lx + '" y="' + (ly - 7) + '" width="18" height="14" fill="url(#hcut)" stroke="' + C.cut + '"/>', 'AREA_D · Δi προσάρτηση');
+    leg('<rect x="' + lx + '" y="' + (ly - 7) + '" width="18" height="14" fill="url(#hgiv)" stroke="' + C.given + '"/>', 'AREA_A · Αi αποκοπή');
+    if (res.gaps.count) leg('<rect x="' + lx + '" y="' + (ly - 7) + '" width="18" height="14" fill="url(#hgap)" stroke="' + C.gap + '"/>', 'AREA_EKTOS_KAEK · Εi');
     // βορράς & κλίμακα
     s += '<g transform="translate(' + (W - 30) + ' 34)"><path d="M0 -14 L6 8 L0 4 L-6 8 Z" fill="' + C.text + '"/><text y="22" text-anchor="middle" font-size="10" font-weight="700" fill="' + C.text + '">Β</text></g>';
     var sb = niceStep(sw / 4), sbw = sb * k; s += '<g transform="translate(' + (W - pad - sbw) + ' ' + (H - 40) + ')"><rect width="' + sbw + '" height="3" fill="' + C.text + '"/><text y="-4" font-size="9" fill="' + C.muted + '">0</text><text x="' + sbw + '" y="-4" text-anchor="end" font-size="9" fill="' + C.muted + '">' + sb + ' m</text></g>';
@@ -4004,11 +4052,13 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     L('PINAKIDA', [sbx, sby], [sbx + sbLen, sby]); L('PINAKIDA', [sbx, sby], [sbx, sby + 2 * mm]); L('PINAKIDA', [sbx + sbLen, sby], [sbx + sbLen, sby + 2 * mm]); L('PINAKIDA', [sbx + sbLen / 2, sby], [sbx + sbLen / 2, sby + 1.2 * mm]);
     T('PINAKIDA', sbx, sby + 3 * mm, '0', 2); T('PINAKIDA', sbx + sbLen - 4 * mm, sby + 3 * mm, sbLen + ' m', 2); T('PINAKIDA', sbx, sby - 4 * mm, 'ΚΛΙΜΑΚΑ 1:' + S, 3);
     // υπόμνημα στο σχέδιο (κάτω δεξιά της περιοχής σχεδίου)
-    var lgx = dx0 + drawW - 62 * mm, lgy = dy0 + 6 * mm, items = [['TOPO_PROP', 'Μετρημένο όριο (τοπογραφικό)'], ['PST_KAEK', 'Όρια γεωτεμαχίων ΚΑΕΚ'], ['AREA_D', 'Δi: προσάρτηση από όμορο ΚΑΕΚ'], ['AREA_A', 'Αi: αποκοπή από το αρχικό ΚΑΕΚ'], ['DGM_PROP_FINAL', 'Τελικά όρια γεωτεμαχίων']];
+    // layers κατά Τεύχος Τεχνικών Προδιαγραφών (ΔΓΜ διόρθωσης ορίων, §4.5.2.γ) — το όνομα του layer μπροστά από την περιγραφή
+    var bound = opts.boundLayer || 'BOUND_IMPL';
+    var lgx = dx0 + drawW - 96 * mm, lgy = dy0 + 6 * mm, items = [[bound, bound === 'BOUND_UNIMPL' ? 'Όρια ιδιοκτησίας (μη υλοποιημένα)' : 'Όρια ιδιοκτησίας (υλοποιημένα)'], ['TOPO_PROP', 'Όριο ιδιοκτησίας κατά τη σύνταξη'], ['PST_KAEK', 'Όρια & ΚΑΕΚ εμπλεκόμενων γεωτεμαχίων'], ['AREA_D', 'Δi: επιφάνεια που προσαρτάται'], ['AREA_A', 'Αi: επιφάνεια που αποκόπτεται'], ['DGM_PROP_FINAL', 'Τελικά όρια γεωτεμαχίων'], ['KORYFES', 'Αρίθμηση κορυφών / σημεία τομής Τi']];
     if (res.gaps.count) items.push(['AREA_EKTOS_KAEK', 'Εi: εκτός γεωτεμαχίων ΚΑΕΚ']);
-    R('PINAKIDA', lgx - 2 * mm, lgy - 2 * mm, 64 * mm, (items.length * 5 + 8) * mm);
-    T('PINAKIDA', lgx, lgy + (items.length * 5 + 2) * mm, 'ΥΠΟΜΝΗΜΑ', 3);
-    items.forEach(function (it, i) { var yy = lgy + (items.length - 1 - i) * 5 * mm + 1 * mm; L(it[0], [lgx, yy + 1 * mm], [lgx + 10 * mm, yy + 1 * mm]); T('PINAKIDA', lgx + 12 * mm, yy, it[1], 2.2); });
+    R('PINAKIDA', lgx - 2 * mm, lgy - 2 * mm, 98 * mm, (items.length * 5 + 8) * mm);
+    T('PINAKIDA', lgx, lgy + (items.length * 5 + 2) * mm, 'ΥΠΟΜΝΗΜΑ — LAYERS ΔΓΜ ΔΙΟΡΘΩΣΗΣ', 3);
+    items.forEach(function (it, i) { var yy = lgy + (items.length - 1 - i) * 5 * mm + 1 * mm; if (it[0] === 'KORYFES') T('KORYFES', lgx + 2 * mm, yy, '1', 2.2); else L(it[0], [lgx, yy + 1 * mm], [lgx + 10 * mm, yy + 1 * mm]); T('PINAKIDA', lgx + 12 * mm, yy, it[0], 2.0); T('PINAKIDA', lgx + 42 * mm, yy, it[1], 2.0); });
     // πίνακες
     blocks.forEach(table);
     // αριθμός φύλλων στα title blocks
@@ -4022,7 +4072,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     function X(x) { return (x - sh.x) / mm; } function Y(y) { return (sh.y + sh.h - y) / mm; }
     var C = { PINAKIDA: '#1f2a44', PINAKES: '#1f2a44', TOPO_PROP: '#0e7490', PST_KAEK: '#64748b', AREA_D: '#15803d', AREA_A: '#be123c', AREA_EKTOS_KAEK: '#b45309', DGM_PROP_FINAL: '#2563eb', KORYFES: '#1f2a44' };
     function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-    var s = '<svg xmlns="http://www.w3.org/2000/svg" width="' + P.w + 'mm" height="' + P.h + 'mm" viewBox="0 0 ' + P.w + ' ' + P.h + '" font-family="Manrope, Arial, sans-serif">';
+    var s = '<svg xmlns="http://www.w3.org/2000/svg" width="' + P.w + 'mm" height="' + P.h + 'mm" viewBox="0 0 ' + P.w + ' ' + P.h + '" font-family="Arial, Liberation Sans, sans-serif">';
     s += '<rect width="' + P.w + '" height="' + P.h + '" fill="#fff"/>';
     s += '<defs><pattern id="pd" width="1.5" height="1.5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="1.5" stroke="#15803d" stroke-width="0.3"/></pattern><pattern id="pa" width="1.5" height="1.5" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="1.5" stroke="#be123c" stroke-width="0.3"/></pattern><pattern id="pe" width="1.2" height="1.2" patternUnits="userSpaceOnUse"><circle cx="0.6" cy="0.6" r="0.2" fill="#b45309"/></pattern></defs>';
     var inSheet = function (x, y) { return x >= sh.x - 1 && x <= sh.x + sh.w + 1 && y >= sh.y - 1 && y <= sh.y + sh.h + 1; };
@@ -5411,8 +5461,14 @@ root.CmdCheck = api;
       var minA = S.dgmMin != null ? S.dgmMin : 1.0; S.dgmMin = minA;
       var res = DGM.compute(M, parcels, own, { minArea: minA });
       res.M = M; res.labels = t.points.map(function (p, i) { return p.label || String(i + 1); }); res.plotTitle = shortTitle(t);
-      res.svg = DGM.svg(res, M, parcels, { W: 1000, H: 700, labels: res.labels });
-      res.rec = DgmSheet.recommend(res, parcels, { plotTitle: res.plotTitle, kaekName: kaekName });
+      // μόνο τα εμπλεκόμενα γεωτεμάχια: το δικό μας + όσα ανταλλάσσουν επιφάνεια με το μετρημένο όριο (όχι όλα τα όμορα της περιοχής)
+      var aff = {}; aff[own] = 1;
+      res.pieces.forEach(function (x) { if (x.kind === 'cut' || x.kind === 'given') { if (x.from) aff[x.from] = 1; if (x.to) aff[x.to] = 1; } });
+      res.parcels = parcels.filter(function (p) { return aff[p.kaek]; });
+      res.summary = res.summary.filter(function (x) { return aff[x.kaek]; });
+      res.finals = (res.finals || []).filter(function (f) { return aff[f.kaek]; });
+      res.svg = DGM.svg(res, M, res.parcels, { W: 1000, H: 700, labels: res.labels });
+      res.rec = DgmSheet.recommend(res, res.parcels, { plotTitle: res.plotTitle, kaekName: kaekName, boundLayer: boundLayer() });
       if (!S.sheetScale || !S.sheetPaper || S.sheetAuto !== false) { S.sheetScale = res.rec.best.scale; S.sheetPaper = res.rec.best.paper; }
       res.status = 'ok'; S.dgm = res;
       $('#tabDgm').hidden = false;
@@ -5421,6 +5477,7 @@ root.CmdCheck = api;
     if (S.dgm.status === 'ok') { var el = $('#dgmPanel'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   }
   function kaekName(k) { return k ? 'ΚΑΕΚ ' + k : 'εκτός ΚΑΕΚ'; }
+  function dgmUsed(d) { return (d && d.parcels) || dgmParcels(); }
   function renderDgmPanel() {
     var d = S.dgm; if (!d) return '';
     var h = '<section class="panel summary" id="dgmPanel"><div class="file-row"><span class="fname">Διάγραμμα Γεωμετρικών Μεταβολών</span><span class="chip">μετρημένο όριο έναντι ΚΑΕΚ</span></div>';
@@ -5442,6 +5499,7 @@ root.CmdCheck = api;
     if (d.slivers.count) h += '<p style="margin:0;color:var(--muted);font-size:12px">Αγνοήθηκαν ' + d.slivers.count + ' σχισμές συνολικού εμβαδού ' + fmt(d.slivers.area, 2) + ' m² (κάτω από το ελάχιστο τμήμα ή πολύ στενές).</p>';
     if (d.gaps.count) h += '<p style="margin:0;color:var(--warn);font-size:12px">' + d.gaps.count + ' τμήμα(τα) του μετρημένου ορίου, ' + fmt(d.gaps.area, 2) + ' m², δεν ανήκουν σε κανένα γεωτεμάχιο της βάσης (κοινόχρηστο, δρόμος ή περιοχή χωρίς δεδομένα).</p>';
     // σύνοψη ανά ΚΑΕΚ
+    h += '<p style="margin:0;color:var(--muted);font-size:12px">Στους πίνακες και στο DXF μπαίνουν μόνο τα εμπλεκόμενα γεωτεμάχια: το δικό μας και όσα ανταλλάσσουν επιφάνεια με το μετρημένο όριο (' + d.parcels.length + ' από ' + parcels.length + ' της περιοχής).</p>';
     h += '<div class="tbl-wrap"><table class="dgm-tbl"><thead><tr><th>ΚΑΕΚ</th><th class="num">Αρχικό (m²)</th><th class="num">Αφαιρείται</th><th class="num">Προστίθεται</th><th class="num">Τελικό (m²)</th><th class="num">Μεταβολή</th></tr></thead><tbody>';
     d.summary.forEach(function (x) { var dlt = x.final - x.initial; h += '<tr' + (x.isOwn ? ' class="own"' : '') + '><td>' + esc(x.kaek) + (x.isOwn ? ' <span class="chip">δικό μας</span>' : '') + '</td><td class="num">' + fmt(x.initial, 2) + '</td><td class="num neg">' + (x.lost ? '−' + fmt(x.lost, 2) : '') + '</td><td class="num pos">' + (x.gained ? '+' + fmt(x.gained, 2) : '') + '</td><td class="num">' + fmt(x.final, 2) + '</td><td class="num ' + (dlt > 0.005 ? 'pos' : dlt < -0.005 ? 'neg' : '') + '">' + (Math.abs(dlt) < 0.005 ? '0,00' : (dlt > 0 ? '+' : '') + fmt(dlt, 2)) + '</td></tr>'; });
     h += '</tbody></table></div>';
@@ -5464,10 +5522,10 @@ root.CmdCheck = api;
   function sheetLayout(d, parcels) {
     var o = (d.rec.options || []).filter(function (x) { return x.scale === S.sheetScale && x.paper === S.sheetPaper; })[0];
     var cfg = (o && o.cfg) || { panelFrac: 0.55, textScale: 0.85 };
-    return DgmSheet.build(d, parcels, { scale: S.sheetScale, paper: S.sheetPaper, panelFrac: cfg.panelFrac, textScale: cfg.textScale, extentMode: cfg.extentMode, info: sheetInfo(), plotTitle: d.plotTitle, kaekName: kaekName });
+    return DgmSheet.build(d, parcels, { scale: S.sheetScale, paper: S.sheetPaper, panelFrac: cfg.panelFrac, textScale: cfg.textScale, extentMode: cfg.extentMode, info: sheetInfo(), plotTitle: d.plotTitle, kaekName: kaekName, boundLayer: boundLayer() });
   }
   function renderSheetPanel(d) {
-    var rec = d.rec, best = rec.best, parcels = dgmParcels();
+    var rec = d.rec, best = rec.best, parcels = dgmUsed(d);
     var lay = sheetLayout(d, parcels);
     S.sheetLayout = lay;
     var ex = rec.extent.box, w = ex[2] - ex[0], hh = ex[3] - ex[1];
@@ -5525,7 +5583,7 @@ root.CmdCheck = api;
   function zoneUo() { return S.zone === 'rural' ? 2 : 0.5; }
   // Έλεγχος Check My DXF (ίδιος κώδικας με το checkmydxf.html) στο DXF που θα παραχθεί
   function cmdCheckDgm(d, spec) {
-    spec = spec || dgmSpec(d, dgmParcels());
+    spec = spec || dgmSpec(d, dgmUsed(d));
     var txt = Dxf2000.build(spec, { prune: true });
     var r = CmdCheck.check(txt, dgmFileName(d) + '.dxf', 'DGM_DIORTH', { Uo: zoneUo() });
     var E = r.results.filter(function (x) { return x.sev === 'E'; }), Wn = r.results.filter(function (x) { return x.sev === 'W'; });
@@ -5574,7 +5632,7 @@ root.CmdCheck = api;
     return h;
   }
   function dgmChecks(d, spec) {
-    spec = spec || dgmSpec(d, dgmParcels());
+    spec = spec || dgmSpec(d, dgmUsed(d));
     var out = [], layersHave = {}; spec.polys.forEach(function (p) { layersHave[p.layer] = 1; }); spec.texts.forEach(function (t) { layersHave[t.layer] = 1; });
     var req = S.dgmMode === 'dgmdy' ? ['DBOUND_FOR', 'BOUND_UNIMPL', 'FOREST_FINAL', 'TOPO_PROP', 'PST_KAEK', 'DGM_PROP_FINAL', 'KORYFES'] : ['TOPO_PROP', 'PST_KAEK', 'DGM_PROP_FINAL', 'KORYFES'];
     req.forEach(function (L) { out.push({ ok: !!layersHave[L], msg: L + (layersHave[L] ? '' : ': λείπει — συμπλήρωσέ το στο CAD') }); });
@@ -5597,7 +5655,7 @@ root.CmdCheck = api;
   }
   async function exportDgm(kind) {
     var d = S.dgm; if (!d || d.status !== 'ok') return;
-    var base = baseName() + '_ΔΓΜ', parcels = dgmParcels();
+    var base = baseName() + '_ΔΓΜ', parcels = dgmUsed(d);
     var kinds = { common: 'Κοινό', cut: 'Από όμορο ΚΑΕΚ (Δ)', given: 'Από το αρχικό ΚΑΕΚ (Α)', gap: 'Εκτός ΚΑΕΚ' };
     if (kind === 'dgm-svg') { download(base + '.svg', d.svg, 'image/svg+xml'); toast('Έτοιμη η εικόνα.'); return; }
     if (kind === 'dgm-print-dxf') {
@@ -5769,7 +5827,7 @@ root.CmdCheck = api;
     if (ev.target.id === 'kaekOnlyMain') { S.kaekOnlyMain = ev.target.checked; renderPlan(); if (S.map) drawMap(false); }
     if (ev.target.id === 'dgmOwn') { S.dgmOwn = ev.target.value; runDgm(); }
     if (ev.target.id === 'dgmMode') { S.dgmMode = ev.target.value; renderAll(); }
-    if (ev.target.id === 'dgmBound') { S.dgmBound = ev.target.value; renderAll(); }
+    if (ev.target.id === 'dgmBound') { S.dgmBound = ev.target.value; runDgm(); }
     if (ev.target.id === 'zoneSel') { S.zone = ev.target.value; renderAll(); }
     if (ev.target.id === 'sheetScale') { S.sheetScale = +ev.target.value; S.sheetAuto = false; renderAll(); }
     if (ev.target.id === 'sheetPaper') { S.sheetPaper = ev.target.value; S.sheetAuto = false; renderAll(); }
