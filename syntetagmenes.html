@@ -3293,27 +3293,38 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   function bbox(pts) { var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; pts.forEach(function (p) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }); return [x0, y0, x1, y1]; }
 
   // Έκταση που πρέπει να χωρέσει: μετρημένο όριο, τμήματα, και τα όμορα ΚΑΕΚ όσο δεν τετραπλασιάζουν την έκταση
-  function extent(res, parcels) {
+  function extent(res, parcels, mode) {
     var core = res.Mr.slice(); res.pieces.forEach(function (x) { core = core.concat(x.ring); });
     var b = bbox(core), w = b[2] - b[0], h = b[3] - b[1];
     var all = core.slice(); parcels.forEach(function (p) { p.rings.forEach(function (r) { all = all.concat(r); }); });
     var B = bbox(all);
-    if ((B[2] - B[0]) * (B[3] - B[1]) <= 4 * w * h) return { box: B, full: true };
-    return { box: [b[0] - w * 0.25, b[1] - h * 0.25, b[2] + w * 0.25, b[3] + h * 0.25], full: false };
+    if (mode === 'full' || (mode !== 'core' && (B[2] - B[0]) * (B[3] - B[1]) <= 2.5 * w * h)) return { box: B, full: true };
+    return { box: [b[0] - w * 0.2, b[1] - h * 0.2, b[2] + w * 0.2, b[3] + h * 0.2], full: false };
   }
 
-  // Πρόταση: η πιο λεπτομερής κλίμακα που χωράει σε χαρτί έως Α0, και το μικρότερο χαρτί για αυτήν
-  function recommend(res, parcels) {
-    var ex = extent(res, parcels), w = ex.box[2] - ex.box[0], h = ex.box[3] - ex.box[1], out = [];
+  // Πρόταση: η πιο λεπτομερής κλίμακα (1:200 → 1:1000) και το μικρότερο χαρτί (έως Α0) ώστε ΟΛΑ —
+  // σχέδιο και πίνακες — να χωρούν σε ΕΝΑ φύλλο. Δοκιμάζει και πλατύτερη στήλη πινάκων / μικρότερα γράμματα.
+  function recommend(res, parcels, opts) {
+    var ex = extent(res, parcels), out = [], best = null;
     SCALES.forEach(function (S) {
       PAPERS.forEach(function (P) {
-        var dw = (P.w * (1 - PANEL_FRAC) - 2 * MARGIN - 8) * S / 1000, dh = (P.h - 2 * MARGIN - 8) * S / 1000;
-        out.push({ scale: S, paper: P.id, fits: w <= dw && h <= dh, fill: Math.max(w / dw, h / dh) });
+        var found = null;
+        // πρώτα με όλα τα όμορα ολόκληρα, μετά μόνο με το οικόπεδο+τμήματα (τα όμορα κόβονται στο πλαίσιο)
+        ['full', 'core'].some(function (em) {
+          return [0.36, 0.45, 0.55].some(function (pf) {
+            return [1, 0.85].some(function (ts) {
+              var lay = build(res, parcels, Object.assign({}, opts || {}, { scale: S, paper: P.id, panelFrac: pf, textScale: ts, extentMode: em }));
+              if (lay.fits && lay.sheets.length === 1) { found = { panelFrac: pf, textScale: ts, extentMode: em }; return true; }
+              return false;
+            });
+          });
+        });
+        out.push({ scale: S, paper: P.id, fits: !!found, single: !!found, cfg: found });
       });
     });
-    var ok = out.filter(function (o) { return o.fits; });
+    var ok = out.filter(function (o) { return o.single; });
     ok.sort(function (a, b) { return a.scale - b.scale || PAPERS.findIndex(function (p) { return p.id === a.paper; }) - PAPERS.findIndex(function (p) { return p.id === b.paper; }); });
-    var best = ok[0] || { scale: 1000, paper: 'A0', fits: false, fill: out.filter(function (o) { return o.scale === 1000 && o.paper === 'A0'; })[0].fill };
+    best = ok[0] || { scale: 1000, paper: 'A0', fits: false, single: false, cfg: { panelFrac: 0.55, textScale: 0.85 } };
     return { best: best, options: out, extent: ex };
   }
 
@@ -3321,9 +3332,10 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   // opts: { scale, paper, info:{title, project, place, eng, date}, kaekName(fn) }
   function build(res, parcels, opts) {
     var S = opts.scale, P = PAPERS.filter(function (p) { return p.id === opts.paper; })[0] || PAPERS[4];
+    var PF = opts.panelFrac || PANEL_FRAC, TS = opts.textScale || 1;
     var mm = S / 1000; // 1 mm χαρτιού σε m
-    var ex = extent(res, parcels), box = ex.box;
-    var sheetW = P.w * mm, sheetH = P.h * mm, panelW = P.w * PANEL_FRAC * mm, drawW = sheetW - panelW - 2 * MARGIN * mm, drawH = sheetH - 2 * MARGIN * mm;
+    var ex = extent(res, parcels, opts.extentMode), box = ex.box;
+    var sheetW = P.w * mm, sheetH = P.h * mm, panelW = P.w * PF * mm, drawW = sheetW - panelW - 2 * MARGIN * mm, drawH = sheetH - 2 * MARGIN * mm;
     // θέση 1ου φύλλου ώστε η έκταση να κεντράρεται στην περιοχή σχεδίου
     var cx = (box[0] + box[2]) / 2, cy = (box[1] + box[3]) / 2;
     var SX = cx - MARGIN * mm - drawW / 2, SY = cy - MARGIN * mm - drawH / 2;
@@ -3353,8 +3365,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     (res.cuts || []).length && blocks.push({ title: 'ΣΗΜΕΙΑ ΤΟΜΗΣ ΜΕ ΟΡΙΑ ΚΑΕΚ', cols: [['ΣΗΜΕΙΟ', 22], ['X', 32], ['Y', 32]], rows: res.cuts.map(function (c, i) { return ['Τ' + (i + 1), f2(c[0]), f2(c[1])]; }) });
 
     // ---- ροή πινάκων σε στήλες & φύλλα ----
-    var TXT = P.w >= 841 ? 2.2 : 2.0, ROW = TXT * 1.75, HEAD = 4.2;
-    var colW = 86 * mm; // πλάτος στήλης πινάκων (mm → m)
+    var TXT = (P.w >= 841 ? 2.2 : 2.0) * TS, ROW = TXT * 1.75, HEAD = 4.2 * TS;
+    var colW = Math.min(86, (P.w * PF - 12) / Math.max(1, Math.floor((P.w * PF - 8) / 90))) * mm; // πλάτος στήλης πινάκων
     var sheetIdx = 0, panelX, panelY0, panelY1, colX, cursorY;
     function newSheet(tablesOnly) {
       var sx = SX + sheetIdx * (sheetW + 20 * mm), sy = SY;
@@ -3433,7 +3445,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     blocks.forEach(table);
     // αριθμός φύλλων στα title blocks
     var N = sheets.length; E.texts.forEach(function (t) { if (/\{N\}/.test(t.text)) t.text = t.text.replace('{N}', String(N)); });
-    return { sheets: sheets, elems: E, scale: S, paper: P, fits: fits, mm: mm, drawArea: { x: dx0, y: dy0, w: drawW, h: drawH }, extent: box };
+    return { sheets: sheets, elems: E, scale: S, paper: P, fits: fits, mm: mm, drawArea: { x: dx0, y: dy0, w: drawW, h: drawH }, extent: box, panelFrac: PF, textScale: TS };
   }
 
   // SVG κάθε φύλλου σε mm χαρτιού (για PDF): φύλλο i → viewBox 0 0 Pw Ph
@@ -4163,7 +4175,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       var res = DGM.compute(M, parcels, own, { minArea: minA });
       res.M = M; res.labels = t.points.map(function (p, i) { return p.label || String(i + 1); }); res.plotTitle = shortTitle(t);
       res.svg = DGM.svg(res, M, parcels, { W: 1000, H: 700, labels: res.labels });
-      res.rec = DgmSheet.recommend(res, parcels);
+      res.rec = DgmSheet.recommend(res, parcels, { plotTitle: res.plotTitle, kaekName: kaekName });
       if (!S.sheetScale || !S.sheetPaper || S.sheetAuto !== false) { S.sheetScale = res.rec.best.scale; S.sheetPaper = res.rec.best.paper; }
       res.status = 'ok'; S.dgm = res;
       $('#tabDgm').hidden = false;
@@ -4209,18 +4221,23 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     h += '<div class="file-row"><button class="btn primary small" data-exp="dgm-dxf">DXF Κτηματολογίου (ΠΙΝΑΚΑΣ Α)</button><button class="btn small" data-exp="dgm-xlsx">Excel πινάκων</button><button class="btn small" data-exp="dgm-pdf">Αναφορά PDF</button><button class="btn small" data-exp="dgm-txt-all">TXT όλα (ΚΑΕΚ + τμήματα)</button><button class="btn small" data-exp="dgm-txt">TXT ανά τμήμα</button><button class="btn small" data-exp="dgm-svg">Εικόνα SVG</button></div>';
     return h + '</section>';
   }
+  function sheetLayout(d, parcels) {
+    var o = (d.rec.options || []).filter(function (x) { return x.scale === S.sheetScale && x.paper === S.sheetPaper; })[0];
+    var cfg = (o && o.cfg) || { panelFrac: 0.55, textScale: 0.85 };
+    return DgmSheet.build(d, parcels, { scale: S.sheetScale, paper: S.sheetPaper, panelFrac: cfg.panelFrac, textScale: cfg.textScale, extentMode: cfg.extentMode, info: sheetInfo(), plotTitle: d.plotTitle, kaekName: kaekName });
+  }
   function renderSheetPanel(d) {
     var rec = d.rec, best = rec.best, parcels = dgmParcels();
-    var lay = DgmSheet.build(d, parcels, { scale: S.sheetScale, paper: S.sheetPaper, info: sheetInfo(), plotTitle: d.plotTitle, kaekName: kaekName });
+    var lay = sheetLayout(d, parcels);
     S.sheetLayout = lay;
     var ex = rec.extent.box, w = ex[2] - ex[0], hh = ex[3] - ex[1];
     var h = '<div class="panel" style="padding:14px;display:grid;gap:10px;background:var(--surface-2)"><div class="file-row"><b>Εκτύπωση</b><span class="chip">έκταση σχεδίου ' + fixed(w, 0) + ' × ' + fixed(hh, 0) + ' m</span>';
-    h += best.fits ? '<span class="chip ok">Πρόταση: 1:' + best.scale + ' σε ' + best.paper + '</span>' : '<span class="chip warn">Δεν χωράει σε Α0 ούτε σε 1:1000 — θα κοπεί</span>';
+    h += best.single ? '<span class="chip ok">Πρόταση: 1:' + best.scale + ' σε ' + best.paper + ' — όλα σε ένα φύλλο</span>' : '<span class="chip warn">Δεν χωρούν όλα σε ένα Α0 ούτε σε 1:1000 — θα χρειαστεί δεύτερο φύλλο για πίνακες</span>';
     h += '</div><div class="dgm-ctl"><label>Κλίμακα<select id="sheetScale">' + DgmSheet.SCALES.map(function (sc) { var any = rec.options.filter(function (o) { return o.scale === sc && o.fits; })[0]; return '<option value="' + sc + '"' + (sc === S.sheetScale ? ' selected' : '') + '>1:' + sc + (any ? ' (χωράει από ' + any.paper + ')' : ' (δεν χωράει σε Α0)') + '</option>'; }).join('') + '</select></label>';
     h += '<label>Χαρτί<select id="sheetPaper">' + DgmSheet.PAPERS.map(function (P) { var o = rec.options.filter(function (x) { return x.scale === S.sheetScale && x.paper === P.id; })[0]; return '<option value="' + P.id + '"' + (P.id === S.sheetPaper ? ' selected' : '') + '>' + P.id + ' ' + P.w + '×' + P.h + ' mm' + (o && o.fits ? ' ✓' : ' ✕') + '</option>'; }).join('') + '</select></label>';
-    h += '<span class="chip' + (lay.fits ? ' ok' : ' warn') + '">' + (lay.fits ? 'Το σχέδιο χωράει' : 'Το σχέδιο κόβεται στα όρια') + ' · ' + lay.sheets.length + (lay.sheets.length === 1 ? ' φύλλο' : ' φύλλα') + '</span>';
+    h += '<span class="chip' + (lay.fits && lay.sheets.length === 1 ? ' ok' : ' warn') + '">' + (lay.fits ? 'Το σχέδιο χωράει' : 'Το σχέδιο κόβεται στα όρια') + ' · ' + (lay.sheets.length === 1 ? 'ένα φύλλο' : lay.sheets.length + ' φύλλα') + '</span>';
     h += '<button class="btn small" data-act="sheet-info">Στοιχεία πινακίδας</button></div>';
-    h += '<p style="margin:0;color:var(--muted);font-size:12px">Σελιδοποίηση: φύλλο 1 = σχέδιο + πίνακες στη δεξιά στήλη · επιπλέον φύλλα μόνο για πίνακες όταν δεν χωρούν. Το DXF εκτύπωσης έχει την πινακίδα στο model space σε μονάδες ΕΓΣΑ87: τυπώνεις το πλαίσιο κάθε φύλλου σε 1:' + S.sheetScale + '.</p>';
+    h += '<p style="margin:0;color:var(--muted);font-size:12px">Στόχος: ένα φύλλο με σχέδιο, πίνακες, υπόμνημα και πινακίδα. Η στήλη πινάκων πλαταίνει και τα γράμματα μικραίνουν όσο χρειάζεται για να χωρέσουν. Το DXF εκτύπωσης έχει την πινακίδα στο model space σε μονάδες ΕΓΣΑ87: τυπώνεις το πλαίσιο σε 1:' + S.sheetScale + '.</p>';
     h += '<div class="file-row"><button class="btn primary small" data-exp="dgm-print-dxf">DXF εκτύπωσης (σχέδιο + πίνακες + πινακίδα)</button><button class="btn small" data-exp="dgm-print-pdf">PDF πινακίδας ' + S.sheetPaper + '</button></div></div>';
     return h;
   }
@@ -4289,7 +4306,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     var kinds = { common: 'Κοινό', cut: 'Από όμορο ΚΑΕΚ (Δ)', given: 'Από το αρχικό ΚΑΕΚ (Α)', gap: 'Εκτός ΚΑΕΚ' };
     if (kind === 'dgm-svg') { download(base + '.svg', d.svg, 'image/svg+xml'); toast('Έτοιμη η εικόνα.'); return; }
     if (kind === 'dgm-print-dxf') {
-      var lay = DgmSheet.build(d, parcels, { scale: S.sheetScale, paper: S.sheetPaper, info: sheetInfo(), plotTitle: d.plotTitle, kaekName: kaekName });
+      var lay = sheetLayout(d, parcels);
       var spec = dgmSpec(d, parcels);
       // + πινακίδα, πίνακες, υπόμνημα (πρόσθετα layers) — τα χρώματα των τμημάτων είναι ήδη κόκκινο/πράσινο
       lay.elems.polys.forEach(function (p) { spec.polys.push({ layer: p.layer, pts: p.pts, closed: p.closed, color: 7 }); });
@@ -4303,7 +4320,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     }
     if (kind === 'dgm-print-pdf') {
       await loadScript(LIBS.pdfmake); await loadScript(LIBS.vfs);
-      var lay2 = DgmSheet.build(d, parcels, { scale: S.sheetScale, paper: S.sheetPaper, info: sheetInfo(), plotTitle: d.plotTitle, kaekName: kaekName });
+      var lay2 = sheetLayout(d, parcels);
       var P = lay2.paper, pw = P.w * 72 / 25.4, ph = P.h * 72 / 25.4;
       var content2 = lay2.sheets.map(function (sh, i) { return { svg: DgmSheet.sheetSVG(d, parcels, lay2, i), width: pw, pageBreak: i ? 'before' : undefined }; });
       pdfMake.createPdf({ pageSize: { width: pw, height: ph }, pageMargins: [0, 0, 0, 0], content: content2, defaultStyle: { font: 'Roboto' } }).getBlob(function (blob) { download(dgmFileName(d) + '.pdf', blob); toast('Έτοιμο το PDF πινακίδας ' + P.id + ' (' + lay2.sheets.length + ' φύλλα).'); });
