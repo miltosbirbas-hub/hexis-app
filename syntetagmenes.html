@@ -2991,15 +2991,28 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       var pts = p.pts.slice();
       if (pts.length > 2 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]) pts.pop();
       if (pts.length < 2) return;
-      out.push('0', 'LWPOLYLINE', '5', next(), '330', MSP_OWNER, '100', 'AcDbEntity', '8', p.layer, '100', 'AcDbPolyline', '90', String(pts.length), '70', p.closed ? '1' : '0', '43', '0.0');
+      out.push('0', 'LWPOLYLINE', '5', next(), '330', MSP_OWNER, '100', 'AcDbEntity', '8', p.layer);
+      if (p.color) out.push('62', String(p.color));
+      if (p.lw) out.push('370', String(p.lw));
+      out.push('100', 'AcDbPolyline', '90', String(pts.length), '70', p.closed ? '1' : '0', '43', '0.0');
       pts.forEach(function (q) { out.push('10', f(q[0]), '20', f(q[1])); ext(q[0], q[1]); });
     });
     (spec.texts || []).forEach(function (t) {
       var h = t.h || 0.5;
-      out.push('0', 'TEXT', '5', next(), '330', MSP_OWNER, '100', 'AcDbEntity', '8', t.layer, '100', 'AcDbText', '10', f(t.x), '20', f(t.y), '30', '0.0', '40', f(h), '1', clean(t.text));
+      out.push('0', 'TEXT', '5', next(), '330', MSP_OWNER, '100', 'AcDbEntity', '8', t.layer);
+      if (t.color) out.push('62', String(t.color));
+      out.push('100', 'AcDbText', '10', f(t.x), '20', f(t.y), '30', '0.0', '40', f(h), '1', clean(t.text));
       if (t.rot) out.push('50', f(t.rot));
-      out.push('7', 'Standard', '100', 'AcDbText');
+      out.push('7', 'Standard');
+      if (t.align === 'center' || t.align === 'right') out.push('72', t.align === 'center' ? '1' : '2', '11', f(t.x), '21', f(t.y), '31', '0.0');
+      out.push('100', 'AcDbText');
       ext(t.x, t.y);
+    });
+    (spec.lines || []).forEach(function (l) {
+      out.push('0', 'LINE', '5', next(), '330', MSP_OWNER, '100', 'AcDbEntity', '8', l.layer);
+      if (l.color) out.push('62', String(l.color));
+      out.push('100', 'AcDbLine', '10', f(l.a[0]), '20', f(l.a[1]), '30', '0.0', '11', f(l.b[0]), '21', f(l.b[1]), '31', '0.0');
+      ext(l.a[0], l.a[1]); ext(l.b[0], l.b[1]);
     });
     (spec.points || []).forEach(function (p) {
       out.push('0', 'POINT', '5', next(), '330', MSP_OWNER, '100', 'AcDbEntity', '8', p.layer, '100', 'AcDbPoint', '10', f(p.x), '20', f(p.y), '30', '0.0');
@@ -3265,6 +3278,198 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   var api = { compute: compute, svg: svg, area: area, perim: perim, open: open, interior: interior, pip: pip };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.DGM = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+/* HEXIS — Πινακίδα εκτύπωσης ΔΓΜ: επιλογή κλίμακας/χαρτιού, σελιδοποίηση, πίνακες πάνω στο σχέδιο.
+ * Παράγει λίστα στοιχείων σε συντεταγμένες μοντέλου (ΕΓΣΑ87) που αποδίδονται σε DXF (Dxf2000) και σε SVG (για PDF).
+ * Σύμβαση: το φύλλο σχεδιάζεται στο model space σε κλίμακα S → 1 mm χαρτιού = S/1000 m.
+ */
+(function (root) {
+  'use strict';
+  var PAPERS = [{ id: 'A4', w: 297, h: 210 }, { id: 'A3', w: 420, h: 297 }, { id: 'A2', w: 594, h: 420 }, { id: 'A1', w: 841, h: 594 }, { id: 'A0', w: 1189, h: 841 }];
+  var SCALES = [200, 500, 1000];
+  var MARGIN = 10, PANEL_FRAC = 0.36, TITLE_H = 50;
+
+  function bbox(pts) { var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; pts.forEach(function (p) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }); return [x0, y0, x1, y1]; }
+
+  // Έκταση που πρέπει να χωρέσει: μετρημένο όριο, τμήματα, και τα όμορα ΚΑΕΚ όσο δεν τετραπλασιάζουν την έκταση
+  function extent(res, parcels) {
+    var core = res.Mr.slice(); res.pieces.forEach(function (x) { core = core.concat(x.ring); });
+    var b = bbox(core), w = b[2] - b[0], h = b[3] - b[1];
+    var all = core.slice(); parcels.forEach(function (p) { p.rings.forEach(function (r) { all = all.concat(r); }); });
+    var B = bbox(all);
+    if ((B[2] - B[0]) * (B[3] - B[1]) <= 4 * w * h) return { box: B, full: true };
+    return { box: [b[0] - w * 0.25, b[1] - h * 0.25, b[2] + w * 0.25, b[3] + h * 0.25], full: false };
+  }
+
+  // Πρόταση: η πιο λεπτομερής κλίμακα που χωράει σε χαρτί έως Α0, και το μικρότερο χαρτί για αυτήν
+  function recommend(res, parcels) {
+    var ex = extent(res, parcels), w = ex.box[2] - ex.box[0], h = ex.box[3] - ex.box[1], out = [];
+    SCALES.forEach(function (S) {
+      PAPERS.forEach(function (P) {
+        var dw = (P.w * (1 - PANEL_FRAC) - 2 * MARGIN - 8) * S / 1000, dh = (P.h - 2 * MARGIN - 8) * S / 1000;
+        out.push({ scale: S, paper: P.id, fits: w <= dw && h <= dh, fill: Math.max(w / dw, h / dh) });
+      });
+    });
+    var ok = out.filter(function (o) { return o.fits; });
+    ok.sort(function (a, b) { return a.scale - b.scale || PAPERS.findIndex(function (p) { return p.id === a.paper; }) - PAPERS.findIndex(function (p) { return p.id === b.paper; }); });
+    var best = ok[0] || { scale: 1000, paper: 'A0', fits: false, fill: out.filter(function (o) { return o.scale === 1000 && o.paper === 'A0'; })[0].fill };
+    return { best: best, options: out, extent: ex };
+  }
+
+  // ---------- δημιουργία φύλλων ----------
+  // opts: { scale, paper, info:{title, project, place, eng, date}, kaekName(fn) }
+  function build(res, parcels, opts) {
+    var S = opts.scale, P = PAPERS.filter(function (p) { return p.id === opts.paper; })[0] || PAPERS[4];
+    var mm = S / 1000; // 1 mm χαρτιού σε m
+    var ex = extent(res, parcels), box = ex.box;
+    var sheetW = P.w * mm, sheetH = P.h * mm, panelW = P.w * PANEL_FRAC * mm, drawW = sheetW - panelW - 2 * MARGIN * mm, drawH = sheetH - 2 * MARGIN * mm;
+    // θέση 1ου φύλλου ώστε η έκταση να κεντράρεται στην περιοχή σχεδίου
+    var cx = (box[0] + box[2]) / 2, cy = (box[1] + box[3]) / 2;
+    var SX = cx - MARGIN * mm - drawW / 2, SY = cy - MARGIN * mm - drawH / 2;
+    var sheets = [];
+    var E = { polys: [], texts: [], lines: [] };
+    function L(layer, a, b) { E.lines.push({ layer: layer, a: a, b: b }); }
+    function R(layer, x, y, w, h) { E.polys.push({ layer: layer, pts: [[x, y], [x + w, y], [x + w, y + h], [x, y + h]], closed: true }); }
+    function T(layer, x, y, text, hmm, rot, align) { E.texts.push({ layer: layer, x: x, y: y, text: text, h: hmm * mm, rot: rot || 0, align: align || 'left' }); }
+    var fits = (box[2] - box[0]) <= drawW - 8 * mm && (box[3] - box[1]) <= drawH - 8 * mm;
+
+    // ---- περιεχόμενο πινάκων (γραμμές κειμένου) ----
+    var kn = opts.kaekName || function (k) { return k ? 'ΚΑΕΚ ' + k : 'εκτός ΚΑΕΚ'; };
+    var f2 = function (v) { return (Math.round(v * 100) / 100).toFixed(2); };
+    var blocks = [];
+    blocks.push({ title: 'ΣΥΓΚΕΝΤΡΩΤΙΚΟΣ ΠΙΝΑΚΑΣ ΜΕΤΑΒΟΛΩΝ ΑΝΑ ΚΑΕΚ', cols: [['ΚΑΕΚ', 30], ['ΑΡΧΙΚΟ m²', 19], ['ΑΦΑΙΡ.', 16], ['ΠΡΟΣΘ.', 16], ['ΤΕΛΙΚΟ m²', 19]],
+      rows: res.summary.map(function (x) { return [x.kaek + (x.isOwn ? ' *' : ''), f2(x.initial), x.lost ? '-' + f2(x.lost) : '-', x.gained ? '+' + f2(x.gained) : '-', f2(x.final)]; }).concat([['* δικό μας γεωτεμάχιο · μετρημένο: ' + f2(res.areaM) + ' m²', '', '', '', '']]) });
+    blocks.push({ title: 'ΜΕΤΑΒΟΛΕΣ', cols: [['ΑΠΟ', 34], ['ΠΡΟΣ', 34], ['ΕΜΒΑΔΟ m²', 20], ['ΤΜΗΜΑΤΑ', 20]],
+      rows: res.transfers.length ? res.transfers.map(function (x) { return [kn(x.from), kn(x.to), f2(x.area), x.pieces.join(', ')]; }) : [['Καμία μεταβολή', '', '', '']] });
+    var kinds = { common: 'Κοινό τμήμα', cut: 'Από όμορο ΚΑΕΚ', given: 'Από το αρχικό ΚΑΕΚ', gap: 'Εκτός ΚΑΕΚ' };
+    blocks.push({ title: 'ΜΕΤΡΗΜΕΝΟ ΟΡΙΟ (' + (opts.plotTitle || 'τοπογραφικό') + ') — ΣΥΝΤΕΤΑΓΜΕΝΕΣ ΕΓΣΑ87', cols: [['ΚΟΡΥΦΗ', 22], ['X', 32], ['Y', 32]],
+      rows: res.Mr.map(function (q, i) { return [(res.labels && res.labels[i]) || String(i + 1), f2(q[0]), f2(q[1])]; }) });
+    res.pieces.forEach(function (x) {
+      if (x.kind === 'common') return;
+      blocks.push({ title: 'ΤΜΗΜΑ ' + x.id + ' — ' + kinds[x.kind] + ' · ' + kn(x.from) + ' -> ' + kn(x.to) + ' · ' + f2(x.area) + ' m²', cols: [['ΚΟΡΥΦΗ', 22], ['X', 32], ['Y', 32]],
+        rows: x.ring.map(function (q, i) { return [x.id + '-' + (i + 1), f2(q[0]), f2(q[1])]; }) });
+    });
+    (res.cuts || []).length && blocks.push({ title: 'ΣΗΜΕΙΑ ΤΟΜΗΣ ΜΕ ΟΡΙΑ ΚΑΕΚ', cols: [['ΣΗΜΕΙΟ', 22], ['X', 32], ['Y', 32]], rows: res.cuts.map(function (c, i) { return ['Τ' + (i + 1), f2(c[0]), f2(c[1])]; }) });
+
+    // ---- ροή πινάκων σε στήλες & φύλλα ----
+    var TXT = P.w >= 841 ? 2.2 : 2.0, ROW = TXT * 1.75, HEAD = 4.2;
+    var colW = 86 * mm; // πλάτος στήλης πινάκων (mm → m)
+    var sheetIdx = 0, panelX, panelY0, panelY1, colX, cursorY;
+    function newSheet(tablesOnly) {
+      var sx = SX + sheetIdx * (sheetW + 20 * mm), sy = SY;
+      sheets.push({ idx: sheetIdx, x: sx, y: sy, w: sheetW, h: sheetH, tablesOnly: tablesOnly });
+      R('PINAKIDA', sx, sy, sheetW, sheetH);
+      R('PINAKIDA', sx + MARGIN * mm, sy + MARGIN * mm, sheetW - 2 * MARGIN * mm, sheetH - 2 * MARGIN * mm);
+      // πλαίσιο υπομνήματος/τίτλου κάτω δεξιά
+      var tbW = tablesOnly ? sheetW - 2 * MARGIN * mm : panelW - MARGIN * mm, tbX = sx + sheetW - MARGIN * mm - tbW, tbY = sy + MARGIN * mm;
+      R('PINAKIDA', tbX, tbY, tbW, TITLE_H * mm);
+      titleBlock(tbX, tbY, tbW, TITLE_H * mm, sheetIdx + 1);
+      if (!tablesOnly) {
+        // διαχωριστικό σχεδίου/πίνακα
+        L('PINAKIDA', [sx + MARGIN * mm + drawW, sy + MARGIN * mm], [sx + MARGIN * mm + drawW, sy + sheetH - MARGIN * mm]);
+        panelX = sx + MARGIN * mm + drawW + 4 * mm;
+      } else panelX = sx + MARGIN * mm + 4 * mm;
+      panelY1 = sy + sheetH - MARGIN * mm - 4 * mm; panelY0 = tbY + TITLE_H * mm + 4 * mm;
+      colX = panelX; cursorY = panelY1;
+      if (sheetIdx === 0 || tablesOnly) { T('PINAKES', colX, cursorY - 5 * mm, 'ΔΙΑΓΡΑΜΜΑ ΓΕΩΜΕΤΡΙΚΩΝ ΜΕΤΑΒΟΛΩΝ' + (tablesOnly ? ' — ΠΙΝΑΚΕΣ (συνέχεια)' : ''), 5); cursorY -= 9 * mm; }
+      sheetIdx++;
+    }
+    function titleBlock(x, y, w, h, n) {
+      var info = opts.info || {};
+      var rows = [['ΤΙΤΛΟΣ', info.title || 'Διάγραμμα Γεωμετρικών Μεταβολών'], ['ΕΡΓΟ / ΙΔΙΟΚΤΗΣΙΑ', info.project || ''], ['ΘΕΣΗ', info.place || ''], ['ΣΥΝΤΑΚΤΗΣ', info.eng || ''], ['ΣΥΣΤΗΜΑ ΑΝΑΦΟΡΑΣ', 'ΕΓΣΑ 87'], ['ΚΛΙΜΑΚΑ', '1:' + S + ' · ' + P.id], ['ΗΜΕΡΟΜΗΝΙΑ', info.date || ''], ['ΦΥΛΛΟ', n + ' / ' + '{N}']];
+      var rh = h / rows.length;
+      rows.forEach(function (r, i) {
+        var yy = y + h - (i + 1) * rh;
+        if (i) L('PINAKIDA', [x, yy + rh], [x + w, yy + rh]);
+        T('PINAKIDA', x + 2 * mm, yy + rh * 0.3, r[0], Math.min(2.2, rh / mm * 0.42));
+        T('PINAKIDA', x + w * 0.38, yy + rh * 0.3, r[1], Math.min(2.8, rh / mm * 0.5));
+      });
+      L('PINAKIDA', [x + w * 0.36, y], [x + w * 0.36, y + h]);
+    }
+    function ensure(hNeeded) {
+      if (cursorY - hNeeded >= panelY0) return;
+      // επόμενη στήλη ή νέο φύλλο
+      var sx = sheets[sheets.length - 1].x, limitX = sx + sheetW - MARGIN * mm - colW;
+      if (colX + colW + 4 * mm <= limitX + 0.001 && (sheets[sheets.length - 1].tablesOnly || colX + 2 * colW + 4 * mm <= sx + sheetW - MARGIN * mm)) { colX += colW + 4 * mm; cursorY = panelY1 - (sheets.length === 1 ? 9 * mm : 0); }
+      else newSheet(true);
+    }
+    function table(b) {
+      var totalW = b.cols.reduce(function (a, c) { return a + c[1]; }, 0), k = (colW / mm) / totalW;
+      ensure((HEAD + ROW * 2.5) * mm);
+      T('PINAKES', colX, cursorY - HEAD * mm * 0.75, b.title, 2.6); cursorY -= HEAD * mm;
+      var y = cursorY, x = colX;
+      // κεφαλίδα
+      L('PINAKES', [x, y], [x + colW, y]);
+      var xx = x; b.cols.forEach(function (c) { T('PINAKES', xx + 1 * mm, y - ROW * mm * 0.72, c[0], TXT); xx += c[1] * k * mm; });
+      y -= ROW * mm; L('PINAKES', [x, y], [x + colW, y]);
+      b.rows.forEach(function (r) {
+        if (y - ROW * mm < panelY0) { ensure(1e9); y = cursorY; x = colX; L('PINAKES', [x, y], [x + colW, y]); var x2 = x; b.cols.forEach(function (c) { T('PINAKES', x2 + 1 * mm, y - ROW * mm * 0.72, c[0], TXT); x2 += c[1] * k * mm; }); y -= ROW * mm; L('PINAKES', [x, y], [x + colW, y]); }
+        var x3 = x; r.forEach(function (cell, i) { if (cell !== '' && cell != null) T('PINAKES', x3 + 1 * mm, y - ROW * mm * 0.72, String(cell), TXT); x3 += b.cols[i][1] * k * mm; });
+        y -= ROW * mm;
+      });
+      L('PINAKES', [x, y], [x + colW, y]);
+      // κατακόρυφες
+      var xv = x; L('PINAKES', [xv, cursorY], [xv, y]); b.cols.forEach(function (c) { xv += c[1] * k * mm; L('PINAKES', [xv, cursorY], [xv, y]); });
+      cursorY = y - 4 * mm;
+    }
+    newSheet(false);
+    // σχέδιο: βορράς & γραμμική κλίμακα στην περιοχή σχεδίου του 1ου φύλλου
+    var s0 = sheets[0], dx0 = s0.x + MARGIN * mm, dy0 = s0.y + MARGIN * mm;
+    var na = [dx0 + drawW - 12 * mm, dy0 + drawH - 12 * mm];
+    E.polys.push({ layer: 'PINAKIDA', pts: [[na[0], na[1] + 8 * mm], [na[0] + 2.5 * mm, na[1] - 4 * mm], [na[0], na[1] - 1.5 * mm], [na[0] - 2.5 * mm, na[1] - 4 * mm]], closed: true });
+    T('PINAKIDA', na[0] - 1.6 * mm, na[1] + 10 * mm, 'Β', 4);
+    var sbLen = S >= 1000 ? 100 : S >= 500 ? 50 : 20; // m
+    var sbx = dx0 + 8 * mm, sby = dy0 + 8 * mm;
+    L('PINAKIDA', [sbx, sby], [sbx + sbLen, sby]); L('PINAKIDA', [sbx, sby], [sbx, sby + 2 * mm]); L('PINAKIDA', [sbx + sbLen, sby], [sbx + sbLen, sby + 2 * mm]); L('PINAKIDA', [sbx + sbLen / 2, sby], [sbx + sbLen / 2, sby + 1.2 * mm]);
+    T('PINAKIDA', sbx, sby + 3 * mm, '0', 2); T('PINAKIDA', sbx + sbLen - 4 * mm, sby + 3 * mm, sbLen + ' m', 2); T('PINAKIDA', sbx, sby - 4 * mm, 'ΚΛΙΜΑΚΑ 1:' + S, 3);
+    // υπόμνημα στο σχέδιο (κάτω δεξιά της περιοχής σχεδίου)
+    var lgx = dx0 + drawW - 62 * mm, lgy = dy0 + 6 * mm, items = [['TOPO_PROP', 'Μετρημένο όριο (τοπογραφικό)'], ['PST_KAEK', 'Όρια γεωτεμαχίων ΚΑΕΚ'], ['AREA_D', 'Δi: προσάρτηση από όμορο ΚΑΕΚ'], ['AREA_A', 'Αi: αποκοπή από το αρχικό ΚΑΕΚ'], ['DGM_PROP_FINAL', 'Τελικά όρια γεωτεμαχίων']];
+    if (res.gaps.count) items.push(['AREA_EKTOS_KAEK', 'Εi: εκτός γεωτεμαχίων ΚΑΕΚ']);
+    R('PINAKIDA', lgx - 2 * mm, lgy - 2 * mm, 64 * mm, (items.length * 5 + 8) * mm);
+    T('PINAKIDA', lgx, lgy + (items.length * 5 + 2) * mm, 'ΥΠΟΜΝΗΜΑ', 3);
+    items.forEach(function (it, i) { var yy = lgy + (items.length - 1 - i) * 5 * mm + 1 * mm; L(it[0], [lgx, yy + 1 * mm], [lgx + 10 * mm, yy + 1 * mm]); T('PINAKIDA', lgx + 12 * mm, yy, it[1], 2.2); });
+    // πίνακες
+    blocks.forEach(table);
+    // αριθμός φύλλων στα title blocks
+    var N = sheets.length; E.texts.forEach(function (t) { if (/\{N\}/.test(t.text)) t.text = t.text.replace('{N}', String(N)); });
+    return { sheets: sheets, elems: E, scale: S, paper: P, fits: fits, mm: mm, drawArea: { x: dx0, y: dy0, w: drawW, h: drawH }, extent: box };
+  }
+
+  // SVG κάθε φύλλου σε mm χαρτιού (για PDF): φύλλο i → viewBox 0 0 Pw Ph
+  function sheetSVG(res, parcels, layout, i, dgmSvgPieces) {
+    var sh = layout.sheets[i], mm = layout.mm, P = layout.paper;
+    function X(x) { return (x - sh.x) / mm; } function Y(y) { return (sh.y + sh.h - y) / mm; }
+    var C = { PINAKIDA: '#1f2a44', PINAKES: '#1f2a44', TOPO_PROP: '#0e7490', PST_KAEK: '#64748b', AREA_D: '#15803d', AREA_A: '#be123c', AREA_EKTOS_KAEK: '#b45309', DGM_PROP_FINAL: '#2563eb', KORYFES: '#1f2a44' };
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+    var s = '<svg xmlns="http://www.w3.org/2000/svg" width="' + P.w + 'mm" height="' + P.h + 'mm" viewBox="0 0 ' + P.w + ' ' + P.h + '" font-family="Manrope, Arial, sans-serif">';
+    s += '<rect width="' + P.w + '" height="' + P.h + '" fill="#fff"/>';
+    s += '<defs><pattern id="pd" width="1.5" height="1.5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="1.5" stroke="#15803d" stroke-width="0.3"/></pattern><pattern id="pa" width="1.5" height="1.5" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="1.5" stroke="#be123c" stroke-width="0.3"/></pattern><pattern id="pe" width="1.2" height="1.2" patternUnits="userSpaceOnUse"><circle cx="0.6" cy="0.6" r="0.2" fill="#b45309"/></pattern></defs>';
+    var inSheet = function (x, y) { return x >= sh.x - 1 && x <= sh.x + sh.w + 1 && y >= sh.y - 1 && y <= sh.y + sh.h + 1; };
+    if (!sh.tablesOnly) {
+      // γεωμετρία ΔΓΜ, κομμένη στην περιοχή σχεδίου
+      var da = layout.drawArea;
+      s += '<clipPath id="da"><rect x="' + X(da.x) + '" y="' + Y(da.y + da.h) + '" width="' + (da.w / mm) + '" height="' + (da.h / mm) + '"/></clipPath><g clip-path="url(#da)">';
+      var pts = function (r) { return r.map(function (q) { return X(q[0]).toFixed(2) + ',' + Y(q[1]).toFixed(2); }).join(' '); };
+      parcels.forEach(function (p) { p.rings.forEach(function (r) { s += '<polygon points="' + pts(r) + '" fill="none" stroke="' + C.PST_KAEK + '" stroke-width="0.25" stroke-dasharray="2 1"/>'; }); var c = DGM.interior(DGM.open(p.rings[0]), []); s += '<text x="' + X(c[0]).toFixed(2) + '" y="' + Y(c[1]).toFixed(2) + '" font-size="2.4" fill="' + C.PST_KAEK + '">ΚΑΕΚ ' + esc(p.kaek) + '</text>'; });
+      res.pieces.forEach(function (x) { if (x.kind === 'common') return; var fill = x.kind === 'cut' ? 'url(#pd)' : x.kind === 'given' ? 'url(#pa)' : 'url(#pe)', st = x.kind === 'cut' ? C.AREA_D : x.kind === 'given' ? C.AREA_A : C.AREA_EKTOS_KAEK; s += '<polygon points="' + pts(x.ring) + '" fill="' + fill + '" stroke="' + st + '" stroke-width="0.3"/>'; var c2 = DGM.interior(x.ring, x.holes); s += '<text x="' + X(c2[0]).toFixed(2) + '" y="' + Y(c2[1]).toFixed(2) + '" font-size="2.6" font-weight="700" fill="' + st + '" text-anchor="middle">' + esc(x.id) + '</text>'; });
+      (res.finals || []).forEach(function (fp) { s += '<polygon points="' + pts(fp.outer) + '" fill="none" stroke="' + C.DGM_PROP_FINAL + '" stroke-width="0.3" stroke-dasharray="3 1 0.5 1"/>'; });
+      s += '<polygon points="' + pts(res.Mr) + '" fill="none" stroke="' + C.TOPO_PROP + '" stroke-width="0.6"/>';
+      res.Mr.forEach(function (q, i) { s += '<circle cx="' + X(q[0]).toFixed(2) + '" cy="' + Y(q[1]).toFixed(2) + '" r="0.6" fill="' + C.TOPO_PROP + '"/><text x="' + (X(q[0]) + 1).toFixed(2) + '" y="' + (Y(q[1]) - 1).toFixed(2) + '" font-size="2.2" fill="' + C.TOPO_PROP + '">' + esc((res.labels && res.labels[i]) || i + 1) + '</text>'; });
+      (res.cuts || []).forEach(function (c, i) { s += '<circle cx="' + X(c[0]).toFixed(2) + '" cy="' + Y(c[1]).toFixed(2) + '" r="0.6" fill="#fff" stroke="#1f2a44" stroke-width="0.25"/><text x="' + (X(c[0]) + 1).toFixed(2) + '" y="' + (Y(c[1]) + 2.4).toFixed(2) + '" font-size="2" fill="#1f2a44">Τ' + (i + 1) + '</text>'; });
+      s += '</g>';
+    }
+    // στοιχεία πινακίδας/πινάκων του φύλλου
+    layout.elems.polys.forEach(function (p) { if (!p.pts.every(function (q) { return inSheet(q[0], q[1]); })) return; s += '<polygon points="' + p.pts.map(function (q) { return X(q[0]).toFixed(2) + ',' + Y(q[1]).toFixed(2); }).join(' ') + '" fill="' + (p.layer === 'PINAKIDA' && p.pts.length === 4 ? 'none' : '#1f2a44') + '" stroke="#1f2a44" stroke-width="0.3"/>'; });
+    layout.elems.lines.forEach(function (l) { if (!inSheet(l.a[0], l.a[1]) || !inSheet(l.b[0], l.b[1])) return; s += '<line x1="' + X(l.a[0]).toFixed(2) + '" y1="' + Y(l.a[1]).toFixed(2) + '" x2="' + X(l.b[0]).toFixed(2) + '" y2="' + Y(l.b[1]).toFixed(2) + '" stroke="' + (C[l.layer] || '#1f2a44') + '" stroke-width="' + (l.layer === 'PINAKES' ? 0.2 : 0.35) + '"/>'; });
+    layout.elems.texts.forEach(function (t) { if (!inSheet(t.x, t.y)) return; s += '<text x="' + X(t.x).toFixed(2) + '" y="' + Y(t.y).toFixed(2) + '" font-size="' + (t.h / mm * 1.35).toFixed(2) + '" fill="#1f2a44"' + (t.rot ? ' transform="rotate(' + (-t.rot) + ' ' + X(t.x).toFixed(2) + ' ' + Y(t.y).toFixed(2) + ')"' : '') + '>' + esc(t.text) + '</text>'; });
+    s += '</svg>';
+    return s;
+  }
+
+  var api = { PAPERS: PAPERS, SCALES: SCALES, recommend: recommend, build: build, sheetSVG: sheetSVG };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  root.DgmSheet = api;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /* HEXIS ΣΥΝΤΕΤΑΓΜΕΝΕΣ — εφαρμογή */
@@ -3958,6 +4163,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       var res = DGM.compute(M, parcels, own, { minArea: minA });
       res.M = M; res.labels = t.points.map(function (p, i) { return p.label || String(i + 1); }); res.plotTitle = shortTitle(t);
       res.svg = DGM.svg(res, M, parcels, { W: 1000, H: 700, labels: res.labels });
+      res.rec = DgmSheet.recommend(res, parcels);
+      if (!S.sheetScale || !S.sheetPaper || S.sheetAuto !== false) { S.sheetScale = res.rec.best.scale; S.sheetPaper = res.rec.best.paper; }
       res.status = 'ok'; S.dgm = res;
       $('#tabDgm').hidden = false;
     } catch (e) { console.error(e); S.dgm = { status: 'error', error: e.message }; }
@@ -3998,9 +4205,26 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       return '<details class="piece"><summary><span class="tag ' + x.kind + '">' + esc(x.id) + '</span><b>' + kinds[x.kind] + '</b><span style="color:var(--muted)">' + esc(kaekName(x.from)) + ' → ' + esc(kaekName(x.to)) + '</span><span style="margin-left:auto" class="mono">' + fmt(x.area, 2) + ' m²</span></summary><div class="tbl-wrap"><table class="coords"><thead><tr><th>#</th><th>Κορυφή</th><th class="num">X</th><th class="num">Y</th></tr></thead><tbody>' + rows + '</tbody></table></div></details>';
     }).join('') + '</div>';
     h += '<img class="dgm-svg" alt="Διάγραμμα γεωμετρικών μεταβολών" src="data:image/svg+xml;charset=utf-8,' + encodeURIComponent(d.svg) + '">';
-    h += '<div class="file-row"><button class="btn primary small" data-exp="dgm-dxf">DXF Κτηματολογίου (ΠΙΝΑΚΑΣ Α)</button><button class="btn small" data-exp="dgm-xlsx">Excel πινάκων</button><button class="btn small" data-exp="dgm-pdf">Αναφορά PDF</button><button class="btn small" data-exp="dgm-txt">TXT τμημάτων</button><button class="btn small" data-exp="dgm-svg">Εικόνα SVG</button></div>';
+    h += renderSheetPanel(d);
+    h += '<div class="file-row"><button class="btn primary small" data-exp="dgm-dxf">DXF Κτηματολογίου (ΠΙΝΑΚΑΣ Α)</button><button class="btn small" data-exp="dgm-xlsx">Excel πινάκων</button><button class="btn small" data-exp="dgm-pdf">Αναφορά PDF</button><button class="btn small" data-exp="dgm-txt-all">TXT όλα (ΚΑΕΚ + τμήματα)</button><button class="btn small" data-exp="dgm-txt">TXT ανά τμήμα</button><button class="btn small" data-exp="dgm-svg">Εικόνα SVG</button></div>';
     return h + '</section>';
   }
+  function renderSheetPanel(d) {
+    var rec = d.rec, best = rec.best, parcels = dgmParcels();
+    var lay = DgmSheet.build(d, parcels, { scale: S.sheetScale, paper: S.sheetPaper, info: sheetInfo(), plotTitle: d.plotTitle, kaekName: kaekName });
+    S.sheetLayout = lay;
+    var ex = rec.extent.box, w = ex[2] - ex[0], hh = ex[3] - ex[1];
+    var h = '<div class="panel" style="padding:14px;display:grid;gap:10px;background:var(--surface-2)"><div class="file-row"><b>Εκτύπωση</b><span class="chip">έκταση σχεδίου ' + fixed(w, 0) + ' × ' + fixed(hh, 0) + ' m</span>';
+    h += best.fits ? '<span class="chip ok">Πρόταση: 1:' + best.scale + ' σε ' + best.paper + '</span>' : '<span class="chip warn">Δεν χωράει σε Α0 ούτε σε 1:1000 — θα κοπεί</span>';
+    h += '</div><div class="dgm-ctl"><label>Κλίμακα<select id="sheetScale">' + DgmSheet.SCALES.map(function (sc) { var any = rec.options.filter(function (o) { return o.scale === sc && o.fits; })[0]; return '<option value="' + sc + '"' + (sc === S.sheetScale ? ' selected' : '') + '>1:' + sc + (any ? ' (χωράει από ' + any.paper + ')' : ' (δεν χωράει σε Α0)') + '</option>'; }).join('') + '</select></label>';
+    h += '<label>Χαρτί<select id="sheetPaper">' + DgmSheet.PAPERS.map(function (P) { var o = rec.options.filter(function (x) { return x.scale === S.sheetScale && x.paper === P.id; })[0]; return '<option value="' + P.id + '"' + (P.id === S.sheetPaper ? ' selected' : '') + '>' + P.id + ' ' + P.w + '×' + P.h + ' mm' + (o && o.fits ? ' ✓' : ' ✕') + '</option>'; }).join('') + '</select></label>';
+    h += '<span class="chip' + (lay.fits ? ' ok' : ' warn') + '">' + (lay.fits ? 'Το σχέδιο χωράει' : 'Το σχέδιο κόβεται στα όρια') + ' · ' + lay.sheets.length + (lay.sheets.length === 1 ? ' φύλλο' : ' φύλλα') + '</span>';
+    h += '<button class="btn small" data-act="sheet-info">Στοιχεία πινακίδας</button></div>';
+    h += '<p style="margin:0;color:var(--muted);font-size:12px">Σελιδοποίηση: φύλλο 1 = σχέδιο + πίνακες στη δεξιά στήλη · επιπλέον φύλλα μόνο για πίνακες όταν δεν χωρούν. Το DXF εκτύπωσης έχει την πινακίδα στο model space σε μονάδες ΕΓΣΑ87: τυπώνεις το πλαίσιο κάθε φύλλου σε 1:' + S.sheetScale + '.</p>';
+    h += '<div class="file-row"><button class="btn primary small" data-exp="dgm-print-dxf">DXF εκτύπωσης (σχέδιο + πίνακες + πινακίδα)</button><button class="btn small" data-exp="dgm-print-pdf">PDF πινακίδας ' + S.sheetPaper + '</button></div></div>';
+    return h;
+  }
+  function sheetInfo() { var f = store('hexis_coords_report') || {}; return { title: 'Διάγραμμα Γεωμετρικών Μεταβολών', project: f.project || '', place: f.place || '', eng: f.eng || '', date: new Date().toLocaleDateString('el-GR') }; }
   function renderDgmView() {
     var d = S.dgm, pane = $('#paneD');
     if (!d || d.status !== 'ok') { pane.innerHTML = '<p style="color:var(--muted)">Δεν έχει υπολογιστεί διάγραμμα. Πάτα «Διάγραμμα Γεωμετρικών Μεταβολών» στο πάνελ Κτηματολόγιο.</p>'; return; }
@@ -4016,7 +4240,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     var polys = [], texts = [], TH = 0.5;
     var M = d.Mr;
     // TOPO_PROP: μετρημένο όριο (και FOREST_FINAL για ΔΓΜΔΥ)
-    polys.push({ layer: 'TOPO_PROP', pts: M, closed: true });
+    polys.push({ layer: 'TOPO_PROP', pts: M, closed: true, lw: 70 });
     if (S.dgmMode === 'dgmdy') polys.push({ layer: 'FOREST_FINAL', pts: M, closed: true });
     // PST_KAEK: αρχικά γεωτεμάχια + ΚΑΕΚ ως κείμενο εντός
     parcels.forEach(function (p) {
@@ -4029,8 +4253,9 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     d.pieces.forEach(function (x) {
       var layer = x.kind === 'cut' ? 'AREA_D' : x.kind === 'given' ? 'AREA_A' : x.kind === 'gap' ? 'AREA_EKTOS_KAEK' : null;
       if (!layer) return;
-      polys.push({ layer: layer, pts: x.ring, closed: true }); (x.holes || []).forEach(function (hh) { polys.push({ layer: layer, pts: hh, closed: true }); });
-      var c = DGM.interior(x.ring, x.holes); texts.push({ layer: layer, x: c[0], y: c[1], text: x.id, h: TH });
+      var col = x.kind === 'given' ? 1 : x.kind === 'cut' ? 3 : 30; // κόκκινο: αποκοπτόμενα από το δικό μας · πράσινο: προσαρτώμενα από όμορα
+      polys.push({ layer: layer, pts: x.ring, closed: true, color: col, lw: 50 }); (x.holes || []).forEach(function (hh) { polys.push({ layer: layer, pts: hh, closed: true, color: col }); });
+      var c = DGM.interior(x.ring, x.holes); texts.push({ layer: layer, x: c[0], y: c[1], text: x.id, h: TH, color: col });
     });
     // DGM_PROP_FINAL: τελικά πολύγωνα όλων των εμπλεκόμενων γεωτεμαχίων
     (d.finals || []).forEach(function (fp) { polys.push({ layer: 'DGM_PROP_FINAL', pts: fp.outer, closed: true }); fp.holes.forEach(function (hh) { polys.push({ layer: 'DGM_PROP_FINAL', pts: hh, closed: true }); }); });
@@ -4063,6 +4288,36 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     var base = baseName() + '_ΔΓΜ', parcels = dgmParcels();
     var kinds = { common: 'Κοινό', cut: 'Από όμορο ΚΑΕΚ (Δ)', given: 'Από το αρχικό ΚΑΕΚ (Α)', gap: 'Εκτός ΚΑΕΚ' };
     if (kind === 'dgm-svg') { download(base + '.svg', d.svg, 'image/svg+xml'); toast('Έτοιμη η εικόνα.'); return; }
+    if (kind === 'dgm-print-dxf') {
+      var lay = DgmSheet.build(d, parcels, { scale: S.sheetScale, paper: S.sheetPaper, info: sheetInfo(), plotTitle: d.plotTitle, kaekName: kaekName });
+      var spec = dgmSpec(d, parcels);
+      // + πινακίδα, πίνακες, υπόμνημα (πρόσθετα layers) — τα χρώματα των τμημάτων είναι ήδη κόκκινο/πράσινο
+      lay.elems.polys.forEach(function (p) { spec.polys.push({ layer: p.layer, pts: p.pts, closed: p.closed, color: 7 }); });
+      var lc = { PINAKES: 8, PINAKIDA: 7, AREA_A: 1, AREA_D: 3, AREA_EKTOS_KAEK: 30 };
+      spec.lines = lay.elems.lines.map(function (l) { return { layer: l.layer, a: l.a, b: l.b, color: lc[l.layer] || 256 }; });
+      lay.elems.texts.forEach(function (t) { spec.texts.push({ layer: t.layer, x: t.x, y: t.y, text: t.text, h: t.h, rot: t.rot, align: t.align, color: 7 }); });
+      var txt2 = Dxf2000.build(spec);
+      download(dgmFileName(d) + '_print.dxf', new Blob([PdfGeom.encode1253(txt2)], { type: 'application/dxf' }));
+      toast('Έτοιμο το DXF εκτύπωσης: ' + lay.sheets.length + (lay.sheets.length === 1 ? ' φύλλο ' : ' φύλλα ') + S.sheetPaper + ' σε 1:' + S.sheetScale + '.');
+      return;
+    }
+    if (kind === 'dgm-print-pdf') {
+      await loadScript(LIBS.pdfmake); await loadScript(LIBS.vfs);
+      var lay2 = DgmSheet.build(d, parcels, { scale: S.sheetScale, paper: S.sheetPaper, info: sheetInfo(), plotTitle: d.plotTitle, kaekName: kaekName });
+      var P = lay2.paper, pw = P.w * 72 / 25.4, ph = P.h * 72 / 25.4;
+      var content2 = lay2.sheets.map(function (sh, i) { return { svg: DgmSheet.sheetSVG(d, parcels, lay2, i), width: pw, pageBreak: i ? 'before' : undefined }; });
+      pdfMake.createPdf({ pageSize: { width: pw, height: ph }, pageMargins: [0, 0, 0, 0], content: content2, defaultStyle: { font: 'Roboto' } }).getBlob(function (blob) { download(dgmFileName(d) + '.pdf', blob); toast('Έτοιμο το PDF πινακίδας ' + P.id + ' (' + lay2.sheets.length + ' φύλλα).'); });
+      return;
+    }
+    if (kind === 'dgm-txt-all') {
+      // ένα αρχείο: μετρημένο όριο (Μ), γεωτεμάχια ΚΑΕΚ (με τον αριθμό τους), τμήματα Αi/Δi/Εi — μορφή label,X,Y
+      var L = [];
+      d.Mr.forEach(function (q, i) { L.push('M-' + ((d.labels && d.labels[i]) || (i + 1)) + ',' + q[0].toFixed(2) + ',' + q[1].toFixed(2)); });
+      parcels.forEach(function (p) { p.rings.forEach(function (r, ri) { DGM.open(r).forEach(function (q, k) { L.push(p.kaek + (p.rings.length > 1 ? '.' + (ri + 1) : '') + '-' + (k + 1) + ',' + q[0].toFixed(2) + ',' + q[1].toFixed(2)); }); }); });
+      d.pieces.forEach(function (x) { if (x.kind === 'common') return; x.ring.forEach(function (q, k) { L.push(x.id + '-' + (k + 1) + ',' + q[0].toFixed(2) + ',' + q[1].toFixed(2)); }); });
+      (d.cuts || []).forEach(function (c, i) { L.push('T' + (i + 1) + ',' + c[0].toFixed(2) + ',' + c[1].toFixed(2)); });
+      download(dgmFileName(d) + '.txt', L.join('\r\n') + '\r\n', 'text/plain;charset=utf-8'); toast('Έτοιμο το TXT (' + L.length + ' κορυφές).'); return;
+    }
     if (kind === 'dgm-txt') {
       d.pieces.forEach(function (x, i) { var lines = x.ring.map(function (q, k) { return x.id + '-' + (k + 1) + ',' + q[0].toFixed(2) + ',' + q[1].toFixed(2); }); setTimeout(function () { download(base + '_' + x.id + '.txt', lines.join('\r\n') + '\r\n', 'text/plain;charset=utf-8'); }, i * 250); });
       toast('Έτοιμα ' + d.pieces.length + ' αρχεία TXT.'); return;
@@ -4203,6 +4458,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     if (ev.target.id === 'kaekOnlyMain') { S.kaekOnlyMain = ev.target.checked; renderPlan(); if (S.map) drawMap(false); }
     if (ev.target.id === 'dgmOwn') { S.dgmOwn = ev.target.value; runDgm(); }
     if (ev.target.id === 'dgmMode') { S.dgmMode = ev.target.value; renderAll(); }
+    if (ev.target.id === 'sheetScale') { S.sheetScale = +ev.target.value; S.sheetAuto = false; renderAll(); }
+    if (ev.target.id === 'sheetPaper') { S.sheetPaper = ev.target.value; S.sheetAuto = false; renderAll(); }
     if (ev.target.id === 'dgmMin') { var v = parseFloat(String(ev.target.value).replace(',', '.')); if (!isNaN(v) && v >= 0) { S.dgmMin = v; runDgm(); } }
   });
   left.addEventListener('click', function (ev) {
@@ -4216,6 +4473,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     if (act === 'kaek-find') { S.kaek = null; return findKaek(); }
     if (act === 'dgm-run') return runDgm();
     if (act === 'dgm-view') { setView('dgm'); return; }
+    if (act === 'sheet-info') { var f0 = store('hexis_coords_report') || {}; gate('<h3>Στοιχεία πινακίδας</h3><div class="fields"><label>Έργο / Ιδιοκτησία<input id="rf1" value="' + esc(f0.project || '') + '"></label><label>Θέση<input id="rf2" value="' + esc(f0.place || '') + '"></label><label>Συντάκτης<input id="rf3" value="' + esc(f0.eng || '') + '"></label></div><div class="row"><button class="btn" data-g="no">Άκυρο</button><button class="btn primary" data-g="yes">Αποθήκευση</button></div>', function (a) { if (a === 'yes') { store('hexis_coords_report', { project: $('#rf1').value.trim(), place: $('#rf2').value.trim(), eng: $('#rf3').value.trim() }); renderAll(); } }); return; }
     if (act === 'kaek-show') { S.kaekFocus = b.dataset.kaek; setView('map'); return; }
     if (act === 'ai-cancel') { if (S.ai && S.ai.running) { S.ai.cancelled = true; if (S.ai.ctl) S.ai.ctl.abort(); } return; }
     if (act === 'ai-open') { S.ai = S.ai || {}; S.forceAI = true; showAIGate(); return; }
