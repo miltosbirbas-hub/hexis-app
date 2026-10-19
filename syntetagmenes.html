@@ -1782,9 +1782,12 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   var MSP_OWNER = "17";
 
   function f(v) { return (Math.round(v * 1000) / 1000).toFixed(3); }
-  function clean(s) { return String(s == null ? '' : s).replace(/[\r\n]+/g, ' ').slice(0, 250); }
+  // Κείμενο DXF: οι μη-ASCII χαρακτήρες (ελληνικά, °, ² κ.λπ.) γράφονται ως \U+XXXX — διαβάζεται σωστά σε κάθε CAD,
+  // ανεξάρτητα από την κωδικοσελίδα του συστήματος (τα R2000 αρχεία δεν είναι Unicode).
+  function uesc(s) { return String(s).replace(/[^\x00-\x7F]/g, function (c) { var h = c.charCodeAt(0).toString(16).toUpperCase(); return '\\U+' + ('0000' + h).slice(-4); }); }
+  function clean(s) { return uesc(String(s == null ? '' : s).replace(/[\r\n]+/g, ' ').slice(0, 250)); }
 
-  function mtxt(t) { return clean(t).replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}'); }
+  function mtxt(t) { return uesc(String(t == null ? '' : t).replace(/[\r\n]+/g, ' ').slice(0, 250).replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}')); }
 
   // Πίνακας layers του προτύπου: κρατά τα χρησιμοποιούμενα (και 0/Defpoints), προσθέτει όσα λείπουν με χρώμα από defs
   function rewriteLayers(tpl, used, defs, next, prune) {
@@ -3275,9 +3278,12 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   var MSP_OWNER = "17";
 
   function f(v) { return (Math.round(v * 1000) / 1000).toFixed(3); }
-  function clean(s) { return String(s == null ? '' : s).replace(/[\r\n]+/g, ' ').slice(0, 250); }
+  // Κείμενο DXF: οι μη-ASCII χαρακτήρες (ελληνικά, °, ² κ.λπ.) γράφονται ως \U+XXXX — διαβάζεται σωστά σε κάθε CAD,
+  // ανεξάρτητα από την κωδικοσελίδα του συστήματος (τα R2000 αρχεία δεν είναι Unicode).
+  function uesc(s) { return String(s).replace(/[^\x00-\x7F]/g, function (c) { var h = c.charCodeAt(0).toString(16).toUpperCase(); return '\\U+' + ('0000' + h).slice(-4); }); }
+  function clean(s) { return uesc(String(s == null ? '' : s).replace(/[\r\n]+/g, ' ').slice(0, 250)); }
 
-  function mtxt(t) { return clean(t).replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}'); }
+  function mtxt(t) { return uesc(String(t == null ? '' : t).replace(/[\r\n]+/g, ' ').slice(0, 250).replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}')); }
 
   // Πίνακας layers του προτύπου: κρατά τα χρησιμοποιούμενα (και 0/Defpoints), προσθέτει όσα λείπουν με χρώμα από defs
   function rewriteLayers(tpl, used, defs, next, prune) {
@@ -3537,9 +3543,12 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   var MSP_OWNER = "17";
 
   function f(v) { return (Math.round(v * 1000) / 1000).toFixed(3); }
-  function clean(s) { return String(s == null ? '' : s).replace(/[\r\n]+/g, ' ').slice(0, 250); }
+  // Κείμενο DXF: οι μη-ASCII χαρακτήρες (ελληνικά, °, ² κ.λπ.) γράφονται ως \U+XXXX — διαβάζεται σωστά σε κάθε CAD,
+  // ανεξάρτητα από την κωδικοσελίδα του συστήματος (τα R2000 αρχεία δεν είναι Unicode).
+  function uesc(s) { return String(s).replace(/[^\x00-\x7F]/g, function (c) { var h = c.charCodeAt(0).toString(16).toUpperCase(); return '\\U+' + ('0000' + h).slice(-4); }); }
+  function clean(s) { return uesc(String(s == null ? '' : s).replace(/[\r\n]+/g, ' ').slice(0, 250)); }
 
-  function mtxt(t) { return clean(t).replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}'); }
+  function mtxt(t) { return uesc(String(t == null ? '' : t).replace(/[\r\n]+/g, ' ').slice(0, 250).replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}')); }
 
   // Πίνακας layers του προτύπου: κρατά τα χρησιμοποιούμενα (και 0/Defpoints), προσθέτει όσα λείπουν με χρώμα από defs
   function rewriteLayers(tpl, used, defs, next, prune) {
@@ -4090,7 +4099,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     var cx = (box[0] + box[2]) / 2, cy = (box[1] + box[3]) / 2;
     var SX = cx - MARGIN * mm - drawW / 2, SY = cy - MARGIN * mm - drawH / 2;
     var sheets = [];
-    var E = { polys: [], texts: [], lines: [], hatches: [] };
+    var E = { polys: [], texts: [], lines: [], hatches: [], tables: [] }; // tables: θέσεις/περιεχόμενο για native TABLE στο CAD (LISP)
     function L(layer, a, b, color) { E.lines.push({ layer: layer, a: a, b: b, color: color }); }
     function R(layer, x, y, w, h) { E.polys.push({ layer: layer, pts: [[x, y], [x + w, y], [x + w, y + h], [x, y + h]], closed: true }); }
     function T(layer, x, y, text, hmm, rot, align, color) { E.texts.push({ layer: layer, x: x, y: y, text: text, h: hmm * mm, rot: rot || 0, align: align || 'left', color: color }); }
@@ -4169,6 +4178,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       var headH = (b.headRows || 1) * ROW, titleH = titleLines.length * TITLE * 1.5 + 1.2;
       ensure((titleH + headH + ROW * 2.5) * mm);
       var x = colX, yTop = cursorY, y = yTop;
+      var seg = { x: x, y: yTop, colW: b.cols.map(function (c) { return c[1] * k * mm; }), rowH: ROW * mm, titleH: titleH * mm, headH: headH * mm, textH: TXT * mm, titleTextH: TITLE * mm, title: b.title, header: b.cols.map(function (c) { return c[0]; }), rows: [], footer: null };
+      E.tables.push(seg);
       function hline(yy) { L('PINAKES', [x, yy], [x + colW, yy]); }
       hline(y);
       titleLines.forEach(function (tl, i) { T('PINAKES', x + colW / 2, y - (i + 1) * TITLE * 1.5 * mm + TITLE * 0.35 * mm, tl, TITLE, 0, 'center'); });
@@ -4180,12 +4191,13 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       header();
       function verticals(yA, yB) { var xv = x; L('PINAKES', [xv, yA], [xv, yB]); b.cols.forEach(function (c) { xv += c[1] * k * mm; L('PINAKES', [xv, yA], [xv, yB]); }); }
       b.rows.forEach(function (r) {
-        if (y - ROW * mm < floorAt(x)) { verticals(segTop, y); ensure(1e9); x = colX; y = cursorY; hline(y); header(); segTop = y + headH * mm; }
+        if (y - ROW * mm < floorAt(x)) { verticals(segTop, y); ensure(1e9); x = colX; y = cursorY; hline(y); header(); segTop = y + headH * mm; seg = { x: x, y: cursorY, colW: seg.colW, rowH: seg.rowH, titleH: 0, headH: seg.headH, textH: seg.textH, titleTextH: seg.titleTextH, title: null, header: seg.header, rows: [], footer: null }; E.tables.push(seg); }
+        seg.rows.push(r);
         var x3 = x; r.forEach(function (cell, i) { if (cell !== '' && cell != null) { var cw = b.cols[i][1] * k * mm, al = b.cols[i][2] || 'left'; T('PINAKES', al === 'center' ? x3 + cw / 2 : x3 + 1 * mm, y - ROW * mm * 0.68, String(cell), TXT, 0, al); } x3 += b.cols[i][1] * k * mm; });
         y -= ROW * mm; hline(y);
       });
       verticals(segTop, y);
-      if (b.footer) { T('PINAKES', x + colW / 2, y - ROW * mm * 0.68, b.footer, TXT, 0, 'center'); y -= ROW * mm; hline(y); L('PINAKES', [x, y], [x, y + ROW * mm]); L('PINAKES', [x + colW, y], [x + colW, y + ROW * mm]); }
+      if (b.footer) { seg.footer = b.footer; T('PINAKES', x + colW / 2, y - ROW * mm * 0.68, b.footer, TXT, 0, 'center'); y -= ROW * mm; hline(y); L('PINAKES', [x, y], [x, y + ROW * mm]); L('PINAKES', [x + colW, y], [x + colW, y + ROW * mm]); }
       cursorY = y - 5 * mm;
     }
     function wrap(text, maxChars) {
@@ -4294,7 +4306,52 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     return s;
   }
 
-  var api = { PAPERS: PAPERS, SCALES: SCALES, recommend: recommend, build: build, blocks: blocks, sheetSVG: sheetSVG, COL: COL };
+  // ---------- AutoLISP: οι πίνακες της πινακίδας ως native TABLE του CAD (AutoCAD/BricsCAD/ZWCAD/ProgeCAD με ActiveX) ----------
+  function lispTables(layout, opts) {
+    opts = opts || {};
+    function ls(s) { return '"' + String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[^\x00-\x7F]/g, function (c) { return '\\\\U+' + ('0000' + c.charCodeAt(0).toString(16).toUpperCase()).slice(-4); }) + '"'; }
+    function n(v) { return (Math.round(v * 10000) / 10000).toString(); }
+    var items = layout.elems.tables.map(function (t) {
+      return '(list ' + n(t.x) + ' ' + n(t.y) + ' ' + n(t.rowH) + ' ' + n(t.titleH) + ' ' + n(t.headH) + ' ' + n(t.textH) + ' ' + n(t.titleTextH) + ' (list ' + t.colW.map(n).join(' ') + ') ' + (t.title ? ls(t.title) : 'nil') + ' (list ' + t.header.map(ls).join(' ') + ') (list ' + t.rows.map(function (r) { return '(list ' + r.map(ls).join(' ') + ')'; }).join(' ') + ') ' + (t.footer ? ls(t.footer) : 'nil') + ')';
+    });
+    return [
+      ';; HEXIS - ' + (opts.title || 'Diagramma Geometrikon Metavolon') + ' - pinakes os native TABLE',
+      ';; Fortose me APPLOAD sto DXF ektyposis kai grapse HEXISTABLES. Antikathista tis grammes tou layer PINAKES me TABLE.',
+      '(vl-load-com)',
+      '(defun hx:del-layer (lay / ss i) (if (setq ss (ssget "X" (list (cons 8 lay)))) (progn (setq i 0) (repeat (sslength ss) (vla-delete (vlax-ename->vla-object (ssname ss i))) (setq i (1+ i))))))',
+      '(defun hx:table (msp d / x y rowh titleh headh th tth cw title head rows foot nr nc tbl r c i pt)',
+      '  (setq x (nth 0 d) y (nth 1 d) rowh (nth 2 d) titleh (nth 3 d) headh (nth 4 d) th (nth 5 d) tth (nth 6 d) cw (nth 7 d) title (nth 8 d) head (nth 9 d) rows (nth 10 d) foot (nth 11 d))',
+      '  (setq nc (length cw) nr (+ (if title 1 0) 1 (length rows) (if foot 1 0)))',
+      '  (setq pt (vlax-3d-point x y 0.0))',
+      '  (setq tbl (vla-AddTable msp pt nr nc rowh (car cw)))',
+      '  (vla-put-RegenerateTableSuppressed tbl :vlax-true)',
+      '  (vla-put-Layer tbl "PINAKES")',
+      '  (vla-put-TitleSuppressed tbl (if title :vlax-false :vlax-true))',
+      '  (vla-put-HeaderSuppressed tbl :vlax-false)',
+      '  (setq i 0) (foreach w cw (vla-SetColumnWidth tbl i w) (setq i (1+ i)))',
+      '  (foreach rt (list 1 2 4) (vla-SetTextHeight tbl rt th) (vla-SetAlignment tbl rt 5) (if (tblsearch "STYLE" "Arial") (vla-SetTextStyle tbl rt "Arial")))',
+      '  (vla-SetTextHeight tbl 1 tth)',
+      '  (setq r 0)',
+      '  (if title (progn (vla-SetRowHeight tbl 0 titleh) (vla-SetText tbl 0 0 title) (setq r 1)))',
+      '  (vla-SetRowHeight tbl r headh) (setq c 0) (foreach h head (vla-SetText tbl r c h) (setq c (1+ c))) (setq r (1+ r))',
+      '  (foreach row rows (vla-SetRowHeight tbl r rowh) (setq c 0) (foreach v row (if (/= v "") (vla-SetText tbl r c v)) (setq c (1+ c))) (setq r (1+ r)))',
+      '  (if foot (progn (vla-SetRowHeight tbl r rowh) (vla-MergeCells tbl r r 0 (1- nc)) (vla-SetText tbl r 0 foot)))',
+      '  (vla-put-RegenerateTableSuppressed tbl :vlax-false)',
+      '  tbl)',
+      '(defun c:HEXISTABLES ( / doc msp data n)',
+      '  (setq doc (vla-get-ActiveDocument (vlax-get-acad-object)) msp (vla-get-ModelSpace doc))',
+      '  (hx:del-layer "PINAKES")',
+      '  (setq data (list',
+      items.map(function (it) { return '    ' + it; }).join('\n'),
+      '  ))',
+      '  (setq n 0) (foreach d data (hx:table msp d) (setq n (1+ n)))',
+      '  (vla-Regen doc 1)',
+      '  (princ (strcat "\nHEXIS: " (itoa n) " TABLE")) (princ))',
+      '(princ "\nHEXIS: grapse HEXISTABLES gia na ginoun oi pinakes TABLE.") (princ)', ''
+    ].join('\n');
+  }
+
+  var api = { PAPERS: PAPERS, SCALES: SCALES, recommend: recommend, build: build, blocks: blocks, sheetSVG: sheetSVG, lispTables: lispTables, COL: COL };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.DgmSheet = api;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -5737,7 +5794,7 @@ root.CmdCheck = api;
     h += '<span class="chip' + (lay.fits && lay.sheets.length === 1 ? ' ok' : ' warn') + '">' + (lay.fits ? 'Το σχέδιο χωράει' : 'Το σχέδιο κόβεται στα όρια') + ' · ' + (lay.sheets.length === 1 ? 'ένα φύλλο' : lay.sheets.length + ' φύλλα') + '</span>';
     h += '<button class="btn small" data-act="sheet-info">Στοιχεία πινακίδας</button></div>';
     h += '<p style="margin:0;color:var(--muted);font-size:12px">Στόχος: ένα φύλλο με σχέδιο, πίνακες, υπόμνημα και πινακίδα. Η στήλη πινάκων πλαταίνει και τα γράμματα μικραίνουν όσο χρειάζεται για να χωρέσουν. Το DXF εκτύπωσης έχει την πινακίδα στο model space σε μονάδες ΕΓΣΑ87: τυπώνεις το πλαίσιο σε 1:' + S.sheetScale + '.</p>';
-    h += '<div class="file-row"><button class="btn primary small" data-exp="dgm-print-dxf">DXF εκτύπωσης (σχέδιο + πίνακες + πινακίδα)</button><button class="btn small" data-exp="dgm-print-pdf">PDF πινακίδας ' + S.sheetPaper + '</button></div></div>';
+    h += '<div class="file-row"><button class="btn primary small" data-exp="dgm-print-dxf">DXF εκτύπωσης (σχέδιο + πίνακες + πινακίδα)</button><button class="btn small" data-exp="dgm-print-pdf">PDF πινακίδας ' + S.sheetPaper + '</button><button class="btn small" data-exp="dgm-tables-lsp">LISP: πίνακες ως TABLE</button></div><p style="margin:0;color:var(--muted);font-size:12px">Οι πίνακες στο DXF είναι γραμμές και κείμενο (ανοίγει παντού). Για πραγματικά TABLE στο CAD: APPLOAD το LISP μέσα στο DXF εκτύπωσης και γράψε <b>HEXISTABLES</b> — αντικαθιστά το layer PINAKES με native πίνακες (Arial, κεντραρισμένα, ίδιες θέσεις).</p></div>';
     return h;
   }
   function sheetInfo() { var f = store('hexis_coords_report') || {}; return { title: 'Διάγραμμα Γεωμετρικών Μεταβολών', office: f.office || '', client: f.client || f.project || '', project: f.project || '', place: f.place || '', eng: f.eng || '', drawingNo: f.drawingNo || 'Α1', date: f.date || new Date().toLocaleDateString('el-GR', { month: 'long', year: 'numeric' }).toUpperCase() }; }
@@ -5881,6 +5938,12 @@ root.CmdCheck = api;
       download(dgmFileName(d) + '_print.dxf', new Blob([PdfGeom.encode1253(txt2)], { type: 'application/dxf' }));
       toast('Έτοιμο το DXF εκτύπωσης: ' + lay.sheets.length + (lay.sheets.length === 1 ? ' φύλλο ' : ' φύλλα ') + S.sheetPaper + ' σε 1:' + S.sheetScale + '.');
       return;
+    }
+    if (kind === 'dgm-tables-lsp') {
+      var lay3 = sheetLayout(d, parcels);
+      var lsp = DgmSheet.lispTables(lay3, { title: dgmFileName(d) });
+      download(dgmFileName(d) + '_tables.lsp', lsp, 'text/plain;charset=us-ascii');
+      toast('Έτοιμο το LISP: άνοιξε το DXF εκτύπωσης, APPLOAD το αρχείο και γράψε HEXISTABLES — οι πίνακες γίνονται TABLE.'); return;
     }
     if (kind === 'dgm-print-pdf') {
       await loadScript(LIBS.pdfmake); await loadScript(LIBS.vfs);
