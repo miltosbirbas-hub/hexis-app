@@ -1858,6 +1858,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       if (t.rot) out.push('50', f(t.rot));
       out.push('7', FONT);
       if (t.align === 'center' || t.align === 'right') out.push('72', t.align === 'center' ? '1' : '2', '11', f(t.x), '21', f(t.y), '31', '0.0');
+      else if (t.align === 'fit' && t.fit) out.push('72', '5', '11', f(t.fit[0]), '21', f(t.fit[1]), '31', '0.0'); // Fit: συμπίεση πλάτους ανάμεσα στα δύο σημεία
       out.push('100', 'AcDbText');
       ext(t.x, t.y);
     });
@@ -3354,6 +3355,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       if (t.rot) out.push('50', f(t.rot));
       out.push('7', FONT);
       if (t.align === 'center' || t.align === 'right') out.push('72', t.align === 'center' ? '1' : '2', '11', f(t.x), '21', f(t.y), '31', '0.0');
+      else if (t.align === 'fit' && t.fit) out.push('72', '5', '11', f(t.fit[0]), '21', f(t.fit[1]), '31', '0.0'); // Fit: συμπίεση πλάτους ανάμεσα στα δύο σημεία
       out.push('100', 'AcDbText');
       ext(t.x, t.y);
     });
@@ -3619,6 +3621,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       if (t.rot) out.push('50', f(t.rot));
       out.push('7', FONT);
       if (t.align === 'center' || t.align === 'right') out.push('72', t.align === 'center' ? '1' : '2', '11', f(t.x), '21', f(t.y), '31', '0.0');
+      else if (t.align === 'fit' && t.fit) out.push('72', '5', '11', f(t.fit[0]), '21', f(t.fit[1]), '31', '0.0'); // Fit: συμπίεση πλάτους ανάμεσα στα δύο σημεία
       out.push('100', 'AcDbText');
       ext(t.x, t.y);
     });
@@ -4103,6 +4106,14 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     function L(layer, a, b, color) { E.lines.push({ layer: layer, a: a, b: b, color: color }); }
     function R(layer, x, y, w, h) { E.polys.push({ layer: layer, pts: [[x, y], [x + w, y], [x + w, y + h], [x, y + h]], closed: true }); }
     function T(layer, x, y, text, hmm, rot, align, color) { E.texts.push({ layer: layer, x: x, y: y, text: text, h: hmm * mm, rot: rot || 0, align: align || 'left', color: color }); }
+    var CHW = 0.82; // συντηρητικό πλάτος χαρακτήρα (× ύψος) — καλύπτει και SHX γραμματοσειρές αν λείπει η Arial
+    function estW(text, hmm) { return String(text).length * CHW * hmm * mm; }
+    // κείμενο κελιού: κεντραρισμένο· αν δεν χωράει στο διαθέσιμο πλάτος, γράφεται με στοίχιση Fit (συμπιέζεται στο κελί, δεν βγαίνει ποτέ έξω)
+    function TC(layer, x0, x1, y, text, hmm, color) {
+      var pad = 0.6 * mm, avail = x1 - x0 - 2 * pad;
+      if (estW(text, hmm) <= avail) T(layer, (x0 + x1) / 2, y, text, hmm, 0, 'center', color);
+      else E.texts.push({ layer: layer, x: x0 + pad, y: y, text: text, h: hmm * mm, rot: 0, align: 'fit', fit: [x1 - pad, y], color: color });
+    }
     function circle(layer, c, rmm, color) { var r = rmm * mm; E.polys.push({ layer: layer, pts: [[c[0] - r, c[1]], [c[0] + r, c[1]]], bulges: [1, 1], closed: true, color: color }); }
     var fits = (box[2] - box[0]) <= drawW - 8 * mm && (box[3] - box[1]) <= drawH - 8 * mm;
     var num = res.num || (res.num = root.DGM.numbering(res, parcels, opts.labels));
@@ -4173,19 +4184,23 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     // το κάτω όριο της στήλης: πάνω από την πινακίδα όταν η στήλη την επικαλύπτει
     function floorAt(x) { return (x + colW > tbBox.x - 2 * mm) ? tbBox.y + tbBox.h + 4 * mm : panelY0; }
     function table(b) {
-      var totalW = b.cols.reduce(function (a, c) { return a + c[1]; }, 0), k = (colW / mm) / totalW;
-      var titleLines = wrap(b.title, (colW / mm - 2) / (TITLE * 0.8));
-      var headH = (b.headRows || 1) * ROW, titleH = titleLines.length * TITLE * 1.5 + 1.2;
+      // πλάτη στηλών από το περιεχόμενο: κάθε στήλη παίρνει τουλάχιστον όσο χρειάζεται το μακρύτερο κελί της
+      var need = b.cols.map(function (c, i) { var m = 0; b.rows.forEach(function (r) { if (r[i] != null) m = Math.max(m, String(r[i]).length); }); return Math.max(c[1], m * CHW * TXT + 1.6, 6); });
+      var totalW = need.reduce(function (a, v) { return a + v; }, 0), k = (colW / mm) / totalW;
+      b = Object.assign({}, b, { cols: b.cols.map(function (c, i) { return [c[0], need[i], c[2]]; }) });
+      var titleLines = wrap(b.title, (colW / mm - 2) / (TITLE * CHW));
+      var headLines = Math.max.apply(null, b.cols.map(function (c) { return wrap(c[0], (c[1] * k - 1.2) / (TXT * CHW)).length; }));
+      var headH = Math.max(b.headRows || 1, headLines) * ROW, titleH = titleLines.length * TITLE * 1.5 + 1.2;
       ensure((titleH + headH + ROW * 2.5) * mm);
       var x = colX, yTop = cursorY, y = yTop;
       var seg = { x: x, y: yTop, colW: b.cols.map(function (c) { return c[1] * k * mm; }), rowH: ROW * mm, titleH: titleH * mm, headH: headH * mm, textH: TXT * mm, titleTextH: TITLE * mm, title: b.title, header: b.cols.map(function (c) { return c[0]; }), rows: [], footer: null };
       E.tables.push(seg);
       function hline(yy) { L('PINAKES', [x, yy], [x + colW, yy]); }
       hline(y);
-      titleLines.forEach(function (tl, i) { T('PINAKES', x + colW / 2, y - (i + 1) * TITLE * 1.5 * mm + TITLE * 0.35 * mm, tl, TITLE, 0, 'center'); });
+      titleLines.forEach(function (tl, i) { TC('PINAKES', x, x + colW, y - (i + 1) * TITLE * 1.5 * mm + TITLE * 0.35 * mm, tl, TITLE); });
       y -= titleH * mm; hline(y); var segTop = y;
       function header() {
-        var xx = x; b.cols.forEach(function (c) { var cw = c[1] * k * mm, lines = wrap(c[0], (cw / mm - 1) / (TXT * 0.72)); lines.forEach(function (ln, i) { T('PINAKES', xx + cw / 2, y - (i + 1) * (headH / lines.length) * mm + (headH / lines.length) * 0.28 * mm, ln, TXT, 0, 'center'); }); xx += cw; });
+        var xx = x; b.cols.forEach(function (c) { var cw = c[1] * k * mm, lines = wrap(c[0], (cw / mm - 1.2) / (TXT * CHW)); lines.forEach(function (ln, i) { TC('PINAKES', xx, xx + cw, y - (i + 1) * (headH / lines.length) * mm + (headH / lines.length) * 0.28 * mm, ln, TXT); }); xx += cw; });
         y -= headH * mm; hline(y);
       }
       header();
@@ -4193,11 +4208,11 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       b.rows.forEach(function (r) {
         if (y - ROW * mm < floorAt(x)) { verticals(segTop, y); ensure(1e9); x = colX; y = cursorY; hline(y); header(); segTop = y + headH * mm; seg = { x: x, y: cursorY, colW: seg.colW, rowH: seg.rowH, titleH: 0, headH: seg.headH, textH: seg.textH, titleTextH: seg.titleTextH, title: null, header: seg.header, rows: [], footer: null }; E.tables.push(seg); }
         seg.rows.push(r);
-        var x3 = x; r.forEach(function (cell, i) { if (cell !== '' && cell != null) { var cw = b.cols[i][1] * k * mm, al = b.cols[i][2] || 'left'; T('PINAKES', al === 'center' ? x3 + cw / 2 : x3 + 1 * mm, y - ROW * mm * 0.68, String(cell), TXT, 0, al); } x3 += b.cols[i][1] * k * mm; });
+        var x3 = x; r.forEach(function (cell, i) { if (cell !== '' && cell != null) { var cw = b.cols[i][1] * k * mm; TC('PINAKES', x3, x3 + cw, y - ROW * mm * 0.68, String(cell), TXT); } x3 += b.cols[i][1] * k * mm; });
         y -= ROW * mm; hline(y);
       });
       verticals(segTop, y);
-      if (b.footer) { seg.footer = b.footer; T('PINAKES', x + colW / 2, y - ROW * mm * 0.68, b.footer, TXT, 0, 'center'); y -= ROW * mm; hline(y); L('PINAKES', [x, y], [x, y + ROW * mm]); L('PINAKES', [x + colW, y], [x + colW, y + ROW * mm]); }
+      if (b.footer) { seg.footer = b.footer; TC('PINAKES', x, x + colW, y - ROW * mm * 0.68, b.footer, TXT); y -= ROW * mm; hline(y); L('PINAKES', [x, y], [x, y + ROW * mm]); L('PINAKES', [x + colW, y], [x + colW, y + ROW * mm]); }
       cursorY = y - 5 * mm;
     }
     function wrap(text, maxChars) {
@@ -4213,29 +4228,51 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       // ---- στοιχεία σχεδίου (όπως στα υποδείγματα): κορυφές με κύκλο & αριθμό, αποστάσεις πλευρών, ετικέτες τμημάτων, κάνναβος ----
       var inDraw = function (p) { return p[0] >= dx0 && p[0] <= dx0 + drawW && p[1] >= dy0 && p[1] <= dy0 + drawH; };
       var done = {};
-      function vertex(p, layer, color) {
-        var e = num.entry(p); if (!e || done[e.n] || !inDraw(p)) return; done[e.n] = 1;
-        circle('SHMEIA_' + layer, p, 0.5, color);
-        T('KORYFES', p[0] + 0.9 * mm, p[1] + 0.9 * mm, e.label, 1.8, 0, 'left', color);
+      // αποφυγή επικαλύψεων: κάθε ετικέτα κρατά ένα ορθογώνιο· νέα ετικέτα δοκιμάζει εναλλακτικές θέσεις μέχρι να μην ακουμπά άλλη
+      var boxes = [];
+      function overlaps(bx) { return boxes.some(function (o) { return !(bx[2] < o[0] || bx[0] > o[2] || bx[3] < o[1] || bx[1] > o[3]); }); }
+      function labelBox(cx, cy, text, hmm, rot) { var w = estW(text, hmm), h = hmm * mm * 1.3; if (rot) { var r = rot * Math.PI / 180, W = Math.abs(w * Math.cos(r)) + Math.abs(h * Math.sin(r)), H = Math.abs(w * Math.sin(r)) + Math.abs(h * Math.cos(r)); w = W; h = H; } return [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2]; }
+      // επιστρέφει [cx, cy] ή null· cands: λίστα από [cx, cy]
+      function place(cands, text, hmm, rot, force) {
+        for (var i = 0; i < cands.length; i++) { var bx = labelBox(cands[i][0], cands[i][1], text, hmm, rot); if (!overlaps(bx)) { boxes.push(bx); return cands[i]; } }
+        if (force) { var b0 = labelBox(cands[0][0], cands[0][1], text, hmm, rot); boxes.push(b0); return cands[0]; }
+        return null;
       }
-      res.Mr.forEach(function (q) { vertex(q, 'TOPO_PROP', COL.TOPO_PROP); });
-      parcels.forEach(function (p) { p.rings.forEach(function (r) { root.DGM.open(r).forEach(function (q) { vertex(q, 'PST_KAEK', COL.PST_KAEK); }); }); });
-      res.pieces.forEach(function (x) { x.ring.forEach(function (q) { vertex(q, 'TOPO_PROP', COL.TOPO_PROP); }); });
-      // αποστάσεις πλευρών μετρημένου ορίου: "(1-2) = 10.34" παράλληλα στην πλευρά
+      // ετικέτα κορυφής: προς τα έξω του πολυγώνου (διχοτόμος της εξωτερικής γωνίας), ώστε να μην πέφτει πάνω σε γραμμές/άλλες ετικέτες
+      function vertex(ring, i, layer, color) {
+        var p = ring[i], e = num.entry(p); if (!e || done[e.n] || !inDraw(p)) return; done[e.n] = 1;
+        circle('SHMEIA_' + layer, p, 0.5, color);
+        var a = ring[(i - 1 + ring.length) % ring.length], b = ring[(i + 1) % ring.length];
+        var ua = [a[0] - p[0], a[1] - p[1]], ub = [b[0] - p[0], b[1] - p[1]], la = Math.hypot(ua[0], ua[1]) || 1, lb = Math.hypot(ub[0], ub[1]) || 1;
+        var dx = -(ua[0] / la + ub[0] / lb), dy = -(ua[1] / la + ub[1] / lb), L = Math.hypot(dx, dy);
+        if (L < 1e-6) { dx = -(ua[1] / la); dy = ua[0] / la; L = 1; }
+        dx /= L; dy /= L;
+        if (root.DGM.pip([p[0] + dx * 0.3 * mm, p[1] + dy * 0.3 * mm], ring)) { dx = -dx; dy = -dy; }
+        var off = (1.2 + 0.45 * e.label.length) * mm, cands = [];
+        [0, 40, -40, 80, -80, 120, -120, 180].forEach(function (deg) { var r = deg * Math.PI / 180, ex = dx * Math.cos(r) - dy * Math.sin(r), ey = dx * Math.sin(r) + dy * Math.cos(r); cands.push([p[0] + ex * off, p[1] + ey * off]); cands.push([p[0] + ex * off * 1.9, p[1] + ey * off * 1.9]); });
+        var c = place(cands, e.label, 1.8, 0, true);
+        T('KORYFES', c[0], c[1] - 0.6 * mm, e.label, 1.8, 0, 'center', color);
+      }
+      res.Mr.forEach(function (q, i) { vertex(res.Mr, i, 'TOPO_PROP', COL.TOPO_PROP); });
+      parcels.forEach(function (p) { p.rings.forEach(function (r) { var R = root.DGM.open(r); R.forEach(function (q, i) { vertex(R, i, 'PST_KAEK', COL.PST_KAEK); }); }); });
+      res.pieces.forEach(function (x) { x.ring.forEach(function (q, i) { vertex(x.ring, i, 'TOPO_PROP', COL.TOPO_PROP); }); });
+      // ετικέτες τμημάτων (πριν τις αποστάσεις, ώστε να έχουν προτεραιότητα)
+      res.pieces.forEach(function (x) { if (x.kind === 'common') return; var c = root.DGM.interior(x.ring, x.holes); var layer = x.kind === 'cut' ? 'AREA_D-labels' : x.kind === 'given' ? 'AREA_A-labels' : 'AREA_EKTOS_KAEK'; var tx = 'ΤΜΗΜΑ ' + x.id; var cands = [[c[0], c[1]]]; [[0, 1], [0, -1], [1, 0], [-1, 0]].forEach(function (d) { cands.push([c[0] + d[0] * 3 * mm, c[1] + d[1] * 3 * mm]); }); var pc = place(cands, tx, 2.2, 0, true); T(layer, pc[0], pc[1] - 0.8 * mm, tx, 2.2, 0, 'center', 7); });
+      // αποστάσεις πλευρών μετρημένου ορίου: "(1-2) = 10.34" παράλληλα στην πλευρά — μόνο όπου χωρούν χωρίς να ακουμπούν άλλη ετικέτα
       var n = res.Mr.length;
       for (var i = 0; i < n; i++) {
         var a = res.Mr[i], b = res.Mr[(i + 1) % n], Lm = dist(a, b);
-        if (Lm < 6 * mm) continue;
+        var txt0 = '(' + num.id(a) + '-' + num.id(b) + ') = ' + f2(Lm);
+        if (Lm < estW(txt0, 1.6) + 3 * mm) continue; // δεν χωράει πάνω στην πλευρά — παραλείπεται (υπάρχει στον πίνακα)
         var ang = Math.atan2(b[1] - a[1], b[0] - a[0]), deg = ang * 180 / Math.PI;
         if (deg > 90 || deg <= -90) { deg += 180; ang += Math.PI; }
         var mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, off = 1.2 * mm;
         // προς τα έξω από το πολύγωνο
         var nx = -Math.sin(ang), ny = Math.cos(ang); if (root.DGM.pip([mx + nx * off * 2, my + ny * off * 2], res.Mr)) { nx = -nx; ny = -ny; }
         var txt = '(' + num.id(a) + '-' + num.id(b) + ') = ' + f2(Lm);
-        T('APOSTASEIS', mx + nx * off, my + ny * off, txt, 1.6, deg, 'center');
+        var pl = place([[mx + nx * off, my + ny * off], [mx - nx * off, my - ny * off], [mx + nx * off * 2.2, my + ny * off * 2.2]], txt, 1.6, deg, false);
+        if (pl) T('APOSTASEIS', pl[0], pl[1], txt, 1.6, deg, 'center');
       }
-      // ετικέτες τμημάτων & ΚΑΕΚ
-      res.pieces.forEach(function (x) { if (x.kind === 'common') return; var c = root.DGM.interior(x.ring, x.holes); var layer = x.kind === 'cut' ? 'AREA_D-labels' : x.kind === 'given' ? 'AREA_A-labels' : 'AREA_EKTOS_KAEK'; T(layer, c[0], c[1], 'ΤΜΗΜΑ ' + x.id, 2.2, 0, 'center', x.kind === 'cut' ? COL.AREA_D : x.kind === 'given' ? COL.AREA_A : COL.AREA_EKTOS_KAEK); });
       // κάνναβος: σταυροί ανά βήμα και συντεταγμένες στο πλαίσιο
       var step = S >= 1000 ? 100 : S >= 500 ? 50 : 20, cs = 2.5 * mm;
       var gx0 = Math.ceil((dx0 + 6 * mm) / step) * step, gx1 = dx0 + drawW - 6 * mm, gy0 = Math.ceil((dy0 + 6 * mm) / step) * step, gy1 = dy0 + drawH - 6 * mm;
@@ -4274,7 +4311,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     var sh = layout.sheets[i], mm = layout.mm, P = layout.paper;
     function X(x) { return (x - sh.x) / mm; } function Y(y) { return (sh.y + sh.h - y) / mm; }
     var C = { PINAKIDA: '#1f2a44', PINAKES: '#1f2a44', KANNABOS: '#1f2a44', APOSTASEIS: '#1f2a44', TOPO_PROP: '#0e7490', BOUND_IMPL: '#8a6d1f', BOUND_UNIMPL: '#b3a36b', PST_KAEK: '#c0392b', AREA_D: '#d11', AREA_A: '#15803d', AREA_EKTOS_KAEK: '#b45309', DGM_PROP_FINAL: '#06b6d4', KORYFES: '#1f2a44', 'AREA_D-labels': '#d11', 'AREA_A-labels': '#15803d', 'AREA_D-hatch': '#f00', 'AREA_A-hatch': '#2ecc40' };
-    var ACI = { 1: '#d11', 3: '#15803d', 4: '#06b6d4', 5: '#1d4ed8', 30: '#b45309' };
+    var ACI = { 1: '#d11', 3: '#15803d', 4: '#06b6d4', 5: '#1d4ed8', 7: '#1f2a44', 30: '#b45309' };
     function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
     var s = '<svg xmlns="http://www.w3.org/2000/svg" width="' + P.w + 'mm" height="' + P.h + 'mm" viewBox="0 0 ' + P.w + ' ' + P.h + '" font-family="Arial, Liberation Sans, sans-serif">';
     s += '<rect width="' + P.w + '" height="' + P.h + '" fill="#fff"/>';
@@ -4300,7 +4337,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     layout.elems.texts.forEach(function (t) {
       if (!inSheet(t.x, t.y)) return;
       var fill = ACI[t.color] || C[t.layer] || '#1f2a44', anchor = t.align === 'center' ? 'middle' : t.align === 'right' ? 'end' : 'start';
-      s += '<text x="' + X(t.x).toFixed(2) + '" y="' + Y(t.y).toFixed(2) + '" font-size="' + (t.h / mm * 1.35).toFixed(2) + '" fill="' + fill + '" text-anchor="' + anchor + '"' + (t.rot ? ' transform="rotate(' + (-t.rot) + ' ' + X(t.x).toFixed(2) + ' ' + Y(t.y).toFixed(2) + ')"' : '') + '>' + esc(t.text) + '</text>';
+      var fit = t.align === 'fit' && t.fit ? ' textLength="' + ((t.fit[0] - t.x) / mm).toFixed(2) + '" lengthAdjust="spacingAndGlyphs"' : '';
+      s += '<text x="' + X(t.x).toFixed(2) + '" y="' + Y(t.y).toFixed(2) + '" font-size="' + (t.h / mm * 1.35).toFixed(2) + '" fill="' + fill + '" text-anchor="' + anchor + '"' + fit + (t.rot ? ' transform="rotate(' + (-t.rot) + ' ' + X(t.x).toFixed(2) + ' ' + Y(t.y).toFixed(2) + ')"' : '') + '>' + esc(t.text) + '</text>';
     });
     s += '</svg>';
     return s;
@@ -5931,7 +5969,7 @@ root.CmdCheck = api;
       lay.elems.polys.forEach(function (p) { if (skipL[p.layer]) return; spec.polys.push({ layer: p.layer, pts: p.pts, bulges: p.bulges, closed: p.closed, color: p.color || 7 }); });
       var lc = { PINAKES: 7, PINAKIDA: 7, KANNABOS: 8, AREA_A: 3, AREA_D: 1, AREA_EKTOS_KAEK: 30 };
       spec.lines = lay.elems.lines.map(function (l) { return { layer: l.layer, a: l.a, b: l.b, color: l.color || lc[l.layer] || 256 }; });
-      lay.elems.texts.forEach(function (t) { if (skipL[t.layer]) return; spec.texts.push({ layer: t.layer, x: t.x, y: t.y, text: t.text, h: t.h, rot: t.rot, align: t.align, color: t.color || 7 }); });
+      lay.elems.texts.forEach(function (t) { if (skipL[t.layer]) return; spec.texts.push({ layer: t.layer, x: t.x, y: t.y, text: t.text, h: t.h, rot: t.rot, align: t.align, fit: t.fit, color: t.color || 7 }); });
       // γεμίσματα υπομνήματος (τα τμήματα έχουν ήδη hatch από το dgmSpec)
       lay.elems.hatches.forEach(function (h) { if (h.legend) spec.hatches.push({ layer: h.layer, pts: h.pts, color: h.color }); });
       var txt2 = Dxf2000.build(spec, { prune: true });
