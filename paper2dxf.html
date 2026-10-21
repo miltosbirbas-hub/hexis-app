@@ -225,7 +225,7 @@ input[type=range]{width:100%;accent-color:var(--violet)}
         <header><span class="n">3</span><h2>Ψηφιοποίηση</h2><span class="sum" id="sum3"></span></header>
         <div class="body">
           <label class="tog"><input type="checkbox" id="optOcr" checked><span>Κείμενα σε MTEXT (OCR ελληνικών)</span></label>
-          <label class="tog"><input type="checkbox" id="optArcs" checked><span>Τόξα και κύκλοι</span></label>
+          <label class="tog"><input type="checkbox" id="optArcs" checked><span>Τόξα και κύκλοι <small style="color:var(--mute)">(σε τοπογραφικά με ισοϋψείς κλείστε το)</small></span></label>
           <label class="tog" id="optOrthoRow"><input type="checkbox" id="optOrtho" checked><span>Ίσιωμα οριζόντιων / κατακόρυφων</span></label>
           <label class="tog" id="optFillsRow"><input type="checkbox" id="optFills" checked><span>Γεμίσματα ως κλειστές πολυγραμμές</span></label>
           <div id="rasterOpts">
@@ -238,6 +238,7 @@ input[type=range]{width:100%;accent-color:var(--violet)}
             <span class="lbl" style="margin-top:10px">Ενιαίες γραμμές: γεφύρωση κενών έως <span id="mergeVal">6 mm</span></span>
             <input type="range" id="merge" min="0" max="15" step="0.5" value="6">
             <p class="hint">Κομμένες από τη σάρωση γραμμές ενώνονται σε μία, και οι γραμμές συνεχίζουν ενιαίες μέσα από διασταυρώσεις. Διακεκομμένοι άξονες αναγνωρίζονται και πάνε στο layer P2D_AXONES με γραμμότυπο DASHDOT.</p>
+            <label class="tog" style="margin-top:8px"><input type="checkbox" id="optCurves" checked><span>Καμπύλες (ισοϋψείς) ως ενιαίες, λείες polyline</span></label>
             <label class="tog" style="margin-top:8px"><input type="checkbox" id="optDotted" checked><span>Ανάκτηση αχνών γραμμών (σειρές κουκκίδων)</span></label>
             <label class="tog" style="margin-top:8px"><input type="checkbox" id="optSmall" checked><span>Κράτηση μικρών συμβόλων (layer P2D_MIKRA)</span></label>
           </div>
@@ -710,6 +711,23 @@ var P2D = (function () {
       var cf = fitCircle(pts, 0, n - 1);
       if (cf && cf.rms < o.arcRms && cf.max < o.arcMax * 1.3 && cf.r > 6 && n >= 0.6 * 2 * Math.PI * cf.r && Math.abs(sweepOf(pts, 0, n - 1, cf)) > 5.6) { outCircles.push({ cx: cf.cx, cy: cf.cy, r: cf.r, layer: 'TOXA' }); return; }
     }
+    if (o.smooth !== false && n > 40) {
+      // smooth long chains without sharp corners (contour lines): 5-point moving average, endpoints fixed
+      var c0 = dp(pts, o.dpTol), sharp = false;
+      for (var q = 1; q < c0.length - 1 && !sharp; q++) {
+        var a1 = c0[q - 1], b1 = c0[q], c1 = c0[q + 1];
+        var tq = Math.abs(Math.atan2((b1[0] - a1[0]) * (c1[1] - b1[1]) - (b1[1] - a1[1]) * (c1[0] - b1[0]), (b1[0] - a1[0]) * (c1[0] - b1[0]) + (b1[1] - a1[1]) * (c1[1] - b1[1])));
+        if (tq > 0.6) sharp = true;
+      }
+      if (!sharp) {
+        var sm = new Array(n);
+        for (var q2 = 0; q2 < n; q2++) {
+          if (q2 < 2 || q2 > n - 3) { sm[q2] = pts[q2]; continue; }
+          sm[q2] = [(pts[q2 - 2][0] + pts[q2 - 1][0] + pts[q2][0] + pts[q2 + 1][0] + pts[q2 + 2][0]) / 5, (pts[q2 - 2][1] + pts[q2 - 1][1] + pts[q2][1] + pts[q2 + 1][1] + pts[q2 + 2][1]) / 5];
+        }
+        pts = sm;
+      }
+    }
     var coarse = dp(pts, o.dpTol);
     // map coarse vertices back to indices
     var idx = [], j = 0;
@@ -754,8 +772,8 @@ var P2D = (function () {
   /* ---------- join raw pixel chains through junction clusters where exactly two chains meet ---------- */
   function mergeChains(chains, eps, gapPx) {
     var E = [], i;
-    function dirAt(p, end) { var n = p.length, k = Math.min(n - 1, 10), a = end ? p[n - 1] : p[0], b = end ? p[n - 1 - k] : p[k], dx = a[0] - b[0], dy = a[1] - b[1], L = Math.hypot(dx, dy) || 1; return [dx / L, dy / L]; }
-    chains.forEach(function (c, k) { if (c.loop) return; var a = c.pts[0], b = c.pts[c.pts.length - 1]; E.push([a[0], a[1], k, 0, c.a === 1, dirAt(c.pts, 0)], [b[0], b[1], k, 1, c.b === 1, dirAt(c.pts, 1)]); });
+    function dirAt(p, end, kk) { var n = p.length, k = Math.min(n - 1, kk), a = end ? p[n - 1] : p[0], b = end ? p[n - 1 - k] : p[k], dx = a[0] - b[0], dy = a[1] - b[1], L = Math.hypot(dx, dy) || 1; return [dx / L, dy / L]; }
+    chains.forEach(function (c, k) { if (c.loop) return; var a = c.pts[0], b = c.pts[c.pts.length - 1]; E.push([a[0], a[1], k, 0, c.a === 1, dirAt(c.pts, 0, 10), dirAt(c.pts, 0, 40)], [b[0], b[1], k, 1, c.b === 1, dirAt(c.pts, 1, 10), dirAt(c.pts, 1, 40)]); });
     var par = new Int32Array(E.length); for (i = 0; i < E.length; i++) par[i] = i;
     function f(x) { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; }
     var cell = Math.max(eps, gapPx || 0), grid = new Map();
@@ -776,22 +794,34 @@ var P2D = (function () {
         }
       }
     });
+    // short junction-to-junction "bridge" chains (shared skeleton where two lines touch tangentially): fuse their two
+    // junction clusters into one, so the pairing is decided by the lines that enter and leave, not by the skewed bridge
+    var bridge = new Uint8Array(chains.length), bridgeEnds = new Set();
+    chains.forEach(function (c, k) { if (!c.loop && c.a !== 1 && c.b !== 1 && c.pts.length <= 25) bridge[k] = 1; });
+    E.forEach(function (e, k) { if (bridge[e[2]]) bridgeEnds.add(k); });
+    var endOf = new Map(); E.forEach(function (e, k) { endOf.set(e[2] + ':' + e[3], k); });
+    chains.forEach(function (c, k) { if (!bridge[k]) return; var a = endOf.get(k + ':0'), b = endOf.get(k + ':1'); if (a == null || b == null) return; var ra = f(a), rb = f(b); if (ra !== rb) par[ra] = rb; });
     var members = new Map();
-    E.forEach(function (e, k) { var r = f(k), m = members.get(r); if (m) m.push(k); else members.set(r, [k]); });
+    E.forEach(function (e, k) { if (bridgeEnds.has(k)) return; var r = f(k), m = members.get(r); if (m) m.push(k); else members.set(r, [k]); });
+    var bridgeByCl = new Map();
+    E.forEach(function (e, k) { if (!bridgeEnds.has(k)) return; var r = f(k), l = bridgeByCl.get(r); if (l) l.push(e[2]); else bridgeByCl.set(r, [e[2]]); });
     var endCl = new Map(); E.forEach(function (e, k) { endCl.set(e[2] + ':' + e[3], f(k)); });
     var used = new Uint8Array(chains.length), out = [], partner = new Map();
-    members.forEach(function (m) {
-      if (m.length === 2) { if (E[m[0]][2] !== E[m[1]][2] || E[m[0]][3] !== E[m[1]][3]) { partner.set(m[0], m[1]); partner.set(m[1], m[0]); } return; }
+    members.forEach(function (m, cl) {
+      var br = bridgeByCl.get(cl);
+      if (m.length === 2) { if (E[m[0]][2] !== E[m[1]][2] || E[m[0]][3] !== E[m[1]][3]) { partner.set(m[0], m[1]); partner.set(m[1], m[0]); if (br) br.forEach(function (ci) { used[ci] = 1; }); } return; }
       if (m.length < 3) return;
       // junction: pair ends that continue straight through (opposite directions), best alignment first
       var cand = [];
       for (var a = 0; a < m.length; a++) for (var b = a + 1; b < m.length; b++) {
         var A = E[m[a]], B = E[m[b]]; if (A[2] === B[2]) continue;
-        var c = -(A[5][0] * B[5][0] + A[5][1] * B[5][1]); if (c > 0.94) cand.push([c, m[a], m[b]]);
+        var c = -(A[5][0] * B[5][0] + A[5][1] * B[5][1]), c40 = -(A[6][0] * B[6][0] + A[6][1] * B[6][1]); if (c > 0.94 && c40 > 0.9) cand.push([c40, m[a], m[b]]);   // admit by local tangent, rank by long-range straightness
       }
       cand.sort(function (p, q) { return q[0] - p[0]; });
       var taken = {};
-      cand.forEach(function (c) { if (taken[c[1]] || taken[c[2]]) return; taken[c[1]] = taken[c[2]] = 1; partner.set(c[1], c[2]); partner.set(c[2], c[1]); });
+      var made = 0;
+      cand.forEach(function (c) { if (taken[c[1]] || taken[c[2]]) return; taken[c[1]] = taken[c[2]] = 1; partner.set(c[1], c[2]); partner.set(c[2], c[1]); made++; });
+      if (made && br) br.forEach(function (ci) { used[ci] = 1; });   // the bridge is absorbed by the through-paths
     });
     var endId = new Map(); E.forEach(function (e, k) { endId.set(e[2] + ':' + e[3], k); });
     function other(cl, chain, end) { var k = endId.get(chain + ':' + end); if (k == null) return null; var p = partner.get(k); return p == null ? null : E[p]; }
@@ -954,7 +984,7 @@ var P2D = (function () {
   }
 
   /* ---------- merge collinear open polylines across small gaps (one broken line → one LINE) ---------- */
-  function mergeCollinear(polys, gapMax, latMax, angDeg) {
+  function mergeCollinear(polys, gapMax, latMax, angDeg, curves) {
     var cosMin = Math.cos(angDeg * Math.PI / 180), open = [], i;
     for (i = 0; i < polys.length; i++) if (!polys[i].closed && polys[i].pts.length >= 2) open.push(polys[i]);
     function compat(a, b) { return a === b || (a === 'MIKRA' && b === 'GRAMMES') || (a === 'GRAMMES' && b === 'MIKRA'); }
@@ -980,9 +1010,18 @@ var P2D = (function () {
           if (!compat(open[A.id].layer, open[B.id].layer)) continue;
           // directions must be opposite (A points out toward B, B points out toward A); short pieces get a looser angle
           var tolA = Math.max(angDeg, Math.atan2(2.5, Math.max(4, Math.min(A.len, B.len))) * 180 / Math.PI);
-          if (-(A.ux * B.ux + A.uy * B.uy) < Math.cos(tolA * Math.PI / 180)) continue;
+          var opp = -(A.ux * B.ux + A.uy * B.uy);
+          if (opp < Math.cos(tolA * Math.PI / 180) && !(curves === 'curve' && A.tot >= 60 && B.tot >= 60 && opp > Math.cos(45 * Math.PI / 180))) continue;
           var vx = B.x - A.x, vy = B.y - A.y, along = vx * A.ux + vy * A.uy, lat = Math.abs(vx * -A.uy + vy * A.ux);
-          if (along < -1 || along > gapMax || lat > latMax + along * 0.04) continue;
+          var straight = along >= -1 && along <= gapMax && lat <= latMax + along * 0.04;
+          if (!straight) {
+            // curved continuation (contours): both tangents point toward each other and toward the chord, pieces long enough
+            if (curves !== 'curve' || A.tot < 60 || B.tot < 60) continue;
+            var dAB = Math.hypot(vx, vy); if (dAB < 1 || dAB > gapMax || dAB > 0.5 * Math.min(A.tot, B.tot)) continue;
+            var cx = vx / dAB, cy = vy / dAB;
+            if (A.ux * cx + A.uy * cy < 0.85 || -(B.ux * cx + B.uy * cy) < 0.85) continue;
+            along = dAB;
+          }
           // a gap may be at most as long as the longer piece, and never bridges two tiny specks
           if (along > 3 && (Math.min(A.tot, B.tot) < 6 || along > Math.max(A.tot, B.tot))) continue;
           if (along > 3 && Math.min(A.len, B.len) < 4) continue;
@@ -1146,12 +1185,12 @@ var P2D = (function () {
     var spur = o.spur || mode * 2 + 3, arcs = [], circles = [];
     chains = chains.filter(function (ch) {
       var L = ch.pts.length, freeA = ch.a === 1, freeB = ch.b === 1;
-      if (L < 2) return false;
+      if (L < 2 && (freeA || freeB)) return false;
       if ((freeA !== freeB) && L <= spur) return false;      // spur
       if (freeA && freeB && L < 4) return false;             // dust
       return true;
     });
-    chains = mergeChains(chains, 2.9, o.gapPx || Math.max(8, gap * 2 + 2, mode * 4 + 2));
+    chains = mergeChains(chains, Math.max(3, 2 * mode + 3), o.gapPx || Math.max(8, gap * 2 + 2, mode * 4 + 2));
     chains.forEach(function (ch) {
       var L = ch.pts.length, P = ch.pts[L >> 1], c = cls[((P[1] | 0) * w + (P[0] | 0))];
       chainToPrims(ch, o, polys, arcs, circles, c === 2 ? 'MIKRA' : 'GRAMMES');
@@ -1162,7 +1201,22 @@ var P2D = (function () {
     if (o.orthoTol > 0) axisSnap(polys, o.orthoTol, o.cluster);
     weld(polys.filter(function (p) { return p.layer !== 'MIKRA'; }), o.weldTol);
     polys = join(polys, 0.75);
-    if (o.mergeGap > 0) { polys = mergeCollinear(polys, o.mergeGap, 1.6, 4); polys = join(polys, 0.75); }
+    if (o.mergeGap > 0) { polys = mergeCollinear(polys, o.mergeGap, 1.6, 4, 'straight'); polys = join(polys, 0.75); if (o.curves !== false) { polys = mergeCollinear(polys, o.mergeGap, 1.6, 4, 'curve'); polys = join(polys, 0.75); } }
+    // close loops whose ends meet (contours, closed outlines) within the junction tolerance
+    var closeEps = Math.max(8, 4 * mode + 4);
+    polys.forEach(function (p) {
+      if (p.closed || p.pts.length < 4) return;
+      var a = p.pts[0], b = p.pts[p.pts.length - 1], tot = 0;
+      for (var q = 1; q < p.pts.length; q++) tot += Math.hypot(p.pts[q][0] - p.pts[q - 1][0], p.pts[q][1] - p.pts[q - 1][1]);
+      var ed = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      if (tot > 60 && ed <= closeEps) { p.pts[0] = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; p.pts.pop(); p.closed = true; p.pts = dropCollinear(p.pts, true); }
+      else if (o.curves !== false && o.mergeGap > 0 && ed <= o.mergeGap && tot > 12 * ed && p.pts.length >= 8) {
+        // long curve whose ends face each other across a small gap (label, dropout): close it
+        var n0 = p.pts.length, ta = [a[0] - p.pts[1][0], a[1] - p.pts[1][1]], tb = [b[0] - p.pts[n0 - 2][0], b[1] - p.pts[n0 - 2][1]];
+        var la = Math.hypot(ta[0], ta[1]) || 1, lb = Math.hypot(tb[0], tb[1]) || 1, cx = (b[0] - a[0]) / (ed || 1), cy = (b[1] - a[1]) / (ed || 1);
+        if ((ta[0] * cx + ta[1] * cy) / la >= 0.5 && (-tb[0] * cx - tb[1] * cy) / lb >= 0.5) { p.closed = true; p.pts = dropCollinear(p.pts, true); }
+      }
+    });
     polys = polys.filter(function (p) {
       if (p.pts.length < 2) return false;
       if (!p.closed) { var a = p.pts[0], b = p.pts[p.pts.length - 1]; if (p.pts.length === 2 && Math.hypot(a[0] - b[0], a[1] - b[1]) < 1.5) return false; }
@@ -2305,7 +2359,7 @@ function textsFromPdf(R) {
 /* ---------------- main processing ---------------- */
 function rasterOpts() {
   var pxmm = S.dpi / 25.4, th = parseFloat($('#thick').value);
-  return { sens: parseFloat($('#sens').value), arcs: $('#optArcs').checked, orthoTol: $('#optOrtho').checked ? 3 : 0, thickPx: th > 0 ? th : 0, keepSmall: $('#optSmall').checked, mergeGap: Math.round(parseFloat($('#merge').value || 0) * pxmm), dotted: $('#optDotted').checked,
+  return { sens: parseFloat($('#sens').value), arcs: $('#optArcs').checked, orthoTol: $('#optOrtho').checked ? 3 : 0, thickPx: th > 0 ? th : 0, keepSmall: $('#optSmall').checked, mergeGap: Math.round(parseFloat($('#merge').value || 0) * pxmm), dotted: $('#optDotted').checked, curves: $('#optCurves').checked, smooth: $('#optCurves').checked,
     hmax: clamp(Math.round(parseFloat($('#hmaxmm').value || 9) * pxmm), 16, 260), hmin: Math.max(5, Math.round(1.1 * pxmm)) };
 }
 async function runProcess() {
