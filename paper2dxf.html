@@ -173,6 +173,22 @@ input[type=range]{width:100%;accent-color:var(--violet)}
 .tinrow input{width:100%;padding:4px 6px}
 .tinrow .src{font-size:10.5px;color:var(--mute);text-align:right}
 
+/* help */
+.help{position:fixed;inset:0;z-index:60;background:rgba(21,33,58,.45);backdrop-filter:blur(4px);display:grid;place-items:center;padding:16px}
+.help-card{width:min(820px,100%);max-height:calc(100% - 32px);background:var(--bg2);border:1px solid var(--line);border-radius:18px;box-shadow:0 30px 80px -30px rgba(21,33,58,.6);display:flex;flex-direction:column;overflow:hidden}
+.help-card>header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line)}
+.help-card h2{margin:0;font:600 15px var(--f-display);letter-spacing:.06em}
+.help-card h2 small{font:500 12px var(--f-body);color:var(--mute);margin-left:10px;letter-spacing:0}
+.help-body{overflow:auto;padding:6px 22px 22px;line-height:1.55;font-size:13.5px}
+.help-body section{padding:12px 0;border-bottom:1px solid var(--line)}
+.help-body section:last-child{border-bottom:0}
+.help-body h3{font:600 12px var(--f-display);letter-spacing:.08em;text-transform:uppercase;margin:0 0 8px;color:var(--cyan)}
+.help-body p{margin:0 0 8px;max-width:70ch}
+.help-body ul,.help-body ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px;max-width:72ch}
+.help-body code{font-family:var(--f-mono);font-size:12px;background:var(--bg);padding:1px 5px;border-radius:5px}
+.help-note{border-left:3px solid var(--violet);padding:8px 12px;background:rgba(91,79,214,.06);border-radius:0 10px 10px 0}
+@media (max-width:820px){#btnHelp span{display:none}}
+
 </style>
 </head>
 <body>
@@ -184,6 +200,7 @@ input[type=range]{width:100%;accent-color:var(--violet)}
     </div>
     <div class="sp"></div>
     <span class="chip" id="fileChip"><i></i><span>Κανένα αρχείο</span></span>
+    <button class="btn" id="btnHelp" type="button" title="Οδηγίες χρήσης"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5V14M12 17h.01"/></svg><span>Οδηγίες</span></button>
     <button class="btn" id="btnNew" type="button" title="Καθαρίζει τα πάντα για νέο σχέδιο"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg><span>Νέο αρχείο</span></button>
     <button class="btn" id="btnOpenTop" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg><span>Άνοιγμα</span></button>
   </header>
@@ -355,6 +372,80 @@ input[type=range]{width:100%;accent-color:var(--violet)}
       <div class="tlist" id="tlist"><p class="tempty">Τα κείμενα που θα αναγνωριστούν εμφανίζονται εδώ με μικρογραφία του πρωτοτύπου, για γρήγορο έλεγχο και διόρθωση.</p></div>
     </aside>
   </main>
+</div>
+<div class="help" id="help" hidden>
+  <div class="help-card">
+    <header><h2>Οδηγίες χρήσης <small>Paper → DXF</small></h2><button class="btn" type="button" id="helpClose" aria-label="Κλείσιμο">✕</button></header>
+    <div class="help-body">
+      <section>
+        <h3>Τι κάνει το εργαλείο</h3>
+        <p>Μετατρέπει ένα σχέδιο σε χαρτί (σάρωση σε PDF, JPG, PNG, TIFF) ή ένα διανυσματικό PDF σε επεξεργάσιμο DXF: γραμμές, πολυγραμμές, τόξα, κύκλοι και κείμενα σε MTEXT, σε πραγματικές διαστάσεις. Όλα τα σχέδια του φύλλου (κατόψεις, τομές, όψεις, ξυλότυποι, τοπογραφικά) ψηφιοποιούνται μαζί.</p>
+        <p class="help-note"><b>Η ψηφιοποίηση είναι αυτόματη, ο έλεγχος είναι του μηχανικού.</b> Το αποτέλεσμα από ένα παλιό χαρτί εξαρτάται από την ποιότητα της σάρωσης. Το εργαλείο δίνει μια πολύ καλή βάση και όλα τα μέσα για να ελέγξετε και να διορθώσετε γρήγορα· το τελικό σχέδιο είναι ευθύνη αυτού που το υπογράφει.</p>
+      </section>
+      <section>
+        <h3>1. Πριν τη σάρωση</h3>
+        <ul>
+          <li>Σαρώστε σε <b>300 dpi</b> (τουλάχιστον 200), ασπρόμαυρο ή γκρι, επίπεδο χαρτί. Φωτογραφία από κινητό δίνει παραμόρφωση· αν δεν γίνεται αλλιώς, βαθμονομήστε με 4 σημεία (βήμα 4).</li>
+          <li>Καθαρό γυαλί σαρωτή: κάθε κουκκίδα σκόνης γίνεται μικρή οντότητα.</li>
+          <li>Αν το φύλλο είναι διανυσματικό PDF από CAD, ανοίξτε το απευθείας: η γεωμετρία είναι ακριβής και τα κείμενα διαβάζονται χωρίς OCR.</li>
+        </ul>
+      </section>
+      <section>
+        <h3>2. Προετοιμασία (βήμα 2)</h3>
+        <ul>
+          <li><b>Περιστροφή</b> ώστε τα κείμενα να διαβάζονται οριζόντια. Το OCR δουλεύει μόνο σε σωστά προσανατολισμένο φύλλο.</li>
+          <li><b>Ευθυγράμμιση</b> «Αυτόματα» αν η σάρωση είναι στραβή. Ελέγξτε ότι οι τοίχοι βγαίνουν οριζόντιοι/κατακόρυφοι.</li>
+          <li><b>Περιοχή εργασίας</b>: για ένα μόνο σχέδιο από ένα γεμάτο φύλλο, σύρετε ορθογώνιο γύρω του. Λιγότερος θόρυβος, γρηγορότερη επεξεργασία, καθαρότερο DXF.</li>
+        </ul>
+      </section>
+      <section>
+        <h3>3. Ψηφιοποίηση (βήμα 3)</h3>
+        <ul>
+          <li><b>Ευαισθησία μελανιού</b>: ανεβάστε την σε αχνές φωτοτυπίες, κατεβάστε την σε σκούρο/λερωμένο χαρτί. Σε ασπρόμαυρες σαρώσεις δεν παίζει ρόλο.</li>
+          <li><b>Γεφύρωση κενών</b> (προεπιλογή 6 mm χαρτιού): ενώνει γραμμές που η σάρωση έκοψε. Ανεβάστε την αν βλέπετε κομμένες γραμμές, κατεβάστε την αν ενώνονται γραμμές που δεν έπρεπε (π.χ. μικρά ανοίγματα σε κλίμακα 1:100).</li>
+          <li><b>Τόξα και κύκλοι</b>: ανοιχτό για αρχιτεκτονικά (πόρτες, στήλες). Σε τοπογραφικά με ισοϋψείς κλείνει αυτόματα, ώστε οι καμπύλες να μένουν ενιαίες polyline.</li>
+          <li><b>Ύψος γραμμάτων έως</b>: αν μεγάλοι τίτλοι βγαίνουν ως γραμμές, ανεβάστε το. Αν μικρά σύμβολα χάνονται ως «κείμενο», κατεβάστε το.</li>
+        </ul>
+      </section>
+      <section>
+        <h3>4. Έλεγχος του αποτελέσματος: η λίστα ελέγχου του μηχανικού</h3>
+        <ol>
+          <li><b>Γεωμετρία πάνω στο πρωτότυπο.</b> Με το πρωτότυπο ορατό (κουμπί εικόνας αριστερά), κάντε zoom στις γωνίες τοίχων, στις πόρτες και στις διασταυρώσεις. Ό,τι δεν πιάστηκε φαίνεται ως σκέτο γκρι χωρίς λευκή γραμμή από πάνω.</li>
+          <li><b>Κείμενα, ένα-ένα.</b> Η δεξιά στήλη δείχνει κάθε κείμενο με μικρογραφία του πρωτοτύπου. Φίλτρο «Αβέβαια»: εκεί είναι όσα θέλουν δεύτερη ματιά. Διορθώστε στο πεδίο, το MTEXT ενημερώνεται αμέσως. Κλικ στη μικρογραφία κάνει zoom στο σημείο.</li>
+          <li><b>Αριθμοί και οπλισμοί.</b> Διαστάσεις, υψόμετρα, Φ και διατομές (2Φ14, Φ8/15, 20/60) ελέγχονται πάντα, γιατί ένα λάθος ψηφίο αλλάζει το σχέδιο. Ο μηχανικός επιβεβαιώνει τις τιμές από το πρωτότυπο.</li>
+          <li><b>Κλίμακα.</b> Μετρήστε με το «Μέτρηση ελέγχου» μία γνωστή διάσταση (ένα ολόκληρο μέτωπο, όχι μικρή). Αν δεν συμφωνεί, βαθμονομήστε με γνωστή απόσταση ή, καλύτερα, με Χ και Υ χωριστά· το χαρτί συρρικνώνεται διαφορετικά στις δύο κατευθύνσεις.</li>
+          <li><b>Layers.</b> Αν το <code>P2D_MIKRA</code> είναι γεμάτο σκόνη, κλείστε το πριν την εξαγωγή. Αν ο τοίχος μπήκε σε <code>P2D_GRAMMES</code>, δώστε «Παχιά γραμμή από (px)» και ξανατρέξτε.</li>
+          <li><b>Στο CAD.</b> Ανοίξτε το DXF, ελέγξτε AUDIT, μονάδες (m, cm, mm όπως επιλέξατε) και ότι τα ελληνικά εμφανίζονται με Arial. Διαστάσεις και εμβαδά επαληθεύονται με τα εργαλεία του CAD πριν το σχέδιο χρησιμοποιηθεί.</li>
+        </ol>
+      </section>
+      <section>
+        <h3>5. Κλίμακα 1:1 και ΕΓΣΑ87 (βήμα 4)</h3>
+        <ul>
+          <li><b>Κλίμακα</b>: για γρήγορη μετατροπή, από dpi και κλίμακα σχεδίου. Ακρίβεια ίση με τη σάρωση (±0,3 mm χαρτιού).</li>
+          <li><b>Απόσταση</b>: δύο σημεία με γνωστή απόσταση. Διορθώνει τη συρρίκνωση του χαρτιού.</li>
+          <li><b>Χ &amp; Υ</b>: μια οριζόντια και μια κατακόρυφη γνωστή απόσταση. Προτιμήστε το σε παλιές φωτοτυπίες.</li>
+          <li><b>ΕΓΣΑ87</b>: 4 ή περισσότερα σημεία με συντεταγμένες (κορυφές οικοπέδου, σταυροί καννάβου). Το DXF βγαίνει στο σύστημα, διορθώνοντας κλίμακα, στροφή και παραμόρφωση. Η «Μέγ. απόκλιση σημείων» δείχνει πόσο καλά ταιριάζουν· με 5+ σημεία ένα σημείο με μεγάλη απόκλιση είναι πιθανότατα λάθος πληκτρολόγησης.</li>
+        </ul>
+      </section>
+      <section>
+        <h3>6. 3D: extrude τοίχων και TIN</h3>
+        <ul>
+          <li><b>Extrude</b>: δώστε ύψος τοίχων, επιλέξτε ποια layers υψώνονται. Προαιρετικά το ύψος γράφεται και στο DXF ως thickness.</li>
+          <li><b>TIN από ισοϋψείς</b>: τα υψόμετρα διαβάζονται από τις ετικέτες των ισοϋψών· όσες δεν έχουν ετικέτα παίρνουν τιμή με παρεμβολή. Ελέγξτε τη λίστα υψομέτρων (ιδίως στις άκρες του σχεδίου) και διορθώστε όπου χρειάζεται. Στο DXF: 3DFACE στο <code>P2D_TIN</code> και ισοϋψείς με elevation.</li>
+        </ul>
+      </section>
+      <section>
+        <h3>Συχνά προβλήματα</h3>
+        <ul>
+          <li><i>Γραμμές σε κομμάτια</i>: ανεβάστε τη γεφύρωση κενών· ελέγξτε ότι έγινε ευθυγράμμιση.</li>
+          <li><i>Γράμματα έγιναν γραμμές</i>: ανεβάστε το «Ύψος γραμμάτων έως» ή ενεργοποιήστε το OCR.</li>
+          <li><i>Λάθος προσανατολισμός κειμένων</i>: το φύλλο θέλει περιστροφή πριν την ψηφιοποίηση.</li>
+          <li><i>Τοίχοι ως διπλές λεπτές γραμμές</i>: φυσιολογικό όταν στο χαρτί είναι σχεδιασμένοι έτσι (διαγραμμισμένοι). Για 3D extrude επιλέξτε το layer που τους περιέχει.</li>
+          <li><i>Πολύς «θόρυβος»</i>: μικρότερη περιοχή εργασίας, χαμηλότερη ευαισθησία, κλείσιμο του <code>P2D_MIKRA</code>.</li>
+        </ul>
+      </section>
+    </div>
+  </div>
 </div>
 <div class="toast" id="toast" hidden></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -3226,6 +3317,9 @@ document.querySelectorAll('.step>header').forEach(function (h) { h.addEventListe
 
 $('#btnOpen').addEventListener('click', function () { $('#file').click(); });
 $('#btnOpenTop').addEventListener('click', function () { $('#file').click(); });
+$('#btnHelp').addEventListener('click', function () { $('#help').hidden = false; });
+$('#helpClose').addEventListener('click', function () { $('#help').hidden = true; });
+$('#help').addEventListener('click', function (e) { if (e.target === $('#help')) $('#help').hidden = true; });
 $('#btnNew').addEventListener('click', function () {
   if (S.busy) { S.cancel = true; CoreW.kill(); P.hide(); S.busy = false; }
   resetAll(); S.name = ''; S.demo = false; S.kind = null; S.mode = null; S.tin = null; S.contours = null; $('#tinOpts').hidden = true; if (V3D.ready()) V3D.clearTIN(); S.cal = { mode: 'scale', den: 50, A: [], XY: [], P: [] };
@@ -3317,7 +3411,7 @@ $('#tOut').addEventListener('click', function () { zoomBy(1 / 1.4); });
 [['#tBg', 'bg'], ['#tVec', 'vec'], ['#tTxt', 'txt']].forEach(function (a) { $(a[0]).addEventListener('click', function () { S.show[a[1]] = !S.show[a[1]]; $(a[0]).classList.toggle('on', S.show[a[1]]); draw(); }); });
 document.addEventListener('keydown', function (e) {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-  if (e.key === 'Escape') { setTool('pan'); S.measure = []; draw(); }
+  if (e.key === 'Escape') { setTool('pan'); S.measure = []; $('#help').hidden = true; draw(); }
   if (e.key === 'f' || e.key === 'F') fit();
 });
 window.addEventListener('resize', function () { resize(); });
