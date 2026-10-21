@@ -148,7 +148,7 @@ input[type=range]{width:100%;accent-color:var(--violet)}
 @media (max-width:1180px){ .shell{grid-template-columns:320px minmax(0,1fr)} .stage{min-width:0} .texts{grid-column:1/-1;border-left:0;border-top:1px solid var(--line);max-height:42vh} body{overflow:auto} .app{height:auto;min-height:100%} .shell{grid-template-rows:minmax(560px,78vh) auto} }
 @media (max-width:820px){
   .shell{grid-template-columns:minmax(0,1fr);grid-template-rows:auto}
-  #fileChip{display:none} #btnOpenTop span{display:none} .app{overflow-x:hidden} .rail,.texts{min-width:0}
+  #fileChip{display:none} #btnOpenTop span,#btnNew span{display:none} .app{overflow-x:hidden} .rail,.texts{min-width:0}
   .stage{order:1;height:64vh;min-height:380px} .rail{order:2;border-right:0;overflow:visible} .texts{order:3;max-height:none;overflow:visible}
   .tlist{overflow:visible}
   .brand small{display:none} .hud{max-width:50%}
@@ -166,6 +166,13 @@ input[type=range]{width:100%;accent-color:var(--violet)}
 .v3d-head h3 b{background:linear-gradient(90deg,var(--cyan),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
 @media (max-width:820px){.v3d{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}.v3d-panel{border-left:0;border-top:1px solid var(--line);max-height:46%}}
 
+.tinbox{border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:10px}
+.tinlist{max-height:220px;overflow:auto;display:flex;flex-direction:column;gap:3px}
+.tinrow{display:grid;grid-template-columns:28px 1fr 84px 60px;gap:6px;align-items:center;font-size:12px}
+.tinrow code{font-family:var(--f-mono);color:var(--mute)}
+.tinrow input{width:100%;padding:4px 6px}
+.tinrow .src{font-size:10.5px;color:var(--mute);text-align:right}
+
 </style>
 </head>
 <body>
@@ -177,6 +184,7 @@ input[type=range]{width:100%;accent-color:var(--violet)}
     </div>
     <div class="sp"></div>
     <span class="chip" id="fileChip"><i></i><span>Κανένα αρχείο</span></span>
+    <button class="btn" id="btnNew" type="button" title="Καθαρίζει τα πάντα για νέο σχέδιο"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg><span>Νέο αρχείο</span></button>
     <button class="btn" id="btnOpenTop" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg><span>Άνοιγμα</span></button>
   </header>
 
@@ -271,7 +279,7 @@ input[type=range]{width:100%;accent-color:var(--violet)}
           <label class="tog"><input type="checkbox" id="optGreek" checked><span>Ελληνικοί χαρακτήρες σε αμφίσημες λέξεις (Κ, Α, Ε…)</span></label>
           <label class="tog"><input type="checkbox" id="optWidth" checked><span>Προσαρμογή πλάτους κειμένων στο πρωτότυπο</span></label>
           <div><span class="lbl">Layers</span><div class="layers" id="layers"><p class="hint">Εμφανίζονται μετά την ψηφιοποίηση.</p></div></div>
-          <button class="btn wide" type="button" id="btn3d" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg>Προβολή 3D (extrude τοίχων)</button>
+          <button class="btn wide" type="button" id="btn3d" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg>Προβολή 3D: extrude τοίχων / TIN ισοϋψών</button>
           <label class="tog"><input type="checkbox" id="optThick"><span>Τοίχοι με ύψος στο DXF (thickness, όπως EXTRUDE)</span></label>
           <label><span class="lbl">Όνομα αρχείου</span><input class="field" id="fname" type="text" value="sxedio.dxf"></label>
           <button class="btn rose wide" type="button" id="exportBtn" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 4v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>Λήψη DXF</button>
@@ -315,6 +323,18 @@ input[type=range]{width:100%;accent-color:var(--violet)}
             <label class="tog"><input type="checkbox" id="v3dPlan" checked><span>Κάτοψη στο δάπεδο</span></label>
             <div class="seg" id="v3dViews"><button type="button" data-v="iso">Αξονομετρικό</button><button type="button" data-v="top">Κάτοψη</button><button type="button" data-v="front">Όψη</button></div>
             <dl class="kv" id="v3dInfo"></dl>
+            <div class="tinbox">
+              <span class="lbl">Ισοϋψείς → μοντέλο επιφανείας (TIN)</span>
+              <button class="btn wide" type="button" id="tinBtn">Δημιουργία TIN από τις ισοϋψείς</button>
+              <div id="tinOpts" hidden>
+                <div class="row"><label><span class="lbl">Υπερύψωση Z</span><input type="range" id="tinExag" min="0.5" max="6" step="0.1" value="1"></label><label><span class="lbl">Ισοδιάσταση</span><input class="field" id="tinStep" type="number" step="0.5" placeholder="αυτόματα"></label></div>
+                <label class="tog"><input type="checkbox" id="tinWire" checked><span>Πλέγμα τριγώνων</span></label>
+                <label class="tog"><input type="checkbox" id="tinExport" checked><span>TIN στο DXF (3DFACE) και ισοϋψείς με υψόμετρο</span></label>
+                <dl class="kv" id="tinInfo"></dl>
+                <div class="tinlist" id="tinList"></div>
+                <p class="hint">Τα υψόμετρα διαβάζονται από τις ετικέτες των ισοϋψών. Όσες δεν έχουν ετικέτα παίρνουν τιμή από τις γειτονικές· διορθώστε όποια θέλετε στη λίστα.</p>
+              </div>
+            </div>
             <p class="hint">Σύρετε για περιστροφή, δύο δάχτυλα ή ροδέλα για μεγέθυνση, δεξί κλικ για μετακίνηση. Το ύψος περνά και στο DXF αν ενεργοποιήσετε «Τοίχοι με ύψος».</p>
           </div>
         </div>
@@ -343,6 +363,7 @@ input[type=range]{width:100%;accent-color:var(--violet)}
 <script src="https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/delaunator@5.0.1/delaunator.min.js"></script>
 <script id="p2d-core">
 /* ===== HEXIS PAPER→DXF · raster vectorization core (runs in a Web Worker) ===== */
 var P2D = (function () {
@@ -719,6 +740,7 @@ var P2D = (function () {
         var tq = Math.abs(Math.atan2((b1[0] - a1[0]) * (c1[1] - b1[1]) - (b1[1] - a1[1]) * (c1[0] - b1[0]), (b1[0] - a1[0]) * (c1[0] - b1[0]) + (b1[1] - a1[1]) * (c1[1] - b1[1])));
         if (tq > 0.6) sharp = true;
       }
+      if (!sharp && (n > 350 || (o.topo && n > 60))) o = Object.assign({}, o, { arcs: false });   // long smooth chains are contours / free curves, never door arcs
       if (!sharp) {
         var sm = new Array(n);
         for (var q2 = 0; q2 < n; q2++) {
@@ -1183,6 +1205,17 @@ var P2D = (function () {
     progress('Ιχνηλάτηση', 0.7);
     var chains = trace(thinImg, w, h, pix);
     var spur = o.spur || mode * 2 + 3, arcs = [], circles = [];
+    // topographic sheets: several long, winding, corner-free chains → treat curves as polylines, never as arcs
+    (function () {
+      var curvy = 0;
+      chains.forEach(function (ch) {
+        var P = ch.pts, n = P.length; if (n < 600) return;
+        var c0 = dp(P, 1.2), tot = 0, sharp = false;
+        for (var q = 1; q < c0.length - 1 && !sharp; q++) { var a1 = c0[q - 1], b1 = c0[q], c1 = c0[q + 1], t = Math.abs(Math.atan2((b1[0] - a1[0]) * (c1[1] - b1[1]) - (b1[1] - a1[1]) * (c1[0] - b1[0]), (b1[0] - a1[0]) * (c1[0] - b1[0]) + (b1[1] - a1[1]) * (c1[1] - b1[1]))); if (t > 0.6) sharp = true; tot += t; }
+        if (!sharp && tot > 1.5) curvy++;
+      });
+      if (curvy >= 3) { o.topo = true; o.arcs = false; }
+    })();
     chains = chains.filter(function (ch) {
       var L = ch.pts.length, freeA = ch.a === 1, freeB = ch.b === 1;
       if (L < 2 && (freeA || freeB)) return false;
@@ -1191,6 +1224,17 @@ var P2D = (function () {
       return true;
     });
     chains = mergeChains(chains, Math.max(3, 2 * mode + 3), o.gapPx || Math.max(8, gap * 2 + 2, mode * 4 + 2));
+    // topographic sheets: several long, winding, corner-free chains → treat curves as polylines, never as arcs
+    (function () {
+      var curvy = 0;
+      chains.forEach(function (ch) {
+        var P = ch.pts, n = P.length; if (n < 600) return;
+        var c0 = dp(P, 1.2), tot = 0, sharp = false;
+        for (var q = 1; q < c0.length - 1 && !sharp; q++) { var a1 = c0[q - 1], b1 = c0[q], c1 = c0[q + 1], t = Math.abs(Math.atan2((b1[0] - a1[0]) * (c1[1] - b1[1]) - (b1[1] - a1[1]) * (c1[0] - b1[0]), (b1[0] - a1[0]) * (c1[0] - b1[0]) + (b1[1] - a1[1]) * (c1[1] - b1[1]))); if (t > 0.6) sharp = true; tot += t; }
+        if (!sharp && tot > 1.5) curvy++;
+      });
+      if (curvy >= 3) { o.topo = true; o.arcs = false; }
+    })();
     chains.forEach(function (ch) {
       var L = ch.pts.length, P = ch.pts[L >> 1], c = cls[((P[1] | 0) * w + (P[0] | 0))];
       chainToPrims(ch, o, polys, arcs, circles, c === 2 ? 'MIKRA' : 'GRAMMES');
@@ -1224,7 +1268,7 @@ var P2D = (function () {
     });
     arcs = mergeArcs(arcs, circles, 2.5);
     progress('Ολοκλήρωση', 1);
-    return { polys: polys, arcs: arcs, circles: circles, stats: { strokeHalf: mode, thickR: thickR, chains: chains.length, specks: removed, dotted: dotted } };
+    return { polys: polys, arcs: arcs, circles: circles, stats: { strokeHalf: mode, thickR: thickR, chains: chains.length, specks: removed, dotted: dotted, topo: !!o.topo } };
   }
 
   /* deskew estimate: projection-profile variance over angles (small image) */
@@ -1329,7 +1373,7 @@ var P2D = (function () {
       var H = hs[hs.length >> 1] || 1;
       items.sort(function (a, b) { return a.v - b.v; });
       var lines = [[items[0]]];
-      for (var t = 1; t < items.length; t++) { if (items[t].v - items[t - 1].v > 0.75 * H) lines.push([]); lines[lines.length - 1].push(items[t]); }
+      for (var t = 1; t < items.length; t++) { if (items[t].v - items[t - 1].v > 0.5 * H) lines.push([]); lines[lines.length - 1].push(items[t]); }
       var res = [];
       lines.forEach(function (ln) {
         // split within line at big gaps along u (separate labels on same row)
@@ -1400,6 +1444,7 @@ var P2D = (function () {
       var bw = c.bx1[r] - c.bx0[r] + 1, bh = c.by1[r] - c.by0[r] + 1;
       if (Math.max(bw, bh) > o.hmax || c.area[r] < 2) continue;
       if (c.area[r] > 0.9 * bw * bh && Math.min(bw, bh) > 0.5 * Math.max(bw, bh) && Math.min(bw, bh) > Math.max(6, o.hmin || 6)) continue;   // solid squares (columns): not glyphs
+      if (Math.max(bw, bh) >= 8 * Math.min(bw, bh) && Math.min(bw, bh) <= 3) continue;   // thin straight strokes (leader/dimension line pieces): not glyphs
       boxes.push([c.bx0[r], c.by0[r], c.bx1[r] + 1, c.by1[r] + 1]);
     }
     return boxes;
@@ -1638,11 +1683,16 @@ var DXFW = (function () {
       var P = p.pts;
       if (P.length === 2 && !p.closed) {
         entHead('LINE', p.layer); g(100, 'AcDbLine'); if (p.thick) g(39, num(p.thick));
-        g(10, num(P[0][0])); g(20, num(P[0][1])); g(30, 0); g(11, num(P[1][0])); g(21, num(P[1][1])); g(31, 0);
+        g(10, num(P[0][0])); g(20, num(P[0][1])); g(30, num(p.z || 0)); g(11, num(P[1][0])); g(21, num(P[1][1])); g(31, num(p.z || 0));
       } else {
-        entHead('LWPOLYLINE', p.layer); g(100, 'AcDbPolyline'); g(90, P.length); g(70, p.closed ? 1 : 0); g(43, 0); if (p.thick) g(39, num(p.thick));
+        entHead('LWPOLYLINE', p.layer); g(100, 'AcDbPolyline'); g(90, P.length); g(70, p.closed ? 1 : 0); g(43, 0); if (p.z) g(38, num(p.z)); if (p.thick) g(39, num(p.thick));
         P.forEach(function (q) { g(10, num(q[0])); g(20, num(q[1])); });
       }
+    });
+    (doc.faces || []).forEach(function (f) {
+      entHead('3DFACE', f.layer); g(100, 'AcDbFace');
+      g(10, num(f.p[0][0])); g(20, num(f.p[0][1])); g(30, num(f.p[0][2])); g(11, num(f.p[1][0])); g(21, num(f.p[1][1])); g(31, num(f.p[1][2]));
+      g(12, num(f.p[2][0])); g(22, num(f.p[2][1])); g(32, num(f.p[2][2])); g(13, num(f.p[2][0])); g(23, num(f.p[2][1])); g(33, num(f.p[2][2])); g(70, 0);
     });
     doc.circles.forEach(function (c) { entHead('CIRCLE', c.layer); g(100, 'AcDbCircle'); g(10, num(c.cx)); g(20, num(c.cy)); g(30, 0); g(40, num(c.r)); });
     doc.arcs.forEach(function (a) { entHead('ARC', a.layer); g(100, 'AcDbCircle'); g(10, num(a.cx)); g(20, num(a.cy)); g(30, 0); g(40, num(a.r)); g(100, 'AcDbArc'); g(50, num(a.a0)); g(51, num(a.a1)); });
@@ -1807,7 +1857,7 @@ var V3D = (function () {
   }
   function resize() { if (!R || !host) return; var w = host.clientWidth || 1, h = host.clientHeight || 1; R.setSize(w, h, false); R.domElement.style.width = w + 'px'; R.domElement.style.height = h + 'px'; cam.aspect = w / h; cam.updateProjectionMatrix(); }
   function loop() { raf = requestAnimationFrame(loop); if (!host || !host.offsetParent) return; ctrl.update(); R.render(scene, cam); }
-  function clear() { while (group.children.length) { var o = group.children.pop(); o.traverse(function (c) { if (c.geometry) c.geometry.dispose(); if (c.material) (Array.isArray(c.material) ? c.material : [c.material]).forEach(function (m) { m.dispose(); }); }); } }
+  function clear() { tinGroup = null; while (group.children.length) { var o = group.children.pop(); o.traverse(function (c) { if (c.geometry) c.geometry.dispose(); if (c.material) (Array.isArray(c.material) ? c.material : [c.material]).forEach(function (m) { m.dispose(); }); }); } }
 
   /* data: {solids:[[ring]...], lines:[[pts]...], plan:[[pts]...], height, floor} — metres */
   function build(data, keepView) {
@@ -1848,6 +1898,40 @@ var V3D = (function () {
     ctrl.update();
     return { tris: Math.round(nTri), w: bb[2] - bb[0], d: bb[3] - bb[1] };
   }
+  /* TIN surface: data {pts:[[x,y]], zs:[z], tri:[i,i,i...]} in metres; opts {exag, wire, contours:[{pts:[[x,y]],z}]} */
+  var tinGroup = null;
+  function buildTIN(data, opts) {
+    opts = opts || {};
+    if (tinGroup) { group.remove(tinGroup); tinGroup.traverse(function (c) { if (c.geometry) c.geometry.dispose(); if (c.material) c.material.dispose(); }); tinGroup = null; }
+    if (!data) return null;
+    var ex = opts.exag || 1, n = data.pts.length, zmin = Infinity, zmax = -Infinity, i;
+    for (i = 0; i < n; i++) { if (data.zs[i] < zmin) zmin = data.zs[i]; if (data.zs[i] > zmax) zmax = data.zs[i]; }
+    var bb = [1e18, 1e18, -1e18, -1e18]; data.pts.forEach(function (p) { if (p[0] < bb[0]) bb[0] = p[0]; if (p[1] < bb[1]) bb[1] = p[1]; if (p[0] > bb[2]) bb[2] = p[0]; if (p[1] > bb[3]) bb[3] = p[1]; });
+    var cx = (bb[0] + bb[2]) / 2, cy = (bb[1] + bb[3]) / 2, span = Math.max(bb[2] - bb[0], bb[3] - bb[1], 1);
+    tinGroup = new THREE.Group(); tinGroup.rotation.x = -Math.PI / 2; tinGroup.position.set(-cx, 0, cy); group.add(tinGroup);
+    var pos = new Float32Array(n * 3), col = new Float32Array(n * 3), rng = (zmax - zmin) || 1;
+    function ramp(t) { // deep blue → cyan → green → yellow → orange → white (terrain, blueprint-friendly)
+      var stops = [[0.08, 0.25, 0.55], [0.13, 0.75, 0.9], [0.3, 0.8, 0.45], [0.95, 0.85, 0.3], [0.95, 0.5, 0.2], [1, 1, 1]], k = t * (stops.length - 1), i0 = Math.floor(k), i1 = Math.min(stops.length - 1, i0 + 1), f = k - i0;
+      return [stops[i0][0] + (stops[i1][0] - stops[i0][0]) * f, stops[i0][1] + (stops[i1][1] - stops[i0][1]) * f, stops[i0][2] + (stops[i1][2] - stops[i0][2]) * f];
+    }
+    for (i = 0; i < n; i++) { pos[3 * i] = data.pts[i][0]; pos[3 * i + 1] = data.pts[i][1]; pos[3 * i + 2] = (data.zs[i] - zmin) * ex; var c = ramp((data.zs[i] - zmin) / rng); col[3 * i] = c[0]; col[3 * i + 1] = c[1]; col[3 * i + 2] = c[2]; }
+    var geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geo.setIndex(new THREE.BufferAttribute(new Uint32Array(data.tri), 1)); geo.computeVertexNormals();
+    var mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.05, side: THREE.DoubleSide, flatShading: false }));
+    tinGroup.add(mesh);
+    if (opts.wire !== false) tinGroup.add(new THREE.LineSegments(new THREE.WireframeGeometry(geo), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12 })));
+    if (opts.contours && opts.contours.length) {
+      var P = [];
+      opts.contours.forEach(function (c) { for (var k = 0; k < c.pts.length - 1; k++) P.push(c.pts[k][0], c.pts[k][1], (c.z - zmin) * ex + span * 0.0008, c.pts[k + 1][0], c.pts[k + 1][1], (c.z - zmin) * ex + span * 0.0008); if (c.closed && c.pts.length > 2) { var a = c.pts[c.pts.length - 1], b = c.pts[0]; P.push(a[0], a[1], (c.z - zmin) * ex + span * 0.0008, b[0], b[1], (c.z - zmin) * ex + span * 0.0008); } });
+      var lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+      tinGroup.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 })));
+    }
+    var grid2 = new THREE.GridHelper(Math.ceil(span * 1.4), Math.ceil(span * 1.4 / Math.max(1, Math.round(span / 20))), 0x6f9be0, 0x2f66b8); grid2.position.set(0, -span * 0.002, 0); tinGroup.add(new THREE.Group());
+    if (!opts.keepView) { cam.position.set(span * 0.9, Math.max((zmax - zmin) * ex * 1.5, span * 0.55), span * 1.1); ctrl.target.set(0, (zmax - zmin) * ex * 0.4, 0); cam.near = span / 2000; cam.far = span * 40; cam.updateProjectionMatrix(); scene.fog.near = span * 3; scene.fog.far = span * 12; }
+    ctrl.update();
+    return { zmin: zmin, zmax: zmax, tris: data.tri.length / 3, pts: n, w: bb[2] - bb[0], d: bb[3] - bb[1] };
+  }
+  function clearTIN() { if (tinGroup) { group.remove(tinGroup); tinGroup = null; } }
   function view(kind) {
     var t = ctrl.target, d = cam.position.distanceTo(t);
     if (kind === 'top') cam.position.set(t.x, t.y + d, t.z + 0.001);
@@ -1856,7 +1940,116 @@ var V3D = (function () {
     ctrl.update();
   }
   function shot() { R.render(scene, cam); return R.domElement.toDataURL('image/png'); }
-  return { init: init, build: build, view: view, resize: resize, shot: shot, shapes: shapes, ready: function () { return !!R; } };
+  return { init: init, build: build, buildTIN: buildTIN, clearTIN: clearTIN, view: view, resize: resize, shot: shot, shapes: shapes, ready: function () { return !!R; } };
+})();
+
+/* ===== HEXIS PAPER→DXF · contours → elevations → TIN ===== */
+var TIN = (function () {
+  'use strict';
+  function plen(P) { var t = 0; for (var i = 1; i < P.length; i++) t += Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]); return t; }
+  function bbox(P) { var b = [1e18, 1e18, -1e18, -1e18]; P.forEach(function (p) { if (p[0] < b[0]) b[0] = p[0]; if (p[1] < b[1]) b[1] = p[1]; if (p[0] > b[2]) b[2] = p[0]; if (p[1] > b[3]) b[3] = p[1]; }); return b; }
+  function distPtPoly(x, y, P, closed) {
+    var best = 1e18, n = P.length, m = closed ? n : n - 1;
+    for (var i = 0; i < m; i++) {
+      var a = P[i], b = P[(i + 1) % n], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy, u = L2 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / L2)) : 0;
+      var d = Math.hypot(x - (a[0] + u * dx), y - (a[1] + u * dy)); if (d < best) best = d;
+    }
+    return best;
+  }
+  /* candidate contour polylines: long, curvy, not straight */
+  function findContours(polys, minLenPx) {
+    var out = [];
+    polys.forEach(function (p, idx) {
+      if (p.pts.length < 6) return;
+      var L = plen(p.pts); if (L < minLenPx) return;
+      var b = bbox(p.pts), diag = Math.hypot(b[2] - b[0], b[3] - b[1]);
+      // curvy: path much longer than chord, or closed; straight runs (walls, grid) are excluded
+      var chord = p.closed ? diag : Math.hypot(p.pts[p.pts.length - 1][0] - p.pts[0][0], p.pts[p.pts.length - 1][1] - p.pts[0][1]);
+      var turns = 0;
+      for (var i = 1; i < p.pts.length - 1; i++) {
+        var a = p.pts[i - 1], c = p.pts[i], d = p.pts[i + 1];
+        var t = Math.abs(Math.atan2((c[0] - a[0]) * (d[1] - c[1]) - (c[1] - a[1]) * (d[0] - c[0]), (c[0] - a[0]) * (d[0] - c[0]) + (c[1] - a[1]) * (d[1] - c[1])));
+        if (t > 1.3) return;          // sharp corner: not a contour
+        turns += t;
+      }
+      if (!p.closed && L < 1.05 * chord) return;
+      if (turns < 0.5 && !p.closed) return;
+      out.push({ idx: idx, pts: p.pts, closed: p.closed, len: L, bb: b, z: null, src: null });
+    });
+    return out;
+  }
+  /* elevation labels → nearest contour */
+  function assignLabels(contours, texts, maxDistFactor) {
+    var labels = [];
+    texts.forEach(function (t) {
+      if (!t.on || !t.str) return;
+      var m = /^\s*\(?([+-]?\d{1,4}(?:[.,]\d{1,2})?)\)?\s*$/.exec(t.str); if (!m) return;
+      var v = parseFloat(m[1].replace(',', '.')); if (!isFinite(v)) return;
+      var cx = t.bx + t.ux * t.L / 2 - (-t.uy) * t.H / 2, cy = t.by + t.uy * t.L / 2 - t.ux * t.H / 2;
+      labels.push({ v: v, x: cx, y: cy, H: t.H, used: false });
+    });
+    var cell = 200, grid = new Map();
+    contours.forEach(function (c, i) { for (var gx = Math.floor(c.bb[0] / cell); gx <= Math.floor(c.bb[2] / cell); gx++) for (var gy = Math.floor(c.bb[1] / cell); gy <= Math.floor(c.bb[3] / cell); gy++) { var k = gx + ',' + gy, l = grid.get(k); if (l) l.push(i); else grid.set(k, [i]); } });
+    labels.forEach(function (lb) {
+      var k = Math.floor(lb.x / cell) + ',' + Math.floor(lb.y / cell), cand = new Set();
+      for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) { var l = grid.get((Math.floor(lb.x / cell) + dx) + ',' + (Math.floor(lb.y / cell) + dy)); if (l) l.forEach(function (i) { cand.add(i); }); }
+      var best = -1, bd = maxDistFactor * lb.H;
+      cand.forEach(function (i) { var d = distPtPoly(lb.x, lb.y, contours[i].pts, contours[i].closed); if (d < bd) { bd = d; best = i; } });
+      if (best >= 0) { var c = contours[best]; if (c.z == null) { c.z = lb.v; c.src = 'label'; lb.used = true; } else if (c.z !== lb.v) { c.conflict = true; } }
+    });
+    return labels;
+  }
+  /* contour interval from labelled contours */
+  function interval(contours) {
+    var zs = contours.filter(function (c) { return c.z != null; }).map(function (c) { return c.z; }).sort(function (a, b) { return a - b; }), diffs = [];
+    for (var i = 1; i < zs.length; i++) if (zs[i] > zs[i - 1]) diffs.push(zs[i] - zs[i - 1]);
+    if (!diffs.length) return 0;
+    diffs.sort(function (a, b) { return a - b; }); return diffs[0];
+  }
+  /* unlabelled contours: elevation from spatial neighbours (nearest labelled on each side, by vertex sampling) */
+  function propagate(contours) {
+    var known = contours.filter(function (c) { return c.z != null; });
+    if (!known.length) return;
+    var step = interval(contours);
+    contours.forEach(function (c) {
+      if (c.z != null) return;
+      // sample a few vertices, find nearest two distinct known contours
+      var samples = [], n = c.pts.length; for (var k = 0; k < Math.min(8, n); k++) samples.push(c.pts[Math.floor(k * n / Math.min(8, n))]);
+      var near = known.map(function (o) { var d = 1e18; samples.forEach(function (s) { var dd = distPtPoly(s[0], s[1], o.pts, o.closed); if (dd < d) d = dd; }); return { o: o, d: d }; }).sort(function (a, b) { return a.d - b.d; });
+      var a = near[0], b = near.find(function (q) { return q.o.z !== a.o.z; });
+      if (!b) { c.z = a.o.z; c.src = 'nearest'; return; }
+      var w = a.d / (a.d + b.d), z = a.o.z + (b.o.z - a.o.z) * w;
+      if (step > 0) z = Math.round(z / step) * step;
+      c.z = z; c.src = 'interp';
+    });
+  }
+  /* resample contour vertices for the TIN (metres) */
+  function tinPoints(contours, W, spacingPx) {
+    var pts = [], zs = [];
+    contours.forEach(function (c) {
+      if (c.z == null) return;
+      var P = c.pts, n = P.length, acc = 0;
+      for (var i = 0; i < n; i++) {
+        var p = P[i], q = W(p[0], p[1]);
+        if (i === 0 || acc >= spacingPx) { pts.push([q[0], q[1]]); zs.push(c.z); acc = 0; }
+        if (i < n - 1) acc += Math.hypot(P[i + 1][0] - p[0], P[i + 1][1] - p[1]);
+      }
+    });
+    return { pts: pts, zs: zs };
+  }
+  function build(contours, W, spacingPx) {
+    if (typeof Delaunator === 'undefined') throw new Error('Η βιβλιοθήκη τριγωνισμού δεν φορτώθηκε');
+    var tp = tinPoints(contours, W, spacingPx || 12);
+    if (tp.pts.length < 3) return null;
+    var d = Delaunator.from(tp.pts), tri = d.triangles, out = [];
+    // drop flat sliver triangles bridging the same contour across concavities (all 3 at same z and long edges)
+    var edgeMax = 0, lens = [];
+    for (var i = 0; i < tri.length; i += 3) { var a = tp.pts[tri[i]], b = tp.pts[tri[i + 1]], c = tp.pts[tri[i + 2]]; lens.push(Math.max(Math.hypot(a[0] - b[0], a[1] - b[1]), Math.hypot(b[0] - c[0], b[1] - c[1]), Math.hypot(c[0] - a[0], c[1] - a[1]))); }
+    var sorted = lens.slice().sort(function (p, q) { return p - q; }); edgeMax = (sorted[Math.floor(sorted.length * 0.9)] || 1) * 3;
+    for (i = 0; i < tri.length; i += 3) if (lens[i / 3] <= edgeMax) out.push(tri[i], tri[i + 1], tri[i + 2]);
+    return { pts: tp.pts, zs: tp.zs, tri: out };
+  }
+  return { findContours: findContours, assignLabels: assignLabels, propagate: propagate, interval: interval, build: build };
 })();
 
 </script>
@@ -1968,11 +2161,13 @@ var OCR = {
       self.gen = Tesseract.createScheduler();
       for (var i = 0; i < self.nw; i++) self.gen.addWorker(await mk({ tessedit_pageseg_mode: '7', user_defined_dpi: '300', preserve_interword_spaces: '1' }));
       self.num = await mk({ tessedit_pageseg_mode: '7', user_defined_dpi: '300' }, ['eng']);
+      self.blk = await mk({ tessedit_pageseg_mode: '6', user_defined_dpi: '300', preserve_interword_spaces: '1' });
     })();
     this.ready.catch(function () { self.ready = null; });
     return this.ready;
   },
   rec: function (c) { return this.gen.addJob('recognize', c).then(function (r) { return r.data; }); },
+  recBlock: function (c) { return this.blk.recognize(c).then(function (r) { return r.data; }); },
   recNum: function (c) { return this.num.recognize(c).then(function (r) { return r.data; }); }
 };
 
@@ -1997,7 +2192,25 @@ function cp1253fix(s) {
     return ({ 0xB8: 'Έ', 0xB9: 'Ή', 0xBA: 'Ί', 0xBC: 'Ό', 0xBE: 'Ύ', 0xBF: 'Ώ' })[k] || c;
   }).replace(/¢/g, 'Ά');
 }
-var OK_CHARS = /^[0-9A-Za-zΆ-ώ .,:;\-+=\/()%°×'"#&*_]+$/;
+var OK_CHARS = /^[0-9A-Za-zΆ-ώ .,:;\-+=\/()%°×÷±'"#&*_]+$/;
+var REBAR_D = { 6: 1, 8: 1, 10: 1, 12: 1, 14: 1, 16: 1, 18: 1, 20: 1, 22: 1, 25: 1, 28: 1, 32: 1 };
+// engineering notation: Φ (rebar diameter) is read as 9/0/Ρ/φ/Ο by OCR; fix the common shapes nΦdd, Φd/dd, dd/dd
+function engFix(t) {
+  var s = t;
+  s = s.replace(/\b([1-9])\s?[ΦφϕPΡpρOΟοo@]\s?(\d{1,2})\b/g, function (m, n, d) { return REBAR_D[+d] ? n + 'Φ' + d : m; });
+  s = s.replace(/^([1-8])[09](1[02468]|2[025])$/, function (m, n, d) { return n + 'Φ' + d; });                       // 2014 / 4914 → 2Φ14 (whole token only)
+  s = s.replace(/(^|[\s(])[ΦφϕPΡpρOΟοo@]\s?(\d{1,2})\s?\/\s?(\d{1,3})\b/g, function (m, pre, d, sp) { return REBAR_D[+d] ? pre + 'Φ' + d + '/' + sp : m; });
+  s = s.replace(/^[90](\d)\/(\d{2,3})$/, function (m, d, sp) { return REBAR_D[+d] ? 'Φ' + d + '/' + sp : m; });   // 98/15 → Φ8/15
+  s = s.replace(/\b(\d{2,3})\s*\/\s*(\d{2,3})\b/g, '$1/$2');
+  s = s.replace(/\b([KT])(\d{1,2})\b/g, function (m, L, n) { return (L === 'K' ? 'Κ' : 'Τ') + n; });
+  s = s.replace(/\$(?=\s?\d{1,2}\s?\/)/g, 'Φ');                                            // $8/15 → Φ8/15
+  s = s.replace(/\b(\dΦ(?:6|8|10|12|14|16|18|20|22|25|28|32))\d\b/g, '$1');                   // 4Φ168 → 4Φ16 (stray digit)
+  s = s.replace(/^([ΚΤΔΠ])(ιι|ll|II|ι1|1ι|il|li)$/, '$111').replace(/^([ΚΤΔΠ])[ΙIl|](\d)$/, '$11$2').replace(/^([ΚΤΔΠ])[ΙIl|]$/, '$11');
+  s = s.replace(/(\d)Ω$/, '$10').replace(/^\(?(\d{2})\/(\d{2})\)?:?$/, '($1/$2)').replace(/^\((\d{2}\/\d{2,3})\)$/, '$1');
+  s = s.replace(/φ/g, 'Φ').replace(/\s{2,}/g, ' ').trim();
+  return s;
+}
+function isEng(t) { return /^(\dΦ\d{1,2}|Φ\d{1,2}\/\d{2,3}|\d{2,3}\/\d{2,3}|[ΚΤΔΠ]\d{1,2}|[+\-]?\d+([.,]\d+)?)$/.test(t.replace(/\s/g, '')); }
 function cleanOCR(t) {
   t = (t || '').replace(/[\r\n]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
   t = t.replace(/[‘’´`]/g, "'").replace(/[“”«»]/g, '"').replace(/[–—]/g, '-');
@@ -2006,6 +2219,12 @@ function cleanOCR(t) {
 }
 function accept(t, conf, n) {
   if (!t || t.length > 120) return 0;
+  if (isEng(t) && conf >= 38) return 1;
+  if (/^[A-Za-zα-ωΑ-Ω]{1,3}\s?=\s?[\d.,]+(\s?(cm|m|mm|cm²|m²))?$/.test(t.trim()) && conf >= 45) return 1;   // d=14, α=10, a=15
+  // running Greek text (several Greek letters, few symbols) is accepted at lower confidence: hand-lettered drawings score low
+  var gl = (t.match(/[\u0386-\u03CE]/g) || []).length, nonsp = t.replace(/\s/g, '').length;
+  if (gl >= 5 && gl >= 0.7 * nonsp && conf >= 28) return 1;
+  if (gl >= 4 && gl >= 0.8 * nonsp && conf >= 32) return 1;
   if (/[ἀ-῿]/.test(t)) return 0;
   if (!OK_CHARS.test(t)) return 0;
   var an = (t.match(/[0-9A-Za-zΆ-ώ]/g) || []).length;
@@ -2013,8 +2232,8 @@ function accept(t, conf, n) {
   var core = t.replace(/[^0-9A-Za-z\u0386-\u03CE]/g, '');
   if (an === 1) { if (/^[OoΟο0Il|1]$/.test(core)) return 0; return conf >= 90 && /^[0-9A-ZΑ-Ω]$/.test(core) ? 1 : 0; }
   if (core.length <= 3) {
-    var greekWord = /^[Α-ΩΆ-Ώ]?[α-ωά-ώϊϋΐΰς]{1,2}$/.test(core) && core.length >= 2;
-    if (greekWord) return conf >= 88 ? 1 : 0;                                                 // short Greek words: και, να, με, της, Το
+    var greekWord = /^[Α-ΩΆ-Ώ]?[α-ωά-ώϊϋΐΰς]{1,3}$/.test(core) && core.length >= 2;
+    if (greekWord) return conf >= (core.length >= 3 ? 55 : 80) ? 1 : 0;                      // short Greek words: και, για, της, Το
     if (/[a-zα-ωά-ώ]/.test(core) && !/^(m|cm|mm|m2|m²|km)$/.test(core)) return 0;     // other short mixed-case fragments are almost always symbols
     if (/^[OoΟο0]+$/.test(core)) return 0;
     if (conf < 80) return 0;
@@ -2276,8 +2495,8 @@ function offsetGroup(g, dx, dy) {
 }
 
 /* ---------------- OCR of detected text lines ---------------- */
-function cropFor(g, kind, flip) {
-  var H = g.H, pad = 0.35 * H, sc = clamp(34 / H, 0.6, 9);
+function cropFor(g, kind, flip, targetH) {
+  var H = g.H, pad = 0.35 * H, sc = clamp((targetH || 34) / H, 0.6, 12);
   var ux = g.ux, uy = g.uy, vx = -uy, vy = ux, u0 = g.umin - pad, u1 = g.umax + pad, v0 = g.vmin - pad, v1 = g.vmax + pad;
   if (flip) { ux = -ux; uy = -uy; vx = -vx; vy = -vy; var t0 = u0; u0 = -u1; u1 = -t0; t0 = v0; v0 = -v1; v1 = -t0; }
   var W = Math.min(4000, Math.ceil((u1 - u0) * sc)), Hh = Math.min(800, Math.ceil((v1 - v0) * sc));
@@ -2322,17 +2541,27 @@ async function ocrGroups(groups, kind, base, span) {
     checkCancel();
     var batch = groups.slice(i, i + B);
     var rs = await Promise.all(batch.map(async function (g) {
-      var c = cropFor(g, kind, false), d = await OCR.rec(c), t = cleanOCR(d.text), conf = d.confidence || 0;
-      if (conf < 55 && g.n > 1) { var c2 = cropFor(g, kind, true), d2 = await OCR.rec(c2), t2 = cleanOCR(d2.text); if ((d2.confidence || 0) > conf + 8) { t = t2; conf = d2.confidence; c = c2; g.flip = true; } }
-      if (t && (isNumeric(t) || /^[+\-]?[0-9OoΟο]/.test(t))) { var dn = await OCR.recNum(c), tn = cleanOCR(dn.text); if (tn && isNumeric(tn) && (dn.confidence || 0) >= conf - 12) { t = tn; conf = Math.max(conf, dn.confidence); } }
-      return { g: g, t: t, conf: conf, c: c };
+      var tall = (g.vmax - g.vmin) > 1.7 * g.H;
+      var c = cropFor(g, kind, false), d = await (tall ? OCR.recBlock(c) : OCR.rec(c)), t = cleanOCR(d.text), conf = d.confidence || 0, t0 = d.text;
+      // second look at a larger scale when unsure (small faint labels)
+      if (conf < 75) { var cB = cropFor(g, kind, false, 52), dB = await (tall ? OCR.recBlock(cB) : OCR.rec(cB)), tB = cleanOCR(dB.text); if (tB && (dB.confidence || 0) > conf + 3) { t = tB; conf = dB.confidence; c = cB; t0 = dB.text; } }
+      // reversed reading is only plausible for vertical labels (drawings never carry upside-down text)
+      var vertical = Math.abs(Math.abs(g.ang) - Math.PI / 2) < 0.2;
+      if (conf < 60 && g.n > 1 && vertical) { var c2 = cropFor(g, kind, true), d2 = await OCR.rec(c2), t2 = cleanOCR(d2.text); if ((d2.confidence || 0) > conf + 12) { t = t2; conf = d2.confidence; c = c2; g.flip = true; } }
+      if (t && (isNumeric(t) || /^[+\-]?[0-9OoΟο]/.test(t)) && !/[ΦφϕPΡ9]\s?\d/.test(t)) { var dn = await OCR.recNum(c), tn = cleanOCR(dn.text); if (tn && isNumeric(tn) && (dn.confidence || 0) >= conf - 12) { t = tn; conf = Math.max(conf, dn.confidence); } }
+      // drop stray symbols (tesseract decorates faint text with |, \\, ~, ¬ …); give up only if little remains
+      if (t) { var kept = t.replace(/[^0-9A-Za-z\u0386-\u03CE .,:;\-+=\/()%°×÷±'"#&*_]/g, ''); if (kept.replace(/\s/g, '').length < 0.7 * t.replace(/\s/g, '').length) t = ''; else t = kept.replace(/\s{2,}/g, ' ').trim(); }
+      t = engFix(t);
+      return { g: g, t: t, conf: conf, c: c, t0: t0 };
     }));
     rs.forEach(function (r) {
-      if (!r.t || r.conf < 30) return;
-      var ok = accept(r.t, r.conf, r.g.n);
-      if (!ok && r.conf < 45) return;
-      if (!OK_CHARS.test(r.t) || /[ἀ-῿]/.test(r.t)) return;
-      out.push(textFromGroup(r.g, r.t, r.conf, ok, thumbOf(r.c), kind));
+      var textLike = r.g.n >= 3;                       // ≥3 glyphs on one baseline: it is writing, whatever OCR says
+      var ok = r.t && r.conf >= 30 ? accept(r.t, r.conf, r.g.n) : 0;
+      if (r.t && (!OK_CHARS.test(r.t) || /[\u1F00-\u1FFF]/.test(r.t))) ok = 0;
+      if (!ok && !textLike) return;
+      var tx = textFromGroup(r.g, ok ? r.t : (r.conf >= 45 && r.t && OK_CHARS.test(r.t) ? r.t : ''), r.conf, ok, thumbOf(r.c), kind);
+      tx.mask = textLike; tx.t0 = r.t0;                // keep writing out of the geometry even when unread
+      out.push(tx);
     });
     done += batch.length;
     P.set('Ανάγνωση κειμένων', base + span * (0.15 + 0.85 * done / N), done + ' / ' + N + ' γραμμές');
@@ -2369,7 +2598,7 @@ async function runProcess() {
   var t0 = performance.now();
   try {
     if (S.mode === 'raster') await processRaster(); else await processVector();
-    S.layerOn = {}; S.ext = null; layersOf().forEach(function (l) { S.layerOn[l.name] = true; });
+    S.layerOn = {}; S.ext = null; S.tin = null; S.contours = null; $('#tinOpts').hidden = true; V3D.ready() && V3D.clearTIN(); layersOf().forEach(function (l) { S.layerOn[l.name] = true; });
     buildPaths(); renderLayers(); renderTexts(); updateUI(); fit();
     openStep(4); markDone(3);
     var nT = S.texts.filter(function (t) { return t.on; }).length;
@@ -2397,7 +2626,7 @@ async function processRaster() {
 async function vectorizeRaster(base, span) {
   var G = S.rgray, o = rasterOpts();
   var masks = [];
-  S.texts.forEach(function (t) { if (t.on && t.kind === 'raster') t.glyphs.forEach(function (b) { masks.push([b[0] - 1 - G.x0, b[1] - 1 - G.y0, b[2] + 1 - G.x0, b[3] + 1 - G.y0]); }); });
+  S.texts.forEach(function (t) { if ((t.on || t.mask) && t.kind === 'raster') t.glyphs.forEach(function (b) { masks.push([b[0] - 1 - G.x0, b[1] - 1 - G.y0, b[2] + 1 - G.x0, b[3] + 1 - G.y0]); }); });
   o.masks = masks;
   P.set('Ψηφιοποίηση γραμμών', base);
   var res = await CoreW.run('vectorize', { gray: G.g, w: G.w, h: G.h, o: o }, function (l, p) { P.set(l, base + span * p); });
@@ -2427,7 +2656,7 @@ function rebuildVector() {
   var skip = new Uint8Array(S.vec.ents.length), inR = new Uint8Array(S.vec.ents.length);
   S.vecIdx.forEach(function (i) { inR[i] = 1; });
   for (var i = 0; i < skip.length; i++) if (!inR[i]) skip[i] = 1;
-  S.texts.forEach(function (t) { if (t.on) t.atoms.forEach(function (a) { skip[a] = 1; }); });
+  S.texts.forEach(function (t) { if (t.on || t.mask) t.atoms.forEach(function (a) { skip[a] = 1; }); });
   var r = P2D.vecToPrims(S.vec.ents, skip, { fills: $('#optFills').checked });
   if (!$('#optArcs').checked) { r.arcs.forEach(function (a) { r.polys.push({ pts: arcPts(a), closed: false, layer: a.layer }); }); r.arcs = []; r.circles.forEach(function (c) { var p = []; for (var k = 0; k < 48; k++) p.push([c.cx + c.r * Math.cos(k / 48 * 2 * Math.PI), c.cy + c.r * Math.sin(k / 48 * 2 * Math.PI)]); r.polys.push({ pts: p, closed: true, layer: c.layer }); }); r.circles = []; }
   S.res = r; S.res.kind = 'vector';
@@ -2454,7 +2683,7 @@ function textToggled() {
 }
 
 /* ---------------- layers ---------------- */
-var RASTER_LAYERS = { TOIXOI: { name: 'P2D_TOIXOI', color: 7, lw: 50, disp: '#ffffff' }, GRAMMES: { name: 'P2D_GRAMMES', color: 7, lw: 18, disp: '#e6f0ff' }, TOXA: { name: 'P2D_TOXA', color: 7, lw: 18, disp: '#9fe8ff' }, AXONES: { name: 'P2D_AXONES', color: 1, lw: 13, disp: '#ffb3b3', ltype: 'DASHDOT' }, MIKRA: { name: 'P2D_MIKRA', color: 8, lw: 13, disp: '#a9bde0' } };
+var RASTER_LAYERS = { ISOYPSEIS: { name: 'P2D_ISOYPSEIS', color: 30, lw: 18, disp: '#ffd2a8' }, TIN: { name: 'P2D_TIN', color: 94, lw: -3, disp: '#bfe8c6' }, TOIXOI: { name: 'P2D_TOIXOI', color: 7, lw: 50, disp: '#ffffff' }, GRAMMES: { name: 'P2D_GRAMMES', color: 7, lw: 18, disp: '#e6f0ff' }, TOXA: { name: 'P2D_TOXA', color: 7, lw: 18, disp: '#9fe8ff' }, AXONES: { name: 'P2D_AXONES', color: 1, lw: 13, disp: '#ffb3b3', ltype: 'DASHDOT' }, MIKRA: { name: 'P2D_MIKRA', color: 8, lw: 13, disp: '#a9bde0' } };
 var ACI_DISP = { 1: '#ffb3b3', 2: '#fff2a8', 3: '#bdf5c9', 4: '#b3f3ff', 5: '#c9d6ff', 6: '#f5c6ff', 7: '#ffffff', 8: '#b4c3e0', 9: '#d2dcef', 30: '#ffd2a8', 40: '#ffe3a8', 94: '#bfe8c6', 134: '#b9d4f5', 140: '#b3e4ff', 190: '#dcc8ff', 250: '#9fb0cf', 251: '#a9b8d4', 252: '#b3c0d8', 253: '#bcc8dd', 254: '#e2e8f3', 12: '#f0b0b0' };
 function layerInfo(l) {
   if (RASTER_LAYERS[l]) return RASTER_LAYERS[l];
@@ -2583,7 +2812,12 @@ function buildDXF() {
   function L(name) { if (!used[name]) { var i = layerInfo(name); used[name] = 1; doc.layers.push({ name: i.name, color: i.color, lw: i.lw, ltype: i.ltype }); } return layerInfo(name).name; }
   function on(name) { return S.layerOn[layerInfo(name).name] !== false; }
   var thick = $('#optThick').checked ? S.h3d * mul : 0, ext = extrudeSet();
-  S.res.polys.forEach(function (p) { if (!on(p.layer)) return; doc.polys.push({ pts: p.pts.map(W), closed: p.closed, layer: L(p.layer), thick: thick && ext[layerInfo(p.layer).name] ? thick : 0 }); });
+  var zOf = {}; if (S.tin && $('#tinExport').checked && S.contours) S.contours.forEach(function (c) { if (c.z != null) zOf[c.idx] = c.z * mul; });
+  S.res.polys.forEach(function (p, pi) { if (!on(p.layer)) return; var z = zOf[pi]; doc.polys.push({ pts: p.pts.map(W), closed: p.closed, layer: z != null ? L('ISOYPSEIS') : L(p.layer), z: z || 0, thick: thick && ext[layerInfo(p.layer).name] ? thick : 0 }); });
+  if (S.tin && $('#tinExport').checked) {
+    doc.faces = []; var T = S.tin, ln = L('TIN');
+    for (var ti = 0; ti < T.tri.length; ti += 3) { var A = T.pts[T.tri[ti]], B = T.pts[T.tri[ti + 1]], C = T.pts[T.tri[ti + 2]]; doc.faces.push({ layer: ln, p: [[A[0] * mul, A[1] * mul, T.zs[T.tri[ti]] * mul], [B[0] * mul, B[1] * mul, T.zs[T.tri[ti + 1]] * mul], [C[0] * mul, C[1] * mul, T.zs[T.tri[ti + 2]] * mul]] }); }
+  }
   S.res.arcs.forEach(function (a) {
     if (!on(a.layer)) return;
     var C = W([a.cx, a.cy]), rr = 0;
@@ -2709,6 +2943,47 @@ $('#v3dH').addEventListener('input', function (e) { setH(e.target.value, 'r'); }
 $('#v3dHn').addEventListener('input', function (e) { setH(e.target.value, 'n'); });
 $('#v3dPlan').addEventListener('change', function () { rebuild3d(true); });
 document.querySelectorAll('#v3dViews button').forEach(function (b) { b.addEventListener('click', function () { V3D.view(b.dataset.v); }); });
+
+/* ---------------- contours → TIN ---------------- */
+S.tin = null; S.contours = null;
+function tinPrepare() {
+  var pxmm = S.mode === 'vector' ? WS * 72 / 25.4 : S.dpi / 25.4;
+  var cs = TIN.findContours(S.res.polys.filter(function (p) { return S.layerOn[layerInfo(p.layer).name] !== false; }), 25 * pxmm);
+  TIN.assignLabels(cs, S.texts, 3.5);
+  TIN.propagate(cs);
+  S.contours = cs;
+  return cs;
+}
+function tinBuild(keepView) {
+  var cs = S.contours; if (!cs || !cs.length) { toast('Δεν βρέθηκαν ισοϋψείς (μακριές καμπύλες πολυγραμμές) στο σχέδιο.', 'err', 4500); return; }
+  var step = parseFloat($('#tinStep').value); if (!(step > 0)) step = TIN.interval(cs);
+  var cal = calib(), W = function (x, y) { return cal.W(x, y); };
+  var known = cs.filter(function (c) { return c.z != null; });
+  if (!known.length) { toast('Καμία ισοϋψής δεν έχει υψόμετρο. Γράψτε υψόμετρα στη λίστα και πατήστε ξανά.', 'err', 5000); renderTinList(); $('#tinOpts').hidden = false; return; }
+  var pxmm = S.mode === 'vector' ? WS * 72 / 25.4 : S.dpi / 25.4;
+  var data = TIN.build(cs, W, 3 * pxmm);
+  if (!data) { toast('Πολύ λίγα σημεία για TIN.', 'err'); return; }
+  S.tin = data;
+  var ex = parseFloat($('#tinExag').value) || 1;
+  V3D.build({ solids: [], lines: [], plan: [], height: 0 }, true);   // the surface replaces the wall extrusion
+  var r = V3D.buildTIN(data, { exag: ex, wire: $('#tinWire').checked, keepView: keepView, contours: cs.filter(function (c) { return c.z != null; }).map(function (c) { return { pts: c.pts.map(function (p) { return W(p[0], p[1]); }), z: c.z, closed: c.closed }; }) });
+  $('#tinOpts').hidden = false;
+  $('#tinInfo').innerHTML = '<dt>Ισοϋψείς</dt><dd>' + cs.length + ' (' + cs.filter(function (c) { return c.src === 'label'; }).length + ' με ετικέτα)</dd><dt>Υψόμετρα</dt><dd>' + fmt(r.zmin, 2) + ' – ' + fmt(r.zmax, 2) + ' m</dd><dt>Ισοδιάσταση</dt><dd>' + (step ? fmt(step, 2) + ' m' : '—') + '</dd><dt>Τρίγωνα</dt><dd>' + r.tris.toLocaleString('el-GR') + '</dd><dt>Έκταση</dt><dd>' + fmt(r.w, 1) + ' × ' + fmt(r.d, 1) + ' m</dd>';
+  renderTinList();
+}
+function renderTinList() {
+  var box = $('#tinList'), cs = S.contours || []; box.innerHTML = '';
+  cs.forEach(function (c, i) {
+    var row = el('div', { class: 'tinrow' });
+    row.innerHTML = '<code>' + (i + 1) + '</code><span>' + (c.closed ? 'κλειστή' : 'ανοιχτή') + ' · ' + Math.round(c.len) + ' px</span><input class="field" type="number" step="0.01" value="' + (c.z == null ? '' : c.z) + '" placeholder="z"><span class="src">' + ({ label: 'ετικέτα', interp: 'παρεμβολή', nearest: 'γειτονική' }[c.src] || '') + '</span>';
+    row.querySelector('input').addEventListener('change', function (e) { var v = parseFloat(e.target.value); c.z = isFinite(v) ? v : null; c.src = isFinite(v) ? 'label' : null; TIN.propagate(cs); tinBuild(true); });
+    box.appendChild(row);
+  });
+}
+$('#tinBtn').addEventListener('click', function () { if (!S.res) return; tinPrepare(); tinBuild(false); });
+$('#tinExag').addEventListener('input', function () { if (S.tin) tinBuild(true); });
+$('#tinWire').addEventListener('change', function () { if (S.tin) tinBuild(true); });
+$('#tinStep').addEventListener('change', function () { if (S.contours) { S.contours.forEach(function (c) { if (c.src !== 'label') { c.z = null; c.src = null; } }); TIN.propagate(S.contours); tinBuild(true); } });
 
 /* ---------------- viewer ---------------- */
 var cv = $('#cv'), vctx = cv.getContext('2d'), viewer = $('#viewer'), loupe = $('#loupe'), lctx = loupe.getContext('2d');
@@ -2909,7 +3184,8 @@ function renderTexts() {
     shown++;
     var row = el('div', { class: 'trow' + (t.on ? '' : ' off') + (i === S.sel ? ' sel' : ''), 'data-i': i });
     var cc = t.src === 'pdf' ? 'pdf' : t.conf >= 80 ? 'hi' : t.conf >= 62 ? 'md' : 'lo';
-    row.innerHTML = '<input type="checkbox"' + (t.on ? ' checked' : '') + ' aria-label="Στο DXF"><div class="mid">' + (t.thumb ? '<img class="thumb" alt="" src="' + t.thumb + '">' : '') + '<input class="tx" type="text" value="' + esc(t.str) + '" aria-label="Κείμενο"></div><span class="conf ' + cc + '">' + (t.src === 'pdf' ? 'PDF' : t.conf + '%') + '</span>';
+    if (!t.str) cc = 'lo';
+    row.innerHTML = '<input type="checkbox"' + (t.on ? ' checked' : '') + ' aria-label="Στο DXF"><div class="mid">' + (t.thumb ? '<img class="thumb" alt="" src="' + t.thumb + '">' : '') + '<input class="tx" type="text" value="' + esc(t.str) + '" placeholder="δεν διαβάστηκε, πληκτρολογήστε" aria-label="Κείμενο"></div><span class="conf ' + cc + '">' + (t.src === 'pdf' ? 'PDF' : t.conf + '%') + '</span>';
     row.querySelector('input[type=checkbox]').addEventListener('change', function (e) { t.on = e.target.checked; row.classList.toggle('off', !t.on); $('#tcount').textContent = S.texts.filter(function (q) { return q.on; }).length + ' / ' + S.texts.length; draw(); textToggled(); });
     var tx = row.querySelector('input.tx');
     tx.addEventListener('input', function () { t.str = tx.value; if (!t.on && t.str.trim()) { t.on = true; row.querySelector('input[type=checkbox]').checked = true; row.classList.remove('off'); textToggled(); } draw(); });
@@ -2950,6 +3226,16 @@ document.querySelectorAll('.step>header').forEach(function (h) { h.addEventListe
 
 $('#btnOpen').addEventListener('click', function () { $('#file').click(); });
 $('#btnOpenTop').addEventListener('click', function () { $('#file').click(); });
+$('#btnNew').addEventListener('click', function () {
+  if (S.busy) { S.cancel = true; CoreW.kill(); P.hide(); S.busy = false; }
+  resetAll(); S.name = ''; S.demo = false; S.kind = null; S.mode = null; S.tin = null; S.contours = null; $('#tinOpts').hidden = true; if (V3D.ready()) V3D.clearTIN(); S.cal = { mode: 'scale', den: 50, A: [], XY: [], P: [] };
+  $('#fname').value = 'sxedio.dxf'; $('#fileInfo').hidden = true; $('#modeRow').hidden = true; $('#dpiRow').hidden = true; $('#pageRow').hidden = true;
+  $('#v3d').hidden = true; $('#calScale').hidden = false; $('#calDist').hidden = true; $('#calXY').hidden = true; $('#calPts').hidden = true;
+  document.querySelectorAll('#calSeg button').forEach(function (q) { q.classList.toggle('on', q.dataset.v === 'scale'); });
+  document.querySelectorAll('.step').forEach(function (st) { st.classList.remove('done'); st.classList.remove('closed'); });
+  openStep(1); renderPicks(); renderTexts(); renderLayers(); updateUI(); draw();
+  toast('Καθαρό περιβάλλον. Ανοίξτε το επόμενο σχέδιο.', 'ok', 2500);
+});
 $('#drop').addEventListener('click', function () { $('#file').click(); });
 $('#drop').addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#file').click(); } });
 $('#btnDemo').addEventListener('click', openDemo);
