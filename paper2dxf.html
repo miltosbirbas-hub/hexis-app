@@ -235,6 +235,10 @@ input[type=range]{width:100%;accent-color:var(--violet)}
               <label><span class="lbl">Παχιά γραμμή από (px)</span><input class="field" id="thick" type="number" min="0" max="200" placeholder="αυτόματο"></label>
               <label><span class="lbl">Ύψος γραμμάτων έως (mm)</span><input class="field" id="hmaxmm" type="number" min="2" max="40" step="0.5" value="9"></label>
             </div>
+            <span class="lbl" style="margin-top:10px">Ενιαίες γραμμές: γεφύρωση κενών έως <span id="mergeVal">6 mm</span></span>
+            <input type="range" id="merge" min="0" max="15" step="0.5" value="6">
+            <p class="hint">Κομμένες από τη σάρωση γραμμές ενώνονται σε μία, και οι γραμμές συνεχίζουν ενιαίες μέσα από διασταυρώσεις. Διακεκομμένοι άξονες αναγνωρίζονται και πάνε στο layer P2D_AXONES με γραμμότυπο DASHDOT.</p>
+            <label class="tog" style="margin-top:8px"><input type="checkbox" id="optDotted" checked><span>Ανάκτηση αχνών γραμμών (σειρές κουκκίδων)</span></label>
             <label class="tog" style="margin-top:8px"><input type="checkbox" id="optSmall" checked><span>Κράτηση μικρών συμβόλων (layer P2D_MIKRA)</span></label>
           </div>
           <button class="btn primary wide" type="button" id="runBtn" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Ψηφιοποίηση</button>
@@ -398,6 +402,88 @@ var P2D = (function () {
     var d = distInk(inv, w, h), out = new Uint8Array(n);
     for (i = 0; i < n; i++) out[i] = (mask[i] || d[i] <= r) ? 1 : 0;
     return out;
+  }
+
+  /* ---------- bridge small breaks along rows/columns (scan dropouts), never dash gaps ---------- */
+  function bridgeRuns(bin, w, h, g, minRun) {
+    if (g <= 0) return;
+    var x, y, i, s, e;
+    for (y = 0; y < h; y++) {
+      var base = y * w, prevEnd = -1, prevLen = 0; x = 0;
+      while (x < w) {
+        if (!bin[base + x]) { x++; continue; }
+        s = x; while (x < w && bin[base + x]) x++; e = x;
+        if (prevEnd >= 0 && s - prevEnd <= g && prevLen >= minRun && e - s >= minRun) for (i = prevEnd; i < s; i++) bin[base + i] = 1;
+        prevEnd = e; prevLen = e - s;
+      }
+    }
+    for (x = 0; x < w; x++) {
+      var pe = -1, pl = 0; y = 0;
+      while (y < h) {
+        if (!bin[y * w + x]) { y++; continue; }
+        s = y; while (y < h && bin[y * w + x]) y++; e = y;
+        if (pe >= 0 && s - pe <= g && pl >= minRun && e - s >= minRun) for (i = pe; i < s; i++) bin[i * w + x] = 1;
+        pe = e; pl = e - s;
+      }
+    }
+  }
+  /* diagonal bridging: fill a gap pixel if ink continues on both sides along the same diagonal */
+  function bridgeDiag(bin, w, h, g) {
+    if (g <= 0) return;
+    var out = new Uint8Array(bin), d, x, y, k;
+    var dirs = [[1, 1], [1, -1]];
+    for (d = 0; d < 2; d++) {
+      var dx = dirs[d][0], dy = dirs[d][1];
+      for (y = g + 1; y < h - g - 1; y++) for (x = g + 1; x < w - g - 1; x++) {
+        if (bin[y * w + x]) continue;
+        // need ink at -1 (and -2) and at +k..+k+1 for some k<=g along the diagonal
+        if (!bin[(y - dy) * w + (x - dx)] || !bin[(y - 2 * dy) * w + (x - 2 * dx)]) continue;
+        for (k = 1; k <= g; k++) if (bin[(y + k * dy) * w + (x + k * dx)] && bin[(y + (k + 1) * dy) * w + (x + (k + 1) * dx)]) break;
+        if (k > g) continue;
+        for (var j = 0; j < k; j++) out[(y + j * dy) * w + (x + j * dx)] = 1;
+      }
+    }
+    for (var i = 0; i < bin.length; i++) bin[i] = out[i];
+  }
+
+  /* ---------- recover faint lines that scanned as rows of specks: collinear tiny blobs → 1px line ---------- */
+  function recoverDotted(bin, w, h, cc, maxArea, maxGap, minPts) {
+    var seen = new Map(), pts = [], k, r;
+    for (k = 0; k < cc.R; k++) {
+      r = cc.root[k]; if (seen.has(r)) continue; seen.set(r, 1);
+      var bw = cc.bx1[r] - cc.bx0[r] + 1, bh = cc.by1[r] - cc.by0[r] + 1;
+      if (cc.area[r] <= maxArea && bw <= 6 && bh <= 6) pts.push([(cc.bx0[r] + cc.bx1[r]) / 2, (cc.by0[r] + cc.by1[r]) / 2]);
+    }
+    if (pts.length < minPts) return 0;
+    var drawn = 0;
+    function line(a, b) { var n = Math.ceil(Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]))) || 1; for (var t = 0; t <= n; t++) { var x = Math.round(a[0] + (b[0] - a[0]) * t / n), y = Math.round(a[1] + (b[1] - a[1]) * t / n); if (x >= 0 && y >= 0 && x < w && y < h) bin[y * w + x] = 1; } }
+    // four orientations: key = perpendicular coordinate (bucketed), order = along coordinate
+    var dirs = [[1, 0], [0, 1], [0.7071, 0.7071], [0.7071, -0.7071]];
+    dirs.forEach(function (d) {
+      var ux = d[0], uy = d[1], buckets = new Map();
+      pts.forEach(function (p) { var v = -p[0] * uy + p[1] * ux, u = p[0] * ux + p[1] * uy, b = Math.round(v / 2); for (var o = -1; o <= 1; o++) { var l = buckets.get(b + o); if (!l) buckets.set(b + o, l = []); l.push([u, v, p]); } });
+      var used = new Set();
+      buckets.forEach(function (l) {
+        l.sort(function (a, b) { return a[0] - b[0]; });
+        var run = [l[0]];
+        function flush() {
+          if (run.length >= minPts) {
+            var vs = run.map(function (q) { return q[1]; }), vmin = Math.min.apply(null, vs), vmax = Math.max.apply(null, vs);
+            var span = run[run.length - 1][0] - run[0][0], gl = [], gmax = 0, gsum = 0;
+            for (var q = 1; q < run.length; q++) { var gq = run[q][0] - run[q - 1][0]; gl.push(gq); gsum += gq; if (gq > gmax) gmax = gq; }
+            var gmed = gl.slice().sort(function (a, b) { return a - b; })[gl.length >> 1];
+            if (vmax - vmin <= 2.2 && span >= 30 && run.length / span >= 1 / 9 && gmax <= 2.2 * gmed + 1) {
+              var fresh = run.filter(function (q) { return !used.has(q[2]); }).length;
+              if (fresh >= run.length * 0.6) { for (var t = 1; t < run.length; t++) line(run[t - 1][2], run[t][2]); run.forEach(function (q) { used.add(q[2]); }); drawn++; }
+            }
+          }
+          run = [];
+        }
+        for (var t = 1; t < l.length; t++) { if (l[t][0] - l[t - 1][0] <= maxGap && Math.abs(l[t][1] - l[t - 1][1]) <= 1.6) run.push(l[t]); else { flush(); run = [l[t]]; } }
+        flush();
+      });
+    });
+    return drawn;
   }
 
   /* ---------- connected components on runs (8-conn) → keeps / classifies ---------- */
@@ -622,7 +708,7 @@ var P2D = (function () {
     var pts = ch.pts, n = pts.length;
     if (ch.loop && n >= 16 && o.arcs) {
       var cf = fitCircle(pts, 0, n - 1);
-      if (cf && cf.rms < o.arcRms && cf.max < o.arcMax * 1.3 && cf.r > 3 && Math.abs(sweepOf(pts, 0, n - 1, cf)) > 5.6) { outCircles.push({ cx: cf.cx, cy: cf.cy, r: cf.r, layer: 'TOXA' }); return; }
+      if (cf && cf.rms < o.arcRms && cf.max < o.arcMax * 1.3 && cf.r > 6 && n >= 0.6 * 2 * Math.PI * cf.r && Math.abs(sweepOf(pts, 0, n - 1, cf)) > 5.6) { outCircles.push({ cx: cf.cx, cy: cf.cy, r: cf.r, layer: 'TOXA' }); return; }
     }
     var coarse = dp(pts, o.dpTol);
     // map coarse vertices back to indices
@@ -638,33 +724,37 @@ var P2D = (function () {
     cuts.push(n - 1);
     var cur = [];
     function flush() { if (cur.length >= 2) outPolys.push({ pts: cur, closed: false, layer: layer }); cur = []; }
-    for (k = 0; k < cuts.length - 1; k++) {
-      var s = cuts[k], e = cuts[k + 1];
-      var len = e - s;
-      var isArc = false;
-      if (o.arcs && len >= o.arcMinLen && maxDev(pts, s, e) > 2.2) {
-        var f = fitCircle(pts, s, e);
-        if (f && f.rms < o.arcRms && f.max < o.arcMax && f.r > 5 && f.r < 6000) {
-          var sw = sweepOf(pts, s, e, f);
-          if (Math.abs(sw) > 0.35) {
-            isArc = true; flush();
-            var a0 = Math.atan2(pts[s][1] - f.cy, pts[s][0] - f.cx);
-            outArcs.push({ cx: f.cx, cy: f.cy, r: f.r, p0: pts[s].slice(), p1: pts[e].slice(), pm: pts[(s + e) >> 1].slice(), sw: sw, layer: 'TOXA' });
-          }
-        }
-      }
-      if (!isArc) {
-        var seg = dp(pts.slice(s, e + 1), o.dpTol);
-        if (!cur.length) cur = seg.slice(); else cur = cur.concat(seg.slice(1));
-      }
+    function addLine(s, e) { var seg = dp(pts.slice(s, e + 1), o.dpTol); if (!cur.length) cur = seg.slice(); else cur = cur.concat(seg.slice(1)); }
+    function tryArc(s, e) {
+      var f = fitCircle(pts, s, e);
+      if (f && f.rms < o.arcRms && f.max < o.arcMax && f.r > 5 && f.r < 6000) { var sw = sweepOf(pts, s, e, f); if (Math.abs(sw) > 0.3 && Math.abs(sw) * f.r > 10) return { f: f, sw: sw }; }
+      return null;
     }
+    // recursive: straight → line; circular → arc; else split at the point farthest from the chord and retry
+    function fitSeg(s, e, depth) {
+      var len = e - s;
+      if (!o.arcs || len < o.arcMinLen || maxDev(pts, s, e) <= 2.2) { addLine(s, e); return; }
+      var a = tryArc(s, e);
+      if (a) {
+        flush();
+        outArcs.push({ cx: a.f.cx, cy: a.f.cy, r: a.f.r, p0: pts[s].slice(), p1: pts[e].slice(), pm: pts[(s + e) >> 1].slice(), sw: a.sw, layer: 'TOXA' });
+        return;
+      }
+      if (depth >= 4 || len < 2 * o.arcMinLen) { addLine(s, e); return; }
+      // split at max deviation from the chord
+      var ax = pts[s][0], ay = pts[s][1], dx = pts[e][0] - ax, dy = pts[e][1] - ay, L = Math.hypot(dx, dy) || 1, mi = s + (len >> 1), md = -1;
+      for (var i = s + 1; i < e; i++) { var d = Math.abs((pts[i][0] - ax) * dy - (pts[i][1] - ay) * dx) / L; if (d > md) { md = d; mi = i; } }
+      if (mi - s < 3 || e - mi < 3) { addLine(s, e); return; }
+      fitSeg(s, mi, depth + 1); fitSeg(mi, e, depth + 1);
+    }
+    for (k = 0; k < cuts.length - 1; k++) fitSeg(cuts[k], cuts[k + 1], 0);
     flush();
   }
 
   /* ---------- join raw pixel chains through junction clusters where exactly two chains meet ---------- */
   function mergeChains(chains, eps, gapPx) {
     var E = [], i;
-    function dirAt(p, end) { var n = p.length, k = Math.min(n - 1, 6), a = end ? p[n - 1] : p[0], b = end ? p[n - 1 - k] : p[k], dx = a[0] - b[0], dy = a[1] - b[1], L = Math.hypot(dx, dy) || 1; return [dx / L, dy / L]; }
+    function dirAt(p, end) { var n = p.length, k = Math.min(n - 1, 10), a = end ? p[n - 1] : p[0], b = end ? p[n - 1 - k] : p[k], dx = a[0] - b[0], dy = a[1] - b[1], L = Math.hypot(dx, dy) || 1; return [dx / L, dy / L]; }
     chains.forEach(function (c, k) { if (c.loop) return; var a = c.pts[0], b = c.pts[c.pts.length - 1]; E.push([a[0], a[1], k, 0, c.a === 1, dirAt(c.pts, 0)], [b[0], b[1], k, 1, c.b === 1, dirAt(c.pts, 1)]); });
     var par = new Int32Array(E.length); for (i = 0; i < E.length; i++) par[i] = i;
     function f(x) { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; }
@@ -689,8 +779,22 @@ var P2D = (function () {
     var members = new Map();
     E.forEach(function (e, k) { var r = f(k), m = members.get(r); if (m) m.push(k); else members.set(r, [k]); });
     var endCl = new Map(); E.forEach(function (e, k) { endCl.set(e[2] + ':' + e[3], f(k)); });
-    var used = new Uint8Array(chains.length), out = [];
-    function other(cl, chain, end) { var m = members.get(cl); if (!m || m.length !== 2) return null; var a = E[m[0]], b = E[m[1]]; var o = (a[2] === chain && a[3] === end) ? b : a; if (o[2] === chain && o[3] === end) return null; return o; }
+    var used = new Uint8Array(chains.length), out = [], partner = new Map();
+    members.forEach(function (m) {
+      if (m.length === 2) { if (E[m[0]][2] !== E[m[1]][2] || E[m[0]][3] !== E[m[1]][3]) { partner.set(m[0], m[1]); partner.set(m[1], m[0]); } return; }
+      if (m.length < 3) return;
+      // junction: pair ends that continue straight through (opposite directions), best alignment first
+      var cand = [];
+      for (var a = 0; a < m.length; a++) for (var b = a + 1; b < m.length; b++) {
+        var A = E[m[a]], B = E[m[b]]; if (A[2] === B[2]) continue;
+        var c = -(A[5][0] * B[5][0] + A[5][1] * B[5][1]); if (c > 0.94) cand.push([c, m[a], m[b]]);
+      }
+      cand.sort(function (p, q) { return q[0] - p[0]; });
+      var taken = {};
+      cand.forEach(function (c) { if (taken[c[1]] || taken[c[2]]) return; taken[c[1]] = taken[c[2]] = 1; partner.set(c[1], c[2]); partner.set(c[2], c[1]); });
+    });
+    var endId = new Map(); E.forEach(function (e, k) { endId.set(e[2] + ':' + e[3], k); });
+    function other(cl, chain, end) { var k = endId.get(chain + ':' + end); if (k == null) return null; var p = partner.get(k); return p == null ? null : E[p]; }
     for (var c = 0; c < chains.length; c++) {
       if (used[c]) continue; used[c] = 1;
       var ch = chains[c]; if (ch.loop) { out.push(ch); continue; }
@@ -849,6 +953,77 @@ var P2D = (function () {
     });
   }
 
+  /* ---------- merge collinear open polylines across small gaps (one broken line → one LINE) ---------- */
+  function mergeCollinear(polys, gapMax, latMax, angDeg) {
+    var cosMin = Math.cos(angDeg * Math.PI / 180), open = [], i;
+    for (i = 0; i < polys.length; i++) if (!polys[i].closed && polys[i].pts.length >= 2) open.push(polys[i]);
+    function compat(a, b) { return a === b || (a === 'MIKRA' && b === 'GRAMMES') || (a === 'GRAMMES' && b === 'MIKRA'); }
+    var cell = Math.max(8, gapMax), grid = new Map(), ends = [];
+    function key(x, y) { return Math.floor(x / cell) + ',' + Math.floor(y / cell); }
+    function plen(P) { var t = 0; for (var q = 1; q < P.length; q++) t += Math.hypot(P[q][0] - P[q - 1][0], P[q][1] - P[q - 1][1]); return t; }
+    function endInfo(p, e) {
+      var P = p.pts, n = P.length, a = e ? P[n - 1] : P[0], b = e ? P[n - 2] : P[1], k = e ? n - 2 : 1, step = e ? -1 : 1;
+      while (Math.hypot(a[0] - b[0], a[1] - b[1]) < 7 && k + step >= 0 && k + step < n) { k += step; b = P[k]; }
+      var dx = a[0] - b[0], dy = a[1] - b[1], L = Math.hypot(dx, dy) || 1;
+      return { x: a[0], y: a[1], ux: dx / L, uy: dy / L, len: L, tot: plen(P) };
+    }
+    open.forEach(function (p, id) { [0, 1].forEach(function (e) { var inf = endInfo(p, e); inf.id = id; inf.e = e; ends.push(inf); var k = key(inf.x, inf.y), l = grid.get(k); if (l) l.push(ends.length - 1); else grid.set(k, [ends.length - 1]); }); });
+    var dead = new Uint8Array(open.length), par = new Int32Array(open.length);
+    for (i = 0; i < open.length; i++) par[i] = i;
+    var pairs = [];
+    ends.forEach(function (A, ai) {
+      var gx = Math.floor(A.x / cell), gy = Math.floor(A.y / cell), best = null, bd = 1e9;
+      for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) {
+        var l = grid.get((gx + dx) + ',' + (gy + dy)); if (!l) continue;
+        for (var t = 0; t < l.length; t++) {
+          var bi = l[t], B = ends[bi]; if (bi === ai || B.id === A.id) continue;
+          if (!compat(open[A.id].layer, open[B.id].layer)) continue;
+          // directions must be opposite (A points out toward B, B points out toward A); short pieces get a looser angle
+          var tolA = Math.max(angDeg, Math.atan2(2.5, Math.max(4, Math.min(A.len, B.len))) * 180 / Math.PI);
+          if (-(A.ux * B.ux + A.uy * B.uy) < Math.cos(tolA * Math.PI / 180)) continue;
+          var vx = B.x - A.x, vy = B.y - A.y, along = vx * A.ux + vy * A.uy, lat = Math.abs(vx * -A.uy + vy * A.ux);
+          if (along < -1 || along > gapMax || lat > latMax + along * 0.04) continue;
+          // a gap may be at most as long as the longer piece, and never bridges two tiny specks
+          if (along > 3 && (Math.min(A.tot, B.tot) < 6 || along > Math.max(A.tot, B.tot))) continue;
+          if (along > 3 && Math.min(A.len, B.len) < 4) continue;
+          if (along < bd) { bd = along; best = bi; }
+        }
+      }
+      if (best != null) pairs.push([ai, best, bd]);
+    });
+    pairs.sort(function (p, q) { return p[2] - q[2]; });
+    var used = new Uint8Array(ends.length), links = [];
+    pairs.forEach(function (pr) { if (used[pr[0]] || used[pr[1]]) return; used[pr[0]] = used[pr[1]] = 1; links.push(pr); });
+    // chain through links
+    var link = new Map(); links.forEach(function (pr) { link.set(pr[0], pr[1]); link.set(pr[1], pr[0]); });
+    var out = polys.filter(function (p) { return p.closed || p.pts.length < 2; });
+    for (i = 0; i < open.length; i++) {
+      if (dead[i]) continue; dead[i] = 1;
+      var pts = open[i].pts.slice(), cur = { id: i, e: 1 }, guard = 0, nx, lay = open[i].layer, merged = false, dashes = [plen(open[i].pts)], gaps = [];
+      function endIdx(id, e) { for (var q = 0; q < ends.length; q++) if (ends[q].id === id && ends[q].e === e) return q; return -1; }
+      while (guard++ < 50000) {
+        nx = link.get(endIdx(cur.id, cur.e)); if (nx == null) break; var B = ends[nx]; if (dead[B.id]) break;
+        dead[B.id] = 1; merged = true; if (open[B.id].layer === 'GRAMMES') lay = 'GRAMMES'; gaps.push(Math.hypot(B.x - pts[pts.length - 1][0], B.y - pts[pts.length - 1][1])); dashes.push(B.tot); var Q = open[B.id].pts; Q = B.e === 0 ? Q : Q.slice().reverse(); pts = pts.concat(Q); cur = { id: B.id, e: B.e === 0 ? 1 : 0 };
+      }
+      cur = { id: i, e: 0 };
+      while (guard++ < 100000) {
+        nx = link.get(endIdx(cur.id, cur.e)); if (nx == null) break; var B2 = ends[nx]; if (dead[B2.id]) break;
+        dead[B2.id] = 1; merged = true; if (open[B2.id].layer === 'GRAMMES') lay = 'GRAMMES'; gaps.push(Math.hypot(B2.x - pts[0][0], B2.y - pts[0][1])); dashes.push(B2.tot); var Q2 = open[B2.id].pts; Q2 = B2.e === 1 ? Q2 : Q2.slice().reverse(); pts = Q2.concat(pts); cur = { id: B2.id, e: B2.e === 1 ? 0 : 1 };
+      }
+      if (merged) {
+        var ln = plen(pts); if (ln > 40) lay = 'GRAMMES';
+        // regular dash pattern (≥3 dashes, similar lengths, similar gaps ≥ 4px) → axis line with DASHDOT linetype
+        if (dashes.length >= 3 && gaps.length >= 2) {
+          var gs = gaps.slice().sort(function (a, b) { return a - b; }), gm = gs[gs.length >> 1], ds = dashes.slice().sort(function (a, b) { return a - b; }), dm = ds[ds.length >> 1];
+          var okG = gm >= 4 && gaps.every(function (v) { return v > 0.5 * gm && v < 1.6 * gm; }), okD = dashes.every(function (v) { return v > 0.45 * dm && v < 1.8 * dm; });
+          if (okG && okD) lay = 'AXONES';
+        }
+      }
+      out.push({ pts: merged ? dropCollinear(dp(pts, 0.9), false) : pts, closed: false, layer: lay });
+    }
+    return out;
+  }
+
   /* ---------- join open polylines that meet end-to-end (degree-2 only) ---------- */
   function join(polys, eps) {
     var open = [], i;
@@ -867,7 +1042,8 @@ var P2D = (function () {
       var P = end ? open[id].pts[open[id].pts.length - 1] : open[id].pts[0], l = map.get(k(P));
       if (!l || l.length !== 2) return null;
       var o = l[0][0] === id && l[0][1] === end ? l[1] : l[0];
-      if (o[0] === id || dead[o[0]] || open[o[0]].layer !== open[id].layer) return null;
+      if (o[0] === id || dead[o[0]]) return null;
+      var la = open[o[0]].layer, lb = open[id].layer; if (la !== lb && !((la === 'MIKRA' && lb === 'GRAMMES') || (la === 'GRAMMES' && lb === 'MIKRA'))) return null;
       return o;
     }
     for (i = 0; i < open.length; i++) {
@@ -887,7 +1063,8 @@ var P2D = (function () {
       }
       var isClosed = pts.length > 3 && Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) < eps;
       if (isClosed) pts.pop();
-      out.push({ pts: dropCollinear(pts, isClosed), closed: isClosed, layer: open[i].layer });
+      var lay2 = open[i].layer; if (lay2 === 'MIKRA' && pts.length > 2) { var ln2 = 0; for (var q2 = 1; q2 < pts.length; q2++) ln2 += Math.hypot(pts[q2][0] - pts[q2 - 1][0], pts[q2][1] - pts[q2 - 1][1]); if (ln2 > 40) lay2 = 'GRAMMES'; }
+      out.push({ pts: dropCollinear(pts, isClosed), closed: isClosed, layer: lay2 });
     }
     return closed.concat(out);
   }
@@ -895,7 +1072,7 @@ var P2D = (function () {
   /* ---------- main ---------- */
   function vectorize(gray, w, h, o, progress) {
     progress = progress || function () {};
-    o = Object.assign({ sens: 0.5, dpTol: 1.2, orthoTol: 3, cluster: 1.3, arcs: true, arcRms: 0.75, arcMax: 1.9, arcMinLen: 14, thickPx: 0, minArea: 10, smallMax: 0, spur: 0, masks: [], weldTol: 4, keepSmall: true }, o || {});
+    o = Object.assign({ sens: 0.5, dpTol: 1.2, gap: 0, mergeGap: 20, orthoTol: 3, cluster: 1.3, arcs: true, arcRms: 0.9, arcMax: 2.4, arcMinLen: 14, thickPx: 0, minArea: 10, smallMax: 0, spur: 0, masks: [], weldTol: 4, keepSmall: true }, o || {});
     var n = w * h, i, k;
     progress('Δυαδοποίηση', 0.05);
     var bin = binarize(gray, w, h, o.sens);
@@ -904,6 +1081,17 @@ var P2D = (function () {
       var x0 = Math.max(0, m[0] | 0), y0 = Math.max(0, m[1] | 0), x1 = Math.min(w - 1, m[2] | 0), y1 = Math.min(h - 1, m[3] | 0);
       for (var y = y0; y <= y1; y++) bin.fill(0, y * w + x0, y * w + x1 + 1);
     });
+    // despeckle first (dust must not be bridged into lines), then bridge scan dropouts
+    var gap = o.gap == null ? -1 : o.gap;
+    var cc0 = components(bin, w, h), seen0 = new Map(), tiny = 0, total = 0;
+    for (k = 0; k < cc0.R; k++) { var r0k = cc0.root[k]; if (seen0.has(r0k)) continue; seen0.set(r0k, 1); total++; if (cc0.area[r0k] <= 4) tiny++; }
+    var noisy = total > 200 && tiny / total > 0.35;
+    var dustMax = noisy ? Math.max(o.minArea, 9) : Math.max(2, Math.min(o.minArea, 4));
+    var dotted = o.dotted === false ? 0 : recoverDotted(bin, w, h, cc0, 14, o.dotGap || 9, 6);
+    if (dotted) cc0 = components(bin, w, h);
+    for (k = 0; k < cc0.R; k++) { var rk = cc0.root[k]; if (cc0.area[rk] <= dustMax) bin.fill(0, cc0.ry[k] * w + cc0.rs[k], cc0.ry[k] * w + cc0.re[k] + 1); }
+    cc0 = null; seen0 = null;
+    if (gap > 0) { bridgeRuns(bin, w, h, gap, 3); bridgeDiag(bin, w, h, Math.max(1, gap - 1)); }
     progress('Ανάλυση πάχους γραμμών', 0.15);
     var d = distInk(bin, w, h);
     // stroke width estimate: histogram of ridge values
@@ -920,8 +1108,15 @@ var P2D = (function () {
     for (i = 0; i < n; i++) thick[i] = thick[i] & bin[i];
     // drop tiny thick blobs
     var thickC = components(thick, w, h);
-    var keepT = new Uint8Array(thickC.R);
-    for (k = 0; k < thickC.R; k++) { var r0 = thickC.root[k]; keepT[k] = thickC.area[r0] >= thickR * thickR * 3 ? 1 : 0; }
+    var keepT = new Uint8Array(thickC.R), edgeKill = new Uint8Array(thickC.R);
+    for (k = 0; k < thickC.R; k++) {
+      var r0 = thickC.root[k]; keepT[k] = thickC.area[r0] >= thickR * thickR * 3 ? 1 : 0;
+      // scanner border bands / black edges: thick blobs touching the image edge and spanning a large part of it → not drawing
+      var bwT = thickC.bx1[r0] - thickC.bx0[r0] + 1, bhT = thickC.by1[r0] - thickC.by0[r0] + 1;
+      var touches = thickC.bx0[r0] <= 1 || thickC.by0[r0] <= 1 || thickC.bx1[r0] >= w - 2 || thickC.by1[r0] >= h - 2;
+      if (touches && (bwT > 0.25 * w || bhT > 0.25 * h)) { keepT[k] = 0; edgeKill[k] = 1; }
+    }
+    for (k = 0; k < thickC.R; k++) if (edgeKill[k]) bin.fill(0, thickC.ry[k] * w + thickC.rs[k], thickC.ry[k] * w + thickC.re[k] + 1);
     thick.fill(0);
     for (k = 0; k < thickC.R; k++) if (keepT[k]) thick.fill(1, thickC.ry[k] * w + thickC.rs[k], thickC.ry[k] * w + thickC.re[k] + 1);
     thickC = null;
@@ -956,7 +1151,7 @@ var P2D = (function () {
       if (freeA && freeB && L < 4) return false;             // dust
       return true;
     });
-    chains = mergeChains(chains, 2.9, o.gapPx || Math.max(6, mode * 4 + 2));
+    chains = mergeChains(chains, 2.9, o.gapPx || Math.max(8, gap * 2 + 2, mode * 4 + 2));
     chains.forEach(function (ch) {
       var L = ch.pts.length, P = ch.pts[L >> 1], c = cls[((P[1] | 0) * w + (P[0] | 0))];
       chainToPrims(ch, o, polys, arcs, circles, c === 2 ? 'MIKRA' : 'GRAMMES');
@@ -967,6 +1162,7 @@ var P2D = (function () {
     if (o.orthoTol > 0) axisSnap(polys, o.orthoTol, o.cluster);
     weld(polys.filter(function (p) { return p.layer !== 'MIKRA'; }), o.weldTol);
     polys = join(polys, 0.75);
+    if (o.mergeGap > 0) { polys = mergeCollinear(polys, o.mergeGap, 1.6, 4); polys = join(polys, 0.75); }
     polys = polys.filter(function (p) {
       if (p.pts.length < 2) return false;
       if (!p.closed) { var a = p.pts[0], b = p.pts[p.pts.length - 1]; if (p.pts.length === 2 && Math.hypot(a[0] - b[0], a[1] - b[1]) < 1.5) return false; }
@@ -974,7 +1170,7 @@ var P2D = (function () {
     });
     arcs = mergeArcs(arcs, circles, 2.5);
     progress('Ολοκλήρωση', 1);
-    return { polys: polys, arcs: arcs, circles: circles, stats: { strokeHalf: mode, thickR: thickR, chains: chains.length, specks: removed } };
+    return { polys: polys, arcs: arcs, circles: circles, stats: { strokeHalf: mode, thickR: thickR, chains: chains.length, specks: removed, dotted: dotted } };
   }
 
   /* deskew estimate: projection-profile variance over angles (small image) */
@@ -1446,19 +1642,26 @@ var DXFW = (function () {
     g(71, 0); g(72, 100); g(73, 1); g(74, 3); g(75, 0); g(76, 0); g(77, 0); g(78, 0);
     g(0, 'ENDTAB');
     // LTYPE
-    tbl('LTYPE', hLT, 3);
+    tbl('LTYPE', hLT, 5);
     [['ByBlock', hLBB], ['ByLayer', hLBL], ['Continuous', hLC]].forEach(function (lt) {
       g(0, 'LTYPE'); g(5, lt[1]); g(330, hLT); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbLinetypeTableRecord'); g(2, lt[0]); g(70, 0);
       g(3, lt[0] === 'Continuous' ? 'Solid line' : ''); g(72, 65); g(73, 0); g(40, 0);
     });
+    var lu = { m: 1, cm: 100, mm: 1000 }[doc.units] || 1, dl = 0.5 * lu, gp = 0.25 * lu, dt = 0;
+    [['DASHDOT', '__ . __ . __ . __', [dl, -gp, dt, -gp]], ['DASHED', '__ __ __ __ __', [dl, -gp]]].forEach(function (lt) {
+      var tot = 0; lt[2].forEach(function (v) { tot += Math.abs(v); });
+      g(0, 'LTYPE'); g(5, h()); g(330, hLT); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbLinetypeTableRecord'); g(2, lt[0]); g(70, 0);
+      g(3, lt[1]); g(72, 65); g(73, lt[2].length); g(40, num(tot));
+      lt[2].forEach(function (v) { g(49, num(v)); g(74, 0); });
+    });
     g(0, 'ENDTAB');
     // LAYER
     tbl('LAYER', hLY, doc.layers.length + 1);
-    function layer(hh, name, color, lw) {
-      g(0, 'LAYER'); g(5, hh); g(330, hLY); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbLayerTableRecord'); g(2, name); g(70, 0); g(62, color || 7); g(6, 'Continuous'); g(370, lw == null ? -3 : lw); g(390, hPH);
+    function layer(hh, name, color, lw, ltype) {
+      g(0, 'LAYER'); g(5, hh); g(330, hLY); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbLayerTableRecord'); g(2, name); g(70, 0); g(62, color || 7); g(6, ltype || 'Continuous'); g(370, lw == null ? -3 : lw); g(390, hPH);
     }
     layer(hL0, '0', 7, -3);
-    doc.layers.forEach(function (ly, i) { layer(layerH[i], ly.name, ly.color, ly.lw); });
+    doc.layers.forEach(function (ly, i) { layer(layerH[i], ly.name, ly.color, ly.lw, ly.ltype); });
     g(0, 'ENDTAB');
     // STYLE
     tbl('STYLE', hST, 2);
@@ -2102,7 +2305,7 @@ function textsFromPdf(R) {
 /* ---------------- main processing ---------------- */
 function rasterOpts() {
   var pxmm = S.dpi / 25.4, th = parseFloat($('#thick').value);
-  return { sens: parseFloat($('#sens').value), arcs: $('#optArcs').checked, orthoTol: $('#optOrtho').checked ? 3 : 0, thickPx: th > 0 ? th : 0, keepSmall: $('#optSmall').checked,
+  return { sens: parseFloat($('#sens').value), arcs: $('#optArcs').checked, orthoTol: $('#optOrtho').checked ? 3 : 0, thickPx: th > 0 ? th : 0, keepSmall: $('#optSmall').checked, mergeGap: Math.round(parseFloat($('#merge').value || 0) * pxmm), dotted: $('#optDotted').checked,
     hmax: clamp(Math.round(parseFloat($('#hmaxmm').value || 9) * pxmm), 16, 260), hmin: Math.max(5, Math.round(1.1 * pxmm)) };
 }
 async function runProcess() {
@@ -2197,7 +2400,7 @@ function textToggled() {
 }
 
 /* ---------------- layers ---------------- */
-var RASTER_LAYERS = { TOIXOI: { name: 'P2D_TOIXOI', color: 7, lw: 50, disp: '#ffffff' }, GRAMMES: { name: 'P2D_GRAMMES', color: 7, lw: 18, disp: '#e6f0ff' }, TOXA: { name: 'P2D_TOXA', color: 7, lw: 18, disp: '#9fe8ff' }, MIKRA: { name: 'P2D_MIKRA', color: 8, lw: 13, disp: '#a9bde0' } };
+var RASTER_LAYERS = { TOIXOI: { name: 'P2D_TOIXOI', color: 7, lw: 50, disp: '#ffffff' }, GRAMMES: { name: 'P2D_GRAMMES', color: 7, lw: 18, disp: '#e6f0ff' }, TOXA: { name: 'P2D_TOXA', color: 7, lw: 18, disp: '#9fe8ff' }, AXONES: { name: 'P2D_AXONES', color: 1, lw: 13, disp: '#ffb3b3', ltype: 'DASHDOT' }, MIKRA: { name: 'P2D_MIKRA', color: 8, lw: 13, disp: '#a9bde0' } };
 var ACI_DISP = { 1: '#ffb3b3', 2: '#fff2a8', 3: '#bdf5c9', 4: '#b3f3ff', 5: '#c9d6ff', 6: '#f5c6ff', 7: '#ffffff', 8: '#b4c3e0', 9: '#d2dcef', 30: '#ffd2a8', 40: '#ffe3a8', 94: '#bfe8c6', 134: '#b9d4f5', 140: '#b3e4ff', 190: '#dcc8ff', 250: '#9fb0cf', 251: '#a9b8d4', 252: '#b3c0d8', 253: '#bcc8dd', 254: '#e2e8f3', 12: '#f0b0b0' };
 function layerInfo(l) {
   if (RASTER_LAYERS[l]) return RASTER_LAYERS[l];
@@ -2323,7 +2526,7 @@ function buildDXF() {
   var cal = calib(), mul = { m: 1, cm: 100, mm: 1000 }[S.units], Wm = cal.W;
   var W = function (p) { var q = Wm(p[0], p[1]); return [q[0] * mul, q[1] * mul]; };
   var doc = { units: S.units, layers: [], polys: [], arcs: [], circles: [], texts: [] }, used = {};
-  function L(name) { if (!used[name]) { var i = layerInfo(name); used[name] = 1; doc.layers.push({ name: i.name, color: i.color, lw: i.lw }); } return layerInfo(name).name; }
+  function L(name) { if (!used[name]) { var i = layerInfo(name); used[name] = 1; doc.layers.push({ name: i.name, color: i.color, lw: i.lw, ltype: i.ltype }); } return layerInfo(name).name; }
   function on(name) { return S.layerOn[layerInfo(name).name] !== false; }
   var thick = $('#optThick').checked ? S.h3d * mul : 0, ext = extrudeSet();
   S.res.polys.forEach(function (p) { if (!on(p.layer)) return; doc.polys.push({ pts: p.pts.map(W), closed: p.closed, layer: L(p.layer), thick: thick && ext[layerInfo(p.layer).name] ? thick : 0 }); });
@@ -2507,7 +2710,8 @@ function drawNow() {
       if (S.layerOn[p.name] === false) return;
       if (p.fill) { x.fillStyle = p.c; x.globalAlpha = 0.22; x.fill(p.p); x.globalAlpha = 1; }
       if (p.name === 'P2D_TOIXOI') { x.fillStyle = 'rgba(255,255,255,0.16)'; x.fill(p.p); }
-      x.strokeStyle = p.c; x.lineWidth = p.w / z; x.stroke(p.p);
+      if (p.name === 'P2D_AXONES') x.setLineDash([12 / z, 4 / z, 2 / z, 4 / z]);
+      x.strokeStyle = p.c; x.lineWidth = p.w / z; x.stroke(p.p); x.setLineDash([]);
     });
   }
   if (S.show.txt && S.texts.length && S.layerOn['P2D_KEIMENA'] !== false) {
@@ -2747,6 +2951,7 @@ $('#skewAuto').addEventListener('click', async function () {
 $('#regionBtn').addEventListener('click', function () { if (S.work || S.vec) setTool(S.tool === 'region' ? 'pan' : 'region'); });
 $('#regionClear').addEventListener('click', function () { S.region = null; S.res = null; S.texts = []; S.rgray = null; buildPaths(); renderTexts(); renderLayers(); fit(); updateUI(); });
 $('#sens').addEventListener('input', function (e) { $('#sensVal').textContent = Math.round(e.target.value * 100) + '%'; });
+$('#merge').addEventListener('input', function (e) { $('#mergeVal').textContent = fmt(parseFloat(e.target.value), 1) + ' mm'; });
 $('#runBtn').addEventListener('click', runProcess);
 $('#cancelBtn').addEventListener('click', function () { S.cancel = true; CoreW.kill(); P.set('Ακύρωση…'); });
 document.querySelectorAll('#calSeg button').forEach(function (b) {
