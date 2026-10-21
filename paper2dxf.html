@@ -1,0 +1,2789 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Paper → DXF</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="HEXIS Paper → DXF: παλιά σχέδια (PDF, JPG, TIFF) σε DXF με γραμμές, πολυγραμμές, τόξα και ελληνικά MTEXT, σε κλίμακα 1:1.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: three-zone workbench — step rail | drawing stage | text proof sheet. Dark "night drafting table". */
+:root{
+  --bg:#f3f6fb; --bg2:#ffffff; --panel:rgba(255,255,255,.82); --panel2:#ffffff; --line:#d7deea; --line2:#b9c5d9;
+  --fg:#15213a; --mute:#5a6a88; --dim:#9aa8c2;
+  --cyan:#0e7fbf; --violet:#5b4fd6; --rose:#d6336c; --ok:#1e9e6a; --warn:#c48a00; --bad:#d64545;
+  --f-display:"Unbounded","Arial Black",system-ui,sans-serif; --f-body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.45;overflow:hidden;
+  background-image:radial-gradient(1200px 600px at 75% -10%,rgba(91,79,214,.07),transparent 60%),radial-gradient(900px 500px at -10% 110%,rgba(14,127,191,.07),transparent 60%);}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.app{display:grid;grid-template-rows:auto 1fr;height:100%;}
+/* top bar */
+.top{display:flex;align-items:center;gap:14px;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line);background:rgba(255,255,255,.85);backdrop-filter:blur(10px)}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.mark{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:conic-gradient(from 210deg,var(--cyan),var(--violet),var(--rose),var(--cyan));box-shadow:0 4px 14px rgba(14,127,191,.3)}
+.mark span{width:28px;height:28px;border-radius:7px;background:#0d3f8a;display:grid;place-items:center;font:700 10px var(--f-display);letter-spacing:.04em;color:#fff}
+.brand h1{font:600 15px/1.1 var(--f-display);letter-spacing:.06em;margin:0;white-space:nowrap}
+.brand h1 b{background:linear-gradient(90deg,var(--cyan),var(--violet) 60%,var(--rose));-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand small{display:block;color:var(--mute);font-size:11px;letter-spacing:.04em;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .sp{flex:1}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--line2);background:var(--panel2);font-size:12px;color:var(--mute);white-space:nowrap;max-width:46vw;overflow:hidden;text-overflow:ellipsis}
+.chip i{width:7px;height:7px;border-radius:50%;background:var(--dim);flex:none}
+.chip.vec i{background:var(--cyan)} .chip.ras i{background:var(--violet)} .chip.demo i{background:var(--rose)}
+/* shell */
+.shell{display:grid;grid-template-columns:340px minmax(0,1fr) 350px;min-height:0}
+.rail,.texts{min-height:0;overflow:auto;border-right:1px solid var(--line);background:rgba(243,246,251,.7)}
+.texts{border-right:0;border-left:1px solid var(--line);display:flex;flex-direction:column}
+.rail{padding:14px;display:flex;flex-direction:column;gap:12px}
+.step{flex:none;border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden;box-shadow:0 1px 3px rgba(21,33,58,.05)}
+.step>header{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;user-select:none}
+.step>header .n{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font:600 11px var(--f-mono);color:#fff;background:var(--dim);flex:none}
+.step.done>header .n{background:var(--cyan)} .step.active>header .n{background:var(--violet)}
+.step>header h2{font:600 11.5px var(--f-display);letter-spacing:.09em;margin:0;text-transform:uppercase;flex:1}
+.step>header .sum{font-size:11.5px;color:var(--mute);max-width:46%;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.step>.body{padding:2px 13px 14px;display:flex;flex-direction:column;gap:11px}
+.step.closed>.body{display:none}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row>label{flex:1;min-width:0}
+.lbl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin-bottom:4px;display:block}
+.hint{font-size:12px;color:var(--mute);margin:0}
+.hint b{color:var(--fg);font-weight:600}
+.field{width:100%;background:var(--bg2);border:1px solid var(--line2);border-radius:9px;padding:7px 9px;font-variant-numeric:tabular-nums;font-family:var(--f-mono);font-size:13px}
+select.field{font-family:var(--f-body)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line2);background:var(--panel2);border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:600;font-size:13px;transition:border-color .15s,background .15s,transform .1s}
+.btn:hover{border-color:var(--cyan)} .btn:active{transform:translateY(1px)}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.btn.on{border-color:var(--cyan);background:rgba(14,127,191,.1);color:var(--cyan)}
+.btn.primary{border:0;color:#fff;background:linear-gradient(100deg,#0d3f8a,var(--cyan) 55%,var(--violet));box-shadow:0 6px 20px -8px rgba(13,63,138,.6)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.rose{border:0;color:#fff;background:linear-gradient(100deg,var(--rose),var(--violet))}
+.btn.wide{width:100%;padding:11px}
+.btn svg{width:16px;height:16px;flex:none}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border:1px solid var(--line2);border-radius:10px;overflow:hidden;background:var(--bg2)}
+.seg button{border:0;background:transparent;padding:7px 4px;font-size:12px;cursor:pointer;color:var(--mute);font-weight:600}
+.seg button.on{background:rgba(91,79,214,.1);color:var(--fg);box-shadow:inset 0 -2px 0 var(--violet)}
+.tog{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px}
+.tog input{appearance:none;width:34px;height:20px;border-radius:999px;background:var(--line2);position:relative;flex:none;cursor:pointer;transition:background .15s}
+.tog input::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .15s}
+.tog input:checked{background:var(--cyan)} .tog input:checked::after{transform:translateX(14px);background:#fff}
+.tog span{flex:1}
+input[type=range]{width:100%;accent-color:var(--violet)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:12.5px}
+.kv dt{color:var(--mute)} .kv dd{margin:0;text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.drop{border:1.5px dashed var(--line2);border-radius:12px;padding:16px;text-align:center;cursor:pointer;color:var(--mute);font-size:13px;transition:border-color .15s,background .15s}
+.drop:hover,.drop.over{border-color:var(--cyan);background:rgba(14,127,191,.06);color:var(--fg)}
+.drop b{display:block;color:var(--fg);font:600 12px var(--f-display);letter-spacing:.06em;margin-bottom:4px}
+.picks{display:flex;flex-direction:column;gap:6px}
+.pick{display:grid;grid-template-columns:28px 1fr 1fr 30px;gap:6px;align-items:center}
+.pick .tag{font:600 11px var(--f-mono);color:var(--rose);text-align:center}
+.pick .tag.set{color:var(--ok)}
+.layers{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow:auto}
+.layer{display:grid;grid-template-columns:auto 12px 1fr auto;gap:8px;align-items:center;font-size:12px;padding:4px 2px}
+.layer .sw{width:12px;height:12px;border-radius:3px;border:1px solid #2f66b8;background-clip:padding-box;box-shadow:inset 0 0 0 1px #0d3f8a}
+.layer code{font-family:var(--f-mono);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.layer small{color:var(--mute);font-family:var(--f-mono)}
+.layer input{accent-color:var(--cyan)}
+/* stage */
+.stage{position:relative;min-width:0;min-height:0;display:flex;flex-direction:column}
+.viewer{position:relative;flex:1;min-height:0;overflow:hidden;touch-action:none;cursor:grab;
+  background:#0d3f8a;background-image:radial-gradient(1200px 700px at 50% 40%,#1a56ad,#0b3677 70%,#082a5f);}
+.viewer::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.55;mix-blend-mode:screen;
+  background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:100px 100px,100px 100px,20px 20px,20px 20px}
+.viewer::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.18;mix-blend-mode:overlay;
+  background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.08) 0 1px,transparent 1px 3px),repeating-linear-gradient(90deg,rgba(0,0,0,.08) 0 1px,transparent 1px 2px)}
+.viewer.pan:active{cursor:grabbing} .viewer.cross{cursor:crosshair}
+#cv{position:absolute;inset:0;width:100%;height:100%}
+#loupe{position:absolute;width:150px;height:150px;border-radius:50%;pointer-events:none;border:2px solid #fff;box-shadow:0 10px 30px rgba(4,20,50,.5);background:#0d3f8a;z-index:4}
+.tools{position:absolute;top:12px;left:12px;display:flex;flex-direction:column;gap:6px;z-index:3}
+.tools .grp{display:flex;flex-direction:column;border:1px solid rgba(255,255,255,.35);border-radius:12px;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);overflow:hidden;box-shadow:0 4px 14px rgba(4,20,50,.3)}
+.tools button{width:38px;height:36px;border:0;background:transparent;cursor:pointer;display:grid;place-items:center;color:var(--mute)}
+.tools button:hover{color:var(--fg);background:rgba(14,127,191,.08)}
+.tools button.on{color:var(--cyan);background:rgba(14,127,191,.12)}
+.tools svg{width:18px;height:18px}
+.hud{position:absolute;top:12px;right:12px;z-index:3;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:60%}
+.hud .chip{background:rgba(255,255,255,.92);box-shadow:0 4px 14px rgba(4,20,50,.3)}
+.status{display:flex;gap:16px;align-items:center;padding:7px 14px;border-top:1px solid var(--line);background:var(--bg);font:12px var(--f-mono);color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}
+.status b{color:var(--fg);font-weight:500}
+.status .sp{flex:1}
+.empty{position:absolute;inset:0;display:grid;place-items:center;padding:24px;z-index:2;pointer-events:none}
+.empty .card{pointer-events:auto;max-width:520px;text-align:center;padding:28px;border:1px solid rgba(255,255,255,.4);border-radius:18px;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);box-shadow:0 20px 60px -20px rgba(4,20,50,.6)}
+.empty h3{font:600 20px/1.25 var(--f-display);margin:0 0 10px;text-wrap:balance;letter-spacing:.02em}
+.empty p{color:var(--mute);margin:0 0 18px}
+.empty .row{justify-content:center}
+.fmts{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+.fmts span{font:600 10.5px var(--f-mono);letter-spacing:.08em;padding:3px 8px;border-radius:6px;border:1px solid var(--line2);color:var(--mute)}
+/* progress */
+.prog{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:4;width:min(440px,calc(100% - 32px));padding:14px 16px;border-radius:14px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.94);backdrop-filter:blur(10px);box-shadow:0 20px 60px -20px rgba(4,20,50,.7)}
+.prog .t{display:flex;justify-content:space-between;gap:10px;font-size:13px;margin-bottom:9px}
+.prog .t span:last-child{font-family:var(--f-mono);color:var(--mute)}
+.bar{height:6px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--violet),var(--rose));transition:width .2s}
+.prog .row{margin-top:10px;justify-content:space-between}
+.prog .sub{font-size:11.5px;color:var(--mute)}
+/* texts panel */
+.texts>header{padding:14px 14px 10px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:9px;position:sticky;top:0;background:rgba(243,246,251,.96);z-index:1}
+.texts>header h2{font:600 11.5px var(--f-display);letter-spacing:.09em;text-transform:uppercase;margin:0;display:flex;justify-content:space-between;align-items:center}
+.texts>header h2 small{font:500 12px var(--f-mono);color:var(--mute);letter-spacing:0;text-transform:none}
+.tlist{flex:1;overflow:auto;padding:8px 10px 20px;display:flex;flex-direction:column;gap:6px}
+.trow{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;padding:7px 8px;border-radius:10px;border:1px solid var(--line);background:#fff}
+.trow.sel{border-color:var(--violet);background:rgba(91,79,214,.07)}
+.trow.off{opacity:.5}
+.trow input[type=checkbox]{accent-color:var(--cyan);width:16px;height:16px}
+.trow .mid{min-width:0;display:flex;flex-direction:column;gap:4px}
+.trow .thumb{height:26px;max-width:100%;object-fit:contain;object-position:left;background:#fff;border:1px solid var(--line);border-radius:4px;align-self:flex-start;cursor:pointer}
+.trow input.tx{width:100%;background:var(--bg2);border:1px solid var(--line2);border-radius:7px;padding:5px 7px;font-size:13px}
+.conf{font:600 11px var(--f-mono);padding:2px 6px;border-radius:6px;text-align:center;min-width:38px}
+.conf.hi{color:var(--ok);background:rgba(30,158,106,.12)} .conf.md{color:var(--warn);background:rgba(196,138,0,.12)} .conf.lo{color:var(--bad);background:rgba(214,69,69,.12)} .conf.pdf{color:var(--cyan);background:rgba(14,127,191,.12)}
+.tempty{color:var(--mute);font-size:13px;padding:18px 8px;text-align:center}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:50;padding:10px 16px;border-radius:12px;background:var(--panel2);border:1px solid var(--line2);box-shadow:0 10px 40px rgba(21,33,58,.25);font-size:13px;max-width:min(560px,calc(100% - 32px))}
+.toast.err{border-color:var(--bad)} .toast.ok{border-color:var(--ok)}
+.mobtabs{display:none}
+@media (max-width:1180px){ .shell{grid-template-columns:320px minmax(0,1fr)} .stage{min-width:0} .texts{grid-column:1/-1;border-left:0;border-top:1px solid var(--line);max-height:42vh} body{overflow:auto} .app{height:auto;min-height:100%} .shell{grid-template-rows:minmax(560px,78vh) auto} }
+@media (max-width:820px){
+  .shell{grid-template-columns:minmax(0,1fr);grid-template-rows:auto}
+  #fileChip{display:none} #btnOpenTop span{display:none} .app{overflow-x:hidden} .rail,.texts{min-width:0}
+  .stage{order:1;height:64vh;min-height:380px} .rail{order:2;border-right:0;overflow:visible} .texts{order:3;max-height:none;overflow:visible}
+  .tlist{overflow:visible}
+  .brand small{display:none} .hud{max-width:50%}
+  .rail{padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* 3D */
+.v3d{position:absolute;inset:0;z-index:5;display:grid;grid-template-columns:minmax(0,1fr) 300px;background:#0b3677}
+.v3d-gl{position:relative;min-width:0;min-height:0;overflow:hidden}
+.v3d-gl canvas{display:block;touch-action:none}
+.v3d-panel{border-left:1px solid var(--line);background:rgba(243,246,251,.96);padding:14px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+.v3d-head{display:flex;align-items:center;justify-content:space-between}
+.v3d-head h3{margin:0;font:600 14px var(--f-display);letter-spacing:.08em}
+.v3d-head h3 b{background:linear-gradient(90deg,var(--cyan),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+@media (max-width:820px){.v3d{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}.v3d-panel{border-left:0;border-top:1px solid var(--line);max-height:46%}}
+
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <div class="mark" aria-hidden="true"><span>HX</span></div>
+      <div><h1>PAPER <b>→ DXF</b></h1><small>Παλιό σχέδιο σε επεξεργάσιμο DXF, σε πραγματική κλίμακα 1:1</small></div>
+    </div>
+    <div class="sp"></div>
+    <span class="chip" id="fileChip"><i></i><span>Κανένα αρχείο</span></span>
+    <button class="btn" id="btnOpenTop" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg><span>Άνοιγμα</span></button>
+  </header>
+
+  <main class="shell">
+    <aside class="rail" id="rail" aria-label="Βήματα">
+      <!-- 1 FILE -->
+      <section class="step active" data-step="1">
+        <header><span class="n">1</span><h2>Αρχείο</h2><span class="sum" id="sum1"></span></header>
+        <div class="body">
+          <div class="drop" id="drop" tabindex="0" role="button"><b>ΣΥΡΕΤΕ Ή ΕΠΙΛΕΞΤΕ</b>PDF (διανυσματικό ή σαρωμένο), JPG, PNG, TIFF</div>
+          <input type="file" id="file" accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff,.bmp,.webp,application/pdf,image/*" hidden>
+          <div class="row" id="pageRow" hidden><label><span class="lbl">Σελίδα</span><select class="field" id="pageSel"></select></label></div>
+          <dl class="kv" id="fileInfo" hidden></dl>
+          <div class="row" id="modeRow" hidden>
+            <label><span class="lbl">Τρόπος ανάγνωσης</span>
+              <div class="seg" id="modeSeg"><button type="button" data-v="vector">Διανυσματικό</button><button type="button" data-v="raster">Σάρωση</button></div>
+            </label>
+          </div>
+          <div class="row" id="dpiRow" hidden>
+            <label><span class="lbl" id="dpiLbl">Ανάλυση εικόνας (dpi)</span><input class="field" id="dpi" type="number" min="50" max="1200" step="1" value="200"></label>
+          </div>
+        </div>
+      </section>
+      <!-- 2 PREP -->
+      <section class="step" data-step="2">
+        <header><span class="n">2</span><h2>Προετοιμασία</h2><span class="sum" id="sum2"></span></header>
+        <div class="body">
+          <div><span class="lbl">Περιστροφή</span>
+            <div class="row">
+              <button class="btn" type="button" id="rotL" title="90° αριστερά"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9a8 8 0 1 1 1.5 7.5M4 4v5h5"/></svg>90°</button>
+              <button class="btn" type="button" id="rotR" title="90° δεξιά"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 9a8 8 0 1 0-1.5 7.5M20 4v5h-5"/></svg>90°</button>
+              <button class="btn" type="button" id="rot180">180°</button>
+            </div>
+          </div>
+          <div id="skewBox"><span class="lbl">Ευθυγράμμιση σάρωσης <span id="skewVal">0.00°</span></span>
+            <div class="row"><input type="range" id="skew" min="-5" max="5" step="0.05" value="0" style="flex:1"><button class="btn" type="button" id="skewAuto">Αυτόματα</button></div>
+          </div>
+          <div><span class="lbl">Περιοχή εργασίας</span>
+            <div class="row"><button class="btn" type="button" id="regionBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3"><rect x="4" y="5" width="16" height="14" rx="1"/></svg>Επιλογή στο σχέδιο</button><button class="btn" type="button" id="regionClear">Όλο το φύλλο</button></div>
+            <p class="hint">Προεπιλογή: όλο το φύλλο, με όλα τα σχέδιά του. Αν θέλετε μόνο ένα σχέδιο, σύρετε ορθογώνιο γύρω του.</p>
+          </div>
+        </div>
+      </section>
+      <!-- 3 PROCESS -->
+      <section class="step" data-step="3">
+        <header><span class="n">3</span><h2>Ψηφιοποίηση</h2><span class="sum" id="sum3"></span></header>
+        <div class="body">
+          <label class="tog"><input type="checkbox" id="optOcr" checked><span>Κείμενα σε MTEXT (OCR ελληνικών)</span></label>
+          <label class="tog"><input type="checkbox" id="optArcs" checked><span>Τόξα και κύκλοι</span></label>
+          <label class="tog" id="optOrthoRow"><input type="checkbox" id="optOrtho" checked><span>Ίσιωμα οριζόντιων / κατακόρυφων</span></label>
+          <label class="tog" id="optFillsRow"><input type="checkbox" id="optFills" checked><span>Γεμίσματα ως κλειστές πολυγραμμές</span></label>
+          <div id="rasterOpts">
+            <span class="lbl">Ευαισθησία μελανιού <span id="sensVal">50%</span></span>
+            <input type="range" id="sens" min="0" max="1" step="0.05" value="0.5">
+            <div class="row" style="margin-top:8px">
+              <label><span class="lbl">Παχιά γραμμή από (px)</span><input class="field" id="thick" type="number" min="0" max="200" placeholder="αυτόματο"></label>
+              <label><span class="lbl">Ύψος γραμμάτων έως (mm)</span><input class="field" id="hmaxmm" type="number" min="2" max="40" step="0.5" value="9"></label>
+            </div>
+            <label class="tog" style="margin-top:8px"><input type="checkbox" id="optSmall" checked><span>Κράτηση μικρών συμβόλων (layer P2D_MIKRA)</span></label>
+          </div>
+          <button class="btn primary wide" type="button" id="runBtn" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Ψηφιοποίηση</button>
+          <p class="hint" id="runHint">Ανοίξτε ένα σχέδιο ή το δείγμα για να ξεκινήσετε.</p>
+        </div>
+      </section>
+      <!-- 4 SCALE -->
+      <section class="step" data-step="4">
+        <header><span class="n">4</span><h2>Κλίμακα 1:1</h2><span class="sum" id="sum4"></span></header>
+        <div class="body">
+          <div class="seg" id="calSeg"><button type="button" data-v="scale" class="on">Κλίμακα</button><button type="button" data-v="dist">Απόσταση</button><button type="button" data-v="xy">Χ &amp; Υ</button><button type="button" data-v="pts">ΕΓΣΑ87</button></div>
+          <div id="calScale"><label><span class="lbl">Κλίμακα σχεδίου 1 :</span><input class="field" id="scaleDen" type="number" min="1" step="1" value="50"></label>
+            <p class="hint">Από dpi και κλίμακα. Ακρίβεια όσο η σάρωση. Για 1:1 χωρίς σφάλμα χαρτιού χρησιμοποιήστε γνωστές διαστάσεις.</p></div>
+          <div id="calDist" hidden><p class="hint">Επιλέξτε δύο σημεία με γνωστή απόσταση (π.χ. άκρα μιας διάστασης).</p><div class="picks" id="picksDist"></div>
+            <label><span class="lbl">Πραγματική απόσταση (m)</span><input class="field" id="distVal" type="number" step="0.001" placeholder="π.χ. 10.30"></label></div>
+          <div id="calXY" hidden><p class="hint">Μία οριζόντια (A–B) και μία κατακόρυφη (C–D) γνωστή απόσταση. Διορθώνει και διαφορετική συρρίκνωση χαρτιού ανά άξονα.</p><div class="picks" id="picksXY"></div>
+            <div class="row"><label><span class="lbl">A–B (m)</span><input class="field" id="xyX" type="number" step="0.001"></label><label><span class="lbl">C–D (m)</span><input class="field" id="xyY" type="number" step="0.001"></label></div></div>
+          <div id="calPts" hidden><p class="hint">4 ή περισσότερα σημεία με γνωστές συντεταγμένες (π.χ. κορυφές οικοπέδου). Διορθώνει κλίμακα, στροφή και παραμόρφωση, και τοποθετεί το DXF στο ΕΓΣΑ87.</p><div class="picks" id="picksPts"></div>
+            <button class="btn" type="button" id="addPt">+ Σημείο</button></div>
+          <dl class="kv" id="calOut"></dl>
+          <div class="row"><button class="btn" type="button" id="measureBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17 17 3l4 4L7 21zM7 13l2 2M10 10l2 2M13 7l2 2"/></svg>Μέτρηση ελέγχου</button></div>
+        </div>
+      </section>
+      <!-- 5 EXPORT -->
+      <section class="step" data-step="5">
+        <header><span class="n">5</span><h2>Εξαγωγή DXF</h2><span class="sum" id="sum5"></span></header>
+        <div class="body">
+          <div class="row"><label><span class="lbl">Μονάδες σχεδίου</span><div class="seg" id="unitSeg"><button type="button" data-v="m" class="on">m</button><button type="button" data-v="cm">cm</button><button type="button" data-v="mm">mm</button></div></label></div>
+          <label class="tog"><input type="checkbox" id="optGreek" checked><span>Ελληνικοί χαρακτήρες σε αμφίσημες λέξεις (Κ, Α, Ε…)</span></label>
+          <label class="tog"><input type="checkbox" id="optWidth" checked><span>Προσαρμογή πλάτους κειμένων στο πρωτότυπο</span></label>
+          <div><span class="lbl">Layers</span><div class="layers" id="layers"><p class="hint">Εμφανίζονται μετά την ψηφιοποίηση.</p></div></div>
+          <button class="btn wide" type="button" id="btn3d" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg>Προβολή 3D (extrude τοίχων)</button>
+          <label class="tog"><input type="checkbox" id="optThick"><span>Τοίχοι με ύψος στο DXF (thickness, όπως EXTRUDE)</span></label>
+          <label><span class="lbl">Όνομα αρχείου</span><input class="field" id="fname" type="text" value="sxedio.dxf"></label>
+          <button class="btn rose wide" type="button" id="exportBtn" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 4v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>Λήψη DXF</button>
+          <p class="hint">DXF R2000 · Unicode ελληνικά σε MTEXT · γραμματοσειρά Arial · ανοίγει σε AutoCAD και ProgeCAD.</p>
+        </div>
+      </section>
+    </aside>
+
+    <section class="stage">
+      <div class="viewer pan" id="viewer">
+        <canvas id="cv"></canvas>
+        <canvas id="loupe" width="300" height="300" hidden></canvas>
+        <div class="tools" id="tools">
+          <div class="grp">
+            <button type="button" id="tPan" class="on" title="Μετακίνηση"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3 3 3M12 21l-3-3m3 3 3-3M3 12l3-3m-3 3 3 3m15-3-3-3m3 3-3 3"/></svg></button>
+            <button type="button" id="tFit" title="Προσαρμογή"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+            <button type="button" id="tIn" title="Μεγέθυνση"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M8 11h6M11 8v6"/></svg></button>
+            <button type="button" id="tOut" title="Σμίκρυνση"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M8 11h6"/></svg></button>
+          </div>
+          <div class="grp">
+            <button type="button" id="tBg" class="on" title="Πρωτότυπο"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg></button>
+            <button type="button" id="tVec" class="on" title="Γεωμετρία"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20 10 8l5 7 5-11"/><circle cx="4" cy="20" r="1.5"/><circle cx="10" cy="8" r="1.5"/><circle cx="15" cy="15" r="1.5"/><circle cx="20" cy="4" r="1.5"/></svg></button>
+            <button type="button" id="tTxt" class="on" title="Κείμενα"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 6V4h14v2M12 4v16M9 20h6"/></svg></button>
+          </div>
+        </div>
+        <div class="hud" id="hud"></div>
+        <div class="empty" id="empty">
+          <div class="card">
+            <h3>Από χαρτί σε σχέδιο CAD</h3>
+            <p>Ανοίξτε μια παλιά κάτοψη. Οι γραμμές γίνονται LINE και πολυγραμμές, οι πόρτες τόξα και τα γράμματα σωστά ελληνικά MTEXT, σε πραγματικές διαστάσεις.</p>
+            <div class="row"><button class="btn primary" type="button" id="btnOpen">Άνοιγμα σχεδίου</button><button class="btn" type="button" id="btnDemo">Δοκιμή με δείγμα</button></div>
+            <div class="fmts"><span>PDF</span><span>JPG</span><span>PNG</span><span>TIFF</span><span>→ DXF</span></div>
+          </div>
+        </div>
+        <div class="v3d" id="v3d" hidden>
+          <div class="v3d-gl" id="v3dGl"></div>
+          <div class="v3d-panel">
+            <div class="v3d-head"><h3>3D <b>EXTRUDE</b></h3><button class="btn" type="button" id="v3dClose" aria-label="Κλείσιμο">✕</button></div>
+            <label><span class="lbl">Ύψος τοίχων (m)</span><div class="row"><input type="range" id="v3dH" min="0.5" max="12" step="0.05" value="3" style="flex:1"><input class="field" id="v3dHn" type="number" min="0.1" max="50" step="0.01" value="3.00" style="width:84px"></div></label>
+            <div><span class="lbl">Layers που υψώνονται</span><div class="layers" id="v3dLayers"></div></div>
+            <label class="tog"><input type="checkbox" id="v3dPlan" checked><span>Κάτοψη στο δάπεδο</span></label>
+            <div class="seg" id="v3dViews"><button type="button" data-v="iso">Αξονομετρικό</button><button type="button" data-v="top">Κάτοψη</button><button type="button" data-v="front">Όψη</button></div>
+            <dl class="kv" id="v3dInfo"></dl>
+            <p class="hint">Σύρετε για περιστροφή, δύο δάχτυλα ή ροδέλα για μεγέθυνση, δεξί κλικ για μετακίνηση. Το ύψος περνά και στο DXF αν ενεργοποιήσετε «Τοίχοι με ύψος».</p>
+          </div>
+        </div>
+        <div class="prog" id="prog" hidden>
+          <div class="t"><span id="progLbl">Επεξεργασία</span><span id="progPct">0%</span></div>
+          <div class="bar"><i id="progBar"></i></div>
+          <div class="row"><span class="sub" id="progSub"></span><button class="btn" type="button" id="cancelBtn">Ακύρωση</button></div>
+        </div>
+      </div>
+      <div class="status" id="status"><span>x <b id="sx">—</b></span><span>y <b id="sy">—</b></span><span class="sp"></span><span id="stats"></span></div>
+    </section>
+
+    <aside class="texts" aria-label="Κείμενα">
+      <header>
+        <h2>Κείμενα <small id="tcount">0</small></h2>
+        <div class="seg" id="tfilter"><button type="button" data-v="on" class="on">Στο DXF</button><button type="button" data-v="unsure">Αβέβαια</button><button type="button" data-v="off">Απορρίφθηκαν</button><button type="button" data-v="all">Όλα</button></div>
+      </header>
+      <div class="tlist" id="tlist"><p class="tempty">Τα κείμενα που θα αναγνωριστούν εμφανίζονται εδώ με μικρογραφία του πρωτοτύπου, για γρήγορο έλεγχο και διόρθωση.</p></div>
+    </aside>
+  </main>
+</div>
+<div class="toast" id="toast" hidden></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/1.0.11/pako.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script id="p2d-core">
+/* ===== HEXIS PAPER→DXF · raster vectorization core (runs in a Web Worker) ===== */
+var P2D = (function () {
+  'use strict';
+
+  /* ---------- binarization ---------- */
+  function binarize(gray, w, h, sens) {
+    // sens 0..1 (0.5 default). Bilevel images pass straight through.
+    var n = w * h, bin = new Uint8Array(n), i, v, bilevel = true;
+    for (i = 0; i < n; i += 97) { v = gray[i]; if (v > 8 && v < 247) { bilevel = false; break; } }
+    if (bilevel) { for (i = 0; i < n; i++) bin[i] = gray[i] < 128 ? 1 : 0; return bin; }
+    // Bradley adaptive threshold with integral image
+    var S = Math.max(15, (Math.min(w, h) / 32) | 0), half = S >> 1;
+    var T = 0.06 + sens * 0.18;
+    var integ = new Float64Array((w + 1) * (h + 1)), x, y, row;
+    for (y = 0; y < h; y++) {
+      row = 0;
+      for (x = 0; x < w; x++) { row += gray[y * w + x]; integ[(y + 1) * (w + 1) + x + 1] = integ[y * (w + 1) + x + 1] + row; }
+    }
+    var gcut = 150 + sens * 80;
+    for (y = 0; y < h; y++) {
+      var y0 = Math.max(0, y - half), y1 = Math.min(h - 1, y + half);
+      for (x = 0; x < w; x++) {
+        var x0 = Math.max(0, x - half), x1 = Math.min(w - 1, x + half);
+        var cnt = (x1 - x0 + 1) * (y1 - y0 + 1);
+        var sum = integ[(y1 + 1) * (w + 1) + x1 + 1] - integ[y0 * (w + 1) + x1 + 1] - integ[(y1 + 1) * (w + 1) + x0] + integ[y0 * (w + 1) + x0];
+        v = gray[y * w + x];
+        bin[y * w + x] = (v * cnt < sum * (1 - T) && v < gcut) ? 1 : 0;
+      }
+    }
+    return bin;
+  }
+
+  /* ---------- chessboard (L∞) distance transform: distance of ink px to nearest background ---------- */
+  function distInk(bin, w, h) {
+    var d = new Uint16Array(w * h), x, y, i, m, INF = 65000;
+    for (y = 0; y < h; y++) for (x = 0; x < w; x++) {
+      i = y * w + x;
+      if (!bin[i]) { d[i] = 0; continue; }
+      if (x === 0 || y === 0) { d[i] = 1; continue; }
+      m = d[i - 1]; if (d[i - w] < m) m = d[i - w]; if (d[i - w - 1] < m) m = d[i - w - 1];
+      if (x < w - 1 && d[i - w + 1] < m) m = d[i - w + 1];
+      d[i] = Math.min(INF, m + 1);
+    }
+    for (y = h - 1; y >= 0; y--) for (x = w - 1; x >= 0; x--) {
+      i = y * w + x; if (!d[i]) continue;
+      if (x === w - 1 || y === h - 1) { d[i] = 1; continue; }
+      m = d[i + 1]; if (d[i + w] < m) m = d[i + w]; if (d[i + w + 1] < m) m = d[i + w + 1];
+      if (x > 0 && d[i + w - 1] < m) m = d[i + w - 1];
+      if (m + 1 < d[i]) d[i] = m + 1;
+    }
+    return d;
+  }
+  /* dilate a mask by r (square structuring element) via distance-from-set */
+  function dilate(mask, w, h, r) {
+    var inv = new Uint8Array(w * h), i, n = w * h;
+    for (i = 0; i < n; i++) inv[i] = mask[i] ? 0 : 1;
+    var d = distInk(inv, w, h), out = new Uint8Array(n);
+    for (i = 0; i < n; i++) out[i] = (mask[i] || d[i] <= r) ? 1 : 0;
+    return out;
+  }
+
+  /* ---------- connected components on runs (8-conn) → keeps / classifies ---------- */
+  function components(bin, w, h) {
+    var rs = [], re = [], ry = [], rowStart = new Int32Array(h + 1), x, y, i, k;
+    for (y = 0; y < h; y++) {
+      rowStart[y] = rs.length; x = 0; var base = y * w;
+      while (x < w) {
+        if (bin[base + x]) { var s = x; while (x < w && bin[base + x]) x++; rs.push(s); re.push(x - 1); ry.push(y); }
+        else x++;
+      }
+    }
+    rowStart[h] = rs.length;
+    var R = rs.length, par = new Int32Array(R);
+    for (i = 0; i < R; i++) par[i] = i;
+    function find(a) { while (par[a] !== a) { par[a] = par[par[a]]; a = par[a]; } return a; }
+    for (y = 1; y < h; y++) {
+      var a = rowStart[y - 1], ae = rowStart[y], b = rowStart[y], be = rowStart[y + 1];
+      while (a < ae && b < be) {
+        if (re[a] + 1 >= rs[b] && rs[a] - 1 <= re[b]) { var fa = find(a), fb = find(b); if (fa !== fb) par[fa] = fb; }
+        if (re[a] < re[b]) a++; else b++;
+      }
+    }
+    var area = new Int32Array(R), bx0 = new Int32Array(R).fill(1e9), by0 = new Int32Array(R).fill(1e9), bx1 = new Int32Array(R).fill(-1), by1 = new Int32Array(R).fill(-1);
+    var root = new Int32Array(R);
+    for (i = 0; i < R; i++) {
+      k = find(i); root[i] = k; area[k] += re[i] - rs[i] + 1;
+      if (rs[i] < bx0[k]) bx0[k] = rs[i]; if (re[i] > bx1[k]) bx1[k] = re[i];
+      if (ry[i] < by0[k]) by0[k] = ry[i]; if (ry[i] > by1[k]) by1[k] = ry[i];
+    }
+    return { R: R, rs: rs, re: re, ry: ry, root: root, area: area, bx0: bx0, by0: by0, bx1: bx1, by1: by1 };
+  }
+
+  /* ---------- Zhang–Suen thinning on candidate list ---------- */
+  function thin(img, w, h) {
+    var x, y, i, n = w * h, list = [];
+    for (x = 0; x < w; x++) { img[x] = 0; img[(h - 1) * w + x] = 0; }
+    for (y = 0; y < h; y++) { img[y * w] = 0; img[y * w + w - 1] = 0; }
+    for (i = 0; i < n; i++) if (img[i]) list.push(i);
+    var changed = true, del = [], iter = 0;
+    while (changed && iter < 200) {
+      changed = false; iter++;
+      for (var pass = 0; pass < 2; pass++) {
+        del.length = 0;
+        for (var t = 0; t < list.length; t++) {
+          i = list[t]; if (!img[i]) continue;
+          var p2 = img[i - w], p3 = img[i - w + 1], p4 = img[i + 1], p5 = img[i + w + 1], p6 = img[i + w], p7 = img[i + w - 1], p8 = img[i - 1], p9 = img[i - w - 1];
+          var B = p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9;
+          if (B < 2 || B > 6) continue;
+          var A = (!p2 && p3) + (!p3 && p4) + (!p4 && p5) + (!p5 && p6) + (!p6 && p7) + (!p7 && p8) + (!p8 && p9) + (!p9 && p2);
+          if (A !== 1) continue;
+          if (pass === 0) { if (p2 && p4 && p6) continue; if (p4 && p6 && p8) continue; }
+          else { if (p2 && p4 && p8) continue; if (p2 && p6 && p8) continue; }
+          del.push(i);
+        }
+        if (del.length) { changed = true; for (t = 0; t < del.length; t++) img[del[t]] = 0; }
+      }
+      if (changed) { var nl = []; for (t = 0; t < list.length; t++) if (img[list[t]]) nl.push(list[t]); list = nl; }
+    }
+    // remove L-corner redundant pixels (two 4-neighbours at right angle, nothing else)
+    for (t = 0; t < list.length; t++) {
+      i = list[t]; if (!img[i]) continue;
+      var N = img[i - w], E = img[i + 1], S = img[i + w], W = img[i - 1];
+      var NE = img[i - w + 1], SE = img[i + w + 1], SW = img[i + w - 1], NW = img[i - w - 1];
+      // staircase corner: two orthogonal 4-neighbours with the opposite side empty → removable without breaking 8-connectivity
+      if ((N && E && !S && !W && !SW) || (E && S && !N && !W && !NW) || (S && W && !N && !E && !NE) || (W && N && !S && !E && !SE)) img[i] = 0;
+    }
+    var out = []; for (t = 0; t < list.length; t++) if (img[list[t]]) out.push(list[t]);
+    return out;
+  }
+
+  /* ---------- skeleton tracing → pixel chains ---------- */
+  function trace(img, w, h, pix) {
+    var OFF = [-w, -w + 1, 1, w + 1, w, w - 1, -1, -w - 1];
+    var n = w * h, deg = new Uint8Array(n), i, k, t;
+    for (t = 0; t < pix.length; t++) { i = pix[t]; var c = 0; for (k = 0; k < 8; k++) if (img[i + OFF[k]]) c++; deg[i] = c || 9; }
+    var vis = new Uint8Array(n), chains = [];
+    function isNode(j) { return deg[j] !== 2; }
+    function walk(start, first) {
+      var path = [start, first], prev = start, cur = first; vis[first] = 1;
+      for (var guard = 0; guard < 4000000; guard++) {
+        if (isNode(cur)) break;
+        var nx = -1;
+        for (var q = 0; q < 8; q++) { var j = cur + OFF[q]; if (img[j] && j !== prev && (!vis[j] || isNode(j))) { if (j === start && path.length < 3) continue; nx = j; if (isNode(j)) break; } }
+        if (nx < 0) break;
+        if (!isNode(nx)) vis[nx] = 1;
+        path.push(nx); prev = cur; cur = nx;
+        if (nx === start) break;
+      }
+      return path;
+    }
+    for (t = 0; t < pix.length; t++) {
+      i = pix[t]; if (!isNode(i) || deg[i] === 9) continue;
+      for (k = 0; k < 8; k++) {
+        var j = i + OFF[k];
+        if (img[j] && !isNode(j) && !vis[j]) chains.push({ p: walk(i, j), a: deg[i], b: 0 });
+      }
+    }
+    for (t = 0; t < pix.length; t++) {
+      i = pix[t]; if (isNode(i) || vis[i]) continue;
+      vis[i] = 1;
+      var nb = -1; for (k = 0; k < 8; k++) if (img[i + OFF[k]]) { nb = i + OFF[k]; break; }
+      if (nb < 0 || vis[nb]) continue;
+      var p = walk(i, nb); chains.push({ p: p, a: 2, b: 2, loop: true });
+    }
+    for (t = 0; t < chains.length; t++) { var ch = chains[t]; var last = ch.p[ch.p.length - 1]; ch.b = deg[last]; }
+    // convert to coords
+    var res = [];
+    for (t = 0; t < chains.length; t++) {
+      var P = chains[t].p, pts = new Array(P.length);
+      for (k = 0; k < P.length; k++) pts[k] = [(P[k] % w) + 0.5, ((P[k] / w) | 0) + 0.5];
+      res.push({ pts: pts, a: chains[t].a, b: chains[t].b, loop: !!chains[t].loop || (P[0] === P[P.length - 1] && P.length > 3) });
+    }
+    return res;
+  }
+
+  /* ---------- crack-following contours of a mask (exact pixel boundaries) ---------- */
+  function contours(mask, w, h) {
+    // directed edges with ink on the left; vertices on lattice (w+1)x(h+1)
+    var W1 = w + 1, out = new Map(), x, y, i, eid = 0, ex = [], ey = [], used = [];
+    function add(x0, y0, x1, y1) {
+      var key = y0 * W1 + x0, e = eid++;
+      ex.push(x0, x1); ey.push(y0, y1); used.push(0);
+      var l = out.get(key); if (l) l.push(e); else out.set(key, [e]);
+    }
+    for (y = 0; y < h; y++) for (x = 0; x < w; x++) {
+      i = y * w + x; if (!mask[i]) continue;
+      if (y === 0 || !mask[i - w]) add(x + 1, y, x, y);          // top edge, going left (ink below = left in y-down? keep consistent)
+      if (y === h - 1 || !mask[i + w]) add(x, y + 1, x + 1, y + 1); // bottom, going right
+      if (x === 0 || !mask[i - 1]) add(x, y, x, y + 1);            // left, going down
+      if (x === w - 1 || !mask[i + 1]) add(x + 1, y + 1, x + 1, y); // right, going up
+    }
+    var loops = [];
+    for (var e0 = 0; e0 < eid; e0++) {
+      if (used[e0]) continue;
+      var pts = [], e = e0, guard = 0;
+      while (!used[e] && guard++ < 10000000) {
+        used[e] = 1;
+        var sx = ex[2 * e], sy = ey[2 * e], tx = ex[2 * e + 1], ty = ey[2 * e + 1];
+        pts.push([sx, sy]);
+        var cand = out.get(ty * W1 + tx); if (!cand) break;
+        var dx = tx - sx, dy = ty - sy, best = -1, bestScore = 9;
+        for (var c = 0; c < cand.length; c++) {
+          var f = cand[c]; if (used[f]) continue;
+          var fx = ex[2 * f + 1] - ex[2 * f], fy = ey[2 * f + 1] - ey[2 * f];
+          var cross = dx * fy - dy * fx, dot = dx * fx + dy * fy;
+          var score = cross > 0 ? 0 : (dot > 0 ? 1 : 2); // prefer one turn direction to split diagonal touches
+          if (score < bestScore) { bestScore = score; best = f; }
+        }
+        if (best < 0) break; e = best;
+      }
+      if (pts.length >= 4) loops.push(pts);
+    }
+    return loops;
+  }
+
+  /* ---------- geometry helpers ---------- */
+  function dp(pts, tol) {
+    var n = pts.length; if (n < 3) return pts.slice();
+    var keep = new Uint8Array(n); keep[0] = keep[n - 1] = 1;
+    var stack = [[0, n - 1]], t2 = tol * tol;
+    while (stack.length) {
+      var s = stack.pop(), a = s[0], b = s[1], ax = pts[a][0], ay = pts[a][1], bx = pts[b][0], by = pts[b][1];
+      var dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy, mx = -1, mi = -1;
+      for (var i = a + 1; i < b; i++) {
+        var px = pts[i][0] - ax, py = pts[i][1] - ay, d2;
+        if (L2 === 0) d2 = px * px + py * py; else { var c = px * dy - py * dx; d2 = c * c / L2; }
+        if (d2 > mx) { mx = d2; mi = i; }
+      }
+      if (mx > t2) { keep[mi] = 1; stack.push([a, mi], [mi, b]); }
+    }
+    var r = []; for (i = 0; i < n; i++) if (keep[i]) r.push(pts[i]); return r;
+  }
+  function dpClosed(pts, tol) {
+    // split closed ring at two far points
+    var n = pts.length; if (n < 4) return pts.slice();
+    var far = 0, md = -1; for (var i = 1; i < n; i++) { var dx = pts[i][0] - pts[0][0], dy = pts[i][1] - pts[0][1], d = dx * dx + dy * dy; if (d > md) { md = d; far = i; } }
+    var A = dp(pts.slice(0, far + 1), tol), B = dp(pts.slice(far).concat([pts[0]]), tol);
+    var r = A.concat(B.slice(1, B.length - 1));
+    return dropCollinear(r, true);
+  }
+  function dropCollinear(p, closed) {
+    if (p.length < 3) return p;
+    var r = [], n = p.length;
+    for (var i = 0; i < n; i++) {
+      if (!closed && (i === 0 || i === n - 1)) { r.push(p[i]); continue; }
+      var a = p[(i - 1 + n) % n], b = p[i], c = p[(i + 1) % n];
+      var cr = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
+      var dt = (b[0] - a[0]) * (c[0] - b[0]) + (b[1] - a[1]) * (c[1] - b[1]);
+      var la = Math.hypot(b[0] - a[0], b[1] - a[1]), lc = Math.hypot(c[0] - b[0], c[1] - b[1]);
+      if (la < 1e-9) continue;
+      if (Math.abs(cr) <= 1e-6 * la * lc && dt > 0) continue;
+      r.push(b);
+    }
+    return r;
+  }
+  function fitCircle(pts, a, b) {
+    var n = b - a + 1; if (n < 6) return null;
+    var mx = 0, my = 0, i; for (i = a; i <= b; i++) { mx += pts[i][0]; my += pts[i][1]; } mx /= n; my /= n;
+    var Suu = 0, Svv = 0, Suv = 0, Suuu = 0, Svvv = 0, Suvv = 0, Svuu = 0;
+    for (i = a; i <= b; i++) { var u = pts[i][0] - mx, v = pts[i][1] - my; Suu += u * u; Svv += v * v; Suv += u * v; Suuu += u * u * u; Svvv += v * v * v; Suvv += u * v * v; Svuu += v * u * u; }
+    var det = Suu * Svv - Suv * Suv; if (Math.abs(det) < 1e-9) return null;
+    var r1 = 0.5 * (Suuu + Suvv), r2 = 0.5 * (Svvv + Svuu);
+    var uc = (r1 * Svv - r2 * Suv) / det, vc = (r2 * Suu - r1 * Suv) / det;
+    var cx = uc + mx, cy = vc + my, R = Math.sqrt(uc * uc + vc * vc + (Suu + Svv) / n);
+    var ss = 0, mxe = 0; for (i = a; i <= b; i++) { var e = Math.abs(Math.hypot(pts[i][0] - cx, pts[i][1] - cy) - R); ss += e * e; if (e > mxe) mxe = e; }
+    return { cx: cx, cy: cy, r: R, rms: Math.sqrt(ss / n), max: mxe };
+  }
+  function sweepOf(pts, a, b, c) {
+    var tot = 0, prev = Math.atan2(pts[a][1] - c.cy, pts[a][0] - c.cx);
+    for (var i = a + 1; i <= b; i++) { var an = Math.atan2(pts[i][1] - c.cy, pts[i][0] - c.cx), d = an - prev; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; tot += d; prev = an; }
+    return tot;
+  }
+  function maxDev(pts, a, b) {
+    var ax = pts[a][0], ay = pts[a][1], dx = pts[b][0] - ax, dy = pts[b][1] - ay, L = Math.hypot(dx, dy) || 1, m = 0;
+    for (var i = a + 1; i < b; i++) { var d = Math.abs((pts[i][0] - ax) * dy - (pts[i][1] - ay) * dx) / L; if (d > m) m = d; }
+    return m;
+  }
+
+  /* chain → primitives: split at corners, detect arcs */
+  function chainToPrims(ch, o, outPolys, outArcs, outCircles, layer) {
+    var pts = ch.pts, n = pts.length;
+    if (ch.loop && n >= 16 && o.arcs) {
+      var cf = fitCircle(pts, 0, n - 1);
+      if (cf && cf.rms < o.arcRms && cf.max < o.arcMax * 1.3 && cf.r > 3 && Math.abs(sweepOf(pts, 0, n - 1, cf)) > 5.6) { outCircles.push({ cx: cf.cx, cy: cf.cy, r: cf.r, layer: 'TOXA' }); return; }
+    }
+    var coarse = dp(pts, o.dpTol);
+    // map coarse vertices back to indices
+    var idx = [], j = 0;
+    for (var k = 0; k < coarse.length; k++) { while (j < n && pts[j] !== coarse[k]) j++; idx.push(j); }
+    // corner indices where turn > 40° and both legs reasonably long
+    var cuts = [0];
+    for (k = 1; k < coarse.length - 1; k++) {
+      var a = coarse[k - 1], b = coarse[k], c = coarse[k + 1];
+      var t = Math.abs(Math.atan2((b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]), (b[0] - a[0]) * (c[0] - b[0]) + (b[1] - a[1]) * (c[1] - b[1])));
+      if (t > 0.70) cuts.push(idx[k]);
+    }
+    cuts.push(n - 1);
+    var cur = [];
+    function flush() { if (cur.length >= 2) outPolys.push({ pts: cur, closed: false, layer: layer }); cur = []; }
+    for (k = 0; k < cuts.length - 1; k++) {
+      var s = cuts[k], e = cuts[k + 1];
+      var len = e - s;
+      var isArc = false;
+      if (o.arcs && len >= o.arcMinLen && maxDev(pts, s, e) > 2.2) {
+        var f = fitCircle(pts, s, e);
+        if (f && f.rms < o.arcRms && f.max < o.arcMax && f.r > 5 && f.r < 6000) {
+          var sw = sweepOf(pts, s, e, f);
+          if (Math.abs(sw) > 0.35) {
+            isArc = true; flush();
+            var a0 = Math.atan2(pts[s][1] - f.cy, pts[s][0] - f.cx);
+            outArcs.push({ cx: f.cx, cy: f.cy, r: f.r, p0: pts[s].slice(), p1: pts[e].slice(), pm: pts[(s + e) >> 1].slice(), sw: sw, layer: 'TOXA' });
+          }
+        }
+      }
+      if (!isArc) {
+        var seg = dp(pts.slice(s, e + 1), o.dpTol);
+        if (!cur.length) cur = seg.slice(); else cur = cur.concat(seg.slice(1));
+      }
+    }
+    flush();
+  }
+
+  /* ---------- join raw pixel chains through junction clusters where exactly two chains meet ---------- */
+  function mergeChains(chains, eps, gapPx) {
+    var E = [], i;
+    function dirAt(p, end) { var n = p.length, k = Math.min(n - 1, 6), a = end ? p[n - 1] : p[0], b = end ? p[n - 1 - k] : p[k], dx = a[0] - b[0], dy = a[1] - b[1], L = Math.hypot(dx, dy) || 1; return [dx / L, dy / L]; }
+    chains.forEach(function (c, k) { if (c.loop) return; var a = c.pts[0], b = c.pts[c.pts.length - 1]; E.push([a[0], a[1], k, 0, c.a === 1, dirAt(c.pts, 0)], [b[0], b[1], k, 1, c.b === 1, dirAt(c.pts, 1)]); });
+    var par = new Int32Array(E.length); for (i = 0; i < E.length; i++) par[i] = i;
+    function f(x) { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; }
+    var cell = Math.max(eps, gapPx || 0), grid = new Map();
+    E.forEach(function (e, k) { var key = Math.floor(e[0] / cell) + ',' + Math.floor(e[1] / cell), l = grid.get(key); if (l) l.push(k); else grid.set(key, [k]); });
+    E.forEach(function (e, k) {
+      var gx = Math.floor(e[0] / cell), gy = Math.floor(e[1] / cell);
+      for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) {
+        var l = grid.get((gx + dx) + ',' + (gy + dy)); if (!l) continue;
+        for (var t = 0; t < l.length; t++) {
+          var o = E[l[t]]; if (l[t] === k) continue;
+          var ddx = o[0] - e[0], ddy = o[1] - e[1], near = Math.abs(ddx) <= eps && Math.abs(ddy) <= eps;
+          if (!near && gapPx && e[4] && o[4] && o[2] !== e[2]) {
+            // bridge a scan gap between two free ends that point at each other
+            var d = Math.hypot(ddx, ddy);
+            if (d <= gapPx) { var ux = ddx / d, uy = ddy / d; near = (e[5][0] * ux + e[5][1] * uy) > 0.75 && (o[5][0] * -ux + o[5][1] * -uy) > 0.75; }
+          }
+          if (near) { var ra = f(k), rb = f(l[t]); if (ra !== rb) par[ra] = rb; }
+        }
+      }
+    });
+    var members = new Map();
+    E.forEach(function (e, k) { var r = f(k), m = members.get(r); if (m) m.push(k); else members.set(r, [k]); });
+    var endCl = new Map(); E.forEach(function (e, k) { endCl.set(e[2] + ':' + e[3], f(k)); });
+    var used = new Uint8Array(chains.length), out = [];
+    function other(cl, chain, end) { var m = members.get(cl); if (!m || m.length !== 2) return null; var a = E[m[0]], b = E[m[1]]; var o = (a[2] === chain && a[3] === end) ? b : a; if (o[2] === chain && o[3] === end) return null; return o; }
+    for (var c = 0; c < chains.length; c++) {
+      if (used[c]) continue; used[c] = 1;
+      var ch = chains[c]; if (ch.loop) { out.push(ch); continue; }
+      var pts = ch.pts.slice(), endA = ch.a, endB = ch.b, guard = 0, cur, nx, closed = false;
+      cur = [c, 1];
+      while (guard++ < 100000) {
+        var cl = endCl.get(cur[0] + ':' + cur[1]); nx = other(cl, cur[0], cur[1]);
+        if (!nx) break;
+        if (nx[2] === c) { closed = true; break; }
+        if (used[nx[2]]) break;
+        used[nx[2]] = 1; var Q = chains[nx[2]].pts; Q = nx[3] === 0 ? Q : Q.slice().reverse();
+        pts = pts.concat(Q.slice(1)); endB = nx[3] === 0 ? chains[nx[2]].b : chains[nx[2]].a; cur = [nx[2], nx[3] === 0 ? 1 : 0];
+      }
+      if (!closed) {
+        cur = [c, 0];
+        while (guard++ < 200000) {
+          var cl2 = endCl.get(cur[0] + ':' + cur[1]); nx = other(cl2, cur[0], cur[1]);
+          if (!nx || used[nx[2]]) break;
+          used[nx[2]] = 1; var Q2 = chains[nx[2]].pts; Q2 = nx[3] === 1 ? Q2 : Q2.slice().reverse();
+          pts = Q2.slice(0, Q2.length - 1).concat(pts); endA = nx[3] === 1 ? chains[nx[2]].a : chains[nx[2]].b; cur = [nx[2], nx[3] === 1 ? 0 : 1];
+        }
+      }
+      out.push({ pts: pts, a: endA, b: endB, loop: closed });
+    }
+    return out;
+  }
+
+  /* ---------- merge co-circular arcs (split at skeleton junctions) → arcs / full circles ---------- */
+  function mergeArcs(arcs, circles, tolPx) {
+    var TP = 2 * Math.PI, items = arcs.map(function (a) {
+      var sw = a.sw != null ? a.sw : sweep3(a);
+      var s0 = Math.atan2(a.p0[1] - a.cy, a.p0[0] - a.cx);
+      if (sw < 0) { s0 = s0 + sw; sw = -sw; }
+      return { a: a, s: ((s0 % TP) + TP) % TP, w: sw, used: false };
+    });
+    function sweep3(a) {
+      var a0 = Math.atan2(a.p0[1] - a.cy, a.p0[0] - a.cx), am = Math.atan2(a.pm[1] - a.cy, a.pm[0] - a.cx), a1 = Math.atan2(a.p1[1] - a.cy, a.p1[0] - a.cx);
+      function n(d) { while (d > Math.PI) d -= TP; while (d < -Math.PI) d += TP; return d; }
+      return n(am - a0) + n(a1 - am);
+    }
+    var out = [];
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].used) continue;
+      var A = items[i].a, grp = [items[i]]; items[i].used = true;
+      for (var j = i + 1; j < items.length; j++) {
+        var B = items[j].a; if (items[j].used || B.layer !== A.layer) continue;
+        var tol = Math.max(tolPx, 0.05 * A.r);
+        if (Math.hypot(A.cx - B.cx, A.cy - B.cy) <= tol && Math.abs(A.r - B.r) <= tol) { grp.push(items[j]); items[j].used = true; }
+      }
+      if (grp.length === 1) { out.push(A); continue; }
+      var cx = 0, cy = 0, r = 0, W = 0;
+      grp.forEach(function (g) { var w = g.w * g.a.r; cx += g.a.cx * w; cy += g.a.cy * w; r += g.a.r * w; W += w; });
+      cx /= W; cy /= W; r /= W;
+      grp.sort(function (p, q) { return p.s - q.s; });
+      // chain consecutive pieces (gap small) on the circle
+      var gapTol = Math.max(0.06, (tolPx * 2) / r), runs = [], cur = { s: grp[0].s, e: grp[0].s + grp[0].w };
+      for (var k = 1; k < grp.length; k++) {
+        if (grp[k].s - cur.e <= gapTol) cur.e = Math.max(cur.e, grp[k].s + grp[k].w); else { runs.push(cur); cur = { s: grp[k].s, e: grp[k].s + grp[k].w }; }
+      }
+      runs.push(cur);
+      if (runs.length > 1 && runs[0].s + TP - runs[runs.length - 1].e <= gapTol) { var last = runs.pop(); runs[0] = { s: last.s, e: runs[0].e + TP }; }
+      runs.forEach(function (ru) {
+        var sw = ru.e - ru.s;
+        if (sw >= TP - gapTol * 1.5) { circles.push({ cx: cx, cy: cy, r: r, layer: A.layer }); return; }
+        var m = (ru.s + ru.e) / 2;
+        out.push({ cx: cx, cy: cy, r: r, sw: sw, layer: A.layer, p0: [cx + r * Math.cos(ru.s), cy + r * Math.sin(ru.s)], p1: [cx + r * Math.cos(ru.e), cy + r * Math.sin(ru.e)], pm: [cx + r * Math.cos(m), cy + r * Math.sin(m)] });
+      });
+    }
+    return out;
+  }
+
+  /* ---------- global axis snapping (H/V cluster alignment) ---------- */
+  function axisSnap(polys, tolDeg, clusterTol) {
+    var tan = Math.tan(tolDeg * Math.PI / 180), H = [], V = [], p, i, k;
+    for (p = 0; p < polys.length; p++) {
+      var P = polys[p].pts, n = P.length, segs = polys[p].closed ? n : n - 1;
+      polys[p].cls = new Array(segs);
+      for (i = 0; i < segs; i++) {
+        var a = P[i], b = P[(i + 1) % n], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy);
+        if (L < 0.5) { polys[p].cls[i] = 0; continue; }
+        if (Math.abs(dy) <= Math.abs(dx) * tan) { polys[p].cls[i] = 1; H.push({ v: (a[1] + b[1]) / 2, L: L, p: p, i: i }); }
+        else if (Math.abs(dx) <= Math.abs(dy) * tan) { polys[p].cls[i] = 2; V.push({ v: (a[0] + b[0]) / 2, L: L, p: p, i: i }); }
+        else polys[p].cls[i] = 0;
+      }
+    }
+    function cluster(arr) {
+      arr.sort(function (a, b) { return a.v - b.v; });
+      var s = 0;
+      while (s < arr.length) {
+        var e = s, sw = arr[s].L, sv = arr[s].v * arr[s].L;
+        while (e + 1 < arr.length && arr[e + 1].v - arr[e].v <= clusterTol && arr[e + 1].v - arr[s].v <= clusterTol * 2) { e++; sw += arr[e].L; sv += arr[e].v * arr[e].L; }
+        var m = sv / sw; for (k = s; k <= e; k++) arr[k].m = m;
+        s = e + 1;
+      }
+    }
+    cluster(H); cluster(V);
+    var hv = {}, vv = {};
+    for (k = 0; k < H.length; k++) hv[H[k].p + ':' + H[k].i] = H[k].m;
+    for (k = 0; k < V.length; k++) vv[V[k].p + ':' + V[k].i] = V[k].m;
+    for (p = 0; p < polys.length; p++) {
+      var Q = polys[p].pts, m = Q.length, cl = polys[p].closed, nseg = cl ? m : m - 1, np = new Array(m);
+      for (i = 0; i < m; i++) {
+        var x = Q[i][0], y = Q[i][1], ys = [], xs = [];
+        var sPrev = cl ? (i - 1 + m) % m : i - 1, sNext = i < nseg ? i : -1;
+        [sPrev, sNext].forEach(function (s) {
+          if (s < 0 || s >= nseg) return;
+          var key = p + ':' + s;
+          if (hv[key] !== undefined) ys.push(hv[key]);
+          if (vv[key] !== undefined) xs.push(vv[key]);
+        });
+        if (ys.length) y = ys.reduce(function (a, b) { return a + b; }) / ys.length;
+        if (xs.length) x = xs.reduce(function (a, b) { return a + b; }) / xs.length;
+        np[i] = [x, y];
+      }
+      polys[p].pts = np; delete polys[p].cls;
+    }
+  }
+
+  /* ---------- endpoint weld / extend to nearby geometry ---------- */
+  function weld(polys, tol) {
+    var cell = Math.max(4, tol * 2), grid = new Map();
+    function key(x, y) { return ((x / cell) | 0) + ',' + ((y / cell) | 0); }
+    var segs = [];
+    polys.forEach(function (pl, pi) {
+      var P = pl.pts, n = P.length, ns = pl.closed ? n : n - 1;
+      for (var i = 0; i < ns; i++) {
+        var a = P[i], b = P[(i + 1) % n], id = segs.length;
+        segs.push([pi, i, a, b]);
+        var x0 = Math.min(a[0], b[0]) - tol, x1 = Math.max(a[0], b[0]) + tol, y0 = Math.min(a[1], b[1]) - tol, y1 = Math.max(a[1], b[1]) + tol;
+        for (var gx = (x0 / cell) | 0; gx <= ((x1 / cell) | 0); gx++) for (var gy = (y0 / cell) | 0; gy <= ((y1 / cell) | 0); gy++) {
+          var k = gx + ',' + gy, l = grid.get(k); if (l) l.push(id); else grid.set(k, [id]);
+          if (grid.size > 4e6) return;
+        }
+      }
+    });
+    polys.forEach(function (pl, pi) {
+      if (pl.closed) return;
+      [0, pl.pts.length - 1].forEach(function (ei) {
+        var E = pl.pts[ei], l = grid.get(key(E[0], E[1])); if (!l) return;
+        var best = null, bd = tol;
+        for (var t = 0; t < l.length; t++) {
+          var s = segs[l[t]]; if (s[0] === pi && (s[1] === ei || s[1] === ei - 1)) continue;
+          var a = s[2], b = s[3];
+          // prefer vertex snap
+          var da = Math.hypot(E[0] - a[0], E[1] - a[1]), db = Math.hypot(E[0] - b[0], E[1] - b[1]);
+          if (da < bd) { bd = da; best = a.slice(); }
+          if (db < bd) { bd = db; best = b.slice(); }
+          var dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy; if (!L2) continue;
+          var u = ((E[0] - a[0]) * dx + (E[1] - a[1]) * dy) / L2;
+          if (u <= 0 || u >= 1) continue;
+          var px = a[0] + u * dx, py = a[1] + u * dy, d = Math.hypot(E[0] - px, E[1] - py);
+          if (d < bd * 0.8) { bd = d; best = [px, py]; }
+        }
+        if (best) { E[0] = best[0]; E[1] = best[1]; }
+      });
+    });
+  }
+
+  /* ---------- join open polylines that meet end-to-end (degree-2 only) ---------- */
+  function join(polys, eps) {
+    var open = [], i;
+    for (i = 0; i < polys.length; i++) if (!polys[i].closed && polys[i].pts.length >= 2) open.push(polys[i]);
+    var closed = polys.filter(function (p) { return p.closed; });
+    function k(p) { return Math.round(p[0] / eps) + ',' + Math.round(p[1] / eps); }
+    var map = new Map();
+    open.forEach(function (pl, id) {
+      [0, 1].forEach(function (end) {
+        var P = end ? pl.pts[pl.pts.length - 1] : pl.pts[0], kk = k(P), l = map.get(kk);
+        if (l) l.push([id, end]); else map.set(kk, [[id, end]]);
+      });
+    });
+    var dead = new Uint8Array(open.length), out = [];
+    function partner(id, end) {
+      var P = end ? open[id].pts[open[id].pts.length - 1] : open[id].pts[0], l = map.get(k(P));
+      if (!l || l.length !== 2) return null;
+      var o = l[0][0] === id && l[0][1] === end ? l[1] : l[0];
+      if (o[0] === id || dead[o[0]] || open[o[0]].layer !== open[id].layer) return null;
+      return o;
+    }
+    for (i = 0; i < open.length; i++) {
+      if (dead[i]) continue;
+      dead[i] = 1;
+      var pts = open[i].pts.slice(), guard = 0, cur, nx;
+      // extend forward
+      cur = [i, 1];
+      while ((nx = partner(cur[0], cur[1])) && guard++ < 100000) {
+        dead[nx[0]] = 1; var Q = open[nx[0]].pts; Q = nx[1] === 0 ? Q : Q.slice().reverse();
+        pts = pts.concat(Q.slice(1)); cur = [nx[0], nx[1] === 0 ? 1 : 0];
+      }
+      cur = [i, 0];
+      while ((nx = partner(cur[0], cur[1])) && guard++ < 200000) {
+        dead[nx[0]] = 1; var Q2 = open[nx[0]].pts; Q2 = nx[1] === 1 ? Q2 : Q2.slice().reverse();
+        pts = Q2.slice(0, Q2.length - 1).concat(pts); cur = [nx[0], nx[1] === 1 ? 0 : 1];
+      }
+      var isClosed = pts.length > 3 && Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) < eps;
+      if (isClosed) pts.pop();
+      out.push({ pts: dropCollinear(pts, isClosed), closed: isClosed, layer: open[i].layer });
+    }
+    return closed.concat(out);
+  }
+
+  /* ---------- main ---------- */
+  function vectorize(gray, w, h, o, progress) {
+    progress = progress || function () {};
+    o = Object.assign({ sens: 0.5, dpTol: 1.2, orthoTol: 3, cluster: 1.3, arcs: true, arcRms: 0.75, arcMax: 1.9, arcMinLen: 14, thickPx: 0, minArea: 10, smallMax: 0, spur: 0, masks: [], weldTol: 4, keepSmall: true }, o || {});
+    var n = w * h, i, k;
+    progress('Δυαδοποίηση', 0.05);
+    var bin = binarize(gray, w, h, o.sens);
+    // masks (text boxes, user exclusions)
+    o.masks.forEach(function (m) {
+      var x0 = Math.max(0, m[0] | 0), y0 = Math.max(0, m[1] | 0), x1 = Math.min(w - 1, m[2] | 0), y1 = Math.min(h - 1, m[3] | 0);
+      for (var y = y0; y <= y1; y++) bin.fill(0, y * w + x0, y * w + x1 + 1);
+    });
+    progress('Ανάλυση πάχους γραμμών', 0.15);
+    var d = distInk(bin, w, h);
+    // stroke width estimate: histogram of ridge values
+    var hist = new Uint32Array(64);
+    for (var y = 1; y < h - 1; y += 2) for (var x = 1; x < w - 1; x++) {
+      i = y * w + x; var v = d[i]; if (!v) continue;
+      if (v >= d[i - 1] && v >= d[i + 1] && v >= d[i - w] && v >= d[i + w]) hist[Math.min(63, v)]++;
+    }
+    var mode = 1, mv = 0; for (k = 1; k < 64; k++) if (hist[k] > mv) { mv = hist[k]; mode = k; }
+    var thickR = o.thickPx ? Math.max(2, Math.round(o.thickPx / 2)) : Math.max(4, mode * 3);
+    progress('Εντοπισμός παχιών στοιχείων', 0.25);
+    var core = new Uint8Array(n); for (i = 0; i < n; i++) core[i] = d[i] >= thickR ? 1 : 0;
+    var thick = dilate(core, w, h, thickR - 1); core = null;
+    for (i = 0; i < n; i++) thick[i] = thick[i] & bin[i];
+    // drop tiny thick blobs
+    var thickC = components(thick, w, h);
+    var keepT = new Uint8Array(thickC.R);
+    for (k = 0; k < thickC.R; k++) { var r0 = thickC.root[k]; keepT[k] = thickC.area[r0] >= thickR * thickR * 3 ? 1 : 0; }
+    thick.fill(0);
+    for (k = 0; k < thickC.R; k++) if (keepT[k]) thick.fill(1, thickC.ry[k] * w + thickC.rs[k], thickC.ry[k] * w + thickC.re[k] + 1);
+    thickC = null;
+    progress('Περιγράμματα τοίχων', 0.35);
+    var loops = contours(thick, w, h), polys = [];
+    loops.forEach(function (L) { var s = dpClosed(L, Math.max(0.8, o.dpTol * 0.8)); if (s.length >= 3) polys.push({ pts: s, closed: true, layer: 'TOIXOI' }); });
+    // thin part
+    progress('Λεπτές γραμμές', 0.45);
+    var thickD = dilate(thick, w, h, 1); thick = null;
+    var thinImg = new Uint8Array(n); for (i = 0; i < n; i++) thinImg[i] = bin[i] && !thickD[i] ? 1 : 0;
+    thickD = null; bin = null; d = null;
+    var cc = components(thinImg, w, h), smallMax = o.smallMax || Math.max(18, mode * 10);
+    var cls = new Uint8Array(n);
+    var removed = 0;
+    for (k = 0; k < cc.R; k++) {
+      var rt = cc.root[k], bw = cc.bx1[rt] - cc.bx0[rt] + 1, bh = cc.by1[rt] - cc.by0[rt] + 1, row = cc.ry[k] * w;
+      if (cc.area[rt] < o.minArea) { thinImg.fill(0, row + cc.rs[k], row + cc.re[k] + 1); removed++; continue; }
+      var small = Math.max(bw, bh) <= smallMax;
+      if (small && !o.keepSmall) { thinImg.fill(0, row + cc.rs[k], row + cc.re[k] + 1); continue; }
+      cls.fill(small ? 2 : 1, row + cc.rs[k], row + cc.re[k] + 1);
+    }
+    cc = null;
+    progress('Σκελετοποίηση', 0.55);
+    var pix = thin(thinImg, w, h);
+    progress('Ιχνηλάτηση', 0.7);
+    var chains = trace(thinImg, w, h, pix);
+    var spur = o.spur || mode * 2 + 3, arcs = [], circles = [];
+    chains = chains.filter(function (ch) {
+      var L = ch.pts.length, freeA = ch.a === 1, freeB = ch.b === 1;
+      if (L < 2) return false;
+      if ((freeA !== freeB) && L <= spur) return false;      // spur
+      if (freeA && freeB && L < 4) return false;             // dust
+      return true;
+    });
+    chains = mergeChains(chains, 2.9, o.gapPx || Math.max(6, mode * 4 + 2));
+    chains.forEach(function (ch) {
+      var L = ch.pts.length, P = ch.pts[L >> 1], c = cls[((P[1] | 0) * w + (P[0] | 0))];
+      chainToPrims(ch, o, polys, arcs, circles, c === 2 ? 'MIKRA' : 'GRAMMES');
+    });
+    thinImg = null; cls = null;
+    progress('Ορθογωνοποίηση & ενώσεις', 0.85);
+    polys = join(polys, 1.6);
+    if (o.orthoTol > 0) axisSnap(polys, o.orthoTol, o.cluster);
+    weld(polys.filter(function (p) { return p.layer !== 'MIKRA'; }), o.weldTol);
+    polys = join(polys, 0.75);
+    polys = polys.filter(function (p) {
+      if (p.pts.length < 2) return false;
+      if (!p.closed) { var a = p.pts[0], b = p.pts[p.pts.length - 1]; if (p.pts.length === 2 && Math.hypot(a[0] - b[0], a[1] - b[1]) < 1.5) return false; }
+      return true;
+    });
+    arcs = mergeArcs(arcs, circles, 2.5);
+    progress('Ολοκλήρωση', 1);
+    return { polys: polys, arcs: arcs, circles: circles, stats: { strokeHalf: mode, thickR: thickR, chains: chains.length, specks: removed } };
+  }
+
+  /* deskew estimate: projection-profile variance over angles (small image) */
+  function deskew(gray, w, h, maxDeg) {
+    var bin = binarize(gray, w, h, 0.5), best = 0, bestV = -1, cx = w / 2, cy = h / 2;
+    var pts = []; for (var y = 0; y < h; y += 1) for (var x = 0; x < w; x += 1) if (bin[y * w + x]) pts.push(x - cx, y - cy);
+    if (pts.length > 400000) { var st = Math.ceil(pts.length / 400000) * 2, q = []; for (var i = 0; i < pts.length; i += st) q.push(pts[i], pts[i + 1]); pts = q; }
+    function score(a) {
+      var s = Math.sin(a), c = Math.cos(a), H = new Float64Array(h * 2 + 4), V = new Float64Array(w * 2 + 4);
+      for (var i = 0; i < pts.length; i += 2) {
+        var yy = (pts[i] * s + pts[i + 1] * c + h) | 0, xx = (pts[i] * c - pts[i + 1] * s + w) | 0;
+        if (yy >= 0 && yy < H.length) H[yy]++; if (xx >= 0 && xx < V.length) V[xx]++;
+      }
+      var v = 0; for (i = 0; i < H.length; i++) v += H[i] * H[i]; for (i = 0; i < V.length; i++) v += V[i] * V[i]; return v;
+    }
+    for (var deg = -maxDeg; deg <= maxDeg + 1e-9; deg += 0.25) { var sc = score(deg * Math.PI / 180); if (sc > bestV) { bestV = sc; best = deg; } }
+    var lo = best - 0.25, hi = best + 0.25;
+    for (deg = lo; deg <= hi + 1e-9; deg += 0.05) { sc = score(deg * Math.PI / 180); if (sc > bestV) { bestV = sc; best = deg; } }
+    return best;
+  }
+
+  /* ---------- text line detection from small "atoms" (boxes) ---------- */
+  // boxes: Float64Array/array of [x0,y0,x1,y1] ; o: {hmin,hmax}
+  function groupText(boxes, o) {
+    var hmin = o.hmin || 6, hmax = o.hmax || 60, N = boxes.length, i, j;
+    // 1) merge touching atoms into glyphs
+    var par = new Int32Array(N); for (i = 0; i < N; i++) par[i] = i;
+    function f(a) { while (par[a] !== a) { par[a] = par[par[a]]; a = par[a]; } return a; }
+    var pad = o.glyphPad == null ? 0.6 : o.glyphPad, cell = hmax, grid = new Map();
+    function gk(x, y) { return x + ',' + y; }
+    for (i = 0; i < N; i++) {
+      var b = boxes[i], gx0 = Math.floor(b[0] / cell), gx1 = Math.floor(b[2] / cell), gy0 = Math.floor(b[1] / cell), gy1 = Math.floor(b[3] / cell);
+      for (var gx = gx0; gx <= gx1; gx++) for (var gy = gy0; gy <= gy1; gy++) { var l = grid.get(gk(gx, gy)); if (l) l.push(i); else grid.set(gk(gx, gy), [i]); }
+    }
+    grid.forEach(function (l) {
+      for (var a = 0; a < l.length; a++) for (var c = a + 1; c < l.length; c++) {
+        var A = boxes[l[a]], B = boxes[l[c]];
+        if (A[0] - pad <= B[2] && B[0] - pad <= A[2] && A[1] - pad <= B[3] && B[1] - pad <= A[3]) { var ra = f(l[a]), rb = f(l[c]); if (ra !== rb) par[ra] = rb; }
+      }
+    });
+    var gmap = new Map(), glyphs = [];
+    for (i = 0; i < N; i++) {
+      var r = f(i), g = gmap.get(r), bb = boxes[i];
+      if (!g) { g = { x0: bb[0], y0: bb[1], x1: bb[2], y1: bb[3], atoms: [] }; gmap.set(r, g); glyphs.push(g); }
+      g.atoms.push(i); if (bb[0] < g.x0) g.x0 = bb[0]; if (bb[1] < g.y0) g.y0 = bb[1]; if (bb[2] > g.x1) g.x1 = bb[2]; if (bb[3] > g.y1) g.y1 = bb[3];
+    }
+    // 2) glyph filter
+    var G = [];
+    glyphs.forEach(function (g) {
+      var w = g.x1 - g.x0, h = g.y1 - g.y0, s = Math.max(w, h);
+      if (s > hmax || s < 1) return;
+      g.s = s; g.cx = (g.x0 + g.x1) / 2; g.cy = (g.y0 + g.y1) / 2; g.small = s < hmin; G.push(g);
+    });
+    var M = G.length; if (!M) return [];
+    // 3) nearest neighbours / links
+    var cell2 = hmax * 1.4, grid2 = new Map();
+    for (i = 0; i < M; i++) { var k2 = Math.floor(G[i].cx / cell2) + ',' + Math.floor(G[i].cy / cell2), l2 = grid2.get(k2); if (l2) l2.push(i); else grid2.set(k2, [i]); }
+    var p2 = new Int32Array(M); for (i = 0; i < M; i++) p2[i] = i;
+    function f2(a) { while (p2[a] !== a) { p2[a] = p2[p2[a]]; a = p2[a]; } return a; }
+    var nnDir = new Float64Array(M * 2);
+    for (i = 0; i < M; i++) {
+      var A = G[i], cx = Math.floor(A.cx / cell2), cy = Math.floor(A.cy / cell2), bestD = 1e9, bx = 0, by = 0;
+      for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) {
+        var L = grid2.get((cx + dx) + ',' + (cy + dy)); if (!L) continue;
+        for (var t = 0; t < L.length; t++) {
+          j = L[t]; if (j === i) continue; var B2 = G[j];
+          var big = Math.max(A.s, B2.s), sm = Math.min(A.s, B2.s);
+          // gap between boxes (not centre distance) handles wide/narrow glyphs
+          var gxp = Math.max(0, Math.max(A.x0, B2.x0) - Math.min(A.x1, B2.x1)), gyp = Math.max(0, Math.max(A.y0, B2.y0) - Math.min(A.y1, B2.y1));
+          var gap = Math.hypot(gxp, gyp), cd = Math.hypot(A.cx - B2.cx, A.cy - B2.cy);
+          var ok;
+          if (A.small || B2.small) ok = gap <= 0.45 * big && !(A.small && B2.small);
+          else ok = big / sm <= 2.3 && gap <= 0.62 * big && cd <= 1.6 * big;
+          if (!ok) continue;
+          var ra2 = f2(i), rb2 = f2(j); if (ra2 !== rb2) p2[ra2] = rb2;
+          if (!A.small && !B2.small && cd < bestD) { bestD = cd; bx = B2.cx - A.cx; by = B2.cy - A.cy; }
+        }
+      }
+      if (bestD < 1e9) { var an = Math.atan2(by, bx) * 2; nnDir[2 * i] = Math.cos(an); nnDir[2 * i + 1] = Math.sin(an); }
+    }
+    var groups = new Map();
+    for (i = 0; i < M; i++) { var rr = f2(i), gg = groups.get(rr); if (!gg) { gg = []; groups.set(rr, gg); } gg.push(i); }
+    var out = [];
+    groups.forEach(function (idx) {
+      var real = idx.filter(function (q) { return !G[q].small; });
+      if (!real.length) return;
+      // orientation from doubled-angle mean of NN directions
+      var sx = 0, sy = 0; real.forEach(function (q) { sx += nnDir[2 * q]; sy += nnDir[2 * q + 1]; });
+      var ang = real.length > 1 && Math.hypot(sx, sy) > 0.3 * real.length ? Math.atan2(sy, sx) / 2 : 0;
+      // snap to 0/90 if close
+      var deg = ang * 180 / Math.PI;
+      if (Math.abs(deg) < 4) ang = 0; else if (Math.abs(Math.abs(deg) - 90) < 4) ang = Math.PI / 2;
+      // reading direction: for (near) vertical prefer bottom→top (CAD convention) → in y-down coords angle = -90°
+      if (ang > Math.PI / 2 - 0.07) ang -= Math.PI;
+      if (ang <= -Math.PI / 2 - 0.07) ang += Math.PI;
+      splitLines(idx, ang).forEach(function (ln) { out.push(ln); });
+    });
+    function splitLines(idx, ang) {
+      var ux = Math.cos(ang), uy = Math.sin(ang), vx = -uy, vy = ux;
+      var items = idx.map(function (q) { var g = G[q]; return { q: q, v: g.cx * vx + g.cy * vy, u: g.cx * ux + g.cy * uy }; });
+      var hs = idx.filter(function (q) { return !G[q].small; }).map(function (q) { var g = G[q]; return Math.abs((g.x1 - g.x0) * vx) + Math.abs((g.y1 - g.y0) * vy); }).sort(function (a, b) { return a - b; });
+      var H = hs[hs.length >> 1] || 1;
+      items.sort(function (a, b) { return a.v - b.v; });
+      var lines = [[items[0]]];
+      for (var t = 1; t < items.length; t++) { if (items[t].v - items[t - 1].v > 0.75 * H) lines.push([]); lines[lines.length - 1].push(items[t]); }
+      var res = [];
+      lines.forEach(function (ln) {
+        // split within line at big gaps along u (separate labels on same row)
+        ln.sort(function (a, b) { return a.u - b.u; });
+        var parts = [[ln[0]]];
+        for (var t2 = 1; t2 < ln.length; t2++) {
+          var ga = G[ln[t2 - 1].q], gb = G[ln[t2].q];
+          var ea = Math.max(Math.abs((ga.x1 - ga.x0) * ux), Math.abs((ga.y1 - ga.y0) * uy)) / 2, eb = Math.max(Math.abs((gb.x1 - gb.x0) * ux), Math.abs((gb.y1 - gb.y0) * uy)) / 2;
+          if (ln[t2].u - eb - (ln[t2 - 1].u + ea) > 1.1 * H) parts.push([]);
+          parts[parts.length - 1].push(ln[t2]);
+        }
+        parts.forEach(function (pt) { var g = build(pt.map(function (z) { return z.q; }), ang); if (g) res.push(g); });
+      });
+      return res;
+    }
+    function build(idx, ang) {
+      var ux = Math.cos(ang), uy = Math.sin(ang), vx = -uy, vy = ux, umin = 1e18, umax = -1e18, vmin = 1e18, vmax = -1e18, atoms = [], gb = [], botv = [], hv = [], nreal = 0;
+      idx.forEach(function (q) {
+        var g = G[q]; atoms = atoms.concat(g.atoms); gb.push([g.x0, g.y0, g.x1, g.y1]);
+        var cs = [[g.x0, g.y0], [g.x1, g.y0], [g.x0, g.y1], [g.x1, g.y1]], gv0 = 1e18, gv1 = -1e18;
+        cs.forEach(function (c) { var u = c[0] * ux + c[1] * uy, v = c[0] * vx + c[1] * vy; if (u < umin) umin = u; if (u > umax) umax = u; if (v < vmin) vmin = v; if (v > vmax) vmax = v; if (v < gv0) gv0 = v; if (v > gv1) gv1 = v; });
+        if (!g.small) { nreal++; botv.push(gv1); hv.push(gv1 - gv0); }
+      });
+      if (!nreal) return null;
+      botv.sort(function (a, b) { return a - b; }); hv.sort(function (a, b) { return a - b; });
+      var H = hv[hv.length >> 1], vb = botv[botv.length >> 1];
+      if (H < hmin) return null;
+      var L = umax - umin;
+      if (nreal === 1 && L > 2.2 * H) return null;           // long thin single piece → a line, not text
+      return { ang: ang, umin: umin, umax: umax, vmin: vmin, vmax: vmax, vb: vb, H: H, n: nreal, atoms: atoms, glyphs: gb, ux: ux, uy: uy, idx: idx };
+    }
+    // merge letter-spaced words / titles: same direction, same baseline, same height, moderate gap
+    var gap = o.mergeGap == null ? 1.45 : o.mergeGap, changed = true, pass = 0;
+    while (changed && pass++ < 4) {
+      changed = false;
+      out.sort(function (a, b) { return a.ang - b.ang || a.vb - b.vb || a.umin - b.umin; });
+      var res2 = [];
+      for (var q = 0; q < out.length; q++) {
+        var A = out[q]; if (!A) continue;
+        for (var r = q + 1; r < out.length; r++) {
+          var B = out[r]; if (!B) continue;
+          if (Math.abs(B.ang - A.ang) > 0.03) break;
+          var Hm = Math.max(A.H, B.H);
+          if (Math.abs(B.vb - A.vb) > 0.3 * Hm) { if (B.vb - A.vb > 0.3 * Hm) break; continue; }
+          if (Math.max(A.H, B.H) / Math.min(A.H, B.H) > 1.3) continue;
+          var gp = Math.max(B.umin - A.umax, A.umin - B.umax);
+          if (gp > gap * Hm || gp < -0.3 * Hm) continue;
+          var M = build(A.idx.concat(B.idx), A.ang);
+          if (M) { A = M; out[r] = null; changed = true; }
+        }
+        res2.push(A);
+      }
+      out = res2;
+    }
+    return out;
+  }
+
+  /* raster: atoms = connected components of ink that are small enough to be glyphs */
+  function rasterAtoms(gray, w, h, o) {
+    var bin = binarize(gray, w, h, o.sens == null ? 0.5 : o.sens);
+    (o.masks || []).forEach(function (m) {
+      var x0 = Math.max(0, m[0] | 0), y0 = Math.max(0, m[1] | 0), x1 = Math.min(w - 1, m[2] | 0), y1 = Math.min(h - 1, m[3] | 0);
+      for (var y = y0; y <= y1; y++) bin.fill(0, y * w + x0, y * w + x1 + 1);
+    });
+    var c = components(bin, w, h), seen = new Map(), boxes = [];
+    for (var k = 0; k < c.R; k++) {
+      var r = c.root[k]; if (seen.has(r)) continue; seen.set(r, 1);
+      var bw = c.bx1[r] - c.bx0[r] + 1, bh = c.by1[r] - c.by0[r] + 1;
+      if (Math.max(bw, bh) > o.hmax || c.area[r] < 2) continue;
+      if (c.area[r] > 0.9 * bw * bh && Math.min(bw, bh) > 0.5 * Math.max(bw, bh) && Math.min(bw, bh) > Math.max(6, o.hmin || 6)) continue;   // solid squares (columns): not glyphs
+      boxes.push([c.bx0[r], c.by0[r], c.bx1[r] + 1, c.by1[r] + 1]);
+    }
+    return boxes;
+  }
+
+  /* ---------- vector PDF entities → DXF primitives ---------- */
+  var ACI = [[1, 255, 0, 0], [2, 255, 255, 0], [3, 0, 255, 0], [4, 0, 255, 255], [5, 0, 0, 255], [6, 255, 0, 255], [8, 128, 128, 128], [9, 192, 192, 192], [250, 51, 51, 51], [251, 80, 80, 80], [252, 105, 105, 105], [253, 130, 130, 130], [254, 190, 190, 190], [30, 255, 127, 0], [140, 0, 170, 255], [190, 170, 0, 255], [40, 255, 191, 0], [94, 0, 130, 0], [134, 0, 76, 153], [12, 165, 0, 0]];
+  function aciOf(rgb) {
+    var r = rgb[0], g = rgb[1], b = rgb[2];
+    if (Math.max(r, g, b) < 60 || Math.min(r, g, b) > 225) return 7;
+    var best = 7, bd = 1e9;
+    for (var i = 0; i < ACI.length; i++) { var d = (ACI[i][1] - r) * (ACI[i][1] - r) + (ACI[i][2] - g) * (ACI[i][2] - g) + (ACI[i][3] - b) * (ACI[i][3] - b); if (d < bd) { bd = d; best = ACI[i][0]; } }
+    return best;
+  }
+  var LWS = [0, 5, 9, 13, 15, 18, 20, 25, 30, 35, 40, 50, 53, 60, 70, 80, 90, 100, 106, 120, 140, 158, 200, 211];
+  function lwOf(mm) { var h = mm * 100, best = 0, bd = 1e9; for (var i = 0; i < LWS.length; i++) { var d = Math.abs(LWS[i] - h); if (d < bd) { bd = d; best = LWS[i]; } } return best; }
+
+  // greedy recovery of arcs from runs of short segments (flattened arcs in CAD-exported PDFs)
+  function recoverArcs(pts, tol, minPts) {
+    var n = pts.length, out = [], i = 0, lineStart = 0;
+    function turn(k) { var a = pts[k - 1], b = pts[k], c = pts[k + 1]; return Math.atan2((b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]), (b[0] - a[0]) * (c[0] - b[0]) + (b[1] - a[1]) * (c[1] - b[1])); }
+    while (i < n - 2) {
+      var j = i + 1, sgn = 0, okRun = i;
+      while (j < n - 1) { var t = turn(j); if (Math.abs(t) < 1e-4 || Math.abs(t) > 0.6) break; var s = t > 0 ? 1 : -1; if (sgn && s !== sgn) break; sgn = s; j++; }
+      // candidate run i..j
+      if (j - i + 1 >= minPts) {
+        var e = j, f = null;
+        while (e - i + 1 >= minPts) { f = fitCircle(pts, i, e); if (f && f.max < tol + f.r * 0.002) break; f = null; e--; }
+        if (f) {
+          var sw = sweepOf(pts, i, e, f);
+          if (Math.abs(sw) > 0.17) {
+            if (i > lineStart) out.push({ t: 'L', pts: pts.slice(lineStart, i + 1) });
+            out.push({ t: 'A', cx: f.cx, cy: f.cy, r: f.r, p0: pts[i].slice(), p1: pts[e].slice(), pm: pts[(i + e) >> 1].slice(), sw: sw });
+            lineStart = e; i = e; continue;
+          }
+        }
+      }
+      i++;
+    }
+    if (n - 1 > lineStart) out.push({ t: 'L', pts: pts.slice(lineStart) });
+    return out;
+  }
+
+  function vecToPrims(ents, skip, o) {
+    o = o || {};
+    var polys = [], arcs = [], circles = [], fills = o.fills !== false;
+    for (var e = 0; e < ents.length; e++) {
+      if (skip && skip[e]) continue;
+      var E = ents[e]; if (E.fill && !E.stroke && !fills) continue;
+      var aci = aciOf(E.rgb), layer = 'P2D_C' + aci + (E.stroke ? '_L' + ('00' + lwOf(E.lwpt * 25.4 / 72)).slice(-3) : '_GEMISMA');
+      for (var s = 0; s < E.subs.length; s++) {
+        var sub = E.subs[s], P = sub.pts;
+        var clean = [P[0]], cv = [sub.cv[0]];
+        for (var k = 1; k < P.length; k++) { var q = clean[clean.length - 1]; if (Math.abs(P[k][0] - q[0]) + Math.abs(P[k][1] - q[1]) > 1e-4) { clean.push(P[k]); cv.push(sub.cv[k]); } }
+        P = clean;
+        if (sub.closed && P.length > 2 && Math.abs(P[0][0] - P[P.length - 1][0]) + Math.abs(P[0][1] - P[P.length - 1][1]) < 1e-4) { P.pop(); cv.pop(); }
+        if (P.length < 2) continue;
+        // full circle?
+        if (sub.closed && P.length >= 12) {
+          var fc = fitCircle(P, 0, P.length - 1);
+          if (fc && fc.max < 0.06 + fc.r * 0.004) { circles.push({ cx: fc.cx, cy: fc.cy, r: fc.r, layer: layer }); continue; }
+        }
+        var seq = sub.closed ? P.concat([P[0]]) : P;
+        var pieces = recoverArcs(seq, 0.08, 5);
+        if (pieces.length === 1 && pieces[0].t === 'L') {
+          polys.push({ pts: dropCollinear(sub.closed ? P : P, sub.closed), closed: sub.closed && P.length > 2, layer: layer });
+        } else {
+          pieces.forEach(function (pc) {
+            if (pc.t === 'A') arcs.push({ cx: pc.cx, cy: pc.cy, r: pc.r, p0: pc.p0, p1: pc.p1, pm: pc.pm, sw: pc.sw, layer: layer });
+            else if (pc.pts.length >= 2) polys.push({ pts: dropCollinear(pc.pts, false), closed: false, layer: layer });
+          });
+        }
+      }
+    }
+    polys = join(polys, 0.02);
+    arcs = mergeArcs(arcs, circles, 0.3);
+    return { polys: polys, arcs: arcs, circles: circles };
+  }
+
+  return { vectorize: vectorize, deskew: deskew, vecToPrims: vecToPrims, aciOf: aciOf, lwOf: lwOf, dp: dp, fitCircle: fitCircle, groupText: groupText, rasterAtoms: rasterAtoms, dropCollinear: dropCollinear, join: join, axisSnap: axisSnap };
+})();
+if (typeof module !== 'undefined') module.exports = P2D;
+
+</script>
+<script>
+/* ===== HEXIS PAPER→DXF · vector PDF geometry extraction (pdf.js 3.x operator list) ===== */
+var VPDF = (function () {
+  'use strict';
+  function mul(m, n) { return [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3], m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]]; }
+  function ap(m, x, y) { return [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]]; }
+
+  function bez(p0, p1, p2, p3, out) {
+    var L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) + Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) + Math.hypot(p3[0] - p2[0], p3[1] - p2[1]);
+    var n = Math.max(4, Math.min(48, Math.ceil(L / 1.5)));
+    for (var i = 1; i <= n; i++) {
+      var t = i / n, u = 1 - t, a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, d = t * t * t;
+      out.push([a * p0[0] + b * p1[0] + c * p2[0] + d * p3[0], a * p0[1] + b * p1[1] + c * p2[1] + d * p3[1]]);
+    }
+    return n;
+  }
+
+  /* returns {w,h,ents,images,textItems} ; coordinates in px of viewport(scale S) */
+  async function extract(page, S, rotation, onProgress) {
+    var pdfjs = (typeof pdfjsLib !== 'undefined') ? pdfjsLib : require('pdfjs-dist/legacy/build/pdf.js');
+    var OPS = pdfjs.OPS, vp = page.getViewport({ scale: S, rotation: ((page.rotate || 0) + (rotation || 0)) % 360 });
+    var opl = await page.getOperatorList();
+    var fn = opl.fnArray, ar = opl.argsArray, N = fn.length;
+    var st = { ctm: vp.transform.slice(), lw: 1, sc: [0, 0, 0], fc: [0, 0, 0] }, stack = [];
+    var subs = [], cur = null, ents = [], images = 0, imgInfo = [];
+    function tick() { return new Promise(function (r) { setTimeout(r, 0); }); }
+    function startSub(p) { cur = { pts: [p], cv: [0], closed: false }; subs.push(cur); }
+    function scale() { var m = st.ctm; return Math.sqrt(Math.abs(m[0] * m[3] - m[1] * m[2])); }
+    for (var i = 0; i < N; i++) {
+      var f = fn[i], a = ar[i];
+      if ((i & 16383) === 16383) { if (onProgress) onProgress(i / N); await tick(); }
+      switch (f) {
+        case OPS.save: stack.push({ ctm: st.ctm.slice(), lw: st.lw, sc: st.sc, fc: st.fc }); break;
+        case OPS.restore: if (stack.length) st = stack.pop(); break;
+        case OPS.transform: st.ctm = mul(st.ctm, a); break;
+        case OPS.paintFormXObjectBegin:
+          stack.push({ ctm: st.ctm.slice(), lw: st.lw, sc: st.sc, fc: st.fc });
+          if (a && a[0] && a[0].length === 6) st.ctm = mul(st.ctm, a[0]);
+          break;
+        case OPS.paintFormXObjectEnd: if (stack.length) st = stack.pop(); break;
+        case OPS.setLineWidth: st.lw = a[0]; break;
+        case OPS.setStrokeRGBColor: st.sc = typeof a[0] === 'string' ? hex(a[0]) : [a[0], a[1], a[2]]; break;
+        case OPS.setFillRGBColor: st.fc = typeof a[0] === 'string' ? hex(a[0]) : [a[0], a[1], a[2]]; break;
+        case OPS.paintImageXObject: case OPS.paintInlineImageXObject: case OPS.paintImageMaskXObject: case OPS.paintJpegXObject: {
+          images++;
+          var mm = st.ctm, dw = Math.hypot(mm[0], mm[1]), dh = Math.hypot(mm[2], mm[3]);
+          var iw = (a && typeof a[1] === 'number') ? a[1] : (a && a[0] && a[0].width) || 0, ih = (a && typeof a[2] === 'number') ? a[2] : (a && a[0] && a[0].height) || 0;
+          imgInfo.push({ dw: dw, dh: dh, iw: iw, ih: ih, dpi: iw && dw ? iw / (dw / S / 72) : 0 });
+          break;
+        }
+        case OPS.constructPath: {
+          var ops = a[0], co = a[1], k = 0, m = st.ctm;
+          for (var j = 0; j < ops.length; j++) {
+            var o = ops[j], last = cur && cur.pts[cur.pts.length - 1];
+            if (o === OPS.moveTo) { startSub(ap(m, co[k], co[k + 1])); k += 2; }
+            else if (o === OPS.lineTo) { var p = ap(m, co[k], co[k + 1]); k += 2; if (!cur) startSub(p); else { cur.pts.push(p); cur.cv.push(0); } }
+            else if (o === OPS.curveTo || o === OPS.curveTo2 || o === OPS.curveTo3) {
+              var c1, c2, e;
+              if (o === OPS.curveTo) { c1 = ap(m, co[k], co[k + 1]); c2 = ap(m, co[k + 2], co[k + 3]); e = ap(m, co[k + 4], co[k + 5]); k += 6; }
+              else if (o === OPS.curveTo2) { c1 = last; c2 = ap(m, co[k], co[k + 1]); e = ap(m, co[k + 2], co[k + 3]); k += 4; }
+              else { c1 = ap(m, co[k], co[k + 1]); e = ap(m, co[k + 2], co[k + 3]); c2 = e; k += 4; }
+              if (!cur) startSub(c1 || e);
+              var s0 = cur.pts[cur.pts.length - 1]; if (!c1) c1 = s0;
+              var n = bez(s0, c1, c2, e, cur.pts); for (var q = 0; q < n; q++) cur.cv.push(1);
+            }
+            else if (o === OPS.closePath) { if (cur) { cur.closed = true; var fp = cur.pts[0]; cur = { pts: [fp], cv: [0], closed: false }; subs.push(cur); } }
+            else if (o === OPS.rectangle) {
+              var x = co[k], y = co[k + 1], w = co[k + 2], h = co[k + 3]; k += 4;
+              subs.push({ pts: [ap(m, x, y), ap(m, x + w, y), ap(m, x + w, y + h), ap(m, x, y + h)], cv: [0, 0, 0, 0], closed: true }); cur = null;
+            }
+          }
+          break;
+        }
+        case OPS.stroke: case OPS.closeStroke: case OPS.fill: case OPS.eoFill: case OPS.fillStroke: case OPS.eoFillStroke:
+        case OPS.closeFillStroke: case OPS.closeEOFillStroke: case OPS.endPath: {
+          var strokeOp = (f === OPS.stroke || f === OPS.closeStroke || f === OPS.fillStroke || f === OPS.eoFillStroke || f === OPS.closeFillStroke || f === OPS.closeEOFillStroke);
+          var fillOp = (f === OPS.fill || f === OPS.eoFill || f === OPS.fillStroke || f === OPS.eoFillStroke || f === OPS.closeFillStroke || f === OPS.closeEOFillStroke);
+          var closeOp = (f === OPS.closeStroke || f === OPS.closeFillStroke || f === OPS.closeEOFillStroke);
+          if (f !== OPS.endPath && (strokeOp || fillOp)) {
+            var good = subs.filter(function (s) { return s.pts.length > 1 || s.closed; });
+            if (good.length) {
+              if (closeOp || fillOp) good.forEach(function (s) { if (s.pts.length > 2) s.closed = true; });
+              var x0 = 1e18, y0 = 1e18, x1 = -1e18, y1 = -1e18;
+              good.forEach(function (s) { s.pts.forEach(function (p) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }); });
+              var lwpx = Math.max(st.lw * scale(), 0);
+              ents.push({ subs: good, stroke: strokeOp, fill: fillOp, rgb: strokeOp ? st.sc : st.fc, lw: lwpx, lwpt: lwpx / S, bb: [x0, y0, x1, y1] });
+            }
+          }
+          subs = []; cur = null;
+          break;
+        }
+      }
+    }
+    var tc = await page.getTextContent();
+    var texts = [];
+    tc.items.forEach(function (it) {
+      if (!it.str || !it.str.trim()) return;
+      var m = mul(vp.transform, it.transform);       // text space → device
+      var fs = Math.hypot(m[2], m[3]);                // font size in px (vertical axis)
+      var ang = Math.atan2(m[1], m[0]);               // in device coords (y down)
+      texts.push({ str: it.str, x: m[4], y: m[5], fs: fs, ang: ang, w: it.width * S, font: it.fontName });
+    });
+    return { w: vp.width, h: vp.height, ents: ents, images: images, imgInfo: imgInfo, texts: texts };
+  }
+  function hex(s) { return [parseInt(s.substr(1, 2), 16), parseInt(s.substr(3, 2), 16), parseInt(s.substr(5, 2), 16)]; }
+  return { extract: extract };
+})();
+if (typeof module !== 'undefined') module.exports = VPDF;
+
+/* ===== HEXIS PAPER→DXF · DXF R2000 (AC1015) writer — ASCII file, Greek as \U+XXXX ===== */
+var DXFW = (function () {
+  'use strict';
+  function num(v) { if (!isFinite(v)) v = 0; var s = (Math.round(v * 1e6) / 1e6).toFixed(6); s = s.replace(/0+$/, '').replace(/\.$/, ''); return s === '-0' ? '0' : s; }
+  function uesc(str) {
+    var out = [];
+    for (var ch of str) {
+      var c = ch.codePointAt(0);
+      if (ch === '\\') out.push('\\\\'); else if (ch === '{') out.push('\\{'); else if (ch === '}') out.push('\\}');
+      else if (c >= 32 && c < 127) out.push(ch);
+      else if (c < 32) out.push(' ');
+      else if (c <= 0xFFFF) out.push('\\U+' + ('000' + c.toString(16).toUpperCase()).slice(-4));
+      else out.push('?');
+    }
+    return out; // tokens (never split inside an escape)
+  }
+  function plain(str) { return uesc(str).join(''); }
+
+  function write(doc) {
+    // doc: {units:'m'|'cm'|'mm', layers:[{name,color,lw}], polys:[{pts,closed,layer}], arcs:[{cx,cy,r,a0,a1,layer}], circles:[...], texts:[{x,y,h,dx,dy,str,layer,wf}], font:'Arial'}
+    var H = 0x30, L = [];
+    function h() { return (H++).toString(16).toUpperCase(); }
+    function g(c, v) { L.push(String(c)); L.push(String(v)); }
+    var ext = [1e18, 1e18, -1e18, -1e18];
+    function grow(x, y) { if (x < ext[0]) ext[0] = x; if (y < ext[1]) ext[1] = y; if (x > ext[2]) ext[2] = x; if (y > ext[3]) ext[3] = y; }
+    doc.polys.forEach(function (p) { p.pts.forEach(function (q) { grow(q[0], q[1]); }); });
+    doc.arcs.forEach(function (a) { grow(a.cx - a.r, a.cy - a.r); grow(a.cx + a.r, a.cy + a.r); });
+    doc.circles.forEach(function (a) { grow(a.cx - a.r, a.cy - a.r); grow(a.cx + a.r, a.cy + a.r); });
+    doc.texts.forEach(function (t) { grow(t.x, t.y); });
+    if (ext[0] > ext[2]) ext = [0, 0, 10, 10];
+
+    // handles
+    var hBR = h(), hLY = h(), hST = h(), hLT = h(), hVW = h(), hUC = h(), hVP = h(), hAP = h(), hDS = h();
+    var hMS = h(), hPS = h(), hBMS = h(), hEMS = h(), hBPS = h(), hEPS = h();
+    var hD0 = h(), hDG = h(), hDP = h(), hPH = h();
+    var hLBB = h(), hLBL = h(), hLC = h(), hVPA = h(), hAPP = h(), hDSS = h(), hSTD = h(), hSTA = h();
+    var hL0 = h(), layerH = doc.layers.map(function () { return h(); });
+
+    var B = []; // entities buffer written later (handles allocated now)
+    var EL = L; L = [];
+    function entHead(type, layer) { g(0, type); g(5, h()); g(330, hMS); g(100, 'AcDbEntity'); g(8, layer); }
+    doc.polys.forEach(function (p) {
+      var P = p.pts;
+      if (P.length === 2 && !p.closed) {
+        entHead('LINE', p.layer); g(100, 'AcDbLine'); if (p.thick) g(39, num(p.thick));
+        g(10, num(P[0][0])); g(20, num(P[0][1])); g(30, 0); g(11, num(P[1][0])); g(21, num(P[1][1])); g(31, 0);
+      } else {
+        entHead('LWPOLYLINE', p.layer); g(100, 'AcDbPolyline'); g(90, P.length); g(70, p.closed ? 1 : 0); g(43, 0); if (p.thick) g(39, num(p.thick));
+        P.forEach(function (q) { g(10, num(q[0])); g(20, num(q[1])); });
+      }
+    });
+    doc.circles.forEach(function (c) { entHead('CIRCLE', c.layer); g(100, 'AcDbCircle'); g(10, num(c.cx)); g(20, num(c.cy)); g(30, 0); g(40, num(c.r)); });
+    doc.arcs.forEach(function (a) { entHead('ARC', a.layer); g(100, 'AcDbCircle'); g(10, num(a.cx)); g(20, num(a.cy)); g(30, 0); g(40, num(a.r)); g(100, 'AcDbArc'); g(50, num(a.a0)); g(51, num(a.a1)); });
+    doc.texts.forEach(function (t) {
+      entHead('MTEXT', t.layer); g(100, 'AcDbMText');
+      g(10, num(t.x)); g(20, num(t.y)); g(30, 0); g(40, num(t.h)); g(41, 0); g(71, 7); g(72, 1);
+      var toks = uesc(t.str);
+      if (t.wf && Math.abs(t.wf - 1) > 0.04) toks.unshift('\\W' + num(Math.round(t.wf * 100) / 100) + ';');
+      var chunks = [], cur = '';
+      toks.forEach(function (tk) { if (cur.length + tk.length > 250) { chunks.push(cur); cur = ''; } cur += tk; });
+      for (var i = 0; i < chunks.length; i++) g(3, chunks[i]);
+      g(1, cur);
+      g(7, 'ARIAL'); g(11, num(t.dx)); g(21, num(t.dy)); g(31, 0);
+    });
+    B = L; L = EL;
+
+    var seed = (H + 1).toString(16).toUpperCase();
+    var U = { m: 6, cm: 5, mm: 4 }[doc.units] || 6;
+    // HEADER
+    g(0, 'SECTION'); g(2, 'HEADER');
+    g(9, '$ACADVER'); g(1, 'AC1015');
+    g(9, '$DWGCODEPAGE'); g(3, 'ANSI_1253');
+    g(9, '$INSBASE'); g(10, 0); g(20, 0); g(30, 0);
+    g(9, '$EXTMIN'); g(10, num(ext[0])); g(20, num(ext[1])); g(30, 0);
+    g(9, '$EXTMAX'); g(10, num(ext[2])); g(20, num(ext[3])); g(30, 0);
+    g(9, '$LIMMIN'); g(10, num(ext[0])); g(20, num(ext[1]));
+    g(9, '$LIMMAX'); g(10, num(ext[2])); g(20, num(ext[3]));
+    g(9, '$TEXTSTYLE'); g(7, 'ARIAL');
+    g(9, '$CLAYER'); g(8, '0');
+    g(9, '$INSUNITS'); g(70, U);
+    g(9, '$MEASUREMENT'); g(70, 1);
+    g(9, '$LUNITS'); g(70, 2);
+    g(9, '$LUPREC'); g(70, U === 6 ? 3 : U === 5 ? 1 : 0);
+    g(9, '$LWDISPLAY'); g(290, 1);
+    g(9, '$HANDSEED'); g(5, seed);
+    g(0, 'ENDSEC');
+    // CLASSES
+    g(0, 'SECTION'); g(2, 'CLASSES');
+    g(0, 'CLASS'); g(1, 'ACDBDICTIONARYWDFLT'); g(2, 'AcDbDictionaryWithDefault'); g(3, 'ObjectDBX Classes'); g(90, 0); g(280, 0); g(281, 0);
+    g(0, 'CLASS'); g(1, 'ACDBPLACEHOLDER'); g(2, 'AcDbPlaceHolder'); g(3, 'ObjectDBX Classes'); g(90, 0); g(280, 0); g(281, 0);
+    g(0, 'ENDSEC');
+    // TABLES
+    g(0, 'SECTION'); g(2, 'TABLES');
+    function tbl(name, hh, n) { g(0, 'TABLE'); g(2, name); g(5, hh); g(330, 0); g(100, 'AcDbSymbolTable'); g(70, n); }
+    // VPORT
+    var cx = (ext[0] + ext[2]) / 2, cy = (ext[1] + ext[3]) / 2, vh = Math.max(ext[3] - ext[1], (ext[2] - ext[0]) / 1.6) * 1.1 || 10;
+    tbl('VPORT', hVP, 1);
+    g(0, 'VPORT'); g(5, hVPA); g(330, hVP); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbViewportTableRecord'); g(2, '*ACTIVE'); g(70, 0);
+    g(10, 0); g(20, 0); g(11, 1); g(21, 1); g(12, num(cx)); g(22, num(cy)); g(13, 0); g(23, 0); g(14, 1); g(24, 1); g(15, 1); g(25, 1);
+    g(16, 0); g(26, 0); g(36, 1); g(17, 0); g(27, 0); g(37, 0); g(40, num(vh)); g(41, 1.6); g(42, 50); g(43, 0); g(44, 0); g(50, 0); g(51, 0);
+    g(71, 0); g(72, 100); g(73, 1); g(74, 3); g(75, 0); g(76, 0); g(77, 0); g(78, 0);
+    g(0, 'ENDTAB');
+    // LTYPE
+    tbl('LTYPE', hLT, 3);
+    [['ByBlock', hLBB], ['ByLayer', hLBL], ['Continuous', hLC]].forEach(function (lt) {
+      g(0, 'LTYPE'); g(5, lt[1]); g(330, hLT); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbLinetypeTableRecord'); g(2, lt[0]); g(70, 0);
+      g(3, lt[0] === 'Continuous' ? 'Solid line' : ''); g(72, 65); g(73, 0); g(40, 0);
+    });
+    g(0, 'ENDTAB');
+    // LAYER
+    tbl('LAYER', hLY, doc.layers.length + 1);
+    function layer(hh, name, color, lw) {
+      g(0, 'LAYER'); g(5, hh); g(330, hLY); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbLayerTableRecord'); g(2, name); g(70, 0); g(62, color || 7); g(6, 'Continuous'); g(370, lw == null ? -3 : lw); g(390, hPH);
+    }
+    layer(hL0, '0', 7, -3);
+    doc.layers.forEach(function (ly, i) { layer(layerH[i], ly.name, ly.color, ly.lw); });
+    g(0, 'ENDTAB');
+    // STYLE
+    tbl('STYLE', hST, 2);
+    [['Standard', hSTD], ['ARIAL', hSTA]].forEach(function (s) {
+      g(0, 'STYLE'); g(5, s[1]); g(330, hST); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbTextStyleTableRecord'); g(2, s[0]); g(70, 0);
+      g(40, 0); g(41, 1); g(50, 0); g(71, 0); g(42, 0.25); g(3, 'arial.ttf'); g(4, '');
+    });
+    g(0, 'ENDTAB');
+    tbl('VIEW', hVW, 0); g(0, 'ENDTAB');
+    tbl('UCS', hUC, 0); g(0, 'ENDTAB');
+    tbl('APPID', hAP, 1);
+    g(0, 'APPID'); g(5, hAPP); g(330, hAP); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbRegAppTableRecord'); g(2, 'ACAD'); g(70, 0);
+    g(0, 'ENDTAB');
+    g(0, 'TABLE'); g(2, 'DIMSTYLE'); g(5, hDS); g(330, 0); g(100, 'AcDbSymbolTable'); g(70, 1); g(100, 'AcDbDimStyleTable'); g(71, 0);
+    g(0, 'DIMSTYLE'); g(105, hDSS); g(330, hDS); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbDimStyleTableRecord'); g(2, 'Standard'); g(70, 0);
+    g(0, 'ENDTAB');
+    tbl('BLOCK_RECORD', hBR, 2);
+    g(0, 'BLOCK_RECORD'); g(5, hMS); g(330, hBR); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbBlockTableRecord'); g(2, '*Model_Space');
+    g(0, 'BLOCK_RECORD'); g(5, hPS); g(330, hBR); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbBlockTableRecord'); g(2, '*Paper_Space');
+    g(0, 'ENDTAB');
+    g(0, 'ENDSEC');
+    // BLOCKS
+    g(0, 'SECTION'); g(2, 'BLOCKS');
+    g(0, 'BLOCK'); g(5, hBMS); g(330, hMS); g(100, 'AcDbEntity'); g(8, '0'); g(100, 'AcDbBlockBegin'); g(2, '*Model_Space'); g(70, 0); g(10, 0); g(20, 0); g(30, 0); g(3, '*Model_Space'); g(1, '');
+    g(0, 'ENDBLK'); g(5, hEMS); g(330, hMS); g(100, 'AcDbEntity'); g(8, '0'); g(100, 'AcDbBlockEnd');
+    g(0, 'BLOCK'); g(5, hBPS); g(330, hPS); g(100, 'AcDbEntity'); g(67, 1); g(8, '0'); g(100, 'AcDbBlockBegin'); g(2, '*Paper_Space'); g(70, 0); g(10, 0); g(20, 0); g(30, 0); g(3, '*Paper_Space'); g(1, '');
+    g(0, 'ENDBLK'); g(5, hEPS); g(330, hPS); g(100, 'AcDbEntity'); g(67, 1); g(8, '0'); g(100, 'AcDbBlockEnd');
+    g(0, 'ENDSEC');
+    // ENTITIES
+    g(0, 'SECTION'); g(2, 'ENTITIES');
+    var head = L.join('\r\n'); L = [];
+    g(0, 'ENDSEC');
+    // OBJECTS
+    g(0, 'SECTION'); g(2, 'OBJECTS');
+    g(0, 'DICTIONARY'); g(5, hD0); g(330, 0); g(100, 'AcDbDictionary'); g(281, 1); g(3, 'ACAD_GROUP'); g(350, hDG); g(3, 'ACAD_PLOTSTYLENAME'); g(350, hDP);
+    g(0, 'DICTIONARY'); g(5, hDG); g(330, hD0); g(100, 'AcDbDictionary'); g(281, 1);
+    g(0, 'ACDBDICTIONARYWDFLT'); g(5, hDP); g(102, '{ACAD_REACTORS'); g(330, hD0); g(102, '}'); g(330, hD0); g(100, 'AcDbDictionary'); g(281, 1); g(3, 'Normal'); g(350, hPH); g(100, 'AcDbDictionaryWithDefault'); g(340, hPH);
+    g(0, 'ACDBPLACEHOLDER'); g(5, hPH); g(102, '{ACAD_REACTORS'); g(330, hDP); g(102, '}'); g(330, hDP);
+    g(0, 'ENDSEC');
+    g(0, 'EOF');
+    return head + '\r\n' + (B.length ? B.join('\r\n') + '\r\n' : '') + L.join('\r\n') + '\r\n';
+  }
+  return { write: write, plain: plain };
+})();
+if (typeof module !== 'undefined') module.exports = DXFW;
+
+/* ===== HEXIS PAPER→DXF · 3D extrude preview (three.js r128) ===== */
+var V3D = (function () {
+  'use strict';
+  var R = null, scene, cam, ctrl, group, raf = 0, host = null;
+  function area(p) { var a = 0; for (var i = 0, n = p.length; i < n; i++) { var q = p[i], r = p[(i + 1) % n]; a += q[0] * r[1] - r[0] * q[1]; } return a / 2; }
+  function inside(pt, poly) { var c = false; for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) { var a = poly[i], b = poly[j]; if (((a[1] > pt[1]) !== (b[1] > pt[1])) && (pt[0] < (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0])) c = !c; } return c; }
+
+  /* closed rings → shapes with holes (even-odd nesting) */
+  function shapes(rings) {
+    var R2 = rings.filter(function (r) { return r.length >= 3; }).map(function (r) { return { p: r, a: Math.abs(area(r)), parent: -1, depth: 0 }; });
+    R2.sort(function (x, y) { return y.a - x.a; });
+    for (var i = 0; i < R2.length; i++) {
+      for (var j = i - 1; j >= 0; j--) { if (R2[j].a > R2[i].a && inside(R2[i].p[0], R2[j].p)) { R2[i].parent = j; R2[i].depth = R2[j].depth + 1; break; } }
+    }
+    var out = [];
+    R2.forEach(function (r, i) {
+      if (r.depth % 2) return;
+      var pts = r.p.slice(); if (area(pts) < 0) pts.reverse();
+      var sh = new THREE.Shape(pts.map(function (q) { return new THREE.Vector2(q[0], q[1]); }));
+      R2.forEach(function (h) { if (h.parent === i && h.depth === r.depth + 1) { var hp = h.p.slice(); if (area(hp) > 0) hp.reverse(); sh.holes.push(new THREE.Path(hp.map(function (q) { return new THREE.Vector2(q[0], q[1]); }))); } });
+      out.push(sh);
+    });
+    return out;
+  }
+
+  function init(el) {
+    host = el;
+    R = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: false });
+    R.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    R.setClearColor(0x0b3677, 1);
+    el.appendChild(R.domElement);
+    scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x0b3677, 60, 260);
+    cam = new THREE.PerspectiveCamera(45, 1, 0.05, 2000);
+    ctrl = new THREE.OrbitControls(cam, R.domElement);
+    ctrl.enableDamping = true; ctrl.dampingFactor = 0.08; ctrl.maxPolarAngle = Math.PI * 0.495;
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x0b3677, 0.8));
+    var sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(-30, 50, 40); scene.add(sun);
+    var rim = new THREE.DirectionalLight(0xa78bfa, 0.35); rim.position.set(40, 20, -30); scene.add(rim);
+    group = new THREE.Group(); scene.add(group);
+    new ResizeObserver(resize).observe(el); resize();
+    loop();
+  }
+  function resize() { if (!R || !host) return; var w = host.clientWidth || 1, h = host.clientHeight || 1; R.setSize(w, h, false); R.domElement.style.width = w + 'px'; R.domElement.style.height = h + 'px'; cam.aspect = w / h; cam.updateProjectionMatrix(); }
+  function loop() { raf = requestAnimationFrame(loop); if (!host || !host.offsetParent) return; ctrl.update(); R.render(scene, cam); }
+  function clear() { while (group.children.length) { var o = group.children.pop(); o.traverse(function (c) { if (c.geometry) c.geometry.dispose(); if (c.material) (Array.isArray(c.material) ? c.material : [c.material]).forEach(function (m) { m.dispose(); }); }); } }
+
+  /* data: {solids:[[ring]...], lines:[[pts]...], plan:[[pts]...], height, floor} — metres */
+  function build(data, keepView) {
+    clear();
+    var H = data.height, bb = [1e18, 1e18, -1e18, -1e18];
+    function g(p) { if (p[0] < bb[0]) bb[0] = p[0]; if (p[1] < bb[1]) bb[1] = p[1]; if (p[0] > bb[2]) bb[2] = p[0]; if (p[1] > bb[3]) bb[3] = p[1]; }
+    data.solids.forEach(function (r) { r.forEach(g); }); data.lines.forEach(function (r) { r.forEach(g); }); data.plan.forEach(function (r) { r.forEach(g); });
+    if (bb[0] > bb[2]) bb = [0, 0, 10, 10];
+    var cx = (bb[0] + bb[2]) / 2, cy = (bb[1] + bb[3]) / 2, span = Math.max(bb[2] - bb[0], bb[3] - bb[1], 1);
+    var root = new THREE.Group(); root.rotation.x = -Math.PI / 2; root.position.set(-cx, 0, cy); group.add(root);
+    // floor slab
+    var floor = new THREE.Mesh(new THREE.PlaneGeometry((bb[2] - bb[0]) + 2, (bb[3] - bb[1]) + 2), new THREE.MeshStandardMaterial({ color: 0x12448f, roughness: 0.95, metalness: 0 }));
+    floor.position.set(cx, cy, -0.002); root.add(floor);
+    var grid = new THREE.GridHelper(Math.ceil(span * 1.6), Math.ceil(span * 1.6), 0x6f9be0, 0x2f66b8); grid.position.set(0, -0.004, 0); group.add(grid);
+    // plan lines on the floor (the drawing the building rises from)
+    if (data.plan.length) {
+      var pos = []; data.plan.forEach(function (p) { for (var i = 0; i < p.length - 1; i++) pos.push(p[i][0], p[i][1], 0.003, p[i + 1][0], p[i + 1][1], 0.003); });
+      var lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      root.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 })));
+    }
+    var mat = new THREE.MeshStandardMaterial({ color: 0xe9edf6, roughness: 0.72, metalness: 0.02, side: THREE.DoubleSide });
+    var edgeMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
+    var shs = shapes(data.solids), nTri = 0;
+    if (shs.length) {
+      var geo = new THREE.ExtrudeGeometry(shs, { depth: H, bevelEnabled: false, curveSegments: 4 });
+      var m = new THREE.Mesh(geo, mat); root.add(m);
+      root.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo, 25), edgeMat));
+      nTri += geo.index ? geo.index.count / 3 : geo.attributes.position.count / 3;
+    }
+    if (data.lines.length) {
+      var P = []; data.lines.forEach(function (p) { for (var i = 0; i < p.length - 1; i++) { var a = p[i], b = p[i + 1]; P.push(a[0], a[1], 0, b[0], b[1], 0, b[0], b[1], H, a[0], a[1], 0, b[0], b[1], H, a[0], a[1], H); } });
+      var fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); fg.computeVertexNormals();
+      root.add(new THREE.Mesh(fg, new THREE.MeshStandardMaterial({ color: 0xc7d2ea, roughness: 0.8, side: THREE.DoubleSide })));
+      root.add(new THREE.LineSegments(new THREE.EdgesGeometry(fg, 25), edgeMat));
+      nTri += P.length / 9;
+    }
+    if (!keepView) { cam.position.set(span * 1.3, span * 1.1, span * 1.55); ctrl.target.set(0, H * 0.3, 0); cam.near = span / 2000; cam.far = span * 40; cam.updateProjectionMatrix(); scene.fog.near = span * 2.5; scene.fog.far = span * 9; }
+    ctrl.update();
+    return { tris: Math.round(nTri), w: bb[2] - bb[0], d: bb[3] - bb[1] };
+  }
+  function view(kind) {
+    var t = ctrl.target, d = cam.position.distanceTo(t);
+    if (kind === 'top') cam.position.set(t.x, t.y + d, t.z + 0.001);
+    else if (kind === 'iso') cam.position.set(t.x + d * 0.55, t.y + d * 0.55, t.z + d * 0.62);
+    else if (kind === 'front') cam.position.set(t.x, t.y + d * 0.1, t.z + d);
+    ctrl.update();
+  }
+  function shot() { R.render(scene, cam); return R.domElement.toDataURL('image/png'); }
+  return { init: init, build: build, view: view, resize: resize, shot: shot, shapes: shapes, ready: function () { return !!R; } };
+})();
+
+</script>
+<script>
+/* ===== HEXIS PAPER→DXF · application ===== */
+(function () {
+'use strict';
+var $ = function (s) { return document.querySelector(s); };
+var APP_VERSION = '1.0.0';
+var IS_MOBILE = (navigator.maxTouchPoints > 1 && Math.min(screen.width, screen.height) < 900) || matchMedia('(max-width: 820px)').matches;
+var MAX_PX = IS_MOBILE ? 16e6 : 40e6;      // work raster limit
+var DISP_PX = IS_MOBILE ? 5e6 : 9e6;       // background display copy limit
+var WS = 200 / 72;                          // vector work px per PDF point (≈ 200 dpi)
+if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+/* ---------------- state ---------------- */
+var S = {
+  name: '', kind: null, demo: false, pdf: null, page: null, pageNo: 1,
+  mode: null, vec: null, orig: null, work: null, disp: null, dispK: 1, dpi: 200, dpiNative: 0,
+  rot: 0, skew: 0, region: null,
+  res: null, texts: [], rgray: null, layerOn: {}, sel: -1,
+  cal: { mode: 'scale', den: 50, A: [], XY: [], P: [] },
+  units: 'm', busy: false, cancel: false, tool: 'pan', pickTarget: null, measure: [],
+  view: { z: 1, tx: 0, ty: 0 }, show: { bg: true, vec: true, txt: true }
+};
+
+/* ---------------- tiny utils ---------------- */
+function toast(msg, kind, ms) {
+  var t = $('#toast'); t.textContent = msg; t.className = 'toast ' + (kind || ''); t.hidden = false;
+  clearTimeout(toast._h); toast._h = setTimeout(function () { t.hidden = true; }, ms || 4200);
+}
+function tick() { return new Promise(function (r) { setTimeout(r, 0); }); }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function fmt(v, d) { if (!isFinite(v)) return '—'; return v.toLocaleString('el-GR', { minimumFractionDigits: d, maximumFractionDigits: d }); }
+function el(tag, attrs, html) { var e = document.createElement(tag); if (attrs) for (var k in attrs) e.setAttribute(k, attrs[k]); if (html != null) e.innerHTML = html; return e; }
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function CancelErr() { var e = new Error('cancel'); e.cancel = true; return e; }
+function checkCancel() { if (S.cancel) throw CancelErr(); }
+
+/* ---------------- progress ---------------- */
+var P = {
+  show: function (lbl, sub) { $('#prog').hidden = false; this.set(lbl, 0, sub); },
+  set: function (lbl, p, sub) { if (lbl != null) $('#progLbl').textContent = lbl; if (p != null) { $('#progBar').style.width = Math.round(p * 100) + '%'; $('#progPct').textContent = Math.round(p * 100) + '%'; } if (sub != null) $('#progSub').textContent = sub; },
+  hide: function () { $('#prog').hidden = true; }
+};
+
+/* ---------------- worker (vectorization core) ---------------- */
+var CoreW = {
+  w: null, seq: 0, pend: new Map(),
+  start: function () {
+    var src = document.getElementById('p2d-core').textContent +
+      '\nself.onmessage=function(e){var d=e.data;function prog(s,p){self.postMessage({id:d.id,prog:[s,p]});}' +
+      'try{var res;if(d.cmd==="atoms"){var b=P2D.rasterAtoms(d.gray,d.w,d.h,d.o);res=P2D.groupText(b,d.o);}' +
+      'else if(d.cmd==="vectorize"){res=P2D.vectorize(d.gray,d.w,d.h,d.o,prog);}' +
+      'else if(d.cmd==="deskew"){res=P2D.deskew(d.gray,d.w,d.h,d.max||6);}' +
+      'self.postMessage({id:d.id,ok:true,res:res});}catch(err){self.postMessage({id:d.id,ok:false,err:String(err&&err.message||err)});}};';
+    this.w = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+    var self = this;
+    this.w.onmessage = function (e) {
+      var d = e.data, p = self.pend.get(d.id); if (!p) return;
+      if (d.prog) { if (p.onProg) p.onProg(d.prog[0], d.prog[1]); return; }
+      self.pend.delete(d.id); if (d.ok) p.res(d.res); else p.rej(new Error(d.err));
+    };
+    this.w.onerror = function (e) { self.pend.forEach(function (p) { p.rej(new Error(e.message || 'Σφάλμα επεξεργασίας (μνήμη;)')); }); self.pend.clear(); self.w = null; };
+  },
+  run: function (cmd, data, onProg) {
+    if (!this.w) this.start();
+    var self = this;
+    return new Promise(function (res, rej) { var id = ++self.seq; self.pend.set(id, { res: res, rej: rej, onProg: onProg }); data.id = id; data.cmd = cmd; self.w.postMessage(data); });
+  },
+  kill: function () { if (this.w) { this.w.terminate(); this.w = null; } this.pend.forEach(function (p) { p.rej(CancelErr()); }); this.pend.clear(); }
+};
+
+/* ---------------- OCR (tesseract.js) ---------------- */
+var OCR = {
+  ready: null, gen: null, num: null, nw: 0,
+  langPath: undefined,
+  init: function (onProg) {
+    if (this.ready) return this.ready;
+    var self = this;
+    this.ready = (async function () {
+      if (!window.Tesseract) throw new Error('Η μηχανή OCR δεν φορτώθηκε. Ελέγξτε τη σύνδεση και ανοίξτε ξανά τη σελίδα.');
+      // language data shipped next to the page (repo: tessdata/*.gz, artifact: ocr-*.wasm); otherwise the public CDN
+      // Prefer data shipped next to the page: repo layout tessdata/<lang>.traineddata.gz, artifact layout ocr-<lang>.wasm (same bytes).
+      try { var r0 = await fetch('tessdata/ell.traineddata.gz', { method: 'HEAD' }); if (r0.ok && /gzip|octet/.test(r0.headers.get('content-type') || 'octet')) self.langPath = new URL('tessdata', location.href).href; } catch (e) { }
+      if (!self.langPath) {
+        try {
+          var r1 = await fetch('ocr-ell.wasm'), r2 = r1.ok ? await fetch('ocr-eng.wasm') : null;
+          if (r1.ok && r2 && r2.ok) {
+            var b1 = await r1.arrayBuffer(), b2 = await r2.arrayBuffer();
+            if (b1.byteLength > 100000 && b2.byteLength > 100000) self.data = { ell: new Uint8Array(b1), eng: new Uint8Array(b2) };
+          }
+        } catch (e) { }
+      }
+      var loaded = 0;
+      async function mk(params, langs) {
+        var opt = { logger: function (m) { if (onProg && m && m.status && typeof m.progress === 'number' && /load|init/i.test(m.status)) onProg('Φόρτωση ελληνικού OCR', (loaded + m.progress) / 3); } };
+        var L = langs || ['ell', 'eng'];
+        if (self.langPath) opt.langPath = self.langPath;
+        var w;
+        if (!self.langPath && self.data) {
+          // bundled bytes: {code,data} objects need the patched worker (ocr-worker.js) shipped next to the page
+          opt.cacheMethod = 'none'; opt.workerPath = new URL('ocr-worker.js', location.href).href;
+          w = await Tesseract.createWorker(L.map(function (c) { return { code: c, data: self.data[c].slice() }; }), 1, opt);
+        } else w = await Tesseract.createWorker(L, 1, opt);
+        await w.setParameters(params); loaded++; return w;
+      }
+      self.nw = IS_MOBILE ? 1 : 2;
+      self.gen = Tesseract.createScheduler();
+      for (var i = 0; i < self.nw; i++) self.gen.addWorker(await mk({ tessedit_pageseg_mode: '7', user_defined_dpi: '300', preserve_interword_spaces: '1' }));
+      self.num = await mk({ tessedit_pageseg_mode: '7', user_defined_dpi: '300' }, ['eng']);
+    })();
+    this.ready.catch(function () { self.ready = null; });
+    return this.ready;
+  },
+  rec: function (c) { return this.gen.addJob('recognize', c).then(function (r) { return r.data; }); },
+  recNum: function (c) { return this.num.recognize(c).then(function (r) { return r.data; }); }
+};
+
+/* ---------------- text cleanup ---------------- */
+var LAT2GR = { A: 'Α', B: 'Β', E: 'Ε', H: 'Η', I: 'Ι', K: 'Κ', M: 'Μ', N: 'Ν', O: 'Ο', P: 'Ρ', T: 'Τ', X: 'Χ', Y: 'Υ', Z: 'Ζ' };
+var GR = /[Ά-ώ]/;
+function greekify(s) {
+  return s.replace(/[A-Za-zΆ-ώ]+/g, function (w) {
+    var hasGreek = GR.test(w), allLook = /^[ABEHIKMNOPTXYZ]+$/.test(w.replace(/[Ά-ώ]/g, ''));
+    if (!(hasGreek || allLook)) return w;
+    if (!hasGreek && !$('#optGreek').checked) return w;
+    return w.replace(/[ABEHIKMNOPTXYZ]/g, function (c) { return LAT2GR[c]; });
+  });
+}
+function cp1253fix(s) {
+  if (GR.test(s)) return s;
+  var hits = (s.match(/[À-þ]/g) || []).length;
+  if (hits < 2 || hits < s.replace(/\s/g, '').length * 0.4) return s;
+  return s.replace(/[¸-þ]/g, function (c) {
+    var k = c.charCodeAt(0);
+    if (k >= 0xC0 && k !== 0xD2) return String.fromCharCode(0x390 + (k - 0xC0));
+    return ({ 0xB8: 'Έ', 0xB9: 'Ή', 0xBA: 'Ί', 0xBC: 'Ό', 0xBE: 'Ύ', 0xBF: 'Ώ' })[k] || c;
+  }).replace(/¢/g, 'Ά');
+}
+var OK_CHARS = /^[0-9A-Za-zΆ-ώ .,:;\-+=\/()%°×'"#&*_]+$/;
+function cleanOCR(t) {
+  t = (t || '').replace(/[\r\n]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  t = t.replace(/[‘’´`]/g, "'").replace(/[“”«»]/g, '"').replace(/[–—]/g, '-');
+  t = t.replace(/^[|\\\/_.,:;'"\-]+(?=[0-9A-Za-zΆ-ώ])/, '').replace(/(?<=[0-9A-Za-zΆ-ώ])[|\\_'":;,]+$/, '');
+  return t;
+}
+function accept(t, conf, n) {
+  if (!t || t.length > 120) return 0;
+  if (/[ἀ-῿]/.test(t)) return 0;
+  if (!OK_CHARS.test(t)) return 0;
+  var an = (t.match(/[0-9A-Za-zΆ-ώ]/g) || []).length;
+  if (!an) return 0;
+  var core = t.replace(/[^0-9A-Za-z\u0386-\u03CE]/g, '');
+  if (an === 1) { if (/^[OoΟο0Il|1]$/.test(core)) return 0; return conf >= 90 && /^[0-9A-ZΑ-Ω]$/.test(core) ? 1 : 0; }
+  if (core.length <= 3) {
+    var greekWord = /^[Α-ΩΆ-Ώ]?[α-ωά-ώϊϋΐΰς]{1,2}$/.test(core) && core.length >= 2;
+    if (greekWord) return conf >= 88 ? 1 : 0;                                                 // short Greek words: και, να, με, της, Το
+    if (/[a-zα-ωά-ώ]/.test(core) && !/^(m|cm|mm|m2|m²|km)$/.test(core)) return 0;     // other short mixed-case fragments are almost always symbols
+    if (/^[OoΟο0]+$/.test(core)) return 0;
+    if (conf < 80) return 0;
+  }
+  if (an / t.replace(/\s/g, '').length < 0.5) return 0;
+  return conf >= 62 ? 1 : 0;
+}
+function isNumeric(t) { var d = (t.match(/[0-9]/g) || []).length; return d && d >= t.replace(/\s/g, '').length * 0.5; }
+// typical glyph height relative to cap height → estimates cap height from median glyph height
+function capFactor(t) {
+  var f = [];
+  for (var ch of t) { if (/\s/.test(ch)) continue; if (/[acemnorsuvwxzαεικνοπστυωάέίόύώ]/.test(ch)) f.push(0.72); else if (/[.,:;\-'"_]/.test(ch)) continue; else f.push(1); }
+  f.sort(function (a, b) { return a - b; }); return f.length ? f[f.length >> 1] : 1;
+}
+var _mctx = null;
+function arialEm(str) { if (!_mctx) { _mctx = document.createElement('canvas').getContext('2d'); _mctx.font = '100px Arial, "Liberation Sans", Helvetica, sans-serif'; } return _mctx.measureText(str).width / 100; }
+
+/* ---------------- file loading ---------------- */
+function readDensity(buf, type) {
+  var b = new Uint8Array(buf);
+  try {
+    if (b[0] === 0xFF && b[1] === 0xD8) {
+      for (var i = 2; i < Math.min(b.length, 65536);) {
+        if (b[i] !== 0xFF) break; var m = b[i + 1], len = (b[i + 2] << 8) | b[i + 3];
+        if (m === 0xE0 && b[i + 4] === 0x4A && b[i + 5] === 0x46) { var u = b[i + 11], xd = (b[i + 12] << 8) | b[i + 13]; if (xd > 1) return u === 1 ? xd : u === 2 ? xd * 2.54 : 0; }
+        i += 2 + len;
+      }
+    } else if (b[0] === 0x89 && b[1] === 0x50) {
+      for (var p = 8; p < b.length - 12;) {
+        var L = (b[p] << 24 | b[p + 1] << 16 | b[p + 2] << 8 | b[p + 3]) >>> 0, tp = String.fromCharCode(b[p + 4], b[p + 5], b[p + 6], b[p + 7]);
+        if (tp === 'pHYs') { var ppm = (b[p + 8] << 24 | b[p + 9] << 16 | b[p + 10] << 8 | b[p + 11]) >>> 0; if (b[p + 16] === 1 && ppm > 100) return ppm * 0.0254; }
+        if (tp === 'IDAT') break; p += 12 + L;
+      }
+    }
+  } catch (e) { }
+  return 0;
+}
+function canvasFrom(w, h) { var c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+function fitLimit(w, h, max) { var k = w * h > max ? Math.sqrt(max / (w * h)) : 1; return k; }
+
+async function openFile(file) {
+  if (S.busy) return;
+  resetAll();
+  S.name = file.name; S.demo = false;
+  var ext = (file.name.split('.').pop() || '').toLowerCase();
+  $('#fname').value = file.name.replace(/\.[^.]+$/, '') + '.dxf';
+  S.busy = true; P.show('Άνοιγμα αρχείου', file.name);
+  try {
+    var buf = await file.arrayBuffer();
+    if (ext === 'pdf' || file.type === 'application/pdf') await openPdf(buf);
+    else if (ext === 'tif' || ext === 'tiff') await openTiff(buf);
+    else await openImage(file, buf);
+    afterOpen();
+  } catch (e) { console.error(e); toast('Δεν άνοιξε το αρχείο: ' + (e.message || e), 'err', 7000); resetAll(); }
+  finally { S.busy = false; P.hide(); }
+}
+async function openPdf(buf) {
+  if (!window.pdfjsLib) throw new Error('Η βιβλιοθήκη PDF δεν φορτώθηκε');
+  S.kind = 'pdf';
+  S.pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf), cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/', cMapPacked: true, isEvalSupported: false }).promise;
+  var sel = $('#pageSel'); sel.innerHTML = '';
+  for (var i = 1; i <= S.pdf.numPages; i++) sel.appendChild(el('option', { value: i }, 'Σελίδα ' + i));
+  $('#pageRow').hidden = S.pdf.numPages < 2;
+  await loadPdfPage(1);
+}
+async function loadPdfPage(n) {
+  S.pageNo = n; S.page = await S.pdf.getPage(n);
+  P.set('Ανάλυση περιεχομένου PDF', 0.1);
+  S.vec = await VPDF.extract(S.page, WS, S.rot, function (p) { P.set(null, 0.1 + p * 0.6); });
+  var ents = S.vec.ents.length, txt = S.vec.texts.length, img = S.vec.imgInfo.reduce(function (m, x) { return Math.max(m, x.dpi); }, 0);
+  S.dpiNative = img ? Math.round(img) : 0;
+  var cover = S.vec.imgInfo.reduce(function (a, x) { return a + x.dw * x.dh; }, 0) / (S.vec.w * S.vec.h);
+  S.mode = (ents < 150 && txt < 10 && cover > 0.3) ? 'raster' : 'vector';
+  if (S.mode === 'raster') { S.dpi = clamp(S.dpiNative || 200, 100, 400); }
+  await prepareMode();
+}
+async function prepareMode() {
+  if (S.mode === 'raster' && S.kind === 'pdf') await renderPdfRaster();
+  else if (S.mode === 'vector') await renderPdfPreview();
+  buildWork(); buildDisplay();
+}
+async function renderPdfRaster() {
+  var vp0 = S.page.getViewport({ scale: 1, rotation: 0 });
+  var sc = S.dpi / 72, w = vp0.width * sc, h = vp0.height * sc, k = fitLimit(w, h, MAX_PX);
+  if (k < 1) { S.dpi = Math.floor(S.dpi * k); sc = S.dpi / 72; }
+  var vp = S.page.getViewport({ scale: sc, rotation: (S.page.rotate || 0) });
+  var c = canvasFrom(Math.floor(vp.width), Math.floor(vp.height)), ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+  P.set('Απόδοση σάρωσης στα ' + S.dpi + ' dpi', 0.75);
+  await S.page.render({ canvasContext: ctx, viewport: vp }).promise;
+  S.orig = c;
+}
+async function renderPdfPreview() {
+  var vp1 = S.page.getViewport({ scale: WS, rotation: ((S.page.rotate || 0) + S.rot) % 360 });
+  var k = Math.min(1, fitLimit(vp1.width, vp1.height, DISP_PX));
+  var vp = S.page.getViewport({ scale: WS * k, rotation: ((S.page.rotate || 0) + S.rot) % 360 });
+  var c = canvasFrom(Math.floor(vp.width), Math.floor(vp.height)), ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+  P.set('Προεπισκόπηση', 0.85);
+  await S.page.render({ canvasContext: ctx, viewport: vp }).promise;
+  S.orig = c; S.origK = k;     // preview px = work px * k
+}
+async function openTiff(buf) {
+  if (!window.UTIF) throw new Error('Η βιβλιοθήκη TIFF δεν φορτώθηκε');
+  var ifds = UTIF.decode(buf); if (!ifds.length) throw new Error('Κενό TIFF');
+  var f = ifds[0]; UTIF.decodeImage(buf, f, ifds);
+  var rgba = UTIF.toRGBA8(f), w = f.width, h = f.height;
+  var xr = f.t282 ? (Array.isArray(f.t282) ? f.t282[0] : f.t282) : 0, unit = f.t296 ? f.t296[0] : 2;
+  var dpi = xr ? (unit === 3 ? xr * 2.54 : xr) : 0;
+  var c = canvasFrom(w, h); c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(rgba.buffer, rgba.byteOffset, w * h * 4), w, h), 0, 0);
+  setImage(c, dpi);
+}
+async function openImage(file, buf) {
+  var bmp = await createImageBitmap(file);
+  var c = canvasFrom(bmp.width, bmp.height), ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(bmp, 0, 0);
+  if (bmp.close) bmp.close();
+  setImage(c, readDensity(buf, file.type));
+}
+function setImage(c, dpi) {
+  S.kind = 'image'; S.mode = 'raster'; S.dpiNative = Math.round(dpi) || 0; S.dpi = S.dpiNative > 49 ? S.dpiNative : 200;
+  var k = fitLimit(c.width, c.height, MAX_PX);
+  if (k < 1) { var d = canvasFrom(Math.floor(c.width * k), Math.floor(c.height * k)), x = d.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(c, 0, 0, d.width, d.height); c = d; S.dpi = S.dpi * k; toast('Η εικόνα μειώθηκε στα ' + Math.round(S.dpi) + ' dpi για να χωρά στη μνήμη της συσκευής.', '', 6000); }
+  S.orig = c; buildWork(); buildDisplay();
+}
+
+/* work raster (rotation + deskew) and dimmed display copy */
+function buildWork() {
+  if (S.mode === 'vector') { S.work = null; return; }
+  var th = ((S.rot + S.skew) % 360 + 360) % 360, o = S.orig;
+  if (Math.abs(th) < 1e-6) { S.work = o; return; }
+  var r = th * Math.PI / 180, cs = Math.abs(Math.cos(r)), sn = Math.abs(Math.sin(r));
+  var W = Math.round(o.width * cs + o.height * sn), H = Math.round(o.width * sn + o.height * cs);
+  var c = canvasFrom(W, H), x = c.getContext('2d', { willReadFrequently: true });
+  x.fillStyle = '#fff'; x.fillRect(0, 0, W, H);
+  x.imageSmoothingEnabled = S.skew !== 0;
+  x.translate(W / 2, H / 2); x.rotate(r); x.drawImage(o, -o.width / 2, -o.height / 2);
+  S.work = c;
+}
+function workSize() { if (S.mode === 'vector') return [S.vec.w, S.vec.h]; return S.work ? [S.work.width, S.work.height] : [1, 1]; }
+function buildDisplay() {
+  var src = S.mode === 'vector' ? S.orig : S.work; if (!src) { S.disp = null; return; }
+  var ws = workSize(), k = Math.min(1, fitLimit(ws[0], ws[1], DISP_PX));
+  var c = canvasFrom(Math.max(1, Math.round(ws[0] * k)), Math.max(1, Math.round(ws[1] * k))), x = c.getContext('2d', { willReadFrequently: true });
+  x.imageSmoothingQuality = 'high'; x.drawImage(src, 0, 0, c.width, c.height);
+  var id = x.getImageData(0, 0, c.width, c.height), d = id.data;
+  for (var i = 0; i < d.length; i += 4) { var g = (d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11), a = 255 - g; d[i] = 236; d[i + 1] = 244; d[i + 2] = 255; d[i + 3] = a; }
+  x.putImageData(id, 0, 0);
+  S.disp = c; S.dispK = k;
+}
+
+/* ---------------- demo drawing ---------------- */
+function makeDemo() {
+  var dpi = 200, sc = 50, ppm = dpi / 25.4 * 1000 / sc;    // px per real metre (≈157.5)
+  var W = 2300, H = 1650, c = canvasFrom(W, H), x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, W, H); x.fillStyle = '#000'; x.strokeStyle = '#000';
+  var ox = 260, oy = 300, M = function (v) { return v * ppm; };
+  var t = M(0.25);
+  // outer walls 10.30 × 7.00 with door/window gaps
+  function wall(x0, y0, x1, y1) { x.fillRect(ox + M(x0), oy + M(y0), M(x1 - x0), M(y1 - y0)); }
+  wall(0, 0, 4.2, 0.25); wall(5.4, 0, 10.3, 0.25);
+  wall(0, 6.75, 2.0, 7.0); wall(3.0, 6.75, 10.3, 7.0);
+  wall(0, 0, 0.25, 2.2); wall(0, 3.6, 0.25, 7.0);
+  wall(10.05, 0, 10.3, 7.0);
+  wall(5.8, 0.25, 5.92, 2.6); wall(5.8, 3.6, 5.92, 6.75);       // interior 12cm
+  wall(5.92, 3.9, 10.05, 4.02);
+  x.lineWidth = 2;
+  // windows (thin triple lines)
+  [[4.2, 5.4, 0], [2.0, 3.0, 6.75]].forEach(function (w) { for (var k = 0; k < 3; k++) { x.beginPath(); x.moveTo(ox + M(w[0]), oy + M(w[2]) + k * t / 2); x.lineTo(ox + M(w[1]), oy + M(w[2]) + k * t / 2); x.stroke(); } });
+  for (var k = 0; k < 3; k++) { x.beginPath(); x.moveTo(ox + k * t / 2, oy + M(2.2)); x.lineTo(ox + k * t / 2, oy + M(3.6)); x.stroke(); }
+  // doors: leaf + swing arc
+  function door(hx, hy, r, a0, a1, leafAng) {
+    x.beginPath(); x.arc(ox + M(hx), oy + M(hy), M(r), a0, a1); x.stroke();
+    x.beginPath(); x.moveTo(ox + M(hx), oy + M(hy)); x.lineTo(ox + M(hx) + M(r) * Math.cos(leafAng), oy + M(hy) + M(r) * Math.sin(leafAng)); x.stroke();
+  }
+  door(5.86, 2.6, 0.9, Math.PI / 2, Math.PI, Math.PI);
+  door(5.92, 3.9, 0.85, -Math.PI / 2, 0, -Math.PI / 2);
+  // furniture
+  x.strokeRect(ox + M(1.0), oy + M(1.2), M(1.8), M(0.9)); x.beginPath(); x.arc(ox + M(4.6), oy + M(5.2), M(0.45), 0, 2 * Math.PI); x.stroke();
+  x.strokeRect(ox + M(7.2), oy + M(0.9), M(1.6), M(2.0));
+  // labels
+  x.font = 'bold 30px Arial'; x.textBaseline = 'alphabetic';
+  x.fillText('ΣΑΛΟΝΙ - ΚΟΥΖΙΝΑ', ox + M(1.4), oy + M(3.4)); x.fillText('ΥΠΝΟΔΩΜΑΤΙΟ', ox + M(6.9), oy + M(3.3)); x.fillText('ΛΟΥΤΡΟ', ox + M(7.3), oy + M(5.6));
+  x.font = '26px Arial'; x.fillText('Ε = 34.20 m²', ox + M(1.9), oy + M(3.85));
+  // dimension line top
+  x.lineWidth = 1.5; var dy = oy - 90;
+  x.beginPath(); x.moveTo(ox, dy); x.lineTo(ox + M(10.3), dy); x.stroke();
+  [0, 10.3].forEach(function (v) { x.beginPath(); x.moveTo(ox + M(v) - 12, dy + 12); x.lineTo(ox + M(v) + 12, dy - 12); x.moveTo(ox + M(v), dy - 25); x.lineTo(ox + M(v), dy + 40); x.stroke(); });
+  x.font = '30px Arial'; x.fillText('10.30', ox + M(5.15) - 38, dy - 14);
+  // vertical dim
+  var dx = ox - 90; x.beginPath(); x.moveTo(dx, oy); x.lineTo(dx, oy + M(7)); x.stroke();
+  [0, 7].forEach(function (v) { x.beginPath(); x.moveTo(dx - 12, oy + M(v) + 12); x.lineTo(dx + 12, oy + M(v) - 12); x.moveTo(dx - 25, oy + M(v)); x.lineTo(dx + 40, oy + M(v)); x.stroke(); });
+  x.save(); x.translate(dx - 14, oy + M(3.5) + 34); x.rotate(-Math.PI / 2); x.fillText('7.00', 0, 0); x.restore();
+  x.font = 'bold 34px Arial'; x.fillText('ΚΑΤΟΨΗ ΙΣΟΓΕΙΟΥ   1:50', ox + M(3.0), oy + M(7) + 120);
+  // a little scan noise
+  for (var n = 0; n < 900; n++) { x.fillRect(Math.random() * W, Math.random() * H, 2, 2); }
+  return { c: c, dpi: dpi };
+}
+function openDemo() {
+  if (S.busy) return;
+  resetAll(); var d = makeDemo();
+  S.name = 'Δείγμα κάτοψης (1:50, 200 dpi)'; S.demo = true; $('#fname').value = 'deigma_katopsi.dxf';
+  setImage(d.c, d.dpi); S.cal.den = 50; $('#scaleDen').value = 50;
+  afterOpen();
+}
+
+function resetAll() {
+  CoreW.kill();
+  S.kind = null; S.pdf = null; S.page = null; S.vec = null; S.orig = null; S.work = null; S.disp = null; S.res = null; S.texts = []; S.rgray = null;
+  S.rot = 0; S.skew = 0; S.region = null; S.sel = -1; S.layerOn = {}; S.cal.A = []; S.cal.XY = []; S.cal.P = []; S.measure = [];
+  $('#skew').value = 0; $('#skewVal').textContent = '0.00°';
+  renderTexts(); renderLayers(); renderPicks(); updateUI(); draw();
+}
+function afterOpen() {
+  $('#empty').hidden = true;
+  var ws = workSize();
+  var info = [['Είδος', S.demo ? 'Δείγμα' : S.mode === 'vector' ? 'Διανυσματικό PDF' : (S.kind === 'pdf' ? 'Σαρωμένο PDF' : 'Εικόνα')]];
+  if (S.mode === 'vector') {
+    info.push(['Στοιχεία', S.vec.ents.length.toLocaleString('el-GR')]);
+    info.push(['Κείμενα PDF', S.vec.texts.length ? S.vec.texts.length.toLocaleString('el-GR') : 'όχι (καμπύλες)']);
+    if (S.vec.images) info.push(['Εικόνες', S.vec.images + ' (αγνοούνται)']);
+  } else {
+    info.push(['Pixels', ws[0] + ' × ' + ws[1]]);
+    info.push(['Ανάλυση', Math.round(S.dpi) + ' dpi' + (S.dpiNative ? '' : ' (εκτίμηση)')]);
+  }
+  var pw = S.mode === 'vector' ? S.vec.w / WS / 72 * 25.4 : ws[0] / S.dpi * 25.4, ph = S.mode === 'vector' ? S.vec.h / WS / 72 * 25.4 : ws[1] / S.dpi * 25.4;
+  info.push(['Φύλλο', Math.round(pw) + ' × ' + Math.round(ph) + ' mm']);
+  $('#fileInfo').innerHTML = info.map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + esc(r[1]) + '</dd>'; }).join(''); $('#fileInfo').hidden = false;
+  $('#modeRow').hidden = S.kind !== 'pdf';
+  $('#dpiRow').hidden = S.mode === 'vector';
+  $('#dpiLbl').textContent = S.kind === 'pdf' ? 'Ανάλυση απόδοσης σάρωσης (dpi)' : 'Ανάλυση σάρωσης (dpi)';
+  $('#dpi').value = Math.round(S.dpi);
+  if (S.mode === 'vector' && !S.vec.texts.length) $('#optOcr').checked = true;
+  fit(); updateUI(); draw();
+  openStep(S.mode === 'raster' ? 2 : 3);
+}
+
+/* ---------------- geometry helpers ---------------- */
+function regionRect() { var ws = workSize(); return S.region ? S.region.slice() : [0, 0, ws[0], ws[1]]; }
+function grayOf(canvas, R) {
+  var x0 = Math.max(0, Math.floor(R[0])), y0 = Math.max(0, Math.floor(R[1])), x1 = Math.min(canvas.width, Math.ceil(R[2])), y1 = Math.min(canvas.height, Math.ceil(R[3]));
+  var w = x1 - x0, h = y1 - y0, g = new Uint8Array(w * h), ctx = canvas.getContext('2d', { willReadFrequently: true });
+  var band = Math.max(1, Math.floor(4e6 / w));
+  for (var y = 0; y < h; y += band) {
+    var bh = Math.min(band, h - y), d = ctx.getImageData(x0, y0 + y, w, bh).data, o = y * w;
+    for (var i = 0, j = 0; i < d.length; i += 4, j++) g[o + j] = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8;
+  }
+  return { g: g, w: w, h: h, x0: x0, y0: y0 };
+}
+function offsetRes(r, dx, dy) {
+  r.polys.forEach(function (p) { p.pts.forEach(function (q) { q[0] += dx; q[1] += dy; }); });
+  r.arcs.forEach(function (a) { a.cx += dx; a.cy += dy;[a.p0, a.p1, a.pm].forEach(function (q) { q[0] += dx; q[1] += dy; }); });
+  r.circles.forEach(function (c) { c.cx += dx; c.cy += dy; });
+  return r;
+}
+function offsetGroup(g, dx, dy) {
+  var du = dx * g.ux + dy * g.uy, dv = -dx * g.uy + dy * g.ux;
+  g.umin += du; g.umax += du; g.vmin += dv; g.vmax += dv; g.vb += dv;
+  g.glyphs.forEach(function (b) { b[0] += dx; b[1] += dy; b[2] += dx; b[3] += dy; });
+}
+
+/* ---------------- OCR of detected text lines ---------------- */
+function cropFor(g, kind, flip) {
+  var H = g.H, pad = 0.35 * H, sc = clamp(34 / H, 0.6, 9);
+  var ux = g.ux, uy = g.uy, vx = -uy, vy = ux, u0 = g.umin - pad, u1 = g.umax + pad, v0 = g.vmin - pad, v1 = g.vmax + pad;
+  if (flip) { ux = -ux; uy = -uy; vx = -vx; vy = -vy; var t0 = u0; u0 = -u1; u1 = -t0; t0 = v0; v0 = -v1; v1 = -t0; }
+  var W = Math.min(4000, Math.ceil((u1 - u0) * sc)), Hh = Math.min(800, Math.ceil((v1 - v0) * sc));
+  var c = canvasFrom(Math.max(8, W), Math.max(8, Hh)), x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+  x.setTransform(sc * ux, sc * vx, sc * uy, sc * vy, -sc * u0, -sc * v0);
+  if (kind === 'raster') {
+    var bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9;
+    x.beginPath();
+    g.glyphs.forEach(function (b) { x.rect(b[0] - 1, b[1] - 1, b[2] - b[0] + 2, b[3] - b[1] + 2); bx0 = Math.min(bx0, b[0] - 1); by0 = Math.min(by0, b[1] - 1); bx1 = Math.max(bx1, b[2] + 1); by1 = Math.max(by1, b[3] + 1); });
+    x.clip(); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+    bx0 = Math.max(0, Math.floor(bx0)); by0 = Math.max(0, Math.floor(by0)); bx1 = Math.min(S.work.width, Math.ceil(bx1)); by1 = Math.min(S.work.height, Math.ceil(by1));
+    if (bx1 > bx0 && by1 > by0) x.drawImage(S.work, bx0, by0, bx1 - bx0, by1 - by0, bx0, by0, bx1 - bx0, by1 - by0);
+  } else {
+    x.fillStyle = '#000'; x.strokeStyle = '#000'; x.lineJoin = 'round'; x.lineCap = 'round';
+    g.atoms.forEach(function (ai) {
+      var E = S.vec.ents[ai]; x.beginPath();
+      E.subs.forEach(function (s) { x.moveTo(s.pts[0][0], s.pts[0][1]); for (var k = 1; k < s.pts.length; k++) x.lineTo(s.pts[k][0], s.pts[k][1]); if (s.closed) x.closePath(); });
+      if (E.fill) x.fill(); if (E.stroke || !E.fill) { x.lineWidth = Math.max(E.lw, 0.7); x.stroke(); }
+    });
+  }
+  return c;
+}
+function thumbOf(c) {
+  var h = 30, w = Math.max(10, Math.round(c.width * h / c.height)); if (w > 360) { w = 360; }
+  var t = canvasFrom(w, h), x = t.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); x.drawImage(c, 0, 0, w, h);
+  return t.toDataURL('image/png');
+}
+function patternFilter(groups, kind) {
+  var cnt = new Map(), key = function (g) { var b = g.glyphs[0]; return Math.round((b[2] - b[0]) * 2) + 'x' + Math.round((b[3] - b[1]) * 2) + ':' + g.atoms.length; };
+  groups.forEach(function (g) { if (g.n === 1) { var k = key(g); cnt.set(k, (cnt.get(k) || 0) + 1); } });
+  return groups.filter(function (g) { return g.n > 1 || (cnt.get(key(g)) || 0) < 6; });
+}
+async function ocrGroups(groups, kind, base, span) {
+  groups = patternFilter(groups, kind);
+  if (!groups.length) return [];
+  P.set('Φόρτωση ελληνικού OCR', base);
+  await OCR.init(function (l, p) { P.set(l, base + p * span * 0.15); });
+  checkCancel();
+  var out = [], done = 0, N = groups.length, B = OCR.nw * 3;
+  for (var i = 0; i < N; i += B) {
+    checkCancel();
+    var batch = groups.slice(i, i + B);
+    var rs = await Promise.all(batch.map(async function (g) {
+      var c = cropFor(g, kind, false), d = await OCR.rec(c), t = cleanOCR(d.text), conf = d.confidence || 0;
+      if (conf < 55 && g.n > 1) { var c2 = cropFor(g, kind, true), d2 = await OCR.rec(c2), t2 = cleanOCR(d2.text); if ((d2.confidence || 0) > conf + 8) { t = t2; conf = d2.confidence; c = c2; g.flip = true; } }
+      if (t && (isNumeric(t) || /^[+\-]?[0-9OoΟο]/.test(t))) { var dn = await OCR.recNum(c), tn = cleanOCR(dn.text); if (tn && isNumeric(tn) && (dn.confidence || 0) >= conf - 12) { t = tn; conf = Math.max(conf, dn.confidence); } }
+      return { g: g, t: t, conf: conf, c: c };
+    }));
+    rs.forEach(function (r) {
+      if (!r.t || r.conf < 30) return;
+      var ok = accept(r.t, r.conf, r.g.n);
+      if (!ok && r.conf < 45) return;
+      if (!OK_CHARS.test(r.t) || /[ἀ-῿]/.test(r.t)) return;
+      out.push(textFromGroup(r.g, r.t, r.conf, ok, thumbOf(r.c), kind));
+    });
+    done += batch.length;
+    P.set('Ανάγνωση κειμένων', base + span * (0.15 + 0.85 * done / N), done + ' / ' + N + ' γραμμές');
+  }
+  return out;
+}
+function textFromGroup(g, t, conf, on, thumb, kind) {
+  var ux = g.ux, uy = g.uy, vx = -uy, vy = ux, umin = g.umin, umax = g.umax, vb = g.vb;
+  if (g.flip) { ux = -ux; uy = -uy; vx = -vx; vy = -vy; umin = -g.umax; umax = -g.umin; vb = -g.vmin; }
+  var Hc = g.H / capFactor(t);
+  return { id: 't' + Math.random().toString(36).slice(2, 9), str: t, raw: t, conf: Math.round(conf), on: !!on, src: 'ocr', kind: kind,
+    ux: ux, uy: uy, bx: umin * ux + vb * vx, by: umin * uy + vb * vy, L: umax - umin, H: Hc, atoms: g.atoms, glyphs: g.glyphs, thumb: thumb };
+}
+function textsFromPdf(R) {
+  var arr = [];
+  S.vec.texts.forEach(function (t) {
+    if (!(t.x >= R[0] && t.x <= R[2] && t.y >= R[1] && t.y <= R[3])) return;
+    var s = cp1253fix(t.str).trim(); if (!s) return;
+    arr.push({ id: 'p' + Math.random().toString(36).slice(2, 9), str: s, raw: s, conf: 100, on: true, src: 'pdf', kind: 'vector', ux: Math.cos(t.ang), uy: Math.sin(t.ang), bx: t.x, by: t.y, L: t.w || s.length * t.fs * 0.55, H: t.fs * 0.716, atoms: [], glyphs: [] });
+  });
+  return arr;
+}
+
+/* ---------------- main processing ---------------- */
+function rasterOpts() {
+  var pxmm = S.dpi / 25.4, th = parseFloat($('#thick').value);
+  return { sens: parseFloat($('#sens').value), arcs: $('#optArcs').checked, orthoTol: $('#optOrtho').checked ? 3 : 0, thickPx: th > 0 ? th : 0, keepSmall: $('#optSmall').checked,
+    hmax: clamp(Math.round(parseFloat($('#hmaxmm').value || 9) * pxmm), 16, 260), hmin: Math.max(5, Math.round(1.1 * pxmm)) };
+}
+async function runProcess() {
+  if (S.busy || !(S.work || S.vec)) return;
+  S.busy = true; S.cancel = false; updateUI();
+  P.show('Προετοιμασία', '');
+  var t0 = performance.now();
+  try {
+    if (S.mode === 'raster') await processRaster(); else await processVector();
+    S.layerOn = {}; S.ext = null; layersOf().forEach(function (l) { S.layerOn[l.name] = true; });
+    buildPaths(); renderLayers(); renderTexts(); updateUI(); fit();
+    openStep(4); markDone(3);
+    var nT = S.texts.filter(function (t) { return t.on; }).length;
+    toast('Έτοιμο σε ' + Math.round((performance.now() - t0) / 100) / 10 + ' s · ' + statsText() + (nT ? '' : ''), 'ok');
+  } catch (e) {
+    if (e && e.cancel) toast('Η επεξεργασία ακυρώθηκε.'); else { console.error(e); toast('Η επεξεργασία σταμάτησε: ' + (e.message || e) + '. Δοκιμάστε μικρότερη περιοχή εργασίας.', 'err', 8000); }
+  } finally { S.busy = false; S.cancel = false; P.hide(); updateUI(); }
+}
+async function processRaster() {
+  var R = regionRect(), o = rasterOpts();
+  P.set('Ανάγνωση εικόνας', 0.03);
+  await tick();
+  var G = grayOf(S.work, R); S.rgray = G;
+  var texts = [];
+  if ($('#optOcr').checked) {
+    P.set('Εντοπισμός κειμένων', 0.06);
+    var groups = await CoreW.run('atoms', { gray: G.g, w: G.w, h: G.h, o: { hmax: o.hmax, hmin: o.hmin, sens: o.sens } });
+    checkCancel();
+    groups.forEach(function (g) { offsetGroup(g, G.x0, G.y0); });
+    texts = await ocrGroups(groups, 'raster', 0.1, 0.55);
+  }
+  S.texts = texts;
+  await vectorizeRaster(0.66, 0.34);
+}
+async function vectorizeRaster(base, span) {
+  var G = S.rgray, o = rasterOpts();
+  var masks = [];
+  S.texts.forEach(function (t) { if (t.on && t.kind === 'raster') t.glyphs.forEach(function (b) { masks.push([b[0] - 1 - G.x0, b[1] - 1 - G.y0, b[2] + 1 - G.x0, b[3] + 1 - G.y0]); }); });
+  o.masks = masks;
+  P.set('Ψηφιοποίηση γραμμών', base);
+  var res = await CoreW.run('vectorize', { gray: G.g, w: G.w, h: G.h, o: o }, function (l, p) { P.set(l, base + span * p); });
+  checkCancel();
+  S.res = offsetRes(res, G.x0, G.y0); S.res.kind = 'raster';
+}
+async function processVector() {
+  var R = regionRect(), ents = S.vec.ents;
+  P.set('Επιλογή στοιχείων', 0.05);
+  var idx = [];
+  for (var i = 0; i < ents.length; i++) { var b = ents[i].bb, cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2; if (cx >= R[0] && cx <= R[2] && cy >= R[1] && cy <= R[3]) idx.push(i); }
+  var texts = textsFromPdf(R);
+  if ($('#optOcr').checked && texts.length < 10) {
+    var pxmm = WS * 72 / 25.4, hmax = clamp(Math.round(parseFloat($('#hmaxmm').value || 9) * pxmm), 16, 260), hmin = Math.max(4, Math.round(1.0 * pxmm));
+    var atoms = [], amap = [];
+    idx.forEach(function (i) { var b = ents[i].bb; if (Math.max(b[2] - b[0], b[3] - b[1]) <= hmax) { atoms.push(b); amap.push(i); } });
+    P.set('Εντοπισμός κειμένων', 0.08); await tick();
+    var groups = P2D.groupText(atoms, { hmin: hmin, hmax: hmax });
+    groups.forEach(function (g) { g.atoms = g.atoms.map(function (a) { return amap[a]; }); });
+    texts = texts.concat(await ocrGroups(groups, 'vector', 0.1, 0.75));
+  }
+  S.texts = texts; S.vecIdx = idx;
+  P.set('Μετατροπή γεωμετρίας', 0.88); await tick();
+  rebuildVector();
+}
+function rebuildVector() {
+  var skip = new Uint8Array(S.vec.ents.length), inR = new Uint8Array(S.vec.ents.length);
+  S.vecIdx.forEach(function (i) { inR[i] = 1; });
+  for (var i = 0; i < skip.length; i++) if (!inR[i]) skip[i] = 1;
+  S.texts.forEach(function (t) { if (t.on) t.atoms.forEach(function (a) { skip[a] = 1; }); });
+  var r = P2D.vecToPrims(S.vec.ents, skip, { fills: $('#optFills').checked });
+  if (!$('#optArcs').checked) { r.arcs.forEach(function (a) { r.polys.push({ pts: arcPts(a), closed: false, layer: a.layer }); }); r.arcs = []; r.circles.forEach(function (c) { var p = []; for (var k = 0; k < 48; k++) p.push([c.cx + c.r * Math.cos(k / 48 * 2 * Math.PI), c.cy + c.r * Math.sin(k / 48 * 2 * Math.PI)]); r.polys.push({ pts: p, closed: true, layer: c.layer }); }); r.circles = []; }
+  S.res = r; S.res.kind = 'vector';
+}
+function arcPts(a) {
+  var a0 = Math.atan2(a.p0[1] - a.cy, a.p0[0] - a.cx), am = Math.atan2(a.pm[1] - a.cy, a.pm[0] - a.cx), a1 = Math.atan2(a.p1[1] - a.cy, a.p1[0] - a.cx);
+  var d1 = norm(am - a0), d2 = norm(a1 - am), pts = [], n = 24;
+  for (var k = 0; k <= n; k++) { var t = k / n, an = a0 + (d1 + d2) * t; pts.push([a.cx + a.r * Math.cos(an), a.cy + a.r * Math.sin(an)]); }
+  return pts;
+  function norm(d) { while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; }
+}
+var _reTimer = null;
+function textToggled() {
+  if (!S.res) return;
+  clearTimeout(_reTimer);
+  _reTimer = setTimeout(async function () {
+    if (S.res.kind === 'vector') { rebuildVector(); buildPaths(); renderLayers(); draw(); updateUI(); return; }
+    if (S.busy) return;
+    S.busy = true; P.show('Ανανέωση γεωμετρίας', '');
+    try { await vectorizeRaster(0, 1); buildPaths(); renderLayers(); draw(); }
+    catch (e) { if (!e.cancel) toast('Η ανανέωση απέτυχε: ' + e.message, 'err'); }
+    finally { S.busy = false; P.hide(); updateUI(); }
+  }, S.res.kind === 'vector' ? 120 : 700);
+}
+
+/* ---------------- layers ---------------- */
+var RASTER_LAYERS = { TOIXOI: { name: 'P2D_TOIXOI', color: 7, lw: 50, disp: '#ffffff' }, GRAMMES: { name: 'P2D_GRAMMES', color: 7, lw: 18, disp: '#e6f0ff' }, TOXA: { name: 'P2D_TOXA', color: 7, lw: 18, disp: '#9fe8ff' }, MIKRA: { name: 'P2D_MIKRA', color: 8, lw: 13, disp: '#a9bde0' } };
+var ACI_DISP = { 1: '#ffb3b3', 2: '#fff2a8', 3: '#bdf5c9', 4: '#b3f3ff', 5: '#c9d6ff', 6: '#f5c6ff', 7: '#ffffff', 8: '#b4c3e0', 9: '#d2dcef', 30: '#ffd2a8', 40: '#ffe3a8', 94: '#bfe8c6', 134: '#b9d4f5', 140: '#b3e4ff', 190: '#dcc8ff', 250: '#9fb0cf', 251: '#a9b8d4', 252: '#b3c0d8', 253: '#bcc8dd', 254: '#e2e8f3', 12: '#f0b0b0' };
+function layerInfo(l) {
+  if (RASTER_LAYERS[l]) return RASTER_LAYERS[l];
+  var m = /^P2D_C(\d+)(?:_L(\d+)|_GEMISMA)$/.exec(l);
+  if (m) return { name: l, color: +m[1], lw: m[2] ? +m[2] : -3, disp: ACI_DISP[m[1]] || '#d6e4ff', fill: !m[2] };
+  return { name: l, color: 7, lw: -3, disp: '#d6e4ff' };
+}
+function layersOf() {
+  if (!S.res) return [];
+  var cnt = {};
+  function add(l) { cnt[l] = (cnt[l] || 0) + 1; }
+  S.res.polys.forEach(function (p) { add(p.layer); }); S.res.arcs.forEach(function (a) { add(a.layer); }); S.res.circles.forEach(function (c) { add(c.layer); });
+  var arr = Object.keys(cnt).map(function (k) { var i = layerInfo(k); return { key: k, name: i.name, color: i.color, lw: i.lw, disp: i.disp, n: cnt[k] }; });
+  var nt = S.texts.filter(function (t) { return t.on; }).length;
+  if (nt) arr.push({ key: 'KEIMENA', name: 'P2D_KEIMENA', color: 7, lw: -3, disp: '#fff6c2', n: nt });
+  arr.sort(function (a, b) { return b.n - a.n; });
+  return arr;
+}
+function renderLayers() {
+  var box = $('#layers'), ls = layersOf();
+  if (!ls.length) { box.innerHTML = '<p class="hint">Εμφανίζονται μετά την ψηφιοποίηση.</p>'; return; }
+  box.innerHTML = '';
+  ls.forEach(function (l) {
+    if (S.layerOn[l.name] === undefined) S.layerOn[l.name] = true;
+    var row = el('label', { class: 'layer' });
+    row.innerHTML = '<input type="checkbox"' + (S.layerOn[l.name] ? ' checked' : '') + '><span class="sw" style="background:' + l.disp + '"></span><code>' + esc(l.name) + '</code><small>' + l.n.toLocaleString('el-GR') + '</small>';
+    row.querySelector('input').addEventListener('change', function (e) { S.layerOn[l.name] = e.target.checked; buildPaths(); draw(); updateUI(); });
+    box.appendChild(row);
+  });
+}
+
+/* ---------------- calibration / world transform ---------------- */
+function workDPI() { return S.mode === 'vector' ? 200 : S.dpi; }
+function solveH(src, dst) {
+  // least squares homography (8 params), normalized
+  var n = src.length, mx = 0, my = 0, MX = 0, MY = 0, i;
+  for (i = 0; i < n; i++) { mx += src[i][0]; my += src[i][1]; MX += dst[i][0]; MY += dst[i][1]; }
+  mx /= n; my /= n; MX /= n; MY /= n;
+  var s1 = 0, s2 = 0; for (i = 0; i < n; i++) { s1 += Math.hypot(src[i][0] - mx, src[i][1] - my); s2 += Math.hypot(dst[i][0] - MX, dst[i][1] - MY); }
+  s1 = (s1 / n) || 1; s2 = (s2 / n) || 1;
+  var A = [], b = [];
+  for (i = 0; i < n; i++) {
+    var x = (src[i][0] - mx) / s1, y = (src[i][1] - my) / s1, X = (dst[i][0] - MX) / s2, Y = (dst[i][1] - MY) / s2;
+    A.push([x, y, 1, 0, 0, 0, -x * X, -y * X]); b.push(X);
+    A.push([0, 0, 0, x, y, 1, -x * Y, -y * Y]); b.push(Y);
+  }
+  var N = [], r = [], j, k;
+  for (j = 0; j < 8; j++) { N.push(new Array(8).fill(0)); r.push(0); }
+  for (i = 0; i < A.length; i++) for (j = 0; j < 8; j++) { r[j] += A[i][j] * b[i]; for (k = 0; k < 8; k++) N[j][k] += A[i][j] * A[i][k]; }
+  for (j = 0; j < 8; j++) { var p = j; for (k = j + 1; k < 8; k++) if (Math.abs(N[k][j]) > Math.abs(N[p][j])) p = k; var t = N[j]; N[j] = N[p]; N[p] = t; t = r[j]; r[j] = r[p]; r[p] = t; if (Math.abs(N[j][j]) < 1e-12) return null; for (k = j + 1; k < 8; k++) { var f = N[k][j] / N[j][j]; for (var c = j; c < 8; c++) N[k][c] -= f * N[j][c]; r[k] -= f * r[j]; } }
+  var h = new Array(8); for (j = 7; j >= 0; j--) { var s = r[j]; for (k = j + 1; k < 8; k++) s -= N[j][k] * h[k]; h[j] = s / N[j][j]; }
+  return function (x, y) { var u = (x - mx) / s1, v = (y - my) / s1, w = h[6] * u + h[7] * v + 1; return [((h[0] * u + h[1] * v + h[2]) / w) * s2 + MX, ((h[3] * u + h[4] * v + h[5]) / w) * s2 + MY]; };
+}
+function calib() {
+  // returns {W(x,y)->[m], ok, info:[...]} in metres
+  var R = regionRect(), ox = R[0], oy = R[3], c = S.cal, info = [], k0 = 0.0254 / workDPI() * (c.den || 50);
+  var lin = function (kx, ky) { return function (x, y) { return [(x - ox) * kx, (oy - y) * ky]; }; };
+  if (c.mode === 'scale') {
+    info.push(['1 px σχεδίου', fmt(k0 * 1000, 2) + ' mm']);
+    return { W: lin(k0, k0), ok: true, k: k0, info: info };
+  }
+  if (c.mode === 'dist') {
+    var d = parseFloat($('#distVal').value);
+    if (c.A.length < 2 || !(d > 0)) { info.push(['Κατάσταση', 'χρειάζονται 2 σημεία + απόσταση']); return { W: lin(k0, k0), ok: false, k: k0, info: info }; }
+    var px = Math.hypot(c.A[1][0] - c.A[0][0], c.A[1][1] - c.A[0][1]), k = d / px;
+    info.push(['1 px', fmt(k * 1000, 3) + ' mm']); info.push(['Ισοδύναμη κλίμακα', '1:' + fmt(k / (0.0254 / workDPI()), 1)]);
+    return { W: lin(k, k), ok: true, k: k, info: info };
+  }
+  if (c.mode === 'xy') {
+    var dx = parseFloat($('#xyX').value), dy = parseFloat($('#xyY').value);
+    if (c.XY.length < 4 || !(dx > 0) || !(dy > 0)) { info.push(['Κατάσταση', 'χρειάζονται A, B, C, D + αποστάσεις']); return { W: lin(k0, k0), ok: false, k: k0, info: info }; }
+    var kx = dx / Math.hypot(c.XY[1][0] - c.XY[0][0], c.XY[1][1] - c.XY[0][1]), ky = dy / Math.hypot(c.XY[3][0] - c.XY[2][0], c.XY[3][1] - c.XY[2][1]);
+    info.push(['Χ: 1 px', fmt(kx * 1000, 3) + ' mm']); info.push(['Υ: 1 px', fmt(ky * 1000, 3) + ' mm']); info.push(['Διαφορά αξόνων', fmt((kx / ky - 1) * 100, 2) + ' %']);
+    return { W: lin(kx, ky), ok: true, k: (kx + ky) / 2, info: info };
+  }
+  var pts = c.P.filter(function (p) { return p.x != null && isFinite(p.E) && isFinite(p.N); });
+  if (pts.length < 4) { info.push(['Κατάσταση', pts.length + ' / 4 σημεία με συντεταγμένες']); return { W: lin(k0, k0), ok: false, k: k0, info: info }; }
+  var Hm = solveH(pts.map(function (p) { return [p.x, p.y]; }), pts.map(function (p) { return [p.E, p.N]; }));
+  if (!Hm) { info.push(['Κατάσταση', 'τα σημεία είναι συνευθειακά']); return { W: lin(k0, k0), ok: false, k: k0, info: info }; }
+  var res = 0; pts.forEach(function (p) { var q = Hm(p.x, p.y); res = Math.max(res, Math.hypot(q[0] - p.E, q[1] - p.N)); });
+  var a = Hm(0, 0), b = Hm(100, 0);
+  info.push(['1 px', fmt(Math.hypot(b[0] - a[0], b[1] - a[1]) / 100 * 1000, 3) + ' mm']);
+  info.push(['Μέγ. απόκλιση σημείων', pts.length > 4 ? fmt(res * 100, 1) + ' cm' : 'ακριβής (4 σημεία)']);
+  return { W: Hm, ok: true, k: Math.hypot(b[0] - a[0], b[1] - a[1]) / 100, info: info, geo: true };
+}
+function renderCal() {
+  var c = calib();
+  $('#calOut').innerHTML = c.info.map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + esc(r[1]) + '</dd>'; }).join('');
+  $('#sum4').textContent = S.cal.mode === 'scale' ? '1:' + S.cal.den : (c.ok ? 'βαθμονομημένο' : 'εκκρεμεί');
+  return c;
+}
+function renderPicks() {
+  function row(label, p, onPick, extra) {
+    var r = el('div', { class: 'pick' });
+    r.innerHTML = '<span class="tag' + (p ? ' set' : '') + '">' + label + '</span>' + (extra || '<span class="hint" style="grid-column:span 2">' + (p ? 'x ' + Math.round(p[0]) + ' · y ' + Math.round(p[1]) : 'δεν ορίστηκε') + '</span>') + '<button class="btn" type="button" title="Επιλογή στο σχέδιο" style="padding:6px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></svg></button>';
+    r.querySelector('button').addEventListener('click', onPick);
+    return r;
+  }
+  var bd = $('#picksDist'); bd.innerHTML = '';
+  ['A', 'B'].forEach(function (L, i) { bd.appendChild(row(L, S.cal.A[i], function () { startPick({ arr: 'A', i: i, label: L }); })); });
+  var bx = $('#picksXY'); bx.innerHTML = '';
+  ['A', 'B', 'C', 'D'].forEach(function (L, i) { bx.appendChild(row(L, S.cal.XY[i], function () { startPick({ arr: 'XY', i: i, label: L }); })); });
+  var bp = $('#picksPts'); bp.innerHTML = '';
+  if (!S.cal.P.length) for (var i = 0; i < 4; i++) S.cal.P.push({ x: null, y: null, E: NaN, N: NaN });
+  S.cal.P.forEach(function (p, i) {
+    var extra = '<input class="field" type="number" step="0.001" placeholder="X (E)" value="' + (isFinite(p.E) ? p.E : '') + '" id="pE' + i + '"><input class="field" type="number" step="0.001" placeholder="Y (N)" value="' + (isFinite(p.N) ? p.N : '') + '" id="pN' + i + '">';
+    var r = row('Σ' + (i + 1), p.x != null ? [p.x, p.y] : null, function () { startPick({ arr: 'P', i: i, label: 'Σ' + (i + 1) }); }, extra);
+    r.querySelector('#pE' + i).addEventListener('input', function (e) { p.E = parseFloat(e.target.value); renderCal(); });
+    r.querySelector('#pN' + i).addEventListener('input', function (e) { p.N = parseFloat(e.target.value); renderCal(); });
+    bp.appendChild(r);
+  });
+  renderCal();
+}
+function startPick(t) { S.pickTarget = t; setTool('pick'); toast('Κάντε κλικ στο σημείο ' + t.label + '. Η λαβή κουμπώνει σε κορυφές της γεωμετρίας.', '', 3500); }
+function setPick(x, y) {
+  var t = S.pickTarget; if (!t) return;
+  if (t.arr === 'A') S.cal.A[t.i] = [x, y]; else if (t.arr === 'XY') S.cal.XY[t.i] = [x, y]; else { S.cal.P[t.i].x = x; S.cal.P[t.i].y = y; }
+  S.pickTarget = null; setTool('pan'); renderPicks(); draw();
+}
+
+/* ---------------- DXF export ---------------- */
+function buildDXF() {
+  var cal = calib(), mul = { m: 1, cm: 100, mm: 1000 }[S.units], Wm = cal.W;
+  var W = function (p) { var q = Wm(p[0], p[1]); return [q[0] * mul, q[1] * mul]; };
+  var doc = { units: S.units, layers: [], polys: [], arcs: [], circles: [], texts: [] }, used = {};
+  function L(name) { if (!used[name]) { var i = layerInfo(name); used[name] = 1; doc.layers.push({ name: i.name, color: i.color, lw: i.lw }); } return layerInfo(name).name; }
+  function on(name) { return S.layerOn[layerInfo(name).name] !== false; }
+  var thick = $('#optThick').checked ? S.h3d * mul : 0, ext = extrudeSet();
+  S.res.polys.forEach(function (p) { if (!on(p.layer)) return; doc.polys.push({ pts: p.pts.map(W), closed: p.closed, layer: L(p.layer), thick: thick && ext[layerInfo(p.layer).name] ? thick : 0 }); });
+  S.res.arcs.forEach(function (a) {
+    if (!on(a.layer)) return;
+    var C = W([a.cx, a.cy]), rr = 0;
+    [[1, 0], [0, 1], [-1, 0], [0, -1]].forEach(function (d) { var q = W([a.cx + d[0] * a.r, a.cy + d[1] * a.r]); rr += Math.hypot(q[0] - C[0], q[1] - C[1]); });
+    rr /= 4;
+    var P0 = W(a.p0), Pm = W(a.pm), P1 = W(a.p1), D = 180 / Math.PI;
+    var a0 = Math.atan2(P0[1] - C[1], P0[0] - C[0]) * D, am = Math.atan2(Pm[1] - C[1], Pm[0] - C[0]) * D, a1 = Math.atan2(P1[1] - C[1], P1[0] - C[0]) * D;
+    var m360 = function (v) { return ((v % 360) + 360) % 360; };
+    if (!(m360(am - a0) < m360(a1 - a0))) { var t = a0; a0 = a1; a1 = t; }   // DXF arcs run counter-clockwise a0 → a1
+    doc.arcs.push({ cx: C[0], cy: C[1], r: rr, a0: m360(a0), a1: m360(a1), layer: L(a.layer) });
+  });
+  S.res.circles.forEach(function (c) {
+    if (!on(c.layer)) return;
+    var C = W([c.cx, c.cy]), rr = 0; [[1, 0], [0, 1], [-1, 0], [0, -1]].forEach(function (d) { var q = W([c.cx + d[0] * c.r, c.cy + d[1] * c.r]); rr += Math.hypot(q[0] - C[0], q[1] - C[1]); });
+    doc.circles.push({ cx: C[0], cy: C[1], r: rr / 4, layer: L(c.layer) });
+  });
+  if (S.layerOn['P2D_KEIMENA'] !== false) {
+    var fitW = $('#optWidth').checked;
+    S.texts.forEach(function (t) {
+      if (!t.on || !t.str.trim()) return;
+      var s = greekify(t.str.trim()), vx = -t.uy, vy = t.ux;
+      var BL = W([t.bx, t.by]), BR = W([t.bx + t.ux * t.L, t.by + t.uy * t.L]), TL = W([t.bx - vx * t.H, t.by - vy * t.H]);
+      var dx = BR[0] - BL[0], dy = BR[1] - BL[1], len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+      var h = Math.abs((TL[0] - BL[0]) * -uy + (TL[1] - BL[1]) * ux);
+      if (!(h > 0)) return;
+      var wf = 1;
+      if (fitW && s.replace(/\s/g, '').length >= 3) { var em = arialEm(s); if (em > 0) wf = clamp(len / (em * h / 0.716), 0.55, 1.6); }
+      if (!used['KEIMENA']) { used['KEIMENA'] = 1; doc.layers.push({ name: 'P2D_KEIMENA', color: 7, lw: -3 }); }
+      doc.texts.push({ x: BL[0], y: BL[1], h: h, dx: ux, dy: uy, str: s, layer: 'P2D_KEIMENA', wf: wf });
+    });
+  }
+  return DXFW.write(doc);
+}
+function circ3(a, b, c) {
+  var d = 2 * (a[0] * (b[1] - c[1]) + b[0] * (c[1] - a[1]) + c[0] * (a[1] - b[1])); if (Math.abs(d) < 1e-12) return null;
+  var a2 = a[0] * a[0] + a[1] * a[1], b2 = b[0] * b[0] + b[1] * b[1], c2 = c[0] * c[0] + c[1] * c[1];
+  var ux = (a2 * (b[1] - c[1]) + b2 * (c[1] - a[1]) + c2 * (a[1] - b[1])) / d, uy = (a2 * (c[0] - b[0]) + b2 * (a[0] - c[0]) + c2 * (b[0] - a[0])) / d;
+  return [ux, uy, Math.hypot(a[0] - ux, a[1] - uy)];
+}
+/* minimal ZIP (stored) for hosts that only accept .zip downloads */
+var CRC = (function () { var t = new Uint32Array(256); for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function zip1(name, bytes) {
+  var crc = 0xFFFFFFFF; for (var i = 0; i < bytes.length; i++) crc = CRC[(crc ^ bytes[i]) & 255] ^ (crc >>> 8); crc = (crc ^ 0xFFFFFFFF) >>> 0;
+  var nb = new TextEncoder().encode(name), sz = bytes.length;
+  var lh = new DataView(new ArrayBuffer(30)); lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint32(14, crc, true); lh.setUint32(18, sz, true); lh.setUint32(22, sz, true); lh.setUint16(26, nb.length, true);
+  var ch = new DataView(new ArrayBuffer(46)); ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint32(16, crc, true); ch.setUint32(20, sz, true); ch.setUint32(24, sz, true); ch.setUint16(28, nb.length, true);
+  var off = 30 + nb.length + sz, cd = 46 + nb.length;
+  var ed = new DataView(new ArrayBuffer(22)); ed.setUint32(0, 0x06054b50, true); ed.setUint16(8, 1, true); ed.setUint16(10, 1, true); ed.setUint32(12, cd, true); ed.setUint32(16, off, true);
+  return new Blob([lh.buffer, nb, bytes, ch.buffer, nb, ed.buffer]);
+}
+async function exportDXF() {
+  if (!S.res) return;
+  var c = calib(); if (!c.ok) { toast('Ολοκληρώστε πρώτα τη βαθμονόμηση κλίμακας (βήμα 4).', 'err'); openStep(4); return; }
+  var txt; try { txt = buildDXF(); } catch (e) { console.error(e); toast('Σφάλμα δημιουργίας DXF: ' + e.message, 'err'); return; }
+  var name = ($('#fname').value || 'sxedio.dxf').trim(); if (!/\.dxf$/i.test(name)) name += '.dxf';
+  var bytes = new TextEncoder().encode(txt);
+  var dl = null;
+  if (window.claude && typeof window.claude.use === 'function') { try { dl = await window.claude.use('downloads'); } catch (e) { dl = null; } }
+  if (dl) {
+    try { await dl.save({ filename: name.replace(/\.dxf$/i, '') + '.zip', data: zip1(name, bytes) }); toast('Το DXF αποθηκεύτηκε (μέσα σε .zip).', 'ok'); }
+    catch (e) { if (e && e.code !== 'declined') toast('Η αποθήκευση δεν ολοκληρώθηκε (' + (e.code || e.message) + ').', 'err'); }
+    return;
+  }
+  var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/dxf' })); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+  toast('Λήψη ' + name + ' · ' + statsText(), 'ok');
+  markDone(5);
+}
+
+/* ---------------- 3D extrude ---------------- */
+S.h3d = 3; S.ext = null;
+function extrudeSet() {
+  if (S.ext) return S.ext;
+  var ls = layersOf().filter(function (l) { return l.key !== 'KEIMENA'; }), set = {};
+  if (ls.some(function (l) { return l.name === 'P2D_TOIXOI'; })) set.P2D_TOIXOI = true;
+  else {
+    // vector drawings: the heaviest pen that draws enough entities is usually the walls
+    var best = null; ls.forEach(function (l) { if (l.lw > 0 && l.n >= 8 && (!best || l.lw > best.lw)) best = l; });
+    if (best) set[best.name] = true;
+  }
+  S.ext = set; return set;
+}
+function data3d() {
+  var cal = calib(), W = function (p) { return cal.W(p[0], p[1]); }, set = extrudeSet(), solids = [], lines = [], plan = [], segs = 0;
+  S.res.polys.forEach(function (p) {
+    var nm = layerInfo(p.layer).name;
+    if (set[nm]) { if (p.closed && p.pts.length >= 3) solids.push(p.pts.map(W)); else lines.push(p.pts.map(W)); }
+    else if ($('#v3dPlan').checked && S.layerOn[nm] !== false && segs < 60000) { var q = p.pts.map(W); if (p.closed) q.push(q[0]); plan.push(q); segs += q.length; }
+  });
+  if ($('#v3dPlan').checked) S.res.arcs.forEach(function (a) { if (S.layerOn[layerInfo(a.layer).name] !== false && segs < 60000) { plan.push(arcPts(a).map(W)); segs += 25; } });
+  return { solids: solids, lines: lines, plan: plan, height: S.h3d };
+}
+function render3dLayers() {
+  var box = $('#v3dLayers'), set = extrudeSet(); box.innerHTML = '';
+  layersOf().forEach(function (l) {
+    if (l.key === 'KEIMENA') return;
+    var row = el('label', { class: 'layer' });
+    row.innerHTML = '<input type="checkbox"' + (set[l.name] ? ' checked' : '') + '><span class="sw" style="background:' + l.disp + '"></span><code>' + esc(l.name) + '</code><small>' + l.n + '</small>';
+    row.querySelector('input').addEventListener('change', function (e) { if (e.target.checked) set[l.name] = true; else delete set[l.name]; rebuild3d(true); });
+    box.appendChild(row);
+  });
+}
+function rebuild3d(keep) {
+  try {
+    var d = data3d(), r = V3D.build(d, keep);
+    $('#v3dInfo').innerHTML = '<dt>Κάτοψη</dt><dd>' + fmt(r.w, 2) + ' × ' + fmt(r.d, 2) + ' m</dd><dt>Ύψος</dt><dd>' + fmt(S.h3d, 2) + ' m</dd><dt>Στοιχεία που υψώθηκαν</dt><dd>' + (d.solids.length + d.lines.length) + '</dd>';
+    if (!d.solids.length && !d.lines.length) toast('Επιλέξτε το layer των τοίχων για να υψωθεί.', '', 3500);
+  } catch (e) { console.error(e); toast('Η 3D προβολή απέτυχε: ' + e.message, 'err'); }
+}
+function open3d() {
+  if (!S.res) return;
+  if (!window.THREE || !THREE.OrbitControls) { toast('Η βιβλιοθήκη 3D δεν φορτώθηκε. Ελέγξτε τη σύνδεση.', 'err'); return; }
+  if (!calib().ok) toast('Η βαθμονόμηση δεν έχει ολοκληρωθεί: το 3D χρησιμοποιεί την κλίμακα σχεδίου.', '', 4000);
+  $('#v3d').hidden = false;
+  if (!V3D.ready()) V3D.init($('#v3dGl')); else V3D.resize();
+  render3dLayers(); rebuild3d(false);
+}
+$('#btn3d').addEventListener('click', open3d);
+$('#v3dClose').addEventListener('click', function () { $('#v3d').hidden = true; });
+var _h3T = null;
+function setH(v, from) { v = clamp(parseFloat(v) || 3, 0.1, 50); S.h3d = v; if (from !== 'r') $('#v3dH').value = Math.min(12, v); if (from !== 'n') $('#v3dHn').value = v.toFixed(2); clearTimeout(_h3T); _h3T = setTimeout(function () { rebuild3d(true); }, 60); }
+$('#v3dH').addEventListener('input', function (e) { setH(e.target.value, 'r'); });
+$('#v3dHn').addEventListener('input', function (e) { setH(e.target.value, 'n'); });
+$('#v3dPlan').addEventListener('change', function () { rebuild3d(true); });
+document.querySelectorAll('#v3dViews button').forEach(function (b) { b.addEventListener('click', function () { V3D.view(b.dataset.v); }); });
+
+/* ---------------- viewer ---------------- */
+var cv = $('#cv'), vctx = cv.getContext('2d'), viewer = $('#viewer'), loupe = $('#loupe'), lctx = loupe.getContext('2d');
+var paths = [], dpr = 1, snapIdx = null, hover = null, drag = null, ptrs = new Map(), pinch = null, needDraw = false;
+function resize() { var r = viewer.getBoundingClientRect(); dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = Math.max(1, r.width * dpr); cv.height = Math.max(1, r.height * dpr); draw(); }
+function fit() {
+  var r = viewer.getBoundingClientRect(), R = S.region || (S.work || S.vec ? [0, 0].concat(workSize()) : [0, 0, 1, 1]);
+  var w = R[2] - R[0], h = R[3] - R[1]; if (w <= 0 || h <= 0) return;
+  var z = Math.min(r.width / w, r.height / h) * 0.92; S.view.z = z; S.view.tx = (r.width - w * z) / 2 - R[0] * z; S.view.ty = (r.height - h * z) / 2 - R[1] * z; draw();
+}
+function toWork(sx, sy) { return [(sx - S.view.tx) / S.view.z, (sy - S.view.ty) / S.view.z]; }
+function buildPaths() {
+  paths = []; snapIdx = null; if (!S.res) return;
+  var by = {};
+  function P(l) { if (!by[l]) { var i = layerInfo(l); by[l] = { p: new Path2D(), c: i.disp, w: l === 'TOIXOI' ? 1.6 : 1.1, fill: i.fill, name: i.name }; } return by[l]; }
+  S.res.polys.forEach(function (p) { var o = P(p.layer).p; o.moveTo(p.pts[0][0], p.pts[0][1]); for (var k = 1; k < p.pts.length; k++) o.lineTo(p.pts[k][0], p.pts[k][1]); if (p.closed) o.closePath(); });
+  S.res.arcs.forEach(function (a) { var o = P(a.layer).p, q = arcPts(a); o.moveTo(q[0][0], q[0][1]); for (var k = 1; k < q.length; k++) o.lineTo(q[k][0], q[k][1]); });
+  S.res.circles.forEach(function (c) { var o = P(c.layer).p; o.moveTo(c.cx + c.r, c.cy); o.arc(c.cx, c.cy, c.r, 0, 2 * Math.PI); });
+  for (var k in by) paths.push(by[k]);
+  paths.sort(function (a, b) { return (a.name === 'P2D_TOIXOI') - (b.name === 'P2D_TOIXOI'); });
+  // snap index
+  var cell = 24, grid = new Map();
+  function add(x, y) { var kk = Math.floor(x / cell) + ',' + Math.floor(y / cell), l = grid.get(kk); if (l) l.push(x, y); else grid.set(kk, [x, y]); }
+  S.res.polys.forEach(function (p) { p.pts.forEach(function (q) { add(q[0], q[1]); }); });
+  S.res.arcs.forEach(function (a) { add(a.p0[0], a.p0[1]); add(a.p1[0], a.p1[1]); add(a.cx, a.cy); });
+  S.res.circles.forEach(function (c) { add(c.cx, c.cy); });
+  snapIdx = { cell: cell, grid: grid };
+}
+function snap(x, y) {
+  if (!snapIdx) return null;
+  var r = 12 / S.view.z, c = snapIdx.cell, best = null, bd = r;
+  for (var gx = Math.floor((x - r) / c); gx <= Math.floor((x + r) / c); gx++) for (var gy = Math.floor((y - r) / c); gy <= Math.floor((y + r) / c); gy++) {
+    var l = snapIdx.grid.get(gx + ',' + gy); if (!l) continue;
+    for (var i = 0; i < l.length; i += 2) { var d = Math.hypot(l[i] - x, l[i + 1] - y); if (d < bd) { bd = d; best = [l[i], l[i + 1]]; } }
+    if (gx - Math.floor((x - r) / c) > 60) break;
+  }
+  return best;
+}
+function draw() { if (needDraw) return; needDraw = true; requestAnimationFrame(drawNow); }
+function drawNow() {
+  needDraw = false;
+  var x = vctx, z = S.view.z; x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, cv.width, cv.height);
+  if (!(S.work || S.vec)) return;
+  x.setTransform(z * dpr, 0, 0, z * dpr, S.view.tx * dpr, S.view.ty * dpr);
+  var ws = workSize();
+  // blueprint sheet: faint frame with a double border, like a cyanotype print
+  x.fillStyle = 'rgba(255,255,255,0.03)'; x.fillRect(0, 0, ws[0], ws[1]);
+  x.strokeStyle = 'rgba(255,255,255,0.55)'; x.lineWidth = 2 / z; x.strokeRect(0, 0, ws[0], ws[1]);
+  x.strokeStyle = 'rgba(255,255,255,0.25)'; x.lineWidth = 1 / z; var m0 = Math.min(ws[0], ws[1]) * 0.012; x.strokeRect(m0, m0, ws[0] - 2 * m0, ws[1] - 2 * m0);
+  if (S.show.bg && S.disp) { x.imageSmoothingEnabled = z * S.dispK < 2; x.globalAlpha = S.res && S.show.vec ? 0.28 : 0.92; x.drawImage(S.disp, 0, 0, ws[0], ws[1]); x.globalAlpha = 1; }
+  if (S.res && S.show.vec) {
+    paths.forEach(function (p) {
+      if (S.layerOn[p.name] === false) return;
+      if (p.fill) { x.fillStyle = p.c; x.globalAlpha = 0.22; x.fill(p.p); x.globalAlpha = 1; }
+      if (p.name === 'P2D_TOIXOI') { x.fillStyle = 'rgba(255,255,255,0.16)'; x.fill(p.p); }
+      x.strokeStyle = p.c; x.lineWidth = p.w / z; x.stroke(p.p);
+    });
+  }
+  if (S.show.txt && S.texts.length && S.layerOn['P2D_KEIMENA'] !== false) {
+    S.texts.forEach(function (t, i) {
+      var ang = Math.atan2(t.uy, t.ux);
+      x.save(); x.translate(t.bx, t.by); x.rotate(ang);
+      var sel = i === S.sel;
+      x.strokeStyle = sel ? '#ffe066' : t.on ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.18)'; x.lineWidth = (sel ? 2 : 1) / z;
+      if (sel || !t.on) x.strokeRect(0, -t.H * 1.18, t.L, t.H * 1.38);
+      if (t.on) { x.fillStyle = sel ? '#ffe066' : '#fff6c2'; x.font = (t.H / 0.716) + 'px Arial, sans-serif'; x.textBaseline = 'alphabetic'; x.fillText(greekify(t.str), 0, 0, Math.max(t.L, 1)); }
+      x.restore();
+    });
+  }
+  // region
+  if (S.region || (drag && drag.kind === 'region')) {
+    var R = drag && drag.kind === 'region' ? drag.rect : S.region;
+    x.fillStyle = 'rgba(4,20,50,0.55)';
+    x.beginPath(); x.rect(-1e5, -1e5, 2e5 + ws[0], 2e5 + ws[1]); x.rect(R[0], R[1], R[2] - R[0], R[3] - R[1]); x.fill('evenodd');
+    x.setLineDash([8 / z, 6 / z]); x.strokeStyle = '#ffe066'; x.lineWidth = 1.5 / z; x.strokeRect(R[0], R[1], R[2] - R[0], R[3] - R[1]); x.setLineDash([]);
+  }
+  // calibration picks
+  function mark(p, lbl, col) { if (!p) return; var r = 9 / z; x.strokeStyle = col; x.lineWidth = 1.6 / z; x.beginPath(); x.arc(p[0], p[1], r, 0, 2 * Math.PI); x.moveTo(p[0] - r * 1.8, p[1]); x.lineTo(p[0] + r * 1.8, p[1]); x.moveTo(p[0], p[1] - r * 1.8); x.lineTo(p[0], p[1] + r * 1.8); x.stroke(); x.fillStyle = col; x.font = 'bold ' + (13 / z) + 'px JetBrains Mono, monospace'; x.fillText(lbl, p[0] + r * 1.4, p[1] - r * 1.2); }
+  if (S.cal.mode === 'dist') { S.cal.A.forEach(function (p, i) { mark(p, 'AB'[i], '#ffe066'); }); line(S.cal.A[0], S.cal.A[1], '#ffe066'); }
+  if (S.cal.mode === 'xy') { S.cal.XY.forEach(function (p, i) { mark(p, 'ABCD'[i], '#ffe066'); }); line(S.cal.XY[0], S.cal.XY[1], '#ffe066'); line(S.cal.XY[2], S.cal.XY[3], '#ffe066'); }
+  if (S.cal.mode === 'pts') S.cal.P.forEach(function (p, i) { if (p.x != null) mark([p.x, p.y], 'Σ' + (i + 1), '#7dffc4'); });
+  if (S.measure.length) { S.measure.forEach(function (p, i) { mark(p, i ? '' : '', '#ffffff'); }); if (S.measure.length === 2) line(S.measure[0], S.measure[1], '#ffffff'); }
+  function line(a, b, col) { if (!a || !b) return; x.strokeStyle = col; x.setLineDash([6 / z, 4 / z]); x.lineWidth = 1.4 / z; x.beginPath(); x.moveTo(a[0], a[1]); x.lineTo(b[0], b[1]); x.stroke(); x.setLineDash([]); }
+  if (hover && hover.snap && (S.tool === 'pick' || S.tool === 'measure')) { var s = hover.snap, r = 7 / z; x.strokeStyle = '#7dffc4'; x.lineWidth = 2 / z; x.strokeRect(s[0] - r, s[1] - r, 2 * r, 2 * r); }
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  if (S.measure.length === 2) {
+    var c = calib(), a = c.W(S.measure[0][0], S.measure[0][1]), b = c.W(S.measure[1][0], S.measure[1][1]), d = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    var mx = ((S.measure[0][0] + S.measure[1][0]) / 2 * z + S.view.tx) * dpr, my = ((S.measure[0][1] + S.measure[1][1]) / 2 * z + S.view.ty) * dpr;
+    var label = fmt(d, 3) + ' m'; x.font = (600 * 1) + ' ' + 13 * dpr + 'px JetBrains Mono, monospace'; var tw = x.measureText(label).width;
+    x.fillStyle = 'rgba(255,255,255,.95)'; x.fillRect(mx - tw / 2 - 8 * dpr, my - 26 * dpr, tw + 16 * dpr, 22 * dpr); x.fillStyle = '#0d3f8a'; x.fillText(label, mx - tw / 2, my - 10 * dpr);
+  }
+  drawLoupe();
+}
+function drawLoupe() {
+  if (!hover || !(S.tool === 'pick' || S.tool === 'measure' || S.tool === 'region')) { loupe.hidden = true; return; }
+  loupe.hidden = false;
+  var sz = 300, mag = 4, sx = hover.sx * dpr, sy = hover.sy * dpr, half = sz / mag / 2 * dpr / 2;
+  lctx.save(); lctx.clearRect(0, 0, sz, sz); lctx.beginPath(); lctx.arc(sz / 2, sz / 2, sz / 2, 0, 2 * Math.PI); lctx.clip();
+  lctx.fillStyle = '#0d3f8a'; lctx.fillRect(0, 0, sz, sz); lctx.imageSmoothingEnabled = false;
+  lctx.drawImage(cv, sx - half, sy - half, half * 2, half * 2, 0, 0, sz, sz);
+  lctx.strokeStyle = '#ffe066'; lctx.lineWidth = 2; lctx.beginPath(); lctx.moveTo(sz / 2, sz / 2 - 30); lctx.lineTo(sz / 2, sz / 2 + 30); lctx.moveTo(sz / 2 - 30, sz / 2); lctx.lineTo(sz / 2 + 30, sz / 2); lctx.stroke();
+  lctx.restore();
+  var r = viewer.getBoundingClientRect(), touch = hover.touch, lx = hover.sx + 24, ly = touch ? hover.sy - 190 : hover.sy + 24;
+  if (lx + 160 > r.width) lx = hover.sx - 174; if (ly < 4) ly = hover.sy + 30; if (ly + 160 > r.height) ly = hover.sy - 174;
+  loupe.style.left = lx + 'px'; loupe.style.top = ly + 'px';
+}
+function setTool(t) {
+  S.tool = t;
+  viewer.classList.toggle('pan', t === 'pan'); viewer.classList.toggle('cross', t !== 'pan');
+  $('#tPan').classList.toggle('on', t === 'pan'); $('#regionBtn').classList.toggle('on', t === 'region'); $('#measureBtn').classList.toggle('on', t === 'measure');
+  if (t !== 'pick') S.pickTarget = null;
+  if (t === 'pan') loupe.hidden = true;
+  draw();
+}
+viewer.addEventListener('pointerdown', function (e) {
+  if (!(S.work || S.vec)) return;
+  viewer.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.offsetX, e.offsetY]);
+  if (ptrs.size === 2) { var a = Array.from(ptrs.values()); pinch = { d: Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1]), cx: (a[0][0] + a[1][0]) / 2, cy: (a[0][1] + a[1][1]) / 2, z: S.view.z, tx: S.view.tx, ty: S.view.ty }; drag = null; return; }
+  var w = toWork(e.offsetX, e.offsetY);
+  if (S.tool === 'region') drag = { kind: 'region', x0: w[0], y0: w[1], rect: [w[0], w[1], w[0], w[1]] };
+  else drag = { kind: 'pan', sx: e.offsetX, sy: e.offsetY, tx: S.view.tx, ty: S.view.ty, moved: false, touch: e.pointerType === 'touch' };
+});
+viewer.addEventListener('pointermove', function (e) {
+  if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, [e.offsetX, e.offsetY]);
+  if (pinch && ptrs.size === 2) {
+    var a = Array.from(ptrs.values()), d = Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1]), cx = (a[0][0] + a[1][0]) / 2, cy = (a[0][1] + a[1][1]) / 2;
+    var z = clamp(pinch.z * d / pinch.d, 0.005, 80), wx = (pinch.cx - pinch.tx) / pinch.z, wy = (pinch.cy - pinch.ty) / pinch.z;
+    S.view.z = z; S.view.tx = cx - wx * z; S.view.ty = cy - wy * z; draw(); return;
+  }
+  var w = toWork(e.offsetX, e.offsetY);
+  $('#sx').textContent = Math.round(w[0]); $('#sy').textContent = Math.round(w[1]);
+  hover = { sx: e.offsetX, sy: e.offsetY, wx: w[0], wy: w[1], touch: e.pointerType === 'touch', snap: (S.tool === 'pick' || S.tool === 'measure') ? snap(w[0], w[1]) : null };
+  if (drag && drag.kind === 'region') { drag.rect = [Math.min(drag.x0, w[0]), Math.min(drag.y0, w[1]), Math.max(drag.x0, w[0]), Math.max(drag.y0, w[1])]; }
+  else if (drag && drag.kind === 'pan' && (S.tool === 'pan' || drag.touch)) {
+    var dx = e.offsetX - drag.sx, dy = e.offsetY - drag.sy;
+    if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+    if (S.tool === 'pan' && drag.moved) { S.view.tx = drag.tx + dx; S.view.ty = drag.ty + dy; }
+  }
+  draw();
+});
+function endPtr(e) {
+  ptrs.delete(e.pointerId);
+  if (pinch) { if (ptrs.size < 2) pinch = null; drag = null; return; }
+  if (!drag) return;
+  var w = toWork(e.offsetX, e.offsetY);
+  if (drag.kind === 'region') {
+    var R = drag.rect, ws = workSize(); R = [clamp(R[0], 0, ws[0]), clamp(R[1], 0, ws[1]), clamp(R[2], 0, ws[0]), clamp(R[3], 0, ws[1])];
+    if (R[2] - R[0] > 20 && R[3] - R[1] > 20) { S.region = R; S.res = null; S.texts = []; S.rgray = null; buildPaths(); renderTexts(); renderLayers(); }
+    drag = null; setTool('pan'); updateUI(); fit(); return;
+  }
+  if (!drag.moved) {
+    var p = (hover && hover.snap) || w;
+    if (S.tool === 'pick') setPick(p[0], p[1]);
+    else if (S.tool === 'measure') { if (S.measure.length >= 2) S.measure = []; S.measure.push([p[0], p[1]]); }
+    else if (S.tool === 'pan') hitText(w[0], w[1]);
+  }
+  drag = null; draw();
+}
+viewer.addEventListener('pointerup', endPtr); viewer.addEventListener('pointercancel', endPtr);
+viewer.addEventListener('pointerleave', function () { hover = null; loupe.hidden = true; });
+viewer.addEventListener('wheel', function (e) {
+  if (!(S.work || S.vec)) return; e.preventDefault();
+  var f = Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0015)), z = clamp(S.view.z * f, 0.005, 80), w = toWork(e.offsetX, e.offsetY);
+  S.view.z = z; S.view.tx = e.offsetX - w[0] * z; S.view.ty = e.offsetY - w[1] * z; draw();
+}, { passive: false });
+function zoomBy(f) { var r = viewer.getBoundingClientRect(), w = toWork(r.width / 2, r.height / 2), z = clamp(S.view.z * f, 0.005, 80); S.view.z = z; S.view.tx = r.width / 2 - w[0] * z; S.view.ty = r.height / 2 - w[1] * z; draw(); }
+function hitText(x, y) {
+  for (var i = S.texts.length - 1; i >= 0; i--) {
+    var t = S.texts[i], dx = x - t.bx, dy = y - t.by, u = dx * t.ux + dy * t.uy, v = dx * -t.uy + dy * t.ux;
+    if (u >= -2 && u <= t.L + 2 && v <= t.H * 0.25 && v >= -t.H * 1.25) { selectText(i, true); return; }
+  }
+  if (S.sel >= 0) { S.sel = -1; renderTexts(); draw(); }
+}
+function selectText(i, scroll) {
+  S.sel = i; renderTexts();
+  if (scroll) { var r = document.querySelector('.trow[data-i="' + i + '"]'); if (r) { r.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); var inp = r.querySelector('input.tx'); if (inp) inp.focus({ preventScroll: true }); } }
+  draw();
+}
+function zoomToText(i) {
+  var t = S.texts[i], r = viewer.getBoundingClientRect(), z = clamp(Math.min(r.width / (t.L * 4 + 40), r.height / (t.H * 14)), 0.05, 40);
+  var cx = t.bx + t.ux * t.L / 2, cy = t.by + t.uy * t.L / 2;
+  S.view.z = z; S.view.tx = r.width / 2 - cx * z; S.view.ty = r.height / 2 - cy * z; selectText(i, false);
+}
+
+/* ---------------- texts panel ---------------- */
+var tFilter = 'on';
+function renderTexts() {
+  var box = $('#tlist'); $('#tcount').textContent = S.texts.filter(function (t) { return t.on; }).length + ' / ' + S.texts.length;
+  if (!S.texts.length) { box.innerHTML = '<p class="tempty">' + (S.res ? 'Δεν βρέθηκαν κείμενα. Ενεργοποιήστε το OCR στο βήμα 3 ή αυξήστε το «Ύψος γραμμάτων έως».' : 'Τα κείμενα που θα αναγνωριστούν εμφανίζονται εδώ με μικρογραφία του πρωτοτύπου, για γρήγορο έλεγχο και διόρθωση.') + '</p>'; return; }
+  var order = S.texts.map(function (t, i) { return i; }).sort(function (a, b) { var A = S.texts[a], B = S.texts[b]; return Math.round(A.by / 40) - Math.round(B.by / 40) || A.bx - B.bx; });
+  var frag = document.createDocumentFragment(), shown = 0;
+  order.forEach(function (i) {
+    var t = S.texts[i];
+    if (tFilter === 'on' && !t.on) return;
+    if (tFilter === 'unsure' && (t.conf >= 80 || !t.on)) return;
+    if (tFilter === 'off' && t.on) return;
+    shown++;
+    var row = el('div', { class: 'trow' + (t.on ? '' : ' off') + (i === S.sel ? ' sel' : ''), 'data-i': i });
+    var cc = t.src === 'pdf' ? 'pdf' : t.conf >= 80 ? 'hi' : t.conf >= 62 ? 'md' : 'lo';
+    row.innerHTML = '<input type="checkbox"' + (t.on ? ' checked' : '') + ' aria-label="Στο DXF"><div class="mid">' + (t.thumb ? '<img class="thumb" alt="" src="' + t.thumb + '">' : '') + '<input class="tx" type="text" value="' + esc(t.str) + '" aria-label="Κείμενο"></div><span class="conf ' + cc + '">' + (t.src === 'pdf' ? 'PDF' : t.conf + '%') + '</span>';
+    row.querySelector('input[type=checkbox]').addEventListener('change', function (e) { t.on = e.target.checked; row.classList.toggle('off', !t.on); $('#tcount').textContent = S.texts.filter(function (q) { return q.on; }).length + ' / ' + S.texts.length; draw(); textToggled(); });
+    var tx = row.querySelector('input.tx');
+    tx.addEventListener('input', function () { t.str = tx.value; if (!t.on && t.str.trim()) { t.on = true; row.querySelector('input[type=checkbox]').checked = true; row.classList.remove('off'); textToggled(); } draw(); });
+    tx.addEventListener('focus', function () { if (S.sel !== i) { S.sel = i; document.querySelectorAll('.trow.sel').forEach(function (r) { r.classList.remove('sel'); }); row.classList.add('sel'); draw(); } });
+    var th = row.querySelector('.thumb'); if (th) th.addEventListener('click', function () { zoomToText(i); });
+    frag.appendChild(row);
+  });
+  box.innerHTML = ''; box.appendChild(frag);
+  if (!shown) box.innerHTML = '<p class="tempty">Κανένα κείμενο σε αυτό το φίλτρο.</p>';
+}
+
+/* ---------------- UI wiring ---------------- */
+function statsText() {
+  if (!S.res) return '';
+  var l = 0, p = 0; S.res.polys.forEach(function (q) { if (q.pts.length === 2 && !q.closed) l++; else p++; });
+  return l.toLocaleString('el-GR') + ' γραμμές · ' + p.toLocaleString('el-GR') + ' πολυγραμμές · ' + (S.res.arcs.length + S.res.circles.length) + ' τόξα/κύκλοι · ' + S.texts.filter(function (t) { return t.on; }).length + ' κείμενα';
+}
+function updateUI() {
+  var has = !!(S.work || S.vec);
+  $('#runBtn').disabled = !has || S.busy; $('#exportBtn').disabled = !S.res || S.busy; $('#btn3d').disabled = !S.res || S.busy;
+  $('#runHint').textContent = !has ? 'Ανοίξτε ένα σχέδιο ή το δείγμα για να ξεκινήσετε.' : S.res ? 'Αλλάξατε ρυθμίσεις; Πατήστε ξανά για νέα ψηφιοποίηση.' : (S.region ? 'Θα επεξεργαστεί μόνο η επιλεγμένη περιοχή.' : 'Θα επεξεργαστεί όλο το φύλλο: κατόψεις, τομές, όψεις, ξυλότυποι, πίνακες, όλα σε ένα DXF.');
+  $('#rasterOpts').hidden = S.mode === 'vector'; $('#skewBox').hidden = S.mode === 'vector'; $('#optFillsRow').hidden = S.mode !== 'vector'; $('#optOrthoRow').hidden = S.mode === 'vector';
+  document.querySelectorAll('#modeSeg button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === S.mode); });
+  var chip = $('#fileChip'); chip.className = 'chip ' + (S.demo ? 'demo' : S.mode === 'vector' ? 'vec' : S.mode ? 'ras' : ''); chip.querySelector('span').textContent = S.name || 'Κανένα αρχείο';
+  $('#sum1').textContent = !has ? '' : S.mode === 'vector' ? 'διανυσματικό' : Math.round(S.dpi) + ' dpi';
+  $('#sum2').textContent = !has ? '' : [S.rot ? S.rot + '°' : '', S.skew ? fmt(S.skew, 2) + '°' : '', S.region ? 'περιοχή' : 'όλο'].filter(Boolean).join(' · ');
+  $('#sum3').textContent = S.res ? 'έτοιμο' : '';
+  $('#stats').textContent = statsText();
+  $('#empty').hidden = has;
+  var hud = $('#hud'); hud.innerHTML = '';
+  if (S.res) hud.appendChild(el('span', { class: 'chip vec' }, '<i></i>' + esc(S.res.polys.length + S.res.arcs.length + S.res.circles.length).toString() + ' οντότητες'));
+  if (S.texts.length) hud.appendChild(el('span', { class: 'chip demo' }, '<i></i>' + S.texts.filter(function (t) { return t.on; }).length + ' MTEXT'));
+  renderCal();
+}
+function openStep(n) { document.querySelectorAll('.step').forEach(function (s) { var k = +s.dataset.step; s.classList.toggle('active', k === n); if (k === n) s.classList.remove('closed'); }); }
+function markDone(n) { var s = document.querySelector('.step[data-step="' + n + '"]'); if (s) s.classList.add('done'); }
+document.querySelectorAll('.step>header').forEach(function (h) { h.addEventListener('click', function () { h.parentNode.classList.toggle('closed'); }); });
+
+$('#btnOpen').addEventListener('click', function () { $('#file').click(); });
+$('#btnOpenTop').addEventListener('click', function () { $('#file').click(); });
+$('#drop').addEventListener('click', function () { $('#file').click(); });
+$('#drop').addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#file').click(); } });
+$('#btnDemo').addEventListener('click', openDemo);
+$('#file').addEventListener('change', function (e) { var f = e.target.files[0]; if (f) openFile(f); e.target.value = ''; });
+['dragenter', 'dragover'].forEach(function (ev) { document.addEventListener(ev, function (e) { e.preventDefault(); $('#drop').classList.add('over'); }); });
+['dragleave', 'drop'].forEach(function (ev) { document.addEventListener(ev, function (e) { e.preventDefault(); if (ev === 'drop' || e.target === document.documentElement) $('#drop').classList.remove('over'); }); });
+document.addEventListener('drop', function (e) { var f = e.dataTransfer && e.dataTransfer.files[0]; if (f) openFile(f); });
+$('#pageSel').addEventListener('change', async function (e) { if (S.busy) return; S.busy = true; P.show('Φόρτωση σελίδας'); try { S.res = null; S.texts = []; S.region = null; await loadPdfPage(+e.target.value); afterOpen(); } catch (er) { toast(er.message, 'err'); } finally { S.busy = false; P.hide(); updateUI(); } });
+document.querySelectorAll('#modeSeg button').forEach(function (b) {
+  b.addEventListener('click', async function () {
+    if (S.busy || S.kind !== 'pdf' || b.dataset.v === S.mode) return;
+    S.busy = true; P.show('Αλλαγή τρόπου ανάγνωσης');
+    try { S.mode = b.dataset.v; S.res = null; S.texts = []; S.region = null; if (S.mode === 'raster' && !S.dpiNative) S.dpi = 200; await prepareMode(); afterOpen(); } catch (er) { toast(er.message, 'err'); }
+    finally { S.busy = false; P.hide(); updateUI(); renderTexts(); renderLayers(); }
+  });
+});
+$('#dpi').addEventListener('change', async function (e) {
+  var v = clamp(parseFloat(e.target.value) || 200, 50, 1200);
+  if (S.kind === 'pdf' && S.mode === 'raster') { if (S.busy) return; S.busy = true; P.show('Νέα απόδοση'); try { var old = S.dpi; S.dpi = v; S.res = null; S.texts = []; if (S.region) S.region = S.region.map(function (q) { return q * v / old; }); await renderPdfRaster(); buildWork(); buildDisplay(); afterOpen(); } finally { S.busy = false; P.hide(); updateUI(); } }
+  else { S.dpi = v; afterOpen(); }
+});
+async function applyRotation(d) {
+  if (S.busy || !(S.work || S.vec)) return;
+  S.rot = ((S.rot + d) % 360 + 360) % 360; S.region = null; S.res = null; S.texts = []; S.rgray = null; S.cal.A = []; S.cal.XY = []; S.cal.P.forEach(function (p) { p.x = p.y = null; });
+  if (S.mode === 'vector') { S.busy = true; P.show('Περιστροφή'); try { S.vec = await VPDF.extract(S.page, WS, S.rot, function (p) { P.set(null, p * 0.7); }); await renderPdfPreview(); buildDisplay(); } finally { S.busy = false; P.hide(); } }
+  else { buildWork(); buildDisplay(); }
+  buildPaths(); renderTexts(); renderLayers(); renderPicks(); fit(); updateUI();
+}
+$('#rotL').addEventListener('click', function () { applyRotation(-90); });
+$('#rotR').addEventListener('click', function () { applyRotation(90); });
+$('#rot180').addEventListener('click', function () { applyRotation(180); });
+var _skT = null;
+$('#skew').addEventListener('input', function (e) {
+  S.skew = parseFloat(e.target.value); $('#skewVal').textContent = fmt(S.skew, 2) + '°';
+  clearTimeout(_skT); _skT = setTimeout(function () { S.region = null; S.res = null; S.texts = []; S.rgray = null; buildWork(); buildDisplay(); buildPaths(); renderTexts(); renderLayers(); updateUI(); draw(); }, 250);
+});
+$('#skewAuto').addEventListener('click', async function () {
+  if (S.busy || !S.orig || S.mode === 'vector') return;
+  S.busy = true; P.show('Εκτίμηση κλίσης σάρωσης');
+  try {
+    var save = S.skew; S.skew = 0; buildWork();
+    var w = S.work, k = Math.min(1, 1400 / Math.max(w.width, w.height)), c = canvasFrom(Math.round(w.width * k), Math.round(w.height * k));
+    c.getContext('2d').drawImage(w, 0, 0, c.width, c.height);
+    var G = grayOf(c, [0, 0, c.width, c.height]);
+    var a = await CoreW.run('deskew', { gray: G.g, w: G.w, h: G.h, max: 5 });
+    S.skew = Math.abs(a) < 0.04 ? 0 : Math.round(a * 100) / 100; $('#skew').value = S.skew; $('#skewVal').textContent = fmt(S.skew, 2) + '°';
+    S.region = null; S.res = null; S.texts = []; S.rgray = null; buildWork(); buildDisplay(); buildPaths(); renderTexts(); renderLayers();
+    toast(S.skew ? 'Η σάρωση ισιώθηκε κατά ' + fmt(S.skew, 2) + '°.' : 'Η σάρωση είναι ήδη ίσια.', 'ok');
+    void save;
+  } catch (e) { if (!e.cancel) toast('Η εκτίμηση απέτυχε: ' + e.message, 'err'); }
+  finally { S.busy = false; P.hide(); updateUI(); draw(); }
+});
+$('#regionBtn').addEventListener('click', function () { if (S.work || S.vec) setTool(S.tool === 'region' ? 'pan' : 'region'); });
+$('#regionClear').addEventListener('click', function () { S.region = null; S.res = null; S.texts = []; S.rgray = null; buildPaths(); renderTexts(); renderLayers(); fit(); updateUI(); });
+$('#sens').addEventListener('input', function (e) { $('#sensVal').textContent = Math.round(e.target.value * 100) + '%'; });
+$('#runBtn').addEventListener('click', runProcess);
+$('#cancelBtn').addEventListener('click', function () { S.cancel = true; CoreW.kill(); P.set('Ακύρωση…'); });
+document.querySelectorAll('#calSeg button').forEach(function (b) {
+  b.addEventListener('click', function () {
+    S.cal.mode = b.dataset.v; document.querySelectorAll('#calSeg button').forEach(function (q) { q.classList.toggle('on', q === b); });
+    $('#calScale').hidden = S.cal.mode !== 'scale'; $('#calDist').hidden = S.cal.mode !== 'dist'; $('#calXY').hidden = S.cal.mode !== 'xy'; $('#calPts').hidden = S.cal.mode !== 'pts';
+    renderPicks(); draw();
+  });
+});
+$('#scaleDen').addEventListener('input', function (e) { S.cal.den = parseFloat(e.target.value) || 50; renderCal(); draw(); });
+['#distVal', '#xyX', '#xyY'].forEach(function (s) { $(s).addEventListener('input', function () { renderCal(); draw(); }); });
+$('#addPt').addEventListener('click', function () { S.cal.P.push({ x: null, y: null, E: NaN, N: NaN }); renderPicks(); });
+$('#measureBtn').addEventListener('click', function () { if (!(S.work || S.vec)) return; S.measure = []; setTool(S.tool === 'measure' ? 'pan' : 'measure'); if (S.tool === 'measure') toast('Κάντε κλικ σε δύο σημεία. Η απόσταση δείχνεται με την τρέχουσα κλίμακα.', '', 3200); });
+document.querySelectorAll('#unitSeg button').forEach(function (b) { b.addEventListener('click', function () { S.units = b.dataset.v; document.querySelectorAll('#unitSeg button').forEach(function (q) { q.classList.toggle('on', q === b); }); }); });
+$('#optGreek').addEventListener('change', draw);
+['#optFills', '#optArcs'].forEach(function (s) { $(s).addEventListener('change', function () { if (S.res && S.res.kind === 'vector') textToggled(); }); });
+$('#exportBtn').addEventListener('click', exportDXF);
+document.querySelectorAll('#tfilter button').forEach(function (b) { b.addEventListener('click', function () { tFilter = b.dataset.v; document.querySelectorAll('#tfilter button').forEach(function (q) { q.classList.toggle('on', q === b); }); renderTexts(); }); });
+$('#tPan').addEventListener('click', function () { setTool('pan'); });
+$('#tFit').addEventListener('click', fit);
+$('#tIn').addEventListener('click', function () { zoomBy(1.4); });
+$('#tOut').addEventListener('click', function () { zoomBy(1 / 1.4); });
+[['#tBg', 'bg'], ['#tVec', 'vec'], ['#tTxt', 'txt']].forEach(function (a) { $(a[0]).addEventListener('click', function () { S.show[a[1]] = !S.show[a[1]]; $(a[0]).classList.toggle('on', S.show[a[1]]); draw(); }); });
+document.addEventListener('keydown', function (e) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'Escape') { setTool('pan'); S.measure = []; draw(); }
+  if (e.key === 'f' || e.key === 'F') fit();
+});
+window.addEventListener('resize', function () { resize(); });
+window.addEventListener('error', function (e) { if (S.busy) { console.error(e.error || e.message); } });
+new ResizeObserver(resize).observe(viewer);
+resize(); renderPicks(); updateUI();
+// open in a realistic working state: the demo sheet, ready to digitize
+setTimeout(function () { if (!S.kind) openDemo(); }, 60);
+window.P2D_APP = { S: S, version: APP_VERSION, buildDXF: buildDXF, run: runProcess, calib: calib, open3d: open3d };
+})();
+
+</script>
+</body>
+</html>
