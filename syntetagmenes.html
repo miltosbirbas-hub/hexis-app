@@ -4721,9 +4721,10 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   /* fetchBBox(bbox [minx,miny,maxx,maxy] σε ΕΓΣΑ87, opts: {proxy: url που δέχεται ?url=…, count, timeout, toEgsa}) → Promise<[{kaek, area, geom}]> */
   async function fetchBBox(bbox, opts) {
     opts = opts || {};
+    var base = (opts.base || BASE).replace(/[?&].*$/, ''), types = opts.typeName ? [opts.typeName] : TYPES;
     var attempts = [], lastErr = null, log = [];
-    TYPES.forEach(function (tn) { attempts.push({ via: 'direct', u: url(BASE, bbox, opts.count, tn, 2100) }); });
-    if (opts.proxy) TYPES.forEach(function (tn) { attempts.push({ via: 'proxy', u: opts.proxy + (opts.proxy.indexOf('?') >= 0 ? '&' : '?') + 'url=' + encodeURIComponent(url(BASE, bbox, opts.count, tn, 2100)) }); });
+    types.forEach(function (tn) { attempts.push({ via: 'direct', u: url(base, bbox, opts.count, tn, 2100) }); });
+    if (opts.proxy) types.forEach(function (tn) { attempts.push({ via: 'proxy', u: opts.proxy + (opts.proxy.indexOf('?') >= 0 ? '&' : '?') + 'url=' + encodeURIComponent(url(base, bbox, opts.count, tn, 2100)) }); });
     for (var i = 0; i < attempts.length; i++) {
       var a = attempts[i], ctl = new AbortController(), to = setTimeout(function () { ctl.abort(); }, opts.timeout || 30000);
       try {
@@ -4738,7 +4739,48 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     var uniq = log.filter(function (m, i) { return log.indexOf(m) === i; });
     throw new Error('Η υπηρεσία INSPIRE του Κτηματολογίου δεν απάντησε — ' + uniq.join(' · ') + (opts.proxy ? '' : ' · δεν έχει οριστεί proxy') + '. Αν δεν έχει γίνει deploy η Edge Function «inspire-proxy» στο Supabase, κάν\' το και ξαναδοκίμασε· αλλιώς άλλαξε πηγή σε «Βάση HEXIS».');
   }
-  var api = { fetchBBox: fetchBBox, parseGML: parseGML, url: url, BASE: BASE };
+  /* ---------- ArcGIS REST (ο ψηφιακός χάρτης maps.ktimatologio.gr τραβά τα γεωτεμάχια από ArcGIS Online FeatureServer) ----------
+   * Query με BBOX σε ΕΓΣΑ87 (inSR/outSR 2100), outFields=*, f=json. Οι δακτύλιοι ArcGIS: δεξιόστροφοι = εξωτερικοί, αριστερόστροφοι = οπές. */
+  // Λειτουργούν Κτηματολόγιο πρώτα· προκαταρκτικά (περιοχές υπό κτηματογράφηση) εφεδρικά
+  var ARCGIS = ['https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/GEOTEMAXIA_LEITOURGOUN_ON_gdb/FeatureServer/0/query', 'https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/GEOTEMAXIA_PROKATARTKTIKA_ON_gdb/FeatureServer/0/query'];
+  function sarea(r) { var a = 0; for (var i = 0; i < r.length; i++) { var p = r[i], q = r[(i + 1) % r.length]; a += p[0] * q[1] - q[0] * p[1]; } return a / 2; }
+  function pip(pt, ring) { var ins = false; for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) { var xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1]; if (((yi > pt[1]) !== (yj > pt[1])) && (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi)) ins = !ins; } return ins; }
+  function arcgisUrl(base, bbox, count) {
+    var q = base.replace(/\/?$/, '').replace(/\/query$/, '') + '/query';
+    return q + '?f=json&where=1%3D1&geometry=' + encodeURIComponent(bbox.map(function (v) { return v.toFixed(2); }).join(',')) + '&geometryType=esriGeometryEnvelope&inSR=2100&outSR=2100&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&resultRecordCount=' + (count || 500);
+  }
+  function parseArcgis(j) {
+    if (j.error) throw new Error('ArcGIS: ' + (j.error.message || j.error.code));
+    var out = [];
+    (j.features || []).forEach(function (f) {
+      var at = f.attributes || {}, kaek = at.KAEK || at.kaek || at.Kaek || at.NationalCadastralReference || '';
+      var rings = (f.geometry && f.geometry.rings) || []; if (!kaek || !rings.length) return;
+      var outers = [], holes = [];
+      rings.forEach(function (r) { var rr = r.map(function (q) { return [q[0], q[1]]; }); if (rr.length > 3 && rr[0][0] === rr[rr.length - 1][0] && rr[0][1] === rr[rr.length - 1][1]) rr.pop(); if (rr.length < 3) return; (sarea(rr) < 0 ? outers : holes).push(rr); });
+      if (!outers.length && holes.length) { outers = holes; holes = []; }
+      var polys = outers.map(function (o) { return { outer: o, holes: [] }; });
+      holes.forEach(function (h) { var host = polys.filter(function (p) { return pip(h[0], p.outer); })[0] || polys[0]; host.holes.push(h); });
+      var geom = polys.length === 1 ? { type: 'Polygon', coordinates: [close(polys[0].outer)].concat(polys[0].holes.map(close)) } : { type: 'MultiPolygon', coordinates: polys.map(function (p) { return [close(p.outer)].concat(p.holes.map(close)); }) };
+      var area = at.SHAPE__Area || at.Shape__Area || at.AREA || at.EMBADO || null;
+      out.push({ kaek: String(kaek), area: area && area > 0 ? area : null, geom: geom, attrs: at, layer: j.__layer || '' });
+    });
+    return out;
+  }
+  async function fetchArcgis(bbox, opts) {
+    opts = opts || {}; var bases = (opts.urls && opts.urls.length ? opts.urls : ARCGIS), all = [], seen = {}, errs = [];
+    for (var i = 0; i < bases.length; i++) {
+      var ctl = new AbortController(), to = setTimeout(function () { ctl.abort(); }, opts.timeout || 30000);
+      try {
+        var r = await fetch(arcgisUrl(bases[i], bbox, opts.count), { signal: ctl.signal });
+        var j = await r.json(); j.__layer = /LEITOURGOUN/i.test(bases[i]) ? 'λειτουργούν' : /PROKATARK/i.test(bases[i]) ? 'προκαταρκτικό' : '';
+        parseArcgis(j).forEach(function (p) { if (seen[p.kaek]) return; seen[p.kaek] = 1; all.push(p); });
+      } catch (e) { errs.push(e.name === 'AbortError' ? 'χρονικό όριο' : e.message); }
+      finally { clearTimeout(to); }
+    }
+    if (!all.length && errs.length) throw new Error('Ο ψηφιακός χάρτης του Κτηματολογίου δεν απάντησε (' + errs.join(' · ') + ').');
+    return { parcels: all, via: 'arcgis' };
+  }
+  var api = { fetchBBox: fetchBBox, parseGML: parseGML, url: url, BASE: BASE, fetchArcgis: fetchArcgis, parseArcgis: parseArcgis, ARCGIS: ARCGIS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.InspireKaek = api;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -6502,9 +6544,13 @@ root.CmdCheck = api;
         // ζωντανά από INSPIRE: BBOX του οικοπέδου + 150 m
         var bx = [Infinity, Infinity, -Infinity, -Infinity]; P.forEach(function (q) { bx[0] = Math.min(bx[0], q[0]); bx[1] = Math.min(bx[1], q[1]); bx[2] = Math.max(bx[2], q[0]); bx[3] = Math.max(bx[3], q[1]); });
         var pad = 150, bbox = [bx[0] - pad, bx[1] - pad, bx[2] + pad, bx[3] + pad];
-        var ins = await InspireKaek.fetchBBox(bbox, { proxy: HEXIS.inspireProxy, count: 400, headers: { apikey: HEXIS.anonKey }, toEgsa: function (lon, lat) { return proj4('WGS84', 'EPSG:2100', [lon, lat]); } });
+        // 1) ArcGIS REST του ψηφιακού χάρτη (maps.ktimatologio.gr) — απευθείας από τον browser · 2) εφεδρικά WFS INSPIRE (αν οριστεί διεύθυνση)
+        var ins;
+        try { ins = await InspireKaek.fetchArcgis(bbox, { urls: (store('hexis_arcgis_urls') || '').split(/\s*[\n,;]\s*/).filter(Boolean), count: 500 }); }
+        catch (e1) { if (!store('hexis_inspire_wfs')) throw e1; ins = await InspireKaek.fetchBBox(bbox, { base: store('hexis_inspire_wfs') || null, typeName: store('hexis_inspire_type') || null, proxy: HEXIS.inspireProxy, count: 400, headers: { apikey: HEXIS.anonKey }, toEgsa: function (lon, lat) { return proj4('WGS84', 'EPSG:2100', [lon, lat]); } }); }
         via = ins.via;
-        ins.parcels.forEach(function (p) { if (seen[p.kaek]) return; seen[p.kaek] = p; parcels.push({ kaek: p.kaek, area: p.area, geom: p.geom, hit: false }); });
+        ins.parcels.forEach(function (p) { if (seen[p.kaek]) return; seen[p.kaek] = p; parcels.push({ kaek: p.kaek, area: p.area, geom: p.geom, hit: false, layer: p.layer || '' }); });
+        if (ins.parcels.some(function (p) { return p.layer === 'προκαταρκτικό'; }) && !ins.parcels.some(function (p) { return p.layer === 'λειτουργούν'; })) region = 'προκαταρκτικό Κτηματολόγιο (υπό κτηματογράφηση)';
         approxOnly = false; samples = [];
       }
       for (var i = 0; i < samples.length; i++) {
@@ -6540,8 +6586,9 @@ root.CmdCheck = api;
     var t = mainPlot(); if (!t) return '';
     var k = S.kaek;
     var src = kaekSource();
-    var h = '<section class="panel summary" id="kaekPanel"><div class="file-row"><span class="fname">Κτηματολόγιο</span><span class="chip">γεωτεμάχια ΚΑΕΚ στη θέση του «' + esc(shortTitle(t)) + '»</span><label style="margin-left:auto;font-size:12px;color:var(--muted)">Πηγή <select id="kaekSource"><option value="hexis"' + (src === 'hexis' ? ' selected' : '') + '>Βάση ΚΑΕΚ HEXIS</option><option value="inspire"' + (src === 'inspire' ? ' selected' : '') + '>INSPIRE Κτηματολογίου (ζωντανά)</option></select></label></div>';
-    if (k && k.status === 'ok' && k.source) h += '<p style="margin:0;color:var(--muted);font-size:12px">Πηγή γεωμετρίας: ' + (k.source === 'inspire' ? 'υπηρεσία INSPIRE του Ελληνικού Κτηματολογίου, ζωντανή λήψη' + (k.via === 'proxy' ? ' μέσω HEXIS' : '') + ' — τα όρια και τα εμβαδά είναι της τρέχουσας κτηματολογικής βάσης' : 'βάση ΚΑΕΚ του HEXIS') + '.</p>';
+    var h = '<section class="panel summary" id="kaekPanel"><div class="file-row"><span class="fname">Κτηματολόγιο</span><span class="chip">γεωτεμάχια ΚΑΕΚ στη θέση του «' + esc(shortTitle(t)) + '»</span><label style="margin-left:auto;font-size:12px;color:var(--muted)">Πηγή <select id="kaekSource"><option value="hexis"' + (src === 'hexis' ? ' selected' : '') + '>Βάση ΚΑΕΚ HEXIS</option><option value="inspire"' + (src === 'inspire' ? ' selected' : '') + '>Κτηματολόγιο — ζωντανά από τον ψηφιακό χάρτη</option></select></label></div>';
+    if (src === 'inspire') h += '<details style="font-size:12px"><summary style="cursor:pointer;color:var(--muted)">Ρυθμίσεις ζωντανής πηγής (ArcGIS REST του ψηφιακού χάρτη · εφεδρικά WFS)</summary><div class="dgm-ctl" style="margin-top:6px"><label style="flex:1 1 520px">Υπηρεσίες ArcGIS (FeatureServer/MapServer layer, μία ανά γραμμή — κενό = προεπιλογή)<textarea id="arcgisUrls" rows="2" style="width:100%;font:12px ui-monospace,monospace" placeholder="' + esc(InspireKaek.ARCGIS[0]) + '">' + esc(store('hexis_arcgis_urls') || '') + '</textarea></label></div><div class="dgm-ctl"><label style="flex:1 1 420px">Εφεδρική υπηρεσία WFS INSPIRE (προαιρετικά)<input id="inspireWfs" value="' + esc(store('hexis_inspire_wfs') || '') + '" placeholder="https://…/wfs" style="width:100%"></label><label>Feature type<input id="inspireType" value="' + esc(store('hexis_inspire_type') || '') + '" placeholder="cp:CadastralParcel" style="width:180px"></label></div></details>';
+    if (k && k.status === 'ok' && k.source) h += '<p style="margin:0;color:var(--muted);font-size:12px">Πηγή γεωμετρίας: ' + (k.source === 'inspire' ? (k.via === 'arcgis' ? 'ζωντανή λήψη από την υπηρεσία γεωτεμαχίων του ψηφιακού χάρτη του Ελληνικού Κτηματολογίου (ArcGIS REST)' : 'υπηρεσία INSPIRE WFS' + (k.via === 'proxy' ? ' μέσω HEXIS' : '')) + ' — τα όρια είναι της τρέχουσας κτηματολογικής βάσης' : 'βάση ΚΑΕΚ του HEXIS') + '.</p>';
     if (!k || k.key !== plotKey()) {
       h += '<p style="margin:0;color:var(--muted);font-size:13px">Αναζήτηση των γεωτεμαχίων του Κτηματολογίου που βρίσκονται στη θέση του οικοπέδου, από τη βάση ΚΑΕΚ του HEXIS.</p><div><button class="btn primary" data-act="kaek-find">Εύρεση ΚΑΕΚ</button></div>';
     } else if (k.status === 'loading') {
@@ -7299,6 +7346,8 @@ root.CmdCheck = api;
     afterEdit(t, refit);
   });
   left.addEventListener('change', function (ev) {
+    if (ev.target.id === 'arcgisUrls') { store('hexis_arcgis_urls', ev.target.value.trim()); S.kaek = null; S.dgm = null; findKaek(); }
+    if (ev.target.id === 'inspireWfs' || ev.target.id === 'inspireType') { store(ev.target.id === 'inspireWfs' ? 'hexis_inspire_wfs' : 'hexis_inspire_type', ev.target.value.trim()); S.kaek = null; S.dgm = null; findKaek(); }
     if (ev.target.id === 'kaekSource') { S.kaekSource = ev.target.value; store('hexis_kaek_source', S.kaekSource); S.kaek = null; S.dgm = null; findKaek(); }
     if (ev.target.id === 'kaekOnlyMain') { S.kaekOnlyMain = ev.target.checked; renderPlan(); if (S.map) drawMap(false); }
     if (ev.target.id === 'dgmOwn') { S.dgmOwn = ev.target.value; runDgm(); }
