@@ -3988,8 +3988,51 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     return best || c;
   }
 
+  // Συγχώνευση κοντινών ορίων: κορυφές του μετρημένου ορίου που απέχουν ≤ tol από όριο ΚΑΕΚ κουμπώνουν πάνω του (στην κορυφή
+  // του ΚΑΕΚ αν υπάρχει κοντά, αλλιώς στην πλευρά), και κορυφές ΚΑΕΚ που απέχουν ≤ tol από πλευρά του μετρημένου μπαίνουν ως κορυφές του.
+  // Έτσι, όπου τα δύο όρια πρακτικά ταυτίζονται, το τελικό πολύγωνο ακολουθεί το ΚΑΕΚ και δεν γεννιούνται σχισμές με πλήθος σημείων.
+  function snapToParcels(M, parcels, tol) {
+    var r = open(M).slice(); if (!(tol > 0) || !parcels.length) return r;
+    var rings = []; parcels.forEach(function (p) { p.rings.forEach(function (x) { rings.push(open(x)); }); });
+    var kv = []; rings.forEach(function (x) { x.forEach(function (q) { kv.push(q); }); });
+    // α) κορυφές Μ → κορυφή ή πλευρά ΚΑΕΚ
+    r = r.map(function (q) {
+      var best = null; kv.forEach(function (v) { var dd = Math.hypot(v[0] - q[0], v[1] - q[1]); if (dd <= tol && (!best || dd < best.d)) best = { d: dd, p: v }; });
+      if (best) return [best.p[0], best.p[1]];
+      var bf = null; rings.forEach(function (x) { for (var i = 0; i < x.length; i++) { var a = x[i], b = x[(i + 1) % x.length], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy, t = L2 ? Math.max(0, Math.min(1, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2)) : 0, f = [a[0] + t * dx, a[1] + t * dy], dd = Math.hypot(f[0] - q[0], f[1] - q[1]); if (dd <= tol && (!bf || dd < bf.d)) bf = { d: dd, p: f }; } });
+      return bf ? bf.p : q;
+    });
+    // β) κορυφές ΚΑΕΚ κοντά σε πλευρές του Μ → εισάγονται στο Μ (με τη σειρά τους πάνω στην πλευρά)
+    var out = [];
+    for (var i = 0; i < r.length; i++) {
+      var a = r[i], b = r[(i + 1) % r.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); out.push(a); if (L < 0.01) continue;
+      var ins = [];
+      kv.forEach(function (v) {
+        if (Math.hypot(v[0] - a[0], v[1] - a[1]) < 0.005 || Math.hypot(v[0] - b[0], v[1] - b[1]) < 0.005) return;
+        var t = ((v[0] - a[0]) * (b[0] - a[0]) + (v[1] - a[1]) * (b[1] - a[1])) / (L * L); if (t <= 0.001 || t >= 0.999) return;
+        var px = a[0] + t * (b[0] - a[0]), py = a[1] + t * (b[1] - a[1]);
+        if (Math.hypot(px - v[0], py - v[1]) <= tol && !ins.some(function (z) { return Math.hypot(z.v[0] - v[0], z.v[1] - v[1]) < 0.005; })) ins.push({ t: t, v: v });
+      });
+      ins.sort(function (x, y) { return x.t - y.t; }).forEach(function (z) { out.push([z.v[0], z.v[1]]); });
+    }
+    // καθάρισμα διπλών διαδοχικών
+    var res = []; out.forEach(function (q) { if (!res.length || Math.hypot(q[0] - res[res.length - 1][0], q[1] - res[res.length - 1][1]) >= 0.005) res.push(q); });
+    if (res.length > 1 && Math.hypot(res[0][0] - res[res.length - 1][0], res[0][1] - res[res.length - 1][1]) < 0.005) res.pop();
+    // γ) συγγραμμικές κορυφές που κάθονται πάνω σε πλευρά ΚΑΕΚ (ενδιάμεσα σημεία της αποτύπωσης σε ευθεία) αφαιρούνται — δεν προσθέτουν τίποτα στο τελικό πολύγωνο
+    var changed = true;
+    while (changed && res.length > 3) {
+      changed = false;
+      for (var k = 0; k < res.length; k++) {
+        var pa = res[(k - 1 + res.length) % res.length], pb = res[k], pq = res[(k + 1) % res.length];
+        if (distToSeg(pb, pa, pq) < 0.002 && distToRings(pb, rings) < 0.002) { res.splice(k, 1); changed = true; break; }
+      }
+    }
+    return res.length >= 3 ? res : open(M);
+  }
+
   function compute(M, parcels, ownKaek, opts) {
     opts = opts || {};
+    var skip = opts.skip || {}; // {id: true} τμήματα που ο μηχανικός αφήνει στην ανοχή (δεν εφαρμόζονται)
     var pc = root.polygonClipping; if (!pc) throw new Error('Η βιβλιοθήκη τομής πολυγώνων δεν φορτώθηκε.');
     var minArea = opts.minArea != null ? opts.minArea : 1.0;   // m² — μικρότερα τμήματα θεωρούνται σχισμές
     var minWidth = opts.minWidth != null ? opts.minWidth : 0.10; // m — εμβαδό/περίμετρος
@@ -4026,25 +4069,36 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
         pieces.push({ id: label('Α', seq.given), kind: 'given', from: own, to: best, ring: p.outer, holes: p.holes, area: polyArea(p), perim: perim(p.outer), sharedLen: bestL });
       });
     }
-    // συγκεντρωτικά ανά ΚΑΕΚ
+    // εφαρμογή / ανοχή ανά τμήμα + μέγιστη απόκλιση του τμήματος από το όριο του δικού μας ΚΑΕΚ
+    var ownRings = own ? byK[own].rings.map(open) : [];
+    pieces.forEach(function (x) {
+      x.applied = x.kind === 'common' ? true : !skip[x.id];
+      x.dev = x.kind === 'common' || !ownRings.length ? 0 : Math.max.apply(null, x.ring.map(function (q) { return distToRings(q, ownRings); }));
+    });
+    var applied = pieces.filter(function (x) { return x.applied; });
+    // συγκεντρωτικά ανά ΚΑΕΚ (μόνο οι μεταβολές που εφαρμόζονται)
     var summary = parcels.map(function (p) {
       var initial = p.area || p.rings.reduce(function (a, r) { return a + area(open(r)); }, 0);
-      var lost = pieces.filter(function (x) { return x.from === p.kaek && x.to !== p.kaek; }).reduce(function (a, x) { return a + x.area; }, 0);
-      var gained = pieces.filter(function (x) { return x.to === p.kaek && x.from !== p.kaek; }).reduce(function (a, x) { return a + x.area; }, 0);
+      var lost = applied.filter(function (x) { return x.from === p.kaek && x.to !== p.kaek; }).reduce(function (a, x) { return a + x.area; }, 0);
+      var gained = applied.filter(function (x) { return x.to === p.kaek && x.from !== p.kaek; }).reduce(function (a, x) { return a + x.area; }, 0);
       return { kaek: p.kaek, isOwn: p.kaek === own, initial: initial, lost: lost, gained: gained, final: initial - lost + gained };
     });
     summary.sort(function (a, b) { return (b.isOwn - a.isOwn) || (b.lost + b.gained) - (a.lost + a.gained); });
     var tr = {};
-    pieces.forEach(function (x) { if (x.kind === 'common') return; var k = (x.from || '—') + '→' + (x.to || '—'); if (!tr[k]) tr[k] = { from: x.from, to: x.to, area: 0, pieces: [] }; tr[k].area += x.area; tr[k].pieces.push(x.id); });
+    applied.forEach(function (x) { if (x.kind === 'common') return; var k = (x.from || '—') + '→' + (x.to || '—'); if (!tr[k]) tr[k] = { from: x.from, to: x.to, area: 0, pieces: [] }; tr[k].area += x.area; tr[k].pieces.push(x.id); });
     var transfers = Object.keys(tr).map(function (k) { return tr[k]; }).sort(function (a, b) { return b.area - a.area; });
-    // τελικά πολύγωνα (DGM_PROP_FINAL): δικό μας = M · όμορο j = (K_j \ M) ∪ (τμήματα Α που αποδίδονται στο j)
+    // τελικά πολύγωνα (DGM_PROP_FINAL): δικό μας = M − (Δ/Ε που μένουν στην ανοχή) + (Α που μένουν στην ανοχή)
+    // όμορο j = (K_j \ M) ∪ (Α που εφαρμόζονται προς το j) ∪ (Δ από το j που μένουν στην ανοχή)
+    function pieceMP(x) { return [[cw(x.ring)].concat((x.holes || []).map(cw))]; }
     var finals = [];
     parcels.forEach(function (p) {
       var mp;
-      if (p.kaek === own) mp = Mmp;
-      else {
+      if (p.kaek === own) {
+        mp = Mmp;
+        pieces.forEach(function (x) { if (x.applied) return; if (x.kind === 'cut' || x.kind === 'gap') mp = pc.difference(mp, pieceMP(x)); else if (x.kind === 'given') mp = pc.union(mp, pieceMP(x)); });
+      } else {
         mp = pc.difference(parcelMP[p.kaek], Mmp);
-        pieces.filter(function (x) { return x.kind === 'given' && x.to === p.kaek; }).forEach(function (x) { mp = pc.union(mp, [[cw(x.ring)].concat((x.holes || []).map(cw))]); });
+        pieces.filter(function (x) { return (x.kind === 'given' && x.applied && x.to === p.kaek) || (x.kind === 'cut' && !x.applied && x.from === p.kaek); }).forEach(function (x) { mp = pc.union(mp, pieceMP(x)); });
       }
       polysOf(mp).forEach(function (q) { finals.push({ kaek: p.kaek, outer: q.outer, holes: q.holes, area: polyArea(q) }); });
     });
@@ -4090,9 +4144,9 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     }
     pieces.forEach(function (x) { x.ring = conform(x.ring); x.holes = (x.holes || []).map(conform); });
     finals.forEach(function (f) { f.outer = conform(f.outer); f.holes = (f.holes || []).map(conform); });
-    var gaps = pieces.filter(function (x) { return x.kind === 'gap'; });
+    var gaps = applied.filter(function (x) { return x.kind === 'gap'; });
     var ownRow = summary.filter(function (s) { return s.isOwn; })[0];
-    return { own: own, areaM: areaM, pieces: pieces, summary: summary, transfers: transfers, slivers: slivers, finals: finals, cuts: cuts, Mr: Mr,
+    return { own: own, areaM: areaM, pieces: applied, allPieces: pieces, skipped: pieces.filter(function (x) { return !x.applied; }), summary: summary, transfers: transfers, slivers: slivers, finals: finals, cuts: cuts, Mr: Mr,
       gaps: { count: gaps.length, area: gaps.reduce(function (a, x) { return a + x.area; }, 0) },
       ownFinal: ownRow ? ownRow.final : null, closure: ownRow ? ownRow.final - areaM : null, minArea: minArea };
   }
@@ -4107,7 +4161,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       return null;
     }
     function add(p, lab) { var e = find(p); if (e) return e; e = { n: list.length + 1, label: lab || String(list.length + 1), pt: [p[0], p[1]] }; list.push(e); (grid[key(p, 0, 0)] || (grid[key(p, 0, 0)] = [])).push(e); return e; }
-    res.Mr.forEach(function (q, i) { add(q, labels && labels[i] ? String(labels[i]) : null); });
+    (res.Mmeas || res.Mr).forEach(function (q, i) { add(q, labels && labels[i] ? String(labels[i]) : null); });
+    if (res.Mmeas) res.Mr.forEach(function (q) { add(q); });
     (parcels || []).forEach(function (p) { p.rings.forEach(function (r) { open(r).forEach(function (q) { add(q); }); }); });
     res.pieces.forEach(function (x) { x.ring.forEach(function (q) { add(q); }); (x.holes || []).forEach(function (h) { h.forEach(function (q) { add(q); }); }); });
     (res.finals || []).forEach(function (f) { f.outer.forEach(function (q) { add(q); }); });
@@ -4172,7 +4227,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   }
   function niceStep(raw) { var p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p; return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p; }
 
-  var api = { compute: compute, numbering: numbering, svg: svg, area: area, perim: perim, open: open, interior: interior, pip: pip };
+  var api = { compute: compute, snapToParcels: snapToParcels, numbering: numbering, svg: svg, area: area, perim: perim, open: open, interior: interior, pip: pip };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.DGM = api;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -4678,7 +4733,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     var C3 = [['Σημείο', 18, 'center'], ['X', 27, 'center'], ['Y', 27, 'center']];
     if (res.praxis) return blocksPraxis(res, parcels, { ID: ID, coordRows: coordRows, seqText: seqText, C4: C4, C3: C3 });
     // 1. ιδιοκτησία
-    out.push({ key: 'prop', title: 'ΠΙΝΑΚΑΣ ΚΟΡΥΦΩΝ ΙΔΙΟΚΤΗΣΙΑΣ', cols: C4, rows: coordRows(res.Mr, true), footer: 'Ε (' + seqText(res.Mr) + '): ' + f3(res.areaM) + ' τ.μ.' });
+    var MM = res.Mmeas || res.Mr;
+    out.push({ key: 'prop', title: 'ΠΙΝΑΚΑΣ ΚΟΡΥΦΩΝ ΙΔΙΟΚΤΗΣΙΑΣ', cols: C4, rows: coordRows(MM, true), footer: 'Ε (' + seqText(MM) + '): ' + f3(root.DGM.area(MM)) + ' τ.μ.' });
     // 2. αρχικά γεωτεμάχια
     parcels.forEach(function (p) {
       p.rings.forEach(function (r, ri) {
@@ -4912,7 +4968,9 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
         var c = place(cands, e.label, 1.8, 0, true);
         T('KORYFES', c[0], c[1] - 0.6 * mm, e.label, 1.8, 0, 'center', color);
       }
-      res.Mr.forEach(function (q, i) { vertex(res.Mr, i, 'TOPO_PROP', COL.TOPO_PROP); });
+      var MM = res.Mmeas || res.Mr;
+      MM.forEach(function (q, i) { vertex(MM, i, 'TOPO_PROP', COL.TOPO_PROP); });
+      if (res.Mmeas) res.Mr.forEach(function (q, i) { vertex(res.Mr, i, 'DGM_PROP_FINAL', COL.DGM_PROP_FINAL); });
       parcels.forEach(function (p) { p.rings.forEach(function (r) { var R = root.DGM.open(r); R.forEach(function (q, i) { vertex(R, i, 'PST_KAEK', COL.PST_KAEK); }); }); });
       res.pieces.forEach(function (x) { x.ring.forEach(function (q, i) { vertex(x.ring, i, 'TOPO_PROP', COL.TOPO_PROP); }); });
       if (res.praxis) {
@@ -4927,16 +4985,16 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       // ετικέτες τμημάτων (πριν τις αποστάσεις, ώστε να έχουν προτεραιότητα)
       res.pieces.forEach(function (x) { if (x.kind === 'common') return; var c = root.DGM.interior(x.ring, x.holes); var layer = x.kind === 'cut' ? 'AREA_D-labels' : x.kind === 'given' ? 'AREA_A-labels' : 'AREA_EKTOS_KAEK'; var tx = 'ΤΜΗΜΑ ' + x.id; var cands = [[c[0], c[1]]]; [[0, 1], [0, -1], [1, 0], [-1, 0]].forEach(function (d) { cands.push([c[0] + d[0] * 3 * mm, c[1] + d[1] * 3 * mm]); }); var pc = place(cands, tx, 2.2, 0, true); T(layer, pc[0], pc[1] - 0.8 * mm, tx, 2.2, 0, 'center', 7); });
       // αποστάσεις πλευρών μετρημένου ορίου: "(1-2) = 10.34" παράλληλα στην πλευρά — μόνο όπου χωρούν χωρίς να ακουμπούν άλλη ετικέτα
-      var n = res.Mr.length;
+      var n = MM.length;
       for (var i = 0; i < n; i++) {
-        var a = res.Mr[i], b = res.Mr[(i + 1) % n], Lm = dist(a, b);
+        var a = MM[i], b = MM[(i + 1) % n], Lm = dist(a, b);
         var txt0 = '(' + num.id(a) + '-' + num.id(b) + ') = ' + f2(Lm);
         if (Lm < estW(txt0, 1.6) + 3 * mm) continue; // δεν χωράει πάνω στην πλευρά — παραλείπεται (υπάρχει στον πίνακα)
         var ang = Math.atan2(b[1] - a[1], b[0] - a[0]), deg = ang * 180 / Math.PI;
         if (deg > 90 || deg <= -90) { deg += 180; ang += Math.PI; }
         var mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, off = 1.2 * mm;
         // προς τα έξω από το πολύγωνο
-        var nx = -Math.sin(ang), ny = Math.cos(ang); if (root.DGM.pip([mx + nx * off * 2, my + ny * off * 2], res.Mr)) { nx = -nx; ny = -ny; }
+        var nx = -Math.sin(ang), ny = Math.cos(ang); if (root.DGM.pip([mx + nx * off * 2, my + ny * off * 2], MM)) { nx = -nx; ny = -ny; }
         var txt = '(' + num.id(a) + '-' + num.id(b) + ') = ' + f2(Lm);
         var pl = place([[mx + nx * off, my + ny * off], [mx - nx * off, my - ny * off], [mx + nx * off * 2.2, my + ny * off * 2.2]], txt, 1.6, deg, false);
         if (pl) T('APOSTASEIS', pl[0], pl[1], txt, 1.6, deg, 'center');
@@ -5004,7 +5062,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       layout.elems.hatches.forEach(function (h) { if (!h.pts.some(function (q) { return inSheet(q[0], q[1]); })) return; s += '<polygon points="' + pts(h.pts) + '" fill="' + (ACI[h.color] || C[h.layer] || '#999') + '" fill-opacity="0.9" stroke="none"/>'; });
       parcels.forEach(function (p) { p.rings.forEach(function (r) { s += '<polygon points="' + pts(r) + '" fill="none" stroke="' + C.PST_KAEK + '" stroke-width="0.25"/>'; }); var c = root.DGM.interior(root.DGM.open(p.rings[0]), []); s += '<text x="' + X(c[0]).toFixed(2) + '" y="' + Y(c[1]).toFixed(2) + '" font-size="2.4" fill="' + C.PST_KAEK + '" text-anchor="middle">' + esc(p.kaek) + '</text>'; var ow = layout.ownerOf ? layout.ownerOf(p.kaek) : ''; if (ow) s += '<text x="' + X(c[0]).toFixed(2) + '" y="' + (Y(c[1]) + 4).toFixed(2) + '" font-size="2" fill="#1f2a44" text-anchor="middle">ΙΔΙΟΚΤΗΣΙΑ ' + esc(ow) + '</text>'; });
       (res.finals || []).forEach(function (fp) { s += '<polygon points="' + pts(fp.outer) + '" fill="none" stroke="' + C.DGM_PROP_FINAL + '" stroke-width="0.3" stroke-dasharray="3 1 0.5 1"/>'; });
-      if (!res.praxis) s += '<polygon points="' + pts(res.Mr) + '" fill="none" stroke="' + C.TOPO_PROP + '" stroke-width="0.5"/>';
+      if (!res.praxis) s += '<polygon points="' + pts(res.Mmeas || res.Mr) + '" fill="none" stroke="' + C.TOPO_PROP + '" stroke-width="0.5"/>';
       else {
         if (res.M) s += '<polygon points="' + pts(res.M) + '" fill="none" stroke="' + C.TOPO_PROP + '" stroke-width="0.5"/>';
         (res.parts || []).forEach(function (p) { s += '<polygon points="' + pts(p.ring) + '" fill="none" stroke="' + C.TOPO_PROP_NEW + '" stroke-width="0.3" stroke-dasharray="1.5 1"/>'; });
@@ -6056,7 +6114,7 @@ root.CmdCheck = api;
       await Engine.call('init', { pages: pages.map(function (p) { return { num: p.num, items: p.items, paths: p.paths, width: p.width, height: p.height }; }) }, [], 120000);
       var r = await Engine.call('extract', {}, [], 120000);
       S.name = name; S.doc = doc; S.pages = pages; S.tables = r.tables; S.notes = r.notes; S.pageNumbers = r.pageNumbers;
-      S.scales = r.scales; S.res = {}; S.geo = {}; S.residOk = {}; S.kaek = null; S.dgm = null; S.dgmOwn = null; $('#tabDgm').hidden = true; S.ai = null; S.aiDone = false; S.rot = {}; S.selMode = false; S.drag = null;
+      S.scales = r.scales; S.res = {}; S.geo = {}; S.residOk = {}; S.kaek = null; S.dgm = null; S.dgmOwn = null; S.dgmSkip = {}; S.dgmSkipOwn = null; $('#tabDgm').hidden = true; S.ai = null; S.aiDone = false; S.rot = {}; S.selMode = false; S.drag = null;
       var textCount = pages.reduce(function (a, p) { return a + p.items.filter(function (it) { return it.str.trim(); }).length; }, 0);
       S.textless = textCount < 15;
       S.isDxf = !!pages[0].isDxf;
@@ -6591,8 +6649,13 @@ root.CmdCheck = api;
       var M = world(t); if (M.length > 3 && M[0][0] === M[M.length - 1][0] && M[0][1] === M[M.length - 1][1]) M = M.slice(0, -1);
       var own = S.dgmOwn && parcels.some(function (p) { return p.kaek === S.dgmOwn; }) ? S.dgmOwn : parcels[0].kaek; S.dgmOwn = own;
       var minA = S.dgmMin != null ? S.dgmMin : 1.0; S.dgmMin = minA;
-      var res = DGM.compute(M, parcels, own, { minArea: minA });
-      res.M = M; res.labels = t.points.map(function (p, i) { return p.label || String(i + 1); }); res.plotTitle = shortTitle(t);
+      var snapT = S.dgmSnap != null ? S.dgmSnap : 0.15; S.dgmSnap = snapT;
+      if (S.dgmSkipOwn !== own) { S.dgmSkip = {}; S.dgmSkipOwn = own; }
+      // συγχώνευση κοντινών ορίων: το μετρημένο κουμπώνει στο ΚΑΕΚ όπου απέχει ≤ snapT — το TOPO_PROP μένει το μετρημένο
+      var Ms = DGM.snapToParcels(M, parcels, snapT);
+      var res = DGM.compute(Ms, parcels, own, { minArea: minA, skip: S.dgmSkip || {} });
+      res.M = M; res.Mmeas = M; res.snapTol = snapT; res.snapped = Ms.filter(function (q) { return !M.some(function (m) { return Math.hypot(m[0] - q[0], m[1] - q[1]) < 0.005; }); }).length;
+      res.labels = t.points.map(function (p, i) { return p.label || String(i + 1); }); res.plotTitle = shortTitle(t);
       // μόνο τα εμπλεκόμενα γεωτεμάχια: το δικό μας + όσα ανταλλάσσουν επιφάνεια με το μετρημένο όριο (όχι όλα τα όμορα της περιοχής)
       var aff = {}; aff[own] = 1;
       res.pieces.forEach(function (x) { if (x.kind === 'cut' || x.kind === 'given') { if (x.from) aff[x.from] = 1; if (x.to) aff[x.to] = 1; } });
@@ -6602,7 +6665,7 @@ root.CmdCheck = api;
       // ενιαία αρίθμηση κορυφών (όπως στα υποδείγματα): οι ετικέτες του τοπογραφικού κρατιούνται μόνο αν είναι αριθμοί
       var numericLabels = res.labels.every(function (l) { return /^\d+$/.test(String(l)); });
       res.num = DGM.numbering(res, res.parcels, numericLabels ? res.labels : null);
-      res.labels = res.Mr.map(function (q) { return res.num.id(q); });
+      res.labels = res.Mmeas.map(function (q) { return res.num.id(q); });
       res.svg = DGM.svg(res, M, res.parcels, { W: 1000, H: 700, labels: res.labels });
       res.rec = DgmSheet.recommend(res, res.parcels, { plotTitle: res.plotTitle, kaekName: kaekName, boundLayer: boundLayer() });
       if (!S.sheetScale || !S.sheetPaper || S.sheetAuto !== false) { S.sheetScale = res.rec.best.scale; S.sheetPaper = res.rec.best.paper; }
@@ -6623,7 +6686,9 @@ root.CmdCheck = api;
     var parcels = dgmParcels();
     h += '<div class="dgm-ctl">' + praxisSelect() + '<label>Δικό μας γεωτεμάχιο<select id="dgmOwn">' + parcels.map(function (p) { return '<option value="' + esc(p.kaek) + '"' + (p.kaek === d.own ? ' selected' : '') + '>ΚΑΕΚ ' + esc(p.kaek) + ' · ' + fmt(p.area, 0) + ' m²</option>'; }).join('') + '</select></label>';
     h += '<label>Ελάχιστο τμήμα (m²)<input id="dgmMin" inputmode="decimal" value="' + d.minArea + '" style="width:90px"></label>';
+    h += '<label title="Κορυφές του μετρημένου ορίου που απέχουν έως τόσο από όριο ΚΑΕΚ κουμπώνουν πάνω του, ώστε να μη γεννιούνται σχισμές με πλήθος σημείων">Ταύτιση με ΚΑΕΚ έως (m)<input id="dgmSnap" inputmode="decimal" value="' + d.snapTol + '" style="width:80px"></label>';
     h += '<button class="btn small" data-act="dgm-view">Προβολή διαγράμματος</button></div>';
+    if (d.snapped) h += '<p style="margin:0;color:var(--muted);font-size:12px">Συγχώνευση ορίων: ' + d.snapped + ' κορυφές του τελικού πολυγώνου κούμπωσαν στο ΚΑΕΚ (≤ ' + d.snapTol + ' m). Το TOPO_PROP και ο πίνακας κορυφών ιδιοκτησίας μένουν όπως μετρήθηκαν.</p>';
     var ownRow = d.summary.filter(function (x) { return x.isOwn; })[0] || {};
     h += '<div class="kpis"><div class="kpi"><label>Μετρημένο</label><b>' + fmt(d.areaM, 2) + '<small>m²</small></b><div class="sub">τοπογραφικό</div></div>';
     h += '<div class="kpi"><label>ΚΑΕΚ αρχικό</label><b>' + fmt(ownRow.initial, 2) + '<small>m²</small></b><div class="sub">' + kaekName(d.own) + '</div></div>';
@@ -6647,9 +6712,15 @@ root.CmdCheck = api;
     h += '</tbody></table></div>';
     // τμήματα με πίνακες συντεταγμένων
     var kinds = { common: 'Κοινό τμήμα', cut: 'Από όμορο ΚΑΕΚ (AREA_D)', given: 'Από το αρχικό ΚΑΕΚ (AREA_A)', gap: 'Εκτός ΚΑΕΚ' };
-    h += '<div style="display:grid;gap:6px">' + d.pieces.map(function (x) {
+    var Uo = zoneUo(), nSk = (d.skipped || []).length, nAll = (d.allPieces || d.pieces).filter(function (x) { return x.kind !== 'common'; }).length;
+    h += '<div class="file-row"><b>Κρίση ανά τμήμα</b><span class="chip">' + (nAll - nSk) + ' από ' + nAll + ' μεταβολές εφαρμόζονται</span><button class="btn small" data-act="dgm-apply-all">Όλες οι μεταβολές</button><button class="btn small" data-act="dgm-apply-uo">Στην ανοχή όσες έχουν απόκλιση ≤ Uo (' + fmt(Uo, 2) + ' m)</button></div>';
+    if (nAll && nAll === nSk) h += '<div class="verdict ok"><b>Όλες οι διαφορές έμειναν στην ανοχή</b> — δεν προκύπτει μεταβολή προς καταχώριση, άρα δεν υποβάλλεται ΔΓΜ διόρθωσης (το Check My DXF θα δείξει ότι λείπουν τα AREA_D/AREA_A). Αρκεί το τοπογραφικό με δήλωση συμβατότητας προς το κτηματολογικό απόσπασμα.</div>';
+    h += '<p style="margin:0;color:var(--muted);font-size:12px">Για κάθε τμήμα αποφασίζεις αν παρεμβαίνεις με μεταβολή ή το αφήνεις στην ανοχή. Όσα μένουν στην ανοχή δεν μπαίνουν στα AREA_D/AREA_A και στους πίνακες, και το τελικό πολύγωνο ακολουθεί εκεί το όριο του ΚΑΕΚ.</p>';
+    h += '<div style="display:grid;gap:6px">' + (d.allPieces || d.pieces).map(function (x) {
       var rows = x.ring.map(function (q, i) { return '<tr><td class="idx">' + (i + 1) + '</td><td><input class="cell lab" value="' + esc(d.num ? d.num.id(q) : x.id + '-' + (i + 1)) + '" readonly></td><td class="num"><input class="cell num" value="' + q[0].toFixed(2) + '" readonly></td><td class="num"><input class="cell num" value="' + q[1].toFixed(2) + '" readonly></td></tr>'; }).join('');
-      return '<details class="piece"><summary><span class="tag ' + x.kind + '">' + esc(x.id) + '</span><b>' + kinds[x.kind] + '</b><span style="color:var(--muted)">' + esc(kaekName(x.from)) + ' → ' + esc(kaekName(x.to)) + '</span><span style="margin-left:auto" class="mono">' + fmt(x.area, 2) + ' m²</span></summary><div class="tbl-wrap"><table class="coords"><thead><tr><th>#</th><th>Κορυφή</th><th class="num">X</th><th class="num">Y</th></tr></thead><tbody>' + rows + '</tbody></table></div></details>';
+      var tog = x.kind === 'common' ? '' : '<label class="toggle" title="Εφαρμόζεται η μεταβολή;" onclick="event.stopPropagation()"><input type="checkbox" class="pieceApply" data-id="' + esc(x.id) + '"' + (x.applied ? ' checked' : '') + '>' + (x.applied ? 'μεταβολή' : 'ανοχή') + '</label>';
+      var devTxt = x.kind === 'common' ? '' : '<span class="chip ' + (x.dev <= Uo ? 'ok' : 'warn') + '" title="μέγιστη απόκλιση από το όριο ΚΑΕΚ">απόκλιση ' + fmt(x.dev, 2) + ' m' + (x.dev <= Uo ? ' ≤ Uo' : ' > Uo') + '</span>';
+      return '<details class="piece"' + (x.applied ? '' : ' style="opacity:.6"') + '><summary><span class="tag ' + x.kind + '">' + esc(x.id) + '</span><b>' + kinds[x.kind] + '</b><span style="color:var(--muted)">' + esc(kaekName(x.from)) + ' → ' + esc(kaekName(x.to)) + '</span>' + devTxt + tog + '<span style="margin-left:auto" class="mono">' + fmt(x.area, 2) + ' m²</span></summary><div class="tbl-wrap"><table class="coords"><thead><tr><th>#</th><th>Κορυφή</th><th class="num">X</th><th class="num">Y</th></tr></thead><tbody>' + rows + '</tbody></table></div></details>';
     }).join('') + '</div>';
     h += '<img class="dgm-svg" alt="Διάγραμμα γεωμετρικών μεταβολών" src="data:image/svg+xml;charset=utf-8,' + encodeURIComponent(d.svg) + '">';
     h += renderSheetPanel(d);
@@ -6691,7 +6762,7 @@ root.CmdCheck = api;
   function dgmSpec(d, parcels) {
     if (d.praxis) return praxisSpec(d, parcels);
     var polys = [], texts = [], TH = 0.5;
-    var M = d.Mr;
+    var M = d.Mmeas || d.Mr;
     // TOPO_PROP: μετρημένο όριο (και FOREST_FINAL για ΔΓΜΔΥ)
     polys.push({ layer: 'TOPO_PROP', pts: M, closed: true, lw: 70 });
     // BOUND_IMPL / BOUND_UNIMPL: τα όρια της ιδιοκτησίας όπως αποτυπώθηκαν (υλοποιημένα ή όχι) — υποχρεωτικό ζεύγος με το TOPO_PROP
@@ -6704,7 +6775,7 @@ root.CmdCheck = api;
     // KORYFES: ενιαία αρίθμηση όλων των κορυφών (ιδιοκτησία, ΚΑΕΚ, τμήματα) + κύκλοι σημείων
     var hatches = [];
     if (d.num) d.num.list.forEach(function (e) {
-      var onM = M.some(function (q) { return Math.hypot(q[0] - e.pt[0], q[1] - e.pt[1]) <= 0.02; });
+      var onM = M.concat(d.Mr).some(function (q) { return Math.hypot(q[0] - e.pt[0], q[1] - e.pt[1]) <= 0.02; });
       texts.push({ layer: 'KORYFES', x: e.pt[0] + 0.25, y: e.pt[1] + 0.25, text: e.label, h: TH * 0.8, color: onM ? 5 : 1 });
       polys.push({ layer: onM ? 'SHMEIA_TOPO_PROP' : 'SHMEIA_PST_KAEK', pts: [[e.pt[0] - 0.12, e.pt[1]], [e.pt[0] + 0.12, e.pt[1]]], bulges: [1, 1], closed: true, color: onM ? 5 : 1 });
     });
@@ -6841,7 +6912,7 @@ root.CmdCheck = api;
     if (kind === 'dgm-txt-all') {
       // ένα αρχείο: μετρημένο όριο (Μ), γεωτεμάχια ΚΑΕΚ (με τον αριθμό τους), τμήματα Αi/Δi/Εi — μορφή label,X,Y
       var L = [];
-      d.Mr.forEach(function (q, i) { L.push('M-' + ((d.labels && d.labels[i]) || (i + 1)) + ',' + q[0].toFixed(2) + ',' + q[1].toFixed(2)); });
+      (d.Mmeas || d.Mr).forEach(function (q, i) { L.push('M-' + ((d.labels && d.labels[i]) || (i + 1)) + ',' + q[0].toFixed(2) + ',' + q[1].toFixed(2)); });
       var nid = d.num ? d.num.id : function (q, k) { return String(k + 1); };
       parcels.forEach(function (p) { p.rings.forEach(function (r, ri) { DGM.open(r).forEach(function (q, k) { L.push(p.kaek + (p.rings.length > 1 ? '.' + (ri + 1) : '') + '-' + nid(q, k) + ',' + q[0].toFixed(2) + ',' + q[1].toFixed(2)); }); }); });
       d.pieces.forEach(function (x) { if (x.kind === 'common') return; x.ring.forEach(function (q, k) { L.push(x.id + '-' + nid(q, k) + ',' + q[0].toFixed(2) + ',' + q[1].toFixed(2)); }); });
@@ -7023,6 +7094,8 @@ root.CmdCheck = api;
     if (ev.target.id === 'sheetScale') { S.sheetScale = +ev.target.value; S.sheetAuto = false; renderAll(); }
     if (ev.target.id === 'sheetPaper') { S.sheetPaper = ev.target.value; S.sheetAuto = false; renderAll(); }
     if (ev.target.id === 'dgmMin') { var v = parseFloat(String(ev.target.value).replace(',', '.')); if (!isNaN(v) && v >= 0) { S.dgmMin = v; runDgm(); } }
+    if (ev.target.id === 'dgmSnap') { var v2 = parseFloat(String(ev.target.value).replace(',', '.')); if (!isNaN(v2) && v2 >= 0) { S.dgmSnap = v2; runDgm(); } }
+    if (ev.target.classList.contains('pieceApply')) { S.dgmSkip = S.dgmSkip || {}; if (ev.target.checked) delete S.dgmSkip[ev.target.dataset.id]; else S.dgmSkip[ev.target.dataset.id] = true; runDgm(); }
   });
   left.addEventListener('click', function (ev) {
     var x = ev.target.closest('[data-exp]');
@@ -7034,6 +7107,8 @@ root.CmdCheck = api;
     if (act === 'ai-run') return runAI();
     if (act === 'kaek-find') { S.kaek = null; return findKaek(); }
     if (act === 'dgm-run') return runDgm();
+    if (act === 'dgm-apply-all') { S.dgmSkip = {}; return runDgm(); }
+    if (act === 'dgm-apply-uo') { var dd = S.dgm, uo = zoneUo(); S.dgmSkip = {}; ((dd && dd.allPieces) || []).forEach(function (x) { if (x.kind !== 'common' && x.dev <= uo) S.dgmSkip[x.id] = true; }); return runDgm(); }
     if (act === 'praxis-copy') { var ta = $('#praxisDescr'); if (ta) { ta.select(); try { navigator.clipboard.writeText(ta.value).then(function () { toast('Αντιγράφηκε η περιγραφή.'); }, function () { document.execCommand('copy'); toast('Αντιγράφηκε η περιγραφή.'); }); } catch (e) { document.execCommand('copy'); } } return; }
     if (act === 'dgm-view') { setView('dgm'); return; }
     if (act === 'sheet-info') { var f0 = store('hexis_coords_report') || {}; gate('<h3>Στοιχεία πινακίδας</h3><div class="fields"><label>Τεχνικό γραφείο<input id="rf0" value="' + esc(f0.office || '') + '"></label><label>Εργοδότης<input id="rf4" value="' + esc(f0.client || '') + '"></label><label>Έργο / Ιδιοκτησία<input id="rf1" value="' + esc(f0.project || '') + '"></label><label>Θέση<input id="rf2" value="' + esc(f0.place || '') + '"></label><label>Ομάδα μελέτης (χώρισε με ;)<input id="rf3" value="' + esc(f0.eng || '') + '"></label><label>Αριθμός σχεδίου<input id="rf5" value="' + esc(f0.drawingNo || 'Α1') + '"></label><label>Ημερομηνία<input id="rf6" value="' + esc(f0.date || '') + '" placeholder="π.χ. ΑΠΡΙΛΙΟΣ 2026"></label></div><div class="row"><button class="btn" data-g="no">Άκυρο</button><button class="btn primary" data-g="yes">Αποθήκευση</button></div>', function (a) { if (a === 'yes') { store('hexis_coords_report', { office: $('#rf0').value.trim(), client: $('#rf4').value.trim(), project: $('#rf1').value.trim(), place: $('#rf2').value.trim(), eng: $('#rf3').value.trim(), drawingNo: $('#rf5').value.trim(), date: $('#rf6').value.trim() }); renderAll(); } }); return; }
