@@ -1797,6 +1797,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   function clean(s) { return uesc(String(s == null ? '' : s).replace(/[\r\n]+/g, ' ').slice(0, 250)); }
 
   function mtxt(t) { return uesc(String(t == null ? '' : t).replace(/[\r\n]+/g, ' ').slice(0, 250).replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}')); }
+  // πολυγραμμικό MTEXT: διατηρεί αλλαγές γραμμής ως \P, χωρίς περικοπή (η τεμαχισμός σε ομάδες 3/1 γίνεται στον emitter)
+  function mtxtML(t) { return uesc(String(t == null ? '' : t).replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}').replace(/\r?\n/g, '\\P')); }
 
   // Πίνακας layers του προτύπου: κρατά τα χρησιμοποιούμενα (και 0/Defpoints), προσθέτει όσα λείπουν με χρώμα από defs
   function rewriteLayers(tpl, used, defs, next, prune) {
@@ -1876,11 +1878,16 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     });
     (spec.mtexts || []).forEach(function (t) {
       var h = t.h || 0.5, r = (t.rot || 0) * Math.PI / 180;
-      // σημείο εισαγωγής: κάτω-αριστερά (7) — η βάση γραμμής του PDF είναι ~0,25h πάνω από το κάτω όριο του πλαισίου
-      var x = t.x + Math.sin(r) * 0.25 * h, y = t.y - Math.cos(r) * 0.25 * h;
+      var attach = t.attach || 7, ml = !!t.multiline;
+      // σημείο εισαγωγής: κάτω-αριστερά (7) — η βάση γραμμής του PDF είναι ~0,25h πάνω από το κάτω όριο του πλαισίου· πάνω-αριστερά (1) → χωρίς offset
+      var x = attach === 1 ? t.x : t.x + Math.sin(r) * 0.25 * h, y = attach === 1 ? t.y : t.y - Math.cos(r) * 0.25 * h;
       out.push('0', 'MTEXT', '5', next(), '330', owner, '100', 'AcDbEntity', '8', U(t.layer));
       if (t.color) out.push('62', String(t.color));
-      out.push('100', 'AcDbMText', '10', f(x), '20', f(y), '30', '0.0', '40', f(h), '41', '0.0', '71', '7', '72', '1', '1', mtxt(t.text), '7', FONT, '11', (Math.round(Math.cos(r) * 1e9) / 1e9).toString(), '21', (Math.round(Math.sin(r) * 1e9) / 1e9).toString(), '31', '0.0');
+      out.push('100', 'AcDbMText', '10', f(x), '20', f(y), '30', '0.0', '40', f(h), '41', f(t.width || 0), '71', String(attach), '72', '1');
+      var esc = ml ? mtxtML(t.text) : mtxt(t.text);
+      // τεμαχισμός σε ομάδες 3 (ανά 250 χαρ.) + τελική ομάδα 1, ώστε να μην ξεπερνιέται το όριο γραμμής DXF
+      while (esc.length > 250) { out.push('3', esc.slice(0, 250)); esc = esc.slice(250); }
+      out.push('1', esc, '7', FONT, '11', (Math.round(Math.cos(r) * 1e9) / 1e9).toString(), '21', (Math.round(Math.sin(r) * 1e9) / 1e9).toString(), '31', '0.0');
       ext(t.x, t.y);
     });
     (spec.hatches || []).forEach(function (h) { // γέμισμα: SOLID ή διαγράμμιση (pattern διαγώνιων γραμμών)
@@ -3371,6 +3378,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   function clean(s) { return uesc(String(s == null ? '' : s).replace(/[\r\n]+/g, ' ').slice(0, 250)); }
 
   function mtxt(t) { return uesc(String(t == null ? '' : t).replace(/[\r\n]+/g, ' ').slice(0, 250).replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}')); }
+  // πολυγραμμικό MTEXT: διατηρεί αλλαγές γραμμής ως \P, χωρίς περικοπή (η τεμαχισμός σε ομάδες 3/1 γίνεται στον emitter)
+  function mtxtML(t) { return uesc(String(t == null ? '' : t).replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}').replace(/\r?\n/g, '\\P')); }
 
   // Πίνακας layers του προτύπου: κρατά τα χρησιμοποιούμενα (και 0/Defpoints), προσθέτει όσα λείπουν με χρώμα από defs
   function rewriteLayers(tpl, used, defs, next, prune) {
@@ -3450,11 +3459,16 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     });
     (spec.mtexts || []).forEach(function (t) {
       var h = t.h || 0.5, r = (t.rot || 0) * Math.PI / 180;
-      // σημείο εισαγωγής: κάτω-αριστερά (7) — η βάση γραμμής του PDF είναι ~0,25h πάνω από το κάτω όριο του πλαισίου
-      var x = t.x + Math.sin(r) * 0.25 * h, y = t.y - Math.cos(r) * 0.25 * h;
+      var attach = t.attach || 7, ml = !!t.multiline;
+      // σημείο εισαγωγής: κάτω-αριστερά (7) — η βάση γραμμής του PDF είναι ~0,25h πάνω από το κάτω όριο του πλαισίου· πάνω-αριστερά (1) → χωρίς offset
+      var x = attach === 1 ? t.x : t.x + Math.sin(r) * 0.25 * h, y = attach === 1 ? t.y : t.y - Math.cos(r) * 0.25 * h;
       out.push('0', 'MTEXT', '5', next(), '330', owner, '100', 'AcDbEntity', '8', U(t.layer));
       if (t.color) out.push('62', String(t.color));
-      out.push('100', 'AcDbMText', '10', f(x), '20', f(y), '30', '0.0', '40', f(h), '41', '0.0', '71', '7', '72', '1', '1', mtxt(t.text), '7', FONT, '11', (Math.round(Math.cos(r) * 1e9) / 1e9).toString(), '21', (Math.round(Math.sin(r) * 1e9) / 1e9).toString(), '31', '0.0');
+      out.push('100', 'AcDbMText', '10', f(x), '20', f(y), '30', '0.0', '40', f(h), '41', f(t.width || 0), '71', String(attach), '72', '1');
+      var esc = ml ? mtxtML(t.text) : mtxt(t.text);
+      // τεμαχισμός σε ομάδες 3 (ανά 250 χαρ.) + τελική ομάδα 1, ώστε να μην ξεπερνιέται το όριο γραμμής DXF
+      while (esc.length > 250) { out.push('3', esc.slice(0, 250)); esc = esc.slice(250); }
+      out.push('1', esc, '7', FONT, '11', (Math.round(Math.cos(r) * 1e9) / 1e9).toString(), '21', (Math.round(Math.sin(r) * 1e9) / 1e9).toString(), '31', '0.0');
       ext(t.x, t.y);
     });
     (spec.hatches || []).forEach(function (h) { // γέμισμα: SOLID ή διαγράμμιση (pattern διαγώνιων γραμμών)
@@ -3710,6 +3724,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   function clean(s) { return uesc(String(s == null ? '' : s).replace(/[\r\n]+/g, ' ').slice(0, 250)); }
 
   function mtxt(t) { return uesc(String(t == null ? '' : t).replace(/[\r\n]+/g, ' ').slice(0, 250).replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}')); }
+  // πολυγραμμικό MTEXT: διατηρεί αλλαγές γραμμής ως \P, χωρίς περικοπή (η τεμαχισμός σε ομάδες 3/1 γίνεται στον emitter)
+  function mtxtML(t) { return uesc(String(t == null ? '' : t).replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}').replace(/\r?\n/g, '\\P')); }
 
   // Πίνακας layers του προτύπου: κρατά τα χρησιμοποιούμενα (και 0/Defpoints), προσθέτει όσα λείπουν με χρώμα από defs
   function rewriteLayers(tpl, used, defs, next, prune) {
@@ -3789,11 +3805,16 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     });
     (spec.mtexts || []).forEach(function (t) {
       var h = t.h || 0.5, r = (t.rot || 0) * Math.PI / 180;
-      // σημείο εισαγωγής: κάτω-αριστερά (7) — η βάση γραμμής του PDF είναι ~0,25h πάνω από το κάτω όριο του πλαισίου
-      var x = t.x + Math.sin(r) * 0.25 * h, y = t.y - Math.cos(r) * 0.25 * h;
+      var attach = t.attach || 7, ml = !!t.multiline;
+      // σημείο εισαγωγής: κάτω-αριστερά (7) — η βάση γραμμής του PDF είναι ~0,25h πάνω από το κάτω όριο του πλαισίου· πάνω-αριστερά (1) → χωρίς offset
+      var x = attach === 1 ? t.x : t.x + Math.sin(r) * 0.25 * h, y = attach === 1 ? t.y : t.y - Math.cos(r) * 0.25 * h;
       out.push('0', 'MTEXT', '5', next(), '330', owner, '100', 'AcDbEntity', '8', U(t.layer));
       if (t.color) out.push('62', String(t.color));
-      out.push('100', 'AcDbMText', '10', f(x), '20', f(y), '30', '0.0', '40', f(h), '41', '0.0', '71', '7', '72', '1', '1', mtxt(t.text), '7', FONT, '11', (Math.round(Math.cos(r) * 1e9) / 1e9).toString(), '21', (Math.round(Math.sin(r) * 1e9) / 1e9).toString(), '31', '0.0');
+      out.push('100', 'AcDbMText', '10', f(x), '20', f(y), '30', '0.0', '40', f(h), '41', f(t.width || 0), '71', String(attach), '72', '1');
+      var esc = ml ? mtxtML(t.text) : mtxt(t.text);
+      // τεμαχισμός σε ομάδες 3 (ανά 250 χαρ.) + τελική ομάδα 1, ώστε να μην ξεπερνιέται το όριο γραμμής DXF
+      while (esc.length > 250) { out.push('3', esc.slice(0, 250)); esc = esc.slice(250); }
+      out.push('1', esc, '7', FONT, '11', (Math.round(Math.cos(r) * 1e9) / 1e9).toString(), '21', (Math.round(Math.sin(r) * 1e9) / 1e9).toString(), '31', '0.0');
       ext(t.x, t.y);
     });
     (spec.hatches || []).forEach(function (h) { // γέμισμα: SOLID ή διαγράμμιση (pattern διαγώνιων γραμμών)
@@ -4999,10 +5020,16 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     var mm = S / 1000; // 1 mm χαρτιού σε m
     var ex = extent(res, parcels, opts.extentMode), box = ex.box;
     var sheetW = P.w * mm, sheetH = P.h * mm, panelW = Math.max(P.w * PF, TITLE_W + 10) * mm, drawW = sheetW - panelW - 2 * MARGIN * mm, drawH = sheetH - 2 * MARGIN * mm;
+    // Δεσμευμένη ζώνη κάτω για τη δήλωση ΕΓΣΑ87 (ώστε να ΜΗΝ πέφτει πάνω σε σχέδιο/πίνακες) — ένα ενιαίο MTEXT
+    var declTxt = (opts.declaration && opts.declaration.length) ? opts.declaration.join('\n') : '';
+    var declTH = 1.3, declCPL = Math.max(40, Math.floor((drawW * 0.98 / mm) / (declTH * 0.9))), declLines = 0;
+    if (declTxt) opts.declaration.forEach(function (p) { declLines += Math.max(1, Math.ceil(p.length / declCPL)); });
+    var declBand = declTxt ? (declLines * declTH * 1.5 + 4) * mm : 0; // ύψος ζώνης σε m
+    var plotH = drawH - declBand;
     var cx = (box[0] + box[2]) / 2, cy = (box[1] + box[3]) / 2;
-    var SX = cx - MARGIN * mm - drawW / 2, SY = cy - MARGIN * mm - drawH / 2;
+    var SX = cx - MARGIN * mm - drawW / 2, SY = cy - MARGIN * mm - (drawH + declBand) / 2;
     var sheets = [];
-    var E = { polys: [], texts: [], lines: [], hatches: [], tables: [] }; // tables: θέσεις/περιεχόμενο για native TABLE στο CAD (LISP)
+    var E = { polys: [], texts: [], lines: [], hatches: [], tables: [], mtexts: [] }; // tables: θέσεις/περιεχόμενο για native TABLE στο CAD (LISP)
     function L(layer, a, b, color) { E.lines.push({ layer: layer, a: a, b: b, color: color }); }
     function R(layer, x, y, w, h) { E.polys.push({ layer: layer, pts: [[x, y], [x + w, y], [x + w, y + h], [x, y + h]], closed: true }); }
     function T(layer, x, y, text, hmm, rot, align, color) { E.texts.push({ layer: layer, x: x, y: y, text: text, h: hmm * mm, rot: rot || 0, align: align || 'left', color: color }); }
@@ -5016,7 +5043,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       T(layer, (x0 + x1) / 2, y + (hmm - h) * mm * 0.3, text, h, 0, 'center', color);
     }
     function circle(layer, c, rmm, color) { var r = rmm * mm; E.polys.push({ layer: layer, pts: [[c[0] - r, c[1]], [c[0] + r, c[1]]], bulges: [1, 1], closed: true, color: color }); }
-    var fits = (box[2] - box[0]) <= drawW - 8 * mm && (box[3] - box[1]) <= drawH - 8 * mm;
+    var fits = (box[2] - box[0]) <= drawW - 8 * mm && (box[3] - box[1]) <= plotH - 8 * mm;
     // κοινόχρηστα/δρόμοι (ΕΚ): η γραμμή ορίου τους σχεδιάζεται (κομμένη τοπικά), ΧΩΡΙΣ αρίθμηση κορυφών/πίνακα — τα όρια είναι τεχνητά (κόψιμο στο κουτί)
     var pPriv = parcels.filter(function (p) { return !isPub(p.kaek); });
     var num = res.num || (res.num = root.DGM.numbering(res, pPriv, opts.labels));
@@ -5129,18 +5156,18 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       if (cur) lines.push(cur); return lines;
     }
     newSheet(false);
-    var s0 = sheets[0], dx0 = s0.x + MARGIN * mm, dy0 = s0.y + MARGIN * mm;
+    var s0 = sheets[0], dx0 = s0.x + MARGIN * mm, dy0 = s0.y + MARGIN * mm, dyP = dy0 + declBand; // dyP = κάτω όριο περιοχής σχεδίου (πάνω από τη ζώνη δήλωσης)
 
     if (!opts.light) {
-      // ---- στοιχεία σχεδίου (όπως στα υποδείγματα): κορυφές με κύκλο & αριθμό, αποστάσεις πλευρών, ετικέτες τμημάτων, κάνναβος ----
-      var inDraw = function (p) { return p[0] >= dx0 && p[0] <= dx0 + drawW && p[1] >= dy0 && p[1] <= dy0 + drawH; };
+      // ---- στοιχεία σχεδίου (όπως στα υποδείγματα): κορυφές με κύκλο & αριθμό, ετικέτες τμημάτων, κάνναβος ----
+      var inDraw = function (p) { return p[0] >= dx0 && p[0] <= dx0 + drawW && p[1] >= dyP && p[1] <= dy0 + drawH; };
       var done = {};
       // αποφυγή επικαλύψεων: κάθε ετικέτα κρατά ένα ορθογώνιο· νέα ετικέτα δοκιμάζει εναλλακτικές θέσεις μέχρι να μην ακουμπά άλλη
       var boxes = [];
       // ο κάνναβος μπαίνει πρώτα ως εμπόδιο, ώστε οι ετικέτες (κορυφές/αποστάσεις/τμήματα) να μην πέφτουν πάνω στους σταυρούς
       (function () {
         var step0 = S >= 1000 ? 100 : S >= 500 ? 50 : 20, cs0 = 2.5 * mm, hb = cs0 * 1.4;
-        var gx0 = Math.ceil((dx0 + 6 * mm) / step0) * step0, gx1 = dx0 + drawW - 6 * mm, gy0 = Math.ceil((dy0 + 6 * mm) / step0) * step0, gy1 = dy0 + drawH - 6 * mm;
+        var gx0 = Math.ceil((dx0 + 6 * mm) / step0) * step0, gx1 = dx0 + drawW - 6 * mm, gy0 = Math.ceil((dyP + 6 * mm) / step0) * step0, gy1 = dy0 + drawH - 6 * mm;
         for (var gx = gx0; gx <= gx1; gx += step0) for (var gy = gy0; gy <= gy1; gy += step0) boxes.push([gx - hb, gy - hb, gx + hb, gy + hb]);
       })();
       function overlaps(bx) { return boxes.some(function (o) { return !(bx[2] < o[0] || bx[0] > o[2] || bx[3] < o[1] || bx[1] > o[3]); }); }
@@ -5182,37 +5209,20 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       }
       // ετικέτες τμημάτων (πριν τις αποστάσεις, ώστε να έχουν προτεραιότητα)
       res.pieces.forEach(function (x) { if (x.kind === 'common') return; var c = root.DGM.interior(x.ring, x.holes); var layer = x.kind === 'cut' ? 'AREA_D-labels' : x.kind === 'given' ? 'AREA_A-labels' : 'AREA_EKTOS_KAEK'; var tx = 'ΤΜΗΜΑ ' + x.id; var cands = [[c[0], c[1]]]; [[0, 1], [0, -1], [1, 0], [-1, 0]].forEach(function (d) { cands.push([c[0] + d[0] * 3 * mm, c[1] + d[1] * 3 * mm]); }); var pc = place(cands, tx, 2.2, 0, true); T(layer, pc[0], pc[1] - 0.8 * mm, tx, 2.2, 0, 'center', 7); });
-      // αποστάσεις πλευρών μετρημένου ορίου: "(1-2) = 10.34" παράλληλα στην πλευρά — μόνο όπου χωρούν χωρίς να ακουμπούν άλλη ετικέτα
-      var n = MM.length;
-      for (var i = 0; i < n; i++) {
-        var a = MM[i], b = MM[(i + 1) % n], Lm = dist(a, b);
-        var txt0 = '(' + num.id(a) + '-' + num.id(b) + ') = ' + f2(Lm);
-        if (Lm < estW(txt0, 1.6) + 3 * mm) continue; // δεν χωράει πάνω στην πλευρά — παραλείπεται (υπάρχει στον πίνακα)
-        var ang = Math.atan2(b[1] - a[1], b[0] - a[0]), deg = ang * 180 / Math.PI;
-        if (deg > 90 || deg <= -90) { deg += 180; ang += Math.PI; }
-        var mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, off = 1.2 * mm;
-        // προς τα έξω από το πολύγωνο
-        var nx = -Math.sin(ang), ny = Math.cos(ang); if (root.DGM.pip([mx + nx * off * 2, my + ny * off * 2], MM)) { nx = -nx; ny = -ny; }
-        var txt = '(' + num.id(a) + '-' + num.id(b) + ') = ' + f2(Lm);
-        var pl = place([[mx + nx * off, my + ny * off], [mx - nx * off, my - ny * off], [mx + nx * off * 2.2, my + ny * off * 2.2]], txt, 1.6, deg, false);
-        if (pl) T('APOSTASEIS', pl[0], pl[1], txt, 1.6, deg, 'center');
-      }
-      // κάνναβος: σταυροί ανά βήμα και συντεταγμένες στο πλαίσιο
+      // (αφαιρέθηκαν οι αποστάσεις πλευρών του TOPO_PROP από το σχέδιο — υπάρχουν ήδη στους πίνακες συντεταγμένων)
+      // κάνναβος: σταυροί ανά βήμα και συντεταγμένες στο πλαίσιο (μόνο στην περιοχή σχεδίου, πάνω από τη ζώνη δήλωσης)
       var step = S >= 1000 ? 100 : S >= 500 ? 50 : 20, cs = 2.5 * mm;
-      var gx0 = Math.ceil((dx0 + 6 * mm) / step) * step, gx1 = dx0 + drawW - 6 * mm, gy0 = Math.ceil((dy0 + 6 * mm) / step) * step, gy1 = dy0 + drawH - 6 * mm;
+      var gx0 = Math.ceil((dx0 + 6 * mm) / step) * step, gx1 = dx0 + drawW - 6 * mm, gy0 = Math.ceil((dyP + 6 * mm) / step) * step, gy1 = dy0 + drawH - 6 * mm;
       for (var gx = gx0; gx <= gx1; gx += step) {
         for (var gy = gy0; gy <= gy1; gy += step) { L('KANNABOS', [gx - cs, gy], [gx + cs, gy]); L('KANNABOS', [gx, gy - cs], [gx, gy + cs]); }
-        T('KANNABOS', gx + 0.8 * mm, dy0 + 1.5 * mm, String(Math.round(gx)), 1.8, 90); T('KANNABOS', gx + 0.8 * mm, dy0 + drawH - 9 * mm, String(Math.round(gx)), 1.8, 90);
+        T('KANNABOS', gx + 0.8 * mm, dyP + 1.5 * mm, String(Math.round(gx)), 1.8, 90); T('KANNABOS', gx + 0.8 * mm, dy0 + drawH - 9 * mm, String(Math.round(gx)), 1.8, 90);
       }
       for (var gy2 = gy0; gy2 <= gy1; gy2 += step) { T('KANNABOS', dx0 + 1.5 * mm, gy2 + 0.8 * mm, String(Math.round(gy2)), 1.8); T('KANNABOS', dx0 + drawW - 15 * mm, gy2 + 0.8 * mm, String(Math.round(gy2)), 1.8); }
       // γεμίσματα τμημάτων (HATCH SOLID) — κόκκινο Δi (προσάρτηση), πράσινο Αi (αποκοπή)
       res.pieces.forEach(function (x) { if (x.kind === 'common') return; E.hatches.push({ layer: x.kind === 'cut' ? 'AREA_D-hatch' : x.kind === 'given' ? 'AREA_A-hatch' : 'AREA_EKTOS_KAEK', pts: x.ring, color: x.kind === 'cut' ? COL.AREA_D : x.kind === 'given' ? COL.AREA_A : COL.AREA_EKTOS_KAEK, transparency: 75, pattern: 'diagonal', angle: x.kind === 'cut' ? 45 : 135, spacing: mm * 3 }); });
-      // Δήλωση ΕΓΣΑ87 + συντελεστής Κ — σημειώσεις κάτω-αριστερά του σχεδίου (όπως τα τοπογραφικά)
-      if (opts.declaration && opts.declaration.length) {
-        var dth = 1.3, dlh = dth * 1.55, dmax = Math.max(26, Math.floor((drawW * 0.52 / mm) / (dth * CHW))), wrapped = [];
-        opts.declaration.forEach(function (para) { var ls = wrap(para, dmax); (ls.length ? ls : ['']).forEach(function (l) { wrapped.push(l); }); });
-        var dTop = dy0 + 8 * mm + (wrapped.length - 1) * dlh * mm, dLeft = dx0 + 3 * mm;
-        wrapped.forEach(function (ln, i) { T('SHMEIWSEIS', dLeft, dTop - i * dlh * mm, ln, dth, 0, 'left', 7); });
+      // Δήλωση ΕΓΣΑ87 + συντελεστής Κ — ΕΝΙΑΙΟ MTEXT σε δεσμευμένη ζώνη κάτω (δεν πέφτει πάνω σε σχέδιο/πίνακες)
+      if (declTxt) {
+        E.mtexts.push({ layer: 'SHMEIWSEIS', x: dx0 + 2 * mm, y: dy0 + declBand - 2 * mm, text: declTxt, h: declTH * mm, width: drawW - 4 * mm, attach: 1, multiline: true, color: 7 });
       }
     }
     // βορράς & γραμμική κλίμακα
@@ -5221,7 +5231,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     E.polys.push({ layer: 'PINAKIDA', pts: [[na[0], na[1] + 8 * mm * ar], [na[0] + 2.5 * mm * ar, na[1] - 4 * mm * ar], [na[0], na[1] - 1.5 * mm * ar], [na[0] - 2.5 * mm * ar, na[1] - 4 * mm * ar]], closed: true });
     T('PINAKIDA', na[0], na[1] + 8 * mm * ar + 4 * mm, 'Β', 8, 0, 'center');
     var sbLen = S >= 1000 ? 100 : S >= 500 ? 50 : 20; // m
-    var sbx = dx0 + 8 * mm, sby = dy0 + 10 * mm;
+    var sbx = dx0 + 8 * mm, sby = dyP + 10 * mm;
     L('PINAKIDA', [sbx, sby], [sbx + sbLen, sby]); L('PINAKIDA', [sbx, sby], [sbx, sby + 2 * mm]); L('PINAKIDA', [sbx + sbLen, sby], [sbx + sbLen, sby + 2 * mm]); L('PINAKIDA', [sbx + sbLen / 2, sby], [sbx + sbLen / 2, sby + 1.2 * mm]);
     T('PINAKIDA', sbx, sby + 3 * mm, '0', 2); T('PINAKIDA', sbx + sbLen, sby + 3 * mm, sbLen + ' m', 2, 0, 'right'); T('PINAKIDA', sbx, sby - 4 * mm, 'ΚΛΙΜΑΚΑ 1:' + S, 3);
     // υπόμνημα layers (ΔΓΜ διόρθωσης ορίων, Πίνακας Ι Τεύχους) κάτω δεξιά της περιοχής σχεδίου
@@ -5239,7 +5249,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       if (res.vstFinals.length) items.push(['VST_FINAL', 'Τελικοί χώροι αποκλειστικής χρήσης']);
       items.push(['KORYFES', 'Αρίθμηση κορυφών']);
     }
-    var lgW = 96, lgx = dx0 + drawW - lgW * mm - 4 * mm, lgy = dy0 + 6 * mm;
+    var lgW = 96, lgx = dx0 + drawW - lgW * mm - 4 * mm, lgy = dyP + 6 * mm;
     R('PINAKIDA', lgx - 2 * mm, lgy - 2 * mm, lgW * mm, (items.length * 5 + 8) * mm);
     T('PINAKIDA', lgx + lgW / 2 * mm - 2 * mm, lgy + (items.length * 5 + 2) * mm, 'ΥΠΟΜΝΗΜΑ', 3, 0, 'center');
     items.forEach(function (it, i) { var yy = lgy + (items.length - 1 - i) * 5 * mm + 1 * mm; if (it[0] === 'KORYFES') T('KORYFES', lgx + 2 * mm, yy, '1', 2.0, 0, 'left', COL.TOPO_PROP); else if (/^AREA_[DA]$/.test(it[0])) { E.hatches.push({ layer: it[0] + '-hatch', pts: [[lgx, yy], [lgx + 10 * mm, yy], [lgx + 10 * mm, yy + 2.4 * mm], [lgx, yy + 2.4 * mm]], color: COL[it[0]], legend: true, transparency: 75, pattern: 'diagonal', angle: it[0] === 'AREA_D' ? 45 : 135, spacing: mm * 1.2 }); } else L(it[0], [lgx, yy + 1 * mm], [lgx + 10 * mm, yy + 1 * mm]); T('PINAKIDA', lgx + 12 * mm, yy, it[0], 2.0); T('PINAKIDA', lgx + 42 * mm, yy, it[1], 2.0); });
@@ -5292,6 +5302,17 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       var fill = ACI[t.color] || C[t.layer] || '#1f2a44', anchor = t.align === 'center' ? 'middle' : t.align === 'right' ? 'end' : 'start';
       var fit = t.align === 'fit' && t.fit ? ' textLength="' + ((t.fit[0] - t.x) / mm).toFixed(2) + '" lengthAdjust="spacingAndGlyphs"' : '';
       s += '<text x="' + X(t.x).toFixed(2) + '" y="' + Y(t.y).toFixed(2) + '" font-size="' + (t.h / mm * 1.35).toFixed(2) + '" fill="' + fill + '" text-anchor="' + anchor + '"' + fit + (t.rot ? ' transform="rotate(' + (-t.rot) + ' ' + X(t.x).toFixed(2) + ' ' + Y(t.y).toFixed(2) + ')"' : '') + '>' + esc(t.text) + '</text>';
+    });
+    // Δήλωση ΕΓΣΑ87 (ενιαίο MTEXT) — πολλαπλές γραμμές με αναδίπλωση
+    (layout.elems.mtexts || []).forEach(function (t) {
+      if (!inSheet(t.x, t.y)) return;
+      var fill = ACI[t.color] || C[t.layer] || '#1f2a44', fs = t.h / mm * 1.35;
+      var cpl = Math.max(40, Math.floor((t.width / mm) / (fs * 0.55))), lines = [];
+      String(t.text).split(/\r?\n/).forEach(function (para) { var words = para.split(/\s+/), cur = ''; words.forEach(function (w) { if ((cur + ' ' + w).trim().length > cpl && cur) { lines.push(cur); cur = w; } else cur = (cur + ' ' + w).trim(); }); lines.push(cur); });
+      var x0 = X(t.x).toFixed(2), y0 = Y(t.y), lh = fs * 1.4;
+      s += '<text x="' + x0 + '" y="' + (y0 + fs).toFixed(2) + '" font-size="' + fs.toFixed(2) + '" fill="' + fill + '">';
+      lines.forEach(function (ln, i) { s += '<tspan x="' + x0 + '" dy="' + (i === 0 ? 0 : lh).toFixed(2) + '">' + esc(ln) + '</tspan>'; });
+      s += '</text>';
     });
     s += '</svg>';
     return s;
@@ -6676,7 +6697,7 @@ root.CmdCheck = api;
         p.ovlPlot = areaPlot ? p.ovl / areaPlot : 0;
         p.ovlParcel = p.area ? p.ovl / p.area : 0;
       });
-      if (kaekSource() === 'inspire') { var ownP = parcels.filter(function (p) { return p.ovl > 0; }).sort(function (a, b) { return b.ovl - a.ovl; })[0]; if (ownP && ownP.info && ownP.info.ota) region = ownP.info.ota; parcels.forEach(function (p) { p.hit = p.ovl > 0; }); parcels = parcels.filter(function (p) { return p.ovl > 0 || p.rings.some(function (r) { return r.some(function (q) { return Math.hypot(q[0] - c[0], q[1] - c[1]) < 150; }); }); }); }
+      if (kaekSource() === 'inspire') { var ownP = parcels.filter(function (p) { return p.ovl > 0; }).sort(function (a, b) { return b.ovl - a.ovl; })[0]; if (ownP && ownP.info && ownP.info.ota) region = ownP.info.ota; parcels.forEach(function (p) { p.hit = p.ovl > 0; }); parcels = parcels.filter(function (p) { return p.ovl > 0 || isPublicKaek(p.kaek) || p.rings.some(function (r) { return r.some(function (q) { return Math.hypot(q[0] - c[0], q[1] - c[1]) < 150; }); }); }); }
       parcels.sort(function (a, b) { return b.ovl - a.ovl; });
       // Δικλείδα: πέταξε πολύγωνα που περικλείουν άλλα γεωτεμάχια (μεγάλο «μπλοκ»/ΟΤ πάνω στα επιμέρους) — αλλιώς
       // το μετρημένο όριο θα μετρηθεί διπλά και τα εμβαδά μεταβολών βγαίνουν λάθος.
@@ -7353,6 +7374,7 @@ root.CmdCheck = api;
       // οι πίνακες γράφονται ως native ACAD_TABLE (R2018) — οι γραμμές/κείμενα του layer PINAKES παραλείπονται
       var skipL = { KORYFES: 1, SHMEIA_TOPO_PROP: 1, SHMEIA_PST_KAEK: 1, 'AREA_D-labels': 1, 'AREA_A-labels': 1, 'AREA_EKTOS_KAEK': 1, PINAKES: 1 };
       spec.tables = lay.elems.tables.map(function (t) { return Object.assign({ layer: 'PINAKES' }, t); });
+      spec.mtexts = (spec.mtexts || []).concat((lay.elems.mtexts || []).filter(function (t) { return !skipL[t.layer]; }));
       lay.elems.polys.forEach(function (p) { if (skipL[p.layer]) return; spec.polys.push({ layer: p.layer, pts: p.pts, bulges: p.bulges, closed: p.closed, color: p.color || 7 }); });
       var lc = { PINAKES: 7, PINAKIDA: 7, KANNABOS: 8, AREA_A: 3, AREA_D: 1, AREA_EKTOS_KAEK: 30 };
       spec.lines = lay.elems.lines.filter(function (l) { return !skipL[l.layer]; }).map(function (l) { return { layer: l.layer, a: l.a, b: l.b, color: l.color || lc[l.layer] || 256 }; });
