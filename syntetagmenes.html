@@ -4080,6 +4080,9 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     var Mmp = [[Mr]];
     var byK = {}; parcels.forEach(function (p) { byK[p.kaek] = p; });
     var own = byK[ownKaek] ? ownKaek : null;
+    // Κοινόχρηστο/δημόσιο ΕΚ (δρόμος/ρέμα): ΚΑΕΚ με γράμματα στις θέσεις 6–7. ΕΚΤΟΣ ισοζυγίου γεωμετρίας
+    // (το πολύγωνό του από τον χάρτη είναι τεράστιο/κομμένο στο bbox — θα μόλυνε τα εμβαδά). Μένει μόνο ως αποδέκτης χειροκίνητης ανάθεσης.
+    function isPub(k) { k = String(k || '').replace(/\s/g, ''); return k.length >= 7 && /[^0-9]/.test(k.slice(5, 7)) && k !== own; }
     var pieces = [], slivers = { count: 0, area: 0 }, seq = { common: 0, cut: 0, given: 0, gap: 0 };
     function isSliver(p) { var A = polyArea(p), P = perim(p.outer); return A < minArea || A / P < minWidth; }
     function push(kind, from, to, polys, prefix) {
@@ -4093,9 +4096,9 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     // 1. κοινό τμήμα: M ∩ K_own
     if (own) push('common', own, own, polysOf(pc.intersection(Mmp, parcelMP[own])), 'Κ');
     // 2. αποκοπτόμενα: M ∩ K_j (j ≠ own) → από K_j προς το δικό μας
-    parcels.forEach(function (p) { if (p.kaek === own) return; push('cut', p.kaek, own, polysOf(pc.intersection(Mmp, parcelMP[p.kaek])), 'Δ'); });
-    // 3. κενά: M εκτός κάθε γεωτεμαχίου → από μη καταχωρημένο προς το δικό μας
-    var allMP = null; parcels.forEach(function (p) { allMP = allMP ? pc.union(allMP, parcelMP[p.kaek]) : parcelMP[p.kaek]; });
+    parcels.forEach(function (p) { if (p.kaek === own || isPub(p.kaek)) return; push('cut', p.kaek, own, polysOf(pc.intersection(Mmp, parcelMP[p.kaek])), 'Δ'); });
+    // 3. κενά: M εκτός κάθε (ιδιωτικού) γεωτεμαχίου → από μη καταχωρημένο προς το δικό μας
+    var allMP = null; parcels.forEach(function (p) { if (isPub(p.kaek)) return; allMP = allMP ? pc.union(allMP, parcelMP[p.kaek]) : parcelMP[p.kaek]; });
     if (allMP) push('gap', null, own, polysOf(pc.difference(Mmp, allMP)), 'Ε'); else push('gap', null, own, polysOf(Mmp), 'Ε');
     // 4. διδόμενα: K_own \ M → προς τον όμορο που συνορεύει περισσότερο
     if (own) {
@@ -4103,7 +4106,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       given.forEach(function (p) {
         if (isSliver(p)) { slivers.count++; slivers.area += polyArea(p); return; }
         var best = null, bestL = 0;
-        parcels.forEach(function (q) { if (q.kaek === own) return; var L = sharedBoundary(p.outer, q.rings, tol); if (L > bestL) { bestL = L; best = q.kaek; } });
+        parcels.forEach(function (q) { if (q.kaek === own || isPub(q.kaek)) return; var L = sharedBoundary(p.outer, q.rings, tol); if (L > bestL) { bestL = L; best = q.kaek; } });
         seq.given++;
         pieces.push({ id: label('Α', seq.given), kind: 'given', from: own, to: best, ring: p.outer, holes: p.holes, area: polyArea(p), perim: perim(p.outer), sharedLen: bestL });
       });
@@ -4127,11 +4130,15 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     var summary = parcels.map(function (p) {
       // ΙΣΟΖΥΓΙΟ ΜΕ ΓΕΩΜΕΤΡΙΚΟ ΕΜΒΑΔΟΝ: αρχικό = εμβαδόν του ΠΟΛΥΓΩΝΟΥ του ΚΑΕΚ (όχι το αναγραφόμενο),
       // ώστε το τελικό του δικού μας να ισούται με το μετρημένο όριο. Το αναγραφόμενο (reg) κρατιέται ξεχωριστά.
-      var initial = p.rings.reduce(function (a, r) { return a + area(open(r)); }, 0);
+      var pub = isPub(p.kaek);
+      var geom = p.rings.reduce(function (a, r) { return a + area(open(r)); }, 0);
       var lost = applied.filter(function (x) { return x.from === p.kaek && x.to !== p.kaek; }).reduce(function (a, x) { return a + x.area; }, 0);
       var gained = applied.filter(function (x) { return x.to === p.kaek && x.from !== p.kaek; }).reduce(function (a, x) { return a + x.area; }, 0);
-      return { kaek: p.kaek, isOwn: p.kaek === own, initial: initial, reg: p.area && Math.abs(p.area - initial) > 0.5 ? p.area : null, lost: lost, gained: gained, final: initial - lost + gained };
-    });
+      // κοινόχρηστο/δρόμος ΕΚ: αρχικό = αναγραφόμενο (όχι το bbox-κομμένο πολύγωνο). Εμφανίζεται μόνο αν συμμετέχει.
+      var initial = pub ? (p.area || 0) : geom;
+      var reg = pub ? null : (p.area && Math.abs(p.area - geom) > 0.5 ? p.area : null);
+      return { kaek: p.kaek, isOwn: p.kaek === own, pub: pub, initial: initial, reg: reg, lost: lost, gained: gained, final: initial - lost + gained };
+    }).filter(function (s) { return !s.pub || s.lost > 0.004 || s.gained > 0.004; });
     summary.sort(function (a, b) { return (b.isOwn - a.isOwn) || (b.lost + b.gained) - (a.lost + a.gained); });
     var tr = {};
     applied.forEach(function (x) { if (x.kind === 'common') return; var k = (x.from || '—') + '→' + (x.to || '—'); if (!tr[k]) tr[k] = { from: x.from, to: x.to, area: 0, pieces: [] }; tr[k].area += x.area; tr[k].pieces.push(x.id); });
@@ -4848,6 +4855,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   var PAPERS = [{ id: 'A4', w: 297, h: 210 }, { id: 'A3', w: 420, h: 297 }, { id: 'A2', w: 594, h: 420 }, { id: 'A1', w: 841, h: 594 }, { id: 'A0', w: 1189, h: 841 }];
   var SCALES = [200, 500, 1000];
   var MARGIN = 10, PANEL_FRAC = 0.36, TITLE_W = 190, TITLE_H = 277; // πινακίδα σταθερό μέγεθος Α4 (210×297, usable 190×277)
+  function isPub(k) { k = String(k || '').replace(/\s/g, ''); return k.length >= 7 && /[^0-9]/.test(k.slice(5, 7)); } // κοινόχρηστο/δρόμος ΕΚ
   var COL = { TOPO_PROP: 5, PST_KAEK: 1, AREA_D: 1, AREA_A: 3, AREA_EKTOS_KAEK: 30, DGM_PROP_FINAL: 4, TOPO_PROP_NEW: 6, VST: 200, VST_FINAL: 210, LINE_XM: 1, LINE_XM_VST: 6 }; // ACI για κείμενα κορυφών κ.λπ.
 
   function bbox(pts) { var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; pts.forEach(function (p) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }); return [x0, y0, x1, y1]; }
@@ -4858,12 +4866,13 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   // Έκταση που πρέπει να χωρέσει: μετρημένο όριο, τμήματα, και τα εμπλεκόμενα ΚΑΕΚ όσο δεν τετραπλασιάζουν την έκταση
   function extent(res, parcels, mode) {
     var core = res.Mr.slice(); res.pieces.forEach(function (x) { core = core.concat(x.ring); }); (res.extraRings || []).forEach(function (r) { core = core.concat(r); });
-    var b = bbox(core), w = b[2] - b[0], h = b[3] - b[1];
-    var all = core.slice(); parcels.forEach(function (p) { p.rings.forEach(function (r) { all = all.concat(r); }); });
-    var B = bbox(all);
-    // Δείχνουμε ΟΛΑ τα εμπλεκόμενα γεωτεμάχια ολόκληρα, όσο μεγάλα κι αν είναι (mode 'core' μόνο ως έσχατη λύση)
-    if (mode !== 'core') return { box: B, full: true };
-    return { box: [b[0] - w * 0.2, b[1] - h * 0.2, b[2] + w * 0.2, b[3] + h * 0.2], full: false };
+    // Εστίαση στο ΔΙΚΟ ΜΑΣ + όσα ΣΥΜΜΕΤΕΧΟΥΝ στη μεταβολή (ολόκληρα) + κομμένα κοινόχρηστα· όχι σε άσχετα όμορα μακριά.
+    var involved = {}; (res.summary || []).forEach(function (s) { if (s.isOwn || s.lost > 0.004 || s.gained > 0.004) involved[s.kaek] = 1; });
+    res.pieces.forEach(function (x) { if (x.from) involved[x.from] = 1; if (x.to) involved[x.to] = 1; });
+    if (res.own) involved[res.own] = 1;
+    parcels.forEach(function (p) { if (involved[p.kaek] || isPub(p.kaek)) p.rings.forEach(function (r) { core = core.concat(r); }); });
+    var b = bbox(core), w = b[2] - b[0], h = b[3] - b[1], m = mode === 'core' ? 0.15 : 0.08;
+    return { box: [b[0] - w * m, b[1] - h * m, b[2] + w * m, b[3] + h * m], full: mode !== 'core' };
   }
 
   // Πρόταση: η πιο λεπτομερής κλίμακα (1:200 → 1:1000) και το μικρότερο χαρτί (έως Α0) ώστε ΟΛΑ —
@@ -5008,8 +5017,10 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     }
     function circle(layer, c, rmm, color) { var r = rmm * mm; E.polys.push({ layer: layer, pts: [[c[0] - r, c[1]], [c[0] + r, c[1]]], bulges: [1, 1], closed: true, color: color }); }
     var fits = (box[2] - box[0]) <= drawW - 8 * mm && (box[3] - box[1]) <= drawH - 8 * mm;
-    var num = res.num || (res.num = root.DGM.numbering(res, parcels, opts.labels));
-    var bl = blocks(res, parcels, opts);
+    // κοινόχρηστα/δρόμοι (ΕΚ): η γραμμή ορίου τους σχεδιάζεται (κομμένη τοπικά), ΧΩΡΙΣ αρίθμηση κορυφών/πίνακα — τα όρια είναι τεχνητά (κόψιμο στο κουτί)
+    var pPriv = parcels.filter(function (p) { return !isPub(p.kaek); });
+    var num = res.num || (res.num = root.DGM.numbering(res, pPriv, opts.labels));
+    var bl = blocks(res, pPriv, opts);
 
     // ---- ροή πινάκων σε στήλες & φύλλα ----
     var TXT = (P.w >= 841 ? 2.0 : 1.8) * TS, ROW = TXT * 2.1, TITLE = TXT * 1.15;
@@ -6772,7 +6783,25 @@ root.CmdCheck = api;
   }
 
   // ---------- Διάγραμμα Γεωμετρικών Μεταβολών ----------
-  function dgmParcels() { var k = S.kaek; return k && k.status === 'ok' ? k.parcels : []; }
+  // Περιορισμός κοινόχρηστου/δρόμου (ΕΚ) στην τοπική περιοχή του σχεδίου: το τεράστιο πολύγωνο του χάρτη κόβεται
+  // σε κουτί γύρω από τα ιδιωτικά γεωτεμάχια, ώστε PST_KAEK & DGM_PROP_FINAL να προκύπτουν ΜΟΝΟ από το τμήμα που φαίνεται.
+  function clipRingsToBox(rings, box) {
+    var pc = (typeof polygonClipping !== 'undefined' && polygonClipping) || (typeof window !== 'undefined' && window.polygonClipping); if (!pc) return rings;
+    var bR = [[box[0], box[1]], [box[2], box[1]], [box[2], box[3]], [box[0], box[3]], [box[0], box[1]]];
+    var subj = rings.map(function (r) { var o = r.slice(); if (o.length && (o[0][0] !== o[o.length - 1][0] || o[0][1] !== o[o.length - 1][1])) o = o.concat([o[0]]); return [o]; });
+    try { var res = pc.intersection(subj, [bR]), out = []; res.forEach(function (poly) { poly.forEach(function (r) { out.push(r); }); }); return out; } catch (e) { return rings; }
+  }
+  function dgmParcels() {
+    var k = S.kaek; if (!(k && k.status === 'ok')) return [];
+    if (k._clipped) return k._clipped;
+    var ps = k.parcels, priv = ps.filter(function (p) { return !isPublicKaek(p.kaek) && p.rings && p.rings.length; });
+    if (!priv.length || !ps.some(function (p) { return isPublicKaek(p.kaek); })) { k._clipped = ps; return ps; }
+    var bx = [Infinity, Infinity, -Infinity, -Infinity];
+    priv.forEach(function (p) { p.rings.forEach(function (r) { r.forEach(function (q) { bx[0] = Math.min(bx[0], q[0]); bx[1] = Math.min(bx[1], q[1]); bx[2] = Math.max(bx[2], q[0]); bx[3] = Math.max(bx[3], q[1]); }); }); });
+    var w = bx[2] - bx[0], h = bx[3] - bx[1], pad = Math.max(0.35 * Math.max(w, h), 12), box = [bx[0] - pad, bx[1] - pad, bx[2] + pad, bx[3] + pad];
+    var out = ps.map(function (p) { if (!isPublicKaek(p.kaek) || !p.rings) return p; var cr = clipRingsToBox(p.rings, box); return cr.length ? Object.assign({}, p, { rings: cr, clipped: true }) : null; }).filter(Boolean);
+    k._clipped = out; return out;
+  }
   // ---------- ΔΓΜ εγγραπτέας πράξης (κατάτμηση / συνένωση / ΧΑΧ) ----------
   function praxisSelect() {
     var ops = DgmPraxis.OPS, cur = S.praxisOp || '';
