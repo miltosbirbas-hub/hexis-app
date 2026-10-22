@@ -1883,14 +1883,24 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       out.push('100', 'AcDbMText', '10', f(x), '20', f(y), '30', '0.0', '40', f(h), '41', '0.0', '71', '7', '72', '1', '1', mtxt(t.text), '7', FONT, '11', (Math.round(Math.cos(r) * 1e9) / 1e9).toString(), '21', (Math.round(Math.sin(r) * 1e9) / 1e9).toString(), '31', '0.0');
       ext(t.x, t.y);
     });
-    (spec.hatches || []).forEach(function (h) { // γέμισμα SOLID με ένα εξωτερικό όριο (polyline)
+    (spec.hatches || []).forEach(function (h) { // γέμισμα: SOLID ή διαγράμμιση (pattern διαγώνιων γραμμών)
       var pts = h.pts.slice(); if (pts.length > 2 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]) pts.pop();
       if (pts.length < 3) return;
       out.push('0', 'HATCH', '5', next(), '330', owner, '100', 'AcDbEntity', '8', U(h.layer));
       if (h.color) out.push('62', String(h.color));
-      out.push('100', 'AcDbHatch', '10', '0.0', '20', '0.0', '30', '0.0', '210', '0.0', '220', '0.0', '230', '1.0', '2', 'SOLID', '70', '1', '71', '0', '91', '1', '92', '7', '72', '0', '73', '1', '93', String(pts.length));
+      if (h.transparency) out.push('440', String(0x02000000 + Math.max(0, Math.min(255, Math.round(255 * (1 - h.transparency / 100)))))); // ημιδιαφάνεια
+      var solid = !h.pattern;
+      out.push('100', 'AcDbHatch', '10', '0.0', '20', '0.0', '30', '0.0', '210', '0.0', '220', '0.0', '230', '1.0', '2', solid ? 'SOLID' : 'ANSI31', '70', solid ? '1' : '0', '71', '0', '91', '1', '92', '7', '72', '0', '73', '1', '93', String(pts.length));
       pts.forEach(function (q) { out.push('10', f(q[0]), '20', f(q[1])); ext(q[0], q[1]); });
-      out.push('97', '0', '75', '0', '76', '1', '98', '0');
+      out.push('97', '0');
+      if (solid) { out.push('75', '0', '76', '1', '98', '0'); }
+      else {
+        // pattern διαγώνιων γραμμών: γωνία h.angle, απόσταση h.spacing (μονάδες μοντέλου)
+        var ang = (h.angle != null ? h.angle : 45) * Math.PI / 180, D = h.spacing || 1.0;
+        var ox2 = -Math.sin(ang) * D, oy2 = Math.cos(ang) * D; // μετατόπιση κάθετη στη γραμμή
+        out.push('75', '1', '76', '1', '52', f((h.angle != null ? h.angle : 45)), '41', '1.0', '77', '0', '78', '1',
+          '53', f((h.angle != null ? h.angle : 45)), '43', '0.0', '44', '0.0', '45', f(ox2), '46', f(oy2), '79', '0', '98', '0');
+      }
     });
     (spec.lines || []).forEach(function (l) {
       out.push('0', 'LINE', '5', next(), '330', owner, '100', 'AcDbEntity', '8', U(l.layer));
@@ -1926,7 +1936,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
         if (hasTitle) { bmtext(totalW / 2, -rowsH[0] / 2, totalW - 2 * mh, t.title, tth); r = 1; }
         var firstDataRow = r + 1;
         // κατακόρυφες: από την κεφαλίδα και κάτω
-        xs.forEach(function (x) { bline(x, rowTops[r], x, -totalH); }); bline(0, 0, 0, -totalH); bline(totalW, 0, totalW, -totalH);
+        var innerBottom = t.footer ? (-totalH + rowsH[rowsH.length - 1]) : -totalH; // η γραμμή εμβαδού (footer) μένει ενιαία, χωρίς κατακόρυφες
+        xs.forEach(function (x) { bline(x, rowTops[r], x, innerBottom); }); bline(0, 0, 0, -totalH); bline(totalW, 0, totalW, -totalH);
         t.header.forEach(function (hd, c) { bmtext((xs[c] + xs[c + 1]) / 2, rowTops[r] - rowsH[r] / 2, t.colW[c] - 2 * mh, hd, th); }); r++;
         t.rows.forEach(function (row) { row.forEach(function (v, c) { if (v !== '' && v != null) bmtext((xs[c] + xs[c + 1]) / 2, rowTops[r] - rowsH[r] / 2, t.colW[c] - 2 * mh, String(v), th); }); r++; });
         if (t.footer) { bmtext(totalW / 2, rowTops[r] - rowsH[r] / 2, totalW - 2 * mh, t.footer, th); }
@@ -3446,14 +3457,24 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       out.push('100', 'AcDbMText', '10', f(x), '20', f(y), '30', '0.0', '40', f(h), '41', '0.0', '71', '7', '72', '1', '1', mtxt(t.text), '7', FONT, '11', (Math.round(Math.cos(r) * 1e9) / 1e9).toString(), '21', (Math.round(Math.sin(r) * 1e9) / 1e9).toString(), '31', '0.0');
       ext(t.x, t.y);
     });
-    (spec.hatches || []).forEach(function (h) { // γέμισμα SOLID με ένα εξωτερικό όριο (polyline)
+    (spec.hatches || []).forEach(function (h) { // γέμισμα: SOLID ή διαγράμμιση (pattern διαγώνιων γραμμών)
       var pts = h.pts.slice(); if (pts.length > 2 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]) pts.pop();
       if (pts.length < 3) return;
       out.push('0', 'HATCH', '5', next(), '330', owner, '100', 'AcDbEntity', '8', U(h.layer));
       if (h.color) out.push('62', String(h.color));
-      out.push('100', 'AcDbHatch', '10', '0.0', '20', '0.0', '30', '0.0', '210', '0.0', '220', '0.0', '230', '1.0', '2', 'SOLID', '70', '1', '71', '0', '91', '1', '92', '7', '72', '0', '73', '1', '93', String(pts.length));
+      if (h.transparency) out.push('440', String(0x02000000 + Math.max(0, Math.min(255, Math.round(255 * (1 - h.transparency / 100)))))); // ημιδιαφάνεια
+      var solid = !h.pattern;
+      out.push('100', 'AcDbHatch', '10', '0.0', '20', '0.0', '30', '0.0', '210', '0.0', '220', '0.0', '230', '1.0', '2', solid ? 'SOLID' : 'ANSI31', '70', solid ? '1' : '0', '71', '0', '91', '1', '92', '7', '72', '0', '73', '1', '93', String(pts.length));
       pts.forEach(function (q) { out.push('10', f(q[0]), '20', f(q[1])); ext(q[0], q[1]); });
-      out.push('97', '0', '75', '0', '76', '1', '98', '0');
+      out.push('97', '0');
+      if (solid) { out.push('75', '0', '76', '1', '98', '0'); }
+      else {
+        // pattern διαγώνιων γραμμών: γωνία h.angle, απόσταση h.spacing (μονάδες μοντέλου)
+        var ang = (h.angle != null ? h.angle : 45) * Math.PI / 180, D = h.spacing || 1.0;
+        var ox2 = -Math.sin(ang) * D, oy2 = Math.cos(ang) * D; // μετατόπιση κάθετη στη γραμμή
+        out.push('75', '1', '76', '1', '52', f((h.angle != null ? h.angle : 45)), '41', '1.0', '77', '0', '78', '1',
+          '53', f((h.angle != null ? h.angle : 45)), '43', '0.0', '44', '0.0', '45', f(ox2), '46', f(oy2), '79', '0', '98', '0');
+      }
     });
     (spec.lines || []).forEach(function (l) {
       out.push('0', 'LINE', '5', next(), '330', owner, '100', 'AcDbEntity', '8', U(l.layer));
@@ -3489,7 +3510,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
         if (hasTitle) { bmtext(totalW / 2, -rowsH[0] / 2, totalW - 2 * mh, t.title, tth); r = 1; }
         var firstDataRow = r + 1;
         // κατακόρυφες: από την κεφαλίδα και κάτω
-        xs.forEach(function (x) { bline(x, rowTops[r], x, -totalH); }); bline(0, 0, 0, -totalH); bline(totalW, 0, totalW, -totalH);
+        var innerBottom = t.footer ? (-totalH + rowsH[rowsH.length - 1]) : -totalH; // η γραμμή εμβαδού (footer) μένει ενιαία, χωρίς κατακόρυφες
+        xs.forEach(function (x) { bline(x, rowTops[r], x, innerBottom); }); bline(0, 0, 0, -totalH); bline(totalW, 0, totalW, -totalH);
         t.header.forEach(function (hd, c) { bmtext((xs[c] + xs[c + 1]) / 2, rowTops[r] - rowsH[r] / 2, t.colW[c] - 2 * mh, hd, th); }); r++;
         t.rows.forEach(function (row) { row.forEach(function (v, c) { if (v !== '' && v != null) bmtext((xs[c] + xs[c + 1]) / 2, rowTops[r] - rowsH[r] / 2, t.colW[c] - 2 * mh, String(v), th); }); r++; });
         if (t.footer) { bmtext(totalW / 2, rowTops[r] - rowsH[r] / 2, totalW - 2 * mh, t.footer, th); }
@@ -3774,14 +3796,24 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       out.push('100', 'AcDbMText', '10', f(x), '20', f(y), '30', '0.0', '40', f(h), '41', '0.0', '71', '7', '72', '1', '1', mtxt(t.text), '7', FONT, '11', (Math.round(Math.cos(r) * 1e9) / 1e9).toString(), '21', (Math.round(Math.sin(r) * 1e9) / 1e9).toString(), '31', '0.0');
       ext(t.x, t.y);
     });
-    (spec.hatches || []).forEach(function (h) { // γέμισμα SOLID με ένα εξωτερικό όριο (polyline)
+    (spec.hatches || []).forEach(function (h) { // γέμισμα: SOLID ή διαγράμμιση (pattern διαγώνιων γραμμών)
       var pts = h.pts.slice(); if (pts.length > 2 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]) pts.pop();
       if (pts.length < 3) return;
       out.push('0', 'HATCH', '5', next(), '330', owner, '100', 'AcDbEntity', '8', U(h.layer));
       if (h.color) out.push('62', String(h.color));
-      out.push('100', 'AcDbHatch', '10', '0.0', '20', '0.0', '30', '0.0', '210', '0.0', '220', '0.0', '230', '1.0', '2', 'SOLID', '70', '1', '71', '0', '91', '1', '92', '7', '72', '0', '73', '1', '93', String(pts.length));
+      if (h.transparency) out.push('440', String(0x02000000 + Math.max(0, Math.min(255, Math.round(255 * (1 - h.transparency / 100)))))); // ημιδιαφάνεια
+      var solid = !h.pattern;
+      out.push('100', 'AcDbHatch', '10', '0.0', '20', '0.0', '30', '0.0', '210', '0.0', '220', '0.0', '230', '1.0', '2', solid ? 'SOLID' : 'ANSI31', '70', solid ? '1' : '0', '71', '0', '91', '1', '92', '7', '72', '0', '73', '1', '93', String(pts.length));
       pts.forEach(function (q) { out.push('10', f(q[0]), '20', f(q[1])); ext(q[0], q[1]); });
-      out.push('97', '0', '75', '0', '76', '1', '98', '0');
+      out.push('97', '0');
+      if (solid) { out.push('75', '0', '76', '1', '98', '0'); }
+      else {
+        // pattern διαγώνιων γραμμών: γωνία h.angle, απόσταση h.spacing (μονάδες μοντέλου)
+        var ang = (h.angle != null ? h.angle : 45) * Math.PI / 180, D = h.spacing || 1.0;
+        var ox2 = -Math.sin(ang) * D, oy2 = Math.cos(ang) * D; // μετατόπιση κάθετη στη γραμμή
+        out.push('75', '1', '76', '1', '52', f((h.angle != null ? h.angle : 45)), '41', '1.0', '77', '0', '78', '1',
+          '53', f((h.angle != null ? h.angle : 45)), '43', '0.0', '44', '0.0', '45', f(ox2), '46', f(oy2), '79', '0', '98', '0');
+      }
     });
     (spec.lines || []).forEach(function (l) {
       out.push('0', 'LINE', '5', next(), '330', owner, '100', 'AcDbEntity', '8', U(l.layer));
@@ -3817,7 +3849,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
         if (hasTitle) { bmtext(totalW / 2, -rowsH[0] / 2, totalW - 2 * mh, t.title, tth); r = 1; }
         var firstDataRow = r + 1;
         // κατακόρυφες: από την κεφαλίδα και κάτω
-        xs.forEach(function (x) { bline(x, rowTops[r], x, -totalH); }); bline(0, 0, 0, -totalH); bline(totalW, 0, totalW, -totalH);
+        var innerBottom = t.footer ? (-totalH + rowsH[rowsH.length - 1]) : -totalH; // η γραμμή εμβαδού (footer) μένει ενιαία, χωρίς κατακόρυφες
+        xs.forEach(function (x) { bline(x, rowTops[r], x, innerBottom); }); bline(0, 0, 0, -totalH); bline(totalW, 0, totalW, -totalH);
         t.header.forEach(function (hd, c) { bmtext((xs[c] + xs[c + 1]) / 2, rowTops[r] - rowsH[r] / 2, t.colW[c] - 2 * mh, hd, th); }); r++;
         t.rows.forEach(function (row) { row.forEach(function (v, c) { if (v !== '' && v != null) bmtext((xs[c] + xs[c + 1]) / 2, rowTops[r] - rowsH[r] / 2, t.colW[c] - 2 * mh, String(v), th); }); r++; });
         if (t.footer) { bmtext(totalW / 2, rowTops[r] - rowsH[r] / 2, totalW - 2 * mh, t.footer, th); }
@@ -4828,7 +4861,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     var b = bbox(core), w = b[2] - b[0], h = b[3] - b[1];
     var all = core.slice(); parcels.forEach(function (p) { p.rings.forEach(function (r) { all = all.concat(r); }); });
     var B = bbox(all);
-    if (mode === 'full' || (mode !== 'core' && (B[2] - B[0]) * (B[3] - B[1]) <= 2.5 * w * h)) return { box: B, full: true };
+    // Δείχνουμε ΟΛΑ τα εμπλεκόμενα γεωτεμάχια ολόκληρα, όσο μεγάλα κι αν είναι (mode 'core' μόνο ως έσχατη λύση)
+    if (mode !== 'core') return { box: B, full: true };
     return { box: [b[0] - w * 0.2, b[1] - h * 0.2, b[2] + w * 0.2, b[3] + h * 0.2], full: false };
   }
 
@@ -5024,7 +5058,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
         var lines = fitLines(z.lines, innerW / mm);
         var lh = 3.4 * mm * kf, top = yTop - (z.label ? 5 * mm : 2 * mm), avail = top - y0;
         var startY = top - (avail - lines.length * lh) / 2 - lh * 0.75;
-        lines.forEach(function (ln, i) { T('PINAKIDA', x + innerW / 2, startY - i * lh, ln[0], ln[1], 0, 'center'); });
+        lines.forEach(function (ln, i) { var availW = innerW - 3 * mm, fw = ln[1], ww = estW(ln[0], fw); if (ww > availW) fw = Math.max(1.0, fw * availW / ww); T('PINAKIDA', x + innerW / 2, startY - i * lh, ln[0], fw, 0, 'center'); });
         if (z.side) {
           L('PINAKIDA', [x + innerW, y0], [x + innerW, yTop]);
           var sh = zh / z.side.length, sw = (w - innerW) / mm;
@@ -5092,6 +5126,12 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       var done = {};
       // αποφυγή επικαλύψεων: κάθε ετικέτα κρατά ένα ορθογώνιο· νέα ετικέτα δοκιμάζει εναλλακτικές θέσεις μέχρι να μην ακουμπά άλλη
       var boxes = [];
+      // ο κάνναβος μπαίνει πρώτα ως εμπόδιο, ώστε οι ετικέτες (κορυφές/αποστάσεις/τμήματα) να μην πέφτουν πάνω στους σταυρούς
+      (function () {
+        var step0 = S >= 1000 ? 100 : S >= 500 ? 50 : 20, cs0 = 2.5 * mm, hb = cs0 * 1.4;
+        var gx0 = Math.ceil((dx0 + 6 * mm) / step0) * step0, gx1 = dx0 + drawW - 6 * mm, gy0 = Math.ceil((dy0 + 6 * mm) / step0) * step0, gy1 = dy0 + drawH - 6 * mm;
+        for (var gx = gx0; gx <= gx1; gx += step0) for (var gy = gy0; gy <= gy1; gy += step0) boxes.push([gx - hb, gy - hb, gx + hb, gy + hb]);
+      })();
       function overlaps(bx) { return boxes.some(function (o) { return !(bx[2] < o[0] || bx[0] > o[2] || bx[3] < o[1] || bx[1] > o[3]); }); }
       function labelBox(cx, cy, text, hmm, rot) { var w = estW(text, hmm), h = hmm * mm * 1.3; if (rot) { var r = rot * Math.PI / 180, W = Math.abs(w * Math.cos(r)) + Math.abs(h * Math.sin(r)), H = Math.abs(w * Math.sin(r)) + Math.abs(h * Math.cos(r)); w = W; h = H; } return [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2]; }
       // επιστρέφει [cx, cy] ή null· cands: λίστα από [cx, cy]
@@ -5155,7 +5195,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       }
       for (var gy2 = gy0; gy2 <= gy1; gy2 += step) { T('KANNABOS', dx0 + 1.5 * mm, gy2 + 0.8 * mm, String(Math.round(gy2)), 1.8); T('KANNABOS', dx0 + drawW - 15 * mm, gy2 + 0.8 * mm, String(Math.round(gy2)), 1.8); }
       // γεμίσματα τμημάτων (HATCH SOLID) — κόκκινο Δi (προσάρτηση), πράσινο Αi (αποκοπή)
-      res.pieces.forEach(function (x) { if (x.kind === 'common') return; E.hatches.push({ layer: x.kind === 'cut' ? 'AREA_D-hatch' : x.kind === 'given' ? 'AREA_A-hatch' : 'AREA_EKTOS_KAEK', pts: x.ring, color: x.kind === 'cut' ? COL.AREA_D : x.kind === 'given' ? COL.AREA_A : COL.AREA_EKTOS_KAEK }); });
+      res.pieces.forEach(function (x) { if (x.kind === 'common') return; E.hatches.push({ layer: x.kind === 'cut' ? 'AREA_D-hatch' : x.kind === 'given' ? 'AREA_A-hatch' : 'AREA_EKTOS_KAEK', pts: x.ring, color: x.kind === 'cut' ? COL.AREA_D : x.kind === 'given' ? COL.AREA_A : COL.AREA_EKTOS_KAEK, transparency: 75, pattern: 'diagonal', angle: x.kind === 'cut' ? 45 : 135, spacing: mm * 3 }); });
     }
     // βορράς & γραμμική κλίμακα
     var na = [dx0 + drawW - 12 * mm, dy0 + drawH - 14 * mm];
@@ -5183,7 +5223,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     var lgW = 96, lgx = dx0 + drawW - lgW * mm - 4 * mm, lgy = dy0 + 6 * mm;
     R('PINAKIDA', lgx - 2 * mm, lgy - 2 * mm, lgW * mm, (items.length * 5 + 8) * mm);
     T('PINAKIDA', lgx + lgW / 2 * mm - 2 * mm, lgy + (items.length * 5 + 2) * mm, 'ΥΠΟΜΝΗΜΑ', 3, 0, 'center');
-    items.forEach(function (it, i) { var yy = lgy + (items.length - 1 - i) * 5 * mm + 1 * mm; if (it[0] === 'KORYFES') T('KORYFES', lgx + 2 * mm, yy, '1', 2.0, 0, 'left', COL.TOPO_PROP); else if (/^AREA_[DA]$/.test(it[0])) { E.hatches.push({ layer: it[0] + '-hatch', pts: [[lgx, yy], [lgx + 10 * mm, yy], [lgx + 10 * mm, yy + 2.4 * mm], [lgx, yy + 2.4 * mm]], color: COL[it[0]], legend: true }); } else L(it[0], [lgx, yy + 1 * mm], [lgx + 10 * mm, yy + 1 * mm]); T('PINAKIDA', lgx + 12 * mm, yy, it[0], 2.0); T('PINAKIDA', lgx + 42 * mm, yy, it[1], 2.0); });
+    items.forEach(function (it, i) { var yy = lgy + (items.length - 1 - i) * 5 * mm + 1 * mm; if (it[0] === 'KORYFES') T('KORYFES', lgx + 2 * mm, yy, '1', 2.0, 0, 'left', COL.TOPO_PROP); else if (/^AREA_[DA]$/.test(it[0])) { E.hatches.push({ layer: it[0] + '-hatch', pts: [[lgx, yy], [lgx + 10 * mm, yy], [lgx + 10 * mm, yy + 2.4 * mm], [lgx, yy + 2.4 * mm]], color: COL[it[0]], legend: true, transparency: 75, pattern: 'diagonal', angle: it[0] === 'AREA_D' ? 45 : 135, spacing: mm * 1.2 }); } else L(it[0], [lgx, yy + 1 * mm], [lgx + 10 * mm, yy + 1 * mm]); T('PINAKIDA', lgx + 12 * mm, yy, it[0], 2.0); T('PINAKIDA', lgx + 42 * mm, yy, it[1], 2.0); });
     // πίνακες
     bl.forEach(table);
     var N = sheets.length; E.texts.forEach(function (t) { if (/\{N\}/.test(t.text)) t.text = t.text.replace('{N}', String(N)); });
@@ -5206,7 +5246,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       var da = layout.drawArea;
       s += '<clipPath id="da"><rect x="' + X(da.x) + '" y="' + Y(da.y + da.h) + '" width="' + (da.w / mm) + '" height="' + (da.h / mm) + '"/></clipPath><g clip-path="url(#da)">';
       // γεμίσματα
-      layout.elems.hatches.forEach(function (h) { if (!h.pts.some(function (q) { return inSheet(q[0], q[1]); })) return; s += '<polygon points="' + pts(h.pts) + '" fill="' + (ACI[h.color] || C[h.layer] || '#999') + '" fill-opacity="0.9" stroke="none"/>'; });
+      layout.elems.hatches.forEach(function (h) { if (!h.pts.some(function (q) { return inSheet(q[0], q[1]); })) return; s += '<polygon points="' + pts(h.pts) + '" fill="' + (ACI[h.color] || C[h.layer] || '#999') + '" fill-opacity="0.25" stroke="none"/>'; });
       parcels.forEach(function (p) { p.rings.forEach(function (r) { s += '<polygon points="' + pts(r) + '" fill="none" stroke="' + C.PST_KAEK + '" stroke-width="0.25"/>'; }); var c = root.DGM.interior(root.DGM.open(p.rings[0]), []); s += '<text x="' + X(c[0]).toFixed(2) + '" y="' + Y(c[1]).toFixed(2) + '" font-size="2.4" fill="' + C.PST_KAEK + '" text-anchor="middle">' + esc(p.kaek) + '</text>'; var ow = layout.ownerOf ? layout.ownerOf(p.kaek) : ''; if (ow) s += '<text x="' + X(c[0]).toFixed(2) + '" y="' + (Y(c[1]) + 4).toFixed(2) + '" font-size="2" fill="#1f2a44" text-anchor="middle">ΙΔΙΟΚΤΗΣΙΑ ' + esc(ow) + '</text>'; });
       (res.finals || []).forEach(function (fp) { s += '<polygon points="' + pts(fp.outer) + '" fill="none" stroke="' + C.DGM_PROP_FINAL + '" stroke-width="0.3" stroke-dasharray="3 1 0.5 1"/>'; });
       if (!res.praxis) s += '<polygon points="' + pts(res.Mmeas || res.Mr) + '" fill="none" stroke="' + C.TOPO_PROP + '" stroke-width="0.5"/>';
@@ -6641,17 +6681,33 @@ root.CmdCheck = api;
     } else if (k.status === 'empty') {
       h += '<p style="margin:0;color:var(--muted);font-size:13px">Δεν βρέθηκε γεωτεμάχιο σε αυτή τη θέση. Η βάση ΚΑΕΚ του HEXIS δεν καλύπτει ακόμα όλη τη χώρα, ή οι συντεταγμένες δεν είναι σωστές.</p><div><button class="btn small" data-act="kaek-find">Δοκίμασε ξανά</button></div>';
     } else {
-      var mains = k.parcels.filter(function (p) { return p.ovlPlot >= 0.02; }), others = k.parcels.filter(function (p) { return p.ovlPlot < 0.02; });
+      function gArea(p) { return (p.rings || []).reduce(function (a, r) { return a + Math.abs(CoordParser.polyArea(r)); }, 0); }
+      function bbox(rs) { var b = [1e18, 1e18, -1e18, -1e18]; rs.forEach(function (r) { r.forEach(function (q) { b[0] = Math.min(b[0], q[0]); b[1] = Math.min(b[1], q[1]); b[2] = Math.max(b[2], q[0]); b[3] = Math.max(b[3], q[1]); }); }); return b; }
+      function d2seg(pt, a, b) { var dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy, t = L2 ? Math.max(0, Math.min(1, ((pt[0] - a[0]) * dx + (pt[1] - a[1]) * dy) / L2)) : 0; return Math.hypot(pt[0] - (a[0] + t * dx), pt[1] - (a[1] + t * dy)); }
+      var mains = k.parcels.filter(function (p) { return p.ovlPlot >= 0.02; }), rest = k.parcels.filter(function (p) { return p.ovlPlot < 0.02; });
+      // «Όμορα» = μόνο όσα ακουμπούν πραγματικά τα δικά μας γεωτεμάχια (≤ 1,5 m), όχι όλα όσα έπεσαν στο BBOX της αναζήτησης
+      var mainRings = []; mains.forEach(function (p) { (p.rings || []).forEach(function (r) { mainRings.push(r); }); });
+      var mb = bbox(mainRings), TOLn = 1.5;
+      function adjacent(p) {
+        var b = bbox(p.rings || []); if (b[2] < mb[0] - TOLn || b[0] > mb[2] + TOLn || b[3] < mb[1] - TOLn || b[1] > mb[3] + TOLn) return false;
+        var near = false;
+        (p.rings || []).some(function (r) { return r.some(function (q) { return mainRings.some(function (mr) { for (var i = 0; i < mr.length; i++) if (d2seg(q, mr[i], mr[(i + 1) % mr.length]) <= TOLn) { near = true; return true; } return false; }); }); });
+        if (near) return true;
+        mainRings.some(function (mr) { return mr.some(function (q) { return (p.rings || []).some(function (r) { for (var i = 0; i < r.length; i++) if (d2seg(q, r[i], r[(i + 1) % r.length]) <= TOLn) { near = true; return true; } return false; }); }); });
+        return near;
+      }
+      var others = rest.filter(adjacent);
       var covered = mains.reduce(function (a, p) { return a + p.ovl; }, 0);
       h += '<div class="kpis"><div class="kpi"><label>Γεωτεμάχια</label><b>' + mains.length + '</b><div class="sub">' + (mains.length === 1 ? 'συμπίπτει με το οικόπεδο' : 'μέσα στο οικόπεδο') + '</div></div>';
       h += '<div class="kpi"><label>Κάλυψη οικοπέδου</label><b>' + fmt(100 * covered / (k.areaPlot || 1), 1) + '<small>%</small></b><div class="sub">από τα γεωτεμάχια ΚΑΕΚ</div></div>';
       h += '<div class="kpi"><label>Όμορα</label><b>' + others.length + '</b><div class="sub">γύρω από το οικόπεδο</div></div>';
-      h += '<div class="kpi"><label>Περιοχή</label><b style="font-size:14px">' + esc(k.region || '—') + '</b><div class="sub">βάση ΚΑΕΚ HEXIS</div></div></div>';
+      h += '<div class="kpi"><label>Περιοχή</label><b style="font-size:14px">' + esc(k.region || '—') + '</b><div class="sub">' + (k.source === 'inspire' ? 'λειτουργούν Κτηματολόγιο' : 'βάση ΚΑΕΚ HEXIS') + '</div></div></div>';
       h += '<div class="kaek-list">' + mains.map(function (p) {
-        return '<div class="kaek-row main"><span class="sw"></span><div><b>ΚΑΕΚ ' + esc(p.kaek) + '</b>' + infoChips(p.info) + '<small>' + fmt(p.area, 2) + ' m² · τομή με το οικόπεδο ' + fmt(p.ovl, 2) + ' m² (' + fmt(100 * p.ovlPlot, 1) + '% του οικοπέδου · ' + fmt(100 * p.ovlParcel, 1) + '% του γεωτεμαχίου)</small><div class="bar"><i style="width:' + Math.round(100 * p.ovlParcel) + '%"></i></div></div><button class="btn small" data-act="kaek-show" data-kaek="' + esc(p.kaek) + '">Στον χάρτη</button></div>';
+        var ga = gArea(p), reg = p.area && Math.abs(p.area - ga) > 0.5 ? p.area : null;
+        return '<div class="kaek-row main"><span class="sw"></span><div><b>ΚΑΕΚ ' + esc(p.kaek) + '</b>' + infoChips(p.info) + '<small>' + fmt(ga, 2) + ' m²' + (reg ? ' <span style="color:var(--muted)">(αναγρ. ' + fmt(reg, 2) + ')</span>' : '') + ' · τομή με το οικόπεδο ' + fmt(p.ovl, 2) + ' m² (' + fmt(100 * p.ovlPlot, 1) + '% του οικοπέδου · ' + fmt(100 * p.ovlParcel, 1) + '% του γεωτεμαχίου)</small><div class="bar"><i style="width:' + Math.round(100 * p.ovlParcel) + '%"></i></div></div><button class="btn small" data-act="kaek-show" data-kaek="' + esc(p.kaek) + '">Στον χάρτη</button></div>';
       }).join('') + '</div>';
       var topInfo = mains[0] && mains[0].info; if (topInfo && topInfo.attrsText) h += '<details style="font-size:11px"><summary style="cursor:pointer;color:var(--muted)">Πεδία γεωτεμαχίου από τον χάρτη (για αντιστοίχιση ΟΤΑ/χρήσης)</summary><div style="color:var(--muted);word-break:break-all;margin-top:4px">' + esc(topInfo.attrsText) + '</div></details>';
-      if (others.length) h += '<details><summary style="cursor:pointer;color:var(--muted);font-size:12.5px">Όμορα γεωτεμάχια (' + others.length + ')</summary><div class="kaek-list" style="margin-top:8px">' + others.map(function (p) { return '<div class="kaek-row"><span class="sw"></span><div><b>ΚΑΕΚ ' + esc(p.kaek) + '</b><small>' + fmt(p.area, 2) + ' m²</small></div><button class="btn small" data-act="kaek-show" data-kaek="' + esc(p.kaek) + '">Στον χάρτη</button></div>'; }).join('') + '</div></details>';
+      if (others.length) h += '<details><summary style="cursor:pointer;color:var(--muted);font-size:12.5px">Όμορα γεωτεμάχια (' + others.length + ')</summary><div class="kaek-list" style="margin-top:8px">' + others.map(function (p) { return '<div class="kaek-row"><span class="sw"></span><div><b>ΚΑΕΚ ' + esc(p.kaek) + '</b>' + infoChips(p.info) + '<small>' + fmt(gArea(p), 2) + ' m²</small></div><button class="btn small" data-act="kaek-show" data-kaek="' + esc(p.kaek) + '">Στον χάρτη</button></div>'; }).join('') + '</div></details>';
       if (!S.dgm) h += renderVerdict();
       h += '<div class="file-row">' + praxisSelect() + '<button class="btn primary small" data-act="dgm-run">Διάγραμμα Γεωμετρικών Μεταβολών</button><button class="btn small" data-exp="kaek-dxf">DXF γεωτεμαχίων</button><button class="btn small" data-exp="kaek-txt">TXT κορυφών</button><button class="btn small" data-exp="kaek-geojson">GeoJSON</button><label class="toggle" style="margin-left:auto"><input type="checkbox" id="kaekOnlyMain"' + (S.kaekOnlyMain !== false ? ' checked' : '') + '>Μόνο όσα τέμνουν το οικόπεδο</label></div>';
     }
@@ -7007,7 +7063,7 @@ root.CmdCheck = api;
       polys.push({ layer: layer, pts: x.ring, closed: true, color: col, lw: 50 }); (x.holes || []).forEach(function (hh) { polys.push({ layer: layer, pts: hh, closed: true, color: col }); });
       // χαρακτηρισμός «ΤΜΗΜΑ Δi/Αi» σε layer AREA_D-labels / AREA_A-labels και γέμισμα SOLID σε AREA_D-hatch / AREA_A-hatch (όπως στα υποδείγματα)
       var c = DGM.interior(x.ring, x.holes); texts.push({ layer: layer + '-labels', x: c[0], y: c[1], text: 'ΤΜΗΜΑ ' + x.id, h: TH, color: col, align: 'center' });
-      hatches.push({ layer: layer + '-hatch', pts: x.ring, color: col });
+      hatches.push({ layer: layer + '-hatch', pts: x.ring, color: col, transparency: 75, pattern: 'diagonal', angle: x.kind === 'cut' ? 45 : 135, spacing: 0.6 });
     });
     // DGM_PROP_FINAL: τελικά πολύγωνα όλων των εμπλεκόμενων γεωτεμαχίων
     (d.finals || []).forEach(function (fp) { polys.push({ layer: 'DGM_PROP_FINAL', pts: fp.outer, closed: true }); fp.holes.forEach(function (hh) { polys.push({ layer: 'DGM_PROP_FINAL', pts: hh, closed: true }); }); });
