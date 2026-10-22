@@ -4721,7 +4721,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   /* fetchBBox(bbox [minx,miny,maxx,maxy] σε ΕΓΣΑ87, opts: {proxy: url που δέχεται ?url=…, count, timeout, toEgsa}) → Promise<[{kaek, area, geom}]> */
   async function fetchBBox(bbox, opts) {
     opts = opts || {};
-    var attempts = [], lastErr = null;
+    var attempts = [], lastErr = null, log = [];
     TYPES.forEach(function (tn) { attempts.push({ via: 'direct', u: url(BASE, bbox, opts.count, tn, 2100) }); });
     if (opts.proxy) TYPES.forEach(function (tn) { attempts.push({ via: 'proxy', u: opts.proxy + (opts.proxy.indexOf('?') >= 0 ? '&' : '?') + 'url=' + encodeURIComponent(url(BASE, bbox, opts.count, tn, 2100)) }); });
     for (var i = 0; i < attempts.length; i++) {
@@ -4729,13 +4729,14 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       try {
         var r = await fetch(a.u, { signal: ctl.signal, headers: opts.headers && a.via === 'proxy' ? opts.headers : undefined });
         var text = await r.text();
-        if (!r.ok && !/Exception/.test(text)) throw new Error('HTTP ' + r.status);
+        if (!r.ok && !/Exception/.test(text)) throw new Error('HTTP ' + r.status + (r.status === 404 ? ' (η function inspire-proxy δεν έχει γίνει deploy;)' : r.status === 401 ? ' (Verify JWT είναι ακόμα ενεργό στη function)' : ''));
         var list = parseGML(text, opts.toEgsa);
         return { parcels: list, via: a.via, url: a.u };
-      } catch (e) { lastErr = e; }
+      } catch (e) { lastErr = e; log.push((a.via === 'direct' ? 'απευθείας' : 'μέσω HEXIS proxy') + ': ' + (e.name === 'AbortError' ? 'χρονικό όριο' : /Failed to fetch|NetworkError|Load failed/.test(e.message) ? 'δεν επιτρέπεται από τον browser (CORS) ή δεν υπάρχει' : e.message)); }
       finally { clearTimeout(to); }
     }
-    throw new Error('Η υπηρεσία INSPIRE του Κτηματολογίου δεν απάντησε' + (lastErr ? ' (' + (lastErr.name === 'AbortError' ? 'χρονικό όριο' : lastErr.message) + ')' : '') + '. Δοκίμασε ξανά ή άλλαξε πηγή σε «Βάση HEXIS».');
+    var uniq = log.filter(function (m, i) { return log.indexOf(m) === i; });
+    throw new Error('Η υπηρεσία INSPIRE του Κτηματολογίου δεν απάντησε — ' + uniq.join(' · ') + (opts.proxy ? '' : ' · δεν έχει οριστεί proxy') + '. Αν δεν έχει γίνει deploy η Edge Function «inspire-proxy» στο Supabase, κάν\' το και ξαναδοκίμασε· αλλιώς άλλαξε πηγή σε «Βάση HEXIS».');
   }
   var api = { fetchBBox: fetchBBox, parseGML: parseGML, url: url, BASE: BASE };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
