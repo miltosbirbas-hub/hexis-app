@@ -37,6 +37,7 @@
 :root[data-theme="light"] .seg button.on{color:#fff}
 :root[data-theme="light"] #plancv{background:#F7F9FD}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0;background:var(--void);color:var(--ink);font:14px/1.5 var(--f-body)}
 body{padding-block:0 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:radial-gradient(1200px 600px at 20% -10%,rgba(61,232,255,.08),transparent 60%),radial-gradient(900px 500px at 100% 0,rgba(139,92,255,.10),transparent 60%),var(--void)}
 header{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 22px;padding:18px 0 14px;border-bottom:1px solid var(--line)}
@@ -108,14 +109,45 @@ textarea.out{width:100%;height:120px;font:11px var(--f-mono);background:var(--pa
 .planbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
 .planbar .st{font:11px var(--f-mono);color:var(--muted);margin-left:auto}
 @media (prefers-reduced-motion:no-preference){.tile,.pill{transition:border-color .2s,background .2s}}
+.modal{position:fixed;inset:0;background:rgba(4,7,15,.72);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.modal .box{background:var(--panel);border:1px solid var(--line2);border-radius:16px;max-width:760px;width:100%;max-height:90vh;overflow:auto;padding:20px 22px;font-size:13.5px;line-height:1.55}
+.modal h2{font:700 15px var(--f-display);color:var(--cyan);margin:0 0 10px}
+.modal h3{font:700 12px var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:16px 0 6px}
+.modal ol,.modal ul{margin:4px 0 8px;padding-left:22px}
+.modal li{margin-bottom:4px}
+.disc{background:rgba(255,181,71,.10);border:1px solid var(--amber);border-radius:10px;padding:10px 12px;margin:10px 0}
+.disc b{color:var(--amber)}
 </style>
 </head>
 <body>
 <header>
   <h1>HEXIS Τοίχος Αντιστήριξης<small>Τοίχος προβόλου Ο/Σ · EN 1997‑1 · EN 1998‑5 · EN 1992‑1‑1 · ΚΤΣ‑2016</small></h1>
   <div class="chips" id="chips"></div>
+  <button class="btn" id="btnHelp">? Οδηγίες</button>
   <button class="btn" id="btnTheme" title="Εναλλαγή σκούρου/ανοιχτού φόντου">☀ Ανοιχτό φόντο</button>
 </header>
+<div class="modal" id="helpModal" hidden><div class="box">
+<h2>HEXIS Τοίχος Αντιστήριξης — Οδηγίες χρήσης</h2>
+<div class="disc"><b>Σημαντικό.</b> Το εργαλείο απευθύνεται σε πολιτικούς μηχανικούς και παράγει <b>εκτίμηση προδιαστασιολόγησης</b>, όχι στατική μελέτη. Τα αποτελέσματα βασίζονται στις παραδοχές και στα δεδομένα που εισάγει ο χρήστης (γεωτεχνικές παράμετροι, φορτία, σεισμική ζώνη, στάθμες) και σε απλοποιημένα προσομοιώματα (Rankine, Mononobe‑Okabe, EN 1997‑1 DA2 Παρ. D, EN 1992‑1‑1). Δεν υποκαθιστούν γεωτεχνική έρευνα, μελέτη εφαρμογής, ούτε την κρίση και την ευθύνη του μελετητή μηχανικού που υπογράφει. Πριν από οποιαδήποτε κατασκευή απαιτείται έλεγχος και υπογραφή από αρμόδιο μηχανικό.</div>
+<h3>Ροή εργασίας</h3>
+<ol>
+<li><b>Θέση έργου:</b> δώσε Ε/Ν ΕΓΣΑ'87 — προτείνεται η ζώνη σεισμικότητας (ανά νομό· επιβεβαίωσε από ΦΕΚ 1154/Β/2003 όπου εμφανίζεται προειδοποίηση). Η κατηγορία εδάφους A–E ορίζεται από εσένα.</li>
+<li><b>Έδαφος & φορτία:</b> γ, φ′, c′, σ_επ από γεωτεχνική έρευνα ή τεκμηριωμένη παραδοχή· κλίση επίχωσης β και επιφόρτιο q.</li>
+<li><b>Γεωμετρία:</b> ρύθμισε με τους ρυθμιστές ή πάτησε <b>Προδιαστασιολόγηση</b> (εμπειρικοί κανόνες) ή <b>Οικονομική βελτιστοποίηση</b> (ελάχιστο κόστος με όλους τους ελέγχους ≥ στόχο, με/χωρίς ποδαρικό).</li>
+<li><b>Έλεγχοι:</b> ανατροπή, ολίσθηση, φέρουσα ικανότητα, τάσεις, σεισμός, διατομές. Για κάθε ανεπαρκή έλεγχο δίνεται πρόταση με κουμπί «Εφαρμογή».</li>
+<li><b>Οριζοντιογραφία:</b> φόρτωσε DXF κάτοψης (ισοϋψείς με υψόμετρο, οδός, ανάντη/κατάντη όρια), έλεγξε τους ρόλους των layers, πάτησε «Σχεδίαση τοίχου» και κάνε κλικ στις κορυφές (διπλό κλικ για τέλος). Οι στάθμες στέψης/θεμελίωσης ανά κορυφή προκύπτουν από τις ισοϋψείς και διορθώνονται στον πίνακα «Κορυφές · Στάθμες».</li>
+<li><b>Σχέδια & παραδοτέα:</b> τομή, οπλισμός, λεπτομέρεια αποστράγγισης, ξυλότυπος τομής/κάτοψης, όψη‑μηκοτομή, πίνακας οπλισμού, προμετρήσεις, τεύχος υπολογισμών, εξαγωγή DXF με όλα τα σχέδια.</li>
+</ol>
+<h3>Παραδοχές που πρέπει να γνωρίζεις</h3>
+<ul>
+<li>Ενεργητική ώθηση Rankine σε κατακόρυφο νοητό επίπεδο στο άκρο του πέλματος· χωρίς υδροστατική πίεση (προϋποθέτει λειτουργική αποστράγγιση).</li>
+<li>Σεισμός: ψευδοστατική μέθοδος EN 1998‑5 (kh = α·S/r, kv = ±0,5kh, Mononobe‑Okabe με δ), αδράνεια τοίχου και επίχωσης πάνω από το πέλμα.</li>
+<li>Φέρουσα ικανότητα κατά EN 1997‑1 Παρ. D με συντελεστές κλίσης φορτίου· σε σεισμό μπορεί να γίνει πολύ δυσμενής (μεγάλο H/V).</li>
+<li>Τα πάχη και ο οπλισμός προκύπτουν από απλά προσομοιώματα προβόλου· δεν γίνεται έλεγχος ρηγμάτωσης, καθιζήσεων, συνολικής ευστάθειας πρανούς ή ρευστοποίησης.</li>
+<li>Οι προμετρήσεις και το κόστος είναι ενδεικτικά.</li>
+</ul>
+<div class="bar" style="margin-top:12px"><button class="btn pri" id="btnHelpOk">Κατανοώ — είναι εργαλείο εκτίμησης, όχι μελέτη</button></div>
+</div></div>
 
 <div class="wrap">
   <aside id="rail"></aside>
@@ -169,9 +201,10 @@ textarea.out{width:100%;height:120px;font:11px var(--f-mono);background:var(--pa
       <div id="tab-nodes" class="tw" hidden></div>
       <div id="tab-qty" class="tw" hidden></div>
       <div id="tab-report" hidden><div id="report"></div></div>
-      <div id="tab-dxf" hidden><p class="note">DXF R12 σε μέτρα. Layers: ΣΚΥΡΟΔΕΜΑ, ΟΠΛΙΣΜΟΣ, ΔΙΑΣΤΑΣΕΙΣ, ΚΕΙΜΕΝΟ, ΕΔΑΦΟΣ, ΑΠΟΣΤΡΑΓΓΙΣΗ, ΞΥΛΟΤΥΠΟΣ, ΟΡΙΖΟΝΤΙΟΓΡΑΦΙΑ, ΟΨΗ. Η οριζοντιογραφία εξάγεται στις συντεταγμένες της κάτοψης (ΕΓΣΑ'87 αν η κάτοψη είναι γεωαναφερμένη).</p><div class="bar"><button class="btn" id="btnCopyDxf">Αντιγραφή DXF</button></div><textarea class="out" id="dxfout" readonly spellcheck="false"></textarea></div>
+      <div id="tab-dxf" hidden><p class="note">DXF R12 σε μέτρα. Layers: ΣΚΥΡΟΔΕΜΑ, ΟΠΛΙΣΜΟΣ, ΔΙΑΣΤΑΣΕΙΣ, ΚΕΙΜΕΝΟ, ΕΔΑΦΟΣ, ΑΠΟΣΤΡΑΓΓΙΣΗ, ΞΥΛΟΤΥΠΟΣ, ΟΡΙΖΟΝΤΙΟΓΡΑΦΙΑ, ΟΨΗ. Η οριζοντιογραφία εξάγεται στις συντεταγμένες της κάτοψης (ΕΓΣΑ'87 αν η κάτοψη είναι γεωαναφερμένη).</p><div class="bar"><button class="btn" id="btnCopyDxf">Αντιγραφή DXF</button><span class="note">Το αρχείο λήψης γράφεται σε κωδικοποίηση Windows‑1253 (ANSI_1253) με στυλ κειμένου Arial, ώστε τα ελληνικά να εμφανίζονται σωστά σε AutoCAD / ProgeCAD / ZWCAD. Η αντιγραφή κειμένου είναι για προεπισκόπηση — για CAD χρησιμοποιήστε τη λήψη.</span></div><textarea class="out" id="dxfout" readonly spellcheck="false"></textarea></div>
     </div>
     <p class="note">Παραδοχές: ενεργητική ώθηση Rankine σε κατακόρυφο νοητό επίπεδο στο άκρο του πέλματος, σεισμική ώθηση Mononobe‑Okabe (EN 1998‑5 Παρ. Ε, kh = α·S/r), προσέγγιση σχεδιασμού DA2 κατά Εθνικό Προσάρτημα EN 1997‑1, φέρουσα ικανότητα Παρ. D. Σχεδιασμός διατομών EN 1992‑1‑1, υλικά C/B500C κατά ΚΤΣ‑2016/ΚΤΧ‑2008, επικαλύψεις §4.4. Χωρίς υδροστατική πίεση, με προϋπόθεση το σύστημα αποστράγγισης του σχεδίου. Ο μελετητής ελέγχει και υπογράφει τα αποτελέσματα.</p>
+    <p class="note"><b>Δήλωση:</b> εργαλείο για πολιτικούς μηχανικούς — παράγει εκτίμηση προδιαστασιολόγησης, όχι στατική ή γεωτεχνική μελέτη. Βλ. «Οδηγίες».</p>
     <p class="note" id="zoneNote"></p>
   </main>
 </div>
@@ -729,6 +762,47 @@ function drawFormPlan(R){
   d.text([-1.0,B+1.2],'ΞΥΛΟΤΥΠΟΣ · ΚΑΤΟΨΗ ΘΕΜΕΛΙΩΣΗΣ ΚΑΙ ΚΟΡΜΟΥ · οπές αποστράγγισης Ø'+V.dweep+' /'+f2(V.sweep)+' m (κύκλοι) · αρμοί /'+f2(V.Lj)+' m','class="ttl"',0,0);
   return d.svg();
 }
+/* ---- Όψη οπλισμού σε λωρίδα 1,00 m (κορμός: δύο παρειές · πέδιλο: κάτοψη άνω/κάτω στρώσης) ---- */
+function rebarStrip(R){ // επιστρέφει γεωμετρία ράβδων σε λωρίδα 1,00 m, για SVG και DXF
+  var g=R.geo, st=R.ST, cs=V.cs/1000, cf=V.cfo/1000, B=R.B, Hs=g.Hs, hf=g.hf, W=1.0, out={panels:[]};
+  function vbars(s){ var a=[], n=Math.floor((W-0.05)/(s/1000)), x0=(W-n*s/1000)/2+0.025; for(var i=0;i<=n;i++) a.push(x0+i*s/1000); return a.filter(function(x){return x<=W-0.02;}); }
+  function hbars(s,h0,h1){ var a=[]; for(var y=h0;y<=h1+1e-9;y+=s/1000) a.push(y); return a; }
+  // Κορμός — πίσω παρειά: κατακόρυφοι 1 + οριζόντιοι 3 · εμπρός παρειά: κατακόρυφοι 2 + οριζόντιοι 3
+  out.panels.push({name:'ΚΟΡΜΟΣ · ΠΙΣΩ ΠΑΡΕΙΑ (εφελκυόμενη) · λωρίδα 1,00 m',w:W,h:Hs,
+    v:{xs:vbars(st.stem.s),y0:0,y1:Hs-cs,lab:'1  Ø'+st.stem.dia+'/'+st.stem.s+' κατακόρυφοι ('+vbars(st.stem.s).length+' τεμ./m)'},
+    hb:{ys:hbars(st.hor.s,0.08,Hs-cs),lab:'3  Ø'+st.hor.dia+'/'+st.hor.s+' οριζόντιοι ('+hbars(st.hor.s,0.08,Hs-cs).length+' τεμ.)'}});
+  out.panels.push({name:'ΚΟΡΜΟΣ · ΕΜΠΡΟΣ ΠΑΡΕΙΑ · λωρίδα 1,00 m',w:W,h:Hs,
+    v:{xs:vbars(st.front.s),y0:0,y1:Hs-cs,lab:'2  Ø'+st.front.dia+'/'+st.front.s+' κατακόρυφοι ('+vbars(st.front.s).length+' τεμ./m)'},
+    hb:{ys:hbars(st.hor.s,0.08,Hs-cs),lab:'3  Ø'+st.hor.dia+'/'+st.hor.s+' οριζόντιοι'}});
+  // Πέδιλο — κάτοψη λωρίδας 1,00 m: άνω στρώση (4 heel εγκάρσιοι + 7 διανομής) · κάτω στρώση (5 toe, 6 heel + 7 διανομής)
+  var topT = st.heel.sag? [] : vbars(st.heel.s), botT = vbars(st.toe.s), botH = st.heel.sag? vbars(st.heel.s) : vbars(st.bars[5].s);
+  out.panels.push({name:'ΠΕΔΙΛΟ · ΑΝΩ ΣΤΡΩΣΗ (κάτοψη, λωρίδα 1,00 m)',w:W,h:B,plan:true,
+    v:{xs:topT,y0:cf,y1:B-cf,lab:(st.heel.sag?'—':'4  Ø'+st.heel.dia+'/'+st.heel.s+' εγκάρσιοι ('+topT.length+' τεμ./m)')},
+    hb:{ys:hbars(st.distF.s,cf+0.05,B-cf),lab:'7  Ø'+st.distF.dia+'/'+st.distF.s+' διανομής'}});
+  out.panels.push({name:'ΠΕΔΙΛΟ · ΚΑΤΩ ΣΤΡΩΣΗ (κάτοψη, λωρίδα 1,00 m)',w:W,h:B,plan:true,
+    v:{xs:botT,y0:cf,y1:Math.min(g.Bt+g.tb+st.toe.lbd,B-cf),lab:'5  Ø'+st.toe.dia+'/'+st.toe.s+' toe ('+botT.length+' τεμ./m)'},
+    v2:{xs:botH.map(function(x){return x+0.5*(st.toe.s/1000);}),y0:g.Bt+g.tb-0.1,y1:B-cf,lab:(st.heel.sag?'4':'6')+'  Ø'+(st.heel.sag?st.heel.dia:st.bars[5].dia)+'/'+(st.heel.sag?st.heel.s:st.bars[5].s)+' heel'},
+    hb:{ys:hbars(st.distF.s,cf+0.05,B-cf),lab:'7  Ø'+st.distF.dia+'/'+st.distF.s+' διανομής'},
+    stem:[g.Bt,g.Bt+g.tb]});
+  return out;
+}
+function drawRebarElev(R){
+  var S=rebarStrip(R), hmax=Math.max.apply(null,S.panels.map(function(p){return p.h;})), gap=1.5, xtot=S.panels.length*(1.0+gap)+0.3;
+  var d=new Draw(0,xtot,-0.75,hmax+0.9,1000,Math.max(380,Math.min(640,140+hmax*110)),30);
+  var A='stroke="var(--steel)" stroke-width="2" stroke-linecap="round"', A2='stroke="var(--steel)" stroke-width="1.3" stroke-linecap="round" opacity=".85"';
+  S.panels.forEach(function(p,i){ var ox=gap+i*(1.0+gap);
+    d.poly([[ox,0],[ox+p.w,0],[ox+p.w,p.h],[ox,p.h]],'fill="var(--conc)" stroke="var(--ink)" stroke-width="1.2"');
+    if(p.stem) d.poly([[ox,p.stem[0]],[ox+p.w,p.stem[0]],[ox+p.w,p.stem[1]],[ox,p.stem[1]]],'fill="var(--conc2)" stroke="var(--ink)" stroke-width=".8" stroke-dasharray="4 2"');
+    p.hb.ys.forEach(function(y){ d.line([ox+0.03,y],[ox+p.w-0.03,y],A2); });
+    p.v.xs.forEach(function(x){ d.line([ox+x,p.v.y0],[ox+x,p.v.y1],A); });
+    if(p.v2) p.v2.xs.forEach(function(x){ d.line([ox+x,p.v2.y0],[ox+x,p.v2.y1],A2); });
+    var nm=p.name.split(' · '); nm.forEach(function(t,k){ d.text([ox,p.h],t,'class="lbm"',0,-30+12*k-(nm.length-2)*12); }); d.text([ox,p.h],p.v.lab,'class="lbs"',0,-6);
+    d.text([ox,0],p.hb.lab,'class="lbs"',0,14); if(p.v2) d.text([ox,0],p.v2.lab,'class="lbs"',0,26);
+    d.dimH(ox,ox+p.w,0,'1,00',p.v2?44:30); d.dimV(0,p.h,ox,f2(p.h),-22);
+  });
+  d.abs(12,18,'ΟΠΛΙΣΜΟΣ ΣΕ ΟΨΗ ΑΝΑ 1,00 m ΤΟΙΧΟΥ · κορμός (όψη παρειών) και πέδιλο (κάτοψη στρώσεων)','class="ttl"');
+  return d.svg();
+}
 function wallLength(){ if(NODES.length<2) return V.Lw; var L=0; for(var i=1;i<NODES.length;i++) L+=Math.hypot(NODES[i].x-NODES[i-1].x,NODES[i].y-NODES[i-1].y); return L; }
 </script>
 <script>
@@ -1105,7 +1179,7 @@ function update(){
   document.getElementById('sum').innerHTML=t('Ανατροπή',f2(R.EQU.FS),'M_stb / M_dst (EQU)',cl(R.EQU.FS))+t('Ολίσθηση',f2(R.SL.FS),'R_d / H_d (DA2)',cl(R.SL.FS))+t('Φέρουσα ικανότητα',f2(R.BR.FS),'q_ult = '+f0(R.BR.bc.qult)+' kPa · B′ = '+f2(R.BR.Bp)+' m',cl(R.BR.FS))+t('σ_max (SLS)',f0(Math.max(R.SLS.pd.s0,R.SLS.pd.sB))+' kPa','e = '+f2(R.SLS.e)+' m · B/6 = '+f2(R.B/6),cl(R.SLS.FS))+(R.SE?t('Σεισμός',f2(Math.min(R.SE.FSo,R.SE.FSs,R.SE.FSb)),'kh = '+f2(R.SE.kh)+' · K_AE = '+f2(R.SE.Kae)+(R.SE.valid?'':' (φ′−β−θ<0!)'),cl(Math.min(R.SE.FSo,R.SE.FSs,R.SE.FSb))):'')+t('Κορμός',f2(R.ST.stem.MRd/R.ST.stem.M),'Ø'+R.ST.stem.dia+'/'+R.ST.stem.s+' · M_Ed '+f1(R.ST.stem.M)+' kNm/m',cl(R.ST.stem.MRd/R.ST.stem.M))+t('Χάλυβας',f1(R.ST.kg)+' kg/m',f0(R.ST.ratio)+' kg/m³ · '+f2(R.ST.conc)+' m³/m σκυρόδεμα','');
   // drawings
   document.getElementById('svgSection').innerHTML=drawSection(R,'static');
-  document.getElementById('svgRebar').innerHTML=drawSection(R,'rebar');
+  document.getElementById('svgRebar').innerHTML=drawSection(R,'rebar')+drawRebarElev(R);
   document.getElementById('svgDrain').innerHTML=drawSection(R,'drain')+drainNotesHtml();
   document.getElementById('svgForm').innerHTML=drawSection(R,'form')+drawFormPlan(R);
   document.getElementById('svgElev').innerHTML=drawElev(R);
@@ -1162,7 +1236,7 @@ function qtyTable(R){
 function report(R){
   var g=R.geo, v=V, st=R.ST, S=R.SE, cname=Object.keys(CONC).filter(function(k){return CONC[k]===v.cls;})[0];
   var P=function(s){return '<p>'+s+'</p>';}, E=function(s){return '<div class="eq">'+esc(s)+'</div>';}, H3=function(s){return '<h3>'+s+'</h3>';};
-  var h=H3('1. Γεωμετρία & υλικά')+P('Τοίχος προβόλου Ο/Σ. Ύψος κορμού H = '+f2(g.Hs)+' m, πάχος στέψης/βάσης '+f2(g.tt)+'/'+f2(g.tb)+' m, πέδιλο '+f2(R.B)+'×'+f2(g.hf)+' m (toe '+f2(g.Bt)+' m, heel '+f2(g.Bh)+' m), βάθος θεμελίωσης εμπρός D_f = '+f2(g.Df)+' m. Συνολικό ύψος στο νοητό επίπεδο H_tot = '+f2(R.Htot)+' m.'+(CRIT?' Κρίσιμη διατομή: κορυφή K'+(NODES.indexOf(CRIT)+1)+' (ΧΘ '+f2(CRIT.st)+', στέψη '+f2(CRIT.zTop)+', θεμελίωση '+f2(CRIT.zFound)+').':''))
+  var h='<div class="disc"><b>Δήλωση.</b> Το παρόν τεύχος παράγεται αυτόματα από το εργαλείο HEXIS Τοίχος Αντιστήριξης ως εκτίμηση προδιαστασιολόγησης με βάση τα δεδομένα και τις παραδοχές του χρήστη. Δεν αποτελεί στατική/γεωτεχνική μελέτη. Ο μελετητής μηχανικός ελέγχει, συμπληρώνει και υπογράφει.</div>'+H3('1. Γεωμετρία & υλικά')+P('Τοίχος προβόλου Ο/Σ. Ύψος κορμού H = '+f2(g.Hs)+' m, πάχος στέψης/βάσης '+f2(g.tt)+'/'+f2(g.tb)+' m, πέδιλο '+f2(R.B)+'×'+f2(g.hf)+' m (toe '+f2(g.Bt)+' m, heel '+f2(g.Bh)+' m), βάθος θεμελίωσης εμπρός D_f = '+f2(g.Df)+' m. Συνολικό ύψος στο νοητό επίπεδο H_tot = '+f2(R.Htot)+' m.'+(CRIT?' Κρίσιμη διατομή: κορυφή K'+(NODES.indexOf(CRIT)+1)+' (ΧΘ '+f2(CRIT.st)+', στέψη '+f2(CRIT.zTop)+', θεμελίωση '+f2(CRIT.zFound)+').':''))
    +P('Σκυρόδεμα '+cname+' (ΚΤΣ‑2016): f_ck = '+v.cls+' MPa, f_cd = α_cc·f_ck/γ_c = '+f2(st.mat.fcd)+' MPa, f_ctm = '+f2(st.mat.fctm)+' MPa. Χάλυβας B500C (ΚΤΧ‑2008): f_yd = '+f1(st.mat.fyd)+' MPa. Επικαλύψεις c_nom κορμού '+v.cs+' mm, πέδιλου '+v.cfo+' mm.')
    +H3('2. Ωθήσεις γαιών')+P('Επίχωση γ = '+v.gam+' kN/m³, φ′ = '+v.phi+'°, β = '+v.beta+'°, q = '+v.q+' kPa. Rankine σε κατακόρυφο νοητό επίπεδο στο άκρο του πέλματος:')
    +E('K_a = cosβ·(cosβ − √(cos²β − cos²φ′))/(cosβ + √(cos²β − cos²φ′)) = '+f2(R.Ka)+'\nP_a = ½·K_a·γ·H_tot² = '+f1(R.Pa)+' kN/m  (y = H_tot/3 = '+f2(R.ya)+' m) → P_ah = '+f1(R.Pah)+', P_av = '+f1(R.Pav)+' kN/m\nP_q = K_a·q·H_tot = '+f1(R.Pq)+' kN/m  (y = H_tot/2 = '+f2(R.yq)+' m)')
@@ -1185,15 +1259,25 @@ function report(R){
 }
 function f3(x){return (Math.round(x*1000)/1000).toFixed(3);}
 
-/* ---- DXF R12 ---- */
+/* ---- DXF R12 (ANSI_1253) — layers σε λατινικά, κείμενα σε Windows-1253 ώστε να διαβάζονται σωστά σε AutoCAD/ProgeCAD/ZWCAD ---- */
+var CP1253=(function(){ var m={}; for(var c=0x0391;c<=0x03A1;c++) m[c]=c-0x0391+0xC1; for(var c2=0x03A3;c2<=0x03CE;c2++) m[c2]=c2-0x03A3+0xD3;
+  m[0x0386]=0xA2; m[0x0388]=0xB8; m[0x0389]=0xB9; m[0x038A]=0xBA; m[0x038C]=0xBC; m[0x038E]=0xBE; m[0x038F]=0xBF; m[0x0390]=0xC0; m[0x03B0]=0xE0;
+  m[0x00B0]=0xB0; m[0x00B2]=0xB2; m[0x00B3]=0xB3; m[0x00B7]=0xB7; m[0x00AB]=0xAB; m[0x00BB]=0xBB; m[0x2019]=0xA2; m[0x00B1]=0xB1; m[0x00A7]=0xA7; m[0x2018]=0xA1; m[0x2013]=0x96; m[0x2014]=0x97; m[0x20AC]=0x80; m[0x00D8]=0xD8; return m; })();
+function encode1253(str){ var out=new Uint8Array(str.length), n=0; for(var i=0;i<str.length;i++){ var c=str.charCodeAt(i); if(c<0x80) out[n++]=c; else if(CP1253[c]!==undefined) out[n++]=CP1253[c]; else out[n++]=0x3F; } return out.subarray(0,n); }
+var GR2L={'Α':'A','Β':'V','Γ':'G','Δ':'D','Ε':'E','Ζ':'Z','Η':'I','Θ':'TH','Ι':'I','Κ':'K','Λ':'L','Μ':'M','Ν':'N','Ξ':'X','Ο':'O','Π':'P','Ρ':'R','Σ':'S','Τ':'T','Υ':'Y','Φ':'F','Χ':'CH','Ψ':'PS','Ω':'O'};
+function layerSafe(name){ var s=String(name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[Α-Ω]/g,function(c){return GR2L[c]||'';}); return s.replace(/[^A-Z0-9_$-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,31)||'0'; }
+function dxfTxt(s){ return String(s).replace(/Ø/g,'%%c').replace(/°/g,'%%d').replace(/±/g,'%%p').replace(/≥/g,'>=').replace(/≤/g,'<=').replace(/→/g,'->').replace(/·/g,'-').replace(/′/g,"'").replace(/[\u2032\u2033]/g,"'").replace(/[\u2011\u2012\u2013\u2212]/g,'-'); }
 function DXFW(){ this.e=[]; }
-DXFW.prototype.line=function(L,a,b){ this.e.push('0\nLINE\n8\n'+L+'\n10\n'+f3(a[0])+'\n20\n'+f3(a[1])+'\n30\n0\n11\n'+f3(b[0])+'\n21\n'+f3(b[1])+'\n31\n0'); };
-DXFW.prototype.pl=function(L,pts,closed){ var s='0\nPOLYLINE\n8\n'+L+'\n66\n1\n70\n'+(closed?1:0); pts.forEach(function(p){ s+='\n0\nVERTEX\n8\n'+L+'\n10\n'+f3(p[0])+'\n20\n'+f3(p[1])+'\n30\n0'; }); this.e.push(s+'\n0\nSEQEND\n8\n'+L); };
-DXFW.prototype.circ=function(L,c,r){ this.e.push('0\nCIRCLE\n8\n'+L+'\n10\n'+f3(c[0])+'\n20\n'+f3(c[1])+'\n30\n0\n40\n'+f3(r)); };
-DXFW.prototype.text=function(L,p,h,s,rot){ this.e.push('0\nTEXT\n8\n'+L+'\n10\n'+f3(p[0])+'\n20\n'+f3(p[1])+'\n30\n0\n40\n'+f3(h)+'\n1\n'+s+(rot?'\n50\n'+f1(rot):'')); };
+DXFW.prototype.line=function(L,a,b){ L=layerSafe(L); this.e.push('0\nLINE\n8\n'+L+'\n10\n'+f3(a[0])+'\n20\n'+f3(a[1])+'\n30\n0\n11\n'+f3(b[0])+'\n21\n'+f3(b[1])+'\n31\n0'); };
+DXFW.prototype.pl=function(L,pts,closed){ L=layerSafe(L); var s='0\nPOLYLINE\n8\n'+L+'\n66\n1\n70\n'+(closed?1:0); pts.forEach(function(p){ s+='\n0\nVERTEX\n8\n'+L+'\n10\n'+f3(p[0])+'\n20\n'+f3(p[1])+'\n30\n0'; }); this.e.push(s+'\n0\nSEQEND\n8\n'+L); };
+DXFW.prototype.circ=function(L,c,r){ L=layerSafe(L); this.e.push('0\nCIRCLE\n8\n'+L+'\n10\n'+f3(c[0])+'\n20\n'+f3(c[1])+'\n30\n0\n40\n'+f3(r)); };
+DXFW.prototype.text=function(L,p,h,s,rot){ L=layerSafe(L); this.e.push('0\nTEXT\n8\n'+L+'\n10\n'+f3(p[0])+'\n20\n'+f3(p[1])+'\n30\n0\n40\n'+f3(h)+'\n7\nHEXIS\n1\n'+dxfTxt(s)+(rot?'\n50\n'+f1(rot):'')); };
 DXFW.prototype.dimH=function(x0,x1,y,txt,off){ var L='ΔΙΑΣΤΑΣΕΙΣ', yy=y+off; this.line(L,[x0,y],[x0,yy+(off<0?-0.05:0.05)]); this.line(L,[x1,y],[x1,yy+(off<0?-0.05:0.05)]); this.line(L,[x0,yy],[x1,yy]); this.text(L,[(x0+x1)/2-0.08*txt.length,yy+0.03],0.08,txt); };
 DXFW.prototype.dimV=function(y0,y1,x,txt,off){ var L='ΔΙΑΣΤΑΣΕΙΣ', xx=x+off; this.line(L,[x,y0],[xx+(off<0?-0.05:0.05),y0]); this.line(L,[x,y1],[xx+(off<0?-0.05:0.05),y1]); this.line(L,[xx,y0],[xx,y1]); this.text(L,[xx-0.03,(y0+y1)/2-0.08*txt.length/2],0.08,txt,90); };
-DXFW.prototype.out=function(){ return '0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n6\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n'+this.e.join('\n')+'\n0\nENDSEC\n0\nEOF\n'; };
+DXFW.prototype.out=function(){
+  var lay={}; this.e.forEach(function(en){ var m=en.match(/\n8\n([^\n]+)/g); if(m) m.forEach(function(x){ lay[x.slice(3)]=1; }); });
+  var names=Object.keys(lay), tbl='0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n70\n'+names.length+'\n'+names.map(function(n,i){ return '0\nLAYER\n2\n'+n+'\n70\n0\n62\n'+[7,1,2,3,4,5,6,8,9][i%9]+'\n6\nCONTINUOUS'; }).join('\n')+'\n0\nENDTAB\n0\nTABLE\n2\nSTYLE\n70\n1\n0\nSTYLE\n2\nHEXIS\n70\n0\n40\n0\n41\n1\n50\n0\n71\n0\n42\n0.2\n3\narial.ttf\n4\n\n0\nENDTAB\n0\nENDSEC\n';
+  return '0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1009\n9\n$DWGCODEPAGE\n3\nANSI_1253\n9\n$INSUNITS\n70\n6\n9\n$TEXTSTYLE\n7\nHEXIS\n0\nENDSEC\n'+tbl+'0\nSECTION\n2\nENTITIES\n'+this.e.join('\n')+'\n0\nENDSEC\n0\nEOF\n'; };
 
 function buildDXF(R){
   var g=R.geo, B=R.B, Hw=g.hf+g.Hs, st=R.ST, w=new DXFW(), beta=V.beta*D2R;
@@ -1221,9 +1305,15 @@ function buildDXF(R){
   section(2*dx,0,'ΛΕΠΤΟΜΕΡΕΙΑ ΕΠΙΧΩΣΗΣ-ΑΠΟΣΤΡΑΓΓΙΣΗΣ 1:25',true,false,true,false);
   section(3*dx,0,'ΞΥΛΟΤΥΠΟΣ ΤΟΜΗΣ 1:25',false,false,false,true);
   w.pl('ΞΥΛΟΤΥΠΟΣ',[[3*dx-0.1,-0.1],[3*dx+B+0.1,-0.1],[3*dx+B+0.1,0],[3*dx-0.1,0]],true); w.text('ΚΕΙΜΕΝΟ',[3*dx+B+0.3,0],0.1,'Στάθμη κάτω παρειάς '+f2(CRIT?CRIT.zFound:0)); w.text('ΚΕΙΜΕΝΟ',[3*dx+B+0.3,Hw],0.1,'Στάθμη στέψης '+f2(CRIT?CRIT.zTop:Hw));
+  // όψη οπλισμού ανά 1,00 m
+  (function(){ var S=rebarStrip(R), ox0=4*dx; w.text('ΚΕΙΜΕΝΟ',[ox0,Hw+1.2],0.18,'ΟΠΛΙΣΜΟΣ ΣΕ ΟΨΗ ΑΝΑ 1,00 m 1:25');
+    S.panels.forEach(function(p,i){ var ox=ox0+i*1.6; w.pl('ΞΥΛΟΤΥΠΟΣ',[[ox,0],[ox+p.w,0],[ox+p.w,p.h],[ox,p.h]],true); if(p.stem) w.pl('ΞΥΛΟΤΥΠΟΣ',[[ox,p.stem[0]],[ox+p.w,p.stem[0]],[ox+p.w,p.stem[1]],[ox,p.stem[1]]],true);
+      p.hb.ys.forEach(function(y){ w.line('ΟΠΛΙΣΜΟΣ',[ox+0.03,y],[ox+p.w-0.03,y]); }); p.v.xs.forEach(function(x){ w.line('ΟΠΛΙΣΜΟΣ',[ox+x,p.v.y0],[ox+x,p.v.y1]); }); if(p.v2) p.v2.xs.forEach(function(x){ w.line('ΟΠΛΙΣΜΟΣ',[ox+x,p.v2.y0],[ox+x,p.v2.y1]); });
+      w.text('ΚΕΙΜΕΝΟ',[ox,p.h+0.35],0.07,p.name); w.text('ΟΠΛΙΣΜΟΣ',[ox,p.h+0.15],0.08,p.v.lab); w.text('ΟΠΛΙΣΜΟΣ',[ox,-0.25],0.08,p.hb.lab+(p.v2?' - '+p.v2.lab:'')); w.dimH(ox,ox+p.w,0,'1.00',-0.5); }); })();
   // ξυλότυπος κάτοψης
   var L=wallLength(), oy=-(B+4), xs=g.Bt+(g.tb-g.tt), xb=g.Bt+g.tb;
   w.text('ΚΕΙΜΕΝΟ',[0,oy+B+0.6],0.18,'ΞΥΛΟΤΥΠΟΣ ΚΑΤΟΨΗΣ 1:50');
+  w.text('ΚΕΙΜΕΝΟ',[0,Hw+1.6],0.12,'HEXIS Τοίχος Αντιστήριξης - εκτίμηση προδιαστασιολόγησης, όχι μελέτη. Έλεγχος και υπογραφή από τον μελετητή μηχανικό.');
   w.pl('ΞΥΛΟΤΥΠΟΣ',[[0,oy],[L,oy],[L,oy+B],[0,oy+B]],true); w.pl('ΞΥΛΟΤΥΠΟΣ',[[0,oy+g.Bt],[L,oy+g.Bt],[L,oy+xb],[0,oy+xb]],true); w.line('ΞΥΛΟΤΥΠΟΣ',[0,oy+xs],[L,oy+xs]);
   for(var xj=V.Lj;xj<L-0.01;xj+=V.Lj){ w.line('ΞΥΛΟΤΥΠΟΣ',[xj,oy],[xj,oy+B]); w.text('ΚΕΙΜΕΝΟ',[xj-0.3,oy+B+0.1],0.1,'ΑΡΜΟΣ'); }
   for(var xw=V.sweep/2;xw<L;xw+=V.sweep) w.circ('ΑΠΟΣΤΡΑΓΓΙΣΗ',[xw,oy+g.Bt],V.dweep/2000);
@@ -1241,13 +1331,15 @@ function buildDXF(R){
     NODES.forEach(function(n,i){ w.text('ΚΕΙΜΕΝΟ',[n.x+0.3,n.y+0.3],0.25,'K'+(i+1)+' '+f2(n.zTop)+'/'+f2(n.zFound)); }); }
   return w.out();
 }
-function downloadText(name,text){ try{ var b=new Blob([text],{type:'application/dxf'}), u=URL.createObjectURL(b), a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},500); }catch(e){} }
+function downloadText(name,text){ try{ var b=new Blob([encode1253(text)],{type:'application/dxf'}), u=URL.createObjectURL(b), a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},500); }catch(e){} }
 
 /* ---- Εκκίνηση ---- */
 function setTheme(t){ document.documentElement.setAttribute('data-theme',t); var b=document.getElementById('btnTheme'); if(b) b.textContent= t==='light'?'☾ Σκούρο φόντο':'☀ Ανοιχτό φόντο'; try{ localStorage.setItem('hexis_toixos_theme',t); }catch(e){} }
 function init(){
   buildRail();
   try{ setTheme(localStorage.getItem('hexis_toixos_theme')||'dark'); }catch(e){ setTheme('dark'); }
+  var hm=document.getElementById('helpModal'); document.getElementById('btnHelp').onclick=function(){ hm.hidden=false; }; document.getElementById('btnHelpOk').onclick=function(){ hm.hidden=true; try{ localStorage.setItem('hexis_toixos_ack','1'); }catch(e){} }; hm.addEventListener('click',function(e){ if(e.target===hm) hm.hidden=true; });
+  try{ if(!localStorage.getItem('hexis_toixos_ack')) hm.hidden=false; }catch(e){}
   document.getElementById('btnTheme').onclick=function(){ setTheme(document.documentElement.getAttribute('data-theme')==='light'?'dark':'light'); update(); };
   try{ var s=JSON.parse(localStorage.getItem('hexis_toixos_v1')||'null'); if(s&&s.V){ Object.keys(s.V).forEach(function(k){ if(document.getElementById(k)) setV(k,s.V[k]); }); if(s.NODES) NODES=s.NODES; } }catch(e){}
   document.getElementById('viewseg').onclick=function(e){ var b=e.target.closest('button'); if(!b) return; VIEW=b.dataset.v; this.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b);}); ['section','rebar','drain','form','plan','elev'].forEach(function(v){ document.getElementById('v-'+v).hidden=v!==VIEW; }); if(VIEW==='plan'){ if(!PLAN.fitted){ fitPlan(); PLAN.fitted=true; } drawPlan(); } };
