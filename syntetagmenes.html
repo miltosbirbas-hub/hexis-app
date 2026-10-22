@@ -459,6 +459,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       <div class="menu-pop" id="dxfMenu" hidden>
         <button data-exp="dxf-full"><b>Όλο το σχέδιο + πίνακες</b><span id="dxfFullSub">Γραμμές, κείμενα, layers του PDF σε ΕΓΣΑ87</span></button>
         <button data-exp="dxf-tables"><b>Μόνο πίνακες συντεταγμένων</b><span>Κλειστές πολυγραμμές και κορυφές ανά layer</span></button>
+        <button data-act="hash-any"><b>PDF hash για DXF…</b><span>SHA-512 του δικού σου DXF, για ψηφιακή υπογραφή στην υποβολή</span></button>
       </div>
     </div>
     <button class="btn" data-exp="pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg>Αναφορά PDF</button>
@@ -4657,6 +4658,90 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   root.PraxisDescr = api;
 })(typeof window !== 'undefined' ? window : globalThis);
 
+/* HEXIS GEOmetry — Γεωτεμάχια ΚΑΕΚ ζωντανά από την υπηρεσία INSPIRE του Ελληνικού Κτηματολογίου (WFS 2.0, Cadastral Parcels).
+ * Υπηρεσία: gis.ktimanet.gr/inspire/.../CadastralParcel/MapServer/exts/InspireFeatureDownload/service (ArcGIS INSPIRE Feature Download)
+ * Ζητάμε GetFeature με BBOX σε ΕΓΣΑ87 (EPSG:2100) και διαβάζουμε το GML: cp:CadastralParcel → nationalCadastralReference (ΚΑΕΚ),
+ * areaValue, geometry (Polygon / MultiSurface, posList). Αν ο browser δεν επιτρέπει το άμεσο αίτημα (CORS), περνάμε από τον proxy του HEXIS.
+ * Καθαρή λογική, χωρίς DOM εκτός από DOMParser.
+ */
+(function (root) {
+  'use strict';
+  var BASE = 'https://gis.ktimanet.gr/inspire/rest/services/cadastralparcels/CadastralParcel/MapServer/exts/InspireFeatureDownload/service';
+  var TYPES = ['cp:CadastralParcel', 'CadastralParcel'];
+  function url(base, bbox, count, typeName, srs) {
+    var crs = 'urn:ogc:def:crs:EPSG::' + (srs || 2100);
+    return base + '?service=WFS&version=2.0.0&request=GetFeature&typeNames=' + encodeURIComponent(typeName) + '&srsName=' + encodeURIComponent(crs) + '&bbox=' + bbox.map(function (v) { return v.toFixed(2); }).join(',') + ',' + encodeURIComponent(crs) + '&count=' + (count || 300);
+  }
+  function num(s) { return parseFloat(String(s).replace(',', '.')); }
+  // GML → λίστα γεωτεμαχίων. toEgsa(lon, lat) → [x, y] για μετατροπή αν η απάντηση είναι σε WGS84.
+  function parseGML(text, toEgsa) {
+    var doc = new DOMParser().parseFromString(text, 'text/xml');
+    var err = doc.getElementsByTagName('parsererror')[0]; if (err) throw new Error('Μη έγκυρη απάντηση GML από την υπηρεσία INSPIRE.');
+    var ex = doc.getElementsByTagNameNS('*', 'ExceptionText')[0] || doc.getElementsByTagNameNS('*', 'ServiceException')[0];
+    if (ex) throw new Error('INSPIRE: ' + ex.textContent.trim().slice(0, 200));
+    var feats = doc.getElementsByTagNameNS('*', 'CadastralParcel');
+    var out = [];
+    function ringFrom(el) {
+      var pl = el.getElementsByTagNameNS('*', 'posList')[0]; var dim = 2, srs = '';
+      if (pl) { dim = parseInt(pl.getAttribute('srsDimension') || el.getAttribute('srsDimension') || '2', 10) || 2; srs = pl.getAttribute('srsName') || ''; var v = pl.textContent.trim().split(/\s+/).map(num), pts = []; for (var i = 0; i + 1 < v.length; i += dim) pts.push([v[i], v[i + 1]]); return fix(pts, srs); }
+      var poss = el.getElementsByTagNameNS('*', 'pos'); if (poss.length) { var pts2 = []; for (var k = 0; k < poss.length; k++) { var a = poss[k].textContent.trim().split(/\s+/).map(num); pts2.push([a[0], a[1]]); } return fix(pts2, ''); }
+      var co = el.getElementsByTagNameNS('*', 'coordinates')[0]; if (co) return fix(co.textContent.trim().split(/\s+/).map(function (p) { var a = p.split(',').map(num); return [a[0], a[1]]; }), '');
+      return null;
+    }
+    // αν οι τιμές είναι γεωγραφικές (|v| ≤ 180) → WGS84: η INSPIRE σειρά αξόνων για το 4326 είναι lat, lon
+    function fix(pts, srs) {
+      if (!pts.length) return pts;
+      var geo = pts.every(function (p) { return Math.abs(p[0]) <= 180 && Math.abs(p[1]) <= 90 || Math.abs(p[1]) <= 180 && Math.abs(p[0]) <= 90; });
+      if (!geo) return pts;
+      if (!toEgsa) throw new Error('Η υπηρεσία επέστρεψε γεωγραφικές συντεταγμένες και δεν υπάρχει μετατροπέας.');
+      var latFirst = pts.every(function (p) { return p[0] >= 34 && p[0] <= 42 && p[1] >= 19 && p[1] <= 30; });
+      return pts.map(function (p) { return latFirst ? toEgsa(p[1], p[0]) : toEgsa(p[0], p[1]); });
+    }
+    for (var i = 0; i < feats.length; i++) {
+      var f = feats[i];
+      var kaekEl = f.getElementsByTagNameNS('*', 'nationalCadastralReference')[0] || f.getElementsByTagNameNS('*', 'label')[0];
+      var kaek = kaekEl ? kaekEl.textContent.trim() : '';
+      var areaEl = f.getElementsByTagNameNS('*', 'areaValue')[0]; var area = areaEl ? num(areaEl.textContent) : null;
+      var polys = f.getElementsByTagNameNS('*', 'Polygon'); if (!polys.length) polys = f.getElementsByTagNameNS('*', 'Surface');
+      var rings = [];
+      for (var p = 0; p < polys.length; p++) {
+        var ext = polys[p].getElementsByTagNameNS('*', 'exterior')[0]; if (!ext) continue;
+        var outer = ringFrom(ext); if (!outer || outer.length < 3) continue;
+        var holes = []; var ints = polys[p].getElementsByTagNameNS('*', 'interior'); for (var h = 0; h < ints.length; h++) { var hr = ringFrom(ints[h]); if (hr && hr.length >= 3) holes.push(hr); }
+        rings.push({ outer: outer, holes: holes });
+      }
+      if (!kaek || !rings.length) continue;
+      // GeoJSON (ΕΓΣΑ87) όπως το δίνει και το kaek-geo
+      var geom = rings.length === 1 ? { type: 'Polygon', coordinates: [close(rings[0].outer)].concat(rings[0].holes.map(close)) } : { type: 'MultiPolygon', coordinates: rings.map(function (r) { return [close(r.outer)].concat(r.holes.map(close)); }) };
+      out.push({ kaek: kaek, area: area && area > 0 ? area : null, geom: geom });
+    }
+    return out;
+  }
+  function close(r) { var q = r.slice(); if (q.length && (q[0][0] !== q[q.length - 1][0] || q[0][1] !== q[q.length - 1][1])) q.push(q[0]); return q; }
+  /* fetchBBox(bbox [minx,miny,maxx,maxy] σε ΕΓΣΑ87, opts: {proxy: url που δέχεται ?url=…, count, timeout, toEgsa}) → Promise<[{kaek, area, geom}]> */
+  async function fetchBBox(bbox, opts) {
+    opts = opts || {};
+    var attempts = [], lastErr = null;
+    TYPES.forEach(function (tn) { attempts.push({ via: 'direct', u: url(BASE, bbox, opts.count, tn, 2100) }); });
+    if (opts.proxy) TYPES.forEach(function (tn) { attempts.push({ via: 'proxy', u: opts.proxy + (opts.proxy.indexOf('?') >= 0 ? '&' : '?') + 'url=' + encodeURIComponent(url(BASE, bbox, opts.count, tn, 2100)) }); });
+    for (var i = 0; i < attempts.length; i++) {
+      var a = attempts[i], ctl = new AbortController(), to = setTimeout(function () { ctl.abort(); }, opts.timeout || 30000);
+      try {
+        var r = await fetch(a.u, { signal: ctl.signal, headers: opts.headers && a.via === 'proxy' ? opts.headers : undefined });
+        var text = await r.text();
+        if (!r.ok && !/Exception/.test(text)) throw new Error('HTTP ' + r.status);
+        var list = parseGML(text, opts.toEgsa);
+        return { parcels: list, via: a.via, url: a.u };
+      } catch (e) { lastErr = e; }
+      finally { clearTimeout(to); }
+    }
+    throw new Error('Η υπηρεσία INSPIRE του Κτηματολογίου δεν απάντησε' + (lastErr ? ' (' + (lastErr.name === 'AbortError' ? 'χρονικό όριο' : lastErr.message) + ')' : '') + '. Δοκίμασε ξανά ή άλλαξε πηγή σε «Βάση HEXIS».');
+  }
+  var api = { fetchBBox: fetchBBox, parseGML: parseGML, url: url, BASE: BASE };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  root.InspireKaek = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
 /* HEXIS — Πινακίδα εκτύπωσης ΔΓΜ: επιλογή κλίμακας/χαρτιού, σελιδοποίηση, πίνακες πάνω στο σχέδιο.
  * Δομή και ονομασίες πινάκων κατά τα υποδείγματα ΔΓΜ διόρθωσης ορίων που γίνονται δεκτά από το Κτηματολόγιο:
  *  - ΠΙΝΑΚΑΣ ΚΟΡΥΦΩΝ ΙΔΙΟΚΤΗΣΙΑΣ (Σημείο, X, Y, Αποστάσεις, Ε)
@@ -5826,6 +5911,7 @@ root.CmdCheck = api;
     ktimaPage: 'ktimatologio.html#coords',
     checkPage: 'checkmydxf.html',
     kaekGeo: 'https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/kaek-geo',
+    inspireProxy: 'https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/inspire-proxy',
     handoffKey: 'hexis_coords_handoff'
   };
   var LIBS = {
@@ -6398,6 +6484,7 @@ root.CmdCheck = api;
     var areaA = Math.abs(CoordParser.polyArea(A));
     return tot ? areaA * hit / tot : 0;
   }
+  function kaekSource() { var v = S.kaekSource || store('hexis_kaek_source') || 'hexis'; return v === 'inspire' ? 'inspire' : 'hexis'; }
   async function findKaek() {
     var t = mainPlot(); if (!t) { S.kaek = null; return; }
     var key = plotKey();
@@ -6409,7 +6496,16 @@ root.CmdCheck = api;
       P.forEach(function (v) { var m = [(c[0] + v[0]) / 2, (c[1] + v[1]) / 2]; if (CoordParser.pointInPoly(m, P, 0)) samples.push(m); });
       if (!CoordParser.pointInPoly(c, P, 0)) samples.shift();
       samples = samples.slice(0, 4);
-      var seen = {}, parcels = [], region = null, approxOnly = true;
+      var seen = {}, parcels = [], region = null, approxOnly = true, via = null;
+      if (kaekSource() === 'inspire') {
+        // ζωντανά από INSPIRE: BBOX του οικοπέδου + 150 m
+        var bx = [Infinity, Infinity, -Infinity, -Infinity]; P.forEach(function (q) { bx[0] = Math.min(bx[0], q[0]); bx[1] = Math.min(bx[1], q[1]); bx[2] = Math.max(bx[2], q[0]); bx[3] = Math.max(bx[3], q[1]); });
+        var pad = 150, bbox = [bx[0] - pad, bx[1] - pad, bx[2] + pad, bx[3] + pad];
+        var ins = await InspireKaek.fetchBBox(bbox, { proxy: HEXIS.inspireProxy, count: 400, headers: { apikey: HEXIS.anonKey }, toEgsa: function (lon, lat) { return proj4('WGS84', 'EPSG:2100', [lon, lat]); } });
+        via = ins.via;
+        ins.parcels.forEach(function (p) { if (seen[p.kaek]) return; seen[p.kaek] = p; parcels.push({ kaek: p.kaek, area: p.area, geom: p.geom, hit: false }); });
+        approxOnly = false; samples = [];
+      }
       for (var i = 0; i < samples.length; i++) {
         var ll = proj4('EPSG:2100', 'WGS84', samples[i]);
         var ctl = new AbortController(), to = setTimeout(function () { ctl.abort(); }, 25000);
@@ -6430,8 +6526,9 @@ root.CmdCheck = api;
         p.ovlPlot = areaPlot ? p.ovl / areaPlot : 0;
         p.ovlParcel = p.area ? p.ovl / p.area : 0;
       });
+      if (kaekSource() === 'inspire') { parcels.forEach(function (p) { p.hit = p.ovl > 0; }); parcels = parcels.filter(function (p) { return p.ovl > 0 || p.rings.some(function (r) { return r.some(function (q) { return Math.hypot(q[0] - c[0], q[1] - c[1]) < 150; }); }); }); }
       parcels.sort(function (a, b) { return b.ovl - a.ovl; });
-      S.kaek = { key: key, status: parcels.length ? 'ok' : 'empty', parcels: parcels, plotId: t.id, region: region, approx: approxOnly, areaPlot: areaPlot };
+      S.kaek = { key: key, status: parcels.length ? 'ok' : 'empty', parcels: parcels, plotId: t.id, region: region, approx: approxOnly, areaPlot: areaPlot, source: kaekSource(), via: via };
     } catch (e) {
       console.warn('kaek', e);
       S.kaek = { key: key, status: 'error', parcels: [], plotId: t.id, error: e.name === 'AbortError' ? 'Η βάση ΚΑΕΚ δεν απάντησε εγκαίρως.' : e.message };
@@ -6441,7 +6538,9 @@ root.CmdCheck = api;
   function renderKaekPanel() {
     var t = mainPlot(); if (!t) return '';
     var k = S.kaek;
-    var h = '<section class="panel summary" id="kaekPanel"><div class="file-row"><span class="fname">Κτηματολόγιο</span><span class="chip">γεωτεμάχια ΚΑΕΚ στη θέση του «' + esc(shortTitle(t)) + '»</span></div>';
+    var src = kaekSource();
+    var h = '<section class="panel summary" id="kaekPanel"><div class="file-row"><span class="fname">Κτηματολόγιο</span><span class="chip">γεωτεμάχια ΚΑΕΚ στη θέση του «' + esc(shortTitle(t)) + '»</span><label style="margin-left:auto;font-size:12px;color:var(--muted)">Πηγή <select id="kaekSource"><option value="hexis"' + (src === 'hexis' ? ' selected' : '') + '>Βάση ΚΑΕΚ HEXIS</option><option value="inspire"' + (src === 'inspire' ? ' selected' : '') + '>INSPIRE Κτηματολογίου (ζωντανά)</option></select></label></div>';
+    if (k && k.status === 'ok' && k.source) h += '<p style="margin:0;color:var(--muted);font-size:12px">Πηγή γεωμετρίας: ' + (k.source === 'inspire' ? 'υπηρεσία INSPIRE του Ελληνικού Κτηματολογίου, ζωντανή λήψη' + (k.via === 'proxy' ? ' μέσω HEXIS' : '') + ' — τα όρια και τα εμβαδά είναι της τρέχουσας κτηματολογικής βάσης' : 'βάση ΚΑΕΚ του HEXIS') + '.</p>';
     if (!k || k.key !== plotKey()) {
       h += '<p style="margin:0;color:var(--muted);font-size:13px">Αναζήτηση των γεωτεμαχίων του Κτηματολογίου που βρίσκονται στη θέση του οικοπέδου, από τη βάση ΚΑΕΚ του HEXIS.</p><div><button class="btn primary" data-act="kaek-find">Εύρεση ΚΑΕΚ</button></div>';
     } else if (k.status === 'loading') {
@@ -6607,6 +6706,7 @@ root.CmdCheck = api;
     h += renderSheetPanel(d);
     try { var descr = praxisDescription(d); h += '<details class="piece"><summary><b>Περιγραφή ορίων για το συμβόλαιο</b><span style="color:var(--muted)">προσανατολισμοί, μήκη ολογράφως, όμοροι από την πράξη και τα ΚΑΕΚ της βάσης</span><span style="margin-left:auto" class="chip">ΝΟΜΙΚΟ ΤΟΠΟ</span></summary><textarea id="praxisDescr" readonly style="width:100%;min-height:220px;font:12.5px/1.5 ui-monospace,Menlo,Consolas,monospace;background:var(--input-bg);color:inherit;border:1px solid var(--line);border-radius:8px;padding:10px">' + esc(descr) + '</textarea><div class="file-row" style="margin-top:6px"><button class="btn small" data-act="praxis-copy">Αντιγραφή</button><button class="btn small" data-exp="praxis-descr">TXT περιγραφής</button></div></details>'; } catch (e) { console.warn('descr', e); }
     h += '<div class="file-row"><button class="btn primary small" data-exp="dgm-dxf">DXF Κτηματολογίου (ΠΙΝΑΚΑΣ Ι)</button><button class="btn small" data-exp="dgm-xlsx">Excel πινάκων</button><button class="btn small" data-exp="dgm-pdf">Αναφορά PDF</button><button class="btn small" data-exp="dgm-txt-all">TXT όλα</button><button class="btn small" data-exp="dgm-txt">TXT ανά πολύγωνο</button><button class="btn small" data-exp="dgm-svg">Εικόνα SVG</button><a class="btn small ghost" href="' + HEXIS.checkPage + '" target="_blank" rel="noopener" style="margin-left:auto">Check My DXF ↗</a></div>';
+    h += hashRow();
     h += '<details><summary>Τι κάνω μετά — υποβολή ΔΓΜ εγγραπτέας πράξης</summary><ol><li>Υποβολή του <b>τοπογραφικού</b> (ΚΗΔ) και του <b>ΔΓΜ</b> από εδώ («DXF Κτηματολογίου» + «PDF πινακίδας») στην Ηλεκτρονική Υποβολή Διαγραμμάτων (ktimatologio.gr → Ηλεκτρονικές Υπηρεσίες → Μηχανικοί) → ΚΗΔ του ΔΓΜ.</li><li>Ο συμβολαιογράφος αναγράφει τα ΚΗΔ στην πράξη (' + esc(OP.label.toLowerCase()) + ') και η πράξη υποβάλλεται για καταχώριση (άρθ. 14 ν.2664/98) με το ΔΓΜ.</li><li>Αν το μετρημένο όριο αποκλίνει από το ΚΑΕΚ πέρα από την αποδεκτή απόκλιση, προηγείται <b>ΔΓΜ διόρθωσης</b> (επίλεξε «Διόρθωση γεωμετρικών στοιχείων» παραπάνω).</li></ol></details>';
     return h + '</section>';
   }
@@ -6731,8 +6831,10 @@ root.CmdCheck = api;
     h += '<img class="dgm-svg" alt="Διάγραμμα γεωμετρικών μεταβολών" src="data:image/svg+xml;charset=utf-8,' + encodeURIComponent(d.svg) + '">';
     h += renderSheetPanel(d);
     h += '<div class="file-row"><button class="btn primary small" data-exp="dgm-dxf">DXF Κτηματολογίου (ΠΙΝΑΚΑΣ Α)</button><button class="btn small" data-exp="dgm-xlsx">Excel πινάκων</button><button class="btn small" data-exp="dgm-pdf">Αναφορά PDF</button><button class="btn small" data-exp="dgm-txt-all">TXT όλα (ΚΑΕΚ + τμήματα)</button><button class="btn small" data-exp="dgm-txt">TXT ανά τμήμα</button><button class="btn small" data-exp="dgm-svg">Εικόνα SVG</button><a class="btn small ghost" href="' + HEXIS.checkPage + '" target="_blank" rel="noopener" style="margin-left:auto">Check My DXF ↗</a></div>';
+    h += hashRow();
     return h + '</section>';
   }
+  function hashRow() { return '<div class="file-row"><button class="btn small" data-exp="dgm-dxf-pack">DXF + PDF hash (πακέτο υποβολής)</button><button class="btn small" data-act="hash-any">PDF hash για δικό σου DXF…</button><span style="color:var(--muted);font-size:12px">Η πλατφόρμα ζητά ZIP με το DXF και ένα ψηφιακά υπογεγραμμένο PDF που περιέχει το hash (SHA-512) του DXF. Αν ανοίξεις/αποθηκεύσεις το DXF στο CAD, ξαναϋπολόγισε το hash από το τελικό αρχείο.</span></div>'; }
   function sheetLayout(d, parcels) {
     var o = (d.rec.options || []).filter(function (x) { return x.scale === S.sheetScale && x.paper === S.sheetPaper; })[0];
     var cfg = (o && o.cfg) || { panelFrac: 0.55, textScale: 0.85 };
@@ -6949,6 +7051,39 @@ root.CmdCheck = api;
     var chk = dgmChecks(d);
     return '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">' + chk.map(function (c) { return '<span class="chip ' + (c.ok ? 'ok' : 'warn') + '">' + (c.ok ? '✓ ' : '! ') + esc(c.msg) + '</span>'; }).join('') + '</div>';
   }
+  // ---------- PDF με το hash του DXF (για ψηφιακή υπογραφή στην Ηλεκτρονική Υποβολή Διαγραμμάτων) ----------
+  async function digestHex(bytes, algo) { var buf = await crypto.subtle.digest(algo, bytes); return Array.prototype.map.call(new Uint8Array(buf), function (b) { return ('0' + b.toString(16)).slice(-2); }).join(''); }
+  async function hashPdf(bytes, fileName, note) {
+    if (!(bytes instanceof Uint8Array)) bytes = new Uint8Array(bytes);
+    var sha512 = await digestHex(bytes, 'SHA-512'), sha256 = await digestHex(bytes, 'SHA-256');
+    await loadScript(LIBS.pdfmake); await loadScript(LIBS.vfs);
+    var info = sheetInfo(), BLUE = '#1F4E9C', LIGHT = '#E8F0FB', now = new Date();
+    function chunk(h) { return h.toUpperCase().match(/.{1,64}/g).join('\n'); }
+    var content = [
+      { text: 'ΚΩΔΙΚΟΣ HASH ΨΗΦΙΑΚΟΥ ΑΡΧΕΙΟΥ ΔΙΑΓΡΑΜΜΑΤΟΣ (DXF)', style: 'h0' },
+      { text: 'Για την Ηλεκτρονική Υποβολή Διαγραμμάτων στο Ελληνικό Κτηματολόγιο — το παρόν υπογράφεται ψηφιακά από τον συντάκτη μηχανικό και συνοδεύει το αρχείο DXF μέσα στο ZIP υποβολής', style: 'sub' },
+      { table: { widths: [150, '*'], body: [[{ text: 'Όνομα αρχείου DXF', bold: true, color: BLUE }, { text: fileName, font: 'Roboto' }], [{ text: 'Μέγεθος', bold: true, color: BLUE }, bytes.length.toLocaleString('el-GR') + ' bytes'], [{ text: 'Ημερομηνία / ώρα υπολογισμού', bold: true, color: BLUE }, now.toLocaleDateString('el-GR') + ' ' + now.toLocaleTimeString('el-GR')], [{ text: 'Διάγραμμα', bold: true, color: BLUE }, note || '—'], [{ text: 'Μηχανικός', bold: true, color: BLUE }, info.eng || '—'], [{ text: 'Εργοδότης / θέση', bold: true, color: BLUE }, [info.client, info.place].filter(Boolean).join(' · ') || '—']] }, layout: { fillColor: function () { return LIGHT; }, hLineColor: function () { return '#ffffff'; }, vLineColor: function () { return '#ffffff'; }, hLineWidth: function () { return 2; }, vLineWidth: function () { return 2; } }, margin: [0, 8, 0, 14] },
+      { text: 'SHA-512', style: 'h1' },
+      { text: chunk(sha512), fontSize: 10.5, lineHeight: 1.35, margin: [0, 2, 0, 10], preserveLeadingSpaces: true, characterSpacing: 0.6 },
+      { text: 'SHA-256', style: 'h1' },
+      { text: chunk(sha256), fontSize: 10.5, lineHeight: 1.35, margin: [0, 2, 0, 16], characterSpacing: 0.6 },
+      { text: 'Δηλώνω ότι το αρχείο DXF με το παραπάνω αποτύπωμα (hash) είναι το ψηφιακό διανυσματικό αρχείο του διαγράμματος που υποβάλλω, ταυτόσημο με την εικόνα PDF του διαγράμματος που υποβάλλεται μαζί του.', fontSize: 9.5, lineHeight: 1.35 },
+      { columns: [{ text: '' }, { text: 'Ο συντάκτης μηχανικός\n\n\n\n' + (info.eng || '…………………………………') + '\n(ψηφιακή υπογραφή με χρονοσήμανση)', alignment: 'center', fontSize: 9.5, width: 240 }], margin: [0, 30, 0, 0] },
+      { text: 'Τρόπος επαλήθευσης: το SHA-512 του αρχείου DXF, όπως υπολογίζεται από οποιοδήποτε εργαλείο hash, πρέπει να ταυτίζεται με το παραπάνω. Οποιαδήποτε αλλαγή στο DXF (ακόμη και άνοιγμα και αποθήκευση από CAD) αλλάζει το hash και απαιτεί νέο PDF.', fontSize: 7.5, color: '#55607a', margin: [0, 24, 0, 0] }
+    ];
+    var dd = { pageSize: 'A4', pageMargins: [48, 54, 48, 54], defaultStyle: { font: 'Roboto', fontSize: 9.5, color: '#1f2a44' }, styles: { h0: { fontSize: 14, bold: true, color: BLUE, alignment: 'center' }, sub: { fontSize: 9, color: '#55607a', alignment: 'center', margin: [0, 4, 0, 4] }, h1: { fontSize: 11, bold: true, color: BLUE, margin: [0, 8, 0, 2] } },
+      footer: function (cur, total) { return { columns: [{ text: 'HEXIS GEOmetry · hash DXF · ' + fileName, fontSize: 7.5, color: '#8a93ad' }, { text: cur + ' / ' + total, alignment: 'right', fontSize: 7.5, color: '#8a93ad' }], margin: [48, 18, 48, 0] }; }, content: content };
+    return new Promise(function (resolve) { pdfMake.createPdf(dd).getBlob(function (blob) { var out = fileName.replace(/\.dxf$/i, '') + '_hash.pdf'; download(out, blob); resolve({ sha512: sha512, sha256: sha256, name: out }); }); });
+  }
+  document.addEventListener('click', function (ev) { var b = ev.target.closest('[data-act="hash-any"]'); if (b && !b.closest('#left')) { ev.stopPropagation(); hashAnyDxf(); } });
+  function hashAnyDxf() {
+    var inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.dxf,application/dxf';
+    inp.onchange = async function () {
+      var f = inp.files[0]; if (!f) return;
+      try { setBusy(true); var buf = await f.arrayBuffer(); var r = await hashPdf(new Uint8Array(buf), f.name, 'DXF χρήστη'); toast('Έτοιμο το PDF hash για το ' + f.name + ' — υπόγραψέ το ψηφιακά και βάλ\' το στο ZIP μαζί με το DXF.'); } catch (e) { toast('Αποτυχία υπολογισμού hash: ' + e.message, true); } finally { setBusy(false); }
+    };
+    inp.click();
+  }
   async function exportDgm(kind) {
     var d = S.dgm; if (!d || d.status !== 'ok') return;
     var base = baseName() + '_ΔΓΜ', parcels = dgmUsed(d);
@@ -7015,12 +7150,13 @@ root.CmdCheck = api;
       d.pieces.forEach(function (x, i) { var lines = x.ring.map(function (q, k) { return (d.num ? d.num.id(q) : (k + 1)) + ',' + q[0].toFixed(2) + ',' + q[1].toFixed(2); }); setTimeout(function () { download(base + '_' + x.id + '.txt', lines.join('\r\n') + '\r\n', 'text/plain;charset=utf-8'); }, i * 250); });
       toast('Έτοιμα ' + d.pieces.length + ' αρχεία TXT.'); return;
     }
-    if (kind === 'dgm-dxf') {
+    if (kind === 'dgm-dxf' || kind === 'dgm-dxf-pack') {
       var spec = dgmSpec(d, parcels);
       var cc = cmdCheckDgm(d, spec);
       var bytes = PdfGeom.encode1253(cc.text);
       var fname = dgmFileName(d) + '.dxf';
       download(fname, new Blob([bytes], { type: 'application/dxf' }));
+      if (kind === 'dgm-dxf-pack') { await new Promise(function (r) { setTimeout(r, 400); }); var note = 'Διάγραμμα Γεωμετρικών Μεταβολών' + (d.praxis ? ' ' + DgmPraxis.OPS[d.praxis].title : ' διόρθωσης ορίων') + ' · ΚΑΕΚ ' + (d.ownKaeks || [d.own]).join(', '); await hashPdf(bytes, fname, note); toast('Έτοιμα DXF + PDF hash. Υπόγραψε ψηφιακά το PDF και βάλε τα δύο σε ZIP για την υποβολή.'); }
       toast(cc.errors ? 'DXF έτοιμο, αλλά το Check My DXF βρήκε ' + cc.errors + ' σφάλμα(τα) — δες τη λίστα.' : 'Έτοιμο το DXF κατά ΠΙΝΑΚΑ Α · Check My DXF: χωρίς σφάλματα' + (cc.warnings ? ', ' + cc.warnings + ' επισημάνσεις.' : '.'), !!cc.errors);
       return;
     }
@@ -7162,6 +7298,7 @@ root.CmdCheck = api;
     afterEdit(t, refit);
   });
   left.addEventListener('change', function (ev) {
+    if (ev.target.id === 'kaekSource') { S.kaekSource = ev.target.value; store('hexis_kaek_source', S.kaekSource); S.kaek = null; S.dgm = null; findKaek(); }
     if (ev.target.id === 'kaekOnlyMain') { S.kaekOnlyMain = ev.target.checked; renderPlan(); if (S.map) drawMap(false); }
     if (ev.target.id === 'dgmOwn') { S.dgmOwn = ev.target.value; runDgm(); }
     if (ev.target.classList.contains('praxisSel')) { S.praxisOp = ev.target.value; S.sheetAuto = true; $$('.praxisSel').forEach(function (e) { e.value = S.praxisOp; }); if (S.dgm) runDgm(); }
@@ -7187,6 +7324,7 @@ root.CmdCheck = api;
     if (act === 'ai-run') return runAI();
     if (act === 'kaek-find') { S.kaek = null; return findKaek(); }
     if (act === 'dgm-run') return runDgm();
+    if (act === 'hash-any') return hashAnyDxf();
     if (act === 'dgm-apply-all') { S.dgmSkip = {}; return runDgm(); }
     if (act === 'dgm-apply-uo') { var dd = S.dgm, uo = zoneUo(); S.dgmSkip = {}; ((dd && dd.allPieces) || []).forEach(function (x) { if (x.kind !== 'common' && x.dev <= uo) S.dgmSkip[x.id] = true; }); return runDgm(); }
     if (act === 'praxis-copy') { var ta = $('#praxisDescr'); if (ta) { ta.select(); try { navigator.clipboard.writeText(ta.value).then(function () { toast('Αντιγράφηκε η περιγραφή.'); }, function () { document.execCommand('copy'); toast('Αντιγράφηκε η περιγραφή.'); }); } catch (e) { document.execCommand('copy'); } } return; }
