@@ -201,7 +201,7 @@ textarea.out{width:100%;height:120px;font:11px var(--f-mono);background:var(--pa
       <div id="tab-nodes" class="tw" hidden></div>
       <div id="tab-qty" class="tw" hidden></div>
       <div id="tab-report" hidden><div id="report"></div></div>
-      <div id="tab-dxf" hidden><p class="note">DXF R12 σε μέτρα. Layers: ΣΚΥΡΟΔΕΜΑ, ΟΠΛΙΣΜΟΣ, ΔΙΑΣΤΑΣΕΙΣ, ΚΕΙΜΕΝΟ, ΕΔΑΦΟΣ, ΑΠΟΣΤΡΑΓΓΙΣΗ, ΞΥΛΟΤΥΠΟΣ, ΟΡΙΖΟΝΤΙΟΓΡΑΦΙΑ, ΟΨΗ. Η οριζοντιογραφία εξάγεται στις συντεταγμένες της κάτοψης (ΕΓΣΑ'87 αν η κάτοψη είναι γεωαναφερμένη).</p><div class="bar"><button class="btn" id="btnCopyDxf">Αντιγραφή DXF</button><span class="note">Το αρχείο λήψης γράφεται σε κωδικοποίηση Windows‑1253 (ANSI_1253) με στυλ κειμένου Arial, ώστε τα ελληνικά να εμφανίζονται σωστά σε AutoCAD / ProgeCAD / ZWCAD. Η αντιγραφή κειμένου είναι για προεπισκόπηση — για CAD χρησιμοποιήστε τη λήψη.</span></div><textarea class="out" id="dxfout" readonly spellcheck="false"></textarea></div>
+      <div id="tab-dxf" hidden><p class="note">DXF R2000 σε μέτρα. Layers: SKYRODEMA, OPLISMOS, DIASTASEIS, KEIMENO, EDAFOS, APOSTRAGGISI, XYLOTYPOS, ORIZONTIOGRAFIA, OPSI. Η οριζοντιογραφία εξάγεται στις συντεταγμένες της κάτοψης (ΕΓΣΑ'87 αν η κάτοψη είναι γεωαναφερμένη).</p><div class="bar"><button class="btn" id="btnCopyDxf">Αντιγραφή DXF</button><span class="note">DXF R2000 (AC1015) σε καθαρό ASCII: τα ελληνικά γράφονται ως \\U+XXXX σε MTEXT με στυλ Arial, όπως στο Paper → DXF, ώστε να εμφανίζονται σωστά σε AutoCAD / ProgeCAD / ZWCAD. Η αντιγραφή κειμένου δίνει ακριβώς το ίδιο αρχείο.</span></div><textarea class="out" id="dxfout" readonly spellcheck="false"></textarea></div>
     </div>
     <p class="note">Παραδοχές: ενεργητική ώθηση Rankine σε κατακόρυφο νοητό επίπεδο στο άκρο του πέλματος, σεισμική ώθηση Mononobe‑Okabe (EN 1998‑5 Παρ. Ε, kh = α·S/r), προσέγγιση σχεδιασμού DA2 κατά Εθνικό Προσάρτημα EN 1997‑1, φέρουσα ικανότητα Παρ. D. Σχεδιασμός διατομών EN 1992‑1‑1, υλικά C/B500C κατά ΚΤΣ‑2016/ΚΤΧ‑2008, επικαλύψεις §4.4. Χωρίς υδροστατική πίεση, με προϋπόθεση το σύστημα αποστράγγισης του σχεδίου. Ο μελετητής ελέγχει και υπογράφει τα αποτελέσματα.</p>
     <p class="note"><b>Δήλωση:</b> εργαλείο για πολιτικούς μηχανικούς — παράγει εκτίμηση προδιαστασιολόγησης, όχι στατική ή γεωτεχνική μελέτη. Βλ. «Οδηγίες».</p>
@@ -1259,26 +1259,192 @@ function report(R){
 }
 function f3(x){return (Math.round(x*1000)/1000).toFixed(3);}
 
-/* ---- DXF R12 (ANSI_1253) — layers σε λατινικά, κείμενα σε Windows-1253 ώστε να διαβάζονται σωστά σε AutoCAD/ProgeCAD/ZWCAD ---- */
-var CP1253=(function(){ var m={}; for(var c=0x0391;c<=0x03A1;c++) m[c]=c-0x0391+0xC1; for(var c2=0x03A3;c2<=0x03CE;c2++) m[c2]=c2-0x03A3+0xD3;
-  m[0x0386]=0xA2; m[0x0388]=0xB8; m[0x0389]=0xB9; m[0x038A]=0xBA; m[0x038C]=0xBC; m[0x038E]=0xBE; m[0x038F]=0xBF; m[0x0390]=0xC0; m[0x03B0]=0xE0;
-  m[0x00B0]=0xB0; m[0x00B2]=0xB2; m[0x00B3]=0xB3; m[0x00B7]=0xB7; m[0x00AB]=0xAB; m[0x00BB]=0xBB; m[0x2019]=0xA2; m[0x00B1]=0xB1; m[0x00A7]=0xA7; m[0x2018]=0xA1; m[0x2013]=0x96; m[0x2014]=0x97; m[0x20AC]=0x80; m[0x00D8]=0xD8; return m; })();
-function encode1253(str){ var out=new Uint8Array(str.length), n=0; for(var i=0;i<str.length;i++){ var c=str.charCodeAt(i); if(c<0x80) out[n++]=c; else if(CP1253[c]!==undefined) out[n++]=CP1253[c]; else out[n++]=0x3F; } return out.subarray(0,n); }
+/* ---- DXF R2000 (AC1015), ASCII, ελληνικά ως \U+XXXX σε MTEXT με στυλ Arial — ο ίδιος writer με το HEXIS Paper→DXF (δοκιμασμένος σε AutoCAD/ProgeCAD/ZWCAD) ---- */
+var DXF2000 = (function () {
+  'use strict';
+  function num(v) { if (!isFinite(v)) v = 0; var s = (Math.round(v * 1e6) / 1e6).toFixed(6); s = s.replace(/0+$/, '').replace(/\.$/, ''); return s === '-0' ? '0' : s; }
+  function uesc(str) {
+    var out = [];
+    for (var ch of str) {
+      var c = ch.codePointAt(0);
+      if (ch === '\\') out.push('\\\\'); else if (ch === '{') out.push('\\{'); else if (ch === '}') out.push('\\}');
+      else if (c >= 32 && c < 127) out.push(ch);
+      else if (c < 32) out.push(' ');
+      else if (c <= 0xFFFF) out.push('\\U+' + ('000' + c.toString(16).toUpperCase()).slice(-4));
+      else out.push('?');
+    }
+    return out; // tokens (never split inside an escape)
+  }
+  function plain(str) { return uesc(str).join(''); }
+
+  function write(doc) {
+    // doc: {units:'m'|'cm'|'mm', layers:[{name,color,lw}], polys:[{pts,closed,layer}], arcs:[{cx,cy,r,a0,a1,layer}], circles:[...], texts:[{x,y,h,dx,dy,str,layer,wf}], font:'Arial'}
+    var H = 0x30, L = [];
+    function h() { return (H++).toString(16).toUpperCase(); }
+    function g(c, v) { L.push(String(c)); L.push(String(v)); }
+    var ext = [1e18, 1e18, -1e18, -1e18];
+    function grow(x, y) { if (x < ext[0]) ext[0] = x; if (y < ext[1]) ext[1] = y; if (x > ext[2]) ext[2] = x; if (y > ext[3]) ext[3] = y; }
+    doc.polys.forEach(function (p) { p.pts.forEach(function (q) { grow(q[0], q[1]); }); });
+    doc.arcs.forEach(function (a) { grow(a.cx - a.r, a.cy - a.r); grow(a.cx + a.r, a.cy + a.r); });
+    doc.circles.forEach(function (a) { grow(a.cx - a.r, a.cy - a.r); grow(a.cx + a.r, a.cy + a.r); });
+    doc.texts.forEach(function (t) { grow(t.x, t.y); });
+    if (ext[0] > ext[2]) ext = [0, 0, 10, 10];
+
+    // handles
+    var hBR = h(), hLY = h(), hST = h(), hLT = h(), hVW = h(), hUC = h(), hVP = h(), hAP = h(), hDS = h();
+    var hMS = h(), hPS = h(), hBMS = h(), hEMS = h(), hBPS = h(), hEPS = h();
+    var hD0 = h(), hDG = h(), hDP = h(), hPH = h();
+    var hLBB = h(), hLBL = h(), hLC = h(), hVPA = h(), hAPP = h(), hDSS = h(), hSTD = h(), hSTA = h();
+    var hL0 = h(), layerH = doc.layers.map(function () { return h(); });
+
+    var B = []; // entities buffer written later (handles allocated now)
+    var EL = L; L = [];
+    function entHead(type, layer) { g(0, type); g(5, h()); g(330, hMS); g(100, 'AcDbEntity'); g(8, layer); }
+    doc.polys.forEach(function (p) {
+      var P = p.pts;
+      if (P.length === 2 && !p.closed) {
+        entHead('LINE', p.layer); g(100, 'AcDbLine'); if (p.thick) g(39, num(p.thick));
+        g(10, num(P[0][0])); g(20, num(P[0][1])); g(30, num(p.z || 0)); g(11, num(P[1][0])); g(21, num(P[1][1])); g(31, num(p.z || 0));
+      } else {
+        entHead('LWPOLYLINE', p.layer); g(100, 'AcDbPolyline'); g(90, P.length); g(70, p.closed ? 1 : 0); g(43, 0); if (p.z) g(38, num(p.z)); if (p.thick) g(39, num(p.thick));
+        P.forEach(function (q) { g(10, num(q[0])); g(20, num(q[1])); });
+      }
+    });
+    (doc.faces || []).forEach(function (f) {
+      entHead('3DFACE', f.layer); g(100, 'AcDbFace');
+      g(10, num(f.p[0][0])); g(20, num(f.p[0][1])); g(30, num(f.p[0][2])); g(11, num(f.p[1][0])); g(21, num(f.p[1][1])); g(31, num(f.p[1][2]));
+      g(12, num(f.p[2][0])); g(22, num(f.p[2][1])); g(32, num(f.p[2][2])); g(13, num(f.p[2][0])); g(23, num(f.p[2][1])); g(33, num(f.p[2][2])); g(70, 0);
+    });
+    doc.circles.forEach(function (c) { entHead('CIRCLE', c.layer); g(100, 'AcDbCircle'); g(10, num(c.cx)); g(20, num(c.cy)); g(30, 0); g(40, num(c.r)); });
+    doc.arcs.forEach(function (a) { entHead('ARC', a.layer); g(100, 'AcDbCircle'); g(10, num(a.cx)); g(20, num(a.cy)); g(30, 0); g(40, num(a.r)); g(100, 'AcDbArc'); g(50, num(a.a0)); g(51, num(a.a1)); });
+    doc.texts.forEach(function (t) {
+      entHead('MTEXT', t.layer); g(100, 'AcDbMText');
+      g(10, num(t.x)); g(20, num(t.y)); g(30, 0); g(40, num(t.h)); g(41, 0); g(71, 7); g(72, 1);
+      var toks = uesc(t.str);
+      if (t.wf && Math.abs(t.wf - 1) > 0.04) toks.unshift('\\W' + num(Math.round(t.wf * 100) / 100) + ';');
+      var chunks = [], cur = '';
+      toks.forEach(function (tk) { if (cur.length + tk.length > 250) { chunks.push(cur); cur = ''; } cur += tk; });
+      for (var i = 0; i < chunks.length; i++) g(3, chunks[i]);
+      g(1, cur);
+      g(7, 'ARIAL'); g(11, num(t.dx)); g(21, num(t.dy)); g(31, 0);
+    });
+    B = L; L = EL;
+
+    var seed = (H + 1).toString(16).toUpperCase();
+    var U = { m: 6, cm: 5, mm: 4 }[doc.units] || 6;
+    // HEADER
+    g(0, 'SECTION'); g(2, 'HEADER');
+    g(9, '$ACADVER'); g(1, 'AC1015');
+    g(9, '$DWGCODEPAGE'); g(3, 'ANSI_1253');
+    g(9, '$INSBASE'); g(10, 0); g(20, 0); g(30, 0);
+    g(9, '$EXTMIN'); g(10, num(ext[0])); g(20, num(ext[1])); g(30, 0);
+    g(9, '$EXTMAX'); g(10, num(ext[2])); g(20, num(ext[3])); g(30, 0);
+    g(9, '$LIMMIN'); g(10, num(ext[0])); g(20, num(ext[1]));
+    g(9, '$LIMMAX'); g(10, num(ext[2])); g(20, num(ext[3]));
+    g(9, '$TEXTSTYLE'); g(7, 'ARIAL');
+    g(9, '$CLAYER'); g(8, '0');
+    g(9, '$INSUNITS'); g(70, U);
+    g(9, '$MEASUREMENT'); g(70, 1);
+    g(9, '$LUNITS'); g(70, 2);
+    g(9, '$LUPREC'); g(70, U === 6 ? 3 : U === 5 ? 1 : 0);
+    g(9, '$LWDISPLAY'); g(290, 1);
+    g(9, '$HANDSEED'); g(5, seed);
+    g(0, 'ENDSEC');
+    // CLASSES
+    g(0, 'SECTION'); g(2, 'CLASSES');
+    g(0, 'CLASS'); g(1, 'ACDBDICTIONARYWDFLT'); g(2, 'AcDbDictionaryWithDefault'); g(3, 'ObjectDBX Classes'); g(90, 0); g(280, 0); g(281, 0);
+    g(0, 'CLASS'); g(1, 'ACDBPLACEHOLDER'); g(2, 'AcDbPlaceHolder'); g(3, 'ObjectDBX Classes'); g(90, 0); g(280, 0); g(281, 0);
+    g(0, 'ENDSEC');
+    // TABLES
+    g(0, 'SECTION'); g(2, 'TABLES');
+    function tbl(name, hh, n) { g(0, 'TABLE'); g(2, name); g(5, hh); g(330, 0); g(100, 'AcDbSymbolTable'); g(70, n); }
+    // VPORT
+    var cx = (ext[0] + ext[2]) / 2, cy = (ext[1] + ext[3]) / 2, vh = Math.max(ext[3] - ext[1], (ext[2] - ext[0]) / 1.6) * 1.1 || 10;
+    tbl('VPORT', hVP, 1);
+    g(0, 'VPORT'); g(5, hVPA); g(330, hVP); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbViewportTableRecord'); g(2, '*ACTIVE'); g(70, 0);
+    g(10, 0); g(20, 0); g(11, 1); g(21, 1); g(12, num(cx)); g(22, num(cy)); g(13, 0); g(23, 0); g(14, 1); g(24, 1); g(15, 1); g(25, 1);
+    g(16, 0); g(26, 0); g(36, 1); g(17, 0); g(27, 0); g(37, 0); g(40, num(vh)); g(41, 1.6); g(42, 50); g(43, 0); g(44, 0); g(50, 0); g(51, 0);
+    g(71, 0); g(72, 100); g(73, 1); g(74, 3); g(75, 0); g(76, 0); g(77, 0); g(78, 0);
+    g(0, 'ENDTAB');
+    // LTYPE
+    tbl('LTYPE', hLT, 5);
+    [['ByBlock', hLBB], ['ByLayer', hLBL], ['Continuous', hLC]].forEach(function (lt) {
+      g(0, 'LTYPE'); g(5, lt[1]); g(330, hLT); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbLinetypeTableRecord'); g(2, lt[0]); g(70, 0);
+      g(3, lt[0] === 'Continuous' ? 'Solid line' : ''); g(72, 65); g(73, 0); g(40, 0);
+    });
+    var lu = { m: 1, cm: 100, mm: 1000 }[doc.units] || 1, dl = 0.5 * lu, gp = 0.25 * lu, dt = 0;
+    [['DASHDOT', '__ . __ . __ . __', [dl, -gp, dt, -gp]], ['DASHED', '__ __ __ __ __', [dl, -gp]]].forEach(function (lt) {
+      var tot = 0; lt[2].forEach(function (v) { tot += Math.abs(v); });
+      g(0, 'LTYPE'); g(5, h()); g(330, hLT); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbLinetypeTableRecord'); g(2, lt[0]); g(70, 0);
+      g(3, lt[1]); g(72, 65); g(73, lt[2].length); g(40, num(tot));
+      lt[2].forEach(function (v) { g(49, num(v)); g(74, 0); });
+    });
+    g(0, 'ENDTAB');
+    // LAYER
+    tbl('LAYER', hLY, doc.layers.length + 1);
+    function layer(hh, name, color, lw, ltype) {
+      g(0, 'LAYER'); g(5, hh); g(330, hLY); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbLayerTableRecord'); g(2, name); g(70, 0); g(62, color || 7); g(6, ltype || 'Continuous'); g(370, lw == null ? -3 : lw); g(390, hPH);
+    }
+    layer(hL0, '0', 7, -3);
+    doc.layers.forEach(function (ly, i) { layer(layerH[i], ly.name, ly.color, ly.lw, ly.ltype); });
+    g(0, 'ENDTAB');
+    // STYLE
+    tbl('STYLE', hST, 2);
+    [['Standard', hSTD], ['ARIAL', hSTA]].forEach(function (s) {
+      g(0, 'STYLE'); g(5, s[1]); g(330, hST); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbTextStyleTableRecord'); g(2, s[0]); g(70, 0);
+      g(40, 0); g(41, 1); g(50, 0); g(71, 0); g(42, 0.25); g(3, 'arial.ttf'); g(4, '');
+    });
+    g(0, 'ENDTAB');
+    tbl('VIEW', hVW, 0); g(0, 'ENDTAB');
+    tbl('UCS', hUC, 0); g(0, 'ENDTAB');
+    tbl('APPID', hAP, 1);
+    g(0, 'APPID'); g(5, hAPP); g(330, hAP); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbRegAppTableRecord'); g(2, 'ACAD'); g(70, 0);
+    g(0, 'ENDTAB');
+    g(0, 'TABLE'); g(2, 'DIMSTYLE'); g(5, hDS); g(330, 0); g(100, 'AcDbSymbolTable'); g(70, 1); g(100, 'AcDbDimStyleTable'); g(71, 0);
+    g(0, 'DIMSTYLE'); g(105, hDSS); g(330, hDS); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbDimStyleTableRecord'); g(2, 'Standard'); g(70, 0);
+    g(0, 'ENDTAB');
+    tbl('BLOCK_RECORD', hBR, 2);
+    g(0, 'BLOCK_RECORD'); g(5, hMS); g(330, hBR); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbBlockTableRecord'); g(2, '*Model_Space');
+    g(0, 'BLOCK_RECORD'); g(5, hPS); g(330, hBR); g(100, 'AcDbSymbolTableRecord'); g(100, 'AcDbBlockTableRecord'); g(2, '*Paper_Space');
+    g(0, 'ENDTAB');
+    g(0, 'ENDSEC');
+    // BLOCKS
+    g(0, 'SECTION'); g(2, 'BLOCKS');
+    g(0, 'BLOCK'); g(5, hBMS); g(330, hMS); g(100, 'AcDbEntity'); g(8, '0'); g(100, 'AcDbBlockBegin'); g(2, '*Model_Space'); g(70, 0); g(10, 0); g(20, 0); g(30, 0); g(3, '*Model_Space'); g(1, '');
+    g(0, 'ENDBLK'); g(5, hEMS); g(330, hMS); g(100, 'AcDbEntity'); g(8, '0'); g(100, 'AcDbBlockEnd');
+    g(0, 'BLOCK'); g(5, hBPS); g(330, hPS); g(100, 'AcDbEntity'); g(67, 1); g(8, '0'); g(100, 'AcDbBlockBegin'); g(2, '*Paper_Space'); g(70, 0); g(10, 0); g(20, 0); g(30, 0); g(3, '*Paper_Space'); g(1, '');
+    g(0, 'ENDBLK'); g(5, hEPS); g(330, hPS); g(100, 'AcDbEntity'); g(67, 1); g(8, '0'); g(100, 'AcDbBlockEnd');
+    g(0, 'ENDSEC');
+    // ENTITIES
+    g(0, 'SECTION'); g(2, 'ENTITIES');
+    var head = L.join('\r\n'); L = [];
+    g(0, 'ENDSEC');
+    // OBJECTS
+    g(0, 'SECTION'); g(2, 'OBJECTS');
+    g(0, 'DICTIONARY'); g(5, hD0); g(330, 0); g(100, 'AcDbDictionary'); g(281, 1); g(3, 'ACAD_GROUP'); g(350, hDG); g(3, 'ACAD_PLOTSTYLENAME'); g(350, hDP);
+    g(0, 'DICTIONARY'); g(5, hDG); g(330, hD0); g(100, 'AcDbDictionary'); g(281, 1);
+    g(0, 'ACDBDICTIONARYWDFLT'); g(5, hDP); g(102, '{ACAD_REACTORS'); g(330, hD0); g(102, '}'); g(330, hD0); g(100, 'AcDbDictionary'); g(281, 1); g(3, 'Normal'); g(350, hPH); g(100, 'AcDbDictionaryWithDefault'); g(340, hPH);
+    g(0, 'ACDBPLACEHOLDER'); g(5, hPH); g(102, '{ACAD_REACTORS'); g(330, hDP); g(102, '}'); g(330, hDP);
+    g(0, 'ENDSEC');
+    g(0, 'EOF');
+    return head + '\r\n' + (B.length ? B.join('\r\n') + '\r\n' : '') + L.join('\r\n') + '\r\n';
+  }
+  return { write: write, plain: plain };
+})();
 var GR2L={'Α':'A','Β':'V','Γ':'G','Δ':'D','Ε':'E','Ζ':'Z','Η':'I','Θ':'TH','Ι':'I','Κ':'K','Λ':'L','Μ':'M','Ν':'N','Ξ':'X','Ο':'O','Π':'P','Ρ':'R','Σ':'S','Τ':'T','Υ':'Y','Φ':'F','Χ':'CH','Ψ':'PS','Ω':'O'};
 function layerSafe(name){ var s=String(name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[Α-Ω]/g,function(c){return GR2L[c]||'';}); return s.replace(/[^A-Z0-9_$-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,31)||'0'; }
-function dxfTxt(s){ return String(s).replace(/Ø/g,'%%c').replace(/°/g,'%%d').replace(/±/g,'%%p').replace(/≥/g,'>=').replace(/≤/g,'<=').replace(/→/g,'->').replace(/·/g,'-').replace(/′/g,"'").replace(/[\u2032\u2033]/g,"'").replace(/[\u2011\u2012\u2013\u2212]/g,'-'); }
-function DXFW(){ this.e=[]; }
-DXFW.prototype.line=function(L,a,b){ L=layerSafe(L); this.e.push('0\nLINE\n8\n'+L+'\n10\n'+f3(a[0])+'\n20\n'+f3(a[1])+'\n30\n0\n11\n'+f3(b[0])+'\n21\n'+f3(b[1])+'\n31\n0'); };
-DXFW.prototype.pl=function(L,pts,closed){ L=layerSafe(L); var s='0\nPOLYLINE\n8\n'+L+'\n66\n1\n70\n'+(closed?1:0); pts.forEach(function(p){ s+='\n0\nVERTEX\n8\n'+L+'\n10\n'+f3(p[0])+'\n20\n'+f3(p[1])+'\n30\n0'; }); this.e.push(s+'\n0\nSEQEND\n8\n'+L); };
-DXFW.prototype.circ=function(L,c,r){ L=layerSafe(L); this.e.push('0\nCIRCLE\n8\n'+L+'\n10\n'+f3(c[0])+'\n20\n'+f3(c[1])+'\n30\n0\n40\n'+f3(r)); };
-DXFW.prototype.text=function(L,p,h,s,rot){ L=layerSafe(L); this.e.push('0\nTEXT\n8\n'+L+'\n10\n'+f3(p[0])+'\n20\n'+f3(p[1])+'\n30\n0\n40\n'+f3(h)+'\n7\nHEXIS\n1\n'+dxfTxt(s)+(rot?'\n50\n'+f1(rot):'')); };
-DXFW.prototype.dimH=function(x0,x1,y,txt,off){ var L='ΔΙΑΣΤΑΣΕΙΣ', yy=y+off; this.line(L,[x0,y],[x0,yy+(off<0?-0.05:0.05)]); this.line(L,[x1,y],[x1,yy+(off<0?-0.05:0.05)]); this.line(L,[x0,yy],[x1,yy]); this.text(L,[(x0+x1)/2-0.08*txt.length,yy+0.03],0.08,txt); };
-DXFW.prototype.dimV=function(y0,y1,x,txt,off){ var L='ΔΙΑΣΤΑΣΕΙΣ', xx=x+off; this.line(L,[x,y0],[xx+(off<0?-0.05:0.05),y0]); this.line(L,[x,y1],[xx+(off<0?-0.05:0.05),y1]); this.line(L,[xx,y0],[xx,y1]); this.text(L,[xx-0.03,(y0+y1)/2-0.08*txt.length/2],0.08,txt,90); };
-DXFW.prototype.out=function(){
-  var lay={}; this.e.forEach(function(en){ var m=en.match(/\n8\n([^\n]+)/g); if(m) m.forEach(function(x){ lay[x.slice(3)]=1; }); });
-  var names=Object.keys(lay), tbl='0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n70\n'+names.length+'\n'+names.map(function(n,i){ return '0\nLAYER\n2\n'+n+'\n70\n0\n62\n'+[7,1,2,3,4,5,6,8,9][i%9]+'\n6\nCONTINUOUS'; }).join('\n')+'\n0\nENDTAB\n0\nTABLE\n2\nSTYLE\n70\n1\n0\nSTYLE\n2\nHEXIS\n70\n0\n40\n0\n41\n1\n50\n0\n71\n0\n42\n0.2\n3\narial.ttf\n4\n\n0\nENDTAB\n0\nENDSEC\n';
-  return '0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1009\n9\n$DWGCODEPAGE\n3\nANSI_1253\n9\n$INSUNITS\n70\n6\n9\n$TEXTSTYLE\n7\nHEXIS\n0\nENDSEC\n'+tbl+'0\nSECTION\n2\nENTITIES\n'+this.e.join('\n')+'\n0\nENDSEC\n0\nEOF\n'; };
-
+var LAYER_COLOR={SKYRODEMA:7,OPLISMOS:1,DIASTASEIS:8,KEIMENO:7,EDAFOS:3,APOSTRAGGISI:4,XYLOTYPOS:2,ORIZONTIOGRAFIA:6,OPSI:5};
+function dxfTxt(s){ return String(s).replace(/≥/g,'>=').replace(/≤/g,'<=').replace(/→/g,'->').replace(/[\u2011\u2012\u2013\u2212]/g,'-'); }
+function DXFW(){ this.polys=[]; this.circles=[]; this.texts=[]; this.lay={}; }
+DXFW.prototype.L=function(L){ L=layerSafe(L); this.lay[L]=1; return L; };
+DXFW.prototype.line=function(L,a,b){ this.polys.push({pts:[a,b],closed:false,layer:this.L(L)}); };
+DXFW.prototype.pl=function(L,pts,closed){ this.polys.push({pts:pts,closed:!!closed,layer:this.L(L)}); };
+DXFW.prototype.circ=function(L,c,r){ this.circles.push({cx:c[0],cy:c[1],r:r,layer:this.L(L)}); };
+DXFW.prototype.text=function(L,p,h,s,rot){ var a=(rot||0)*D2R; this.texts.push({x:p[0],y:p[1],h:h,str:dxfTxt(s),layer:this.L(L),dx:Math.cos(a),dy:Math.sin(a)}); };
+DXFW.prototype.dimH=function(x0,x1,y,txt,off){ var L='ΔΙΑΣΤΑΣΕΙΣ', yy=y+off; this.line(L,[x0,y],[x0,yy+(off<0?-0.05:0.05)]); this.line(L,[x1,y],[x1,yy+(off<0?-0.05:0.05)]); this.line(L,[x0,yy],[x1,yy]); this.text(L,[(x0+x1)/2-0.08*txt.length*0.45,yy+0.03],0.08,txt); };
+DXFW.prototype.dimV=function(y0,y1,x,txt,off){ var L='ΔΙΑΣΤΑΣΕΙΣ', xx=x+off; this.line(L,[x,y0],[xx+(off<0?-0.05:0.05),y0]); this.line(L,[x,y1],[xx+(off<0?-0.05:0.05),y1]); this.line(L,[xx,y0],[xx,y1]); this.text(L,[xx-0.03,(y0+y1)/2-0.08*txt.length*0.45],0.08,txt,90); };
+DXFW.prototype.out=function(){ var layers=Object.keys(this.lay).map(function(n){ return {name:n,color:LAYER_COLOR[n]||7,lw:-3}; });
+  return DXF2000.write({units:'m',layers:layers,polys:this.polys,arcs:[],circles:this.circles,texts:this.texts}); };
 function buildDXF(R){
   var g=R.geo, B=R.B, Hw=g.hf+g.Hs, st=R.ST, w=new DXFW(), beta=V.beta*D2R;
   function section(ox,oy,title,withSoil,withRebar,withDrain,withDims){
@@ -1331,7 +1497,7 @@ function buildDXF(R){
     NODES.forEach(function(n,i){ w.text('ΚΕΙΜΕΝΟ',[n.x+0.3,n.y+0.3],0.25,'K'+(i+1)+' '+f2(n.zTop)+'/'+f2(n.zFound)); }); }
   return w.out();
 }
-function downloadText(name,text){ try{ var b=new Blob([encode1253(text)],{type:'application/dxf'}), u=URL.createObjectURL(b), a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},500); }catch(e){} }
+function downloadText(name,text){ try{ var b=new Blob([text],{type:'application/dxf'}), u=URL.createObjectURL(b), a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},500); }catch(e){} }
 
 /* ---- Εκκίνηση ---- */
 function setTheme(t){ document.documentElement.setAttribute('data-theme',t); var b=document.getElementById('btnTheme'); if(b) b.textContent= t==='light'?'☾ Σκούρο φόντο':'☀ Ανοιχτό φόντο'; try{ localStorage.setItem('hexis_toixos_theme',t); }catch(e){} }
