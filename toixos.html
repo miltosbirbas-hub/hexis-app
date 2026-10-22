@@ -267,6 +267,7 @@ var FIELDS = [
   ['acc','αcc (Εθν. Προσάρτημα: 1,0)','',1.0,0.8,1,0.05],
   ['gc','γc','',1.5,1.2,1.6,0.05],
   ['gs','γs','',1.15,1,1.2,0.05],
+  ['mesh','Εφαρμογή τσερκοπλέγματος #Φ10/10 όπου επαρκεί','chk',0],
   ['dpref','Προτίμηση Ø κύριου οπλισμού','sel',{'Αυτόματα':0,'Ø12':12,'Ø14':14,'Ø16':16,'Ø18':18,'Ø20':20,'Ø25':25},'Αυτόματα'],
  ]},
  {g:'Συντελεστές EN 1997‑1 (DA2)', items:[
@@ -328,6 +329,9 @@ function setV(id,val){ V[id]=val; var el=document.getElementById(id); if(el){ if
 
 /* =============================== ΥΠΟΛΟΓΙΣΤΙΚΟΣ ΠΥΡΗΝΑΣ =============================== */
 var D2R=Math.PI/180, GC=25;
+function scm(s){ var c=s/10; return (Math.round(c*10)/10).toString().replace('.',','); }
+function bl(dia,s,grid){ return (grid?'#':'')+'Φ'+dia+'/'+scm(s); } // σήμανση: Φ12/15 (εκατοστά), # για σχάρα/πλέγμα
+var MESH={dia:10,s:100,As:785.4,kgm2:12.34}; // τσερκόπλεγμα #Φ10/10
 function rankineKa(phi,beta){ var cb=Math.cos(beta), rt=Math.sqrt(Math.max(cb*cb-Math.cos(phi)*Math.cos(phi),0)); return cb*(cb-rt)/(cb+rt); }
 function moKae(phi,delta,beta,theta){ // Mononobe-Okabe, ψ=0 (κατακόρυφη παρειά)
   if(phi-beta-theta<0) return null;
@@ -486,11 +490,11 @@ function structural(v,R){
   stem.M=Ms; stem.V=Vs; stem.caseS=caseS; heel.M=Math.abs(sf.Mh); heel.V=Math.abs(sf.Vh); heel.sag=sf.Mh<0; heel.caseS=caseF; toe.M=Math.abs(sf.Mt); toe.V=Math.abs(sf.Vt); toe.caseS=caseF;
   // Δευτερεύοντες / ελάχιστοι
   var tavg=(g.tt+g.tb)/2*1000;
-  var AsFront=Math.max(0.001*tavg*1000/1000,0.0013*(g.tt*1000-v.cs-6)); // mm²/m, EN1992 9.6.2 (0.002Ac ÷ 2 παρειές)
+  var AsFront=Math.max(0.001*tavg*1000,314); // mm²/m, EN1992 9.6.2 (0.002Ac ÷ 2 παρειές), ελάχ. Φ10/25
   var AsHor=Math.max(0.25*stem.Asprov,0.001*tavg); // 9.6.3
-  var AsDistF=Math.max(0.2*Math.max(heel.Asprov,toe.Asprov),0.0013*(g.hf*1000-v.cfo-6)); // 9.3.1.1(2)
-  var front=pick(AsFront,Math.min(3*g.tt*1000,400),[10,12,14],0), hor=pick(AsHor,Math.min(3*tavg,400),[8,10,12],0), distF=pick(AsDistF,Math.min(3*g.hf*1000,400),[10,12,14],0);
-  var botMin=pick(0.0013*(g.hf*1000-v.cfo-6),Math.min(3*g.hf*1000,400),[12,14],0);
+  var AsDistF=Math.max(0.2*Math.max(heel.Asprov,toe.Asprov),314); // 9.3.1.1(2): ≥ 20 % κύριου, ελάχ. Φ10/25
+  var front=pick(AsFront,Math.min(3*g.tt*1000,400),[10,12,14],0), hor=pick(AsHor,Math.min(3*tavg,400),[10,12],0), distF=pick(AsDistF,Math.min(3*g.hf*1000,400),[10,12,14],0);
+  var AsBotMin=Math.max(0.2*heel.Asprov,314), botMin=pick(AsBotMin,Math.min(3*g.hf*1000,400),[10,12,14],0);
   // Αγκυρώσεις
   function lbd(d,sig){ var lb=d/4*sig/mat.fbd; return Math.max(lb,10*d,100)/1000; }
   stem.lbd=lbd(stem.dia,mat.fyd*stem.Asreq/stem.Asprov); heel.lbd=lbd(heel.dia,mat.fyd*heel.Asreq/heel.Asprov); toe.lbd=lbd(toe.dia,mat.fyd*toe.Asreq/toe.Asprov);
@@ -503,12 +507,21 @@ function structural(v,R){
   bars.push({pos:'3',name:'Κορμός · οριζόντιος διανομής (2 παρειές)',dia:hor.dia,s:hor.s,Asreq:AsHor,Asprov:hor.As,L:1.0,shape:'ευθύγραμμος, ×2 παρειές',per:2,n:Math.round((Hs2-cs)/(hor.s/1000))});
   bars.push({pos:'4',name:'Πέλμα (heel) · '+(heel.sag?'κάτω':'άνω')+' κύριος',dia:heel.dia,s:heel.s,Asreq:heel.Asreq,Asprov:heel.Asprov,L:B-2*cf,shape:'ευθύγραμμος (όλο το πλάτος)',face:heel.sag?'bot':'top'});
   bars.push({pos:'5',name:'Πρόβολος (toe) · κάτω κύριος',dia:toe.dia,s:toe.s,Asreq:toe.Asreq,Asprov:toe.Asprov,L:Math.min(g.Bt+g.tb+toe.lbd,B-2*cf),shape:'ευθύγραμμος (έως πίσω από κορμό)',face:'bot'});
-  bars.push({pos:'6',name:'Πέδιλο · κάτω ελάχιστος (heel)',dia:botMin.dia,s:botMin.s,Asreq:0.0013*(hf*1000-v.cfo-6),Asprov:botMin.As,L:g.Bh+g.tb-cf,shape:'ευθύγραμμος',face:'bot2'});
+  bars.push({pos:'6',name:'Πέδιλο · κάτω ελάχιστος (heel)',dia:botMin.dia,s:botMin.s,Asreq:AsBotMin,Asprov:botMin.As,L:g.Bh+g.tb-cf,shape:'ευθύγραμμος',face:'bot2'});
   bars.push({pos:'7',name:'Πέδιλο · διανομής άνω & κάτω',dia:distF.dia,s:distF.s,Asreq:AsDistF,Asprov:distF.As,L:1.0,shape:'ευθύγραμμος, ×2 στρώσεις',per:2,n:Math.round((B-2*cf)/(distF.s/1000))});
   if(key){ bars.push({pos:'8',name:'Ποδαρικό · κατακόρυφος U (2 παρειές)',dia:key.dia,s:key.s,Asreq:key.Asreq,Asprov:key.Asprov,L:2*(g.key.hk-cf+0.5)+g.key.bk-2*cf,shape:'U (σκέλη '+f2(g.key.hk-cf+0.5)+' m, αγκύρωση στο πέδιλο)',face:'key'}); }
-  var kg=0; bars.forEach(function(b){ var nPerM=b.n!==undefined? b.n : 1000/b.s; b.kgm=nPerM*b.L*0.006165*b.dia*b.dia; kg+=b.kgm; });
+  var meshNote=[], meshOk=[]; if(AsFront<=MESH.As && AsHor<=MESH.As) meshOk.push('εμπρός παρειά κορμού'); if(!heel.sag && heel.Asreq<=MESH.As) meshOk.push('άνω στρώση πέδιλου'); if(toe.Asreq<=MESH.As) meshOk.push('κάτω στρώση πέδιλου');
+  if(v.mesh){ var cs2=cs, mrd=function(As,d){ var x=As*mat.fyd/(0.8*1000*mat.fcd); return As*mat.fyd*(d-0.4*x)/1e6; };
+    if(AsFront<=MESH.As && AsHor<=MESH.As){ front={dia:10,s:100,As:MESH.As}; bars[1]={pos:'2',name:'Κορμός · εμπρός παρειά · τσερκόπλεγμα (2 διευθύνσεις)',dia:10,s:100,grid:true,mesh:true,Asreq:Math.max(AsFront,AsHor),Asprov:MESH.As,L:Hs2+hf-cs2-cf+0.30,shape:'πλέγμα, κάμψη ποδιού 0,30 m στο πέδιλο',area:Hs2+hf-cs2-cf+0.30}; bars[2].name='Κορμός · οριζόντιος πίσω παρειάς'; bars[2].per=1; bars[2].shape='ευθύγραμμος, πίσω παρειά'; meshNote.push('εμπρός παρειά κορμού'); }
+    if(!heel.sag && heel.Asreq<=MESH.As && AsDistF<=MESH.As){ heel.Asprov=MESH.As; heel.dia=10; heel.s=100; heel.MRd=mrd(MESH.As,heel.d); bars[3]={pos:'4',name:'Πέδιλο · άνω στρώση · τσερκόπλεγμα (2 διευθύνσεις)',dia:10,s:100,grid:true,mesh:true,Asreq:Math.max(heel.Asreq,AsDistF),Asprov:MESH.As,L:B-2*cf,shape:'πλέγμα σε όλο το πλάτος',area:B-2*cf}; bars[6].per=1; bars[6].name='Πέδιλο · διανομής κάτω'; bars[6].shape='ευθύγραμμος'; meshNote.push('άνω στρώση πέδιλου'); }
+    if(toe.Asreq<=MESH.As && (heel.sag?heel.Asreq:0)<=MESH.As){ toe.Asprov=MESH.As; toe.dia=10; toe.s=100; toe.MRd=mrd(MESH.As,toe.d); if(heel.sag){ heel.Asprov=MESH.As; heel.dia=10; heel.s=100; heel.MRd=mrd(MESH.As,heel.d); }
+      bars[4]={pos:'5',name:'Πέδιλο · κάτω στρώση · τσερκόπλεγμα (2 διευθύνσεις)',dia:10,s:100,grid:true,mesh:true,Asreq:Math.max(toe.Asreq,heel.sag?heel.Asreq:0,AsDistF),Asprov:MESH.As,L:B-2*cf,shape:'πλέγμα σε όλο το πλάτος',area:B-2*cf}; bars[5]=null; if(bars[3].mesh) bars[6]=null; else { bars[6].per=1; bars[6].name='Πέδιλο · διανομής άνω'; bars[6].shape='ευθύγραμμος'; } meshNote.push('κάτω στρώση πέδιλου'); }
+    bars=bars.filter(function(b){return b;}); }
+  bars.forEach(function(b){ b.grid = b.grid || (b.pos==='3'&&b.per===2) || b.pos==='7'; b.lab=bl(b.dia,b.s,b.grid)+(b.mesh?' πλέγμα':''); });
+  var kg=0; bars.forEach(function(b){ if(b.mesh){ b.kgm=MESH.kgm2*b.area; } else { var nPerM=(b.n!==undefined? b.n : 1000/b.s)*(b.per||1); b.kgm=nPerM*b.L*0.006165*b.dia*b.dia; } kg+=b.kgm; });
+  if(v.mesh && bars.some(function(b){return b.mesh&&b.pos!=='2';})) distF={dia:10,s:100,As:MESH.As};
   var conc=R.Wc/GC;
-  return {mat:mat,stem:stem,heel:heel,toe:toe,key:key,front:front,hor:hor,distF:distF,bars:bars,kg:kg,conc:conc,ratio:kg/conc};
+  return {mat:mat,stem:stem,heel:heel,toe:toe,key:key,meshNote:meshNote,meshOk:meshOk,front:front,hor:hor,distF:distF,bars:bars,kg:kg,conc:conc,ratio:kg/conc};
 }
 function pick(Asreq,smax,dias,pref){ // επιλογή Ø/s με As,prov ≥ As,req
   var best=null, S=[250,200,175,150,125,100,75];
@@ -701,13 +714,14 @@ function drawRebar(d,R){
   d.pl([[cf,cf+0.05],[Math.min(g.Bt+g.tb+st.toe.lbd,B-cf),cf+0.05]],A);
   // 6 κάτω ελάχιστος heel
   if(!st.heel.sag) d.pl([[g.Bt+g.tb-0.1,cf+0.05],[B-cf,cf+0.05]],A2);
-  if(st.key){ var xk=keyX(g), hk=g.key.hk, lv=hk-cf+0.5; d.pl([[xk+cf,lv-hk],[xk+cf,-hk+cf],[xk+g.key.bk-cf,-hk+cf],[xk+g.key.bk-cf,lv-hk]],A); d.text([xk,-hk/2],'8  Ø'+st.key.dia+'/'+st.key.s,'class="lbs" text-anchor="end"',-8,0); }
+  if(st.key){ var xk=keyX(g), hk=g.key.hk, lv=hk-cf+0.5; d.pl([[xk+cf,lv-hk],[xk+cf,-hk+cf],[xk+g.key.bk-cf,-hk+cf],[xk+g.key.bk-cf,lv-hk]],A); d.text([xk,-hk/2],'8  '+bl(st.key.dia,st.key.s),'class="lbs" text-anchor="end"',-8,0); }
   // 7 διανομής (τελείες)
   for(var x=cf+0.05;x<B-cf;x+=st.distF.s/1000){ d.circ([x,cf+0.09],2,'fill="var(--steel)"'); d.circ([x,g.hf-cf-0.04],2,'fill="var(--steel)"'); }
   // ετικέτες
-  var lb=function(p,b,anchor,dx,dy){ d.text(p,b.pos+'  Ø'+b.dia+'/'+b.s,'class="lbs"'+(anchor?' text-anchor="'+anchor+'"':''),dx,dy); };
-  lb([xb,Hw-0.3*g.Hs],bars[0],'start',8,0); lb([xf1,Hw-0.5*g.Hs],bars[1],'end',-8,0); lb([xb,g.hf+0.12*g.Hs],bars[2],'start',8,0);
-  lb([B-cf,yh],bars[3],'end',-4,-6); lb([cf,cf+0.05],bars[4],'start',4,-6); lb([B-cf,cf+0.05],bars[5],'end',-4,-6); lb([B*0.5,g.hf],bars[6],'middle',0,-6);
+  var lb=function(p,b,anchor,dx,dy){ if(!b) return; d.text(p,b.pos+'  '+b.lab,'class="lbs"'+(anchor?' text-anchor="'+anchor+'"':''),dx,dy); };
+  var bp=function(p){ return bars.filter(function(b){return b.pos===p;})[0]; };
+  lb([xb,Hw-0.3*g.Hs],bp('1'),'start',8,0); lb([xf1,Hw-0.5*g.Hs],bp('2'),'end',-8,0); lb([xb,g.hf+0.12*g.Hs],bp('3'),'start',8,0);
+  lb([B-cf,yh],bp('4'),'end',-4,-6); lb([cf,cf+0.05],bp('5'),'start',4,-6); lb([B-cf,cf+0.05],bp('6'),'end',-4,-6); lb([B*0.5,g.hf],bp('7'),'middle',0,-6);
   d.text([-1.0,Hw+0.6],'ΟΠΛΙΣΜΟΣ ΤΥΠΙΚΗΣ ΔΙΑΤΟΜΗΣ · B500C · cnom '+V.cs+'/'+V.cfo+' mm','class="ttl"',0,0);
   d.text([-1.0,Hw+0.6],'Μ_Ed κορμού '+f1(st.stem.M)+' kNm/m ('+st.stem.caseS+') · As,req '+f0(st.stem.Asreq)+' mm²/m · '+f1(st.kg)+' kg/m · '+f0(st.ratio)+' kg/m³','class="lbm"',0,14);
 }
@@ -769,20 +783,20 @@ function rebarStrip(R){ // επιστρέφει γεωμετρία ράβδων 
   function hbars(s,h0,h1){ var a=[]; for(var y=h0;y<=h1+1e-9;y+=s/1000) a.push(y); return a; }
   // Κορμός — πίσω παρειά: κατακόρυφοι 1 + οριζόντιοι 3 · εμπρός παρειά: κατακόρυφοι 2 + οριζόντιοι 3
   out.panels.push({name:'ΚΟΡΜΟΣ · ΠΙΣΩ ΠΑΡΕΙΑ (εφελκυόμενη) · λωρίδα 1,00 m',w:W,h:Hs,
-    v:{xs:vbars(st.stem.s),y0:0,y1:Hs-cs,lab:'1  Ø'+st.stem.dia+'/'+st.stem.s+' κατακόρυφοι ('+vbars(st.stem.s).length+' τεμ./m)'},
-    hb:{ys:hbars(st.hor.s,0.08,Hs-cs),lab:'3  Ø'+st.hor.dia+'/'+st.hor.s+' οριζόντιοι ('+hbars(st.hor.s,0.08,Hs-cs).length+' τεμ.)'}});
+    v:{xs:vbars(st.stem.s),y0:0,y1:Hs-cs,lab:'1  '+bl(st.stem.dia,st.stem.s)+' κατακόρυφοι ('+vbars(st.stem.s).length+' τεμ./m)'},
+    hb:{ys:hbars(st.hor.s,0.08,Hs-cs),lab:'3  '+bl(st.hor.dia,st.hor.s,true)+' οριζόντιοι ('+hbars(st.hor.s,0.08,Hs-cs).length+' τεμ.)'}});
   out.panels.push({name:'ΚΟΡΜΟΣ · ΕΜΠΡΟΣ ΠΑΡΕΙΑ · λωρίδα 1,00 m',w:W,h:Hs,
-    v:{xs:vbars(st.front.s),y0:0,y1:Hs-cs,lab:'2  Ø'+st.front.dia+'/'+st.front.s+' κατακόρυφοι ('+vbars(st.front.s).length+' τεμ./m)'},
-    hb:{ys:hbars(st.hor.s,0.08,Hs-cs),lab:'3  Ø'+st.hor.dia+'/'+st.hor.s+' οριζόντιοι'}});
+    v:{xs:vbars(st.front.s),y0:0,y1:Hs-cs,lab:'2  '+bl(st.front.dia,st.front.s,true)+' κατακόρυφοι ('+vbars(st.front.s).length+' τεμ./m)'},
+    hb:{ys:hbars(st.hor.s,0.08,Hs-cs),lab:'3  '+bl(st.hor.dia,st.hor.s,true)+' οριζόντιοι'}});
   // Πέδιλο — κάτοψη λωρίδας 1,00 m: άνω στρώση (4 heel εγκάρσιοι + 7 διανομής) · κάτω στρώση (5 toe, 6 heel + 7 διανομής)
-  var topT = st.heel.sag? [] : vbars(st.heel.s), botT = vbars(st.toe.s), botH = st.heel.sag? vbars(st.heel.s) : vbars(st.bars[5].s);
+  var topT = st.heel.sag? [] : vbars(st.heel.s), botT = vbars(st.toe.s), botH = st.heel.sag? vbars(st.heel.s) : (st.bars[5]&&st.bars[5].pos==='6'? vbars(st.bars[5].s) : vbars(100));
   out.panels.push({name:'ΠΕΔΙΛΟ · ΑΝΩ ΣΤΡΩΣΗ (κάτοψη, λωρίδα 1,00 m)',w:W,h:B,plan:true,
-    v:{xs:topT,y0:cf,y1:B-cf,lab:(st.heel.sag?'—':'4  Ø'+st.heel.dia+'/'+st.heel.s+' εγκάρσιοι ('+topT.length+' τεμ./m)')},
-    hb:{ys:hbars(st.distF.s,cf+0.05,B-cf),lab:'7  Ø'+st.distF.dia+'/'+st.distF.s+' διανομής'}});
+    v:{xs:topT,y0:cf,y1:B-cf,lab:(st.heel.sag?'—':'4  '+bl(st.heel.dia,st.heel.s,st.heel.s===100&&st.heel.dia===10)+' εγκάρσιοι ('+topT.length+' τεμ./m)')},
+    hb:{ys:hbars(st.distF.s,cf+0.05,B-cf),lab:'7  '+bl(st.distF.dia,st.distF.s,true)+' διανομής'}});
   out.panels.push({name:'ΠΕΔΙΛΟ · ΚΑΤΩ ΣΤΡΩΣΗ (κάτοψη, λωρίδα 1,00 m)',w:W,h:B,plan:true,
-    v:{xs:botT,y0:cf,y1:Math.min(g.Bt+g.tb+st.toe.lbd,B-cf),lab:'5  Ø'+st.toe.dia+'/'+st.toe.s+' toe ('+botT.length+' τεμ./m)'},
-    v2:{xs:botH.map(function(x){return x+0.5*(st.toe.s/1000);}),y0:g.Bt+g.tb-0.1,y1:B-cf,lab:(st.heel.sag?'4':'6')+'  Ø'+(st.heel.sag?st.heel.dia:st.bars[5].dia)+'/'+(st.heel.sag?st.heel.s:st.bars[5].s)+' heel'},
-    hb:{ys:hbars(st.distF.s,cf+0.05,B-cf),lab:'7  Ø'+st.distF.dia+'/'+st.distF.s+' διανομής'},
+    v:{xs:botT,y0:cf,y1:Math.min(g.Bt+g.tb+st.toe.lbd,B-cf),lab:'5  '+bl(st.toe.dia,st.toe.s)+' toe ('+botT.length+' τεμ./m)'},
+    v2:{xs:botH.map(function(x){return x+0.5*(st.toe.s/1000);}),y0:g.Bt+g.tb-0.1,y1:B-cf,lab:(st.heel.sag?'4  '+bl(st.heel.dia,st.heel.s):'6  '+(function(){var b6=st.bars.filter(function(b){return b.pos==='6';})[0]; return b6?bl(b6.dia,b6.s):bl(10,100,true);})())+' heel'},
+    hb:{ys:hbars(st.distF.s,cf+0.05,B-cf),lab:'7  '+bl(st.distF.dia,st.distF.s,true)+' διανομής'},
     stem:[g.Bt,g.Bt+g.tb]});
   return out;
 }
@@ -1176,7 +1190,7 @@ function update(){
   // summary tiles
   var t=function(k,v,s,cls){return '<div class="tile '+cls+'"><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="s">'+s+'</div></div>';};
   var cl=function(x){return x>=1.1?'ok':(x>=1?'warn':'bad');};
-  document.getElementById('sum').innerHTML=t('Ανατροπή',f2(R.EQU.FS),'M_stb / M_dst (EQU)',cl(R.EQU.FS))+t('Ολίσθηση',f2(R.SL.FS),'R_d / H_d (DA2)',cl(R.SL.FS))+t('Φέρουσα ικανότητα',f2(R.BR.FS),'q_ult = '+f0(R.BR.bc.qult)+' kPa · B′ = '+f2(R.BR.Bp)+' m',cl(R.BR.FS))+t('σ_max (SLS)',f0(Math.max(R.SLS.pd.s0,R.SLS.pd.sB))+' kPa','e = '+f2(R.SLS.e)+' m · B/6 = '+f2(R.B/6),cl(R.SLS.FS))+(R.SE?t('Σεισμός',f2(Math.min(R.SE.FSo,R.SE.FSs,R.SE.FSb)),'kh = '+f2(R.SE.kh)+' · K_AE = '+f2(R.SE.Kae)+(R.SE.valid?'':' (φ′−β−θ<0!)'),cl(Math.min(R.SE.FSo,R.SE.FSs,R.SE.FSb))):'')+t('Κορμός',f2(R.ST.stem.MRd/R.ST.stem.M),'Ø'+R.ST.stem.dia+'/'+R.ST.stem.s+' · M_Ed '+f1(R.ST.stem.M)+' kNm/m',cl(R.ST.stem.MRd/R.ST.stem.M))+t('Χάλυβας',f1(R.ST.kg)+' kg/m',f0(R.ST.ratio)+' kg/m³ · '+f2(R.ST.conc)+' m³/m σκυρόδεμα','');
+  document.getElementById('sum').innerHTML=t('Ανατροπή',f2(R.EQU.FS),'M_stb / M_dst (EQU)',cl(R.EQU.FS))+t('Ολίσθηση',f2(R.SL.FS),'R_d / H_d (DA2)',cl(R.SL.FS))+t('Φέρουσα ικανότητα',f2(R.BR.FS),'q_ult = '+f0(R.BR.bc.qult)+' kPa · B′ = '+f2(R.BR.Bp)+' m',cl(R.BR.FS))+t('σ_max (SLS)',f0(Math.max(R.SLS.pd.s0,R.SLS.pd.sB))+' kPa','e = '+f2(R.SLS.e)+' m · B/6 = '+f2(R.B/6),cl(R.SLS.FS))+(R.SE?t('Σεισμός',f2(Math.min(R.SE.FSo,R.SE.FSs,R.SE.FSb)),'kh = '+f2(R.SE.kh)+' · K_AE = '+f2(R.SE.Kae)+(R.SE.valid?'':' (φ′−β−θ<0!)'),cl(Math.min(R.SE.FSo,R.SE.FSs,R.SE.FSb))):'')+t('Κορμός',f2(R.ST.stem.MRd/R.ST.stem.M),bl(R.ST.stem.dia,R.ST.stem.s)+' · M_Ed '+f1(R.ST.stem.M)+' kNm/m',cl(R.ST.stem.MRd/R.ST.stem.M))+t('Χάλυβας',f1(R.ST.kg)+' kg/m',f0(R.ST.ratio)+' kg/m³ · '+f2(R.ST.conc)+' m³/m σκυρόδεμα','');
   // drawings
   document.getElementById('svgSection').innerHTML=drawSection(R,'static');
   document.getElementById('svgRebar').innerHTML=drawSection(R,'rebar')+drawRebarElev(R);
@@ -1217,9 +1231,9 @@ function checksTable(R){
 }
 function rebarTable(R){
   var st=R.ST, h='<table><thead><tr><th>Θέση</th><th>Περιγραφή</th><th class="n">Ø / s</th><th class="n">As,req</th><th class="n">As,prov</th><th class="n">Μήκος</th><th>Σχήμα</th><th class="n">kg/m τοίχου</th></tr></thead><tbody>';
-  st.bars.forEach(function(b){ h+='<tr><td><b>'+b.pos+'</b></td><td>'+b.name+'</td><td class="n">Ø'+b.dia+'/'+b.s+'</td><td class="n">'+f0(b.Asreq)+' mm²/m</td><td class="n">'+f0(b.Asprov)+' mm²/m</td><td class="n">'+f2(b.L)+' m</td><td>'+b.shape+'</td><td class="n">'+f1(b.kgm)+'</td></tr>'; });
+  st.bars.forEach(function(b){ h+='<tr><td><b>'+b.pos+'</b></td><td>'+b.name+'</td><td class="n">'+b.lab+'</td><td class="n">'+f0(b.Asreq)+' mm²/m</td><td class="n">'+f0(b.Asprov)+' mm²/m</td><td class="n">'+f2(b.L)+' m</td><td>'+b.shape+'</td><td class="n">'+f1(b.kgm)+'</td></tr>'; });
   h+='<tr><td colspan="7"><b>Σύνολο χάλυβα B500C</b> (χωρίς ματίσεις/απομειώσεις, ×1,10 για παραγγελία)</td><td class="n"><b>'+f1(st.kg)+'</b></td></tr></tbody></table>';
-  h+='<p class="note">Αγκυρώσεις: l_bd κορμού '+f2(st.stem.lbd)+' m · heel '+f2(st.heel.lbd)+' m · toe '+f2(st.toe.lbd)+' m (f_bd = '+f2(st.mat.fbd)+' MPa, καλές συνθήκες συνάφειας). Ματίσεις κύριων ράβδων κορμού: l_0 = 1,5·l_bd στη βάση με εναλλαγή 50 %. Μέγιστες αποστάσεις EN 1992‑1‑1 §9.3.1.1: κύριος ≤ min(2h, 250 mm), δευτερεύων ≤ min(3h, 400 mm).</p>';
+  h+='<p class="note">Σήμανση: Φ12/15 = ράβδοι Φ12 ανά 15 cm · # = σχάρα/πλέγμα δύο διευθύνσεων. Ελάχιστη διάμετρος Φ10. Τσερκόπλεγμα #Φ10/10: 785 mm²/m ανά διεύθυνση, 12,3 kg/m².'+(st.meshNote.length?' Εφαρμόστηκε τσερκόπλεγμα #Φ10/10 σε: '+st.meshNote.join(', ')+'.':(st.meshOk.length?' Εναλλακτικά μπορεί να χρησιμοποιηθεί τσερκόπλεγμα #Φ10/10 σε: '+st.meshOk.join(', ')+' (επιλογή «Εφαρμογή τσερκοπλέγματος» στα Υλικά· περισσότερος χάλυβας, λιγότερη εργασία).':''))+'</p><p class="note">Αγκυρώσεις: l_bd κορμού '+f2(st.stem.lbd)+' m · heel '+f2(st.heel.lbd)+' m · toe '+f2(st.toe.lbd)+' m (f_bd = '+f2(st.mat.fbd)+' MPa, καλές συνθήκες συνάφειας). Ματίσεις κύριων ράβδων κορμού: l_0 = 1,5·l_bd στη βάση με εναλλαγή 50 %. Μέγιστες αποστάσεις EN 1992‑1‑1 §9.3.1.1: κύριος ≤ min(2h, 250 mm), δευτερεύων ≤ min(3h, 400 mm).</p>';
   document.getElementById('tab-rebar').innerHTML=h;
 }
 function qtyTable(R){
@@ -1250,10 +1264,10 @@ function report(R){
    +P('Τάσεις εδάφους (SLS, χαρακτηριστικές τιμές): V = '+f1(R.SLS.V)+' kN/m, e = '+f2(R.SLS.e)+' m'+(Math.abs(R.SLS.e)>R.B/6?' (> B/6, μερική ανασήκωση, ενεργό μήκος '+f2(R.SLS.pd.Lc)+' m)':' (≤ B/6)')+': σ_toe = '+f0(R.SLS.pd.s0)+' kPa, σ_heel = '+f0(R.SLS.pd.sB)+' kPa, σ_επ = '+v.sigAll+' kPa.');
   if(S){ h+=H3('4. Σεισμικός συνδυασμός EN 1998‑5')+P('α_g/g = '+v.zone+', S = '+v.gt+', r = '+v.r+' → k_h = α·S/r = '+f2(S.kh)+', k_v = ±0,5·k_h = '+f2(S.kv)+'. Παράμετροι σχεδιασμού: tanφ′_d = tanφ′/γ_φ (γ_φ = '+v.gphi+') → φ′_d = '+f1(S.phid/D2R)+'°. Δυσμενέστερη φορά k_v: '+(S.sg>0?'προς τα κάτω':'προς τα άνω')+', θ = atan(k_h/(1∓k_v)) = '+f2(S.th/D2R)+'°.')
    +E('K_AE (Mononobe‑Okabe, δ = 0, ψ = 0) = '+f2(S.Kae)+(S.valid?'':'   ! φ′_d − β − θ < 0: η λύση δεν ισχύει, εφαρμόστηκε 2,5·K_a,d')+'\nE_AE = ½·γ·(1∓k_v)·K_AE·H_tot² = '+f1(S.Eae)+' kN/m   (στατικό μέρος '+f1(S.Pas)+' στο H/3, δυναμική προσαύξηση ΔE = '+f1(S.dE)+' στο 0,6·H)\nΑδρανειακές δυνάμεις τοίχου+επίχωσης: k_h·ΣW = '+f1(S.kh*R.Wsum)+' kN/m\nΑνατροπή: M_stb/M_dst = '+f1(S.Mstb)+'/'+f1(S.Mdst)+' = '+f2(S.FSo)+(S.FSo>=1?'  ✓':'  ✗')+'\nΟλίσθηση: R_d/H_d = '+f1(S.Rsl)+'/'+f1(S.Hd)+' = '+f2(S.FSs)+(S.FSs>=1?'  ✓':'  ✗')+'\nΦέρουσα ικανότητα: q_ult = '+f1(S.bc.qult)+' kPa, B′ = '+f2(S.Bp)+' m, R/V = '+f1(S.bc.R)+'/'+f1(S.Vb)+' = '+f2(S.FSb)+(S.FSb>=1?'  ✓':'  ✗')); }
-  var secD=function(nm,b,caseS){ return P(nm+' ('+caseS+'): M_Ed = '+f1(b.M)+' kNm/m, V_Ed = '+f1(b.V)+' kN/m, d = '+f0(b.d)+' mm.')+E('μ = M_Ed/(b·d²·f_cd) = '+f3(b.mu)+(b.fail?'  ! μ > 0,295 — αυξήστε το πάχος':'')+'   ω = 1 − √(1 − 2μ) = '+f3(b.om)+'\nA_s = ω·b·d·f_cd/f_yd = '+f0(b.As)+' mm²/m   A_s,min = max(0,26·f_ctm/f_yk; 0,0013)·b·d = '+f0(b.Asmin)+' mm²/m\nΕπιλογή Ø'+b.dia+'/'+b.s+' → A_s,prov = '+f0(b.Asprov)+' mm²/m   M_Rd = '+f1(b.MRd)+' kNm/m   V_Rd,c = '+f1(b.VRdc)+' kN/m'+(b.VRdc<b.V?'  ! V_Ed > V_Rd,c — απαιτείται αύξηση πάχους ή οπλισμός διάτμησης':'')); };
+  var secD=function(nm,b,caseS){ return P(nm+' ('+caseS+'): M_Ed = '+f1(b.M)+' kNm/m, V_Ed = '+f1(b.V)+' kN/m, d = '+f0(b.d)+' mm.')+E('μ = M_Ed/(b·d²·f_cd) = '+f3(b.mu)+(b.fail?'  ! μ > 0,295 — αυξήστε το πάχος':'')+'   ω = 1 − √(1 − 2μ) = '+f3(b.om)+'\nA_s = ω·b·d·f_cd/f_yd = '+f0(b.As)+' mm²/m   A_s,min = max(0,26·f_ctm/f_yk; 0,0013)·b·d = '+f0(b.Asmin)+' mm²/m\nΕπιλογή '+bl(b.dia,b.s)+' → A_s,prov = '+f0(b.Asprov)+' mm²/m   M_Rd = '+f1(b.MRd)+' kNm/m   V_Rd,c = '+f1(b.VRdc)+' kN/m'+(b.VRdc<b.V?'  ! V_Ed > V_Rd,c — απαιτείται αύξηση πάχους ή οπλισμός διάτμησης':'')); };
   h+=H3((S?'5':'4')+'. Διαστασιολόγηση διατομών EN 1992‑1‑1')+secD('Κορμός στη βάση',st.stem,st.stem.caseS)+secD('Πέλμα (heel), '+(st.heel.sag?'εφελκυσμός κάτω':'εφελκυσμός άνω'),st.heel,st.heel.caseS)+secD('Πρόβολος (toe), εφελκυσμός κάτω',st.toe,st.toe.caseS)
-   +P('Ελάχιστοι/δευτερεύοντες οπλισμοί: εμπρός παρειά κορμού Ø'+st.front.dia+'/'+st.front.s+' (≥ 0,001·A_c ανά παρειά, §9.6.2), οριζόντιος Ø'+st.hor.dia+'/'+st.hor.s+' ανά παρειά (≥ 25 % κύριου, §9.6.3), διανομής πέδιλου Ø'+st.distF.dia+'/'+st.distF.s+' (≥ 20 % κύριου, §9.3.1.1).')
-   +(st.key?P('Ποδαρικό '+f2(g.key.bk)+'×'+f2(g.key.hk)+' m '+(g.key.pos?'στο άκρο του πέλματος':'κάτω από τον κορμό')+': παθητική αντίσταση ζώνης D_f…D_f+h_k = ½·K_p·γ·((D_f+h_k)² − D_f²) = '+f1(R.Ppk)+' kN/m (στατικά)'+(S?', '+f1(S.Ppk)+' kN/m (σεισμός, φ′_d)':'')+'. Σχεδιασμός ποδαρικού ως προβόλου με την παθητική πίεση: M_Ed = '+f1(st.key.M)+' kNm/m, V_Ed = '+f1(st.key.V)+' kN/m → Ø'+st.key.dia+'/'+st.key.s+' (A_s,prov '+f0(st.key.Asprov)+' mm²/m, M_Rd '+f1(st.key.MRd)+' kNm/m).'):'')
+   +P('Ελάχιστοι/δευτερεύοντες οπλισμοί: εμπρός παρειά κορμού '+bl(st.front.dia,st.front.s,true)+' (≥ 0,001·A_c ανά παρειά, §9.6.2), οριζόντιος '+bl(st.hor.dia,st.hor.s,true)+' ανά παρειά (≥ 25 % κύριου, §9.6.3), διανομής πέδιλου '+bl(st.distF.dia,st.distF.s,true)+' (≥ 20 % κύριου, §9.3.1.1).')
+   +(st.key?P('Ποδαρικό '+f2(g.key.bk)+'×'+f2(g.key.hk)+' m '+(g.key.pos?'στο άκρο του πέλματος':'κάτω από τον κορμό')+': παθητική αντίσταση ζώνης D_f…D_f+h_k = ½·K_p·γ·((D_f+h_k)² − D_f²) = '+f1(R.Ppk)+' kN/m (στατικά)'+(S?', '+f1(S.Ppk)+' kN/m (σεισμός, φ′_d)':'')+'. Σχεδιασμός ποδαρικού ως προβόλου με την παθητική πίεση: M_Ed = '+f1(st.key.M)+' kNm/m, V_Ed = '+f1(st.key.V)+' kN/m → '+bl(st.key.dia,st.key.s)+' (A_s,prov '+f0(st.key.Asprov)+' mm²/m, M_Rd '+f1(st.key.MRd)+' kNm/m).'):'')
    +H3((S?'6':'5')+'. Επίχωση · αποστράγγιση')+P('Στρώση αποστράγγισης '+f2(v.tdr)+' m θραυστού υλικού με γεωύφασμα, διάτρητος σωλήνας Ø'+v.dpipe+' στη στάθμη του πέλματος, οπές Ø'+v.dweep+' ανά '+f2(v.sweep)+' m, στεγανή στρώση στέψης '+f2(v.tcap)+' m, αρμοί διαστολής ανά '+f2(v.Lj)+' m. Η υπόθεση μηδενικής υδροστατικής πίεσης ισχύει μόνο με λειτουργική αποστράγγιση.');
   document.getElementById('report').innerHTML=h;
 }
@@ -1454,14 +1468,14 @@ function buildDXF(R){
     if(withSoil){ var xmax=B+2.5; w.line('ΕΔΑΦΟΣ',T([-2,g.Df]),T([0,g.Df])); if(g.Df>g.hf) w.line('ΕΔΑΦΟΣ',T([0,g.Df]),T([g.Bt,g.Df])); w.line('ΕΔΑΦΟΣ',T([g.Bt+g.tb,Hw]),T([xmax,ysurf(g,xmax,beta)])); w.line('ΕΔΑΦΟΣ',T([-2,0]),T([xmax,0])); }
     if(withDims){ w.dimH(ox,ox+g.Bt,oy,f2(g.Bt),-0.35); w.dimH(ox+g.Bt,ox+g.Bt+g.tb,oy,f2(g.tb),-0.35); w.dimH(ox+g.Bt+g.tb,ox+B,oy,f2(g.Bh),-0.35); w.dimH(ox,ox+B,oy,'B='+f2(B),-0.7); w.dimV(oy,oy+g.hf,ox,f2(g.hf),-0.4); w.dimV(oy+g.hf,oy+Hw,ox,'H='+f2(g.Hs),-0.4); w.dimH(ox+g.Bt+(g.tb-g.tt),ox+g.Bt+g.tb,oy+Hw,f2(g.tt),0.3); }
     if(withRebar){ var cs=V.cs/1000, cf=V.cfo/1000, xb=g.Bt+g.tb-cs, leg=Math.min(Math.max(st.stem.lbd,0.3),g.Bt+g.tb-2*cf), L='ΟΠΛΙΣΜΟΣ';
-      w.pl(L,[[xb,Hw-cs],[xb,cf+0.01],[xb-leg,cf+0.01]].map(T)); w.text(L,T([xb+0.08,Hw-0.3*g.Hs]),0.1,'1 Ø'+st.stem.dia+'/'+st.stem.s);
-      var xf0=g.Bt+cs, xf1=g.Bt+(g.tb-g.tt)+cs; w.pl(L,[[xf1,Hw-cs],[xf0,g.hf+cs],[xf0,cf+0.02],[xf0+0.3,cf+0.02]].map(T)); w.text(L,T([xf1-0.9,Hw-0.5*g.Hs]),0.1,'2 Ø'+st.front.dia+'/'+st.front.s);
-      for(var y=g.hf+0.08;y<Hw-cs;y+=st.hor.s/1000){ var t=(y-g.hf)/g.Hs; w.circ(L,T([g.Bt+(g.tb-g.tt)*t+cs+0.02,y]),st.hor.dia/2000); w.circ(L,T([xb-0.02,y]),st.hor.dia/2000); } w.text(L,T([xb+0.08,g.hf+0.12*g.Hs]),0.1,'3 Ø'+st.hor.dia+'/'+st.hor.s);
-      var yh=st.heel.sag?cf+0.03:g.hf-cf; w.pl(L,[[cf,yh],[B-cf,yh]].map(T)); w.text(L,T([B-1.2,yh+0.06]),0.1,'4 Ø'+st.heel.dia+'/'+st.heel.s);
-      w.pl(L,[[cf,cf+0.05],[Math.min(g.Bt+g.tb+st.toe.lbd,B-cf),cf+0.05]].map(T)); w.text(L,T([cf+0.05,cf-0.15]),0.1,'5 Ø'+st.toe.dia+'/'+st.toe.s);
-      if(!st.heel.sag){ w.pl(L,[[g.Bt+g.tb-0.1,cf+0.05],[B-cf,cf+0.05]].map(T)); w.text(L,T([B-1.0,cf-0.15]),0.1,'6 Ø'+st.bars[5].dia+'/'+st.bars[5].s); }
-      if(st.key){ var xk=keyX(g), hk=g.key.hk, lv=hk-cf+0.5; w.pl(L,[[xk+cf,lv-hk],[xk+cf,-hk+cf],[xk+g.key.bk-cf,-hk+cf],[xk+g.key.bk-cf,lv-hk]].map(T)); w.text(L,T([xk+g.key.bk+0.05,-hk/2]),0.1,'8 Ø'+st.key.dia+'/'+st.key.s); }
-      for(var x=cf+0.05;x<B-cf;x+=st.distF.s/1000){ w.circ(L,T([x,cf+0.09]),st.distF.dia/2000); w.circ(L,T([x,g.hf-cf-0.04]),st.distF.dia/2000); } w.text(L,T([B/2-0.4,g.hf+0.05]),0.1,'7 Ø'+st.distF.dia+'/'+st.distF.s); }
+      w.pl(L,[[xb,Hw-cs],[xb,cf+0.01],[xb-leg,cf+0.01]].map(T)); w.text(L,T([xb+0.08,Hw-0.3*g.Hs]),0.1,'1 '+bl(st.stem.dia,st.stem.s));
+      var xf0=g.Bt+cs, xf1=g.Bt+(g.tb-g.tt)+cs; w.pl(L,[[xf1,Hw-cs],[xf0,g.hf+cs],[xf0,cf+0.02],[xf0+0.3,cf+0.02]].map(T)); w.text(L,T([xf1-0.9,Hw-0.5*g.Hs]),0.1,'2 '+bl(st.front.dia,st.front.s));
+      for(var y=g.hf+0.08;y<Hw-cs;y+=st.hor.s/1000){ var t=(y-g.hf)/g.Hs; w.circ(L,T([g.Bt+(g.tb-g.tt)*t+cs+0.02,y]),st.hor.dia/2000); w.circ(L,T([xb-0.02,y]),st.hor.dia/2000); } w.text(L,T([xb+0.08,g.hf+0.12*g.Hs]),0.1,'3 '+bl(st.hor.dia,st.hor.s));
+      var yh=st.heel.sag?cf+0.03:g.hf-cf; w.pl(L,[[cf,yh],[B-cf,yh]].map(T)); w.text(L,T([B-1.2,yh+0.06]),0.1,'4 '+bl(st.heel.dia,st.heel.s));
+      w.pl(L,[[cf,cf+0.05],[Math.min(g.Bt+g.tb+st.toe.lbd,B-cf),cf+0.05]].map(T)); w.text(L,T([cf+0.05,cf-0.15]),0.1,'5 '+bl(st.toe.dia,st.toe.s));
+      if(!st.heel.sag){ w.pl(L,[[g.Bt+g.tb-0.1,cf+0.05],[B-cf,cf+0.05]].map(T)); w.text(L,T([B-1.0,cf-0.15]),0.1,'6 '+(function(){var b6=st.bars.filter(function(b){return b.pos==='6';})[0]; return b6?bl(b6.dia,b6.s):bl(10,100,true);})()); }
+      if(st.key){ var xk=keyX(g), hk=g.key.hk, lv=hk-cf+0.5; w.pl(L,[[xk+cf,lv-hk],[xk+cf,-hk+cf],[xk+g.key.bk-cf,-hk+cf],[xk+g.key.bk-cf,lv-hk]].map(T)); w.text(L,T([xk+g.key.bk+0.05,-hk/2]),0.1,'8 '+bl(st.key.dia,st.key.s)); }
+      for(var x=cf+0.05;x<B-cf;x+=st.distF.s/1000){ w.circ(L,T([x,cf+0.09]),st.distF.dia/2000); w.circ(L,T([x,g.hf-cf-0.04]),st.distF.dia/2000); } w.text(L,T([B/2-0.4,g.hf+0.05]),0.1,'7 '+bl(st.distF.dia,st.distF.s)); }
     if(withDrain){ var L2='ΑΠΟΣΤΡΑΓΓΙΣΗ', xb2=g.Bt+g.tb, t2=V.tdr, tc=V.tcap; w.pl(L2,[[xb2,g.hf],[xb2,Hw-tc],[xb2+t2,Hw-tc],[xb2+t2,g.hf]].map(T)); w.circ(L2,T([xb2+V.dpipe/2000+0.05,g.hf+V.dpipe/2000+0.05]),V.dpipe/2000);
       var yw=Math.max(g.Df+0.3,g.hf+0.15); w.line(L2,T([g.Bt,yw-0.06]),T([xb2,yw])); w.text(L2,T([xb2+t2+0.1,Hw-0.5]),0.1,'Στρώση αποστράγγισης '+f2(t2)+' m + γεωύφασμα'); w.text(L2,T([xb2+t2+0.1,g.hf+0.1]),0.1,'Διάτρητος σωλήνας Ø'+V.dpipe); w.text(L2,T([-1.6,yw+0.1]),0.1,'Οπές Ø'+V.dweep+' /'+f2(V.sweep)+' m'); if(tc>0){ w.line(L2,T([xb2,Hw-tc]),T([B+2.5,ysurf(g,B+2.5,beta)-tc])); w.text(L2,T([xb2+0.5,Hw+0.1]),0.1,'Στεγανή στρώση '+f2(tc)+' m, κλίση ≥3%'); } }
   }
