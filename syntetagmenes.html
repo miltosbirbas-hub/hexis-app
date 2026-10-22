@@ -6547,8 +6547,10 @@ root.CmdCheck = api;
     if (!at) return null;
     function find(re) { for (var k in at) if (re.test(k) && at[k] != null && at[k] !== '') return at[k]; return null; }
     var kath = find(/KATHET|ΚΑΘΕΤ/i), oriz = find(/ORIZONT|ΟΡΙΖΟΝΤ/i), xrhsh = find(/XRHSH|CHRHSH|ΧΡΗΣ/i), pos = find(/POSOST|ΠΟΣΟΣΤ/i), eidos = find(/EIDOS|ΕΙΔΟΣ|TYPE/i);
-    var ota = find(/^OTA$|_OTA|OTA_|ΟΤΑ|DHMOS|DIMOS|ΔΗΜΟΣ|DIM_ONOMA|KALLIKRAT|MUNIC|DD_|DIAMERISM|ΚΟΙΝΟΤ|ONOMA_OTA|OTA_NAME|DESCR|PERIGRAF/i);
-    var o = {}; if (kath != null) o.kathetes = +kath || kath; if (oriz != null) o.orizonties = +oriz || oriz; if (xrhsh) o.xrhsh = String(xrhsh); if (pos != null) o.pososto = pos; if (eidos) o.eidos = String(eidos); if (ota && !/^\d+$/.test(String(ota).trim())) o.ota = String(ota).trim();
+    // ΟΤΑ/Δήμος ΜΟΝΟ από πεδία που ρητά αφορούν διοικητική ενότητα — όχι χρήση γης
+    var ota = find(/^OTA(_ONOMA|_NAME)?$|ΟΝΟΜΑ_?ΟΤΑ|DHMOS|DIMOS|ΔΗΜΟΣ|DIM_ONOMA|MUNIC|KALLIKRAT|KOINOTITA|ΚΟΙΝΟΤΗΤΑ/i);
+    var o = {}; if (kath != null) o.kathetes = +kath || kath; if (oriz != null) o.orizonties = +oriz || oriz; if (xrhsh) o.xrhsh = String(xrhsh); if (pos != null) o.pososto = pos; if (eidos) o.eidos = String(eidos);
+    if (ota && !/^\d+$/.test(String(ota).trim()) && !/ΔΙΚΤΥ|ΟΔΙΚ|ΚΑΛΛΙΕΡΓ|ΧΡΗΣ|ΔΑΣ|ΑΣΤΙΚ|ΒΟΣΚ|ΚΤΙΡ|ΟΙΚΟΠ|ΑΓΡ/i.test(String(ota))) o.ota = String(ota).trim();
     o.attrsText = Object.keys(at).map(function (k) { return k + '=' + at[k]; }).join(' · ');
     return Object.keys(o).length ? o : null;
   }
