@@ -4002,19 +4002,24 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       var bf = null; rings.forEach(function (x) { for (var i = 0; i < x.length; i++) { var a = x[i], b = x[(i + 1) % x.length], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy, t = L2 ? Math.max(0, Math.min(1, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2)) : 0, f = [a[0] + t * dx, a[1] + t * dy], dd = Math.hypot(f[0] - q[0], f[1] - q[1]); if (dd <= tol && (!bf || dd < bf.d)) bf = { d: dd, p: f }; } });
       return bf ? bf.p : q;
     });
-    // β) κορυφές ΚΑΕΚ κοντά σε πλευρές του Μ → εισάγονται στο Μ (με τη σειρά τους πάνω στην πλευρά)
+    // β) κορυφές ΚΑΕΚ κοντά σε πλευρές του Μ → εισάγονται στο Μ, κάθε μία στην πλησιέστερη πλευρά της (προτίμηση σε εσωτερική θέση της πλευράς)
+    var keyOf = function (v) { return Math.round(v[0] * 200) + ',' + Math.round(v[1] * 200); }, used = {};
+    r.forEach(function (q) { used[keyOf(q)] = 1; });
+    var perEdge = r.map(function () { return []; });
+    kv.forEach(function (v) {
+      if (used[keyOf(v)]) return; used[keyOf(v)] = 1;
+      var best = null;
+      for (var i = 0; i < r.length; i++) {
+        var a = r[i], b = r[(i + 1) % r.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L < 0.01) continue;
+        var t = Math.max(0, Math.min(1, ((v[0] - a[0]) * (b[0] - a[0]) + (v[1] - a[1]) * (b[1] - a[1])) / (L * L)));
+        var dd = Math.hypot(a[0] + t * (b[0] - a[0]) - v[0], a[1] + t * (b[1] - a[1]) - v[1]); if (dd > tol) continue;
+        var inner = t > 0.001 && t < 0.999 ? 0 : 1; // εσωτερική θέση προτιμάται από άκρο
+        if (!best || inner < best.inner || (inner === best.inner && dd < best.d)) best = { i: i, t: t, d: dd, inner: inner };
+      }
+      if (best) perEdge[best.i].push({ t: best.t, v: v });
+    });
     var out = [];
-    for (var i = 0; i < r.length; i++) {
-      var a = r[i], b = r[(i + 1) % r.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); out.push(a); if (L < 0.01) continue;
-      var ins = [];
-      kv.forEach(function (v) {
-        if (Math.hypot(v[0] - a[0], v[1] - a[1]) < 0.005 || Math.hypot(v[0] - b[0], v[1] - b[1]) < 0.005) return;
-        var t = ((v[0] - a[0]) * (b[0] - a[0]) + (v[1] - a[1]) * (b[1] - a[1])) / (L * L); if (t <= 0.001 || t >= 0.999) return;
-        var px = a[0] + t * (b[0] - a[0]), py = a[1] + t * (b[1] - a[1]);
-        if (Math.hypot(px - v[0], py - v[1]) <= tol && !ins.some(function (z) { return Math.hypot(z.v[0] - v[0], z.v[1] - v[1]) < 0.005; })) ins.push({ t: t, v: v });
-      });
-      ins.sort(function (x, y) { return x.t - y.t; }).forEach(function (z) { out.push([z.v[0], z.v[1]]); });
-    }
+    for (var i2 = 0; i2 < r.length; i2++) { out.push(r[i2]); perEdge[i2].sort(function (x, y) { return x.t - y.t; }).forEach(function (z) { out.push([z.v[0], z.v[1]]); }); }
     // καθάρισμα διπλών διαδοχικών
     var res = []; out.forEach(function (q) { if (!res.length || Math.hypot(q[0] - res[res.length - 1][0], q[1] - res[res.length - 1][1]) >= 0.005) res.push(q); });
     if (res.length > 1 && Math.hypot(res[0][0] - res[res.length - 1][0], res[0][1] - res[res.length - 1][1]) < 0.005) res.pop();
@@ -4024,7 +4029,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       changed = false;
       for (var k = 0; k < res.length; k++) {
         var pa = res[(k - 1 + res.length) % res.length], pb = res[k], pq = res[(k + 1) % res.length];
-        if (distToSeg(pb, pa, pq) < 0.002 && distToRings(pb, rings) < 0.002) { res.splice(k, 1); changed = true; break; }
+        if ((distToSeg(pb, pa, pq) < 0.002 && distToRings(pb, rings) < 0.002) || Math.hypot(pa[0] - pq[0], pa[1] - pq[1]) < 0.005) { res.splice(k, 1); changed = true; break; }
       }
     }
     return res.length >= 3 ? res : open(M);
@@ -5458,10 +5463,11 @@ function ringsCross(r1,r2){
       if(segCross(r1[i],r1[(i+1)%r1.length],r2[j],r2[(j+1)%r2.length])) return true;
   return false;
 }
-function centroid(pts){
-  let x=0,y=0;
-  for(const p of pts){x+=p[0];y+=p[1];}
-  return [x/pts.length,y/pts.length];
+function centroid(pts){ // εμβαδικό κεντροειδές (ανεξάρτητο από το πλήθος/πυκνότητα των κορυφών)
+  let A=0,cx=0,cy=0; const n=pts.length;
+  for(let i=0;i<n;i++){ const p=pts[i], q=pts[(i+1)%n], f=p[0]*q[1]-q[0]*p[1]; A+=f; cx+=(p[0]+q[0])*f; cy+=(p[1]+q[1])*f; }
+  if(Math.abs(A)<1e-9){ let x=0,y=0; for(const p of pts){x+=p[0];y+=p[1];} return [x/n,y/n]; }
+  return [cx/(3*A), cy/(3*A)];
 }
 function sameRing(a,b){
   if(a.length!==b.length) return false;
@@ -6649,7 +6655,7 @@ root.CmdCheck = api;
       var M = world(t); if (M.length > 3 && M[0][0] === M[M.length - 1][0] && M[0][1] === M[M.length - 1][1]) M = M.slice(0, -1);
       var own = S.dgmOwn && parcels.some(function (p) { return p.kaek === S.dgmOwn; }) ? S.dgmOwn : parcels[0].kaek; S.dgmOwn = own;
       var minA = S.dgmMin != null ? S.dgmMin : 1.0; S.dgmMin = minA;
-      var snapT = S.dgmSnap != null ? S.dgmSnap : 0.15; S.dgmSnap = snapT;
+      var snapT = S.dgmSnap != null ? S.dgmSnap : 0.05; S.dgmSnap = snapT;
       if (S.dgmSkipOwn !== own) { S.dgmSkip = {}; S.dgmSkipOwn = own; }
       // συγχώνευση κοντινών ορίων: το μετρημένο κουμπώνει στο ΚΑΕΚ όπου απέχει ≤ snapT — το TOPO_PROP μένει το μετρημένο
       var Ms = DGM.snapToParcels(M, parcels, snapT);
@@ -6843,8 +6849,81 @@ root.CmdCheck = api;
       if (r.verdict === 'marginal') h += '<li>Αν το Κτηματολογικό Γραφείο ζητήσει τεκμηρίωση, έχεις έτοιμο το ΔΓΜ από εδώ (DXF Πίνακα Α + πινακίδα).</li>';
       h += '<li>ΔΓΜ χρειάζεται μόνο αν η πράξη αλλάζει τα όρια (κατάτμηση, συνένωση, σύσταση ΧΑΧ) ή αν ζητηθεί διόρθωση.</li>';
     }
-    h += '</ol></details></div>';
+    h += '</ol></details>';
+    h += '<div class="file-row"><button class="btn primary small" data-exp="compat-pdf">Έκθεση ελέγχου συμβατότητας (PDF)</button><button class="btn small" data-exp="compat-txt">Δήλωση συμβατότητας (TXT)</button><span style="color:var(--muted);font-size:12px">τεκμηριωμένος έλεγχος εμβαδού, θέσης/σχήματος και ορίων ανά κορυφή, με το κείμενο της δήλωσης για το τοπογραφικό</span></div>';
+    h += '</div>';
     return h;
+  }
+  // ---------- Έλεγχος συμβατότητας τοπογραφικού με το κτηματολογικό διάγραμμα (τεκμηρίωση + δήλωση) ----------
+  function distPtSeg(p, a, b) { var dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy, t = L2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)) : 0; return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy)); }
+  function distPtRings(p, rings) { var d = Infinity; rings.forEach(function (r) { for (var i = 0; i < r.length; i++) d = Math.min(d, distPtSeg(p, r[i], r[(i + 1) % r.length])); }); return d; }
+  async function compatData() {
+    var r = dgmVerdict(); if (!r) throw new Error('Χρειάζεται οικόπεδο και γεωτεμάχιο ΚΑΕΚ.');
+    var t = mainPlot(), k = S.kaek, own = k.parcels.filter(function (p) { return p.kaek === r.kaek; })[0];
+    var M = world(t); if (M.length > 3 && M[0][0] === M[M.length - 1][0] && M[0][1] === M[M.length - 1][1]) M = M.slice(0, -1);
+    var Kr = own.rings.map(DGM.open), K = Kr[0];
+    var labels = t.points.map(function (p, i) { return p.label || String(i + 1); });
+    // ανά κορυφή: απόσταση κορυφής τοπογραφικού από το όριο ΚΑΕΚ, και κορυφής ΚΑΕΚ από το όριο του τοπογραφικού
+    var vM = M.map(function (q, i) { return { label: labels[i], x: q[0], y: q[1], d: distPtRings(q, Kr) }; });
+    var vK = K.map(function (q, i) { return { label: 'Κ' + (i + 1), x: q[0], y: q[1], d: distPtRings(q, [M]) }; });
+    // τμήματα διαφορών (με την ίδια λογική του ΔΓΜ): μικρό ελάχιστο τμήμα ώστε να τεκμηριώνονται και οι μικρές διαφορές
+    var pieces = [], dgm = null;
+    try {
+      await loadScript(LIBS.clip);
+      var snapT = S.dgmSnap != null ? S.dgmSnap : 0.05;
+      dgm = DGM.compute(DGM.snapToParcels(M, k.parcels, snapT), k.parcels, r.kaek, { minArea: 0.5 });
+      pieces = dgm.allPieces.filter(function (x) { return x.kind !== 'common'; });
+    } catch (e) { console.warn('compat pieces', e); }
+    var info = sheetInfo();
+    return { r: r, t: t, M: M, K: K, own: own, vM: vM, vK: vK, pieces: pieces, dgm: dgm, info: info, labels: labels, zoneName: S.zone === 'rural' ? 'αγροτική (εκτός σχεδίου)' : 'αστική (εντός σχεδίου / οικισμού)', date: new Date().toLocaleDateString('el-GR') };
+  }
+  function compatDeclaration(c) {
+    var gr = function (v, d) { return fixed(v, d).replace('.', ','); };
+    var r = c.r, i = c.info, eng = i.eng ? i.eng.split(/\s*[;\n]\s*/)[0] : '……………………';
+    var ok = r.verdict !== 'required';
+    var s = 'ΔΗΛΩΣΗ ΣΥΜΒΑΤΟΤΗΤΑΣ ΤΟΠΟΓΡΑΦΙΚΟΥ ΔΙΑΓΡΑΜΜΑΤΟΣ ΜΕ ΤΟ ΚΤΗΜΑΤΟΛΟΓΙΚΟ ΔΙΑΓΡΑΜΜΑ\n\n';
+    s += 'Ο/Η υπογράφων/ουσα μηχανικός ' + eng + ', συντάκτης του τοπογραφικού διαγράμματος' + (i.place ? ' του ακινήτου στη θέση «' + i.place + '»' : '') + (i.client ? ', ιδιοκτησίας ' + i.client : '') + ', δηλώνω υπεύθυνα ότι:\n\n';
+    s += '1. Το ακίνητο αντιστοιχεί στο γεωτεμάχιο με ΚΑΕΚ ' + r.kaek + ' της κτηματολογικής βάσης, εμβαδού ' + gr(r.E, 2) + ' τ.μ. κατά το κτηματολογικό διάγραμμα, ενώ κατά την αποτύπωση (ΕΓΣΑ \'87) το εμβαδόν του είναι ' + gr(r.Em, 2) + ' τ.μ. Η διαφορά εμβαδού ανέρχεται σε ' + gr(r.dE, 2) + ' τ.μ.\n';
+    s += '2. Η αποδεκτή απόκλιση εμβαδού για ' + c.zoneName + ' περιοχή (Uo = ' + gr(r.Uo, 2) + ' m) υπολογίζεται σε Α = [(√Ε + 2·Uo)² − Ε]·Π/(4·√Ε) = ' + gr(r.A, 2) + ' τ.μ.' + (r.capped ? ', με ανώτατο όριο 10%·Ε = ' + gr(r.cap, 2) + ' τ.μ.' : '') + ', ήτοι ' + gr(r.Alim, 2) + ' τ.μ. Η διαφορά εμβαδού ' + (r.areaOk ? 'είναι μικρότερη από' : 'υπερβαίνει') + ' την αποδεκτή απόκλιση.\n';
+    s += '3. Η μέγιστη απόκλιση θέσης των ορίων της αποτύπωσης από τα όρια του κτηματολογικού διαγράμματος είναι ' + gr(r.bdMax, 2) + ' m (μέση ' + gr(r.bdMean, 2) + ' m) και η μετατόπιση των κεντροειδών ' + gr(r.dC, 2) + ' m, ' + (r.shape === 'ok' ? 'εντός της ανοχής Uo' : r.shape === 'marginal' ? 'μεταξύ Uo και 2·Uo' : 'πάνω από 2·Uo') + '.\n\n';
+    s += ok ? 'Κατά συνέπεια, το τοπογραφικό διάγραμμα είναι ΣΥΜΒΑΤΟ με το κτηματολογικό διάγραμμα του γεωτεμαχίου με ΚΑΕΚ ' + r.kaek + ', οι διαπιστωθείσες διαφορές εμπίπτουν στα όρια της αποδεκτής απόκλισης (άρθρο 13α ν.2664/1998, όπως εφαρμόζεται από το Ελληνικό Κτηματολόγιο) και ΔΕΝ απαιτείται η σύνταξη Διαγράμματος Γεωμετρικών Μεταβολών.' + (r.verdict === 'marginal' ? ' Οι αποκλίσεις θέσης βρίσκονται μεταξύ Uo και 2·Uo· η τελική κρίση ανήκει στο αρμόδιο Κτηματολογικό Γραφείο.' : '')
+      : 'Κατά συνέπεια, το τοπογραφικό διάγραμμα ΔΕΝ είναι συμβατό με το κτηματολογικό διάγραμμα του γεωτεμαχίου με ΚΑΕΚ ' + r.kaek + ' και απαιτείται η σύνταξη Διαγράμματος Γεωμετρικών Μεταβολών για τη διόρθωση των γεωμετρικών στοιχείων (άρθρο 19 §2 ν.2664/1998).';
+    s += '\n\nΗ παρούσα δήλωση συνοδεύει το τοπογραφικό διάγραμμα για την ηλεκτρονική υποβολή του στο Ελληνικό Κτηματολόγιο.\n\n' + (i.place ? i.place + ', ' : '') + c.date + '\n\nΟ/Η δηλών/ούσα μηχανικός\n\n\n' + eng + '\n';
+    return s;
+  }
+  async function exportCompat(kind) {
+    var c = await compatData(), r = c.r, decl = compatDeclaration(c);
+    var fname = 'symvatotita_' + String(r.kaek).replace(/\D/g, '').slice(-8);
+    if (kind === 'compat-txt') { download(fname + '.txt', '\ufeff' + decl, 'text/plain;charset=utf-8'); toast('Έτοιμη η δήλωση συμβατότητας.'); return; }
+    await loadScript(LIBS.pdfmake); await loadScript(LIBS.vfs);
+    var BLUE = '#1F4E9C', LIGHT = '#E8F0FB', RED = '#b91c1c', GREEN = '#047857';
+    function th(t, al) { return { text: t, bold: true, color: '#ffffff', fillColor: BLUE, alignment: al || 'left', fontSize: 8.5 }; }
+    function tbl(widths, body) { return { table: { headerRows: 1, widths: widths, body: body }, layout: { fillColor: function (i) { return i > 0 && i % 2 === 0 ? LIGHT : null; }, hLineColor: function () { return '#c9d6ea'; }, vLineColor: function () { return '#c9d6ea'; }, hLineWidth: function () { return 0.5; }, vLineWidth: function () { return 0.5; }, paddingTop: function () { return 3; }, paddingBottom: function () { return 3; } } }; }
+    function okTxt(b) { return { text: b ? 'ΝΑΙ' : 'ΟΧΙ', color: b ? GREEN : RED, bold: true, alignment: 'center' }; }
+    var verdictTxt = r.verdict === 'none' ? 'ΣΥΜΒΑΤΟ — δεν απαιτείται ΔΓΜ' : r.verdict === 'marginal' ? 'ΣΥΜΒΑΤΟ (οριακά) — κατά κανόνα δεν απαιτείται ΔΓΜ' : 'ΜΗ ΣΥΜΒΑΤΟ — απαιτείται ΔΓΜ διόρθωσης';
+    var content = [{ text: 'Έλεγχος συμβατότητας τοπογραφικού διαγράμματος με το κτηματολογικό διάγραμμα', style: 'h0' }, { text: 'Γεωτεμάχιο ΚΑΕΚ ' + r.kaek + ' · ΕΓΣΑ \'87 · τεκμηρίωση κατά άρθ. 13α ν.2664/1998', style: 'sub' }];
+    content.push({ table: { widths: [150, '*'], body: [[{ text: 'Αρχείο σχεδίου', bold: true, color: BLUE }, S.name], [{ text: 'Πίνακας ιδιοκτησίας', bold: true, color: BLUE }, shortTitle(c.t) + ' (' + c.M.length + ' κορυφές)'], [{ text: 'Ιδιοκτήτης / εργοδότης', bold: true, color: BLUE }, c.info.client || '—'], [{ text: 'Θέση', bold: true, color: BLUE }, c.info.place || '—'], [{ text: 'Μηχανικός', bold: true, color: BLUE }, c.info.eng || '—'], [{ text: 'Περιοχή / ανοχή Uo', bold: true, color: BLUE }, c.zoneName + ' · Uo = ' + fixed(r.Uo, 2) + ' m'], [{ text: 'Ημερομηνία ελέγχου', bold: true, color: BLUE }, c.date], [{ text: 'Αποτέλεσμα', bold: true, color: BLUE }, { text: verdictTxt, bold: true, color: r.verdict === 'required' ? RED : GREEN }]] }, layout: { fillColor: function () { return LIGHT; }, hLineColor: function () { return '#ffffff'; }, vLineColor: function () { return '#ffffff'; }, hLineWidth: function () { return 2; }, vLineWidth: function () { return 2; } }, margin: [0, 6, 0, 12] });
+    content.push({ text: '1. Έλεγχος εμβαδού', style: 'h1' });
+    content.push(tbl(['*', 110], [[th('Μέγεθος'), th('Τιμή', 'right')], ['Εμβαδόν κτηματολογικής βάσης Ε', { text: fixed(r.E, 2) + ' m²', alignment: 'right' }], ['Περίμετρος γεωτεμαχίου ΚΑΕΚ Π', { text: fixed(r.P, 2) + ' m', alignment: 'right' }], ['Εμβαδόν αποτύπωσης Εm', { text: fixed(r.Em, 2) + ' m²', alignment: 'right' }], ['Διαφορά εμβαδού ΔΕ = |Εm − Ε|', { text: fixed(r.dE, 2) + ' m²', alignment: 'right', bold: true }], ['Αποδεκτή απόκλιση Α = [(√Ε + 2·Uo)² − Ε]·Π/(4·√Ε)', { text: fixed(r.A, 2) + ' m²', alignment: 'right' }], ['Ανώτατο όριο 10%·Ε', { text: fixed(r.cap, 2) + ' m²' + (r.capped ? ' (εφαρμόζεται)' : ''), alignment: 'right' }], ['Όριο ανοχής εμβαδού (το μικρότερο)', { text: fixed(r.Alim, 2) + ' m²', alignment: 'right', bold: true }], [{ text: 'ΔΕ ≤ όριο ανοχής;', bold: true }, okTxt(r.areaOk)]]));
+    content.push({ text: '2. Έλεγχος θέσης και σχήματος ορίων', style: 'h1' });
+    content.push(tbl(['*', 110], [[th('Μέγεθος'), th('Τιμή', 'right')], ['Μέγιστη απόκλιση ορίων αποτύπωσης ↔ ΚΑΕΚ', { text: fixed(r.bdMax, 2) + ' m', alignment: 'right', bold: true }], ['Μέση απόκλιση ορίων', { text: fixed(r.bdMean, 2) + ' m', alignment: 'right' }], ['Μετατόπιση κεντροειδών', { text: fixed(r.dC, 2) + ' m', alignment: 'right' }], ['Περίμετρος αποτύπωσης', { text: fixed(r.pT, 2) + ' m', alignment: 'right' }], [{ text: 'Μέγιστη απόκλιση ≤ Uo (' + fixed(r.Uo, 2) + ' m);', bold: true }, okTxt(r.bdMax <= r.Uo)], [{ text: 'Μέγιστη απόκλιση ≤ 2·Uo (' + fixed(2 * r.Uo, 2) + ' m);', bold: true }, okTxt(r.bdMax <= 2 * r.Uo)], [{ text: 'Μετατόπιση κεντροειδών ≤ Uo;', bold: true }, okTxt(r.dC <= r.Uo)]]));
+    content.push({ text: '2.1 Κορυφές αποτύπωσης — απόσταση από το όριο του ΚΑΕΚ', style: 'h2' });
+    content.push(tbl([50, '*', '*', 80, 50], [[th('Κορυφή', 'center'), th('X', 'center'), th('Y', 'center'), th('Απόσταση (m)', 'center'), th('≤ Uo', 'center')]].concat(c.vM.map(function (v) { return [{ text: v.label, alignment: 'center' }, { text: fixed(v.x, 2), alignment: 'center' }, { text: fixed(v.y, 2), alignment: 'center' }, { text: fixed(v.d, 2), alignment: 'center', bold: v.d > r.Uo, color: v.d > r.Uo ? RED : undefined }, okTxt(v.d <= r.Uo)]; }))));
+    content.push({ text: '2.2 Κορυφές κτηματολογικού διαγράμματος — απόσταση από το όριο της αποτύπωσης', style: 'h2' });
+    content.push(tbl([50, '*', '*', 80, 50], [[th('Κορυφή', 'center'), th('X', 'center'), th('Y', 'center'), th('Απόσταση (m)', 'center'), th('≤ Uo', 'center')]].concat(c.vK.map(function (v) { return [{ text: v.label, alignment: 'center' }, { text: fixed(v.x, 2), alignment: 'center' }, { text: fixed(v.y, 2), alignment: 'center' }, { text: fixed(v.d, 2), alignment: 'center', bold: v.d > r.Uo, color: v.d > r.Uo ? RED : undefined }, okTxt(v.d <= r.Uo)]; }))));
+    if (c.pieces.length) {
+      content.push({ text: '3. Επιμέρους διαφορές ορίων (τμήματα ≥ 0,5 m²)', style: 'h1' });
+      var kinds = { cut: 'επιφάνεια εκτός ΚΑΕΚ, εντός αποτύπωσης (από όμορο)', given: 'επιφάνεια εντός ΚΑΕΚ, εκτός αποτύπωσης', gap: 'εντός αποτύπωσης, εκτός γεωτεμαχίων βάσης' };
+      content.push(tbl([40, '*', 90, 70, 70, 50], [[th('Τμήμα', 'center'), th('Περιγραφή'), th('Έναντι ΚΑΕΚ'), th('Εμβαδόν (m²)', 'right'), th('Μέγ. απόκλιση (m)', 'right'), th('≤ Uo', 'center')]].concat(c.pieces.map(function (x) { return [{ text: x.id, alignment: 'center' }, kinds[x.kind] || x.kind, x.kind === 'cut' ? (x.from || '—') : x.kind === 'given' ? (x.to || '—') : '—', { text: fixed(x.area, 2), alignment: 'right' }, { text: fixed(x.dev, 2), alignment: 'right', color: x.dev > r.Uo ? RED : undefined }, okTxt(x.dev <= r.Uo)]; }))));
+      content.push({ text: 'Σύνολο επιφάνειας διαφορών: ' + fixed(c.pieces.reduce(function (a, x) { return a + x.area; }, 0), 2) + ' m² (' + fixed(100 * c.pieces.reduce(function (a, x) { return a + x.area; }, 0) / r.E, 2) + '% του Ε).', fontSize: 8.5, margin: [0, 4, 0, 0] });
+    } else content.push({ text: '3. Επιμέρους διαφορές ορίων: καμία ≥ 0,5 m² — τα δύο όρια πρακτικά ταυτίζονται.', style: 'h1' });
+    if (c.dgm) { content.push({ text: 'Σχήμα 1. Όριο αποτύπωσης (TOPO_PROP) έναντι γεωτεμαχίων ΚΑΕΚ', style: 'cap', pageBreak: 'before' }); content.push({ svg: DGM.svg(c.dgm, c.M, c.dgm.summary.length ? S.kaek.parcels.filter(function (p) { return p.kaek === r.kaek || c.pieces.some(function (x) { return x.from === p.kaek || x.to === p.kaek; }); }) : [c.own], { W: 1000, H: 640, labels: c.labels }), width: 500, alignment: 'center', margin: [0, 2, 0, 10] }); }
+    content.push({ text: '4. Συμπέρασμα και δήλωση', style: 'h1' });
+    content.push({ text: decl.split('\n').slice(2).join('\n'), fontSize: 9.5, lineHeight: 1.35, preserveLeadingSpaces: true });
+    content.push({ text: 'Σημείωση: ο έλεγχος είναι τεκμηριωμένος αλλά ενδεικτικός· η τελική κρίση για την αποδεκτή απόκλιση ανήκει στο αρμόδιο Κτηματολογικό Γραφείο. Συντεταγμένες από τον πίνακα του τοπογραφικού και από την κτηματολογική βάση ΚΑΕΚ του HEXIS.', fontSize: 7.5, color: '#55607a', margin: [0, 10, 0, 0] });
+    var dd = { pageSize: 'A4', pageMargins: [44, 50, 44, 50], defaultStyle: { font: 'Roboto', fontSize: 9, color: '#1f2a44' }, styles: { h0: { fontSize: 15, bold: true, color: BLUE, alignment: 'center' }, sub: { fontSize: 10, color: '#55607a', alignment: 'center', margin: [0, 2, 0, 6] }, h1: { fontSize: 12, bold: true, color: BLUE, margin: [0, 14, 0, 6] }, h2: { fontSize: 10, bold: true, color: BLUE, margin: [0, 8, 0, 3] }, cap: { fontSize: 8.5, italics: true, color: '#55607a', margin: [0, 8, 0, 2] } },
+      footer: function (cur, total) { return { columns: [{ text: 'HEXIS GEOmetry · Έλεγχος συμβατότητας ΚΑΕΚ ' + r.kaek, fontSize: 7.5, color: '#8a93ad' }, { text: cur + ' / ' + total, alignment: 'right', fontSize: 7.5, color: '#8a93ad' }], margin: [44, 18, 44, 0] }; }, content: content };
+    pdfMake.createPdf(dd).getBlob(function (blob) { download(fname + '.pdf', blob); toast('Έτοιμη η έκθεση ελέγχου συμβατότητας.'); });
   }
   function dgmChecks(d, spec) {
     spec = spec || dgmSpec(d, dgmUsed(d));
@@ -7100,6 +7179,7 @@ root.CmdCheck = api;
   left.addEventListener('click', function (ev) {
     var x = ev.target.closest('[data-exp]');
     if (x && /^kaek-/.test(x.dataset.exp)) { exportKaek(x.dataset.exp).catch(function (e) { toast('Η εξαγωγή απέτυχε: ' + e.message, true); }); return; }
+    if (x && /^compat-/.test(x.dataset.exp)) { exportCompat(x.dataset.exp).catch(function (e) { console.error(e); toast('Ο έλεγχος απέτυχε: ' + e.message, true); }); return; }
     if (x && /^(dgm-|praxis-)/.test(x.dataset.exp)) { exportDgm(x.dataset.exp).catch(function (e) { console.error(e); toast('Η εξαγωγή απέτυχε: ' + e.message, true); }); return; }
     var b = ev.target.closest('[data-act]'); if (!b) return;
     var act = b.dataset.act, card = b.closest('.tcard'), t = card ? tableById(card.dataset.id) : null;
