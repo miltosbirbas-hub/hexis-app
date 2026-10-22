@@ -7537,9 +7537,10 @@ root.CmdCheck = api;
     } catch (e) { toast(e.message, true); return; }
     if (!S.map) {
       proj4.defs('EPSG:2100', EGSA87);
-      S.map = L.map('map', { zoomControl: true, attributionControl: true });
-      var sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 21, maxNativeZoom: 19, attribution: 'Imagery © Esri' });
-      var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 21, maxNativeZoom: 19, attribution: '© OpenStreetMap' });
+      S.map = L.map('map', { zoomControl: true, attributionControl: true, maxZoom: 22 });
+      // όπως στο ktimatologio.html: σε αγροτικές περιοχές η Esri δεν έχει tiles πάνω από z18 — από εκεί και πάνω μεγεθύνουμε ψηφιακά (maxNativeZoom) αντί να «σπάει» σε κενό
+      var sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 22, maxNativeZoom: 18, attribution: 'Imagery © Esri' });
+      var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 22, maxNativeZoom: 19, attribution: '© OpenStreetMap' });
       sat.addTo(S.map);
       L.control.layers({ 'Δορυφορική': sat, 'Χάρτης': osm }, {}, { position: 'topright' }).addTo(S.map);
       var errs = 0;
@@ -7571,11 +7572,11 @@ root.CmdCheck = api;
       shape.addTo(S.mapLayer);
       if (t.id === S.sel) ll.forEach(function (q, i) { L.circleMarker(q, { radius: 4, color: col, fillColor: col, fillOpacity: 1, weight: 1 }).bindTooltip(esc(t.points[i].label || String(i + 1)), { permanent: ll.length < 30, direction: 'top', className: '' }).addTo(S.mapLayer); });
     });
-    if (focusLL) { S.map.fitBounds(L.latLngBounds(focusLL), { padding: [40, 40], maxZoom: 20 }); S.kaekFocus = null; return; }
+    if (focusLL) { S.map.fitBounds(L.latLngBounds(focusLL), { padding: [40, 40], maxZoom: 21 }); S.kaekFocus = null; return; }
     if (fit && all.length) {
       var sel = tableById(S.sel);
       var b = sel ? sel.points.map(function (p) { var q = proj4('EPSG:2100', 'WGS84', [p.X.value, p.Y.value]); return [q[1], q[0]]; }) : all;
-      S.map.fitBounds(L.latLngBounds(b), { padding: [40, 40], maxZoom: 20 });
+      S.map.fitBounds(L.latLngBounds(b), { padding: [40, 40], maxZoom: 21 });
     }
   }
 
