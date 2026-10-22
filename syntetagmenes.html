@@ -4767,18 +4767,22 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     return out;
   }
   async function fetchArcgis(bbox, opts) {
-    opts = opts || {}; var bases = (opts.urls && opts.urls.length ? opts.urls : ARCGIS), all = [], seen = {}, errs = [];
+    opts = opts || {}; var bases = (opts.urls && opts.urls.length ? opts.urls : ARCGIS), errs = [];
+    // ΣΗΜΑΝΤΙΚΟ: τα layers (λειτουργούν / προκαταρκτικό) επικαλύπτονται χωρικά — χρησιμοποιούμε ΜΟΝΟ το πρώτο που δίνει
+    // γεωτεμάχια, αλλιώς το ίδιο όριο μετριέται δύο φορές και τα εμβαδά των μεταβολών βγαίνουν λάθος.
     for (var i = 0; i < bases.length; i++) {
       var ctl = new AbortController(), to = setTimeout(function () { ctl.abort(); }, opts.timeout || 30000);
       try {
         var r = await fetch(arcgisUrl(bases[i], bbox, opts.count), { signal: ctl.signal });
         var j = await r.json(); j.__layer = /LEITOURGOUN/i.test(bases[i]) ? 'λειτουργούν' : /PROKATARK/i.test(bases[i]) ? 'προκαταρκτικό' : '';
-        parseArcgis(j).forEach(function (p) { if (seen[p.kaek]) return; seen[p.kaek] = 1; all.push(p); });
+        var list = parseArcgis(j), seen = {}, out = [];
+        list.forEach(function (p) { if (seen[p.kaek]) return; seen[p.kaek] = 1; out.push(p); });
+        if (out.length) return { parcels: out, via: 'arcgis', layer: j.__layer };
       } catch (e) { errs.push(e.name === 'AbortError' ? 'χρονικό όριο' : e.message); }
       finally { clearTimeout(to); }
     }
-    if (!all.length && errs.length) throw new Error('Ο ψηφιακός χάρτης του Κτηματολογίου δεν απάντησε (' + errs.join(' · ') + ').');
-    return { parcels: all, via: 'arcgis' };
+    if (errs.length) throw new Error('Ο ψηφιακός χάρτης του Κτηματολογίου δεν απάντησε (' + errs.join(' · ') + ').');
+    return { parcels: [], via: 'arcgis' };
   }
   var api = { fetchBBox: fetchBBox, parseGML: parseGML, url: url, BASE: BASE, fetchArcgis: fetchArcgis, parseArcgis: parseArcgis, ARCGIS: ARCGIS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
@@ -6528,6 +6532,14 @@ root.CmdCheck = api;
     return tot ? areaA * hit / tot : 0;
   }
   function kaekSource() { var v = S.kaekSource || store('hexis_kaek_source') || 'hexis'; return v === 'inspire' ? 'inspire' : 'hexis'; }
+  // Χρήσιμα στοιχεία γεωτεμαχίου από τα attributes του χάρτη (ονόματα πεδίων ανά περίπτωση)
+  function parcelInfo(at) {
+    if (!at) return null;
+    function find(re) { for (var k in at) if (re.test(k) && at[k] != null && at[k] !== '') return at[k]; return null; }
+    var kath = find(/KATHET|ΚΑΘΕΤ/i), oriz = find(/ORIZONT|ΟΡΙΖΟΝΤ/i), xrhsh = find(/XRHSH|CHRHSH|ΧΡΗΣ/i), pos = find(/POSOST|ΠΟΣΟΣΤ/i), eidos = find(/EIDOS|ΕΙΔΟΣ|TYPE/i);
+    var o = {}; if (kath != null) o.kathetes = +kath || kath; if (oriz != null) o.orizonties = +oriz || oriz; if (xrhsh) o.xrhsh = String(xrhsh); if (pos != null) o.pososto = pos; if (eidos) o.eidos = String(eidos);
+    return Object.keys(o).length ? o : null;
+  }
   async function findKaek() {
     var t = mainPlot(); if (!t) { S.kaek = null; return; }
     var key = plotKey();
@@ -6549,7 +6561,7 @@ root.CmdCheck = api;
         try { ins = await InspireKaek.fetchArcgis(bbox, { urls: (store('hexis_arcgis_urls') || '').split(/\s*[\n,;]\s*/).filter(Boolean), count: 500 }); }
         catch (e1) { if (!store('hexis_inspire_wfs')) throw e1; ins = await InspireKaek.fetchBBox(bbox, { base: store('hexis_inspire_wfs') || null, typeName: store('hexis_inspire_type') || null, proxy: HEXIS.inspireProxy, count: 400, headers: { apikey: HEXIS.anonKey }, toEgsa: function (lon, lat) { return proj4('WGS84', 'EPSG:2100', [lon, lat]); } }); }
         via = ins.via;
-        ins.parcels.forEach(function (p) { if (seen[p.kaek]) return; seen[p.kaek] = p; parcels.push({ kaek: p.kaek, area: p.area, geom: p.geom, hit: false, layer: p.layer || '' }); });
+        ins.parcels.forEach(function (p) { if (seen[p.kaek]) return; seen[p.kaek] = p; parcels.push({ kaek: p.kaek, area: p.area, geom: p.geom, hit: false, layer: p.layer || '', info: parcelInfo(p.attrs) }); });
         if (ins.parcels.some(function (p) { return p.layer === 'προκαταρκτικό'; }) && !ins.parcels.some(function (p) { return p.layer === 'λειτουργούν'; })) region = 'προκαταρκτικό Κτηματολόγιο (υπό κτηματογράφηση)';
         approxOnly = false; samples = [];
       }
@@ -6575,7 +6587,19 @@ root.CmdCheck = api;
       });
       if (kaekSource() === 'inspire') { parcels.forEach(function (p) { p.hit = p.ovl > 0; }); parcels = parcels.filter(function (p) { return p.ovl > 0 || p.rings.some(function (r) { return r.some(function (q) { return Math.hypot(q[0] - c[0], q[1] - c[1]) < 150; }); }); }); }
       parcels.sort(function (a, b) { return b.ovl - a.ovl; });
-      S.kaek = { key: key, status: parcels.length ? 'ok' : 'empty', parcels: parcels, plotId: t.id, region: region, approx: approxOnly, areaPlot: areaPlot, source: kaekSource(), via: via };
+      // Δικλείδα: πέταξε πολύγωνα που περικλείουν άλλα γεωτεμάχια (μεγάλο «μπλοκ»/ΟΤ πάνω στα επιμέρους) — αλλιώς
+      // το μετρημένο όριο θα μετρηθεί διπλά και τα εμβαδά μεταβολών βγαίνουν λάθος.
+      var containers = {};
+      parcels.forEach(function (big) {
+        parcels.forEach(function (small) {
+          if (big === small || big.area <= small.area * 1.3) return;
+          var inside = 0, n = 0; small.rings.forEach(function (r) { r.forEach(function (q) { n++; if (big.rings.some(function (br) { return CoordParser.pointInPoly(q, br, 0); })) inside++; }); });
+          if (n && inside / n >= 0.9) containers[big.kaek] = (containers[big.kaek] || 0) + 1;
+        });
+      });
+      var dropped = parcels.filter(function (p) { return containers[p.kaek]; });
+      if (dropped.length) parcels = parcels.filter(function (p) { return !containers[p.kaek]; });
+      S.kaek = { key: key, status: parcels.length ? 'ok' : 'empty', parcels: parcels, plotId: t.id, region: region, approx: approxOnly, areaPlot: areaPlot, source: kaekSource(), via: via, dropped: dropped.map(function (p) { return p.kaek; }) };
     } catch (e) {
       console.warn('kaek', e);
       S.kaek = { key: key, status: 'error', parcels: [], plotId: t.id, error: e.name === 'AbortError' ? 'Η βάση ΚΑΕΚ δεν απάντησε εγκαίρως.' : e.message };
@@ -6588,6 +6612,7 @@ root.CmdCheck = api;
     var src = kaekSource();
     var h = '<section class="panel summary" id="kaekPanel"><div class="file-row"><span class="fname">Κτηματολόγιο</span><span class="chip">γεωτεμάχια ΚΑΕΚ στη θέση του «' + esc(shortTitle(t)) + '»</span><label style="margin-left:auto;font-size:12px;color:var(--muted)">Πηγή <select id="kaekSource"><option value="hexis"' + (src === 'hexis' ? ' selected' : '') + '>Βάση ΚΑΕΚ HEXIS</option><option value="inspire"' + (src === 'inspire' ? ' selected' : '') + '>Κτηματολόγιο — ζωντανά από τον ψηφιακό χάρτη</option></select></label></div>';
     if (src === 'inspire') h += '<details style="font-size:12px"><summary style="cursor:pointer;color:var(--muted)">Ρυθμίσεις ζωντανής πηγής (ArcGIS REST του ψηφιακού χάρτη · εφεδρικά WFS)</summary><div class="dgm-ctl" style="margin-top:6px"><label style="flex:1 1 520px">Υπηρεσίες ArcGIS (FeatureServer/MapServer layer, μία ανά γραμμή — κενό = προεπιλογή)<textarea id="arcgisUrls" rows="2" style="width:100%;font:12px ui-monospace,monospace" placeholder="' + esc(InspireKaek.ARCGIS[0]) + '">' + esc(store('hexis_arcgis_urls') || '') + '</textarea></label></div><div class="dgm-ctl"><label style="flex:1 1 420px">Εφεδρική υπηρεσία WFS INSPIRE (προαιρετικά)<input id="inspireWfs" value="' + esc(store('hexis_inspire_wfs') || '') + '" placeholder="https://…/wfs" style="width:100%"></label><label>Feature type<input id="inspireType" value="' + esc(store('hexis_inspire_type') || '') + '" placeholder="cp:CadastralParcel" style="width:180px"></label></div></details>';
+    if (k && k.dropped && k.dropped.length) h += '<p style="margin:0;color:var(--warn);font-size:12px">Αγνοήθηκαν ' + k.dropped.length + ' περιβάλλοντα πολύγωνα (ΚΑΕΚ ' + k.dropped.map(esc).join(', ') + ') που σκέπαζαν τα επιμέρους γεωτεμάχια — ήταν μπλοκ/επικαλυπτόμενα όρια και θα αλλοίωναν τα εμβαδά των μεταβολών.</p>';
     if (k && k.status === 'ok' && k.source) h += '<p style="margin:0;color:var(--muted);font-size:12px">Πηγή γεωμετρίας: ' + (k.source === 'inspire' ? (k.via === 'arcgis' ? 'ζωντανή λήψη από την υπηρεσία γεωτεμαχίων του ψηφιακού χάρτη του Ελληνικού Κτηματολογίου (ArcGIS REST)' : 'υπηρεσία INSPIRE WFS' + (k.via === 'proxy' ? ' μέσω HEXIS' : '')) + ' — τα όρια είναι της τρέχουσας κτηματολογικής βάσης' : 'βάση ΚΑΕΚ του HEXIS') + '.</p>';
     if (!k || k.key !== plotKey()) {
       h += '<p style="margin:0;color:var(--muted);font-size:13px">Αναζήτηση των γεωτεμαχίων του Κτηματολογίου που βρίσκονται στη θέση του οικοπέδου, από τη βάση ΚΑΕΚ του HEXIS.</p><div><button class="btn primary" data-act="kaek-find">Εύρεση ΚΑΕΚ</button></div>';
@@ -6605,7 +6630,7 @@ root.CmdCheck = api;
       h += '<div class="kpi"><label>Όμορα</label><b>' + others.length + '</b><div class="sub">γύρω από το οικόπεδο</div></div>';
       h += '<div class="kpi"><label>Περιοχή</label><b style="font-size:14px">' + esc(k.region || '—') + '</b><div class="sub">βάση ΚΑΕΚ HEXIS</div></div></div>';
       h += '<div class="kaek-list">' + mains.map(function (p) {
-        return '<div class="kaek-row main"><span class="sw"></span><div><b>ΚΑΕΚ ' + esc(p.kaek) + '</b><small>' + fmt(p.area, 2) + ' m² · τομή με το οικόπεδο ' + fmt(p.ovl, 2) + ' m² (' + fmt(100 * p.ovlPlot, 1) + '% του οικοπέδου · ' + fmt(100 * p.ovlParcel, 1) + '% του γεωτεμαχίου)</small><div class="bar"><i style="width:' + Math.round(100 * p.ovlParcel) + '%"></i></div></div><button class="btn small" data-act="kaek-show" data-kaek="' + esc(p.kaek) + '">Στον χάρτη</button></div>';
+        return '<div class="kaek-row main"><span class="sw"></span><div><b>ΚΑΕΚ ' + esc(p.kaek) + '</b>' + infoChips(p.info) + '<small>' + fmt(p.area, 2) + ' m² · τομή με το οικόπεδο ' + fmt(p.ovl, 2) + ' m² (' + fmt(100 * p.ovlPlot, 1) + '% του οικοπέδου · ' + fmt(100 * p.ovlParcel, 1) + '% του γεωτεμαχίου)</small><div class="bar"><i style="width:' + Math.round(100 * p.ovlParcel) + '%"></i></div></div><button class="btn small" data-act="kaek-show" data-kaek="' + esc(p.kaek) + '">Στον χάρτη</button></div>';
       }).join('') + '</div>';
       if (others.length) h += '<details><summary style="cursor:pointer;color:var(--muted);font-size:12.5px">Όμορα γεωτεμάχια (' + others.length + ')</summary><div class="kaek-list" style="margin-top:8px">' + others.map(function (p) { return '<div class="kaek-row"><span class="sw"></span><div><b>ΚΑΕΚ ' + esc(p.kaek) + '</b><small>' + fmt(p.area, 2) + ' m²</small></div><button class="btn small" data-act="kaek-show" data-kaek="' + esc(p.kaek) + '">Στον χάρτη</button></div>'; }).join('') + '</div></details>';
       if (!S.dgm) h += renderVerdict();
@@ -6830,6 +6855,14 @@ root.CmdCheck = api;
     if (S.dgm.status === 'ok') { var el = $('#dgmPanel'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   }
   function kaekName(k) { return k ? 'ΚΑΕΚ ' + k : 'εκτός ΚΑΕΚ'; }
+  function infoChips(info) {
+    if (!info) return '';
+    var c = [];
+    if (info.xrhsh) c.push('<span class="chip" style="font-size:10.5px">' + esc(info.xrhsh) + '</span>');
+    if (info.kathetes) c.push('<span class="chip warn" style="font-size:10.5px" title="κάθετες ιδιοκτησίες">' + info.kathetes + ' κάθετες</span>');
+    if (info.orizonties) c.push('<span class="chip warn" style="font-size:10.5px" title="οριζόντιες ιδιοκτησίες">' + info.orizonties + ' οριζόντιες</span>');
+    return c.length ? ' ' + c.join(' ') : '';
+  }
   function dgmUsed(d) { return (d && d.parcels) || dgmParcels(); }
   function renderDgmPanel() {
     var d = S.dgm; if (!d) return '';
