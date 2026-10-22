@@ -26,6 +26,16 @@
   --f-display:'Unbounded','Segoe UI',system-ui,sans-serif; --f-body:'Manrope','Segoe UI',system-ui,sans-serif; --f-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
   --r:14px; color-scheme:dark;
 }
+:root[data-theme="light"]{
+  --void:#F2F5FB; --deep:#E9EEF7; --panel:#FFFFFF; --panel2:#EEF2F9; --line:rgba(30,58,102,.14); --line2:rgba(30,58,102,.28);
+  --ink:#141C2E; --muted:#56657F; --dim:#8593AB;
+  --cyan:#0891B2; --violet:#6D3BFF; --rose:#DB2777; --amber:#B45309; --mint:#047857; --bad:#BE123C;
+  --conc:#D7DEEA; --conc2:#B9C4D8; --soil:#EADFC8; --soil2:#B8A074; --gravel:#C9D6C4; --steel:#DB2777;
+  color-scheme:light;
+}
+:root[data-theme="light"] body{background:radial-gradient(1200px 600px at 20% -10%,rgba(8,145,178,.08),transparent 60%),radial-gradient(900px 500px at 100% 0,rgba(109,59,255,.08),transparent 60%),var(--void)}
+:root[data-theme="light"] .seg button.on{color:#fff}
+:root[data-theme="light"] #plancv{background:#F7F9FD}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--void);color:var(--ink);font:14px/1.5 var(--f-body)}
 body{padding-block:0 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:radial-gradient(1200px 600px at 20% -10%,rgba(61,232,255,.08),transparent 60%),radial-gradient(900px 500px at 100% 0,rgba(139,92,255,.10),transparent 60%),var(--void)}
@@ -104,6 +114,7 @@ textarea.out{width:100%;height:120px;font:11px var(--f-mono);background:var(--pa
 <header>
   <h1>HEXIS Τοίχος Αντιστήριξης<small>Τοίχος προβόλου Ο/Σ · EN 1997‑1 · EN 1998‑5 · EN 1992‑1‑1 · ΚΤΣ‑2016</small></h1>
   <div class="chips" id="chips"></div>
+  <button class="btn" id="btnTheme" title="Εναλλαγή σκούρου/ανοιχτού φόντου">☀ Ανοιχτό φόντο</button>
 </header>
 
 <div class="wrap">
@@ -765,15 +776,17 @@ function planBounds(){ var b=[Infinity,Infinity,-Infinity,-Infinity], add=functi
 function fitPlan(){ var cv=document.getElementById('plancv'), b=planBounds(), W=cv.clientWidth||800, H=cv.clientHeight||520; var s=Math.min(W/Math.max(b[2]-b[0],1e-3),H/Math.max(b[3]-b[1],1e-3))*0.9; PLAN.view={s:s,ox:W/2-(b[0]+b[2])/2*s,oy:H/2+(b[1]+b[3])/2*s}; }
 function P2S(p){ return [PLAN.view.ox+p[0]*PLAN.view.s, PLAN.view.oy-p[1]*PLAN.view.s]; } function S2P(q){ return [(q[0]-PLAN.view.ox)/PLAN.view.s,(PLAN.view.oy-q[1])/PLAN.view.s]; }
 
+function cssv(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 function drawPlan(){
   var cv=document.getElementById('plancv'), dpr=window.devicePixelRatio||1, W=cv.clientWidth, H=cv.clientHeight; if(!W) return;
+  var INK=cssv('--ink'), MUT=cssv('--muted'), LIGHT=document.documentElement.getAttribute('data-theme')==='light'; ROLE_COLORS.contour=LIGHT?'#56657F':'#8EA3C4'; ROLE_COLORS.ignore=LIGHT?'#C5CEDD':'#2b3a57';
   if(cv.width!==W*dpr||cv.height!==H*dpr){ cv.width=W*dpr; cv.height=H*dpr; }
   var c=cv.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,W,H);
   // πλέγμα
-  c.strokeStyle='rgba(120,190,255,.07)'; c.lineWidth=1; var g=gridStep(); var b0=S2P([0,H]), b1=S2P([W,0]);
+  c.strokeStyle=LIGHT?'rgba(30,58,102,.08)':'rgba(120,190,255,.07)'; c.lineWidth=1; var g=gridStep(); var b0=S2P([0,H]), b1=S2P([W,0]);
   for(var x=Math.floor(b0[0]/g)*g;x<=b1[0];x+=g){ var q=P2S([x,0]); c.beginPath(); c.moveTo(q[0],0); c.lineTo(q[0],H); c.stroke(); }
   for(var y=Math.floor(b0[1]/g)*g;y<=b1[1];y+=g){ var q2=P2S([0,y]); c.beginPath(); c.moveTo(0,q2[1]); c.lineTo(W,q2[1]); c.stroke(); }
-  c.fillStyle='rgba(142,163,196,.6)'; c.font='10px JetBrains Mono,monospace'; c.fillText('πλέγμα '+g+' m',8,H-8);
+  c.fillStyle=MUT; c.font='10px JetBrains Mono,monospace'; c.fillText('πλέγμα '+g+' m',8,H-8);
   // στοιχεία DXF
   PLAN.prims.forEach(function(p){ var r=PLAN.roles[p.L]||'ignore'; c.strokeStyle=ROLE_COLORS[r]; c.lineWidth=r==='contour'?0.8:(r==='ignore'?0.6:1.6); c.globalAlpha=r==='ignore'?0.5:1;
     if(p.k==='poly'){ c.beginPath(); p.pts.forEach(function(q,i){ var s=P2S(q); if(i)c.lineTo(s[0],s[1]); else c.moveTo(s[0],s[1]); }); if(p.closed)c.closePath(); c.stroke();
@@ -789,7 +802,7 @@ function drawPlan(){
     } }
   // άξονας & κορυφές
   if(NODES.length){ c.strokeStyle='#FF3D81'; c.lineWidth=2; c.beginPath(); NODES.forEach(function(n,i){ var s=P2S([n.x,n.y]); if(i)c.lineTo(s[0],s[1]); else c.moveTo(s[0],s[1]); }); c.stroke();
-    NODES.forEach(function(n,i){ var s=P2S([n.x,n.y]); c.fillStyle=i===PLAN.drag?'#fff':'#FF3D81'; c.beginPath(); c.arc(s[0],s[1],5,0,7); c.fill(); c.fillStyle='#E8F1FF'; c.font='11px JetBrains Mono,monospace'; c.fillText('K'+(i+1)+'  '+f2(n.st)+'  H='+f2(n.H),s[0]+8,s[1]-6); c.fillStyle='#8EA3C4'; c.fillText('στέψη '+f2(n.zTop)+' · θεμ. '+f2(n.zFound),s[0]+8,s[1]+8); }); }
+    NODES.forEach(function(n,i){ var s=P2S([n.x,n.y]); c.fillStyle=i===PLAN.drag?'#fff':'#FF3D81'; c.beginPath(); c.arc(s[0],s[1],5,0,7); c.fill(); c.fillStyle=INK; c.font='11px JetBrains Mono,monospace'; c.fillText('K'+(i+1)+'  '+f2(n.st)+'  H='+f2(n.H),s[0]+8,s[1]-6); c.fillStyle=MUT; c.fillText('στέψη '+f2(n.zTop)+' · θεμ. '+f2(n.zFound),s[0]+8,s[1]+8); }); }
   if(PLAN.hoverSnap){ var hs=P2S(PLAN.hoverSnap); c.strokeStyle='#4ADE9B'; c.lineWidth=1.5; c.strokeRect(hs[0]-6,hs[1]-6,12,12); }
 }
 function gridStep(){ var px=PLAN.view.s; var cands=[0.5,1,2,5,10,20,50,100,200,500]; for(var i=0;i<cands.length;i++) if(cands[i]*px>=60) return cands[i]; return 1000; }
@@ -1231,8 +1244,11 @@ function buildDXF(R){
 function downloadText(name,text){ try{ var b=new Blob([text],{type:'application/dxf'}), u=URL.createObjectURL(b), a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},500); }catch(e){} }
 
 /* ---- Εκκίνηση ---- */
+function setTheme(t){ document.documentElement.setAttribute('data-theme',t); var b=document.getElementById('btnTheme'); if(b) b.textContent= t==='light'?'☾ Σκούρο φόντο':'☀ Ανοιχτό φόντο'; try{ localStorage.setItem('hexis_toixos_theme',t); }catch(e){} }
 function init(){
   buildRail();
+  try{ setTheme(localStorage.getItem('hexis_toixos_theme')||'dark'); }catch(e){ setTheme('dark'); }
+  document.getElementById('btnTheme').onclick=function(){ setTheme(document.documentElement.getAttribute('data-theme')==='light'?'dark':'light'); update(); };
   try{ var s=JSON.parse(localStorage.getItem('hexis_toixos_v1')||'null'); if(s&&s.V){ Object.keys(s.V).forEach(function(k){ if(document.getElementById(k)) setV(k,s.V[k]); }); if(s.NODES) NODES=s.NODES; } }catch(e){}
   document.getElementById('viewseg').onclick=function(e){ var b=e.target.closest('button'); if(!b) return; VIEW=b.dataset.v; this.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b);}); ['section','rebar','drain','form','plan','elev'].forEach(function(v){ document.getElementById('v-'+v).hidden=v!==VIEW; }); if(VIEW==='plan'){ if(!PLAN.fitted){ fitPlan(); PLAN.fitted=true; } drawPlan(); } };
   document.getElementById('tabs').onclick=function(e){ var b=e.target.closest('button'); if(!b) return; this.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b);}); ['checks','rebar','nodes','qty','report','dxf'].forEach(function(t){ document.getElementById('tab-'+t).hidden=t!==b.dataset.t; }); };
