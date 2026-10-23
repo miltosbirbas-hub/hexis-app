@@ -1,0 +1,1312 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#070b14">
+<title>HEXIS PDF Dim</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070b14;--bg2:#0a1020;--panel:#0d1424;--panel2:#111a2e;--line:#1d2943;--line2:#263555;
+  --txt:#e6edf7;--mut:#8a98b3;--dim:#5d6b88;
+  --cy:#22d3ee;--vi:#a78bfa;--ro:#fb7185;--gr:#34d399;--am:#fbbf24;
+  --grad:linear-gradient(135deg,#22d3ee 0%,#a78bfa 55%,#fb7185 100%);
+  --r:12px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;height:100vh;height:100dvh;display:flex;flex-direction:column;background:var(--bg);color:var(--txt);
+  font-family:Manrope,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;overflow:hidden;-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+
+/* header */
+header{height:56px;flex:none;display:flex;align-items:center;gap:14px;padding:0 14px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,#0c1426,#080d19)}
+.brand{display:flex;align-items:baseline;gap:9px;white-space:nowrap}
+.logo{font-family:Unbounded,sans-serif;font-weight:700;font-size:18px;letter-spacing:.06em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{font-family:Unbounded,sans-serif;font-weight:500;font-size:11px;letter-spacing:.16em;color:var(--mut)}
+.file{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mut);font-size:13px}
+.hgroup{display:flex;gap:8px;align-items:center}
+.hb{height:34px;padding:0 13px;border-radius:9px;border:1px solid transparent;background:var(--grad);color:#06101f;font-weight:800;font-size:13px;white-space:nowrap}
+.hb.ghost{background:var(--panel2);border-color:var(--line2);color:var(--txt);font-weight:600}
+.hb.ghost:hover{border-color:var(--cy)}
+#pageSel{height:34px;border-radius:9px;background:var(--panel2);border:1px solid var(--line2);padding:0 8px}
+.mob{display:none}
+
+/* layout */
+main{flex:1;min-height:0;display:grid;grid-template-columns:76px 1fr 340px}
+#tools{display:flex;flex-direction:column;gap:3px;padding:8px 6px;border-right:1px solid var(--line);background:var(--bg2);overflow-y:auto;scrollbar-width:none}
+#tools::-webkit-scrollbar{display:none}
+.tb{flex:none;width:64px;min-height:50px;border-radius:10px;border:1px solid transparent;background:transparent;color:var(--mut);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:5px 2px;font-size:10px;font-weight:700;letter-spacing:.01em;line-height:1.1;text-align:center}
+.tb svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tb:hover{background:var(--panel2);color:var(--txt)}
+.tb.on{background:linear-gradient(135deg,rgba(34,211,238,.18),rgba(167,139,250,.18));border-color:rgba(34,211,238,.55);color:#fff;box-shadow:0 0 14px rgba(34,211,238,.18) inset}
+.tb.tog.on{border-color:rgba(251,191,36,.6);background:rgba(251,191,36,.12);color:var(--am);box-shadow:none}
+.sep{flex:none;height:1px;margin:4px 8px;background:var(--line)}
+
+#stage{position:relative;overflow:hidden;touch-action:none;
+  background-color:#060a13;
+  background-image:linear-gradient(rgba(34,211,238,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(34,211,238,.045) 1px,transparent 1px);
+  background-size:28px 28px}
+#view,#ov{position:absolute;left:0;top:0}
+#view.dark{filter:invert(1) hue-rotate(180deg) brightness(.92)}
+#ov{cursor:crosshair}
+#ov.pan{cursor:grab}
+#loupe{position:absolute;left:0;top:0;width:150px;height:150px;border-radius:50%;border:2px solid var(--cy);box-shadow:0 8px 30px rgba(0,0,0,.6),0 0 18px rgba(34,211,238,.35);display:none;pointer-events:none;z-index:6}
+#hint{position:absolute;left:50%;top:10px;transform:translateX(-50%);max-width:calc(100% - 24px);padding:7px 14px;border-radius:999px;background:rgba(10,16,32,.88);border:1px solid var(--line2);
+  color:var(--txt);font-size:12.5px;font-weight:600;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:5;backdrop-filter:blur(6px)}
+#status{position:absolute;left:0;right:0;bottom:0;display:flex;gap:14px;flex-wrap:wrap;padding:5px 12px;font-size:11.5px;color:var(--mut);background:rgba(6,10,19,.86);border-top:1px solid var(--line);pointer-events:none;z-index:5}
+#status b{color:var(--txt);font-weight:600}
+#fab{position:absolute;right:12px;bottom:40px;display:none;gap:8px;z-index:7}
+#fab button{height:42px;min-width:42px;padding:0 14px;border-radius:12px;border:1px solid var(--line2);background:rgba(13,20,36,.95);font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.4)}
+#fab .ok{background:var(--grad);color:#06101f;border:0}
+#empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;z-index:4}
+.drop{max-width:520px;width:100%;text-align:center;padding:34px 26px;border-radius:20px;border:1.5px dashed rgba(34,211,238,.45);background:rgba(10,16,32,.78);backdrop-filter:blur(8px)}
+.drop h2{font-family:Unbounded,sans-serif;font-weight:700;font-size:20px;margin:0 0 10px;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.drop p{color:var(--mut);line-height:1.55;margin:0 0 18px}
+.drop .hb{height:44px;padding:0 22px;font-size:14px}
+.drop.over{border-color:var(--ro);background:rgba(251,113,133,.08)}
+#busy{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(6,10,19,.55);z-index:8;font-weight:700}
+#busy .spin{width:26px;height:26px;border-radius:50%;border:3px solid var(--line2);border-top-color:var(--cy);animation:sp 0.8s linear infinite;margin-right:12px}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* panel */
+#panel{border-left:1px solid var(--line);background:var(--bg2);overflow-y:auto;padding:10px 10px 30px;display:flex;flex-direction:column;gap:9px}
+.card{border:1px solid var(--line);background:var(--panel);border-radius:var(--r);padding:0 12px}
+.card>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:11px 0;font-family:Unbounded,sans-serif;font-size:10.5px;font-weight:500;letter-spacing:.14em;color:var(--mut);text-transform:uppercase}
+.card>summary::-webkit-details-marker{display:none}
+.card>summary::after{content:"▾";font-size:12px;color:var(--dim);transition:transform .2s}
+.card:not([open])>summary::after{transform:rotate(-90deg)}
+.card .in{padding:0 0 12px}
+.row{display:flex;align-items:center;gap:8px;margin:6px 0}
+.row label{color:var(--mut);font-size:12.5px;flex:1}
+.scalebox{display:flex;align-items:center;gap:8px;font-family:"JetBrains Mono",monospace;font-size:20px;font-weight:700}
+.scalebox input{width:120px;height:40px;border-radius:10px;border:1px solid var(--line2);background:var(--panel2);padding:0 10px;font-family:"JetBrains Mono",monospace;font-size:18px;font-weight:700;color:#fff}
+.scalebox input:focus,.fld input:focus,.fld textarea:focus{outline:none;border-color:var(--cy);box-shadow:0 0 0 3px rgba(34,211,238,.15)}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.chip{height:27px;padding:0 10px;border-radius:999px;border:1px solid var(--line2);background:var(--panel2);font-size:12px;font-weight:700;font-family:"JetBrains Mono",monospace;color:var(--mut)}
+.chip:hover{color:var(--txt);border-color:var(--mut)}
+.chip.on{color:#06101f;background:var(--cy);border-color:var(--cy)}
+.chip.det{border-color:rgba(251,191,36,.6);color:var(--am)}
+.chip.det.on{background:var(--am);color:#1a1200}
+.chip.t{font-family:Manrope,sans-serif}
+.note{font-size:12px;line-height:1.5;color:var(--mut);margin:6px 0}
+.note b{color:var(--txt)}
+.ok{color:var(--gr)}.warn{color:var(--am)}
+.btn{width:100%;height:36px;border-radius:9px;border:1px solid var(--line2);background:var(--panel2);font-weight:700;font-size:12.5px;margin-top:6px}
+.btn:hover{border-color:var(--cy)}
+.btn.pri{background:var(--grad);border:0;color:#06101f}
+.btns{display:flex;gap:6px}.btns .btn{flex:1}
+.seg{display:flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden}
+.seg button{flex:1;height:30px;border:0;background:var(--panel2);font-size:12px;font-weight:700;color:var(--mut);padding:0 8px}
+.seg button.on{background:rgba(34,211,238,.2);color:#fff}
+input[type=range]{width:100%;accent-color:#22d3ee}
+.sw{position:relative;width:38px;height:22px;flex:none}
+.sw input{opacity:0;width:0;height:0;position:absolute}
+.sw span{position:absolute;inset:0;border-radius:999px;background:var(--line2);transition:.2s}
+.sw span::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#cbd5e1;transition:.2s}
+.sw input:checked+span{background:rgba(34,211,238,.55)}
+.sw input:checked+span::after{left:19px;background:#fff}
+
+#live .lt{font-family:Unbounded,sans-serif;font-size:12px;font-weight:500;color:#fff;margin-bottom:2px}
+#live .big{font-family:"JetBrains Mono",monospace;font-size:24px;font-weight:700;margin:4px 0 8px;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;word-break:break-word}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:12.5px}
+.kv span:nth-child(odd){color:var(--mut)}
+.kv span:nth-child(even){font-family:"JetBrains Mono",monospace;text-align:right;font-weight:500}
+#list{display:flex;flex-direction:column;gap:5px;max-height:360px;overflow-y:auto}
+.mi{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);cursor:pointer}
+.mi:hover{border-color:var(--line2)}
+.mi.sel{border-color:var(--cy);background:rgba(34,211,238,.08)}
+.mi .dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--c);box-shadow:0 0 8px var(--c)}
+.mi .mt{flex:1;min-width:0}
+.mi .mt b{display:block;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mi .mt small{display:block;color:var(--dim);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mi .mv{font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:700;white-space:nowrap;max-width:46%;overflow:hidden;text-overflow:ellipsis}
+.mi .x{width:26px;height:26px;border-radius:7px;border:1px solid transparent;background:transparent;color:var(--dim);flex:none}
+.mi .x:hover{color:var(--ro);border-color:var(--line2)}
+.empty-l{color:var(--dim);font-size:12.5px;padding:6px 0}
+
+/* modal */
+.ovl{position:fixed;inset:0;background:rgba(2,5,12,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.ovl[hidden]{display:none}
+.mbox{width:100%;max-width:420px;background:var(--panel);border:1px solid var(--line2);border-radius:16px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.mbox h3{margin:0 0 10px;font-family:Unbounded,sans-serif;font-size:14px;font-weight:500}
+.mbox p{color:var(--mut);font-size:13px;line-height:1.5;margin:0 0 10px}
+.fld{display:block;margin:9px 0}
+.fld span{display:block;font-size:12px;color:var(--mut);margin-bottom:4px}
+.fld input,.fld textarea{width:100%;height:40px;border-radius:10px;border:1px solid var(--line2);background:var(--panel2);padding:0 11px;font-size:15px}
+.fld textarea{height:96px;padding:9px 11px;resize:vertical;line-height:1.45}
+.ck{display:flex;gap:9px;align-items:center;font-size:13px;margin:10px 0;color:var(--txt)}
+.ck input{width:18px;height:18px;accent-color:#22d3ee}
+.mact{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.mact button{height:38px;padding:0 18px;border-radius:10px;border:1px solid var(--line2);background:var(--panel2);font-weight:700}
+.mact .go{background:var(--grad);border:0;color:#06101f}
+#helpBox{max-width:760px;max-height:88dvh;overflow-y:auto}
+#helpBox h4{font-family:Unbounded,sans-serif;font-size:12px;font-weight:500;letter-spacing:.08em;color:var(--cy);margin:18px 0 6px}
+#helpBox p,#helpBox li{color:#c7d2e3;font-size:13.5px;line-height:1.6}
+#helpBox ul{margin:4px 0;padding-left:20px}
+#helpBox kbd{font-family:"JetBrains Mono",monospace;font-size:11.5px;padding:1px 6px;border-radius:5px;border:1px solid var(--line2);background:var(--panel2)}
+#toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);opacity:0;transition:.25s;background:#0f1a30;border:1px solid var(--line2);border-left:3px solid var(--cy);padding:10px 16px;border-radius:10px;font-size:13px;font-weight:600;z-index:60;max-width:calc(100% - 30px);pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+#toast.show{opacity:1;transform:translateX(-50%)}
+#toast.w{border-left-color:var(--am)}
+
+@media (max-width:900px){
+  header{gap:8px;padding:0 10px}
+  .sub,.file{display:none}
+  .brand{flex:1}
+  .hb{padding:0 10px;font-size:12px}
+  .hide-m{display:none}
+  .mob{display:inline-flex;align-items:center}
+  main{grid-template-columns:1fr;grid-template-rows:1fr auto}
+  #stage{grid-row:1}
+  #tools{grid-row:2;flex-direction:row;overflow-x:auto;overflow-y:hidden;border-right:0;border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+  .tb{width:58px;min-height:52px}
+  .sep{width:1px;height:auto;margin:6px 3px}
+  #panel{position:fixed;left:0;right:0;bottom:0;height:68dvh;z-index:40;border-left:0;border-top:1px solid var(--line2);border-radius:18px 18px 0 0;
+    transform:translateY(105%);transition:transform .28s ease;box-shadow:0 -20px 50px rgba(0,0,0,.55)}
+  #panel.open{transform:none}
+  #panel::before{content:"";display:block;width:44px;height:4px;border-radius:4px;background:var(--line2);margin:0 auto 4px;flex:none}
+  #fab{bottom:44px}
+  #status{font-size:10.5px;gap:10px}
+}
+</style>
+</head>
+<body>
+<script>
+/* ===== HEXIS HUB GATE — έλεγχος entitlement (pdfdim) ===== */
+(function(){
+  var MODULE = 'pdfdim';
+  var SB = 'https://oucqqudfdimccgowvpqp.supabase.co';
+  var KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
+  var CK = 'hx_gate_' + MODULE, TTL = 7 * 864e5; // offline χάρη 7 ημερών μετά από επιτυχή έλεγχο
+  document.documentElement.style.visibility = 'hidden';
+  function allow(){
+    document.documentElement.style.visibility = '';
+    try{ localStorage.setItem(CK, String(Date.now())); }catch(e){}
+    try{
+      var pl = JSON.parse(atob(tok.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+      fetch(SB + '/rest/v1/user_activity', {
+        method: 'POST',
+        headers: { apikey: KEY, Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' },
+        body: JSON.stringify({ user_id: pl.sub, last_seen: new Date().toISOString(), last_app: MODULE })
+      }).catch(function(){});
+    }catch(e){}
+  }
+  function deny(u){ location.replace(u); }
+  function cachedOk(){ try{ var t = +localStorage.getItem(CK); return t && (Date.now() - t) < TTL; }catch(e){ return false; } }
+  function offlineMsg(){
+    document.documentElement.style.visibility = '';
+    document.body.innerHTML = '<div style="font-family:system-ui,sans-serif;padding:60px 20px;text-align:center;color:#1F2836">'
+      + '<h2 style="margin-bottom:8px">Χρειάζεται σύνδεση στο internet</h2>'
+      + '<p style="color:#5B6675;margin-bottom:20px">για τον έλεγχο πρόσβασης του εργαλείου.</p>'
+      + '<a href="hub.html" style="color:#E05A12;font-weight:700">&larr; Επιστροφή στο HEXIS Hub</a></div>';
+  }
+  var raw = null; try{ raw = localStorage.getItem('sb-oucqqudfdimccgowvpqp-auth-token'); }catch(e){}
+  var tok = '';
+  if (raw) { try{ var s = JSON.parse(raw); tok = s.access_token || (s.currentSession && s.currentSession.access_token) || ''; }catch(e){} }
+  if (!tok) { deny('login.html'); return; }
+  // Δωρεάν εργαλείο: αρκεί η σύνδεση στο HEXIS, χωρίς έλεγχο συνδρομής
+  allow();
+})();
+</script>
+<header>
+  <a href="app.html" class="hb ghost" aria-label="Πίσω στο HEXIS" style="display:inline-flex;align-items:center;text-decoration:none">← HEXIS</a><script>window.HX_IN_HEXIS=true;</script>
+  <div class="brand"><span class="logo">PDF DIM</span><span class="sub">ΜΕΤΡΗΣΕΙΣ ΣΕ ΣΧΕΔΙΑ</span></div>
+  <div class="file" id="fileName">Κανένα αρχείο</div>
+  <div class="hgroup">
+    <select id="pageSel" hidden title="Σελίδα"></select>
+    <button class="hb" id="btnOpen">Άνοιγμα PDF</button>
+    <button class="hb ghost hide-m" id="btnNew">Νέο αρχείο</button>
+    <button class="hb ghost" id="btnHelp">Οδηγίες</button>
+    <button class="hb ghost mob" id="btnPanel">Πάνελ</button>
+  </div>
+  <input type="file" id="fileIn" accept="application/pdf,.pdf" hidden>
+</header>
+
+<main>
+  <nav id="tools"></nav>
+
+  <section id="stage">
+    <canvas id="view"></canvas>
+    <canvas id="ov"></canvas>
+    <canvas id="loupe"></canvas>
+    <div id="hint">Άνοιξε ένα σχέδιο PDF για να ξεκινήσεις</div>
+    <div id="fab">
+      <button id="fabUndo" title="Αναίρεση σημείου">↶</button>
+      <button id="fabCancel" title="Ακύρωση">✕</button>
+      <button id="fabOk" class="ok">✓ Τέλος</button>
+    </div>
+    <div id="status"></div>
+    <div id="empty">
+      <div class="drop" id="drop">
+        <h2>Μετρήσεις πάνω σε σχέδιο</h2>
+        <p>Άνοιξε ή σύρε εδώ ένα PDF σχεδίου. Οι γραμμές του αναγνωρίζονται για ακριβή έλξη σε άκρα, μέσα, τομές και κέντρα, η κλίμακα εντοπίζεται αυτόματα από το φύλλο, και μετράς μήκη, εμβαδά, γωνίες, κύκλους και συντεταγμένες σε πραγματικά μεγέθη.</p>
+        <button class="hb" id="btnOpen2">Άνοιγμα PDF</button>
+      </div>
+    </div>
+    <div id="busy"><div class="spin"></div><span id="busyTxt">Φόρτωση…</span></div>
+  </section>
+
+  <aside id="panel">
+    <details class="card" open>
+      <summary>Μέτρηση</summary>
+      <div class="in" id="live"></div>
+    </details>
+
+    <details class="card" open>
+      <summary>Κλίμακα</summary>
+      <div class="in">
+        <div class="scalebox"><span>1 :</span><input id="scaleN" type="text" inputmode="decimal" value="100"></div>
+        <div class="chips" id="chipsCommon"></div>
+        <div id="scaleDet" class="note"></div>
+        <div id="scaleCur" class="note"></div>
+        <button class="btn" id="btnCalib">Βαθμονόμηση με γνωστή απόσταση</button>
+        <button class="btn" id="btnApplyAll">Εφαρμογή κλίμακας σε όλες τις μετρήσεις της σελίδας</button>
+      </div>
+    </details>
+
+    <details class="card" open>
+      <summary>Μετρήσεις &amp; σημειώσεις</summary>
+      <div class="in">
+        <div id="list"></div>
+        <div class="btns"><button class="btn" id="btnCSV">CSV</button><button class="btn" id="btnDXF">DXF</button><button class="btn" id="btnPNG">Εικόνα</button></div>
+        <button class="btn" id="btnClear">Διαγραφή όλων της σελίδας</button>
+      </div>
+    </details>
+
+    <details class="card" open>
+      <summary>Προβολή &amp; περιστροφή</summary>
+      <div class="in">
+        <div class="row"><label>Περιστροφή σχεδίου</label><span class="mono" id="rotVal">0,00°</span></div>
+        <div class="btns">
+          <button class="btn" id="rotL" title="−90°">⟲ 90°</button>
+          <button class="btn" id="rotR" title="+90°">⟳ 90°</button>
+          <button class="btn" id="rot0">0°</button>
+        </div>
+        <div class="row" style="margin-top:8px"><label>Γωνία (°)</label><input id="rotIn" type="text" inputmode="decimal" style="width:90px;height:32px;border-radius:8px;border:1px solid var(--line2);background:var(--panel2);padding:0 8px" class="mono"></div>
+        <button class="btn" id="btnAlign">Ευθυγράμμιση με γραμμή του σχεδίου</button>
+        <div class="row"><label>Περιστροφή με δύο δάχτυλα</label><label class="sw"><input type="checkbox" id="twoRot" checked><span></span></label></div>
+        <div class="row"><label>Σκοτεινό φόντο σχεδίου</label><label class="sw"><input type="checkbox" id="darkBg"><span></span></label></div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary>Έλξη (snap)</summary>
+      <div class="in">
+        <div class="chips" id="snapChips"></div>
+        <div class="note">Ορθό (<b>F8</b> ή κράτημα <b>Shift</b>): οριζόντια/κατακόρυφα ως προς την οθόνη, άρα ακολουθεί και την περιστροφή του σχεδίου.</div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary>Αυτόματο σχήμα</summary>
+      <div class="in">
+        <div class="row"><label>Ευαισθησία γραμμών</label><span class="mono" id="thrV"></span></div>
+        <input type="range" id="thr" min="90" max="245" step="5">
+        <div class="row"><label>Κλείσιμο ανοιγμάτων (πόρτες)</label><span class="mono" id="gapV"></span></div>
+        <input type="range" id="gap" min="0" max="24" step="1">
+        <div class="note">Κλικ μέσα σε κλειστό χώρο (δωμάτιο, οικόπεδο, πλάκα) και το περίγραμμα ανιχνεύεται αυτόματα. Δούλεψε με τον χώρο ολόκληρο ορατό στην οθόνη. Αν «διαρρέει» από πόρτα/άνοιγμα, αύξησε το κλείσιμο ανοιγμάτων.</div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary>Μονάδες &amp; συντεταγμένες</summary>
+      <div class="in">
+        <div class="row"><label>Δεκαδικά μήκους</label><div class="seg" id="decSeg"><button data-v="2">0,01</button><button data-v="3">0,001</button></div></div>
+        <div class="row"><label>Γωνίες</label><div class="seg" id="angSeg"><button data-v="deg">°</button><button data-v="grad">grad</button><button data-v="dms">°′″</button></div></div>
+        <div class="row"><label>Συντεταγμένες στις ετικέτες σημείων</label><label class="sw"><input type="checkbox" id="ptCoords" checked><span></span></label></div>
+        <div id="originInfo" class="note"></div>
+        <div class="btns"><button class="btn" id="btnOrigin">Ορισμός αρχής</button><button class="btn" id="btnOriginClr">Κατάργηση</button></div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary>Σχέδιο</summary>
+      <div class="in">
+        <div id="sheetInfo" class="note">—</div>
+        <button class="btn" id="btnNew2">Νέο αρχείο</button>
+      </div>
+    </details>
+  </aside>
+</main>
+
+<div class="ovl" id="modal" hidden>
+  <div class="mbox"><h3 class="mtitle"></h3><div class="mbody"></div>
+    <div class="mact"><button class="mcancel">Άκυρο</button><button class="go mok">OK</button></div></div>
+</div>
+
+<div class="ovl" id="help" hidden>
+  <div class="mbox" id="helpBox">
+    <h3>Οδηγίες — HEXIS PDF Dim</h3>
+    <p>Εργαλείο μετρήσεων πάνω σε σχέδια PDF (κατόψεις, τομές, όψεις, τοπογραφικά, διαγράμματα κάλυψης, ξυλότυποι) σε πραγματικά μεγέθη. Όλη η επεξεργασία γίνεται τοπικά στη συσκευή σου· το αρχείο δεν ανεβαίνει πουθενά.</p>
+
+    <h4>1 · ΑΝΟΙΓΜΑ ΣΧΕΔΙΟΥ</h4>
+    <ul>
+      <li>«Άνοιγμα PDF» ή σύρσιμο του αρχείου στην οθόνη. Σε πολυσέλιδα PDF διάλεξε σελίδα από την επάνω μπάρα· οι μετρήσεις κρατιούνται ανά σελίδα.</li>
+      <li>Το σχέδιο <b>αναγνωρίζεται</b>: διαβάζονται όλες οι διανυσματικές γραμμές, πολυγραμμές, τόξα και κύκλοι του PDF ώστε ο κέρσορας να «κουμπώνει» ακριβώς πάνω τους. Στην καρτέλα «Σχέδιο» φαίνεται πόσες γραμμές αναγνωρίστηκαν και το μέγεθος του φύλλου (A0–A4).</li>
+      <li>Αν το PDF είναι σαρωμένο (εικόνα), δεν υπάρχουν γραμμές για έλξη: μετράς ελεύθερα με τον μεγεθυντικό φακό και κάνεις οπωσδήποτε <b>βαθμονόμηση</b>.</li>
+    </ul>
+
+    <h4>2 · ΚΛΙΜΑΚΑ</h4>
+    <ul>
+      <li>Η κλίμακα εντοπίζεται αυτόματα από τα κείμενα του φύλλου (π.χ. «ΚΛΙΜΑΚΑ 1:100») και εμφανίζεται με κίτρινο. <b>Επιβεβαίωσέ την</b>· αν το φύλλο έχει πολλές κλίμακες (κάτοψη 1:100, λεπτομέρεια 1:20), διάλεξε αυτή του σχεδίου που μετράς.</li>
+      <li>Η κλίμακα ισχύει μόνο αν το PDF βγήκε <b>στο πραγματικό μέγεθος χαρτιού</b> (π.χ. εκτύπωση σε A1 με κλίμακα 1:100). Αν δεν είσαι σίγουρος, ή αν είναι σάρωση/φωτογραφία, χρησιμοποίησε τη <b>Βαθμονόμηση</b>: κλικ στα δύο άκρα μιας γνωστής απόστασης (π.χ. διαστασιολογημένη πλευρά) και πληκτρολόγησε το μήκος της σε μέτρα.</li>
+      <li>Κάθε μέτρηση «κλειδώνει» την κλίμακα με την οποία έγινε, ώστε να μπορείς να μετράς σχέδια διαφορετικής κλίμακας στο ίδιο φύλλο. Το κουμπί «Εφαρμογή σε όλες» ξαναϋπολογίζει όλες τις μετρήσεις της σελίδας με την τρέχουσα κλίμακα.</li>
+    </ul>
+
+    <h4>3 · ΕΡΓΑΛΕΙΑ</h4>
+    <ul>
+      <li><b>Επιλογή</b>: μετακίνηση σχεδίου, κλικ σε μέτρηση για επιλογή. Σε επιλεγμένη μέτρηση σύρε τις κορυφές της για διόρθωση (με έλξη). Τις σημειώσεις τις σέρνεις από το πλαίσιό τους.</li>
+      <li><b>Μήκος</b>: δύο σημεία → μήκος, ΔX, ΔY, διεύθυνση, κλίση %. <b>Πολυγραμμή</b>: συνεχόμενα σημεία → συνολικό μήκος και μήκος κάθε τμήματος.</li>
+      <li><b>Εμβαδόν</b>: κορυφές πολυγώνου → εμβαδόν, περίμετρος, πλευρές. Κλείνει με κλικ στην πρώτη κορυφή, διπλό κλικ, <kbd>Enter</kbd> ή «✓ Τέλος».</li>
+      <li><b>Ορθογώνιο</b>: δύο απέναντι γωνίες → πλευρές α × β και εμβαδόν (ευθυγραμμισμένο με την οθόνη, άρα και με το περιστραμμένο σχέδιο).</li>
+      <li><b>Αυτόματο σχήμα</b>: ένα κλικ μέσα σε κλειστό χώρο → το περίγραμμα ανιχνεύεται μόνο του και οι κορυφές κουμπώνουν στις γωνίες των γραμμών. Ρυθμίσεις στην καρτέλα «Αυτόματο σχήμα».</li>
+      <li><b>Γωνία</b>: σημείο 1ου σκέλους → κορυφή → σημείο 2ου σκέλους. <b>Κύκλος</b>: κέντρο + σημείο περιφέρειας. <b>Τόξο 3σ</b>: τρία σημεία πάνω σε κύκλο/τόξο → ακτίνα, μήκος και γωνία τόξου.</li>
+      <li><b>Σημείο</b>: αριθμημένα σημεία (Σ1, Σ2…) με συντεταγμένες. <b>Σημείωση</b>: κλικ στο σημείο αναφοράς και γράφεις κείμενο· εμφανίζεται με οδηγό γραμμή.</li>
+      <li><b>Αρχή συντεταγμένων</b>: κλικ σε σημείο και, προαιρετικά, οι γνωστές συντεταγμένες του (π.χ. ΕΓΣΑ87). Τα σημεία και η εξαγωγή DXF παίρνουν αυτές τις συντεταγμένες. Χωρίς αρχή, μετριούνται από την κάτω αριστερή γωνία του φύλλου.</li>
+      <li>Σε κάθε μέτρηση (διπλό κλικ στη λίστα ή ✎) δίνεις όνομα και σημείωση.</li>
+    </ul>
+
+    <h4>4 · ΠΕΡΙΣΤΡΟΦΗ</h4>
+    <ul>
+      <li>Κουμπιά ±90°, πληκτρολόγηση γωνίας, <kbd>Alt</kbd> + ροδέλα (βήμα 1°, με <kbd>Shift</kbd> 0,1°), ή περιστροφή με δύο δάχτυλα σε κινητό/tablet (κουμπώνει σε πολλαπλάσια των 90°).</li>
+      <li><b>Ευθυγράμμιση</b>: κλικ σε δύο σημεία μιας γραμμής (π.χ. πρόσοψη, όριο οικοπέδου) και το σχέδιο στρίβει ώστε να γίνει οριζόντια. Το Ορθό και το Ορθογώνιο ακολουθούν την περιστροφή. Τα ΔX/ΔY των μετρήσεων αναφέρονται πάντα στους άξονες του φύλλου.</li>
+    </ul>
+
+    <h4>5 · ΕΛΞΗ &amp; ΠΛΟΗΓΗΣΗ</h4>
+    <ul>
+      <li>Έλξη σε <b>άκρο</b> (□), <b>μέσο</b> (△), <b>τομή</b> (×), <b>κέντρο</b> κύκλου/τόξου (○), <b>κάθετο</b> (⊥, ιδανικό για πάχη τοίχων και αποστάσεις παράλληλων γραμμών) και <b>πλησιέστερο</b> πάνω σε γραμμή. Ενεργοποίηση/απενεργοποίηση ανά τύπο στην καρτέλα «Έλξη».</li>
+      <li>Ποντίκι: ροδέλα = ζουμ, μεσαίο/δεξί κουμπί ή <kbd>Space</kbd> + σύρσιμο = μετακίνηση.</li>
+      <li>Αφή: δύο δάχτυλα = ζουμ/μετακίνηση/περιστροφή. Στα εργαλεία μέτρησης ακούμπησε, σύρε το δάχτυλο κοιτώντας τον <b>φακό</b> και άφησε για να μπει το σημείο.</li>
+    </ul>
+
+    <h4>6 · ΣΥΝΤΟΜΕΥΣΕΙΣ</h4>
+    <p><kbd>V</kbd> επιλογή · <kbd>D</kbd> μήκος · <kbd>P</kbd> πολυγραμμή · <kbd>A</kbd> εμβαδόν · <kbd>R</kbd> ορθογώνιο · <kbd>W</kbd> αυτόματο σχήμα · <kbd>G</kbd> γωνία · <kbd>C</kbd> κύκλος · <kbd>K</kbd> τόξο 3σ · <kbd>X</kbd> σημείο · <kbd>N</kbd> σημείωση · <kbd>F8</kbd>/<kbd>O</kbd> ορθό · <kbd>F3</kbd> έλξη · <kbd>F</kbd> όλο το σχέδιο · <kbd>[</kbd> <kbd>]</kbd> περιστροφή 90° · <kbd>Enter</kbd> τέλος · <kbd>Backspace</kbd> αναίρεση σημείου · <kbd>Ctrl</kbd>+<kbd>Z</kbd> αναίρεση · <kbd>Delete</kbd> διαγραφή επιλεγμένης · <kbd>Esc</kbd> ακύρωση.</p>
+
+    <h4>7 · ΕΞΑΓΩΓΗ</h4>
+    <ul>
+      <li><b>CSV</b>: πίνακας όλων των μετρήσεων για υπολογιστικό φύλλο. <b>DXF</b>: οι μετρήσεις της σελίδας σε πραγματικές διαστάσεις (μέτρα, 1:1), σε ξεχωριστά επίπεδα, με τις συντεταγμένες της αρχής αν έχει οριστεί. <b>Εικόνα</b>: ό,τι βλέπεις στην οθόνη με τις μετρήσεις.</li>
+    </ul>
+
+    <h4>8 · ΕΛΕΓΧΟΣ ΑΠΟΤΕΛΕΣΜΑΤΩΝ</h4>
+    <ul>
+      <li>Πριν από κάθε σοβαρή χρήση <b>μέτρησε μια γνωστή διάσταση</b> του σχεδίου και σύγκρινέ τη με την αναγραφόμενη. Αν διαφέρει, διόρθωσε την κλίμακα ή κάνε βαθμονόμηση.</li>
+      <li>Η ακρίβεια εξαρτάται από την ποιότητα του PDF: σε διανυσματικά σχέδια με έλξη είναι πρακτικά ακριβής· σε σαρώσεις περιορίζεται από την ανάλυση και την παραμόρφωση του χαρτιού.</li>
+      <li>Ο μηχανικός ελέγχει πάντα το αποτέλεσμα· ιδιαίτερα στα αυτόματα σχήματα, έλεγξε ότι το περίγραμμα ακολουθεί τις σωστές γραμμές πριν χρησιμοποιήσεις το εμβαδόν.</li>
+    </ul>
+    <div class="mact"><button class="go" id="helpClose">Κλείσιμο</button></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+'use strict';
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const O=pdfjsLib.OPS, PT_M=25.4/72/1000, TAU=Math.PI*2;
+const $=s=>document.querySelector(s);
+const stage=$('#stage'), view=$('#view'), ov=$('#ov'), loupe=$('#loupe');
+const vctx=view.getContext('2d'), octx=ov.getContext('2d'), lctx=loupe.getContext('2d');
+
+const COL={dist:'#22d3ee',calib:'#fb923c',poly:'#a78bfa',area:'#34d399',angle:'#fbbf24',ccr:'#fb7185',arc3:'#f472b6',point:'#e2e8f0',note:'#fda4af'};
+const TYPEN={dist:'Απόσταση',calib:'Βαθμονόμηση',poly:'Πολυγραμμή',area:'Εμβαδόν',angle:'Γωνία',ccr:'Κύκλος',arc3:'Τόξο 3 σημείων',point:'Σημείο',note:'Σημείωση'};
+const SHAPEN={poly:'Εμβαδόν',rect:'Ορθογώνιο',auto:'Αυτόματο σχήμα'};
+const SNAPN={end:'Άκρο',mid:'Μέσο',int:'Τομή',cen:'Κέντρο',perp:'Κάθετο',near:'Πλησιέστερο'};
+
+const S={doc:null,fileName:'',pageNum:1,page:null,vp1:null,W:0,H:0,cw:0,ch:0,dpr:1,
+  z:1,rot:0,tx:0,ty:0,fitZ:1,base:null,bs:1,hi:null,hiTask:null,hiTimer:null,geo:null,geoCache:{},
+  scaleN:100,mPerPt:100*PT_M,scaleSrc:'default',userScale:false,detect:[],
+  tool:'select',pts:[],cursor:null,cursorS:null,snap:null,ortho:false,shift:false,space:false,snapMaster:true,
+  snapOn:{end:true,mid:true,int:true,cen:true,perp:true,near:true},
+  meas:[],sel:null,idc:1,cnt:{},hist:[],dec:2,angU:'deg',origin:null,showPtCoords:true,twoRot:true,
+  autoThr:200,autoGap:3,loupeOn:false,isTouch:false,hit:[]};
+
+/* ---------- helpers ---------- */
+const fN=(v,d)=>Number.isFinite(v)?v.toLocaleString('el-GR',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
+const fL=v=>fN(v,S.dec)+' m';
+const fAr=v=>fN(v,S.dec)+' m²';
+function fA(r){
+  if(S.angU==='grad') return fN(r*200/Math.PI,4)+' grad';
+  if(S.angU==='dms'){let d=Math.abs(r*180/Math.PI),D=Math.floor(d),Mf=(d-D)*60,M=Math.floor(Mf),s=(Mf-M)*60;
+    if(s>=59.95){s=0;M++} if(M>=60){M=0;D++}
+    return (r<0?'−':'')+D+'° '+String(M).padStart(2,'0')+'′ '+fN(s,1).padStart(4,'0')+'″';}
+  return fN(r*180/Math.PI,2)+'°';
+}
+const num=v=>parseFloat(String(v).trim().replace(/\s/g,'').replace(',','.'));
+const cp=p=>({x:p.x,y:p.y});
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function mul(a,b){return [a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];}
+function tp(m,x,y){return [m[0]*x+m[2]*y+m[4],m[1]*x+m[3]*y+m[5]];}
+function circ(ax,ay,bx,by,cx,cy){const d=2*(ax*(by-cy)+bx*(cy-ay)+cx*(ay-by)); if(Math.abs(d)<1e-9) return null;
+  const a2=ax*ax+ay*ay,b2=bx*bx+by*by,c2=cx*cx+cy*cy;
+  return [(a2*(by-cy)+b2*(cy-ay)+c2*(ay-by))/d,(a2*(cx-bx)+b2*(ax-cx)+c2*(bx-ax))/d];}
+function polyArea(P){let a=0;for(let i=0;i<P.length;i++){const p=P[i],q=P[(i+1)%P.length];a+=p.x*q.y-q.x*p.y;}return Math.abs(a)/2;}
+function centroid(P){let a=0,cx=0,cy=0;for(let i=0;i<P.length;i++){const p=P[i],q=P[(i+1)%P.length],k=p.x*q.y-q.x*p.y;a+=k;cx+=(p.x+q.x)*k;cy+=(p.y+q.y)*k;}
+  if(Math.abs(a)<1e-9){let x=0,y=0;P.forEach(p=>{x+=p.x;y+=p.y});return {x:x/P.length,y:y/P.length};} return {x:cx/(3*a),y:cy/(3*a)};}
+function angAt(a,b,c){const u={x:a.x-b.x,y:a.y-b.y},v={x:c.x-b.x,y:c.y-b.y};const d=Math.hypot(u.x,u.y)*Math.hypot(v.x,v.y);if(d<1e-12)return 0;return Math.acos(Math.max(-1,Math.min(1,(u.x*v.x+u.y*v.y)/d)));}
+const nrm=a=>((a%TAU)+TAU)%TAU;
+function arcSweep(c,P){const a0=Math.atan2(P[0].y-c[1],P[0].x-c[0]),a1=Math.atan2(P[1].y-c[1],P[1].x-c[0]),a2=Math.atan2(P[2].y-c[1],P[2].x-c[0]);
+  let s=nrm(a2-a0); if(nrm(a1-a0)>s) s=TAU-s; return s;}
+function toast(t,warn){const e=$('#toast');e.textContent=t;e.className='show'+(warn?' w':'');clearTimeout(e._t);e._t=setTimeout(()=>e.className=warn?'w':'',warn?4200:2600);}
+function busy(on,t){$('#busy').style.display=on?'flex':'none';if(t)$('#busyTxt').textContent=t;}
+function download(data,name,type){const b=data instanceof Blob?data:new Blob([data],{type:type||'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},800);}
+const baseName=()=> (S.fileName||'sxedio').replace(/\.pdf$/i,'');
+
+/* ---------- view transform ---------- */
+function toS(p){const c=Math.cos(S.rot)*S.z,s=Math.sin(S.rot)*S.z;return {x:c*p.x-s*p.y+S.tx,y:s*p.x+c*p.y+S.ty};}
+function toV(x,y){const X=x-S.tx,Y=y-S.ty,c=Math.cos(S.rot)/S.z,s=Math.sin(S.rot)/S.z;return {x:c*X+s*Y,y:-s*X+c*Y};}
+function fix(v,sx,sy){const c=Math.cos(S.rot)*S.z,s=Math.sin(S.rot)*S.z;S.tx=sx-(c*v.x-s*v.y);S.ty=sy-(s*v.x+c*v.y);}
+function clampZ(z){return Math.max(S.fitZ*0.15,Math.min(z,S.fitZ*400,600));}
+function zoomAt(sx,sy,f){const v=toV(sx,sy);S.z=clampZ(S.z*f);fix(v,sx,sy);viewChanged();}
+function rotateTo(r,sx,sy){if(sx==null){sx=S.cw/2;sy=S.ch/2;}const v=toV(sx,sy);r=Math.atan2(Math.sin(r),Math.cos(r));S.rot=r;fix(v,sx,sy);viewChanged();}
+function rotateBy(d,sx,sy){rotateTo(S.rot+d,sx,sy);}
+function fit(){if(!S.page)return;const c=Math.abs(Math.cos(S.rot)),s=Math.abs(Math.sin(S.rot));
+  const w=S.W*c+S.H*s,h=S.W*s+S.H*c;S.fitZ=Math.min((S.cw-30)/w,(S.ch-60)/h);S.z=S.fitZ;fix({x:S.W/2,y:S.H/2},S.cw/2,(S.ch-20)/2);viewChanged();}
+function viewChanged(){req();scheduleHi();updStatus();updRotUI();}
+
+/* ---------- canvas sizing & drawing ---------- */
+function resize(){const r=stage.getBoundingClientRect();S.dpr=Math.min(window.devicePixelRatio||1,3);
+  const ow=S.cw,oh=S.ch;S.cw=r.width;S.ch=r.height;
+  for(const c of [view,ov]){c.width=Math.max(1,Math.round(r.width*S.dpr));c.height=Math.max(1,Math.round(r.height*S.dpr));c.style.width=r.width+'px';c.style.height=r.height+'px';}
+  loupe.width=150*S.dpr;loupe.height=150*S.dpr;
+  if(S.page&&ow){S.tx+=(S.cw-ow)/2;S.ty+=(S.ch-oh)/2;}
+  req();scheduleHi();}
+new ResizeObserver(resize).observe(stage);
+
+let rafPending=false;
+function req(){if(rafPending)return;rafPending=true;requestAnimationFrame(()=>{rafPending=false;drawView();drawOverlay();drawLoupe();});}
+
+function viewMatrix(){const d=S.dpr,c=Math.cos(S.rot)*S.z*d,s=Math.sin(S.rot)*S.z*d;return [c,s,-s,c,S.tx*d,S.ty*d];}
+function drawView(){
+  const c=vctx;c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,view.width,view.height);
+  if(!S.page)return;
+  const m=viewMatrix();c.setTransform(m[0],m[1],m[2],m[3],m[4],m[5]);
+  c.shadowColor='rgba(0,0,0,.55)';c.shadowBlur=24;c.fillStyle='#fff';c.fillRect(0,0,S.W,S.H);c.shadowBlur=0;c.shadowColor='transparent';
+  c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';
+  if(S.base)c.drawImage(S.base,0,0,S.W,S.H);
+  if(S.hi){const h=S.hi;c.drawImage(h.c,h.bx,h.by,h.c.width/h.s,h.c.height/h.s);}
+  c.setTransform(1,0,0,1,0,0);
+}
+function scheduleHi(){clearTimeout(S.hiTimer);S.hiTimer=setTimeout(renderHi,150);}
+async function renderHi(){
+  if(!S.page)return;const page=S.page,d=S.dpr;
+  let s=S.z*d;
+  if(s<=S.bs*1.05){S.hi=null;req();return;}
+  const cs=[toV(0,0),toV(S.cw,0),toV(0,S.ch),toV(S.cw,S.ch)];
+  let bx0=Math.max(0,Math.min(...cs.map(p=>p.x))-2),by0=Math.max(0,Math.min(...cs.map(p=>p.y))-2),
+      bx1=Math.min(S.W,Math.max(...cs.map(p=>p.x))+2),by1=Math.min(S.H,Math.max(...cs.map(p=>p.y))+2);
+  if(bx1<=bx0||by1<=by0){S.hi=null;req();return;}
+  const px=(bx1-bx0)*(by1-by0)*s*s, cap=14e6;
+  if(px>cap)s*=Math.sqrt(cap/px);
+  if(s<=S.bs*1.05){S.hi=null;req();return;}
+  if(S.hiTask){try{S.hiTask.cancel();}catch(e){}}
+  const cv=document.createElement('canvas');cv.width=Math.ceil((bx1-bx0)*s);cv.height=Math.ceil((by1-by0)*s);
+  const vp=page.getViewport({scale:s,offsetX:-bx0*s,offsetY:-by0*s});
+  const task=page.render({canvasContext:cv.getContext('2d'),viewport:vp,background:'rgba(0,0,0,0)'});
+  S.hiTask=task;
+  try{await task.promise;}catch(e){return;}
+  if(S.hiTask!==task||S.page!==page)return;
+  S.hiTask=null;S.hi={c:cv,s,bx:bx0,by:by0};req();
+}
+async function renderBase(){
+  const W=S.W,H=S.H;let bs=Math.min(3000/Math.max(W,H),Math.sqrt(8e6/(W*H)),4);
+  const cv=document.createElement('canvas');const vp=S.page.getViewport({scale:bs});
+  cv.width=Math.ceil(vp.width);cv.height=Math.ceil(vp.height);
+  await S.page.render({canvasContext:cv.getContext('2d'),viewport:vp,background:'rgba(0,0,0,0)'}).promise;
+  S.base=cv;S.bs=bs;
+}
+
+/* ---------- geometry recognition ---------- */
+async function extractGeo(page,vp){
+  const ol=await page.getOperatorList();
+  const F=ol.fnArray,A=ol.argsArray;
+  const PAINT=new Set([O.stroke,O.closeStroke,O.fill,O.eoFill,O.fillStroke,O.eoFillStroke,O.closeFillStroke,O.closeEOFillStroke]);
+  const segs=[],flg=[],pts=[],ptt=[];const seen=new Set();
+  let ctm=vp.transform.slice();const st=[];
+  let ps=null,pf=null,pp=null,cx=0,cy=0,sx=0,sy=0;const MAX=3e6;
+  const L=(x1,y1,x2,y2,f)=>{if(Math.abs(x1-x2)<1e-3&&Math.abs(y1-y2)<1e-3)return;ps.push(x1,y1,x2,y2);pf.push(f);};
+  const bez=(x0,y0,x1,y1,x2,y2,x3,y3)=>{
+    const B=t=>{const u=1-t;return [u*u*u*x0+3*u*u*t*x1+3*u*t*t*x2+t*t*t*x3,u*u*u*y0+3*u*u*t*y1+3*u*t*t*y2+t*t*t*y3];};
+    let px=x0,py=y0;for(let k=1;k<=8;k++){const q=B(k/8);L(px,py,q[0],q[1],0);px=q[0];py=q[1];}
+    pp.push(x0,y0,1,x3,y3,1);
+    const m=B(.5),c=circ(x0,y0,m[0],m[1],x3,y3);
+    if(c){const r=Math.hypot(x0-c[0],y0-c[1]);if(r>0.3&&r<4000){const q1=B(.25),q2=B(.75);
+      if(Math.abs(Math.hypot(q1[0]-c[0],q1[1]-c[1])-r)<r*.015&&Math.abs(Math.hypot(q2[0]-c[0],q2[1]-c[1])-r)<r*.015)pp.push(c[0],c[1],3);}}
+  };
+  for(let i=0;i<F.length;i++){
+    const f=F[i],a=A[i];
+    if(f===O.save)st.push(ctm);
+    else if(f===O.restore){if(st.length)ctm=st.pop();}
+    else if(f===O.transform)ctm=mul(ctm,a);
+    else if(f===O.paintFormXObjectBegin){st.push(ctm);if(a&&a[0])ctm=mul(ctm,a[0]);}
+    else if(f===O.paintFormXObjectEnd){if(st.length)ctm=st.pop();}
+    else if(f===O.constructPath){
+      if(!ps){ps=[];pf=[];pp=[];}
+      const ops=a[0],co=a[1];let j=0;
+      for(let q=0;q<ops.length;q++){const op=ops[q];
+        if(op===O.moveTo){const P=tp(ctm,co[j],co[j+1]);j+=2;cx=sx=P[0];cy=sy=P[1];}
+        else if(op===O.lineTo){const P=tp(ctm,co[j],co[j+1]);j+=2;L(cx,cy,P[0],P[1],1);pp.push(cx,cy,1,P[0],P[1],1);cx=P[0];cy=P[1];}
+        else if(op===O.curveTo){const a1=tp(ctm,co[j],co[j+1]),a2=tp(ctm,co[j+2],co[j+3]),e=tp(ctm,co[j+4],co[j+5]);j+=6;bez(cx,cy,a1[0],a1[1],a2[0],a2[1],e[0],e[1]);cx=e[0];cy=e[1];}
+        else if(op===O.curveTo2){const a2=tp(ctm,co[j],co[j+1]),e=tp(ctm,co[j+2],co[j+3]);j+=4;bez(cx,cy,cx,cy,a2[0],a2[1],e[0],e[1]);cx=e[0];cy=e[1];}
+        else if(op===O.curveTo3){const a1=tp(ctm,co[j],co[j+1]),e=tp(ctm,co[j+2],co[j+3]);j+=4;bez(cx,cy,a1[0],a1[1],e[0],e[1],e[0],e[1]);cx=e[0];cy=e[1];}
+        else if(op===O.closePath){L(cx,cy,sx,sy,1);cx=sx;cy=sy;}
+        else if(op===O.rectangle){const x=co[j],y=co[j+1],w=co[j+2],h=co[j+3];j+=4;
+          const p1=tp(ctm,x,y),p2=tp(ctm,x+w,y),p3=tp(ctm,x+w,y+h),p4=tp(ctm,x,y+h);
+          L(p1[0],p1[1],p2[0],p2[1],1);L(p2[0],p2[1],p3[0],p3[1],1);L(p3[0],p3[1],p4[0],p4[1],1);L(p4[0],p4[1],p1[0],p1[1],1);
+          pp.push(p1[0],p1[1],1,p2[0],p2[1],1,p3[0],p3[1],1,p4[0],p4[1],1);cx=sx=p1[0];cy=sy=p1[1];}
+      }
+    }
+    else if(PAINT.has(f)){
+      if(ps&&flg.length<MAX){
+        for(let k=0;k<ps.length;k++)segs.push(ps[k]);
+        for(let k=0;k<pf.length;k++)flg.push(pf[k]);
+        for(let k=0;k<pp.length;k+=3){const x=pp[k],y=pp[k+1],t=pp[k+2];
+          const key=(Math.round(x*8)*262144+Math.round(y*8))*4+t;if(seen.has(key))continue;seen.add(key);pts.push(x,y);ptt.push(t);}
+      }
+      ps=null;
+    }
+    else if(f===O.endPath){ps=null;}
+  }
+  const g={nseg:flg.length,segs:new Float32Array(segs),flg:new Uint8Array(flg),npt:ptt.length,pts:new Float32Array(pts),ptt:new Uint8Array(ptt)};
+  g.SG=g.nseg?segGrid(g.segs,g.nseg,vp.width,vp.height):null;
+  g.PG=g.npt?ptGrid(g.pts,g.npt,vp.width,vp.height):null;
+  g.mark=new Uint32Array(g.nseg);g.st=0;
+  g.ncen=0;for(let i=0;i<g.npt;i++)if(g.ptt[i]===3)g.ncen++;
+  return g;
+}
+function gridBase(W,H){const C=Math.max(W,H)/420,x0=-W*.05,y0=-H*.05;return {C,x0,y0,NX:Math.ceil(W*1.1/C)+1,NY:Math.ceil(H*1.1/C)+1};}
+function segGrid(s,n,W,H){
+  const G=gridBase(W,H),{C,x0,y0,NX,NY}=G;
+  const visit=(i,cb)=>{const ax=(s[4*i]-x0)/C,ay=(s[4*i+1]-y0)/C,bx=(s[4*i+2]-x0)/C,by=(s[4*i+3]-y0)/C;
+    const ix0=Math.floor(Math.min(ax,bx)),ix1=Math.floor(Math.max(ax,bx)),iy0=Math.floor(Math.min(ay,by)),iy1=Math.floor(Math.max(ay,by));
+    if(ix1<0||iy1<0||ix0>=NX||iy0>=NY)return;
+    if((ix1-ix0+1)*(iy1-iy0+1)<=9){for(let y=Math.max(0,iy0);y<=Math.min(NY-1,iy1);y++)for(let x=Math.max(0,ix0);x<=Math.min(NX-1,ix1);x++)cb(y*NX+x);}
+    else{const steps=Math.ceil(Math.hypot(bx-ax,by-ay)*2);let last=-1;
+      for(let k=0;k<=steps;k++){const t=k/steps,x=Math.floor(ax+(bx-ax)*t),y=Math.floor(ay+(by-ay)*t);if(x<0||y<0||x>=NX||y>=NY)continue;const c=y*NX+x;if(c!==last){cb(c);last=c;}}}};
+  const start=new Uint32Array(NX*NY+1);
+  for(let i=0;i<n;i++)visit(i,c=>{start[c+1]++;});
+  for(let c=1;c<=NX*NY;c++)start[c]+=start[c-1];
+  const idx=new Uint32Array(start[NX*NY]),fill=start.slice(0,NX*NY);
+  for(let i=0;i<n;i++)visit(i,c=>{idx[fill[c]++]=i;});
+  G.start=start;G.idx=idx;return G;
+}
+function ptGrid(p,n,W,H){
+  const G=gridBase(W,H),{C,x0,y0,NX,NY}=G;
+  const cell=i=>{const x=Math.floor((p[2*i]-x0)/C),y=Math.floor((p[2*i+1]-y0)/C);return (x<0||y<0||x>=NX||y>=NY)?-1:y*NX+x;};
+  const start=new Uint32Array(NX*NY+1);
+  for(let i=0;i<n;i++){const c=cell(i);if(c>=0)start[c+1]++;}
+  for(let c=1;c<=NX*NY;c++)start[c]+=start[c-1];
+  const idx=new Uint32Array(start[NX*NY]),fill=start.slice(0,NX*NY);
+  for(let i=0;i<n;i++){const c=cell(i);if(c>=0)idx[fill[c]++]=i;}
+  G.start=start;G.idx=idx;return G;
+}
+function around(G,x,y,r,cb){
+  const ix0=Math.max(0,Math.floor((x-r-G.x0)/G.C)),ix1=Math.min(G.NX-1,Math.floor((x+r-G.x0)/G.C)),
+        iy0=Math.max(0,Math.floor((y-r-G.y0)/G.C)),iy1=Math.min(G.NY-1,Math.floor((y+r-G.y0)/G.C));
+  for(let iy=iy0;iy<=iy1;iy++)for(let ix=ix0;ix<=ix1;ix++){const c=iy*G.NX+ix;for(let k=G.start[c];k<G.start[c+1];k++)cb(G.idx[k]);}
+}
+function findSnap(x,y,r,prev,only){
+  const g=S.geo;if(!g)return null;const o=only||S.snapOn;
+  let best=null,bs=Infinity;
+  const consider=(px,py,t,w)=>{const d=(px-x)*(px-x)+(py-y)*(py-y);if(d>r*r)return;const s=d*w;if(s<bs){bs=s;best={x:px,y:py,t};}};
+  if(g.PG&&(o.end||o.cen))around(g.PG,x,y,r,i=>{const t=g.ptt[i];if(t===1&&o.end)consider(g.pts[2*i],g.pts[2*i+1],'end',0.3);else if(t===3&&o.cen)consider(g.pts[2*i],g.pts[2*i+1],'cen',0.4);});
+  const S4=g.segs,cand=[];
+  if(g.SG&&(o.mid||o.int||o.perp||o.near)){
+    g.st++;if(g.st>4e9){g.mark.fill(0);g.st=1;}
+    around(g.SG,x,y,r,i=>{if(g.mark[i]===g.st)return;g.mark[i]=g.st;
+      const ax=S4[4*i],ay=S4[4*i+1],bx=S4[4*i+2],by=S4[4*i+3],dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy;
+      let t=l2>0?((x-ax)*dx+(y-ay)*dy)/l2:0;t=t<0?0:t>1?1:t;const qx=ax+t*dx,qy=ay+t*dy,d=Math.hypot(qx-x,qy-y);
+      if(d<=r)cand.push([d,i,qx,qy]);});
+    cand.sort((a,b)=>a[0]-b[0]);if(cand.length>60)cand.length=60;
+  }
+  if(o.mid)for(const c of cand){const i=c[1];if(g.flg[i])consider((S4[4*i]+S4[4*i+2])/2,(S4[4*i+1]+S4[4*i+3])/2,'mid',0.55);}
+  if(o.int)for(let a=0;a<cand.length;a++){const i=cand[a][1];const ax=S4[4*i],ay=S4[4*i+1],adx=S4[4*i+2]-ax,ady=S4[4*i+3]-ay;
+    for(let b=a+1;b<cand.length;b++){const j=cand[b][1];const bx=S4[4*j],by=S4[4*j+1],bdx=S4[4*j+2]-bx,bdy=S4[4*j+3]-by;
+      const den=adx*bdy-ady*bdx;if(Math.abs(den)<1e-9*(Math.abs(adx)+Math.abs(ady))*(Math.abs(bdx)+Math.abs(bdy)))continue;
+      const t=((bx-ax)*bdy-(by-ay)*bdx)/den,u=((bx-ax)*ady-(by-ay)*adx)/den;
+      if(t<-1e-6||t>1+1e-6||u<-1e-6||u>1+1e-6)continue;consider(ax+t*adx,ay+t*ady,'int',0.45);}}
+  if(o.perp&&prev)for(const c of cand){const i=c[1];if(!g.flg[i])continue;const ax=S4[4*i],ay=S4[4*i+1],dx=S4[4*i+2]-ax,dy=S4[4*i+3]-ay,l2=dx*dx+dy*dy;if(l2<1e-9)continue;
+    const t=((prev.x-ax)*dx+(prev.y-ay)*dy)/l2;if(t<0||t>1)continue;const fx=ax+t*dx,fy=ay+t*dy;if(Math.hypot(fx-prev.x,fy-prev.y)<1e-3)continue;consider(fx,fy,'perp',0.65);}
+  if(best)return best;
+  if(o.near&&cand.length)return {x:cand[0][2],y:cand[0][3],t:'near'};
+  return null;
+}
+
+/* ---------- scale detection ---------- */
+const COMMON=[1,2,5,10,20,25,50,75,100,200,250,500,1000,2000,2500,5000,10000];
+async function detectScale(page){
+  let tc;try{tc=await page.getTextContent();}catch(e){return [];}
+  const full=tc.items.map(i=>i.str||'').join(' ');
+  const re=/(?<![\d.,:])1\s*[:：]\s*(\d{1,3}(?:\.\d{3})+|\d{1,6})(?![\d.,]*\d)/g;
+  const sc={};let m;
+  while((m=re.exec(full))){const N=parseInt(m[1].replace(/\./g,''),10);if(!(N>=1&&N<=100000))continue;
+    const before=full.slice(Math.max(0,m.index-30),m.index).toUpperCase();
+    let w=1;if(/ΚΛ[ΙΊ]Μ|ΚΛΙΜ|SCALE|ΚΛ\.|Κ\s*=|M\s*=/.test(before))w+=6;if(COMMON.includes(N))w+=1.5;
+    sc[N]=(sc[N]||0)+w;}
+  return Object.entries(sc).map(([N,w])=>({N:+N,w})).sort((a,b)=>b.w-a.w).slice(0,6);
+}
+function paperName(wmm,hmm){const a=Math.min(wmm,hmm),b=Math.max(wmm,hmm);
+  const P=[['A0',841,1189],['A1',594,841],['A2',420,594],['A3',297,420],['A4',210,297],['B1',707,1000],['B2',500,707]];
+  for(const [n,x,y] of P)if(Math.abs(a-x)/x<.03&&Math.abs(b-y)/y<.03)return n;return 'ειδικό μέγεθος';}
+
+/* ---------- file / page ---------- */
+async function openFile(file){
+  if(!file)return;
+  if(!/pdf$/i.test(file.type)&&!/\.pdf$/i.test(file.name)){toast('Επίλεξε αρχείο PDF',true);return;}
+  if(S.meas.length&&!confirm('Άνοιγμα νέου σχεδίου; Οι τρέχουσες μετρήσεις θα χαθούν.'))return;
+  busy(true,'Φόρτωση σχεδίου…');
+  try{
+    const buf=await file.arrayBuffer();
+    resetAll(true);
+    S.fileName=file.name;
+    S.doc=await pdfjsLib.getDocument({data:buf}).promise;
+    $('#fileName').textContent=file.name;
+    const sel=$('#pageSel');sel.innerHTML='';
+    for(let i=1;i<=S.doc.numPages;i++){const o=document.createElement('option');o.value=i;o.textContent='Σελ. '+i+' / '+S.doc.numPages;sel.appendChild(o);}
+    sel.hidden=S.doc.numPages<2;
+    $('#empty').style.display='none';
+    await loadPage(1);
+  }catch(e){console.error(e);busy(false);toast('Δεν άνοιξε το PDF: '+(e.message||e),true);}
+}
+async function loadPage(n){
+  busy(true,'Σχεδίαση σελίδας…');
+  if(S.hiTask){try{S.hiTask.cancel();}catch(e){}S.hiTask=null;}
+  S.pageNum=n;S.page=await S.doc.getPage(n);S.vp1=S.page.getViewport({scale:1});
+  S.W=S.vp1.width;S.H=S.vp1.height;S.hi=null;S.base=null;S.pts=[];
+  $('#pageSel').value=n;
+  await renderBase();busy(false);fit();
+  S.geo=S.geoCache[n]||null;updSheetInfo();
+  if(!S.geo){
+    $('#sheetInfo').innerHTML+='<br><span class="warn">Αναγνώριση γραμμών σχεδίου…</span>';
+    const page=S.page;
+    setTimeout(async()=>{
+      try{const t0=performance.now();const g=await extractGeo(page,page.getViewport({scale:1}));g.ms=performance.now()-t0;
+        S.geoCache[n]=g;if(S.pageNum===n){S.geo=g;updSheetInfo();
+          toast(g.nseg>20?'Αναγνωρίστηκαν '+fN(g.nseg,0)+' γραμμικά στοιχεία — η έλξη είναι ενεργή':'Το σχέδιο είναι εικόνα (σάρωση) — μέτρησε ελεύθερα και κάνε βαθμονόμηση',g.nseg<=20);}
+      }catch(e){console.error(e);S.geoCache[n]={nseg:0,npt:0,ncen:0,fail:true};if(S.pageNum===n){S.geo=null;updSheetInfo();}}
+    },30);
+  }
+  const det=await detectScale(S.page);S.detect=det;
+  if(det.length&&!S.userScale)setScale(det[0].N,'auto');
+  updScaleUI();renderList();updateLive();updHint();
+}
+function updSheetInfo(){
+  if(!S.page){$('#sheetInfo').textContent='—';return;}
+  const wmm=S.W*25.4/72,hmm=S.H*25.4/72;const g=S.geoCache[S.pageNum];
+  let h=`<b>${esc(S.fileName)}</b><br>Φύλλο: <b>${fN(wmm,0)} × ${fN(hmm,0)} mm</b> (${paperName(wmm,hmm)})`;
+  if(S.doc&&S.doc.numPages>1)h+=` · σελίδα ${S.pageNum}/${S.doc.numPages}`;
+  if(g){if(g.nseg>20)h+=`<br><span class="ok">● Διανυσματικό σχέδιο:</span> ${fN(g.nseg,0)} γραμμικά τμήματα, ${fN(g.npt-g.ncen,0)} κορυφές, ${fN(g.ncen,0)} κέντρα τόξων/κύκλων.`;
+    else h+=`<br><span class="warn">● Σχέδιο-εικόνα (σάρωση):</span> χωρίς γραμμές για έλξη. Χρησιμοποίησε βαθμονόμηση.`;}
+  $('#sheetInfo').innerHTML=h;
+}
+function resetAll(keepScale){
+  if(S.doc){try{S.doc.destroy();}catch(e){}}
+  Object.assign(S,{doc:null,page:null,fileName:'',base:null,hi:null,geo:null,geoCache:{},meas:[],sel:null,cnt:{},hist:[],pts:[],origin:null,detect:[],rot:0});
+  if(!keepScale){S.userScale=false;}
+  S.userScale=false;
+  $('#fileName').textContent='Κανένα αρχείο';$('#pageSel').hidden=true;
+  renderList();updateLive();updScaleUI();updSheetInfo();updOrigin();req();updHint();
+}
+function newFile(){
+  if(S.meas.length&&!confirm('Νέο αρχείο; Όλες οι μετρήσεις και σημειώσεις θα διαγραφούν.'))return;
+  resetAll();$('#empty').style.display='flex';setTool('select');toast('Έτοιμο για νέο σχέδιο');
+}
+
+/* ---------- scale ---------- */
+function setScale(N,src){if(!(N>0))return;S.scaleN=N;S.mPerPt=N*PT_M;S.scaleSrc=src;updScaleUI();updateLive();updStatus();}
+const scaleTxt=N=>'1:'+(Math.abs(N-Math.round(N))<1e-6?String(Math.round(N)):fN(N,1));
+function updScaleUI(){
+  const inp=$('#scaleN');if(document.activeElement!==inp)inp.value=Math.abs(S.scaleN-Math.round(S.scaleN))<1e-6?Math.round(S.scaleN):fN(S.scaleN,2);
+  $('#chipsCommon').innerHTML=[20,50,100,200,500,1000].map(N=>`<button class="chip${Math.abs(S.scaleN-N)<1e-6?' on':''}" data-n="${N}">1:${N}</button>`).join('');
+  const det=S.detect;
+  if(!S.page)$('#scaleDet').innerHTML='';
+  else if(det.length)$('#scaleDet').innerHTML='Εντοπίστηκε στο φύλλο:<div class="chips">'+det.map(d=>`<button class="chip det${Math.abs(S.scaleN-d.N)<1e-6?' on':''}" data-n="${d.N}">1:${d.N}</button>`).join('')+'</div>';
+  else $('#scaleDet').innerHTML='<span class="warn">Δεν βρέθηκε κλίμακα στα κείμενα του φύλλου.</span> Όρισέ την ή κάνε βαθμονόμηση.';
+  const src={auto:'αυτόματα από το φύλλο — επιβεβαίωσε',manual:'χειροκίνητα',calib:'από βαθμονόμηση',default:'προεπιλογή'}[S.scaleSrc]||'';
+  $('#scaleCur').innerHTML=`Ενεργή: <b>${scaleTxt(S.scaleN)}</b> · ${src}<br>1 mm χαρτιού = <b>${fN(S.mPerPt/PT_M/1000*100,S.scaleN<100?2:1)} cm</b> πραγματικά`;
+}
+$('#scaleN').addEventListener('change',e=>{const v=num(e.target.value);if(v>0){S.userScale=true;setScale(v,'manual');}else updScaleUI();});
+$('#panel').addEventListener('click',e=>{const b=e.target.closest('.chip[data-n]');if(b){S.userScale=true;setScale(+b.dataset.n,b.classList.contains('det')?'auto':'manual');}});
+$('#btnCalib').onclick=()=>{if(!S.page)return;setTool('calib');closePanelMobile();};
+$('#btnApplyAll').onclick=()=>{const ms=S.meas.filter(m=>m.page===S.pageNum&&m.type!=='note');if(!ms.length)return toast('Δεν υπάρχουν μετρήσεις στη σελίδα');
+  pushHist();ms.forEach(m=>{m.f=S.mPerPt;m.N=S.scaleN;});renderList();updateLive();req();toast('Εφαρμόστηκε κλίμακα '+scaleTxt(S.scaleN)+' σε '+ms.length+' μετρήσεις');};
+
+/* ---------- tools ---------- */
+const IC={
+ select:'<path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 11.5V4a1.5 1.5 0 0 1 3 0v7.5M14 11V5.5a1.5 1.5 0 0 1 3 0V12M17 9a1.5 1.5 0 0 1 3 0v5a7 7 0 0 1-7 7h-1.5a6 6 0 0 1-4.6-2.2L4 14.6a1.6 1.6 0 0 1 2.4-2.1L8 14"/>',
+ dist:'<path d="M5 19 19 5M3 17l4 4M17 3l4 4"/>',
+ poly:'<path d="M3 18 8 8l6 7 7-10"/><circle cx="3" cy="18" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="14" cy="15" r="1.4"/><circle cx="21" cy="5" r="1.4"/>',
+ area:'<path d="M4 7l13-3 3 13-12 3z" fill="currentColor" fill-opacity=".18"/>',
+ rect:'<rect x="4" y="6" width="16" height="12" rx="1" fill="currentColor" fill-opacity=".15"/><path d="M4 3v2M20 3v2M4 4h16"/>',
+ auto:'<path d="M4 20 14 10M12 6l2-2M16 8l2-2M18 12l2-.5M10 4l.5-2M15 9l-1-1"/><path d="M14 4.5 15 2l1 2.5 2.5 1-2.5 1L15 9l-1-2.5-2.5-1z" fill="currentColor" fill-opacity=".3"/>',
+ angle:'<path d="M4 20h16M4 20 15 6"/><path d="M10 20a6 6 0 0 0-2.3-4.7"/>',
+ ccr:'<circle cx="12" cy="12" r="8"/><path d="M12 12l6-5"/><circle cx="12" cy="12" r="1"/>',
+ arc3:'<path d="M4 17a9 9 0 0 1 16 0"/><circle cx="4" cy="17" r="1.5"/><circle cx="12" cy="8.2" r="1.5"/><circle cx="20" cy="17" r="1.5"/>',
+ point:'<path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><circle cx="12" cy="12" r="2"/>',
+ note:'<path d="M4 5h16v10H10l-4 4v-4H4z"/><path d="M8 9h8M8 12h5"/>',
+ origin:'<path d="M5 20V5M5 20h15M5 5 3 7.5M5 5l2 2.5M20 20l-2.5-2M20 20l-2.5 2"/><circle cx="5" cy="20" r="1.5"/>',
+ calib:'<path d="M3 17 17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>',
+ align:'<path d="M3 18h18"/><path d="M5 14 19 7" stroke-dasharray="2 2"/><path d="M15 4a8 8 0 0 1 3 6M18 10l-2.5-.5M18 10l1-2.3"/>',
+ ortho:'<path d="M5 4v15h15"/><path d="M5 12h3v7" stroke-opacity=".5"/>',
+ snap:'<path d="M6 4v7a6 6 0 0 0 12 0V4h-4v7a2 2 0 0 1-4 0V4z"/><path d="M6 7h4M14 7h4"/>',
+ rotL:'<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4"/>',
+ rotR:'<path d="M20 12a8 8 0 1 1-2.4-5.7M20 4v4h-4"/>',
+ fit:'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><rect x="8" y="8" width="8" height="8" rx="1"/>'
+};
+const TOOLS=[['select','Επιλογή'],'|',['dist','Μήκος'],['poly','Πολυγρ.'],['area','Εμβαδόν'],['rect','Ορθογ.'],['auto','Αυτόματο'],'|',['angle','Γωνία'],['ccr','Κύκλος'],['arc3','Τόξο 3σ'],'|',['point','Σημείο'],['note','Σημείωση'],['origin','Αρχή'],'|',['calib','Βαθμον.'],['align','Ευθυγρ.'],'|',
+  ['!ortho','Ορθό'],['!snap','Έλξη'],['!rotL','−90°'],['!rotR','+90°'],['!fit','Όλο']];
+(function buildTools(){const nav=$('#tools');let h='';
+  for(const t of TOOLS){if(t==='|'){h+='<div class="sep"></div>';continue;}const act=t[0][0]==='!',id=act?t[0].slice(1):t[0];
+    h+=`<button class="tb${act?' act':''}${id==='ortho'||id==='snap'?' tog':''}" data-${act?'act':'tool'}="${id}" id="tb_${id}" title="${t[1]}"><svg viewBox="0 0 24 24">${IC[id]}</svg>${t[1]}</button>`;}
+  nav.innerHTML=h;
+  nav.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+    if(b.dataset.tool)setTool(b.dataset.tool);
+    else{const a=b.dataset.act;if(a==='ortho'){S.ortho=!S.ortho;updToggles();toast('Ορθό: '+(S.ortho?'ενεργό':'ανενεργό'));}
+      else if(a==='snap'){S.snapMaster=!S.snapMaster;updToggles();toast('Έλξη: '+(S.snapMaster?'ενεργή':'ανενεργή'));}
+      else if(a==='rotL')rotateBy(-Math.PI/2);else if(a==='rotR')rotateBy(Math.PI/2);else if(a==='fit')fit();}});
+})();
+function updToggles(){$('#tb_ortho').classList.toggle('on',S.ortho);$('#tb_snap').classList.toggle('on',S.snapMaster);}
+function setTool(t){
+  if(!S.page&&t!=='select'){toast('Άνοιξε πρώτα ένα σχέδιο PDF',true);return;}
+  S.tool=t;S.pts=[];S.snap=null;
+  document.querySelectorAll('.tb[data-tool]').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));
+  ov.classList.toggle('pan',t==='select');
+  updHint();updateLive();req();updFab();
+}
+function updHint(){
+  const n=S.pts.length;let h='';
+  if(!S.page)h='Άνοιξε ένα σχέδιο PDF για να ξεκινήσεις';
+  else switch(S.tool){
+    case 'select':h='Σύρε για μετακίνηση · ροδέλα/τσίμπημα για ζουμ · κλικ σε μέτρηση για επιλογή και διόρθωση κορυφών';break;
+    case 'dist':h=n?'Κλικ στο 2ο σημείο':'Μήκος: κλικ στο 1ο σημείο';break;
+    case 'poly':h=n?'Επόμενο σημείο · διπλό κλικ / Enter / ✓ για τέλος':'Πολυγραμμή: κλικ στο 1ο σημείο';break;
+    case 'area':h=n<3?'Εμβαδόν: κλικ στις κορυφές ('+n+')':'Επόμενη κορυφή · κλικ στην 1η κορυφή / Enter / ✓ για κλείσιμο';break;
+    case 'rect':h=n?'Κλικ στην απέναντι γωνία':'Ορθογώνιο: κλικ στη 1η γωνία';break;
+    case 'auto':h='Αυτόματο σχήμα: κλικ μέσα σε κλειστό χώρο (ολόκληρος ορατός στην οθόνη)';break;
+    case 'angle':h=['Γωνία: κλικ σε σημείο του 1ου σκέλους','Κλικ στην κορυφή της γωνίας','Κλικ σε σημείο του 2ου σκέλους'][n];break;
+    case 'ccr':h=n?'Κλικ σε σημείο της περιφέρειας':'Κύκλος: κλικ στο κέντρο (έλξη «Κέντρο»)';break;
+    case 'arc3':h='Τόξο 3 σημείων: κλικ σε σημείο '+(n+1)+'/3 πάνω στο τόξο';break;
+    case 'point':h='Σημείο: κλικ για νέο αριθμημένο σημείο με συντεταγμένες';break;
+    case 'note':h='Σημείωση: κλικ στο σημείο αναφοράς και γράψε το κείμενο';break;
+    case 'origin':h='Αρχή συντεταγμένων: κλικ στο σημείο αναφοράς';break;
+    case 'calib':h=n?'Κλικ στο 2ο άκρο της γνωστής απόστασης':'Βαθμονόμηση: κλικ στο 1ο άκρο μιας γνωστής απόστασης';break;
+    case 'align':h=n?'Κλικ σε 2ο σημείο της γραμμής':'Ευθυγράμμιση: κλικ σε 2 σημεία μιας γραμμής που θα γίνει οριζόντια';break;
+  }
+  $('#hint').textContent=h;
+}
+function updFab(){const t=S.tool,n=S.pts.length;$('#fab').style.display=n?'flex':'none';
+  $('#fabOk').style.display=((t==='poly'&&n>=2)||(t==='area'&&n>=3))?'block':'none';}
+$('#fabUndo').onclick=()=>{S.pts.pop();afterPts();};
+$('#fabCancel').onclick=()=>{S.pts=[];afterPts();};
+$('#fabOk').onclick=()=>finish();
+function afterPts(){updHint();updFab();updateLive();req();}
+
+/* ---------- measurements ---------- */
+function pushHist(){S.hist.push(JSON.stringify({meas:S.meas,cnt:S.cnt}));if(S.hist.length>80)S.hist.shift();}
+function undo(){if(S.pts.length){S.pts.pop();afterPts();return;}const h=S.hist.pop();if(!h)return toast('Τίποτα για αναίρεση');
+  const o=JSON.parse(h);S.meas=o.meas;S.cnt=o.cnt;if(!S.meas.find(m=>m.id===S.sel))S.sel=null;renderList();updateLive();req();}
+const getM=id=>S.meas.find(m=>m.id===id);
+function newName(type,shape){const key=type==='area'?'a_'+(shape||'poly'):type;S.cnt[key]=(S.cnt[key]||0)+1;const n=S.cnt[key];
+  if(type==='point')return 'Σ'+n;if(type==='area')return SHAPEN[shape||'poly']+' '+n;return TYPEN[type]+' '+n;}
+function commit(type,pts,extra){pushHist();
+  const m=Object.assign({id:S.idc++,page:S.pageNum,type,pts:pts.map(cp),f:S.mPerPt,N:S.scaleN,note:''},extra||{});
+  m.name=newName(type,m.shape);S.meas.push(m);S.sel=m.id;renderList();updateLive();req();return m;}
+function rectCorners(a,b){const A=toS(a),B=toS(b);return [toV(A.x,A.y),toV(B.x,A.y),toV(B.x,B.y),toV(A.x,B.y)];}
+
+function addPoint(){
+  const p=S.cursor,t=S.tool;if(!p||!S.page||t==='select')return;
+  if(t==='point'){commit('point',[p]);return;}
+  if(t==='note'){createNote(p);return;}
+  if(t==='origin'){setOrigin(p);return;}
+  if(t==='auto'){autoShape(S.cursorS.x,S.cursorS.y);return;}
+  if(t==='poly'||t==='area'){
+    if(S.pts.length){const l=toS(S.pts[S.pts.length-1]),c=toS(p);
+      if(Math.hypot(l.x-c.x,l.y-c.y)<4){finish();return;}
+      if(t==='area'&&S.pts.length>=3){const f0=toS(S.pts[0]);if(Math.hypot(f0.x-c.x,f0.y-c.y)<(S.isTouch?16:9)){finish();return;}}}
+    S.pts.push(cp(p));
+  }else{
+    S.pts.push(cp(p));
+    const need={dist:2,calib:2,align:2,rect:2,ccr:2,angle:3,arc3:3}[t];
+    if(S.pts.length>=need){const P=S.pts;S.pts=[];
+      if(t==='calib')doCalib(P);else if(t==='align')doAlign(P);
+      else if(t==='rect')commit('area',rectCorners(P[0],P[1]),{shape:'rect'});
+      else if(t==='arc3'&&!circ(P[0].x,P[0].y,P[1].x,P[1].y,P[2].x,P[2].y))toast('Τα 3 σημεία είναι συνευθειακά',true);
+      else commit(t,P);}
+  }
+  afterPts();
+}
+function finish(){const t=S.tool,P=S.pts;
+  if(t==='poly'&&P.length>=2){S.pts=[];commit('poly',P);}
+  else if(t==='area'&&P.length>=3){S.pts=[];commit('area',P,{shape:'poly'});}
+  else if(t==='poly'||t==='area')return toast(t==='poly'?'Χρειάζονται τουλάχιστον 2 σημεία':'Χρειάζονται τουλάχιστον 3 κορυφές',true);
+  afterPts();}
+async function doCalib(P){
+  const d=Math.hypot(P[1].x-P[0].x,P[1].y-P[0].y);if(d<1e-6)return toast('Τα δύο σημεία συμπίπτουν',true);
+  const r=await ask('Βαθμονόμηση',[{id:'L',label:'Πραγματικό μήκος της απόστασης (m)',ph:'π.χ. 5,40',type:'text'}],
+    [{id:'all',label:'Εφαρμογή και στις υπάρχουσες μετρήσεις της σελίδας',checked:false}],
+    'Πληκτρολόγησε το γνωστό μήκος (π.χ. από διάσταση του σχεδίου). Από αυτό υπολογίζεται η πραγματική κλίμακα.');
+  if(!r)return;const L=num(r.L);if(!(L>0))return toast('Μη έγκυρο μήκος',true);
+  S.userScale=true;S.mPerPt=L/d;S.scaleN=S.mPerPt/PT_M;S.scaleSrc='calib';
+  if(r.all){pushHist();S.meas.forEach(m=>{if(m.page===S.pageNum&&m.type!=='note'){m.f=S.mPerPt;m.N=S.scaleN;}});}
+  commit('calib',P);updScaleUI();setTool('select');
+  toast('Βαθμονόμηση: ισοδύναμη κλίμακα ≈ '+scaleTxt(S.scaleN));
+}
+function doAlign(P){const phi=Math.atan2(P[1].y-P[0].y,P[1].x-P[0].x);let r=-phi;
+  if(Math.cos(r-S.rot)<0)r+=Math.PI;rotateTo(r);setTool('select');toast('Περιστροφή '+fN(Math.atan2(Math.sin(r),Math.cos(r))*180/Math.PI,2)+'° — η γραμμή είναι πλέον οριζόντια');}
+async function setOrigin(p){
+  const r=await ask('Αρχή συντεταγμένων',[{id:'E',label:'X / Ε του σημείου (m)',value:'0',type:'text'},{id:'N',label:'Y / Ν του σημείου (m)',value:'0',type:'text'}],null,
+    'Δώσε τις γνωστές συντεταγμένες του σημείου (π.χ. ΕΓΣΑ87 από το τοπογραφικό) ή άφησε 0 για τοπικό σύστημα. Οι άξονες ακολουθούν το φύλλο (X δεξιά, Y πάνω).');
+  if(!r)return;S.origin={page:S.pageNum,x:p.x,y:p.y,E:num(r.E)||0,N:num(r.N)||0};updOrigin();renderList();updateLive();req();setTool('select');toast('Ορίστηκε αρχή συντεταγμένων');}
+function updOrigin(){const o=S.origin;$('#originInfo').innerHTML=o?`Αρχή στη σελ. ${o.page}: <b>X ${fN(o.E,3)} · Y ${fN(o.N,3)}</b>`:'Χωρίς αρχή: οι συντεταγμένες μετριούνται από την κάτω αριστερή γωνία του φύλλου.';}
+$('#btnOrigin').onclick=()=>{if(S.page){setTool('origin');closePanelMobile();}};
+$('#btnOriginClr').onclick=()=>{S.origin=null;updOrigin();renderList();updateLive();req();};
+async function createNote(p){
+  const r=await ask('Νέα σημείωση',[{id:'t',label:'Κείμενο',type:'textarea',ph:'π.χ. Υγρασία στη βόρεια τοιχοποιία'}]);
+  if(!r||!String(r.t).trim())return;const m=commit('note',[p],{text:String(r.t).trim(),off:{x:56,y:-46}});m.name='Σημείωση '+S.cnt.note;renderList();}
+function coordOf(p,f,page){const o=S.origin;
+  if(o&&o.page===page)return {X:(p.x-o.x)*f+o.E,Y:-(p.y-o.y)*f+o.N,sys:'Από την αρχή του χρήστη'};
+  return {X:p.x*f,Y:(S.H-p.y)*f,sys:'Από κάτω αριστερή γωνία φύλλου'};}
+
+function info(m){
+  const f=m.f,P=m.pts,R=[];let sh='';const sg=(a,b)=>Math.hypot(b.x-a.x,b.y-a.y)*f;
+  const circR=r=>R.push(['Ακτίνα',fL(r)],['Διάμετρος',fL(2*r)],['Περιφέρεια',fL(TAU*r)],['Εμβαδόν κύκλου',fAr(Math.PI*r*r)]);
+  switch(m.type){
+    case 'dist':case 'calib':{if(P.length<2)break;const dx=(P[1].x-P[0].x)*f,dy=-(P[1].y-P[0].y)*f,L=Math.hypot(dx,dy);
+      sh=fL(L)+(m.type==='calib'?' ✓':'');R.push(['Μήκος',fL(L)],['ΔX',fL(dx)],['ΔY',fL(dy)],['Διεύθυνση',fA(Math.atan2(dy,dx))],['Κλίση',Math.abs(dx)>1e-9?fN(dy/Math.abs(dx)*100,2)+' %':'κατακόρυφη']);break;}
+    case 'poly':{let L=0;const parts=[];for(let i=1;i<P.length;i++){const l=sg(P[i-1],P[i]);L+=l;parts.push(l);}
+      sh='Σ '+fL(L);R.push(['Συνολικό μήκος',fL(L)],['Τμήματα',String(parts.length)]);parts.slice(0,30).forEach((l,i)=>R.push(['Τμήμα '+(i+1),fL(l)]));break;}
+    case 'area':{if(P.length<3){if(P.length===2)sh=fL(sg(P[0],P[1]));break;}
+      const A=polyArea(P)*f*f;let per=0;const sd=[];for(let i=0;i<P.length;i++){const l=sg(P[i],P[(i+1)%P.length]);per+=l;sd.push(l);}
+      sh=fAr(A);R.push(['Εμβαδόν',fAr(A)],['Περίμετρος',fL(per)]);
+      if(m.shape==='rect'&&P.length===4){R.push(['Πλευρά α',fL(sd[0])],['Πλευρά β',fL(sd[1])]);sh=fN(sd[0],S.dec)+' × '+fN(sd[1],S.dec)+' m · '+fAr(A);}
+      else{R.push(['Κορυφές',String(P.length)]);sd.slice(0,30).forEach((l,i)=>R.push(['Πλευρά '+(i+1)+'–'+((i+1)%P.length+1),fL(l)]));}break;}
+    case 'angle':{if(P.length<3){if(P.length===2)sh=fL(sg(P[0],P[1]));break;}const a=angAt(P[0],P[1],P[2]);
+      sh=fA(a);R.push(['Γωνία',fA(a)],['Παραπληρωματική',fA(Math.PI-a)],['Ως 360°',fA(TAU-a)],['Σκέλος 1',fL(sg(P[1],P[0]))],['Σκέλος 2',fL(sg(P[1],P[2]))]);break;}
+    case 'ccr':{if(P.length<2)break;const r=sg(P[0],P[1]);sh='R '+fL(r);circR(r);break;}
+    case 'arc3':{if(P.length<3){if(P.length===2)sh=fL(sg(P[0],P[1]));break;}const c=circ(P[0].x,P[0].y,P[1].x,P[1].y,P[2].x,P[2].y);
+      if(!c){sh='συνευθειακά';break;}const r=Math.hypot(P[0].x-c[0],P[0].y-c[1])*f,sw=arcSweep(c,P);sh='R '+fL(r);circR(r);
+      R.push(['Γωνία τόξου 1→3',fA(sw)],['Μήκος τόξου 1→3',fL(r*sw)],['Χορδή 1→3',fL(sg(P[0],P[2]))]);break;}
+    case 'point':{const q=coordOf(P[0],f,m.page);sh=m.name+(S.showPtCoords?'  X '+fN(q.X,S.dec)+' · Y '+fN(q.Y,S.dec):'');
+      R.push(['X',fN(q.X,3)+' m'],['Y',fN(q.Y,3)+' m'],['Σύστημα',q.sys]);break;}
+    case 'note':sh=m.text||'';break;
+  }
+  return {sh,R};
+}
+function tempMeas(){
+  const t=S.tool;if(!S.cursor||!S.pts.length)return null;
+  const P=[...S.pts,S.cursor];
+  if(t==='rect')return {type:'area',shape:'rect',pts:rectCorners(P[0],P[1]),f:S.mPerPt,page:S.pageNum};
+  const type={dist:'dist',calib:'calib',align:'dist',poly:'poly',area:'area',angle:'angle',ccr:'ccr',arc3:'arc3'}[t];
+  if(!type)return null;return {type,shape:'poly',pts:P,f:S.mPerPt,page:S.pageNum,temp:true};
+}
+function kvHtml(R){return '<div class="kv">'+R.map(r=>`<span>${esc(r[0])}</span><span>${esc(r[1])}</span>`).join('')+'</div>';}
+function updateLive(){
+  const el=$('#live');const tm=tempMeas();
+  if(tm){const i=info(tm);el.innerHTML=`<div class="lt">${S.tool==='rect'?'Ορθογώνιο':TYPEN[tm.type]} · σε εξέλιξη</div><div class="big">${esc(i.sh||'—')}</div>${kvHtml(i.R)}`;return;}
+  const m=S.sel!=null?getM(S.sel):null;
+  if(m){const i=info(m);
+    el.innerHTML=`<div class="lt">${esc(m.name)}</div><div class="big">${esc(m.type==='note'?'':i.sh)}</div>${m.type==='note'?`<div class="note" style="color:var(--txt);font-size:13px;white-space:pre-wrap">${esc(m.text)}</div>`:kvHtml(i.R)}
+      ${m.type!=='note'?`<div class="note">Κλίμακα μέτρησης: <b>${scaleTxt(m.N)}</b> · σελ. ${m.page}</div>`:''}${m.note?`<div class="note">📝 ${esc(m.note)}</div>`:''}
+      <div class="btns"><button class="btn" data-ed="${m.id}">✎ Επεξεργασία</button><button class="btn" data-del="${m.id}">Διαγραφή</button></div>`;return;}
+  el.innerHTML=S.page?'<div class="note">Διάλεξε εργαλείο από την μπάρα και κάνε κλικ στο σχέδιο. Οι τιμές εμφανίζονται εδώ ζωντανά.</div>':'<div class="note">Άνοιξε ένα σχέδιο PDF.</div>';
+}
+function renderList(){
+  const el=$('#list');
+  if(!S.meas.length){el.innerHTML='<div class="empty-l">Δεν υπάρχουν ακόμα μετρήσεις.</div>';return;}
+  const ms=[...S.meas].sort((a,b)=>(a.page===S.pageNum?0:1)-(b.page===S.pageNum?0:1)||a.id-b.id);
+  el.innerHTML=ms.map(m=>{const i=info(m);const sub=(m.type==='note'?'Σημείωση':(m.type==='area'?SHAPEN[m.shape||'poly']:TYPEN[m.type])+' · '+scaleTxt(m.N))+(S.doc&&S.doc.numPages>1?' · σελ.'+m.page:'')+(m.note?' · 📝 '+m.note:'');
+    return `<div class="mi${m.id===S.sel?' sel':''}" data-id="${m.id}" style="--c:${COL[m.type]}"><span class="dot"></span><div class="mt"><b>${esc(m.name)}</b><small>${esc(sub)}</small></div><div class="mv">${esc(m.type==='note'?m.text:(m.type==='point'?(()=>{const q=coordOf(m.pts[0],m.f,m.page);return fN(q.X,2)+' / '+fN(q.Y,2);})():i.sh))}</div><button class="x" data-ed="${m.id}" title="Επεξεργασία">✎</button><button class="x" data-del="${m.id}" title="Διαγραφή">✕</button></div>`;}).join('');
+}
+$('#panel').addEventListener('click',async e=>{
+  const d=e.target.closest('[data-del]');if(d){e.stopPropagation();delMeas(+d.dataset.del);return;}
+  const ed=e.target.closest('[data-ed]');if(ed){e.stopPropagation();editMeas(+ed.dataset.ed);return;}
+  const it=e.target.closest('.mi');if(it){focusMeas(+it.dataset.id);}
+});
+$('#list').addEventListener('dblclick',e=>{const it=e.target.closest('.mi');if(it)editMeas(+it.dataset.id);});
+function delMeas(id){pushHist();S.meas=S.meas.filter(m=>m.id!==id);if(S.sel===id)S.sel=null;renderList();updateLive();req();}
+async function editMeas(id){const m=getM(id);if(!m)return;
+  const fields=m.type==='note'?[{id:'name',label:'Όνομα',value:m.name,type:'text'},{id:'text',label:'Κείμενο σημείωσης',value:m.text,type:'textarea'}]
+    :[{id:'name',label:'Όνομα',value:m.name,type:'text'},{id:'note',label:'Σημείωση',value:m.note||'',type:'textarea',ph:'προαιρετικά'}];
+  const r=await ask('Επεξεργασία',fields);if(!r)return;pushHist();
+  m.name=String(r.name).trim()||m.name;if(m.type==='note')m.text=String(r.text).trim()||m.text;else m.note=String(r.note).trim();
+  renderList();updateLive();req();}
+async function focusMeas(id){const m=getM(id);if(!m)return;S.sel=id;
+  if(m.page!==S.pageNum)await loadPage(m.page);
+  const c=centroid(m.pts.length>2?m.pts:[m.pts[0],m.pts[m.pts.length-1],m.pts[0]]);
+  const c2=m.pts.length===1?m.pts[0]:(m.pts.length===2?{x:(m.pts[0].x+m.pts[1].x)/2,y:(m.pts[0].y+m.pts[1].y)/2}:c);
+  fix(c2,S.cw/2,S.ch/2);viewChanged();renderList();updateLive();closePanelMobile();}
+$('#btnClear').onclick=()=>{const n=S.meas.filter(m=>m.page===S.pageNum).length;if(!n)return;if(!confirm('Διαγραφή '+n+' μετρήσεων/σημειώσεων της σελίδας;'))return;
+  pushHist();S.meas=S.meas.filter(m=>m.page!==S.pageNum);S.sel=null;renderList();updateLive();req();};
+
+/* ---------- overlay drawing ---------- */
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function pill(c,t,x,y,col,rot,sub){
+  if(!t)return;c.save();c.translate(x,y);if(rot)c.rotate(rot);
+  c.font='700 12px "JetBrains Mono",ui-monospace,monospace';let w=c.measureText(t).width+14,h=21;
+  if(sub){c.font='600 11px Manrope,sans-serif';w=Math.max(w,c.measureText(sub).width+14);h=36;}
+  c.fillStyle='rgba(8,13,26,.92)';rr(c,-w/2,-h/2,w,h,6);c.fill();c.strokeStyle=col;c.lineWidth=1.2;c.stroke();
+  c.textAlign='center';c.textBaseline='middle';c.fillStyle='#f8fafc';c.font='700 12px "JetBrains Mono",ui-monospace,monospace';
+  c.fillText(t,0,sub?-7:0.5);if(sub){c.fillStyle='#fda4af';c.font='600 11px Manrope,sans-serif';c.fillText(sub.length>40?sub.slice(0,39)+'…':sub,0,9);}c.restore();}
+function strokeP(c,path,col,sel,temp,w){
+  c.setLineDash(temp?[7,5]:[]);c.strokeStyle='rgba(2,6,23,.55)';c.lineWidth=(w||2)+3;path();c.stroke();
+  c.strokeStyle=sel?'#ffffff':col;c.lineWidth=sel?3.2:(w||2);path();c.stroke();
+  if(sel){c.strokeStyle=col;c.lineWidth=1.6;path();c.stroke();}c.setLineDash([]);}
+function dotP(c,p,col,r){c.beginPath();c.arc(p.x,p.y,r||3,0,TAU);c.fillStyle=col;c.fill();c.lineWidth=1.2;c.strokeStyle='rgba(2,6,23,.7)';c.stroke();}
+function upright(a){if(a>Math.PI/2)a-=Math.PI;if(a<-Math.PI/2)a+=Math.PI;return a;}
+function wrap(c,t,maxW){const out=[];for(const para of String(t).split('\n')){let line='';for(const w of para.split(/\s+/)){const tt=line?line+' '+w:w;if(c.measureText(tt).width>maxW&&line){out.push(line);line=w;}else line=tt;}out.push(line);}return out;}
+function drawMeas(c,m,sel){
+  const col=COL[m.type],P=m.pts.map(toS),temp=!!m.temp,i=info(m);
+  c.save();c.lineJoin='round';c.lineCap='round';
+  const poly=(closed)=>()=>{c.beginPath();P.forEach((p,k)=>k?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));if(closed)c.closePath();};
+  switch(m.type){
+    case 'dist':case 'calib':{if(P.length<2)break;const [a,b]=P,ang=Math.atan2(b.y-a.y,b.x-a.x),nx=-Math.sin(ang)*6,ny=Math.cos(ang)*6;
+      strokeP(c,()=>{c.beginPath();c.moveTo(a.x,a.y);c.lineTo(b.x,b.y);c.moveTo(a.x-nx,a.y-ny);c.lineTo(a.x+nx,a.y+ny);c.moveTo(b.x-nx,b.y-ny);c.lineTo(b.x+nx,b.y+ny);},col,sel,temp);
+      const ua=upright(ang),off=15;pill(c,i.sh,(a.x+b.x)/2+Math.sin(ua)*off,(a.y+b.y)/2-Math.cos(ua)*off,col,Math.hypot(b.x-a.x,b.y-a.y)>90?ua:0,m.note);break;}
+    case 'poly':{if(P.length<2)break;strokeP(c,poly(false),col,sel,temp);P.forEach(p=>dotP(c,p,col,2.5));const l=P[P.length-1];pill(c,i.sh,l.x+10,l.y-18,col,0,m.note);break;}
+    case 'area':{if(P.length<2)break;if(P.length>=3){poly(true)();c.fillStyle=col+'2e';c.fill();}
+      strokeP(c,poly(P.length>=3),col,sel,temp);P.forEach(p=>dotP(c,p,col,2.5));
+      const ct=P.length>=3?toS(centroid(m.pts)):P[1];pill(c,i.sh,ct.x,ct.y,col,0,m.note);break;}
+    case 'angle':{if(P.length<2)break;strokeP(c,poly(false),col,sel,temp);P.forEach(p=>dotP(c,p,col,2.5));
+      if(P.length>=3){const v=P[1],a0=Math.atan2(P[0].y-v.y,P[0].x-v.x),a2=Math.atan2(P[2].y-v.y,P[2].x-v.x);let d=a2-a0;
+        while(d>Math.PI)d-=TAU;while(d<-Math.PI)d+=TAU;const R=Math.min(34,Math.hypot(P[0].x-v.x,P[0].y-v.y)*.6,Math.hypot(P[2].x-v.x,P[2].y-v.y)*.6);
+        strokeP(c,()=>{c.beginPath();c.arc(v.x,v.y,R,a0,a0+d,d<0);},col,sel,temp,1.6);const bi=a0+d/2;pill(c,i.sh,v.x+Math.cos(bi)*(R+26),v.y+Math.sin(bi)*(R+26),col,0,m.note);}
+      break;}
+    case 'ccr':case 'arc3':{
+      let cc=null,R=0;
+      if(m.type==='ccr'&&P.length>=2){cc=P[0];R=Math.hypot(P[1].x-P[0].x,P[1].y-P[0].y);}
+      if(m.type==='arc3'&&P.length>=3){const k=circ(P[0].x,P[0].y,P[1].x,P[1].y,P[2].x,P[2].y);if(k){cc={x:k[0],y:k[1]};R=Math.hypot(P[0].x-k[0],P[0].y-k[1]);}}
+      if(m.type==='arc3'&&P.length===2)strokeP(c,poly(false),col,sel,temp);
+      if(cc&&R<1e6){strokeP(c,()=>{c.beginPath();c.arc(cc.x,cc.y,R,0,TAU);},col,sel,temp);
+        c.setLineDash([4,4]);c.strokeStyle=col;c.lineWidth=1;c.beginPath();c.moveTo(cc.x,cc.y);c.lineTo(P[m.type==='ccr'?1:0].x,P[m.type==='ccr'?1:0].y);c.stroke();c.setLineDash([]);
+        c.strokeStyle=col;c.lineWidth=1.5;c.beginPath();c.moveTo(cc.x-6,cc.y);c.lineTo(cc.x+6,cc.y);c.moveTo(cc.x,cc.y-6);c.lineTo(cc.x,cc.y+6);c.stroke();
+        pill(c,i.sh,cc.x,cc.y-18,col,0,m.note);}
+      P.forEach(p=>dotP(c,p,col,2.5));break;}
+    case 'point':{const p=P[0];c.strokeStyle='rgba(2,6,23,.7)';c.lineWidth=4;c.beginPath();c.moveTo(p.x-7,p.y);c.lineTo(p.x+7,p.y);c.moveTo(p.x,p.y-7);c.lineTo(p.x,p.y+7);c.stroke();
+      c.strokeStyle=sel?'#fff':'#22d3ee';c.lineWidth=1.8;c.stroke();dotP(c,p,'#fff',2.2);
+      c.font='700 12px "JetBrains Mono",monospace';const w=c.measureText(i.sh).width;pill(c,i.sh,p.x+12+w/2+7,p.y-14,sel?'#fff':'#22d3ee',0,m.note);break;}
+    case 'note':{const a=P[0];c.font='600 13px Manrope,sans-serif';const lines=wrap(c,m.text,230);const lw=Math.max(...lines.map(l=>c.measureText(l).width));
+      const w=lw+20,h=lines.length*18+14,bx=a.x+m.off.x-w/2,by=a.y+m.off.y-h/2;
+      const ex=Math.max(bx,Math.min(a.x,bx+w)),ey=Math.max(by,Math.min(a.y,by+h));
+      c.strokeStyle='rgba(2,6,23,.6)';c.lineWidth=4;c.beginPath();c.moveTo(a.x,a.y);c.lineTo(ex,ey);c.stroke();
+      c.strokeStyle=col;c.lineWidth=1.6;c.stroke();dotP(c,a,col,4);
+      c.fillStyle='rgba(28,12,22,.94)';rr(c,bx,by,w,h,8);c.fill();c.strokeStyle=sel?'#fff':col;c.lineWidth=sel?2:1.3;c.stroke();
+      c.fillStyle='#fff1f2';c.textAlign='left';c.textBaseline='top';lines.forEach((l,k)=>c.fillText(l,bx+10,by+8+k*18));
+      S.hit.push({id:m.id,x:bx,y:by,w,h});break;}
+  }
+  if(sel&&!temp&&m.type!=='note')P.forEach(p=>{c.fillStyle='#fff';c.strokeStyle=col;c.lineWidth=1.5;c.beginPath();c.rect(p.x-4.5,p.y-4.5,9,9);c.fill();c.stroke();});
+  c.restore();
+}
+function drawSnap(c,s){const p=toS(s),k=7;c.save();
+  const path=()=>{c.beginPath();switch(s.t){
+    case 'end':c.rect(p.x-k,p.y-k,2*k,2*k);break;
+    case 'mid':c.moveTo(p.x,p.y-k);c.lineTo(p.x+k,p.y+k*.8);c.lineTo(p.x-k,p.y+k*.8);c.closePath();break;
+    case 'int':c.moveTo(p.x-k,p.y-k);c.lineTo(p.x+k,p.y+k);c.moveTo(p.x+k,p.y-k);c.lineTo(p.x-k,p.y+k);break;
+    case 'cen':c.arc(p.x,p.y,k,0,TAU);break;
+    case 'perp':c.moveTo(p.x-k,p.y+k);c.lineTo(p.x+k,p.y+k);c.moveTo(p.x,p.y+k);c.lineTo(p.x,p.y-k);c.moveTo(p.x-k,p.y+2);c.lineTo(p.x-2,p.y+2);c.lineTo(p.x-2,p.y+k);break;
+    case 'near':c.moveTo(p.x-k,p.y-k);c.lineTo(p.x+k,p.y-k);c.lineTo(p.x-k,p.y+k);c.lineTo(p.x+k,p.y+k);c.closePath();break;}};
+  c.strokeStyle='rgba(0,0,0,.7)';c.lineWidth=4.5;path();c.stroke();c.strokeStyle='#facc15';c.lineWidth=2;path();c.stroke();
+  c.font='700 11px Manrope,sans-serif';c.fillStyle='#facc15';c.strokeStyle='rgba(0,0,0,.8)';c.lineWidth=3;c.strokeText(SNAPN[s.t],p.x+12,p.y-11);c.fillText(SNAPN[s.t],p.x+12,p.y-11);c.restore();}
+function drawOrigin(c){const o=S.origin;if(!o||o.page!==S.pageNum)return;const p=toS(o),L=34;
+  const ex=toS({x:o.x+L/S.z,y:o.y}),ey=toS({x:o.x,y:o.y-L/S.z});c.save();c.lineWidth=2;
+  [[ex,'#fb7185','X'],[ey,'#34d399','Y']].forEach(([q,col,t])=>{c.strokeStyle='rgba(0,0,0,.6)';c.lineWidth=4;c.beginPath();c.moveTo(p.x,p.y);c.lineTo(q.x,q.y);c.stroke();
+    c.strokeStyle=col;c.lineWidth=2;c.stroke();c.fillStyle=col;c.font='800 12px Manrope';c.fillText(t,q.x+4,q.y-4);});
+  dotP(c,p,'#fff',4);c.restore();}
+function drawOverlay(){
+  const c=octx,d=S.dpr;c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,ov.width,ov.height);if(!S.page)return;c.setTransform(d,0,0,d,0,0);
+  S.hit=[];
+  for(const m of S.meas)if(m.page===S.pageNum&&m.id!==S.sel)drawMeas(c,m,false);
+  const sm=S.sel!=null?getM(S.sel):null;if(sm&&sm.page===S.pageNum)drawMeas(c,sm,true);
+  drawOrigin(c);
+  const tm=tempMeas();if(tm)drawMeas(c,tm,false);
+  else if(S.tool!=='select'&&S.pts.length)S.pts.forEach(p=>dotP(c,toS(p),'#fff',3));
+  if(S.snap&&S.tool!=='select'&&S.tool!=='auto')drawSnap(c,S.snap);
+  else if(S.snap&&G&&G.type==='vdrag')drawSnap(c,S.snap);
+}
+function drawLoupe(){
+  if(!S.loupeOn||!S.cursor){return;}
+  const p=toS(S.cursor),d=S.dpr,Z=150,k=3,sw=Z/k;
+  let lx=p.x-Z/2-80,ly=p.y-Z-60;if(lx<6)lx=p.x+60;if(ly<6)ly=Math.min(S.ch-Z-6,p.y+60);
+  loupe.style.transform=`translate(${lx}px,${ly}px)`;
+  lctx.setTransform(1,0,0,1,0,0);lctx.fillStyle='#060a13';lctx.fillRect(0,0,loupe.width,loupe.height);
+  const sx=(p.x-sw/2)*d,sy=(p.y-sw/2)*d;
+  if(view.classList.contains('dark'))lctx.filter='invert(1) hue-rotate(180deg) brightness(.92)';
+  lctx.drawImage(view,sx,sy,sw*d,sw*d,0,0,Z*d,Z*d);lctx.filter='none';
+  lctx.drawImage(ov,sx,sy,sw*d,sw*d,0,0,Z*d,Z*d);
+  lctx.setTransform(d,0,0,d,0,0);lctx.strokeStyle='#22d3ee';lctx.lineWidth=1;lctx.beginPath();
+  lctx.moveTo(Z/2,Z/2-16);lctx.lineTo(Z/2,Z/2-4);lctx.moveTo(Z/2,Z/2+4);lctx.lineTo(Z/2,Z/2+16);lctx.moveTo(Z/2-16,Z/2);lctx.lineTo(Z/2-4,Z/2);lctx.moveTo(Z/2+4,Z/2);lctx.lineTo(Z/2+16,Z/2);lctx.stroke();
+}
+function hideLoupe(){S.loupeOn=false;loupe.style.display='none';}
+
+/* ---------- status ---------- */
+function updStatus(){
+  const el=$('#status');if(!S.page){el.innerHTML='';return;}
+  const p=S.cursor;let h='';
+  if(p){const q=coordOf(p,S.mPerPt,S.pageNum);h+=`X <b>${fN(q.X,3)}</b> · Y <b>${fN(q.Y,3)}</b> m`;}
+  h+=` <span>│ Κλίμακα <b>${scaleTxt(S.scaleN)}</b></span><span>│ Ζουμ <b>${Math.round(S.z/S.fitZ*100)}%</b></span>`;
+  if(Math.abs(S.rot)>1e-6)h+=`<span>│ Περιστροφή <b>${fN(S.rot*180/Math.PI,2)}°</b></span>`;
+  if(S.snap&&S.tool!=='select')h+=`<span>│ Έλξη <b style="color:#facc15">${SNAPN[S.snap.t]}</b></span>`;
+  if(S.ortho!==S.shift)h+='<span>│ <b style="color:#fbbf24">ΟΡΘΟ</b></span>';
+  el.innerHTML=h;
+}
+function updRotUI(){const deg=S.rot*180/Math.PI;$('#rotVal').textContent=fN(deg,2)+'°';const ri=$('#rotIn');if(document.activeElement!==ri)ri.value=fN(deg,2);}
+
+/* ---------- pointer input ---------- */
+const ptrs=new Map();let G=null;
+function pos(e){const r=ov.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top};}
+function updateCursor(sx,sy,touch,force){
+  const v=toV(sx,sy);S.cursorS={x:sx,y:sy};const t=S.tool;let snap=null;
+  const can=force||!(t==='select'||t==='auto');
+  if(can&&S.snapMaster&&S.geo&&S.geo.nseg!==undefined){const prev=(!force&&S.pts.length)?S.pts[S.pts.length-1]:null;snap=findSnap(v.x,v.y,(touch?22:12)/S.z,prev);}
+  let p=snap?{x:snap.x,y:snap.y}:v;
+  if(!snap&&!force&&(S.ortho!==S.shift)&&S.pts.length&&t!=='select'){const a=toS(S.pts[S.pts.length-1]);const b={x:sx,y:sy};if(Math.abs(b.x-a.x)>Math.abs(b.y-a.y))b.y=a.y;else b.x=a.x;p=toV(b.x,b.y);}
+  S.cursor=p;S.snap=can?snap:null;updStatus();updateLive();req();
+}
+function startPinch(){const [a,b]=[...ptrs.values()];const c={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+  G={type:'pinch',v0:toV(c.x,c.y),z0:S.z,r0:S.rot,d0:Math.hypot(b.x-a.x,b.y-a.y)||1,a0:Math.atan2(b.y-a.y,b.x-a.x),rotOn:false};hideLoupe();}
+function movePinch(){const [a,b]=[...ptrs.values()];if(!b)return;const c={x:(a.x+b.x)/2,y:(a.y+b.y)/2},d=Math.hypot(b.x-a.x,b.y-a.y),an=Math.atan2(b.y-a.y,b.x-a.x);
+  S.z=clampZ(G.z0*d/G.d0);
+  if(S.twoRot){let da=an-G.a0;while(da>Math.PI)da-=TAU;while(da<-Math.PI)da+=TAU;
+    if(!G.rotOn&&Math.abs(da)>0.16){G.rotOn=true;G.a0=an;da=0;}
+    if(G.rotOn){let r=G.r0+da;const k=Math.round(r/(Math.PI/2));if(Math.abs(r-k*Math.PI/2)<0.045)r=k*Math.PI/2;S.rot=r;}}
+  fix(G.v0,c.x,c.y);viewChanged();}
+function nearestMeas(sx,sy,r){
+  let best=null,bd=r;
+  const dseg=(p,a,b)=>{const dx=b.x-a.x,dy=b.y-a.y,l=dx*dx+dy*dy;let t=l?((p.x-a.x)*dx+(p.y-a.y)*dy)/l:0;t=Math.max(0,Math.min(1,t));return Math.hypot(a.x+t*dx-p.x,a.y+t*dy-p.y);};
+  const q={x:sx,y:sy};
+  for(const h of S.hit)if(sx>=h.x&&sx<=h.x+h.w&&sy>=h.y&&sy<=h.y+h.h)return h.id;
+  for(const m of S.meas){if(m.page!==S.pageNum)continue;const P=m.pts.map(toS);let d=Infinity;
+    if(m.type==='point'||m.type==='note')d=Math.hypot(P[0].x-sx,P[0].y-sy);
+    else if(m.type==='ccr'){const R=Math.hypot(P[1].x-P[0].x,P[1].y-P[0].y);d=Math.abs(Math.hypot(sx-P[0].x,sy-P[0].y)-R);}
+    else if(m.type==='arc3'){const k=circ(P[0].x,P[0].y,P[1].x,P[1].y,P[2].x,P[2].y);if(k)d=Math.abs(Math.hypot(sx-k[0],sy-k[1])-Math.hypot(P[0].x-k[0],P[0].y-k[1]));}
+    else{const cl=m.type==='area';for(let i=0;i<P.length-(cl?0:1);i++)d=Math.min(d,dseg(q,P[i],P[(i+1)%P.length]));
+      if(cl&&d>r){let ins=false;for(let i=0,j=P.length-1;i<P.length;j=i++){if(((P[i].y>sy)!==(P[j].y>sy))&&sx<(P[j].x-P[i].x)*(sy-P[i].y)/(P[j].y-P[i].y)+P[i].x)ins=!ins;}if(ins)d=r*.95;}}
+    if(d<bd){bd=d;best=m.id;}}
+  return best;
+}
+function selectAt(sx,sy,touch){S.sel=nearestMeas(sx,sy,touch?20:10);renderList();updateLive();req();}
+function selectDown(p,touch){
+  const r=touch?20:10;const m=S.sel!=null?getM(S.sel):null;
+  if(m&&m.page===S.pageNum){for(let i=0;i<m.pts.length;i++){const s=toS(m.pts[i]);if(Math.hypot(s.x-p.x,s.y-p.y)<r){pushHist();G={type:'vdrag',id:m.id,idx:i,moved:false};return;}}}
+  for(const h of S.hit)if(p.x>=h.x&&p.x<=h.x+h.w&&p.y>=h.y&&p.y<=h.y+h.h){const n=getM(h.id);pushHist();S.sel=h.id;G={type:'ndrag',id:h.id,sx:p.x,sy:p.y,ox:n.off.x,oy:n.off.y,moved:false};renderList();updateLive();req();return;}
+  G={type:'pan',sx:p.x,sy:p.y,tx0:S.tx,ty0:S.ty,moved:false,sel:true};
+}
+ov.addEventListener('pointerdown',e=>{
+  if(!S.page)return;e.preventDefault();try{ov.setPointerCapture(e.pointerId);}catch(_){}
+  const p=pos(e),touch=e.pointerType==='touch';ptrs.set(e.pointerId,p);S.isTouch=touch;
+  if(touch&&ptrs.size===2){startPinch();return;}
+  if(ptrs.size>2)return;
+  if(!touch&&(e.button===1||e.button===2||S.space)){G={type:'pan',sx:p.x,sy:p.y,tx0:S.tx,ty0:S.ty,moved:false,sel:false};ov.style.cursor='grabbing';return;}
+  if(!touch&&e.button!==0)return;
+  if(S.tool==='select'){selectDown(p,touch);return;}
+  if(touch){G={type:'loupe'};S.loupeOn=true;loupe.style.display='block';updateCursor(p.x,p.y,true);return;}
+  G={type:'click'};updateCursor(p.x,p.y,false);addPoint();
+});
+ov.addEventListener('pointermove',e=>{
+  if(!S.page)return;const p=pos(e);S.shift=e.shiftKey;
+  if(!ptrs.has(e.pointerId)){if(e.pointerType!=='touch'){S.isTouch=false;updateCursor(p.x,p.y,false);}return;}
+  ptrs.set(e.pointerId,p);if(!G)return;
+  switch(G.type){
+    case 'pan':{const dx=p.x-G.sx,dy=p.y-G.sy;if(Math.abs(dx)+Math.abs(dy)>4)G.moved=true;if(G.moved){S.tx=G.tx0+dx;S.ty=G.ty0+dy;viewChanged();}break;}
+    case 'pinch':movePinch();break;
+    case 'loupe':updateCursor(p.x,p.y,true);break;
+    case 'click':updateCursor(p.x,p.y,false);break;
+    case 'vdrag':{updateCursor(p.x,p.y,S.isTouch,true);const m=getM(G.id);if(m&&S.cursor){m.pts[G.idx]=cp(S.cursor);if(m.shape==='rect')m.shape='poly';G.moved=true;req();updateLive();}break;}
+    case 'ndrag':{const m=getM(G.id);if(m){m.off.x=G.ox+(p.x-G.sx);m.off.y=G.oy+(p.y-G.sy);G.moved=true;req();}break;}
+  }
+});
+function pUp(e,cancel){
+  if(!ptrs.has(e.pointerId))return;const p=pos(e);ptrs.delete(e.pointerId);const g=G;ov.style.cursor='';
+  if(!g)return;
+  if(g.type==='pinch'){G=ptrs.size?{type:'none'}:null;return;}
+  if(ptrs.size>0)return;G=null;
+  if(cancel){hideLoupe();return;}
+  if(g.type==='pan'&&!g.moved&&g.sel)selectAt(p.x,p.y,e.pointerType==='touch');
+  else if(g.type==='loupe'){hideLoupe();addPoint();}
+  else if(g.type==='vdrag'||g.type==='ndrag'){if(!g.moved)S.hist.pop();S.snap=null;renderList();updateLive();req();}
+}
+ov.addEventListener('pointerup',e=>pUp(e,false));
+ov.addEventListener('pointercancel',e=>pUp(e,true));
+ov.addEventListener('pointerleave',e=>{if(e.pointerType!=='touch'&&!ptrs.size){S.snap=null;req();}});
+ov.addEventListener('contextmenu',e=>e.preventDefault());
+ov.addEventListener('wheel',e=>{if(!S.page)return;e.preventDefault();const p=pos(e);
+  if(e.altKey){const dl=e.deltaY||e.deltaX;rotateBy((dl>0?1:-1)*Math.PI/180*(e.shiftKey?0.1:1),p.x,p.y);return;}
+  const k=e.deltaMode===1?0.05:0.0015;zoomAt(p.x,p.y,Math.exp(-e.deltaY*k));},{passive:false});
+
+/* ---------- keyboard ---------- */
+const KEYT={v:'select',d:'dist',p:'poly',a:'area',r:'rect',w:'auto',g:'angle',c:'ccr',k:'arc3',x:'point',n:'note'};
+document.addEventListener('keydown',e=>{
+  if(!$('#modal').hidden||!$('#help').hidden){if(e.key==='Escape'&&!$('#help').hidden)$('#help').hidden=true;return;}
+  if(e.target.matches('input,textarea,select'))return;
+  const k=e.key;
+  if(k===' '){S.space=true;e.preventDefault();return;}
+  if(k==='Shift'){S.shift=true;if(S.cursorS)updateCursor(S.cursorS.x,S.cursorS.y,false);return;}
+  if((e.ctrlKey||e.metaKey)&&k.toLowerCase()==='z'){e.preventDefault();undo();return;}
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  if(k==='Escape'){if(S.pts.length){S.pts=[];afterPts();}else if(S.tool!=='select')setTool('select');else{S.sel=null;renderList();updateLive();req();}return;}
+  if(k==='Enter'){finish();return;}
+  if(k==='Backspace'){if(S.pts.length){e.preventDefault();S.pts.pop();afterPts();}return;}
+  if(k==='Delete'){if(S.sel!=null)delMeas(S.sel);return;}
+  if(k==='F8'||k.toLowerCase()==='o'){e.preventDefault();S.ortho=!S.ortho;updToggles();updStatus();return;}
+  if(k==='F3'){e.preventDefault();S.snapMaster=!S.snapMaster;updToggles();toast('Έλξη: '+(S.snapMaster?'ενεργή':'ανενεργή'));return;}
+  if(k.toLowerCase()==='f'){fit();return;}
+  if(k==='['){rotateBy(-Math.PI/2);return;}
+  if(k===']'){rotateBy(Math.PI/2);return;}
+  if(k==='+'||k==='='){zoomAt(S.cw/2,S.ch/2,1.25);return;}
+  if(k==='-'){zoomAt(S.cw/2,S.ch/2,0.8);return;}
+  const t=KEYT[k.toLowerCase()];if(t)setTool(t);
+});
+document.addEventListener('keyup',e=>{if(e.key===' ')S.space=false;if(e.key==='Shift'){S.shift=false;if(S.cursorS)updateCursor(S.cursorS.x,S.cursorS.y,false);}});
+
+/* ---------- auto shape (closed region detection) ---------- */
+function dilate(src,w,h,r){if(r<=0)return src;const tmp=new Uint8Array(w*h),out=new Uint8Array(w*h);
+  for(let y=0;y<h;y++){let cnt=0;const o=y*w;for(let x=-r;x<w;x++){const ad=x+r;if(ad<w&&src[o+ad])cnt++;const rm=x-r-1;if(rm>=0&&src[o+rm])cnt--;if(x>=0)tmp[o+x]=cnt>0?1:0;}}
+  for(let x=0;x<w;x++){let cnt=0;for(let y=-r;y<h;y++){const ad=y+r;if(ad<h&&tmp[ad*w+x])cnt++;const rm=y-r-1;if(rm>=0&&tmp[rm*w+x])cnt--;if(y>=0)out[y*w+x]=cnt>0?1:0;}}
+  return out;}
+function traceContour(mask,w,h){
+  let s=-1;for(let i=0;i<w*h;i++)if(mask[i]){s=i;break;}if(s<0)return [];
+  const dx=[-1,-1,0,1,1,1,0,-1],dy=[0,-1,-1,-1,0,1,1,1];
+  const sx=s%w,sy=(s-sx)/w;let cx=sx,cy=sy,bd=0,first=-1;const out=[[sx,sy]];
+  for(let it=0;it<w*h*4;it++){
+    let found=-1;for(let k=1;k<=8;k++){const d=(bd+k)%8,nx=cx+dx[d],ny=cy+dy[d];if(nx>=0&&ny>=0&&nx<w&&ny<h&&mask[ny*w+nx]){found=d;break;}}
+    if(found<0)break;
+    if(cx===sx&&cy===sy&&it>0&&found===first)break;
+    if(it===0)first=found;
+    cx+=dx[found];cy+=dy[found];bd=found%2?(found+5)%8:(found+6)%8;
+    if(!(cx===sx&&cy===sy))out.push([cx,cy]);
+  }
+  return out;}
+function dp(P,eps){const n=P.length;if(n<3)return P.slice();const keep=new Uint8Array(n);keep[0]=keep[n-1]=1;const st=[[0,n-1]];
+  while(st.length){const [a,b]=st.pop();let md=-1,mi=-1;const ax=P[a][0],ay=P[a][1],ddx=P[b][0]-ax,ddy=P[b][1]-ay,L=Math.hypot(ddx,ddy)||1e-9;
+    for(let i=a+1;i<b;i++){const d=Math.abs((P[i][0]-ax)*ddy-(P[i][1]-ay)*ddx)/L;if(d>md){md=d;mi=i;}}
+    if(md>eps){keep[mi]=1;st.push([a,mi],[mi,b]);}}
+  return P.filter((_,i)=>keep[i]);}
+function dpClosed(P,eps){if(P.length<4)return P;let far=0,fd=-1;for(let i=1;i<P.length;i++){const d=(P[i][0]-P[0][0])**2+(P[i][1]-P[0][1])**2;if(d>fd){fd=d;far=i;}}
+  const a=dp(P.slice(0,far+1),eps),b=dp(P.slice(far).concat([P[0]]),eps);return a.slice(0,-1).concat(b.slice(0,-1));}
+async function autoShape(sx,sy){
+  if(S.hiTask){try{await S.hiTask.promise;}catch(e){}}
+  await new Promise(r=>setTimeout(r,20));drawView();
+  busy(true,'Ανίχνευση περιγράμματος…');await new Promise(r=>setTimeout(r,20));
+  try{
+    const q=Math.min(S.dpr,2200/Math.max(S.cw,S.ch)),w=Math.round(S.cw*q),h=Math.round(S.ch*q);
+    const cv=document.createElement('canvas');cv.width=w;cv.height=h;const cx=cv.getContext('2d',{willReadFrequently:true});
+    cx.drawImage(view,0,0,w,h);const id=cx.getImageData(0,0,w,h).data,N=w*h,thr=S.autoThr;
+    let wall=new Uint8Array(N);
+    for(let i=0;i<N;i++){const j=4*i;if(id[j+3]<128){wall[i]=1;continue;}if(0.299*id[j]+0.587*id[j+1]+0.114*id[j+2]<thr)wall[i]=1;}
+    const g=Math.round(S.autoGap*q);if(g>0)wall=dilate(wall,w,h,g);
+    const px=Math.round(sx*q),py=Math.round(sy*q);if(px<0||py<0||px>=w||py>=h)return;
+    const p0=py*w+px;
+    if(wall[p0]){toast('Κλικ μέσα στον χώρο, όχι πάνω σε γραμμή',true);return;}
+    const fill=new Uint8Array(N),stk=new Int32Array(N);let sp=0,count=0,touch=false;stk[sp++]=p0;fill[p0]=1;
+    while(sp){const p=stk[--sp];count++;const x=p%w,y=(p-x)/w;
+      if(x===0||y===0||x===w-1||y===h-1){touch=true;break;}
+      const nb=[p-1,p+1,p-w,p+w];for(const n of nb)if(!wall[n]&&!fill[n]){fill[n]=1;stk[sp++]=n;}}
+    if(touch){toast('Ο χώρος δεν κλείνει μέσα στην οθόνη: κάνε σμίκρυνση ή αύξησε το «κλείσιμο ανοιγμάτων»',true);return;}
+    if(count<40){toast('Ο χώρος είναι πολύ μικρός — κάνε μεγέθυνση',true);return;}
+    const reg=g>0?dilate(fill,w,h,g):fill;
+    const C=traceContour(reg,w,h);if(C.length<4){toast('Δεν βρέθηκε περίγραμμα',true);return;}
+    let P=dpClosed(C,1.25*q).map(([x,y])=>toV((x+0.5)/q,(y+0.5)/q));
+    let snapped=0;
+    if(S.geo&&S.geo.nseg>20){const only={end:true,int:true};
+      P=P.map(v=>{const s=findSnap(v.x,v.y,Math.max(6,g/q+4)/S.z,null,only);if(s){snapped++;return {x:s.x,y:s.y};}return v;});}
+    const Q=[];for(const v of P){const l=Q[Q.length-1];if(!l||Math.hypot(v.x-l.x,v.y-l.y)>0.6/S.z)Q.push(v);}
+    if(Q.length>3&&Math.hypot(Q[0].x-Q[Q.length-1].x,Q[0].y-Q[Q.length-1].y)<0.6/S.z)Q.pop();
+    let ch=true;while(ch&&Q.length>3){ch=false;for(let i=0;i<Q.length;i++){const a=Q[(i-1+Q.length)%Q.length],b=Q[i],c=Q[(i+1)%Q.length];
+      const cr=Math.abs((b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x)),L=Math.hypot(c.x-a.x,c.y-a.y);if(L>0&&cr/L<0.5/S.z){Q.splice(i,1);ch=true;break;}}}
+    if(Q.length<3){toast('Δεν βρέθηκε έγκυρο περίγραμμα',true);return;}
+    const m=commit('area',Q,{shape:'auto'});
+    toast(m.name+': '+fAr(polyArea(Q)*m.f*m.f)+' · '+Q.length+' κορυφές'+(snapped?' ('+snapped+' κουμπωμένες σε γωνίες)':'')+' — έλεγξέ το');
+  }finally{busy(false);}
+}
+
+/* ---------- export ---------- */
+function exportCSV(){
+  if(!S.meas.length)return toast('Δεν υπάρχουν μετρήσεις');
+  const rows=[['Α/Α','Σελίδα','Τύπος','Όνομα','Τιμή','Λεπτομέρειες','Κλίμακα','Σημείωση']];
+  S.meas.forEach((m,k)=>{const i=info(m);rows.push([k+1,m.page,m.type==='area'?SHAPEN[m.shape||'poly']:TYPEN[m.type],m.name,m.type==='note'?m.text:i.sh,i.R.map(r=>r[0]+': '+r[1]).join(' | '),m.type==='note'?'':scaleTxt(m.N),m.note||'']);});
+  const csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\r\n');
+  download(csv,baseName()+'_pdfdim.csv','text/csv;charset=utf-8');}
+function exportDXF(){
+  const ms=S.meas.filter(m=>m.page===S.pageNum);if(!ms.length)return toast('Δεν υπάρχουν μετρήσεις στη σελίδα');
+  const L=[];const w=(...a)=>{for(const x of a)L.push(String(x));};const F=v=>(+v).toFixed(4);
+  const LY={dist:['MET_APOSTASI',4],calib:['MET_BATHMONOMISI',30],poly:['MET_POLYGRAMMI',6],area:['MET_EMVADON',3],angle:['MET_GONIA',2],ccr:['MET_KYKLOS',1],arc3:['MET_KYKLOS',1],point:['MET_SIMEIA',7],note:['MET_SIMEIOSEIS',211]};
+  const layers=[...new Map(Object.values(LY).concat([['MET_KEIMENA',7]]).map(l=>[l[0],l])).values()];
+  w(0,'SECTION',2,'HEADER',9,'$ACADVER',1,'AC1009',9,'$INSUNITS',70,6,0,'ENDSEC');
+  w(0,'SECTION',2,'TABLES',0,'TABLE',2,'LAYER',70,layers.length);layers.forEach(([n,c])=>w(0,'LAYER',2,n,70,0,62,c,6,'CONTINUOUS'));w(0,'ENDTAB',0,'ENDSEC');
+  w(0,'SECTION',2,'ENTITIES');
+  const ascii=s=>String(s).replace(/²/g,'2').replace(/°/g,'%%d').replace(/[^\x20-\x7e%]/g,'');
+  for(const m of ms){const f=m.f,lay=LY[m.type][0],T=p=>{const q=coordOf(p,f,m.page);return [q.X,q.Y];},th=0.0025*(f/PT_M);
+    const text=(p,t)=>{const a=T(p);w(0,'TEXT',8,'MET_KEIMENA',10,F(a[0]),20,F(a[1]),30,0,40,F(th),1,ascii(t));};
+    const line=(a,b)=>{const p=T(a),q=T(b);w(0,'LINE',8,lay,10,F(p[0]),20,F(p[1]),30,0,11,F(q[0]),21,F(q[1]),31,0);};
+    const pl=(P,cl)=>{w(0,'POLYLINE',8,lay,66,1,70,cl?1:0,10,0,20,0,30,0);P.forEach(p=>{const a=T(p);w(0,'VERTEX',8,lay,10,F(a[0]),20,F(a[1]),30,0);});w(0,'SEQEND',8,lay);};
+    const P=m.pts,dec=S.dec;
+    if(m.type==='dist'||m.type==='calib'){line(P[0],P[1]);const L2=Math.hypot(P[1].x-P[0].x,P[1].y-P[0].y)*f;text({x:(P[0].x+P[1].x)/2,y:(P[0].y+P[1].y)/2},'L='+L2.toFixed(dec)+'m');}
+    else if(m.type==='poly'){pl(P,false);let s=0;for(let i=1;i<P.length;i++)s+=Math.hypot(P[i].x-P[i-1].x,P[i].y-P[i-1].y)*f;text(P[P.length-1],'L='+s.toFixed(dec)+'m');}
+    else if(m.type==='area'){pl(P,true);text(centroid(P),'E='+(polyArea(P)*f*f).toFixed(dec)+'m2');}
+    else if(m.type==='angle'){line(P[1],P[0]);line(P[1],P[2]);const a=angAt(P[0],P[1],P[2]);text(P[1],S.angU==='grad'?(a*200/Math.PI).toFixed(4)+'g':(a*180/Math.PI).toFixed(2)+'%%d');}
+    else if(m.type==='ccr'||m.type==='arc3'){let c,r;if(m.type==='ccr'){c=P[0];r=Math.hypot(P[1].x-P[0].x,P[1].y-P[0].y);}else{const k=circ(P[0].x,P[0].y,P[1].x,P[1].y,P[2].x,P[2].y);if(!k)continue;c={x:k[0],y:k[1]};r=Math.hypot(P[0].x-k[0],P[0].y-k[1]);}
+      const a=T(c);w(0,'CIRCLE',8,lay,10,F(a[0]),20,F(a[1]),30,0,40,F(r*f));text(c,'R='+(r*f).toFixed(dec)+'m');}
+    else if(m.type==='point'){const a=T(P[0]);w(0,'POINT',8,lay,10,F(a[0]),20,F(a[1]),30,0);text(P[0],ascii(m.name.replace('Σ','S'))+' '+a[0].toFixed(3)+','+a[1].toFixed(3));}
+    else if(m.type==='note'){const a=T(P[0]);w(0,'POINT',8,lay,10,F(a[0]),20,F(a[1]),30,0);}
+  }
+  w(0,'ENDSEC',0,'EOF');
+  download(L.join('\r\n'),baseName()+'_pdfdim_sel'+S.pageNum+'.dxf','application/dxf');
+  if(ms.some(m=>m.type==='note'))toast('Οι σημειώσεις εξάγονται ως σημεία (κείμενα στο CSV)');}
+function exportPNG(){if(!S.page)return;const c=document.createElement('canvas');c.width=view.width;c.height=view.height;const x=c.getContext('2d');
+  x.fillStyle='#060a13';x.fillRect(0,0,c.width,c.height);if(view.classList.contains('dark'))x.filter='invert(1) hue-rotate(180deg) brightness(.92)';
+  x.drawImage(view,0,0);x.filter='none';x.drawImage(ov,0,0);c.toBlob(b=>download(b,baseName()+'_pdfdim.png'),'image/png');}
+$('#btnCSV').onclick=exportCSV;$('#btnDXF').onclick=exportDXF;$('#btnPNG').onclick=exportPNG;
+
+/* ---------- modal ---------- */
+function ask(title,fields,checks,desc){return new Promise(res=>{
+  const m=$('#modal'),body=m.querySelector('.mbody');m.querySelector('.mtitle').textContent=title;
+  body.innerHTML=(desc?`<p>${esc(desc)}</p>`:'')+fields.map(f=>f.type==='textarea'
+    ?`<label class="fld"><span>${esc(f.label)}</span><textarea data-k="${f.id}" placeholder="${esc(f.ph||'')}">${esc(f.value||'')}</textarea></label>`
+    :`<label class="fld"><span>${esc(f.label)}</span><input data-k="${f.id}" type="text" ${f.type==='text'&&!/name/.test(f.id)?'inputmode="decimal"':''} value="${esc(f.value??'')}" placeholder="${esc(f.ph||'')}"></label>`).join('')
+    +(checks||[]).map(c=>`<label class="ck"><input type="checkbox" data-k="${c.id}" ${c.checked?'checked':''}>${esc(c.label)}</label>`).join('');
+  m.hidden=false;const first=body.querySelector('input,textarea');setTimeout(()=>{if(first){first.focus();first.select&&first.select();}},40);
+  const ok=m.querySelector('.mok'),ca=m.querySelector('.mcancel');
+  const done=v=>{m.hidden=true;ok.onclick=ca.onclick=body.onkeydown=null;res(v);};
+  ok.onclick=()=>{const o={};body.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k]=i.type==='checkbox'?i.checked:i.value);done(o);};
+  ca.onclick=()=>done(null);
+  body.onkeydown=e=>{if(e.key==='Enter'&&e.target.tagName!=='TEXTAREA'){e.preventDefault();ok.click();}if(e.key==='Escape')ca.click();};
+});}
+
+/* ---------- UI wiring ---------- */
+$('#btnOpen').onclick=$('#btnOpen2').onclick=()=>$('#fileIn').click();
+$('#fileIn').onchange=e=>{openFile(e.target.files[0]);e.target.value='';};
+$('#btnNew').onclick=$('#btnNew2').onclick=newFile;
+$('#btnHelp').onclick=()=>$('#help').hidden=false;$('#helpClose').onclick=()=>$('#help').hidden=true;
+$('#help').addEventListener('click',e=>{if(e.target.id==='help')$('#help').hidden=true;});
+$('#btnPanel').onclick=()=>$('#panel').classList.toggle('open');
+function closePanelMobile(){if(innerWidth<=900)$('#panel').classList.remove('open');}
+$('#pageSel').onchange=e=>loadPage(+e.target.value);
+$('#rotL').onclick=()=>rotateBy(-Math.PI/2);$('#rotR').onclick=()=>rotateBy(Math.PI/2);$('#rot0').onclick=()=>rotateTo(0);
+$('#rotIn').addEventListener('change',e=>{const v=num(e.target.value);if(Number.isFinite(v))rotateTo(v*Math.PI/180);});
+$('#btnAlign').onclick=()=>{if(S.page){setTool('align');closePanelMobile();}};
+$('#twoRot').onchange=e=>S.twoRot=e.target.checked;
+$('#darkBg').onchange=e=>{view.classList.toggle('dark',e.target.checked);req();};
+$('#ptCoords').onchange=e=>{S.showPtCoords=e.target.checked;renderList();req();};
+function segInit(id,key,parse){const el=$(id);const upd=()=>el.querySelectorAll('button').forEach(b=>b.classList.toggle('on',String(S[key])===b.dataset.v));
+  el.onclick=e=>{const b=e.target.closest('button');if(!b)return;S[key]=parse(b.dataset.v);upd();renderList();updateLive();req();updStatus();};upd();}
+segInit('#decSeg','dec',v=>+v);segInit('#angSeg','angU',v=>v);
+(function snapChips(){const el=$('#snapChips');const sym={end:'□',mid:'△',int:'×',cen:'○',perp:'⊥',near:'⧖'};
+  const r=()=>el.innerHTML=Object.keys(SNAPN).map(k=>`<button class="chip t${S.snapOn[k]?' on':''}" data-s="${k}">${sym[k]} ${SNAPN[k]}</button>`).join('');
+  el.onclick=e=>{const b=e.target.closest('[data-s]');if(!b)return;S.snapOn[b.dataset.s]=!S.snapOn[b.dataset.s];r();};r();})();
+const thr=$('#thr'),gap=$('#gap');thr.value=S.autoThr;gap.value=S.autoGap;
+const updAuto=()=>{S.autoThr=+thr.value;S.autoGap=+gap.value;$('#thrV').textContent=Math.round((S.autoThr-90)/155*100)+'%';$('#gapV').textContent=S.autoGap?S.autoGap+' px':'όχι';};
+thr.oninput=gap.oninput=updAuto;updAuto();
+['dragenter','dragover'].forEach(ev=>stage.addEventListener(ev,e=>{e.preventDefault();$('#drop').classList.add('over');}));
+['dragleave','drop'].forEach(ev=>stage.addEventListener(ev,e=>{e.preventDefault();$('#drop').classList.remove('over');}));
+stage.addEventListener('drop',e=>{const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f){$('#empty').style.display='none';openFile(f).then(()=>{if(!S.page)$('#empty').style.display='flex';});}});
+window.addEventListener('beforeunload',e=>{if(S.meas.length){e.preventDefault();e.returnValue='';}});
+
+updToggles();updScaleUI();renderList();updateLive();updOrigin();updRotUI();setTool('select');
+</script>
+</body>
+</html>
