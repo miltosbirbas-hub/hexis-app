@@ -6837,11 +6837,16 @@ root.CmdCheck = api;
   function dgmParcels() {
     var k = S.kaek; if (!(k && k.status === 'ok')) return [];
     if (k._clipped) return k._clipped;
-    var ps = k.parcels, priv = ps.filter(function (p) { return !isPublicKaek(p.kaek) && p.rings && p.rings.length; });
-    if (!priv.length || !ps.some(function (p) { return isPublicKaek(p.kaek); })) { k._clipped = ps; return ps; }
+    var ps = k.parcels;
+    if (!ps.some(function (p) { return isPublicKaek(p.kaek); })) { k._clipped = ps; return ps; }
+    // Βάση αποκοπής = ΜΟΝΟ τα γεωτεμάχια που ΤΕΜΝΟΥΝ το οικόπεδο (ovl>0) — όχι όλη η γειτονιά. Έτσι ο δρόμος ΕΚ
+    // κόβεται ΚΟΝΤΑ στο οικόπεδο (μικρό περιθώριο), όχι ολόκληρο το οδικό δίκτυο του οικισμού.
+    var base = ps.filter(function (p) { return !isPublicKaek(p.kaek) && p.rings && p.rings.length && p.ovl > 0; });
+    if (!base.length) { var srt = ps.filter(function (p) { return !isPublicKaek(p.kaek) && p.rings && p.rings.length; }).sort(function (a, b) { return (b.ovl || 0) - (a.ovl || 0); }); base = srt.slice(0, 1); }
+    if (!base.length) { k._clipped = ps; return ps; }
     var bx = [Infinity, Infinity, -Infinity, -Infinity];
-    priv.forEach(function (p) { p.rings.forEach(function (r) { r.forEach(function (q) { bx[0] = Math.min(bx[0], q[0]); bx[1] = Math.min(bx[1], q[1]); bx[2] = Math.max(bx[2], q[0]); bx[3] = Math.max(bx[3], q[1]); }); }); });
-    var w = bx[2] - bx[0], h = bx[3] - bx[1], pad = Math.max(0.8 * Math.max(w, h), 20), box = [bx[0] - pad, bx[1] - pad, bx[2] + pad, bx[3] + pad];
+    base.forEach(function (p) { p.rings.forEach(function (r) { r.forEach(function (q) { bx[0] = Math.min(bx[0], q[0]); bx[1] = Math.min(bx[1], q[1]); bx[2] = Math.max(bx[2], q[0]); bx[3] = Math.max(bx[3], q[1]); }); }); });
+    var w = bx[2] - bx[0], h = bx[3] - bx[1], pad = Math.max(0.45 * Math.max(w, h), 12), box = [bx[0] - pad, bx[1] - pad, bx[2] + pad, bx[3] + pad];
     var out = ps.map(function (p) { if (!isPublicKaek(p.kaek) || !p.rings) return p; var cr = clipRingsToBox(p.rings, box); return cr.length ? Object.assign({}, p, { rings: cr, clipped: true }) : null; }).filter(Boolean);
     k._clipped = out; return out;
   }
