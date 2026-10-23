@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#070b14">
+<script>(function(){var t=null;try{t=localStorage.getItem('hexis_theme');}catch(e){}if(t!=='light'&&t!=='dark')t=(window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
 <title>HEXIS PDF Dim</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -64,6 +65,14 @@ main{flex:1;min-height:0;display:grid;grid-template-columns:76px 1fr 340px}
 #status{position:absolute;left:0;right:0;bottom:0;display:flex;gap:14px;flex-wrap:wrap;padding:5px 12px;font-size:11.5px;color:var(--mut);background:rgba(6,10,19,.86);border-top:1px solid var(--line);pointer-events:none;z-index:5}
 #status b{color:var(--txt);font-weight:600}
 #fab{position:absolute;right:12px;bottom:40px;display:none;gap:8px;z-index:7}
+#undoBar{position:absolute;left:12px;bottom:40px;display:none;gap:6px;z-index:7}
+#undoBar button{height:42px;padding:0 14px 0 11px;border-radius:12px;border:1px solid var(--line2);background:rgba(13,20,36,.95);color:var(--txt);font-weight:800;font-size:13px;display:flex;align-items:center;gap:7px;box-shadow:0 6px 20px rgba(0,0,0,.4)}
+#undoBar button:hover:not(:disabled){border-color:var(--cy)}
+#undoBar button:disabled{opacity:.38;cursor:default}
+#undoBar button:focus{outline:none}#undoBar button:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+#undoBar svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+:root[data-theme="light"] #undoBar button{background:#fff;box-shadow:0 6px 18px rgba(15,26,46,.15)}
+@media (max-width:900px){#undoBar{bottom:44px}#undoBar span{display:none}#undoBar button{width:46px;padding:0;justify-content:center}}
 #fab button{height:42px;min-width:42px;padding:0 14px;border-radius:12px;border:1px solid var(--line2);background:rgba(13,20,36,.95);font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.4)}
 #fab .ok{background:var(--grad);color:#06101f;border:0}
 #empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;z-index:4}
@@ -163,6 +172,8 @@ input[type=range]{width:100%;accent-color:#22d3ee}
   .hb{padding:0 10px;font-size:12px}
   .hide-m{display:none}
   .mob{display:inline-flex;align-items:center}
+  .hgroup{gap:6px}.logo{font-size:15px}
+  .hb{padding:0 9px}
   main{grid-template-columns:1fr;grid-template-rows:1fr auto}
   #stage{grid-row:1}
   #tools{grid-row:2;flex-direction:row;overflow-x:auto;overflow-y:hidden;border-right:0;border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
@@ -175,6 +186,42 @@ input[type=range]{width:100%;accent-color:#22d3ee}
   #fab{bottom:44px}
   #status{font-size:10.5px;gap:10px}
 }
+
+/* ---------- ανοιχτόχρωμο θέμα ---------- */
+:root[data-theme="light"]{
+  --bg:#eef2f8;--bg2:#f7f9fc;--panel:#ffffff;--panel2:#f1f4f9;--line:#dde3ee;--line2:#c8d1e1;
+  --txt:#0f1a2e;--mut:#55627a;--dim:#8592a8;
+  --cy:#0891b2;--vi:#7c3aed;--ro:#e11d48;--gr:#059669;--am:#b45309;
+  --grad:linear-gradient(135deg,#0891b2 0%,#7c3aed 55%,#e11d48 100%);
+  color-scheme:light}
+:root[data-theme="light"] header{background:linear-gradient(180deg,#ffffff,#f3f6fb)}
+:root[data-theme="light"] .hb,:root[data-theme="light"] .btn.pri,:root[data-theme="light"] #fab .ok,:root[data-theme="light"] .mact .go{color:#fff}
+:root[data-theme="light"] .hb.ghost{color:var(--txt)}
+:root[data-theme="light"] #stage{background-color:#e3e8f1;background-image:linear-gradient(rgba(8,145,178,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(8,145,178,.07) 1px,transparent 1px)}
+:root[data-theme="light"] #hint{background:rgba(255,255,255,.93);box-shadow:0 4px 14px rgba(15,26,46,.08)}
+:root[data-theme="light"] #status{background:rgba(255,255,255,.92)}
+:root[data-theme="light"] #fab button{background:#fff;box-shadow:0 6px 18px rgba(15,26,46,.15)}
+:root[data-theme="light"] .drop{background:rgba(255,255,255,.88);border-color:rgba(8,145,178,.5)}
+:root[data-theme="light"] #busy{background:rgba(238,242,248,.65)}
+:root[data-theme="light"] .tb.on{background:linear-gradient(135deg,rgba(8,145,178,.13),rgba(124,58,237,.12));border-color:rgba(8,145,178,.55);color:#0e7490;box-shadow:none}
+:root[data-theme="light"] .tb.tog.on{background:rgba(180,83,9,.1);border-color:rgba(180,83,9,.5);color:var(--am)}
+:root[data-theme="light"] .scalebox input{color:var(--txt)}
+:root[data-theme="light"] .chip.on{color:#fff}
+:root[data-theme="light"] .chip.det{border-color:rgba(180,83,9,.5)}
+:root[data-theme="light"] .chip.det.on{background:#d97706;border-color:#d97706;color:#fff}
+:root[data-theme="light"] .seg button.on{background:rgba(8,145,178,.15);color:#0e7490}
+:root[data-theme="light"] .sw span::after{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+:root[data-theme="light"] #live .lt{color:var(--txt)}
+:root[data-theme="light"] .mi.sel{background:rgba(8,145,178,.07)}
+:root[data-theme="light"] .card{box-shadow:0 1px 3px rgba(15,26,46,.05)}
+:root[data-theme="light"] .ovl{background:rgba(15,26,46,.35)}
+:root[data-theme="light"] .mbox{box-shadow:0 20px 50px rgba(15,26,46,.2)}
+:root[data-theme="light"] #helpBox p,:root[data-theme="light"] #helpBox li{color:#2b3850}
+:root[data-theme="light"] #toast{background:#fff;color:var(--txt);box-shadow:0 10px 30px rgba(15,26,46,.18)}
+:root[data-theme="light"] #panel{box-shadow:none}
+@media (max-width:900px){:root[data-theme="light"] #panel{box-shadow:0 -16px 40px rgba(15,26,46,.18)}}
+.snp{color:#facc15}.snp2{color:#fbbf24}
+:root[data-theme="light"] .snp,:root[data-theme="light"] .snp2{color:#b45309}
 </style>
 </head>
 <body>
@@ -216,14 +263,15 @@ input[type=range]{width:100%;accent-color:#22d3ee}
 })();
 </script>
 <header>
-  <a href="app.html" class="hb ghost" aria-label="Πίσω στο HEXIS" style="display:inline-flex;align-items:center;text-decoration:none">← HEXIS</a><script>window.HX_IN_HEXIS=true;</script>
+  <a href="app.html" class="hb ghost" aria-label="Πίσω στο HEXIS" style="display:inline-flex;align-items:center;text-decoration:none">←<span class="hide-m">&nbsp;HEXIS</span></a><script>window.HX_IN_HEXIS=true;</script>
   <div class="brand"><span class="logo">PDF DIM</span><span class="sub">ΜΕΤΡΗΣΕΙΣ ΣΕ ΣΧΕΔΙΑ</span></div>
   <div class="file" id="fileName">Κανένα αρχείο</div>
   <div class="hgroup">
     <select id="pageSel" hidden title="Σελίδα"></select>
-    <button class="hb" id="btnOpen">Άνοιγμα PDF</button>
+    <button class="hb" id="btnOpen"><span class="hide-m">Άνοιγμα&nbsp;</span>PDF</button>
     <button class="hb ghost hide-m" id="btnNew">Νέο αρχείο</button>
-    <button class="hb ghost" id="btnHelp">Οδηγίες</button>
+    <button class="hb ghost" id="btnTheme" title="Ανοιχτόχρωμο / σκουρόχρωμο">☀</button>
+    <button class="hb ghost" id="btnHelp" title="Οδηγίες"><span class="hide-m">Οδηγίες</span><span class="mob">?</span></button>
     <button class="hb ghost mob" id="btnPanel">Πάνελ</button>
   </div>
   <input type="file" id="fileIn" accept="application/pdf,.pdf" hidden>
@@ -237,6 +285,10 @@ input[type=range]{width:100%;accent-color:#22d3ee}
     <canvas id="ov"></canvas>
     <canvas id="loupe"></canvas>
     <div id="hint">Άνοιξε ένα σχέδιο PDF για να ξεκινήσεις</div>
+    <div id="undoBar">
+      <button id="bUndo" title="Αναίρεση (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span>Αναίρεση</span></button>
+      <button id="bRedo" title="Επανάληψη (Ctrl+Y)"><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg><span>Επανάληψη</span></button>
+    </div>
     <div id="fab">
       <button id="fabUndo" title="Αναίρεση σημείου">↶</button>
       <button id="fabCancel" title="Ακύρωση">✕</button>
@@ -362,6 +414,7 @@ input[type=range]{width:100%;accent-color:#22d3ee}
 
     <h4>3 · ΕΡΓΑΛΕΙΑ</h4>
     <ul>
+      <li><b>Αναίρεση / Επανάληψη</b>: κουμπιά κάτω αριστερά στο σχέδιο. Αναιρούν κάθε ενέργεια: σημείο σε εξέλιξη, νέα μέτρηση, διαγραφή, μετακίνηση κορυφής ή σημείωσης, αλλαγή ονόματος, κλίμακα, βαθμονόμηση και αρχή συντεταγμένων.</li>
       <li><b>Επιλογή</b>: μετακίνηση σχεδίου, κλικ σε μέτρηση για επιλογή. Σε επιλεγμένη μέτρηση σύρε τις κορυφές της για διόρθωση (με έλξη). Τις σημειώσεις τις σέρνεις από το πλαίσιό τους.</li>
       <li><b>Μήκος</b>: δύο σημεία → μήκος, ΔX, ΔY, διεύθυνση, κλίση %. <b>Πολυγραμμή</b>: συνεχόμενα σημεία → συνολικό μήκος και μήκος κάθε τμήματος.</li>
       <li><b>Εμβαδόν</b>: κορυφές πολυγώνου → εμβαδόν, περίμετρος, πλευρές. Κλείνει με κλικ στην πρώτη κορυφή, διπλό κλικ, <kbd>Enter</kbd> ή «✓ Τέλος».</li>
@@ -387,7 +440,7 @@ input[type=range]{width:100%;accent-color:#22d3ee}
     </ul>
 
     <h4>6 · ΣΥΝΤΟΜΕΥΣΕΙΣ</h4>
-    <p><kbd>V</kbd> επιλογή · <kbd>D</kbd> μήκος · <kbd>P</kbd> πολυγραμμή · <kbd>A</kbd> εμβαδόν · <kbd>R</kbd> ορθογώνιο · <kbd>W</kbd> αυτόματο σχήμα · <kbd>G</kbd> γωνία · <kbd>C</kbd> κύκλος · <kbd>K</kbd> τόξο 3σ · <kbd>X</kbd> σημείο · <kbd>N</kbd> σημείωση · <kbd>F8</kbd>/<kbd>O</kbd> ορθό · <kbd>F3</kbd> έλξη · <kbd>F</kbd> όλο το σχέδιο · <kbd>[</kbd> <kbd>]</kbd> περιστροφή 90° · <kbd>Enter</kbd> τέλος · <kbd>Backspace</kbd> αναίρεση σημείου · <kbd>Ctrl</kbd>+<kbd>Z</kbd> αναίρεση · <kbd>Delete</kbd> διαγραφή επιλεγμένης · <kbd>Esc</kbd> ακύρωση.</p>
+    <p><kbd>V</kbd> επιλογή · <kbd>D</kbd> μήκος · <kbd>P</kbd> πολυγραμμή · <kbd>A</kbd> εμβαδόν · <kbd>R</kbd> ορθογώνιο · <kbd>W</kbd> αυτόματο σχήμα · <kbd>G</kbd> γωνία · <kbd>C</kbd> κύκλος · <kbd>K</kbd> τόξο 3σ · <kbd>X</kbd> σημείο · <kbd>N</kbd> σημείωση · <kbd>F8</kbd>/<kbd>O</kbd> ορθό · <kbd>F3</kbd> έλξη · <kbd>F</kbd> όλο το σχέδιο · <kbd>[</kbd> <kbd>]</kbd> περιστροφή 90° · <kbd>Enter</kbd> τέλος · <kbd>Backspace</kbd> αναίρεση σημείου · <kbd>Ctrl</kbd>+<kbd>Z</kbd> αναίρεση · <kbd>Ctrl</kbd>+<kbd>Y</kbd> επανάληψη · <kbd>Delete</kbd> διαγραφή επιλεγμένης · <kbd>Esc</kbd> ακύρωση.</p>
 
     <h4>7 · ΕΞΑΓΩΓΗ</h4>
     <ul>
@@ -424,7 +477,7 @@ const S={doc:null,fileName:'',pageNum:1,page:null,vp1:null,W:0,H:0,cw:0,ch:0,dpr
   scaleN:100,mPerPt:100*PT_M,scaleSrc:'default',userScale:false,detect:[],
   tool:'select',pts:[],cursor:null,cursorS:null,snap:null,ortho:false,shift:false,space:false,snapMaster:true,
   snapOn:{end:true,mid:true,int:true,cen:true,perp:true,near:true},
-  meas:[],sel:null,idc:1,cnt:{},hist:[],dec:2,angU:'deg',origin:null,showPtCoords:true,twoRot:true,
+  meas:[],sel:null,idc:1,cnt:{},hist:[],redo:[],dec:2,angU:'deg',origin:null,showPtCoords:true,twoRot:true,
   autoThr:200,autoGap:3,loupeOn:false,isTouch:false,hit:[]};
 
 /* ---------- helpers ---------- */
@@ -694,7 +747,7 @@ async function loadPage(n){
   }
   const det=await detectScale(S.page);S.detect=det;
   if(det.length&&!S.userScale)setScale(det[0].N,'auto');
-  updScaleUI();renderList();updateLive();updHint();
+  updScaleUI();renderList();updateLive();updHint();updUndoUI();
 }
 function updSheetInfo(){
   if(!S.page){$('#sheetInfo').textContent='—';return;}
@@ -707,11 +760,11 @@ function updSheetInfo(){
 }
 function resetAll(keepScale){
   if(S.doc){try{S.doc.destroy();}catch(e){}}
-  Object.assign(S,{doc:null,page:null,fileName:'',base:null,hi:null,geo:null,geoCache:{},meas:[],sel:null,cnt:{},hist:[],pts:[],origin:null,detect:[],rot:0});
+  Object.assign(S,{doc:null,page:null,fileName:'',base:null,hi:null,geo:null,geoCache:{},meas:[],sel:null,cnt:{},hist:[],redo:[],pts:[],origin:null,detect:[],rot:0});
   if(!keepScale){S.userScale=false;}
   S.userScale=false;
   $('#fileName').textContent='Κανένα αρχείο';$('#pageSel').hidden=true;
-  renderList();updateLive();updScaleUI();updSheetInfo();updOrigin();req();updHint();
+  renderList();updateLive();updScaleUI();updSheetInfo();updOrigin();req();updHint();updUndoUI();
 }
 function newFile(){
   if(S.meas.length&&!confirm('Νέο αρχείο; Όλες οι μετρήσεις και σημειώσεις θα διαγραφούν.'))return;
@@ -731,8 +784,8 @@ function updScaleUI(){
   const src={auto:'αυτόματα από το φύλλο — επιβεβαίωσε',manual:'χειροκίνητα',calib:'από βαθμονόμηση',default:'προεπιλογή'}[S.scaleSrc]||'';
   $('#scaleCur').innerHTML=`Ενεργή: <b>${scaleTxt(S.scaleN)}</b> · ${src}<br>1 mm χαρτιού = <b>${fN(S.mPerPt/PT_M/1000*100,S.scaleN<100?2:1)} cm</b> πραγματικά`;
 }
-$('#scaleN').addEventListener('change',e=>{const v=num(e.target.value);if(v>0){S.userScale=true;setScale(v,'manual');}else updScaleUI();});
-$('#panel').addEventListener('click',e=>{const b=e.target.closest('.chip[data-n]');if(b){S.userScale=true;setScale(+b.dataset.n,b.classList.contains('det')?'auto':'manual');}});
+$('#scaleN').addEventListener('change',e=>{const v=num(e.target.value);if(v>0){if(Math.abs(v-S.scaleN)>1e-9)pushHist();S.userScale=true;setScale(v,'manual');}else updScaleUI();});
+$('#panel').addEventListener('click',e=>{const b=e.target.closest('.chip[data-n]');if(b){if(Math.abs(+b.dataset.n-S.scaleN)>1e-9)pushHist();S.userScale=true;setScale(+b.dataset.n,b.classList.contains('det')?'auto':'manual');}});
 $('#btnCalib').onclick=()=>{if(!S.page)return;setTool('calib');closePanelMobile();};
 $('#btnApplyAll').onclick=()=>{const ms=S.meas.filter(m=>m.page===S.pageNum&&m.type!=='note');if(!ms.length)return toast('Δεν υπάρχουν μετρήσεις στη σελίδα');
   pushHist();ms.forEach(m=>{m.f=S.mPerPt;m.N=S.scaleN;});renderList();updateLive();req();toast('Εφαρμόστηκε κλίμακα '+scaleTxt(S.scaleN)+' σε '+ms.length+' μετρήσεις');};
@@ -805,16 +858,24 @@ function updFab(){const t=S.tool,n=S.pts.length;$('#fab').style.display=n?'flex'
 $('#fabUndo').onclick=()=>{S.pts.pop();afterPts();};
 $('#fabCancel').onclick=()=>{S.pts=[];afterPts();};
 $('#fabOk').onclick=()=>finish();
-function afterPts(){updHint();updFab();updateLive();req();}
+$('#bUndo').onclick=()=>undo();$('#bRedo').onclick=()=>redo();
+function afterPts(){updHint();updFab();updateLive();req();updUndoUI();}
 
 /* ---------- measurements ---------- */
-function pushHist(){S.hist.push(JSON.stringify({meas:S.meas,cnt:S.cnt}));if(S.hist.length>80)S.hist.shift();}
-function undo(){if(S.pts.length){S.pts.pop();afterPts();return;}const h=S.hist.pop();if(!h)return toast('Τίποτα για αναίρεση');
-  const o=JSON.parse(h);S.meas=o.meas;S.cnt=o.cnt;if(!S.meas.find(m=>m.id===S.sel))S.sel=null;renderList();updateLive();req();}
+function snapState(){return JSON.stringify({meas:S.meas,cnt:S.cnt,origin:S.origin,sc:[S.scaleN,S.mPerPt,S.scaleSrc,S.userScale]});}
+function pushHist(){S.hist.push(snapState());if(S.hist.length>150)S.hist.shift();S.redo=[];updUndoUI();}
+function restoreState(h){const o=JSON.parse(h);S.meas=o.meas;S.cnt=o.cnt;S.origin=o.origin||null;
+  if(o.sc){S.scaleN=o.sc[0];S.mPerPt=o.sc[1];S.scaleSrc=o.sc[2];S.userScale=o.sc[3];}
+  if(!S.meas.find(m=>m.id===S.sel))S.sel=null;updScaleUI();updOrigin();renderList();updateLive();updStatus();req();updUndoUI();}
+function undo(){if(S.pts.length){S.pts.pop();afterPts();updUndoUI();return;}const h=S.hist.pop();if(!h){toast('Δεν υπάρχει κάτι για αναίρεση');return;}
+  S.redo.push(snapState());restoreState(h);}
+function redo(){const h=S.redo.pop();if(!h){toast('Δεν υπάρχει κάτι για επανάληψη');return;}S.hist.push(snapState());restoreState(h);}
+function updUndoUI(){const u=$('#bUndo'),r=$('#bRedo');if(!u)return;u.disabled=!(S.pts.length||S.hist.length);r.disabled=!S.redo.length;
+  $('#undoBar').style.display=S.page?'flex':'none';}
 const getM=id=>S.meas.find(m=>m.id===id);
 function newName(type,shape){const key=type==='area'?'a_'+(shape||'poly'):type;S.cnt[key]=(S.cnt[key]||0)+1;const n=S.cnt[key];
   if(type==='point')return 'Σ'+n;if(type==='area')return SHAPEN[shape||'poly']+' '+n;return TYPEN[type]+' '+n;}
-function commit(type,pts,extra){pushHist();
+function commit(type,pts,extra,noHist){if(!noHist)pushHist();
   const m=Object.assign({id:S.idc++,page:S.pageNum,type,pts:pts.map(cp),f:S.mPerPt,N:S.scaleN,note:''},extra||{});
   m.name=newName(type,m.shape);S.meas.push(m);S.sel=m.id;renderList();updateLive();req();return m;}
 function rectCorners(a,b){const A=toS(a),B=toS(b);return [toV(A.x,A.y),toV(B.x,A.y),toV(B.x,B.y),toV(A.x,B.y)];}
@@ -852,9 +913,9 @@ async function doCalib(P){
     [{id:'all',label:'Εφαρμογή και στις υπάρχουσες μετρήσεις της σελίδας',checked:false}],
     'Πληκτρολόγησε το γνωστό μήκος (π.χ. από διάσταση του σχεδίου). Από αυτό υπολογίζεται η πραγματική κλίμακα.');
   if(!r)return;const L=num(r.L);if(!(L>0))return toast('Μη έγκυρο μήκος',true);
-  S.userScale=true;S.mPerPt=L/d;S.scaleN=S.mPerPt/PT_M;S.scaleSrc='calib';
-  if(r.all){pushHist();S.meas.forEach(m=>{if(m.page===S.pageNum&&m.type!=='note'){m.f=S.mPerPt;m.N=S.scaleN;}});}
-  commit('calib',P);updScaleUI();setTool('select');
+  pushHist();S.userScale=true;S.mPerPt=L/d;S.scaleN=S.mPerPt/PT_M;S.scaleSrc='calib';
+  if(r.all){S.meas.forEach(m=>{if(m.page===S.pageNum&&m.type!=='note'){m.f=S.mPerPt;m.N=S.scaleN;}});}
+  commit('calib',P,null,true);updScaleUI();setTool('select');
   toast('Βαθμονόμηση: ισοδύναμη κλίμακα ≈ '+scaleTxt(S.scaleN));
 }
 function doAlign(P){const phi=Math.atan2(P[1].y-P[0].y,P[1].x-P[0].x);let r=-phi;
@@ -862,10 +923,10 @@ function doAlign(P){const phi=Math.atan2(P[1].y-P[0].y,P[1].x-P[0].x);let r=-phi
 async function setOrigin(p){
   const r=await ask('Αρχή συντεταγμένων',[{id:'E',label:'X / Ε του σημείου (m)',value:'0',type:'text'},{id:'N',label:'Y / Ν του σημείου (m)',value:'0',type:'text'}],null,
     'Δώσε τις γνωστές συντεταγμένες του σημείου (π.χ. ΕΓΣΑ87 από το τοπογραφικό) ή άφησε 0 για τοπικό σύστημα. Οι άξονες ακολουθούν το φύλλο (X δεξιά, Y πάνω).');
-  if(!r)return;S.origin={page:S.pageNum,x:p.x,y:p.y,E:num(r.E)||0,N:num(r.N)||0};updOrigin();renderList();updateLive();req();setTool('select');toast('Ορίστηκε αρχή συντεταγμένων');}
+  if(!r)return;pushHist();S.origin={page:S.pageNum,x:p.x,y:p.y,E:num(r.E)||0,N:num(r.N)||0};updOrigin();renderList();updateLive();req();setTool('select');toast('Ορίστηκε αρχή συντεταγμένων');}
 function updOrigin(){const o=S.origin;$('#originInfo').innerHTML=o?`Αρχή στη σελ. ${o.page}: <b>X ${fN(o.E,3)} · Y ${fN(o.N,3)}</b>`:'Χωρίς αρχή: οι συντεταγμένες μετριούνται από την κάτω αριστερή γωνία του φύλλου.';}
 $('#btnOrigin').onclick=()=>{if(S.page){setTool('origin');closePanelMobile();}};
-$('#btnOriginClr').onclick=()=>{S.origin=null;updOrigin();renderList();updateLive();req();};
+$('#btnOriginClr').onclick=()=>{if(!S.origin)return;pushHist();S.origin=null;updOrigin();renderList();updateLive();req();};
 async function createNote(p){
   const r=await ask('Νέα σημείωση',[{id:'t',label:'Κείμενο',type:'textarea',ph:'π.χ. Υγρασία στη βόρεια τοιχοποιία'}]);
   if(!r||!String(r.t).trim())return;const m=commit('note',[p],{text:String(r.t).trim(),off:{x:56,y:-46}});m.name='Σημείωση '+S.cnt.note;renderList();}
@@ -1050,8 +1111,8 @@ function updStatus(){
   if(p){const q=coordOf(p,S.mPerPt,S.pageNum);h+=`X <b>${fN(q.X,3)}</b> · Y <b>${fN(q.Y,3)}</b> m`;}
   h+=` <span>│ Κλίμακα <b>${scaleTxt(S.scaleN)}</b></span><span>│ Ζουμ <b>${Math.round(S.z/S.fitZ*100)}%</b></span>`;
   if(Math.abs(S.rot)>1e-6)h+=`<span>│ Περιστροφή <b>${fN(S.rot*180/Math.PI,2)}°</b></span>`;
-  if(S.snap&&S.tool!=='select')h+=`<span>│ Έλξη <b style="color:#facc15">${SNAPN[S.snap.t]}</b></span>`;
-  if(S.ortho!==S.shift)h+='<span>│ <b style="color:#fbbf24">ΟΡΘΟ</b></span>';
+  if(S.snap&&S.tool!=='select')h+=`<span>│ Έλξη <b class="snp">${SNAPN[S.snap.t]}</b></span>`;
+  if(S.ortho!==S.shift)h+='<span>│ <b class="snp2">ΟΡΘΟ</b></span>';
   el.innerHTML=h;
 }
 function updRotUI(){const deg=S.rot*180/Math.PI;$('#rotVal').textContent=fN(deg,2)+'°';const ri=$('#rotIn');if(document.activeElement!==ri)ri.value=fN(deg,2);}
@@ -1092,8 +1153,8 @@ function nearestMeas(sx,sy,r){
 function selectAt(sx,sy,touch){S.sel=nearestMeas(sx,sy,touch?20:10);renderList();updateLive();req();}
 function selectDown(p,touch){
   const r=touch?20:10;const m=S.sel!=null?getM(S.sel):null;
-  if(m&&m.page===S.pageNum){for(let i=0;i<m.pts.length;i++){const s=toS(m.pts[i]);if(Math.hypot(s.x-p.x,s.y-p.y)<r){pushHist();G={type:'vdrag',id:m.id,idx:i,moved:false};return;}}}
-  for(const h of S.hit)if(p.x>=h.x&&p.x<=h.x+h.w&&p.y>=h.y&&p.y<=h.y+h.h){const n=getM(h.id);pushHist();S.sel=h.id;G={type:'ndrag',id:h.id,sx:p.x,sy:p.y,ox:n.off.x,oy:n.off.y,moved:false};renderList();updateLive();req();return;}
+  if(m&&m.page===S.pageNum){for(let i=0;i<m.pts.length;i++){const s=toS(m.pts[i]);if(Math.hypot(s.x-p.x,s.y-p.y)<r){const rs=S.redo.slice();pushHist();G={type:'vdrag',id:m.id,idx:i,moved:false,rs};return;}}}
+  for(const h of S.hit)if(p.x>=h.x&&p.x<=h.x+h.w&&p.y>=h.y&&p.y<=h.y+h.h){const n=getM(h.id);const rs=S.redo.slice();pushHist();S.sel=h.id;G={type:'ndrag',rs,id:h.id,sx:p.x,sy:p.y,ox:n.off.x,oy:n.off.y,moved:false};renderList();updateLive();req();return;}
   G={type:'pan',sx:p.x,sy:p.y,tx0:S.tx,ty0:S.ty,moved:false,sel:true};
 }
 ov.addEventListener('pointerdown',e=>{
@@ -1128,7 +1189,7 @@ function pUp(e,cancel){
   if(cancel){hideLoupe();return;}
   if(g.type==='pan'&&!g.moved&&g.sel)selectAt(p.x,p.y,e.pointerType==='touch');
   else if(g.type==='loupe'){hideLoupe();addPoint();}
-  else if(g.type==='vdrag'||g.type==='ndrag'){if(!g.moved)S.hist.pop();S.snap=null;renderList();updateLive();req();}
+  else if(g.type==='vdrag'||g.type==='ndrag'){if(!g.moved){S.hist.pop();S.redo=g.rs||[];updUndoUI();}S.snap=null;renderList();updateLive();req();}
 }
 ov.addEventListener('pointerup',e=>pUp(e,false));
 ov.addEventListener('pointercancel',e=>pUp(e,true));
@@ -1146,6 +1207,7 @@ document.addEventListener('keydown',e=>{
   const k=e.key;
   if(k===' '){S.space=true;e.preventDefault();return;}
   if(k==='Shift'){S.shift=true;if(S.cursorS)updateCursor(S.cursorS.x,S.cursorS.y,false);return;}
+  if((e.ctrlKey||e.metaKey)&&(k.toLowerCase()==='y'||(e.shiftKey&&k.toLowerCase()==='z'))){e.preventDefault();redo();return;}
   if((e.ctrlKey||e.metaKey)&&k.toLowerCase()==='z'){e.preventDefault();undo();return;}
   if(e.ctrlKey||e.metaKey||e.altKey)return;
   if(k==='Escape'){if(S.pts.length){S.pts=[];afterPts();}else if(S.tool!=='select')setTool('select');else{S.sel=null;renderList();updateLive();req();}return;}
@@ -1306,7 +1368,13 @@ thr.oninput=gap.oninput=updAuto;updAuto();
 stage.addEventListener('drop',e=>{const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f){$('#empty').style.display='none';openFile(f).then(()=>{if(!S.page)$('#empty').style.display='flex';});}});
 window.addEventListener('beforeunload',e=>{if(S.meas.length){e.preventDefault();e.returnValue='';}});
 
-updToggles();updScaleUI();renderList();updateLive();updOrigin();updRotUI();setTool('select');
+
+function applyTheme(t){document.documentElement.setAttribute('data-theme',t);try{localStorage.setItem('hexis_theme',t);}catch(e){}
+  $('#btnTheme').textContent=t==='light'?'☾':'☀';$('#btnTheme').title=t==='light'?'Σκουρόχρωμο θέμα':'Ανοιχτόχρωμο θέμα';
+  const m=document.querySelector('meta[name=theme-color]');if(m)m.content=t==='light'?'#f3f6fb':'#070b14';req();}
+$('#btnTheme').onclick=()=>applyTheme(document.documentElement.getAttribute('data-theme')==='light'?'dark':'light');
+applyTheme(document.documentElement.getAttribute('data-theme')||'dark');
+updToggles();updScaleUI();renderList();updateLive();updOrigin();updRotUI();setTool('select');updUndoUI();
 </script>
 </body>
 </html>
