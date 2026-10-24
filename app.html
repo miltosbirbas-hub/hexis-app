@@ -2672,6 +2672,7 @@ function renderFiles(projId) {
         + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + f.name + fpBadge + '</div>'
         + '<div style="font-size:11px;color:var(--text2)">' + (f.size||'') + ' · ' + (f.uploaded||'') + ' · ' + (f.engineer||'') + '</div></div>'
         + (canClassify ? '<button class="btn btn-ghost btn-sm" title="Χαρακτηρισμός ως κάτοψη" onclick="classifyExisting(&quot;' + projId + '&quot;,&quot;' + f.id + '&quot;)">' + ICON_PLAN + '</button>' : '')
+        + (!f.type && f.url && /\.pdf$/i.test(f.name) ? '<a href="' + pdfDimHref(projId, f) + '" class="btn btn-ghost btn-sm" title="Μετρήσεις στο σχέδιο (PDF Dim)">📏</a>' : '')
         + '<a href="' + f.url + '" target="_blank" class="btn btn-ghost btn-sm">👁️</a>'
         + (!f.type ? '<a href="' + f.url + '" download="' + f.name + '" class="btn btn-ghost btn-sm">⬇️</a>' : '')
         + '<button class="btn btn-danger btn-sm" onclick="delFile(&quot;' + projId + '&quot;,&quot;' + f.id + '&quot;)"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>'
@@ -2679,6 +2680,23 @@ function renderFiles(projId) {
     });
   }
   return html + '</div>';
+}
+
+// PDF Dim: άνοιγμα PDF του έργου για μετρήσεις — επιστρέφει εδώ μέσω sessionStorage 'hexis_return'
+function pdfDimHref(projId, f) {
+  const p = getProj(projId);
+  return 'pdfdim.html?proj=' + encodeURIComponent(projId) + '&fid=' + encodeURIComponent(f.id)
+    + '&src=' + encodeURIComponent(f.url) + '&name=' + encodeURIComponent(f.name)
+    + '&pname=' + encodeURIComponent(p ? (p.name || '') : '');
+}
+function consumeToolReturn() {
+  const raw = sessionStorage.getItem('hexis_return');
+  if (!raw) return;
+  sessionStorage.removeItem('hexis_return');
+  let r; try { r = JSON.parse(raw); } catch(e) { return; }
+  if (!r || !r.proj || Date.now() - (r.t || 0) > 6 * 3600 * 1000 || !getProj(r.proj)) return;
+  selectProj(r.proj);
+  if (r.tab && r.tab !== 'overview') { state.tab = r.tab; render(); }
 }
 
 // ── MAP ───────────────────────────────────────────────
@@ -6287,6 +6305,7 @@ async function init() {
   setTimeout(checkAlerts, 800);
   setInterval(checkAlerts, 5*60*1000);
   if (!currentEngineer) showEngModal();
+  try { consumeToolReturn(); } catch(e){ console.warn('tool return:', e); }
   try { consumeScanResult(); } catch(e){ console.warn('scan import:', e); }
 }
 

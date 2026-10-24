@@ -187,6 +187,19 @@ input[type=range]{width:100%;accent-color:#22d3ee}
   #status{font-size:10.5px;gap:10px}
 }
 
+
+.sbox{max-width:480px;max-height:90dvh;overflow-y:auto}
+.sgrp{font-family:Unbounded,sans-serif;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);margin:14px 0 6px}
+.sgrp b{font-family:Manrope,sans-serif;letter-spacing:0;text-transform:none;font-size:12px;color:var(--txt)}
+.sopt{display:block;width:100%;text-align:left;border:1px solid var(--line2);background:var(--panel2);border-radius:12px;padding:10px 12px;margin:6px 0;color:var(--txt)}
+.sopt:hover{border-color:var(--cy)}
+.sopt b{display:block;font-size:13.5px}
+.sopt small{display:block;color:var(--mut);font-size:12px;line-height:1.45;margin-top:2px}
+.sopt.pri{border-color:rgba(34,211,238,.55);background:linear-gradient(135deg,rgba(34,211,238,.12),rgba(167,139,250,.12))}
+.sset{border-top:1px solid var(--line);margin-top:12px;padding-top:6px}
+.sset .seg{margin-bottom:6px}
+body.inproj #btnSave{background:var(--grad);border-color:transparent;color:#06101f;font-weight:800}
+:root[data-theme="light"] body.inproj #btnSave{color:#fff}
 /* ---------- ανοιχτόχρωμο θέμα ---------- */
 :root[data-theme="light"]{
   --bg:#eef2f8;--bg2:#f7f9fc;--panel:#ffffff;--panel2:#f1f4f9;--line:#dde3ee;--line2:#c8d1e1;
@@ -258,33 +271,24 @@ input[type=range]{width:100%;accent-color:#22d3ee}
   var tok = '';
   if (raw) { try{ var s = JSON.parse(raw); tok = s.access_token || (s.currentSession && s.currentSession.access_token) || ''; }catch(e){} }
   if (!tok) { deny('login.html'); return; }
-  fetch(SB + '/rest/v1/entitlements?select=module,active,expires_at&module=eq.' + MODULE, {
-    headers: { apikey: KEY, Authorization: 'Bearer ' + tok }
-  }).then(function(r){
-    if (r.status === 401 || r.status === 403) { if (cachedOk()) { allow(); } else { deny('hub.html'); } return null; }
-    return r.json();
-  }).then(function(rows){
-    if (rows === null) return;
-    var ok = (rows || []).some(function(e){ return e.active && (!e.expires_at || new Date(e.expires_at) > new Date()); });
-    if (ok) allow(); else deny('tool.html?id=' + MODULE);
-  }).catch(function(){
-    if (cachedOk()) allow(); else offlineMsg();
-  });
+  // Δωρεάν εργαλείο: αρκεί η σύνδεση στο HEXIS, χωρίς έλεγχο συνδρομής
+  allow();
 })();
 </script>
 <header>
-  <a href="app.html" class="hb ghost" aria-label="Πίσω στο HEXIS" style="display:inline-flex;align-items:center;text-decoration:none">←<span class="hide-m">&nbsp;HEXIS</span></a><script>window.HX_IN_HEXIS=true;</script>
+  <a href="app.html" id="btnBack" class="hb ghost" aria-label="Πίσω στο HEXIS" style="display:inline-flex;align-items:center;text-decoration:none">←<span class="hide-m">&nbsp;HEXIS</span></a><script>window.HX_IN_HEXIS=true;</script>
   <div class="brand"><span class="logo">PDF DIM</span><span class="sub">ΜΕΤΡΗΣΕΙΣ ΣΕ ΣΧΕΔΙΑ</span></div>
   <div class="file" id="fileName">Κανένα αρχείο</div>
   <div class="hgroup">
     <select id="pageSel" hidden title="Σελίδα"></select>
     <button class="hb" id="btnOpen"><span class="hide-m">Άνοιγμα&nbsp;</span>PDF</button>
+    <button class="hb ghost" id="btnSave" title="Αποθήκευση (Ctrl+S)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg><span class="hide-m">&nbsp;Αποθήκευση</span></button>
     <button class="hb ghost hide-m" id="btnNew">Νέο αρχείο</button>
     <button class="hb ghost" id="btnTheme" title="Ανοιχτόχρωμο / σκουρόχρωμο">☀</button>
     <button class="hb ghost" id="btnHelp" title="Οδηγίες"><span class="hide-m">Οδηγίες</span><span class="mob">?</span></button>
     <button class="hb ghost mob" id="btnPanel">Πάνελ</button>
   </div>
-  <input type="file" id="fileIn" accept="application/pdf,.pdf" hidden>
+  <input type="file" id="fileIn" accept="application/pdf,.pdf,.hexdim" hidden>
 </header>
 
 <main>
@@ -298,6 +302,7 @@ input[type=range]{width:100%;accent-color:#22d3ee}
     <div id="undoBar">
       <button id="bUndo" title="Αναίρεση (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span>Αναίρεση</span></button>
       <button id="bRedo" title="Επανάληψη (Ctrl+Y)"><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg><span>Επανάληψη</span></button>
+      <button id="bShot" title="Στιγμιότυπο οθόνης"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L7.5 6.5H4a2 2 0 0 0-2 2V18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8.5a2 2 0 0 0-2-2h-3.5z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Στιγμιότυπο</span></button>
     </div>
     <div id="fab">
       <button id="fabUndo" title="Αναίρεση σημείου">↶</button>
@@ -308,7 +313,7 @@ input[type=range]{width:100%;accent-color:#22d3ee}
     <div id="empty">
       <div class="drop" id="drop">
         <h2>Μετρήσεις πάνω σε σχέδιο</h2>
-        <p>Άνοιξε ή σύρε εδώ ένα PDF σχεδίου. Οι γραμμές του αναγνωρίζονται για ακριβή έλξη σε άκρα, μέσα, τομές και κέντρα, η κλίμακα εντοπίζεται αυτόματα από το φύλλο, και μετράς μήκη, εμβαδά, γωνίες, κύκλους και συντεταγμένες σε πραγματικά μεγέθη.</p>
+        <p>Άνοιξε ή σύρε εδώ ένα PDF σχεδίου (ή αρχείο εργασίας .hexdim). Οι γραμμές του αναγνωρίζονται για ακριβή έλξη σε άκρα, μέσα, τομές και κέντρα, η κλίμακα εντοπίζεται αυτόματα από το φύλλο, και μετράς μήκη, εμβαδά, γωνίες, κύκλους και συντεταγμένες σε πραγματικά μεγέθη.</p>
         <button class="hb" id="btnOpen2">Άνοιγμα PDF</button>
       </div>
     </div>
@@ -337,7 +342,8 @@ input[type=range]{width:100%;accent-color:#22d3ee}
       <summary>Μετρήσεις &amp; σημειώσεις</summary>
       <div class="in">
         <div id="list"></div>
-        <div class="btns"><button class="btn" id="btnCSV">CSV</button><button class="btn" id="btnDXF">DXF</button><button class="btn" id="btnPNG">Εικόνα</button></div>
+        <button class="btn pri" id="btnSave2">Αποθήκευση…</button>
+        <div class="btns"><button class="btn" id="btnPDF">PDF</button><button class="btn" id="btnCSV">CSV</button><button class="btn" id="btnDXF">DXF</button></div>
         <button class="btn" id="btnClear">Διαγραφή όλων της σελίδας</button>
       </div>
     </details>
@@ -403,6 +409,28 @@ input[type=range]{width:100%;accent-color:#22d3ee}
     <div class="mact"><button class="mcancel">Άκυρο</button><button class="go mok">OK</button></div></div>
 </div>
 
+<div class="ovl" id="saveDlg" hidden>
+  <div class="mbox sbox">
+    <h3>Αποθήκευση</h3>
+    <div id="sProj" hidden>
+      <div class="sgrp">Στο έργο <b id="sProjName"></b></div>
+      <button class="sopt pri" data-s="proj"><b>Αποθήκευση στο έργο</b><small>PDF με τις διαστάσεις στα αρχεία του έργου. Οι μετρήσεις μένουν επεξεργάσιμες: την επόμενη φορά που θα ανοίξεις το σχέδιο από το έργο, συνεχίζεις από εκεί.</small></button>
+      <button class="sopt" data-s="entry"><b>Νέα καταγραφή με στιγμιότυπο</b><small>Επιστροφή στο έργο με νέα καταγραφή: το στιγμιότυπο ως φωτογραφία και οι μετρήσεις στην περιγραφή.</small></button>
+    </div>
+    <div class="sgrp">Στη συσκευή</div>
+    <button class="sopt" data-s="pdf"><b>PDF με διαστάσεις</b><small>Το αρχικό σχέδιο σε πλήρη ποιότητα, με τις μετρήσεις και τις σημειώσεις τυπωμένες πάνω του.</small></button>
+    <button class="sopt" data-s="shot"><b>Στιγμιότυπο οθόνης</b><small>Ό,τι βλέπεις τώρα, ως εικόνα PNG.</small></button>
+    <button class="sopt" data-s="sheet"><b>Ολόκληρη σελίδα ως εικόνα</b><small>Η τρέχουσα σελίδα σε υψηλή ανάλυση (JPG), με τις μετρήσεις.</small></button>
+    <button class="sopt" data-s="work"><b>Αρχείο εργασίας (.hexdim)</b><small>Σχέδιο και μετρήσεις σε ένα αρχείο, για να συνεχίσεις αργότερα σε οποιαδήποτε συσκευή.</small></button>
+    <div class="sset">
+      <label class="ck"><input type="checkbox" id="sTable">Πίνακας μετρήσεων ως τελευταία σελίδα του PDF</label>
+      <div class="row"><label>Μέγεθος ετικετών στο PDF και στην εικόνα σελίδας</label></div>
+      <div class="seg" id="sLbl"><button data-v="s">Μικρό</button><button data-v="m">Κανονικό</button><button data-v="l">Μεγάλο</button></div>
+    </div>
+    <div class="note">Οι μετρήσεις αποθηκεύονται αυτόματα και σε αυτή τη συσκευή. Αν ξανανοίξεις το ίδιο PDF, σου προτείνεται να συνεχίσεις από εκεί που έμεινες.</div>
+    <div class="mact"><button id="sClose">Κλείσιμο</button></div>
+  </div>
+</div>
 <div class="ovl" id="help" hidden>
   <div class="mbox" id="helpBox">
     <h3>Οδηγίες — HEXIS PDF Dim</h3>
@@ -450,14 +478,29 @@ input[type=range]{width:100%;accent-color:#22d3ee}
     </ul>
 
     <h4>6 · ΣΥΝΤΟΜΕΥΣΕΙΣ</h4>
-    <p><kbd>V</kbd> επιλογή · <kbd>D</kbd> μήκος · <kbd>P</kbd> πολυγραμμή · <kbd>A</kbd> εμβαδόν · <kbd>R</kbd> ορθογώνιο · <kbd>W</kbd> αυτόματο σχήμα · <kbd>G</kbd> γωνία · <kbd>C</kbd> κύκλος · <kbd>K</kbd> τόξο 3σ · <kbd>X</kbd> σημείο · <kbd>N</kbd> σημείωση · <kbd>F8</kbd>/<kbd>O</kbd> ορθό · <kbd>F3</kbd> έλξη · <kbd>F</kbd> όλο το σχέδιο · <kbd>[</kbd> <kbd>]</kbd> περιστροφή 90° · <kbd>Enter</kbd> τέλος · <kbd>Backspace</kbd> αναίρεση σημείου · <kbd>Ctrl</kbd>+<kbd>Z</kbd> αναίρεση · <kbd>Ctrl</kbd>+<kbd>Y</kbd> επανάληψη · <kbd>Delete</kbd> διαγραφή επιλεγμένης · <kbd>Esc</kbd> ακύρωση.</p>
+    <p><kbd>V</kbd> επιλογή · <kbd>D</kbd> μήκος · <kbd>P</kbd> πολυγραμμή · <kbd>A</kbd> εμβαδόν · <kbd>R</kbd> ορθογώνιο · <kbd>W</kbd> αυτόματο σχήμα · <kbd>G</kbd> γωνία · <kbd>C</kbd> κύκλος · <kbd>K</kbd> τόξο 3σ · <kbd>X</kbd> σημείο · <kbd>N</kbd> σημείωση · <kbd>F8</kbd>/<kbd>O</kbd> ορθό · <kbd>F3</kbd> έλξη · <kbd>F</kbd> όλο το σχέδιο · <kbd>[</kbd> <kbd>]</kbd> περιστροφή 90° · <kbd>Enter</kbd> τέλος · <kbd>Backspace</kbd> αναίρεση σημείου · <kbd>Ctrl</kbd>+<kbd>Z</kbd> αναίρεση · <kbd>Ctrl</kbd>+<kbd>Y</kbd> επανάληψη · <kbd>Ctrl</kbd>+<kbd>S</kbd> αποθήκευση · <kbd>Delete</kbd> διαγραφή επιλεγμένης · <kbd>Esc</kbd> ακύρωση.</p>
 
     <h4>7 · ΕΞΑΓΩΓΗ</h4>
     <ul>
-      <li><b>CSV</b>: πίνακας όλων των μετρήσεων για υπολογιστικό φύλλο. <b>DXF</b>: οι μετρήσεις της σελίδας σε πραγματικές διαστάσεις (μέτρα, 1:1), σε ξεχωριστά επίπεδα, με τις συντεταγμένες της αρχής αν έχει οριστεί. <b>Εικόνα</b>: ό,τι βλέπεις στην οθόνη με τις μετρήσεις.</li>
+      <li><b>Αποθήκευση</b> (κουμπί στην επάνω μπάρα ή <kbd>Ctrl</kbd>+<kbd>S</kbd>):
+        <ul>
+          <li><b>PDF με διαστάσεις</b>: το αρχικό σχέδιο σε πλήρη ποιότητα με τις μετρήσεις και τις σημειώσεις τυπωμένες πάνω του, και προαιρετικά πίνακας μετρήσεων ως τελευταία σελίδα. Για εκτύπωση ή αποστολή.</li>
+          <li><b>Στιγμιότυπο οθόνης</b> (και κουμπί κάμερας κάτω αριστερά): ό,τι βλέπεις τώρα, με υποσέλιδο αρχείου, κλίμακας και ημερομηνίας.</li>
+          <li><b>Ολόκληρη σελίδα ως εικόνα</b>: η σελίδα σε υψηλή ανάλυση με τις μετρήσεις.</li>
+          <li><b>Αρχείο εργασίας .hexdim</b>: σχέδιο και μετρήσεις σε ένα αρχείο. Το ανοίγεις με «Άνοιγμα» σε οποιαδήποτε συσκευή και συνεχίζεις να επεξεργάζεσαι.</li>
+        </ul></li>
+      <li><b>Αυτόματη αποθήκευση</b>: κάθε αλλαγή κρατιέται στη συσκευή. Αν ξανανοίξεις το ίδιο PDF, σου προτείνεται να συνεχίσεις από εκεί που έμεινες.</li>
+      <li><b>CSV</b>: πίνακας όλων των μετρήσεων για υπολογιστικό φύλλο. <b>DXF</b>: οι μετρήσεις της σελίδας σε πραγματικές διαστάσεις (μέτρα, 1:1), σε ξεχωριστά επίπεδα, με τις συντεταγμένες της αρχής αν έχει οριστεί.</li>
     </ul>
 
-    <h4>8 · ΕΛΕΓΧΟΣ ΑΠΟΤΕΛΕΣΜΑΤΩΝ</h4>
+    <h4>8 · ΣΥΝΔΕΣΗ ΜΕ ΤΑ ΕΡΓΑ ΤΟΥ HEXIS</h4>
+    <ul>
+      <li>Στα <b>Αρχεία</b> ενός έργου, κάθε PDF έχει κουμπί <b>📏</b>: το σχέδιο ανοίγει απευθείας εδώ.</li>
+      <li><b>Αποθήκευση στο έργο</b>: το PDF με τις διαστάσεις μπαίνει στα αρχεία του έργου (με επανάληψη ενημερώνεται το ίδιο αρχείο, δεν δημιουργούνται αντίγραφα). Οι μετρήσεις μένουν επεξεργάσιμες: όταν ξανανοίξεις το σχέδιο με το 📏, συνεχίζεις από εκεί.</li>
+      <li><b>Νέα καταγραφή με στιγμιότυπο</b>: επιστροφή στο έργο με νέα καταγραφή, το στιγμιότυπο ως φωτογραφία και τις μετρήσεις στην περιγραφή. Συμπληρώνεις και αποθηκεύεις όπως κάθε καταγραφή.</li>
+    </ul>
+
+    <h4>9 · ΕΛΕΓΧΟΣ ΑΠΟΤΕΛΕΣΜΑΤΩΝ</h4>
     <ul>
       <li>Πριν από κάθε σοβαρή χρήση <b>μέτρησε μια γνωστή διάσταση</b> του σχεδίου και σύγκρινέ τη με την αναγραφόμενη. Αν διαφέρει, διόρθωσε την κλίμακα ή κάνε βαθμονόμηση.</li>
       <li>Η ακρίβεια εξαρτάται από την ποιότητα του PDF: σε διανυσματικά σχέδια με έλξη είναι πρακτικά ακριβής· σε σαρώσεις περιορίζεται από την ανάλυση και την παραμόρφωση του χαρτιού.</li>
@@ -719,24 +762,6 @@ function paperName(wmm,hmm){const a=Math.min(wmm,hmm),b=Math.max(wmm,hmm);
   for(const [n,x,y] of P)if(Math.abs(a-x)/x<.03&&Math.abs(b-y)/y<.03)return n;return 'ειδικό μέγεθος';}
 
 /* ---------- file / page ---------- */
-async function openFile(file){
-  if(!file)return;
-  if(!/pdf$/i.test(file.type)&&!/\.pdf$/i.test(file.name)){toast('Επίλεξε αρχείο PDF',true);return;}
-  if(S.meas.length&&!confirm('Άνοιγμα νέου σχεδίου; Οι τρέχουσες μετρήσεις θα χαθούν.'))return;
-  busy(true,'Φόρτωση σχεδίου…');
-  try{
-    const buf=await file.arrayBuffer();
-    resetAll(true);
-    S.fileName=file.name;
-    S.doc=await pdfjsLib.getDocument({data:buf}).promise;
-    $('#fileName').textContent=file.name;
-    const sel=$('#pageSel');sel.innerHTML='';
-    for(let i=1;i<=S.doc.numPages;i++){const o=document.createElement('option');o.value=i;o.textContent='Σελ. '+i+' / '+S.doc.numPages;sel.appendChild(o);}
-    sel.hidden=S.doc.numPages<2;
-    $('#empty').style.display='none';
-    await loadPage(1);
-  }catch(e){console.error(e);busy(false);toast('Δεν άνοιξε το PDF: '+(e.message||e),true);}
-}
 async function loadPage(n){
   busy(true,'Σχεδίαση σελίδας…');
   if(S.hiTask){try{S.hiTask.cancel();}catch(e){}S.hiTask=null;}
@@ -770,15 +795,16 @@ function updSheetInfo(){
 }
 function resetAll(keepScale){
   if(S.doc){try{S.doc.destroy();}catch(e){}}
-  Object.assign(S,{doc:null,page:null,fileName:'',base:null,hi:null,geo:null,geoCache:{},meas:[],sel:null,cnt:{},hist:[],redo:[],pts:[],origin:null,detect:[],rot:0});
+  Object.assign(S,{doc:null,page:null,fileName:'',base:null,hi:null,geo:null,geoCache:{},meas:[],sel:null,cnt:{},hist:[],redo:[],pts:[],origin:null,detect:[],rot:0,bytes:null,fkey:null});
   if(!keepScale){S.userScale=false;}
   S.userScale=false;
   $('#fileName').textContent='Κανένα αρχείο';$('#pageSel').hidden=true;
   renderList();updateLive();updScaleUI();updSheetInfo();updOrigin();req();updHint();updUndoUI();
 }
 function newFile(){
-  if(S.meas.length&&!confirm('Νέο αρχείο; Όλες οι μετρήσεις και σημειώσεις θα διαγραφούν.'))return;
-  resetAll();$('#empty').style.display='flex';setTool('select');toast('Έτοιμο για νέο σχέδιο');
+  if(S.meas.length&&S.autoFail&&!confirm('Νέο αρχείο; Όλες οι μετρήσεις και σημειώσεις θα διαγραφούν.'))return;
+  const had=S.meas.length;if(S.fkey)autoSave();
+  resetAll();$('#empty').style.display='flex';setTool('select');toast(had&&!S.autoFail?'Οι μετρήσεις του προηγούμενου σχεδίου έμειναν αποθηκευμένες στη συσκευή':'Έτοιμο για νέο σχέδιο');
 }
 
 /* ---------- scale ---------- */
@@ -873,10 +899,10 @@ function afterPts(){updHint();updFab();updateLive();req();updUndoUI();}
 
 /* ---------- measurements ---------- */
 function snapState(){return JSON.stringify({meas:S.meas,cnt:S.cnt,origin:S.origin,sc:[S.scaleN,S.mPerPt,S.scaleSrc,S.userScale]});}
-function pushHist(){S.hist.push(snapState());if(S.hist.length>150)S.hist.shift();S.redo=[];updUndoUI();}
+function pushHist(){S.hist.push(snapState());if(S.hist.length>150)S.hist.shift();S.redo=[];updUndoUI();scheduleAutosave();}
 function restoreState(h){const o=JSON.parse(h);S.meas=o.meas;S.cnt=o.cnt;S.origin=o.origin||null;
   if(o.sc){S.scaleN=o.sc[0];S.mPerPt=o.sc[1];S.scaleSrc=o.sc[2];S.userScale=o.sc[3];}
-  if(!S.meas.find(m=>m.id===S.sel))S.sel=null;updScaleUI();updOrigin();renderList();updateLive();updStatus();req();updUndoUI();}
+  if(!S.meas.find(m=>m.id===S.sel))S.sel=null;updScaleUI();updOrigin();renderList();updateLive();updStatus();req();updUndoUI();scheduleAutosave();}
 function undo(){if(S.pts.length){S.pts.pop();afterPts();updUndoUI();return;}const h=S.hist.pop();if(!h){toast('Δεν υπάρχει κάτι για αναίρεση');return;}
   S.redo.push(snapState());restoreState(h);}
 function redo(){const h=S.redo.pop();if(!h){toast('Δεν υπάρχει κάτι για επανάληψη');return;}S.hist.push(snapState());restoreState(h);}
@@ -1284,7 +1310,7 @@ async function autoShape(sx,sy){
     const C=traceContour(reg,w,h);if(C.length<4){toast('Δεν βρέθηκε περίγραμμα',true);return;}
     let P=dpClosed(C,1.25*q).map(([x,y])=>toV((x+0.5)/q,(y+0.5)/q));
     let snapped=0;
-    if(S.geo&&S.geo.nseg>20){const only={end:true,int:true};
+    if(S.geo&&S.geo.nseg>0){const only={end:true,int:true};
       P=P.map(v=>{const s=findSnap(v.x,v.y,Math.max(6,g/q+4)/S.z,null,only);if(s){snapped++;return {x:s.x,y:s.y};}return v;});}
     const Q=[];for(const v of P){const l=Q[Q.length-1];if(!l||Math.hypot(v.x-l.x,v.y-l.y)>0.6/S.z)Q.push(v);}
     if(Q.length>3&&Math.hypot(Q[0].x-Q[Q.length-1].x,Q[0].y-Q[Q.length-1].y)<0.6/S.z)Q.pop();
@@ -1329,20 +1355,17 @@ function exportDXF(){
   w(0,'ENDSEC',0,'EOF');
   download(L.join('\r\n'),baseName()+'_pdfdim_sel'+S.pageNum+'.dxf','application/dxf');
   if(ms.some(m=>m.type==='note'))toast('Οι σημειώσεις εξάγονται ως σημεία (κείμενα στο CSV)');}
-function exportPNG(){if(!S.page)return;const c=document.createElement('canvas');c.width=view.width;c.height=view.height;const x=c.getContext('2d');
-  x.fillStyle='#060a13';x.fillRect(0,0,c.width,c.height);if(view.classList.contains('dark'))x.filter='invert(1) hue-rotate(180deg) brightness(.92)';
-  x.drawImage(view,0,0);x.filter='none';x.drawImage(ov,0,0);c.toBlob(b=>download(b,baseName()+'_pdfdim.png'),'image/png');}
-$('#btnCSV').onclick=exportCSV;$('#btnDXF').onclick=exportDXF;$('#btnPNG').onclick=exportPNG;
+$('#btnCSV').onclick=exportCSV;$('#btnDXF').onclick=exportDXF;
 
 /* ---------- modal ---------- */
-function ask(title,fields,checks,desc){return new Promise(res=>{
+function ask(title,fields,checks,desc,opts){return new Promise(res=>{
   const m=$('#modal'),body=m.querySelector('.mbody');m.querySelector('.mtitle').textContent=title;
   body.innerHTML=(desc?`<p>${esc(desc)}</p>`:'')+fields.map(f=>f.type==='textarea'
     ?`<label class="fld"><span>${esc(f.label)}</span><textarea data-k="${f.id}" placeholder="${esc(f.ph||'')}">${esc(f.value||'')}</textarea></label>`
     :`<label class="fld"><span>${esc(f.label)}</span><input data-k="${f.id}" type="text" ${f.type==='text'&&!/name/.test(f.id)?'inputmode="decimal"':''} value="${esc(f.value??'')}" placeholder="${esc(f.ph||'')}"></label>`).join('')
     +(checks||[]).map(c=>`<label class="ck"><input type="checkbox" data-k="${c.id}" ${c.checked?'checked':''}>${esc(c.label)}</label>`).join('');
   m.hidden=false;const first=body.querySelector('input,textarea');setTimeout(()=>{if(first){first.focus();first.select&&first.select();}},40);
-  const ok=m.querySelector('.mok'),ca=m.querySelector('.mcancel');
+  const ok=m.querySelector('.mok'),ca=m.querySelector('.mcancel');ok.textContent=(opts&&opts.ok)||'OK';ca.textContent=(opts&&opts.cancel)||'Άκυρο';
   const done=v=>{m.hidden=true;ok.onclick=ca.onclick=body.onkeydown=null;res(v);};
   ok.onclick=()=>{const o={};body.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k]=i.type==='checkbox'?i.checked:i.value);done(o);};
   ca.onclick=()=>done(null);
@@ -1376,7 +1399,7 @@ thr.oninput=gap.oninput=updAuto;updAuto();
 ['dragenter','dragover'].forEach(ev=>stage.addEventListener(ev,e=>{e.preventDefault();$('#drop').classList.add('over');}));
 ['dragleave','drop'].forEach(ev=>stage.addEventListener(ev,e=>{e.preventDefault();$('#drop').classList.remove('over');}));
 stage.addEventListener('drop',e=>{const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f){$('#empty').style.display='none';openFile(f).then(()=>{if(!S.page)$('#empty').style.display='flex';});}});
-window.addEventListener('beforeunload',e=>{if(S.meas.length){e.preventDefault();e.returnValue='';}});
+window.addEventListener('beforeunload',e=>{if(S.fkey)autoSave();if(S.meas.length&&S.autoFail&&!S.leaving){e.preventDefault();e.returnValue='';}});
 
 
 function applyTheme(t){document.documentElement.setAttribute('data-theme',t);try{localStorage.setItem('hexis_theme',t);}catch(e){}
@@ -1385,6 +1408,308 @@ function applyTheme(t){document.documentElement.setAttribute('data-theme',t);try
 $('#btnTheme').onclick=()=>applyTheme(document.documentElement.getAttribute('data-theme')==='light'?'dark':'light');
 applyTheme(document.documentElement.getAttribute('data-theme')||'dark');
 updToggles();updScaleUI();renderList();updateLive();updOrigin();updRotUI();setTool('select');updUndoUI();
+
+/* ============================================================
+   ΑΠΟΘΗΚΕΥΣΗ — PDF με διαστάσεις, στιγμιότυπα, αρχείο εργασίας,
+   αυτόματη τοπική αποθήκευση και σύνδεση με τα έργα του HEXIS
+   ============================================================ */
+const SB_URL='https://oucqqudfdimccgowvpqp.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
+const QS=new URLSearchParams(location.search);
+S.proj=QS.get('proj')?{id:QS.get('proj'),fid:QS.get('fid')||'',name:QS.get('pname')||'',out:null}:null;
+const LBLZ={s:2.3,m:1.7,l:1.2};
+const SOPT=(()=>{let o={lbl:'m',table:true};try{Object.assign(o,JSON.parse(localStorage.getItem('pdfdim_saveopt')||'{}'));}catch(e){}return o;})();
+const saveOpt=()=>{try{localStorage.setItem('pdfdim_saveopt',JSON.stringify(SOPT));}catch(e){}};
+const rid=()=>Math.random().toString(36).slice(2,10);
+const GRL={α:'a',β:'v',γ:'g',δ:'d',ε:'e',ζ:'z',η:'i',θ:'th',ι:'i',κ:'k',λ:'l',μ:'m',ν:'n',ξ:'x',ο:'o',π:'p',ρ:'r',σ:'s',ς:'s',τ:'t',υ:'y',φ:'f',χ:'ch',ψ:'ps',ω:'o'};
+const latin=t=>String(t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ου/g,'ou').replace(/Ου|ΟΥ/g,'Ou').replace(/[\u0370-\u03ff]/g,ch=>{const l=ch.toLowerCase(),r=GRL[l]||'';return ch!==l&&r?r[0].toUpperCase()+r.slice(1):r;})
+  .replace(/[^a-zA-Z0-9._-]+/g,'_').replace(/_+/g,'_').replace(/^_|_(?=\.)/g,'');
+const fmtSize=n=>n>1048576?(n/1048576).toFixed(1)+'MB':Math.max(1,Math.round(n/1024))+'KB';
+const isCoarse=()=>!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
+const canvasBlob=(c,type,q)=>new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error('Η εικόνα είναι πολύ μεγάλη για τη συσκευή')),type,q));
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Δεν φορτώθηκε απαραίτητη βιβλιοθήκη — έλεγξε τη σύνδεση στο internet'));document.head.appendChild(s);});}
+let _pdfLibP=null,_sbP=null;
+async function pdfLib(){if(window.PDFLib)return window.PDFLib;if(!_pdfLibP)_pdfLibP=loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js');try{await _pdfLibP;}catch(e){_pdfLibP=null;throw e;}return window.PDFLib;}
+async function sbClient(){
+  if(!_sbP)_sbP=(async()=>{if(!window.supabase)await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js');
+    return window.supabase.createClient(SB_URL,SB_KEY);})();
+  try{return await _sbP;}catch(e){_sbP=null;throw e;}
+}
+async function sbSession(){const sb=await sbClient();const {data}=await sb.auth.getSession();
+  if(!data||!data.session)throw new Error('Η σύνδεσή σου στο HEXIS έληξε. Πάτα «←», συνδέσου ξανά και άνοιξε πάλι το σχέδιο.');return {sb,ses:data.session};}
+async function saveBlob(blob,name){
+  if(isCoarse()&&navigator.canShare){try{const f=new File([blob],name,{type:blob.type});
+    if(navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return;}}catch(e){if(e&&e.name==='AbortError')return;}}
+  download(blob,name);
+}
+function b64(u8){let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s);}
+function unb64(s){const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u;}
+
+/* ---------- κατάσταση εργασίας ---------- */
+function workState(){return {v:1,name:S.fileName,t:Date.now(),page:S.pageNum,rot:S.rot,meas:S.meas,cnt:S.cnt,idc:S.idc,origin:S.origin,
+  sc:[S.scaleN,S.mPerPt,S.scaleSrc,S.userScale],out:S.proj?S.proj.out:null};}
+async function restoreWork(w){
+  S.meas=JSON.parse(JSON.stringify(w.meas||[]));S.cnt=w.cnt||{};S.origin=w.origin||null;
+  S.idc=Math.max(w.idc||1,...S.meas.map(m=>m.id+1),1);
+  if(w.sc){S.scaleN=w.sc[0];S.mPerPt=w.sc[1];S.scaleSrc=w.sc[2];S.userScale=w.sc[3];}
+  if(S.proj&&w.out)S.proj.out=w.out;
+  S.hist=[];S.redo=[];S.sel=null;
+  const pg=Math.min(Math.max(1,w.page||1),S.doc.numPages);
+  if(pg!==S.pageNum)await loadPage(pg);
+  if(w.rot)rotateTo(w.rot);
+  updScaleUI();updOrigin();renderList();updateLive();updStatus();req();updUndoUI();
+  toast('Συνέχεια εργασίας: '+S.meas.length+' μετρήσεις/σημειώσεις');
+}
+const AK='pdfdim_ws';let _autoT=null;
+function autoAll(){try{return JSON.parse(localStorage.getItem(AK)||'{}')||{};}catch(e){return {};}}
+function autoGet(k){return k?autoAll()[k]||null:null;}
+function scheduleAutosave(){if(!S.fkey)return;clearTimeout(_autoT);_autoT=setTimeout(autoSave,700);}
+function autoSave(){if(!S.fkey||!S.doc)return;const all=autoAll(),w=workState();
+  if(!w.meas.length&&!w.origin)delete all[S.fkey];else all[S.fkey]=w;
+  Object.keys(all).sort((a,b)=>(all[b].t||0)-(all[a].t||0)).slice(15).forEach(k=>delete all[k]);
+  try{localStorage.setItem(AK,JSON.stringify(all));S.autoFail=false;}catch(e){S.autoFail=true;}}
+
+/* ---------- άνοιγμα (PDF, αρχείο εργασίας, αρχείο έργου) ---------- */
+async function openBytes(bytes,name,opt){
+  opt=opt||{};
+  if(S.meas.length&&S.autoFail&&!confirm('Άνοιγμα νέου σχεδίου; Οι τρέχουσες μετρήσεις θα χαθούν.'))return false;
+  if(S.fkey)autoSave();
+  busy(true,'Φόρτωση σχεδίου…');
+  try{
+    resetAll(true);
+    S.fileName=name;S.bytes=bytes;S.fkey=(opt.key||name)+'|'+bytes.length;
+    S.doc=await pdfjsLib.getDocument({data:bytes.slice()}).promise;
+    $('#fileName').textContent=(S.proj&&S.proj.name?S.proj.name+' › ':'')+name;
+    const sel=$('#pageSel');sel.innerHTML='';
+    for(let i=1;i<=S.doc.numPages;i++){const o=document.createElement('option');o.value=i;o.textContent='Σελ. '+i+' / '+S.doc.numPages;sel.appendChild(o);}
+    sel.hidden=S.doc.numPages<2;
+    $('#empty').style.display='none';
+    await loadPage(1);
+  }catch(e){console.error(e);busy(false);toast('Δεν άνοιξε το PDF: '+(e.message||e),true);return false;}
+  let w=opt.work||null;
+  const loc=autoGet(S.fkey);
+  if(loc&&loc.meas&&loc.meas.length&&(!w||(loc.t||0)>(w.t||0)+2000))w=loc;
+  if(w&&w.meas&&w.meas.length){
+    const ok=opt.work&&w===opt.work?{}:await ask('Συνέχεια εργασίας',[],null,
+      'Για αυτό το σχέδιο υπάρχουν '+w.meas.length+' μετρήσεις/σημειώσεις, αποθηκευμένες '+new Date(w.t).toLocaleString('el-GR',{dateStyle:'short',timeStyle:'short'})+'. Συνέχεια από εκεί;',
+      {ok:'Συνέχεια',cancel:'Από την αρχή'});
+    if(ok)await restoreWork(w);
+  }
+  return true;
+}
+async function openFile(file){
+  if(!file)return;
+  if(/\.hexdim$/i.test(file.name))return openWorkFile(file);
+  if(!/pdf$/i.test(file.type)&&!/\.pdf$/i.test(file.name)){toast('Επίλεξε αρχείο PDF ή αρχείο εργασίας .hexdim',true);return;}
+  const bytes=new Uint8Array(await file.arrayBuffer());
+  return openBytes(bytes,file.name);
+}
+async function openWorkFile(file){
+  let w;try{w=JSON.parse(await file.text());}catch(e){toast('Μη έγκυρο αρχείο εργασίας',true);return;}
+  if(!w||!w.pdf){toast('Το αρχείο εργασίας δεν περιέχει σχέδιο',true);return;}
+  const bytes=unb64(w.pdf);delete w.pdf;
+  return openBytes(bytes,w.name||file.name.replace(/\.hexdim$/i,'.pdf'),{work:w});
+}
+async function openFromProject(){
+  const src=QS.get('src');if(!src)return;
+  $('#empty').style.display='none';busy(true,'Λήψη σχεδίου από το έργο…');
+  let bytes;
+  try{const r=await fetch(src,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);bytes=new Uint8Array(await r.arrayBuffer());}
+  catch(e){busy(false);$('#empty').style.display='flex';toast('Δεν κατέβηκε το σχέδιο του έργου: '+(e.message||e),true);return;}
+  let w=null;
+  try{const {ses}=await sbSession();
+    const r=await fetch(SB_URL+'/storage/v1/object/public/hexis-files/'+projWorkPath(ses.user.id)+'?t='+Date.now(),{cache:'no-store'});
+    if(r.ok)w=await r.json();}catch(e){console.warn('work load',e);}
+  await openBytes(bytes,QS.get('name')||'sxedio.pdf',{key:'proj:'+S.proj.id+':'+S.proj.fid,work:w&&w.meas?w:null,fromProj:true});
+}
+const projWorkPath=u=>u+'/'+S.proj.id+'/pdfdim/'+(S.proj.fid||'x').replace(/[^a-zA-Z0-9._-]/g,'_')+'.json';
+
+/* ---------- σχεδίαση μετρήσεων σε φύλλο (για PDF / εικόνες) ---------- */
+async function fontsReady(){try{await Promise.all(['700 12px "JetBrains Mono"','600 11px Manrope','600 13px Manrope','700 16px Manrope','800 12px Manrope'].map(f=>document.fonts.load(f)));}catch(e){}}
+function annotPages(){const s=new Set(S.meas.map(m=>m.page));if(S.origin)s.add(S.origin.page);return [...s].sort((a,b)=>a-b);}
+function annotCanvas(pn,W,H,k,z0){
+  const c=document.createElement('canvas');c.width=Math.max(1,Math.round(W*k));c.height=Math.max(1,Math.round(H*k));
+  const x=c.getContext('2d');const sv={z:S.z,rot:S.rot,tx:S.tx,ty:S.ty,pageNum:S.pageNum,W:S.W,H:S.H,hit:S.hit};
+  try{S.z=z0;S.rot=0;S.tx=0;S.ty=0;S.pageNum=pn;S.W=W;S.H=H;S.hit=[];
+    x.setTransform(c.width/W/z0,0,0,c.height/H/z0,0,0);
+    for(const m of S.meas)if(m.page===pn)drawMeas(x,m,false);
+    drawOrigin(x);
+  }finally{Object.assign(S,sv);}
+  return c;
+}
+const rasterK=(W,H,maxK)=>Math.min(maxK,Math.sqrt(16e6/(W*H)));
+async function sheetCanvas(pn,z0,dpi){
+  const p=await S.doc.getPage(pn),vp=p.getViewport({scale:1}),W=vp.width,H=vp.height,k=rasterK(W,H,dpi/72);
+  const c=document.createElement('canvas');c.width=Math.round(W*k);c.height=Math.round(H*k);const x=c.getContext('2d');
+  x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);
+  await p.render({canvasContext:x,viewport:p.getViewport({scale:c.width/W})}).promise;
+  x.drawImage(annotCanvas(pn,W,H,k,z0),0,0);return c;
+}
+function snapshotCanvas(){
+  const sv=S.snap,ss=S.sel;S.snap=null;S.sel=null;drawView();drawOverlay();S.sel=ss;
+  const d=S.dpr,fh=Math.round(30*d),c=document.createElement('canvas');c.width=view.width;c.height=view.height+fh;
+  const x=c.getContext('2d'),light=document.documentElement.getAttribute('data-theme')==='light';
+  x.fillStyle=light?'#e3e8f1':'#060a13';x.fillRect(0,0,c.width,c.height);
+  if(view.classList.contains('dark'))x.filter='invert(1) hue-rotate(180deg) brightness(.92)';
+  x.drawImage(view,0,0);x.filter='none';x.drawImage(ov,0,0);
+  x.fillStyle=light?'#ffffff':'#0a1020';x.fillRect(0,view.height,c.width,fh);
+  x.fillStyle=light?'#0891b2':'#22d3ee';x.fillRect(0,view.height,c.width,Math.max(1,Math.round(d)));
+  x.textBaseline='middle';x.font=`700 ${12*d}px Manrope,sans-serif`;x.fillStyle=light?'#0f1a2e':'#e6edf7';
+  const y=view.height+fh/2,info='PDF Dim · '+(S.proj&&S.proj.name?S.proj.name+' · ':'')+S.fileName+(S.doc&&S.doc.numPages>1?' · σελ. '+S.pageNum:'')+' · κλίμακα '+scaleTxt(S.scaleN);
+  x.fillText(info,10*d,y);x.textAlign='right';x.font=`600 ${11*d}px Manrope,sans-serif`;x.fillStyle=light?'#55627a':'#8a98b3';
+  x.fillText(new Date().toLocaleString('el-GR',{dateStyle:'short',timeStyle:'short'}),c.width-10*d,y);
+  S.snap=sv;req();return c;
+}
+
+/* ---------- πίνακας μετρήσεων (σελίδα PDF) ---------- */
+function ellip(x,t,w){t=String(t==null?'':t).replace(/\s+/g,' ');if(x.measureText(t).width<=w)return t;while(t.length>1&&x.measureText(t+'…').width>w)t=t.slice(0,-1);return t+'…';}
+async function tablePages(){
+  const rows=S.meas.slice().sort((a,b)=>a.page-b.page||a.id-b.id);if(!rows.length)return [];
+  await fontsReady();
+  const PW=595.28,PH=841.89,k=2.6,M=36,RH=17,top=124,per=Math.floor((PH-top-50)/RH),n=Math.ceil(rows.length/per),out=[];
+  const cols=[['#',20],['Όνομα',104],['Τύπος',74],['Τιμή',150],['Σημείωση',123],['Κλίμ.',34],['Σελ.',18]];
+  const date=new Date().toLocaleString('el-GR',{dateStyle:'short',timeStyle:'short'});
+  for(let pi=0;pi<n;pi++){
+    const c=document.createElement('canvas');c.width=Math.round(PW*k);c.height=Math.round(PH*k);const x=c.getContext('2d');
+    x.scale(k,k);x.fillStyle='#fff';x.fillRect(0,0,PW,PH);
+    x.fillStyle='#0f1a2e';x.font='700 16px Manrope,sans-serif';x.fillText('Πίνακας μετρήσεων',M,58);
+    const g=x.createLinearGradient(M,0,M+150,0);g.addColorStop(0,'#0891b2');g.addColorStop(.55,'#7c3aed');g.addColorStop(1,'#e11d48');x.fillStyle=g;x.fillRect(M,66,150,3);
+    x.textAlign='right';x.font='700 9px Manrope,sans-serif';x.fillStyle='#55627a';x.fillText('HEXIS · PDF Dim',PW-M,58);x.textAlign='left';
+    x.font='500 9px Manrope,sans-serif';x.fillStyle='#55627a';
+    x.fillText(ellip(x,(S.proj&&S.proj.name?'Έργο: '+S.proj.name+'  ·  ':'')+'Σχέδιο: '+S.fileName,PW-2*M),M,88);
+    x.fillText('Ημερομηνία: '+date+'  ·  Συντεταγμένες: '+(S.origin?'από αρχή χρήστη (X '+fN(S.origin.E,3)+', Y '+fN(S.origin.N,3)+')':'από κάτω αριστερή γωνία φύλλου')+(n>1?'  ·  φύλλο '+(pi+1)+'/'+n:''),M,102);
+    let y=top-RH,xx=M;x.fillStyle='#eef2f8';x.fillRect(M,y,PW-2*M,RH);x.fillStyle='#0f1a2e';x.font='700 8px Manrope,sans-serif';
+    cols.forEach(([h,w])=>{x.fillText(h,xx+3,y+11.5);xx+=w;});
+    rows.slice(pi*per,(pi+1)*per).forEach((m,i)=>{y+=RH;if(i%2){x.fillStyle='#f7f9fc';x.fillRect(M,y,PW-2*M,RH);}
+      x.strokeStyle='#e3e8f1';x.lineWidth=.5;x.beginPath();x.moveTo(M,y+RH);x.lineTo(PW-M,y+RH);x.stroke();
+      const inf=info(m),vals=[String(pi*per+i+1),m.name,m.type==='area'?SHAPEN[m.shape||'poly']:TYPEN[m.type],m.type==='note'?m.text:inf.sh,m.note||'',m.type==='note'?'':scaleTxt(m.N),String(m.page)];
+      xx=M;vals.forEach((v,j)=>{const w=cols[j][1];x.fillStyle=j===3?'#0e7490':'#0f1a2e';
+        x.font=j===3&&m.type!=='note'?'700 8px "JetBrains Mono",monospace':'500 8px Manrope,sans-serif';
+        if(j===0){x.fillStyle=COL[m.type];x.beginPath();x.arc(xx+4,y+8.5,2.6,0,TAU);x.fill();x.fillStyle='#55627a';x.fillText(v,xx+9,y+11.5);}
+        else x.fillText(ellip(x,v,w-6),xx+3,y+11.5);xx+=w;});
+    });
+    x.font='500 7.5px Manrope,sans-serif';x.fillStyle='#8592a8';
+    x.fillText('Οι τιμές υπολογίζονται από την κλίμακα του σχεδίου και ελέγχονται από τον μηχανικό.',M,PH-28);
+    x.textAlign='right';x.fillText((pi+1)+' / '+n,PW-M,PH-28);
+    out.push({c,PW,PH});
+  }
+  return out;
+}
+
+/* ---------- PDF με διαστάσεις ---------- */
+async function buildAnnotatedPDF(){
+  const L=await pdfLib();await fontsReady();const z0=LBLZ[SOPT.lbl]||1.7;
+  let doc=null;try{doc=await L.PDFDocument.load(S.bytes,{updateMetadata:false});}catch(e){console.warn('pdf-lib load → raster',e);doc=null;}
+  if(doc){
+    for(const pn of annotPages()){
+      const p=await S.doc.getPage(pn),vp=p.getViewport({scale:1}),W=vp.width,H=vp.height;
+      busy(true,'PDF με διαστάσεις · σελίδα '+pn+'…');
+      const c=annotCanvas(pn,W,H,rasterK(W,H,300/72),z0);
+      const img=await doc.embedPng(await (await canvasBlob(c,'image/png')).arrayBuffer());
+      const P0=vp.convertToPdfPoint(0,H),P1=vp.convertToPdfPoint(W,H),P2=vp.convertToPdfPoint(0,0);
+      const page=doc.getPage(pn-1);
+      page.drawImage(img,{x:P0[0],y:P0[1],width:Math.hypot(P1[0]-P0[0],P1[1]-P0[1]),height:Math.hypot(P2[0]-P0[0],P2[1]-P0[1]),
+        rotate:L.degrees(Math.atan2(P1[1]-P0[1],P1[0]-P0[0])*180/Math.PI)});
+    }
+  }else{
+    doc=await L.PDFDocument.create();
+    for(let pn=1;pn<=S.doc.numPages;pn++){busy(true,'PDF με διαστάσεις · σελίδα '+pn+'/'+S.doc.numPages+'…');
+      const p=await S.doc.getPage(pn),vp=p.getViewport({scale:1});const c=await sheetCanvas(pn,z0,200);
+      const img=await doc.embedJpg(await (await canvasBlob(c,'image/jpeg',.9)).arrayBuffer());
+      doc.addPage([vp.width,vp.height]).drawImage(img,{x:0,y:0,width:vp.width,height:vp.height});}
+  }
+  if(SOPT.table){for(const t of await tablePages()){const img=await doc.embedPng(await (await canvasBlob(t.c,'image/png')).arrayBuffer());
+    doc.addPage([t.PW,t.PH]).drawImage(img,{x:0,y:0,width:t.PW,height:t.PH});}}
+  try{doc.setProducer('HEXIS PDF Dim');doc.setModificationDate(new Date());}catch(e){}
+  return new Blob([await doc.save()],{type:'application/pdf'});
+}
+const dimName=()=>baseName()+'_διαστάσεις.pdf';
+
+/* ---------- ενέργειες αποθήκευσης ---------- */
+async function doSave(kind){
+  if(!S.page)return toast('Άνοιξε πρώτα ένα σχέδιο',true);
+  closeSave();
+  try{
+    if(kind==='shot'){const c=snapshotCanvas();await saveBlob(await canvasBlob(c,'image/png'),baseName()+'_στιγμιότυπο.png');return;}
+    if(kind==='pdf'||kind==='proj'){if(!S.meas.length&&!S.origin)return toast('Δεν υπάρχουν μετρήσεις ή σημειώσεις για αποθήκευση',true);}
+    busy(true,'Προετοιμασία…');
+    if(kind==='sheet'){const c=await sheetCanvas(S.pageNum,LBLZ[SOPT.lbl]||1.7,300);busy(false);await saveBlob(await canvasBlob(c,'image/jpeg',.92),baseName()+'_σελ'+S.pageNum+'.jpg');return;}
+    if(kind==='pdf'){const b=await buildAnnotatedPDF();busy(false);await saveBlob(b,dimName());toast('Αποθηκεύτηκε: '+dimName());return;}
+    if(kind==='work'){const w=workState();w.app='HEXIS PDF Dim';w.pdf=b64(S.bytes);busy(false);
+      download(new Blob([JSON.stringify(w)],{type:'application/json'}),baseName()+'.hexdim');toast('Αρχείο εργασίας: άνοιξέ το με «Άνοιγμα» για να συνεχίσεις');return;}
+    if(kind==='proj'){await saveToProject();return;}
+    if(kind==='entry'){await toEntry();return;}
+  }catch(e){console.error(e);toast('Αποτυχία: '+(e.message||e),true);}
+  finally{busy(false);}
+}
+async function sbPut(sb,path,blob,type){
+  const {error}=await sb.storage.from('hexis-files').upload(path,await blob.arrayBuffer(),{upsert:true,contentType:type,cacheControl:'0'});
+  if(error)throw new Error('Αποθήκευση αρχείου: '+(error.message||error.error||error));
+}
+async function saveToProject(){
+  if(!S.proj)return;
+  busy(true,'Σύνδεση με το έργο…');const {sb,ses}=await sbSession();const uidv=ses.user.id;
+  busy(true,'Δημιουργία PDF με διαστάσεις…');const blob=await buildAnnotatedPDF();
+  busy(true,'Αποθήκευση στο έργο…');
+  const name=dimName();let out=S.proj.out;
+  if(!out||!out.path||out.path.indexOf(uidv+'/')!==0)out={id:rid(),path:uidv+'/'+S.proj.id+'/files/'+Date.now()+'_'+latin(name)};
+  out.url=SB_URL+'/storage/v1/object/public/hexis-files/'+out.path;
+  await sbPut(sb,out.path,blob,'application/pdf');
+  const eng=localStorage.getItem('hexis_engineer')||'—',uploaded=new Date().toLocaleDateString('el-GR'),size=fmtSize(blob.size);
+  const row={id:out.id,project_id:S.proj.id,name,size,url:out.url,path:out.path,is_link:false,engineer:eng,uploaded};
+  const {error}=await sb.from('files').upsert(row);if(error)throw new Error('Καταχώριση στο έργο: '+(error.message||error));
+  try{const k='hexis_files_'+S.proj.id,arr=JSON.parse(localStorage.getItem(k)||'[]'),i=arr.findIndex(f=>f.id===out.id);
+    const item={id:out.id,name,size,url:out.url,path:out.path,engineer:eng,uploaded,_synced:true};
+    if(i>=0)arr[i]=Object.assign(arr[i],item);else arr.push(item);localStorage.setItem(k,JSON.stringify(arr));}catch(e){}
+  S.proj.out=out;
+  const wb=new Blob([JSON.stringify(workState())],{type:'application/json'});
+  try{await sbPut(sb,projWorkPath(uidv),wb,'application/json');}
+  catch(e){try{await sbPut(sb,projWorkPath(uidv),new Blob([await wb.text()],{type:'text/plain'}),'text/plain');}catch(e2){console.warn('work save',e2);toast('Το PDF αποθηκεύτηκε, αλλά όχι οι επεξεργάσιμες μετρήσεις στο έργο (μένουν σε αυτή τη συσκευή)',true);}}
+  autoSave();busy(false);
+  toast('Αποθηκεύτηκε στα αρχεία του έργου: '+name);
+}
+function goProject(tab){
+  autoSave();S.leaving=true;
+  try{sessionStorage.setItem('hexis_return',JSON.stringify({proj:S.proj.id,tab:tab||'files',t:Date.now()}));}catch(e){}
+  location.href='app.html';
+}
+async function toEntry(){
+  if(!S.proj)return;
+  const c=snapshotCanvas(),mx=2000,f=Math.min(1,mx/Math.max(c.width,c.height));
+  const d=document.createElement('canvas');d.width=Math.round(c.width*f);d.height=Math.round(c.height*f);d.getContext('2d').drawImage(c,0,0,d.width,d.height);
+  const ms=S.meas.filter(m=>m.page===S.pageNum);
+  const lines=ms.slice(0,40).map(m=>'• '+m.name+': '+(m.type==='note'?m.text:info(m).sh)+(m.note?' ('+m.note+')':''));
+  if(ms.length>40)lines.push('… και '+(ms.length-40)+' ακόμη');
+  const report='📏 Μετρήσεις σε σχέδιο — '+S.fileName+(S.doc.numPages>1?' (σελ. '+S.pageNum+')':'')+' · κλίμακα '+scaleTxt(S.scaleN)+(lines.length?'\n'+lines.join('\n'):'');
+  try{sessionStorage.setItem('hexis_scan_result',JSON.stringify({report,png:d.toDataURL('image/jpeg',.86),pngName:latin(baseName())+'_metriseis.jpg'}));}
+  catch(e){throw new Error('Το στιγμιότυπο είναι πολύ μεγάλο για μεταφορά — κάνε σμίκρυνση της προβολής');}
+  goProject('overview');
+}
+
+/* ---------- παράθυρο αποθήκευσης ---------- */
+function openSave(){
+  if(!S.page)return toast('Άνοιξε πρώτα ένα σχέδιο',true);
+  $('#sProj').hidden=!S.proj;if(S.proj)$('#sProjName').textContent=S.proj.name?'«'+S.proj.name+'»':'';
+  $('#sTable').checked=!!SOPT.table;$('#sLbl').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===SOPT.lbl));
+  $('#saveDlg').hidden=false;closePanelMobile();
+}
+function closeSave(){$('#saveDlg').hidden=true;}
+$('#saveDlg').addEventListener('click',e=>{if(e.target.id==='saveDlg')closeSave();const b=e.target.closest('[data-s]');if(b)doSave(b.dataset.s);});
+$('#sClose').onclick=closeSave;
+$('#sTable').onchange=e=>{SOPT.table=e.target.checked;saveOpt();};
+$('#sLbl').onclick=e=>{const b=e.target.closest('button');if(!b)return;SOPT.lbl=b.dataset.v;saveOpt();$('#sLbl').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));};
+$('#btnSave').onclick=openSave;$('#btnSave2').onclick=openSave;
+$('#btnPDF').onclick=()=>doSave('pdf');
+$('#bShot').onclick=()=>doSave('shot');
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();if($('#saveDlg').hidden)openSave();}
+  else if(e.key==='Escape'&&!$('#saveDlg').hidden)closeSave();},true);
+if(S.proj){
+  document.body.classList.add('inproj');
+  $('#btnBack').onclick=e=>{e.preventDefault();goProject('files');};
+  $('#btnBack').title='Πίσω στο έργο';
+  openFromProject();
+}
+
 </script>
 </body>
 </html>
