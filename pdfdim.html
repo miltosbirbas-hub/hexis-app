@@ -172,6 +172,10 @@ input[type=range]{width:100%;accent-color:#22d3ee}
   .hb{padding:0 10px;font-size:12px}
   .hide-m{display:none}
   .mob{display:inline-flex;align-items:center}
+  #btnTheme{display:none}
+  #pageSel{max-width:88px;padding:0 4px;font-size:12px}
+  body.multip .brand{display:none}
+  body.multip .hgroup{margin-left:auto}
   .hgroup{gap:6px}.logo{font-size:15px}
   .hb{padding:0 9px}
   main{grid-template-columns:1fr;grid-template-rows:1fr auto}
@@ -200,6 +204,43 @@ input[type=range]{width:100%;accent-color:#22d3ee}
 .sset .seg{margin-bottom:6px}
 body.inproj #btnSave{background:var(--grad);border-color:transparent;color:#06101f;font-weight:800}
 :root[data-theme="light"] body.inproj #btnSave{color:#fff}
+
+/* γεωαναφορά */
+.gstat{font-weight:800;font-size:12.5px;margin:2px 0 8px;color:var(--mut)}
+.gstat.ok,.ok{color:var(--gr)}.gstat.warn{color:var(--am)}.bad{color:var(--ro)}
+.glist{display:flex;flex-direction:column;gap:4px;margin:8px 0;max-height:220px;overflow-y:auto}
+.gpt{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:6px;padding:5px 7px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);font-size:12px}
+.gpt.off{opacity:.5}.gpt label{display:flex;align-items:center;gap:5px}.gpt input{accent-color:#22d3ee}
+.gpt .mono{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gpt .x{width:24px;height:24px;border:0;background:transparent;color:var(--dim)}.gpt .x:hover{color:var(--ro)}
+.gpsbox{display:flex;flex-direction:column;gap:3px;margin:8px 0;padding:9px 10px;border:1px solid rgba(59,130,246,.5);border-radius:10px;background:rgba(59,130,246,.08);font-size:12.5px}
+.gpsbox .gnav{color:var(--txt)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fld select{width:100%;height:40px;border-radius:10px;border:1px solid var(--line2);background:var(--panel2);padding:0 9px;font-size:14px}
+.btn:disabled{opacity:.45;cursor:default}
+.kv .ok,.kv .warn,.kv .bad{font-weight:700}
+#north{position:absolute;right:12px;top:52px;width:44px;height:44px;border-radius:50%;border:1px solid var(--line2);background:rgba(13,20,36,.92);color:var(--txt);z-index:6;padding:5px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+#north svg{width:100%;height:100%;transition:transform .15s}
+:root[data-theme="light"] #north{background:#fff;color:#0f1a2e}
+#mapDlg{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;background:var(--bg)}
+#mapDlg[hidden]{display:none}
+.mtop{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line);background:var(--bg2)}
+.mttl{font-family:Unbounded,sans-serif;font-size:12px;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto}
+#mapSearch{flex:1;min-width:80px;height:34px;border-radius:9px;border:1px solid var(--line2);background:var(--panel2);padding:0 10px;font-size:13px}
+#mapWrap{position:relative;flex:1;min-height:0}
+#mapBox{position:absolute;inset:0;background:#0b1220}
+#mapCross{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;pointer-events:none;z-index:500;
+  background:linear-gradient(#facc15,#facc15) center/2px 100% no-repeat,linear-gradient(#facc15,#facc15) center/100% 2px no-repeat;filter:drop-shadow(0 0 2px #000)}
+#mapCross::after{content:"";position:absolute;inset:16px;border:2px solid #facc15;border-radius:50%}
+.mlay{position:absolute;top:10px;right:10px;z-index:600;display:flex;flex-direction:column;gap:5px}
+.mlay button{height:32px;padding:0 11px;border-radius:9px;border:1px solid var(--line2);background:rgba(13,20,36,.92);color:var(--txt);font-weight:700;font-size:12px}
+.mlay button.on{border-color:var(--cy);color:var(--cy)}
+:root[data-theme="light"] .mlay button{background:#fff}
+#mapSheet{padding:10px 12px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--bg2);max-height:42dvh;overflow-y:auto}
+.mrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:6px 0;font-size:12.5px;color:var(--mut)}
+.mrow input[type=range]{flex:1;min-width:120px;width:auto}
+.mrow #mSc{width:90px;height:30px;border-radius:8px;border:1px solid var(--line2);background:var(--panel2);padding:0 8px;color:var(--txt)}
+.grov{position:absolute;left:0;top:0}
 /* ---------- ανοιχτόχρωμο θέμα ---------- */
 :root[data-theme="light"]{
   --bg:#eef2f8;--bg2:#f7f9fc;--panel:#ffffff;--panel2:#f1f4f9;--line:#dde3ee;--line2:#c8d1e1;
@@ -271,8 +312,18 @@ body.inproj #btnSave{background:var(--grad);border-color:transparent;color:#0610
   var tok = '';
   if (raw) { try{ var s = JSON.parse(raw); tok = s.access_token || (s.currentSession && s.currentSession.access_token) || ''; }catch(e){} }
   if (!tok) { deny('login.html'); return; }
-  // Δωρεάν εργαλείο: αρκεί η σύνδεση στο HEXIS, χωρίς έλεγχο συνδρομής
-  allow();
+  fetch(SB + '/rest/v1/entitlements?select=module,active,expires_at&module=eq.' + MODULE, {
+    headers: { apikey: KEY, Authorization: 'Bearer ' + tok }
+  }).then(function(r){
+    if (r.status === 401 || r.status === 403) { if (cachedOk()) { allow(); } else { deny('hub.html'); } return null; }
+    return r.json();
+  }).then(function(rows){
+    if (rows === null) return;
+    var ok = (rows || []).some(function(e){ return e.active && (!e.expires_at || new Date(e.expires_at) > new Date()); });
+    if (ok) allow(); else deny('tool.html?id=' + MODULE);
+  }).catch(function(){
+    if (cachedOk()) allow(); else offlineMsg();
+  });
 })();
 </script>
 <header>
@@ -286,7 +337,7 @@ body.inproj #btnSave{background:var(--grad);border-color:transparent;color:#0610
     <button class="hb ghost hide-m" id="btnNew">Νέο αρχείο</button>
     <button class="hb ghost" id="btnTheme" title="Ανοιχτόχρωμο / σκουρόχρωμο">☀</button>
     <button class="hb ghost" id="btnHelp" title="Οδηγίες"><span class="hide-m">Οδηγίες</span><span class="mob">?</span></button>
-    <button class="hb ghost mob" id="btnPanel">Πάνελ</button>
+    <button class="hb ghost mob" id="btnPanel" title="Πάνελ μετρήσεων" aria-label="Πάνελ"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
   </div>
   <input type="file" id="fileIn" accept="application/pdf,.pdf,.hexdim" hidden>
 </header>
@@ -298,6 +349,7 @@ body.inproj #btnSave{background:var(--grad);border-color:transparent;color:#0610
     <canvas id="view"></canvas>
     <canvas id="ov"></canvas>
     <canvas id="loupe"></canvas>
+    <button id="north" hidden title="Βορράς — πάτα για βορρά προς τα πάνω"><svg viewBox="0 0 24 24"><path d="M12 2.5 17 14h-10z" fill="#fb7185"/><path d="M12 21.5 7 14h10z" fill="currentColor" opacity=".55"/><text x="12" y="12.6" text-anchor="middle" font-size="5.2" font-weight="800" fill="#fff" font-family="Manrope,sans-serif">B</text></svg></button>
     <div id="hint">Άνοιξε ένα σχέδιο PDF για να ξεκινήσεις</div>
     <div id="undoBar">
       <button id="bUndo" title="Αναίρεση (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span>Αναίρεση</span></button>
@@ -338,6 +390,11 @@ body.inproj #btnSave{background:var(--grad);border-color:transparent;color:#0610
       </div>
     </details>
 
+    <details class="card" open id="grCard">
+      <summary>Γεωαναφορά · ΕΓΣΑ87</summary>
+      <div class="in" id="grIn"></div>
+    </details>
+
     <details class="card" open>
       <summary>Μετρήσεις &amp; σημειώσεις</summary>
       <div class="in">
@@ -360,6 +417,7 @@ body.inproj #btnSave{background:var(--grad);border-color:transparent;color:#0610
         <div class="row" style="margin-top:8px"><label>Γωνία (°)</label><input id="rotIn" type="text" inputmode="decimal" style="width:90px;height:32px;border-radius:8px;border:1px solid var(--line2);background:var(--panel2);padding:0 8px" class="mono"></div>
         <button class="btn" id="btnAlign">Ευθυγράμμιση με γραμμή του σχεδίου</button>
         <div class="row"><label>Περιστροφή με δύο δάχτυλα</label><label class="sw"><input type="checkbox" id="twoRot" checked><span></span></label></div>
+        <div class="row"><label>Ανοιχτόχρωμο θέμα εφαρμογής</label><label class="sw"><input type="checkbox" id="lightSw"><span></span></label></div>
         <div class="row"><label>Σκοτεινό φόντο σχεδίου</label><label class="sw"><input type="checkbox" id="darkBg"><span></span></label></div>
       </div>
     </details>
@@ -421,6 +479,11 @@ body.inproj #btnSave{background:var(--grad);border-color:transparent;color:#0610
     <button class="sopt" data-s="pdf"><b>PDF με διαστάσεις</b><small>Το αρχικό σχέδιο σε πλήρη ποιότητα, με τις μετρήσεις και τις σημειώσεις τυπωμένες πάνω του.</small></button>
     <button class="sopt" data-s="shot"><b>Στιγμιότυπο οθόνης</b><small>Ό,τι βλέπεις τώρα, ως εικόνα PNG.</small></button>
     <button class="sopt" data-s="sheet"><b>Ολόκληρη σελίδα ως εικόνα</b><small>Η τρέχουσα σελίδα σε υψηλή ανάλυση (JPG), με τις μετρήσεις.</small></button>
+    <div id="sGeo" hidden>
+      <div class="sgrp">Γεωαναφερμένα (ΕΓΣΑ87)</div>
+      <button class="sopt" data-s="kmz"><b>KMZ για χάρτες</b><small>Το σχέδιο ως επικάλυψη στη σωστή θέση, μαζί με τις μετρήσεις, για εφαρμογές χαρτών και για σχεδιασμό πτήσης drone.</small></button>
+      <button class="sopt" data-s="world"><b>Εικόνα + world file (CAD / GIS)</b><small>JPG με αρχεία .jgw και .prj: μπαίνει αυτόματα στη θέση του σε ΕΓΣΑ87. Το DXF των μετρήσεων βγαίνει επίσης σε ΕΓΣΑ87.</small></button>
+    </div>
     <button class="sopt" data-s="work"><b>Αρχείο εργασίας (.hexdim)</b><small>Σχέδιο και μετρήσεις σε ένα αρχείο, για να συνεχίσεις αργότερα σε οποιαδήποτε συσκευή.</small></button>
     <div class="sset">
       <label class="ck"><input type="checkbox" id="sTable">Πίνακας μετρήσεων ως τελευταία σελίδα του PDF</label>
@@ -430,6 +493,29 @@ body.inproj #btnSave{background:var(--grad);border-color:transparent;color:#0610
     <div class="note">Οι μετρήσεις αποθηκεύονται αυτόματα και σε αυτή τη συσκευή. Αν ξανανοίξεις το ίδιο PDF, σου προτείνεται να συνεχίσεις από εκεί που έμεινες.</div>
     <div class="mact"><button id="sClose">Κλείσιμο</button></div>
   </div>
+</div>
+<div class="ovl" id="modal2" hidden>
+  <div class="mbox sbox"><h3 class="mtitle"></h3><div class="mbody"></div><div class="mact"></div></div>
+</div>
+<div class="ovl" id="gcpDlg" hidden>
+  <div class="mbox">
+    <h3 id="gcpT">Σημείο ελέγχου</h3>
+    <p>Δώσε τις γνωστές συντεταγμένες <b>ΕΓΣΑ87</b> του σημείου που πάτησες στο σχέδιο.</p>
+    <label class="fld" id="gcpListW" hidden><span>Από τη λίστα συντεταγμένων</span><select id="gcpList"></select></label>
+    <label class="fld"><span>Όνομα σημείου</span><input id="gcpName" type="text"></label>
+    <div class="two"><label class="fld"><span>X (Ε) σε m</span><input id="gcpE" type="text" inputmode="decimal" placeholder="π.χ. 345123,45"></label>
+      <label class="fld"><span>Y (Ν) σε m</span><input id="gcpN" type="text" inputmode="decimal" placeholder="π.χ. 4290123,67"></label></div>
+    <div class="btns"><button class="btn" id="gcpMap">Από τον χάρτη</button><button class="btn" id="gcpGps">Από το GPS (θέση μου)</button></div>
+    <div class="note" id="gcpMsg"></div>
+    <div class="mact"><button id="gcpCancel">Άκυρο</button><button class="go" id="gcpOk">Προσθήκη</button></div>
+  </div>
+</div>
+<div id="mapDlg" hidden>
+  <div class="mtop"><button class="hb ghost" id="mapClose" title="Κλείσιμο">✕</button><div class="mttl" id="mapTitle">Χάρτης</div>
+    <input id="mapSearch" type="text" placeholder="ΚΑΕΚ, X Y (ΕΓΣΑ87) ή πλάτος, μήκος"><button class="hb ghost" id="mapGo">Μετάβαση</button></div>
+  <div id="mapWrap"><div id="mapBox"></div><div id="mapCross" hidden></div>
+    <div class="mlay"><button id="mlSat" class="on">Δορυφόρος</button><button id="mlKt">Όρια Κτηματολογίου</button><button id="mlMe">Η θέση μου</button></div></div>
+  <div id="mapSheet"></div>
 </div>
 <div class="ovl" id="help" hidden>
   <div class="mbox" id="helpBox">
@@ -493,14 +579,30 @@ body.inproj #btnSave{background:var(--grad);border-color:transparent;color:#0610
       <li><b>CSV</b>: πίνακας όλων των μετρήσεων για υπολογιστικό φύλλο. <b>DXF</b>: οι μετρήσεις της σελίδας σε πραγματικές διαστάσεις (μέτρα, 1:1), σε ξεχωριστά επίπεδα, με τις συντεταγμένες της αρχής αν έχει οριστεί.</li>
     </ul>
 
-    <h4>8 · ΣΥΝΔΕΣΗ ΜΕ ΤΑ ΕΡΓΑ ΤΟΥ HEXIS</h4>
+    <h4>8 · ΓΕΩΑΝΑΦΟΡΑ (ΕΓΣΑ87)</h4>
+    <p>Η γεωαναφορά «δένει» το σχέδιο με το ΕΓΣΑ87. Μετά από αυτήν, κάθε σημείο έχει πραγματικές συντεταγμένες, τα μήκη και τα εμβαδά υπολογίζονται από τη γεωαναφορά, το DXF βγαίνει στη θέση του, και το σχέδιο φαίνεται πάνω στον χάρτη. Ξεκινάς από το κουμπί <b>Γεωαναφ.</b> ή από την καρτέλα «Γεωαναφορά» και διαλέγεις έναν από τους τέσσερις τρόπους:</p>
+    <ul>
+      <li><b>Αυτόματα από το τοπογραφικό</b>: διαβάζεται ο πίνακας συντεταγμένων κορυφών και οι κορυφές εντοπίζονται στο σχέδιο από τις ετικέτες τους (Κ1, Κ2…). Αλλιώς διαβάζεται ο κάνναβος του φύλλου. Βλέπεις το σφάλμα και εγκρίνεις. Αν οι ετικέτες δεν βρεθούν, σου ζητείται κάθε κορυφή με τη σειρά και την πατάς εσύ.</li>
+      <li><b>Με γνωστά σημεία</b>: πατάς σημεία στο σχέδιο (με έλξη σε γωνίες ή σταυρούς) και δίνεις X, Y με πληκτρολόγηση, από αρχείο TXT/CSV (<i>όνομα,X,Y</i>, π.χ. μετρήσεις RTK), από τον χάρτη ή από το GPS. Με 2 σημεία γίνεται η γεωαναφορά. Με 3 ή περισσότερα βλέπεις και το <b>σφάλμα κάθε σημείου</b> (πράσινο: εντός ανοχής σχεδίου 0,2 mm × κλίμακα, κίτρινο: οριακό, κόκκινο: λάθος). Ένα λάθος σημείο το απενεργοποιείς με το κουτάκι. Για σαρώσεις με παραμορφωμένο χαρτί διάλεξε «Affine» με 4 ή περισσότερα σημεία.</li>
+      <li><b>Τοποθέτηση στον χάρτη</b>: για κατόψεις και σχέδια χωρίς συντεταγμένες. Σέρνεις το σχέδιο πάνω στη δορυφορική εικόνα και το στρίβεις με τη μπάρα. Το μέγεθος το δίνει η κλίμακα. Ακρίβεια περίπου 1–3 m.</li>
+      <li><b>Από γεωτεμάχιο ΚΑΕΚ</b>: ορίζεις το περίγραμμα του οικοπέδου (εμβαδόν ή αυτόματο σχήμα) και βρίσκεις το ΚΑΕΚ (με αριθμό, στον χάρτη ή στη θέση του έργου). Το περίγραμμα ταιριάζεται στο όριο του Κτηματολογίου, και στο σχέδιο εμφανίζονται το όριο ΚΑΕΚ και οι αποκλίσεις «Δ» ανά κορυφή.</li>
+    </ul>
+    <ul>
+      <li><b>Βορράς</b>: η πυξίδα πάνω δεξιά δείχνει τον βορρά του κανάβου. Αν την πατήσεις, ο βορράς γυρίζει προς τα πάνω.</li>
+      <li><b>Η θέση μου (GPS)</b>: η θέση σου φαίνεται ως μπλε κουκκίδα πάνω στο σχέδιο, με κύκλο ακρίβειας. Αν επιλέξεις μια μέτρηση ή ένα σημείο, βλέπεις απόσταση και αζιμούθιο μέχρι εκεί. Η ακρίβεια του κινητού είναι μερικά μέτρα: είναι για προσανατολισμό, όχι για χάραξη.</li>
+      <li><b>Δες στον χάρτη</b>: το σχέδιο με τις μετρήσεις πάνω στη δορυφορική εικόνα και στα όρια του Κτηματολογίου, για έλεγχο.</li>
+      <li><b>Εξαγωγές</b>: DXF σε ΕΓΣΑ87, KMZ για χάρτες και drone, εικόνα με world file (.jgw/.prj) για CAD/GIS. Στις μετρήσεις, η στήλη κλίμακας γράφει «ΕΓΣΑ87».</li>
+      <li>Αν σε ένα φύλλο υπάρχει και λεπτομέρεια σε άλλη κλίμακα, διάλεξε την κλίμακά της από την καρτέλα «Κλίμακα» πριν τη μετρήσεις. Οι νέες μετρήσεις παίρνουν τότε αυτή την κλίμακα αντί για τη γεωαναφορά.</li>
+    </ul>
+
+    <h4>9 · ΣΥΝΔΕΣΗ ΜΕ ΤΑ ΕΡΓΑ ΤΟΥ HEXIS</h4>
     <ul>
       <li>Στα <b>Αρχεία</b> ενός έργου, κάθε PDF έχει κουμπί <b>📏</b>: το σχέδιο ανοίγει απευθείας εδώ.</li>
       <li><b>Αποθήκευση στο έργο</b>: το PDF με τις διαστάσεις μπαίνει στα αρχεία του έργου (με επανάληψη ενημερώνεται το ίδιο αρχείο, δεν δημιουργούνται αντίγραφα). Οι μετρήσεις μένουν επεξεργάσιμες: όταν ξανανοίξεις το σχέδιο με το 📏, συνεχίζεις από εκεί.</li>
       <li><b>Νέα καταγραφή με στιγμιότυπο</b>: επιστροφή στο έργο με νέα καταγραφή, το στιγμιότυπο ως φωτογραφία και τις μετρήσεις στην περιγραφή. Συμπληρώνεις και αποθηκεύεις όπως κάθε καταγραφή.</li>
     </ul>
 
-    <h4>9 · ΕΛΕΓΧΟΣ ΑΠΟΤΕΛΕΣΜΑΤΩΝ</h4>
+    <h4>10 · ΕΛΕΓΧΟΣ ΑΠΟΤΕΛΕΣΜΑΤΩΝ</h4>
     <ul>
       <li>Πριν από κάθε σοβαρή χρήση <b>μέτρησε μια γνωστή διάσταση</b> του σχεδίου και σύγκρινέ τη με την αναγραφόμενη. Αν διαφέρει, διόρθωσε την κλίμακα ή κάνε βαθμονόμηση.</li>
       <li>Η ακρίβεια εξαρτάται από την ποιότητα του PDF: σε διανυσματικά σχέδια με έλξη είναι πρακτικά ακριβής· σε σαρώσεις περιορίζεται από την ανάλυση και την παραμόρφωση του χαρτιού.</li>
@@ -574,7 +676,7 @@ function rotateTo(r,sx,sy){if(sx==null){sx=S.cw/2;sy=S.ch/2;}const v=toV(sx,sy);
 function rotateBy(d,sx,sy){rotateTo(S.rot+d,sx,sy);}
 function fit(){if(!S.page)return;const c=Math.abs(Math.cos(S.rot)),s=Math.abs(Math.sin(S.rot));
   const w=S.W*c+S.H*s,h=S.W*s+S.H*c;S.fitZ=Math.min((S.cw-30)/w,(S.ch-60)/h);S.z=S.fitZ;fix({x:S.W/2,y:S.H/2},S.cw/2,(S.ch-20)/2);viewChanged();}
-function viewChanged(){req();scheduleHi();updStatus();updRotUI();}
+function viewChanged(){req();scheduleHi();updStatus();updRotUI();updNorth();}
 
 /* ---------- canvas sizing & drawing ---------- */
 function resize(){const r=stage.getBoundingClientRect();S.dpr=Math.min(window.devicePixelRatio||1,3);
@@ -782,7 +884,8 @@ async function loadPage(n){
   }
   const det=await detectScale(S.page);S.detect=det;
   if(det.length&&!S.userScale)setScale(det[0].N,'auto');
-  updScaleUI();renderList();updateLive();updHint();updUndoUI();
+  const gp=S.gref&&S.gref[n];if(gp&&(S.scaleSrc==='georef'||!S.userScale)){S.scaleN=grScale(gp.p)/PT_M;S.mPerPt=grScale(gp.p);S.scaleSrc='georef';S.userScale=true;}
+  updScaleUI();renderList();updateLive();updHint();updUndoUI();renderGeoCard();updNorth();
 }
 function updSheetInfo(){
   if(!S.page){$('#sheetInfo').textContent='—';return;}
@@ -795,7 +898,8 @@ function updSheetInfo(){
 }
 function resetAll(keepScale){
   if(S.doc){try{S.doc.destroy();}catch(e){}}
-  Object.assign(S,{doc:null,page:null,fileName:'',base:null,hi:null,geo:null,geoCache:{},meas:[],sel:null,cnt:{},hist:[],redo:[],pts:[],origin:null,detect:[],rot:0,bytes:null,fkey:null});
+  Object.assign(S,{doc:null,page:null,fileName:'',base:null,hi:null,geo:null,geoCache:{},meas:[],sel:null,cnt:{},hist:[],redo:[],pts:[],origin:null,detect:[],rot:0,bytes:null,fkey:null,gref:{},kov:{},gcp:null});
+  if(S.gps){try{navigator.geolocation.clearWatch(S.gps.id);}catch(e){}S.gps=null;}
   if(!keepScale){S.userScale=false;}
   S.userScale=false;
   $('#fileName').textContent='Κανένα αρχείο';$('#pageSel').hidden=true;
@@ -817,14 +921,14 @@ function updScaleUI(){
   if(!S.page)$('#scaleDet').innerHTML='';
   else if(det.length)$('#scaleDet').innerHTML='Εντοπίστηκε στο φύλλο:<div class="chips">'+det.map(d=>`<button class="chip det${Math.abs(S.scaleN-d.N)<1e-6?' on':''}" data-n="${d.N}">1:${d.N}</button>`).join('')+'</div>';
   else $('#scaleDet').innerHTML='<span class="warn">Δεν βρέθηκε κλίμακα στα κείμενα του φύλλου.</span> Όρισέ την ή κάνε βαθμονόμηση.';
-  const src={auto:'αυτόματα από το φύλλο — επιβεβαίωσε',manual:'χειροκίνητα',calib:'από βαθμονόμηση',default:'προεπιλογή'}[S.scaleSrc]||'';
+  const src={auto:'αυτόματα από το φύλλο — επιβεβαίωσε',manual:'χειροκίνητα',calib:'από βαθμονόμηση',default:'προεπιλογή',georef:'από τη γεωαναφορά (ΕΓΣΑ87)'}[S.scaleSrc]||'';
   $('#scaleCur').innerHTML=`Ενεργή: <b>${scaleTxt(S.scaleN)}</b> · ${src}<br>1 mm χαρτιού = <b>${fN(S.mPerPt/PT_M/1000*100,S.scaleN<100?2:1)} cm</b> πραγματικά`;
 }
 $('#scaleN').addEventListener('change',e=>{const v=num(e.target.value);if(v>0){if(Math.abs(v-S.scaleN)>1e-9)pushHist();S.userScale=true;setScale(v,'manual');}else updScaleUI();});
 $('#panel').addEventListener('click',e=>{const b=e.target.closest('.chip[data-n]');if(b){if(Math.abs(+b.dataset.n-S.scaleN)>1e-9)pushHist();S.userScale=true;setScale(+b.dataset.n,b.classList.contains('det')?'auto':'manual');}});
 $('#btnCalib').onclick=()=>{if(!S.page)return;setTool('calib');closePanelMobile();};
 $('#btnApplyAll').onclick=()=>{const ms=S.meas.filter(m=>m.page===S.pageNum&&m.type!=='note');if(!ms.length)return toast('Δεν υπάρχουν μετρήσεις στη σελίδα');
-  pushHist();ms.forEach(m=>{m.f=S.mPerPt;m.N=S.scaleN;});renderList();updateLive();req();toast('Εφαρμόστηκε κλίμακα '+scaleTxt(S.scaleN)+' σε '+ms.length+' μετρήσεις');};
+  pushHist();ms.forEach(m=>{m.f=S.mPerPt;m.N=S.scaleN;m.g=useG()&&m.type!=='calib';});renderList();updateLive();req();toast('Εφαρμόστηκε κλίμακα '+scaleTxt(S.scaleN)+' σε '+ms.length+' μετρήσεις');};
 
 /* ---------- tools ---------- */
 const IC={
@@ -846,21 +950,23 @@ const IC={
  snap:'<path d="M6 4v7a6 6 0 0 0 12 0V4h-4v7a2 2 0 0 1-4 0V4z"/><path d="M6 7h4M14 7h4"/>',
  rotL:'<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4"/>',
  rotR:'<path d="M20 12a8 8 0 1 1-2.4-5.7M20 4v4h-4"/>',
- fit:'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><rect x="8" y="8" width="8" height="8" rx="1"/>'
+ fit:'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><rect x="8" y="8" width="8" height="8" rx="1"/>',
+ geo:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.7 3.9 5.7 3.9 9s-1.3 6.3-3.9 9c-2.6-2.7-3.9-5.7-3.9-9S9.4 5.7 12 3z"/>',
+ gps:'<circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="7.5"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/>'
 };
-const TOOLS=[['select','Επιλογή'],'|',['dist','Μήκος'],['poly','Πολυγρ.'],['area','Εμβαδόν'],['rect','Ορθογ.'],['auto','Αυτόματο'],'|',['angle','Γωνία'],['ccr','Κύκλος'],['arc3','Τόξο 3σ'],'|',['point','Σημείο'],['note','Σημείωση'],['origin','Αρχή'],'|',['calib','Βαθμον.'],['align','Ευθυγρ.'],'|',
+const TOOLS=[['select','Επιλογή'],'|',['dist','Μήκος'],['poly','Πολυγρ.'],['area','Εμβαδόν'],['rect','Ορθογ.'],['auto','Αυτόματο'],'|',['angle','Γωνία'],['ccr','Κύκλος'],['arc3','Τόξο 3σ'],'|',['point','Σημείο'],['note','Σημείωση'],['origin','Αρχή'],'|',['calib','Βαθμον.'],['align','Ευθυγρ.'],'|',['!geo','Γεωαναφ.'],['!gps','Θέση'],'|',
   ['!ortho','Ορθό'],['!snap','Έλξη'],['!rotL','−90°'],['!rotR','+90°'],['!fit','Όλο']];
 (function buildTools(){const nav=$('#tools');let h='';
   for(const t of TOOLS){if(t==='|'){h+='<div class="sep"></div>';continue;}const act=t[0][0]==='!',id=act?t[0].slice(1):t[0];
-    h+=`<button class="tb${act?' act':''}${id==='ortho'||id==='snap'?' tog':''}" data-${act?'act':'tool'}="${id}" id="tb_${id}" title="${t[1]}"><svg viewBox="0 0 24 24">${IC[id]}</svg>${t[1]}</button>`;}
+    h+=`<button class="tb${act?' act':''}${id==='ortho'||id==='snap'||id==='gps'?' tog':''}" data-${act?'act':'tool'}="${id}" id="tb_${id}" title="${t[1]}"><svg viewBox="0 0 24 24">${IC[id]}</svg>${t[1]}</button>`;}
   nav.innerHTML=h;
   nav.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
     if(b.dataset.tool)setTool(b.dataset.tool);
     else{const a=b.dataset.act;if(a==='ortho'){S.ortho=!S.ortho;updToggles();toast('Ορθό: '+(S.ortho?'ενεργό':'ανενεργό'));}
       else if(a==='snap'){S.snapMaster=!S.snapMaster;updToggles();toast('Έλξη: '+(S.snapMaster?'ενεργή':'ανενεργή'));}
-      else if(a==='rotL')rotateBy(-Math.PI/2);else if(a==='rotR')rotateBy(Math.PI/2);else if(a==='fit')fit();}});
+      else if(a==='geo')geoWizard();else if(a==='gps')gpsToggle().then(renderGeoCard);else if(a==='rotL')rotateBy(-Math.PI/2);else if(a==='rotR')rotateBy(Math.PI/2);else if(a==='fit')fit();}});
 })();
-function updToggles(){$('#tb_ortho').classList.toggle('on',S.ortho);$('#tb_snap').classList.toggle('on',S.snapMaster);}
+function updToggles(){$('#tb_ortho').classList.toggle('on',S.ortho);$('#tb_snap').classList.toggle('on',S.snapMaster);const g=$('#tb_gps');if(g)g.classList.toggle('on',!!S.gps);}
 function setTool(t){
   if(!S.page&&t!=='select'){toast('Άνοιξε πρώτα ένα σχέδιο PDF',true);return;}
   S.tool=t;S.pts=[];S.snap=null;
@@ -885,6 +991,7 @@ function updHint(){
     case 'note':h='Σημείωση: κλικ στο σημείο αναφοράς και γράψε το κείμενο';break;
     case 'origin':h='Αρχή συντεταγμένων: κλικ στο σημείο αναφοράς';break;
     case 'calib':h=n?'Κλικ στο 2ο άκρο της γνωστής απόστασης':'Βαθμονόμηση: κλικ στο 1ο άκρο μιας γνωστής απόστασης';break;
+    case 'gcp':{const nx=S.gcp&&S.gcp.seq?gcpNext():null;h=nx?'Γεωαναφορά: πάτα την κορυφή «'+nx.name+'» στο σχέδιο':'Γεωαναφορά: πάτα ένα σημείο με γνωστές συντεταγμένες ('+(S.gcp?S.gcp.pts.length:0)+' μέχρι τώρα)';break;}
     case 'align':h=n?'Κλικ σε 2ο σημείο της γραμμής':'Ευθυγράμμιση: κλικ σε 2 σημεία μιας γραμμής που θα γίνει οριζόντια';break;
   }
   $('#hint').textContent=h;
@@ -898,11 +1005,11 @@ $('#bUndo').onclick=()=>undo();$('#bRedo').onclick=()=>redo();
 function afterPts(){updHint();updFab();updateLive();req();updUndoUI();}
 
 /* ---------- measurements ---------- */
-function snapState(){return JSON.stringify({meas:S.meas,cnt:S.cnt,origin:S.origin,sc:[S.scaleN,S.mPerPt,S.scaleSrc,S.userScale]});}
+function snapState(){return JSON.stringify({meas:S.meas,cnt:S.cnt,origin:S.origin,sc:[S.scaleN,S.mPerPt,S.scaleSrc,S.userScale],gref:S.gref,kov:S.kov});}
 function pushHist(){S.hist.push(snapState());if(S.hist.length>150)S.hist.shift();S.redo=[];updUndoUI();scheduleAutosave();}
-function restoreState(h){const o=JSON.parse(h);S.meas=o.meas;S.cnt=o.cnt;S.origin=o.origin||null;
+function restoreState(h){const o=JSON.parse(h);S.meas=o.meas;S.cnt=o.cnt;S.origin=o.origin||null;S.gref=o.gref||{};S.kov=o.kov||{};
   if(o.sc){S.scaleN=o.sc[0];S.mPerPt=o.sc[1];S.scaleSrc=o.sc[2];S.userScale=o.sc[3];}
-  if(!S.meas.find(m=>m.id===S.sel))S.sel=null;updScaleUI();updOrigin();renderList();updateLive();updStatus();req();updUndoUI();scheduleAutosave();}
+  if(!S.meas.find(m=>m.id===S.sel))S.sel=null;updScaleUI();updOrigin();renderList();updateLive();updStatus();req();updUndoUI();scheduleAutosave();renderGeoCard();updNorth();}
 function undo(){if(S.pts.length){S.pts.pop();afterPts();updUndoUI();return;}const h=S.hist.pop();if(!h){toast('Δεν υπάρχει κάτι για αναίρεση');return;}
   S.redo.push(snapState());restoreState(h);}
 function redo(){const h=S.redo.pop();if(!h){toast('Δεν υπάρχει κάτι για επανάληψη');return;}S.hist.push(snapState());restoreState(h);}
@@ -912,7 +1019,7 @@ const getM=id=>S.meas.find(m=>m.id===id);
 function newName(type,shape){const key=type==='area'?'a_'+(shape||'poly'):type;S.cnt[key]=(S.cnt[key]||0)+1;const n=S.cnt[key];
   if(type==='point')return 'Σ'+n;if(type==='area')return SHAPEN[shape||'poly']+' '+n;return TYPEN[type]+' '+n;}
 function commit(type,pts,extra,noHist){if(!noHist)pushHist();
-  const m=Object.assign({id:S.idc++,page:S.pageNum,type,pts:pts.map(cp),f:S.mPerPt,N:S.scaleN,note:''},extra||{});
+  const m=Object.assign({id:S.idc++,page:S.pageNum,type,pts:pts.map(cp),f:S.mPerPt,N:S.scaleN,note:'',g:useG()&&type!=='calib'},extra||{});
   m.name=newName(type,m.shape);S.meas.push(m);S.sel=m.id;renderList();updateLive();req();return m;}
 function rectCorners(a,b){const A=toS(a),B=toS(b);return [toV(A.x,A.y),toV(B.x,A.y),toV(B.x,B.y),toV(A.x,B.y)];}
 
@@ -921,6 +1028,7 @@ function addPoint(){
   if(t==='point'){commit('point',[p]);return;}
   if(t==='note'){createNote(p);return;}
   if(t==='origin'){setOrigin(p);return;}
+  if(t==='gcp'){gcpAdd(p);return;}
   if(t==='auto'){autoShape(S.cursorS.x,S.cursorS.y);return;}
   if(t==='poly'||t==='area'){
     if(S.pts.length){const l=toS(S.pts[S.pts.length-1]),c=toS(p);
@@ -950,7 +1058,7 @@ async function doCalib(P){
     'Πληκτρολόγησε το γνωστό μήκος (π.χ. από διάσταση του σχεδίου). Από αυτό υπολογίζεται η πραγματική κλίμακα.');
   if(!r)return;const L=num(r.L);if(!(L>0))return toast('Μη έγκυρο μήκος',true);
   pushHist();S.userScale=true;S.mPerPt=L/d;S.scaleN=S.mPerPt/PT_M;S.scaleSrc='calib';
-  if(r.all){S.meas.forEach(m=>{if(m.page===S.pageNum&&m.type!=='note'){m.f=S.mPerPt;m.N=S.scaleN;}});}
+  if(r.all){S.meas.forEach(m=>{if(m.page===S.pageNum&&m.type!=='note'){m.f=S.mPerPt;m.N=S.scaleN;m.g=false;}});}
   commit('calib',P,null,true);updScaleUI();setTool('select');
   toast('Βαθμονόμηση: ισοδύναμη κλίμακα ≈ '+scaleTxt(S.scaleN));
 }
@@ -966,31 +1074,35 @@ $('#btnOriginClr').onclick=()=>{if(!S.origin)return;pushHist();S.origin=null;upd
 async function createNote(p){
   const r=await ask('Νέα σημείωση',[{id:'t',label:'Κείμενο',type:'textarea',ph:'π.χ. Υγρασία στη βόρεια τοιχοποιία'}]);
   if(!r||!String(r.t).trim())return;const m=commit('note',[p],{text:String(r.t).trim(),off:{x:56,y:-46}});m.name='Σημείωση '+S.cnt.note;renderList();}
-function coordOf(p,f,page){const o=S.origin;
+function coordOf(p,f,page){const o=S.origin,g=S.gref&&S.gref[page];
+  if(g){const e=grApply(g.p,p.x,p.y);return {X:e[0],Y:e[1],sys:'ΕΓΣΑ87 (γεωαναφορά)',geo:true};}
   if(o&&o.page===page)return {X:(p.x-o.x)*f+o.E,Y:-(p.y-o.y)*f+o.N,sys:'Από την αρχή του χρήστη'};
   return {X:p.x*f,Y:(S.H-p.y)*f,sys:'Από κάτω αριστερή γωνία φύλλου'};}
 
 function info(m){
-  const f=m.f,P=m.pts,R=[];let sh='';const sg=(a,b)=>Math.hypot(b.x-a.x,b.y-a.y)*f;
+  const P=m.pts,Q=P.map(p=>gpt(m,p)),R=[],geo=!!(m.g&&S.gref[m.page]);let sh='';const sg=(i,j)=>Math.hypot(Q[j].x-Q[i].x,Q[j].y-Q[i].y);
   const circR=r=>R.push(['Ακτίνα',fL(r)],['Διάμετρος',fL(2*r)],['Περιφέρεια',fL(TAU*r)],['Εμβαδόν κύκλου',fAr(Math.PI*r*r)]);
   switch(m.type){
-    case 'dist':case 'calib':{if(P.length<2)break;const dx=(P[1].x-P[0].x)*f,dy=-(P[1].y-P[0].y)*f,L=Math.hypot(dx,dy);
-      sh=fL(L)+(m.type==='calib'?' ✓':'');R.push(['Μήκος',fL(L)],['ΔX',fL(dx)],['ΔY',fL(dy)],['Διεύθυνση',fA(Math.atan2(dy,dx))],['Κλίση',Math.abs(dx)>1e-9?fN(dy/Math.abs(dx)*100,2)+' %':'κατακόρυφη']);break;}
-    case 'poly':{let L=0;const parts=[];for(let i=1;i<P.length;i++){const l=sg(P[i-1],P[i]);L+=l;parts.push(l);}
+    case 'dist':case 'calib':{if(P.length<2)break;const dx=Q[1].x-Q[0].x,dy=Q[1].y-Q[0].y,L=Math.hypot(dx,dy);
+      sh=fL(L)+(m.type==='calib'?' ✓':'');R.push(['Μήκος',fL(L)],['ΔX',fL(dx)],['ΔY',fL(dy)]);
+      if(geo)R.push(['Αζιμούθιο',fN(nrm(Math.atan2(dx,dy))*200/Math.PI,4)+' grad'],['Αζιμούθιο (μοίρες)',fN(nrm(Math.atan2(dx,dy))*180/Math.PI,2)+'°']);else R.push(['Διεύθυνση',fA(Math.atan2(dy,dx))]);
+      R.push(['Κλίση',Math.abs(dx)>1e-9?fN(dy/Math.abs(dx)*100,2)+' %':'κατακόρυφη']);break;}
+    case 'poly':{let L=0;const parts=[];for(let i=1;i<P.length;i++){const l=sg(i-1,i);L+=l;parts.push(l);}
       sh='Σ '+fL(L);R.push(['Συνολικό μήκος',fL(L)],['Τμήματα',String(parts.length)]);parts.slice(0,30).forEach((l,i)=>R.push(['Τμήμα '+(i+1),fL(l)]));break;}
-    case 'area':{if(P.length<3){if(P.length===2)sh=fL(sg(P[0],P[1]));break;}
-      const A=polyArea(P)*f*f;let per=0;const sd=[];for(let i=0;i<P.length;i++){const l=sg(P[i],P[(i+1)%P.length]);per+=l;sd.push(l);}
+    case 'area':{if(P.length<3){if(P.length===2)sh=fL(sg(0,1));break;}
+      const A=polyArea(Q);let per=0;const sd=[];for(let i=0;i<P.length;i++){const l=sg(i,(i+1)%P.length);per+=l;sd.push(l);}
       sh=fAr(A);R.push(['Εμβαδόν',fAr(A)],['Περίμετρος',fL(per)]);
       if(m.shape==='rect'&&P.length===4){R.push(['Πλευρά α',fL(sd[0])],['Πλευρά β',fL(sd[1])]);sh=fN(sd[0],S.dec)+' × '+fN(sd[1],S.dec)+' m · '+fAr(A);}
       else{R.push(['Κορυφές',String(P.length)]);sd.slice(0,30).forEach((l,i)=>R.push(['Πλευρά '+(i+1)+'–'+((i+1)%P.length+1),fL(l)]));}break;}
-    case 'angle':{if(P.length<3){if(P.length===2)sh=fL(sg(P[0],P[1]));break;}const a=angAt(P[0],P[1],P[2]);
-      sh=fA(a);R.push(['Γωνία',fA(a)],['Παραπληρωματική',fA(Math.PI-a)],['Ως 360°',fA(TAU-a)],['Σκέλος 1',fL(sg(P[1],P[0]))],['Σκέλος 2',fL(sg(P[1],P[2]))]);break;}
-    case 'ccr':{if(P.length<2)break;const r=sg(P[0],P[1]);sh='R '+fL(r);circR(r);break;}
-    case 'arc3':{if(P.length<3){if(P.length===2)sh=fL(sg(P[0],P[1]));break;}const c=circ(P[0].x,P[0].y,P[1].x,P[1].y,P[2].x,P[2].y);
-      if(!c){sh='συνευθειακά';break;}const r=Math.hypot(P[0].x-c[0],P[0].y-c[1])*f,sw=arcSweep(c,P);sh='R '+fL(r);circR(r);
-      R.push(['Γωνία τόξου 1→3',fA(sw)],['Μήκος τόξου 1→3',fL(r*sw)],['Χορδή 1→3',fL(sg(P[0],P[2]))]);break;}
-    case 'point':{const q=coordOf(P[0],f,m.page);sh=m.name+(S.showPtCoords?'  X '+fN(q.X,S.dec)+' · Y '+fN(q.Y,S.dec):'');
-      R.push(['X',fN(q.X,3)+' m'],['Y',fN(q.Y,3)+' m'],['Σύστημα',q.sys]);break;}
+    case 'angle':{if(P.length<3){if(P.length===2)sh=fL(sg(0,1));break;}const a=angAt(Q[0],Q[1],Q[2]);
+      sh=fA(a);R.push(['Γωνία',fA(a)],['Παραπληρωματική',fA(Math.PI-a)],['Ως 360°',fA(TAU-a)],['Σκέλος 1',fL(sg(1,0))],['Σκέλος 2',fL(sg(1,2))]);break;}
+    case 'ccr':{if(P.length<2)break;const r=sg(0,1);sh='R '+fL(r);circR(r);break;}
+    case 'arc3':{if(P.length<3){if(P.length===2)sh=fL(sg(0,1));break;}const c=circ(Q[0].x,Q[0].y,Q[1].x,Q[1].y,Q[2].x,Q[2].y);
+      if(!c){sh='συνευθειακά';break;}const r=Math.hypot(Q[0].x-c[0],Q[0].y-c[1]),sw=arcSweep(c,Q);sh='R '+fL(r);circR(r);
+      R.push(['Γωνία τόξου 1→3',fA(sw)],['Μήκος τόξου 1→3',fL(r*sw)],['Χορδή 1→3',fL(sg(0,2))]);break;}
+    case 'point':{const q=coordOf(P[0],m.f,m.page);sh=m.name+(S.showPtCoords?'  X '+fN(q.X,S.dec)+' · Y '+fN(q.Y,S.dec):'');
+      R.push(['X',fN(q.X,3)+' m'],['Y',fN(q.Y,3)+' m'],['Σύστημα',q.sys]);
+      if(q.geo&&window.proj4){try{const w=toWgs(q.X,q.Y);R.push(['Γεωγρ. πλάτος',fN(w.lat,7)+'°'],['Γεωγρ. μήκος',fN(w.lng,7)+'°']);}catch(e){}}break;}
     case 'note':sh=m.text||'';break;
   }
   return {sh,R};
@@ -998,9 +1110,9 @@ function info(m){
 function tempMeas(){
   const t=S.tool;if(!S.cursor||!S.pts.length)return null;
   const P=[...S.pts,S.cursor];
-  if(t==='rect')return {type:'area',shape:'rect',pts:rectCorners(P[0],P[1]),f:S.mPerPt,page:S.pageNum};
+  if(t==='rect')return {type:'area',shape:'rect',pts:rectCorners(P[0],P[1]),f:S.mPerPt,page:S.pageNum,g:useG()};
   const type={dist:'dist',calib:'calib',align:'dist',poly:'poly',area:'area',angle:'angle',ccr:'ccr',arc3:'arc3'}[t];
-  if(!type)return null;return {type,shape:'poly',pts:P,f:S.mPerPt,page:S.pageNum,temp:true};
+  if(!type)return null;return {type,shape:'poly',pts:P,f:S.mPerPt,page:S.pageNum,temp:true,g:useG()&&t!=='calib'};
 }
 function kvHtml(R){return '<div class="kv">'+R.map(r=>`<span>${esc(r[0])}</span><span>${esc(r[1])}</span>`).join('')+'</div>';}
 function updateLive(){
@@ -1009,7 +1121,7 @@ function updateLive(){
   const m=S.sel!=null?getM(S.sel):null;
   if(m){const i=info(m);
     el.innerHTML=`<div class="lt">${esc(m.name)}</div><div class="big">${esc(m.type==='note'?'':i.sh)}</div>${m.type==='note'?`<div class="note" style="color:var(--txt);font-size:13px;white-space:pre-wrap">${esc(m.text)}</div>`:kvHtml(i.R)}
-      ${m.type!=='note'?`<div class="note">Κλίμακα μέτρησης: <b>${scaleTxt(m.N)}</b> · σελ. ${m.page}</div>`:''}${m.note?`<div class="note">📝 ${esc(m.note)}</div>`:''}
+      ${m.type!=='note'?`<div class="note">Κλίμακα μέτρησης: <b>${mScale(m)}</b> · σελ. ${m.page}</div>`:''}${m.note?`<div class="note">📝 ${esc(m.note)}</div>`:''}
       <div class="btns"><button class="btn" data-ed="${m.id}">✎ Επεξεργασία</button><button class="btn" data-del="${m.id}">Διαγραφή</button></div>`;return;}
   el.innerHTML=S.page?'<div class="note">Διάλεξε εργαλείο από την μπάρα και κάνε κλικ στο σχέδιο. Οι τιμές εμφανίζονται εδώ ζωντανά.</div>':'<div class="note">Άνοιξε ένα σχέδιο PDF.</div>';
 }
@@ -1017,7 +1129,7 @@ function renderList(){
   const el=$('#list');
   if(!S.meas.length){el.innerHTML='<div class="empty-l">Δεν υπάρχουν ακόμα μετρήσεις.</div>';return;}
   const ms=[...S.meas].sort((a,b)=>(a.page===S.pageNum?0:1)-(b.page===S.pageNum?0:1)||a.id-b.id);
-  el.innerHTML=ms.map(m=>{const i=info(m);const sub=(m.type==='note'?'Σημείωση':(m.type==='area'?SHAPEN[m.shape||'poly']:TYPEN[m.type])+' · '+scaleTxt(m.N))+(S.doc&&S.doc.numPages>1?' · σελ.'+m.page:'')+(m.note?' · 📝 '+m.note:'');
+  el.innerHTML=ms.map(m=>{const i=info(m);const sub=(m.type==='note'?'Σημείωση':(m.type==='area'?SHAPEN[m.shape||'poly']:TYPEN[m.type])+' · '+mScale(m))+(S.doc&&S.doc.numPages>1?' · σελ.'+m.page:'')+(m.note?' · 📝 '+m.note:'');
     return `<div class="mi${m.id===S.sel?' sel':''}" data-id="${m.id}" style="--c:${COL[m.type]}"><span class="dot"></span><div class="mt"><b>${esc(m.name)}</b><small>${esc(sub)}</small></div><div class="mv">${esc(m.type==='note'?m.text:(m.type==='point'?(()=>{const q=coordOf(m.pts[0],m.f,m.page);return fN(q.X,2)+' / '+fN(q.Y,2);})():i.sh))}</div><button class="x" data-ed="${m.id}" title="Επεξεργασία">✎</button><button class="x" data-del="${m.id}" title="Διαγραφή">✕</button></div>`;}).join('');
 }
 $('#panel').addEventListener('click',async e=>{
@@ -1119,7 +1231,7 @@ function drawOverlay(){
   S.hit=[];
   for(const m of S.meas)if(m.page===S.pageNum&&m.id!==S.sel)drawMeas(c,m,false);
   const sm=S.sel!=null?getM(S.sel):null;if(sm&&sm.page===S.pageNum)drawMeas(c,sm,true);
-  drawOrigin(c);
+  drawOrigin(c);drawKaek(c);drawGcp(c);drawGps(c);
   const tm=tempMeas();if(tm)drawMeas(c,tm,false);
   else if(S.tool!=='select'&&S.pts.length)S.pts.forEach(p=>dotP(c,toS(p),'#fff',3));
   if(S.snap&&S.tool!=='select'&&S.tool!=='auto')drawSnap(c,S.snap);
@@ -1186,7 +1298,7 @@ function nearestMeas(sx,sy,r){
     if(d<bd){bd=d;best=m.id;}}
   return best;
 }
-function selectAt(sx,sy,touch){S.sel=nearestMeas(sx,sy,touch?20:10);renderList();updateLive();req();}
+function selectAt(sx,sy,touch){S.sel=nearestMeas(sx,sy,touch?20:10);renderList();updateLive();req();if(S.gps)renderGeoCard();}
 function selectDown(p,touch){
   const r=touch?20:10;const m=S.sel!=null?getM(S.sel):null;
   if(m&&m.page===S.pageNum){for(let i=0;i<m.pts.length;i++){const s=toS(m.pts[i]);if(Math.hypot(s.x-p.x,s.y-p.y)<r){const rs=S.redo.slice();pushHist();G={type:'vdrag',id:m.id,idx:i,moved:false,rs};return;}}}
@@ -1238,7 +1350,7 @@ ov.addEventListener('wheel',e=>{if(!S.page)return;e.preventDefault();const p=pos
 /* ---------- keyboard ---------- */
 const KEYT={v:'select',d:'dist',p:'poly',a:'area',r:'rect',w:'auto',g:'angle',c:'ccr',k:'arc3',x:'point',n:'note'};
 document.addEventListener('keydown',e=>{
-  if(!$('#modal').hidden||!$('#help').hidden){if(e.key==='Escape'&&!$('#help').hidden)$('#help').hidden=true;return;}
+  if([...document.querySelectorAll('.ovl')].some(o=>!o.hidden)||!$('#mapDlg').hidden){if(e.key==='Escape'&&!$('#help').hidden)$('#help').hidden=true;return;}
   if(e.target.matches('input,textarea,select'))return;
   const k=e.key;
   if(k===' '){S.space=true;e.preventDefault();return;}
@@ -1318,7 +1430,8 @@ async function autoShape(sx,sy){
       const cr=Math.abs((b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x)),L=Math.hypot(c.x-a.x,c.y-a.y);if(L>0&&cr/L<0.5/S.z){Q.splice(i,1);ch=true;break;}}}
     if(Q.length<3){toast('Δεν βρέθηκε έγκυρο περίγραμμα',true);return;}
     const m=commit('area',Q,{shape:'auto'});
-    toast(m.name+': '+fAr(polyArea(Q)*m.f*m.f)+' · '+Q.length+' κορυφές'+(snapped?' ('+snapped+' κουμπωμένες σε γωνίες)':'')+' — έλεγξέ το');
+    toast(m.name+': '+info(m).sh+' · '+Q.length+' κορυφές'+(snapped?' ('+snapped+' κουμπωμένες σε γωνίες)':'')+' — έλεγξέ το');
+    if(S.afterAuto){const f=S.afterAuto;S.afterAuto=null;setTool('select');setTimeout(()=>f(m),60);}
   }finally{busy(false);}
 }
 
@@ -1326,34 +1439,38 @@ async function autoShape(sx,sy){
 function exportCSV(){
   if(!S.meas.length)return toast('Δεν υπάρχουν μετρήσεις');
   const rows=[['Α/Α','Σελίδα','Τύπος','Όνομα','Τιμή','Λεπτομέρειες','Κλίμακα','Σημείωση']];
-  S.meas.forEach((m,k)=>{const i=info(m);rows.push([k+1,m.page,m.type==='area'?SHAPEN[m.shape||'poly']:TYPEN[m.type],m.name,m.type==='note'?m.text:i.sh,i.R.map(r=>r[0]+': '+r[1]).join(' | '),m.type==='note'?'':scaleTxt(m.N),m.note||'']);});
+  S.meas.forEach((m,k)=>{const i=info(m);rows.push([k+1,m.page,m.type==='area'?SHAPEN[m.shape||'poly']:TYPEN[m.type],m.name,m.type==='note'?m.text:i.sh,i.R.map(r=>r[0]+': '+r[1]).join(' | '),mScale(m),m.note||'']);});
   const csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\r\n');
   download(csv,baseName()+'_pdfdim.csv','text/csv;charset=utf-8');}
 function exportDXF(){
   const ms=S.meas.filter(m=>m.page===S.pageNum);if(!ms.length)return toast('Δεν υπάρχουν μετρήσεις στη σελίδα');
   const L=[];const w=(...a)=>{for(const x of a)L.push(String(x));};const F=v=>(+v).toFixed(4);
   const LY={dist:['MET_APOSTASI',4],calib:['MET_BATHMONOMISI',30],poly:['MET_POLYGRAMMI',6],area:['MET_EMVADON',3],angle:['MET_GONIA',2],ccr:['MET_KYKLOS',1],arc3:['MET_KYKLOS',1],point:['MET_SIMEIA',7],note:['MET_SIMEIOSEIS',211]};
-  const layers=[...new Map(Object.values(LY).concat([['MET_KEIMENA',7]]).map(l=>[l[0],l])).values()];
+  const layers=[...new Map(Object.values(LY).concat([['MET_KEIMENA',7],['MET_KAEK',30],['MET_GEOANAFORA',2]]).map(l=>[l[0],l])).values()];
   w(0,'SECTION',2,'HEADER',9,'$ACADVER',1,'AC1009',9,'$INSUNITS',70,6,0,'ENDSEC');
   w(0,'SECTION',2,'TABLES',0,'TABLE',2,'LAYER',70,layers.length);layers.forEach(([n,c])=>w(0,'LAYER',2,n,70,0,62,c,6,'CONTINUOUS'));w(0,'ENDTAB',0,'ENDSEC');
   w(0,'SECTION',2,'ENTITIES');
   const ascii=s=>String(s).replace(/²/g,'2').replace(/°/g,'%%d').replace(/[^\x20-\x7e%]/g,'');
-  for(const m of ms){const f=m.f,lay=LY[m.type][0],T=p=>{const q=coordOf(p,f,m.page);return [q.X,q.Y];},th=0.0025*(f/PT_M);
+  for(const m of ms){const f=m.f,lay=LY[m.type][0],T=p=>{const q=coordOf(p,f,m.page);return [q.X,q.Y];},th=0.0025*(f/PT_M),GD=(a,b)=>{const p=gpt(m,a),q=gpt(m,b);return Math.hypot(q.x-p.x,q.y-p.y);};
     const text=(p,t)=>{const a=T(p);w(0,'TEXT',8,'MET_KEIMENA',10,F(a[0]),20,F(a[1]),30,0,40,F(th),1,ascii(t));};
     const line=(a,b)=>{const p=T(a),q=T(b);w(0,'LINE',8,lay,10,F(p[0]),20,F(p[1]),30,0,11,F(q[0]),21,F(q[1]),31,0);};
     const pl=(P,cl)=>{w(0,'POLYLINE',8,lay,66,1,70,cl?1:0,10,0,20,0,30,0);P.forEach(p=>{const a=T(p);w(0,'VERTEX',8,lay,10,F(a[0]),20,F(a[1]),30,0);});w(0,'SEQEND',8,lay);};
     const P=m.pts,dec=S.dec;
-    if(m.type==='dist'||m.type==='calib'){line(P[0],P[1]);const L2=Math.hypot(P[1].x-P[0].x,P[1].y-P[0].y)*f;text({x:(P[0].x+P[1].x)/2,y:(P[0].y+P[1].y)/2},'L='+L2.toFixed(dec)+'m');}
-    else if(m.type==='poly'){pl(P,false);let s=0;for(let i=1;i<P.length;i++)s+=Math.hypot(P[i].x-P[i-1].x,P[i].y-P[i-1].y)*f;text(P[P.length-1],'L='+s.toFixed(dec)+'m');}
-    else if(m.type==='area'){pl(P,true);text(centroid(P),'E='+(polyArea(P)*f*f).toFixed(dec)+'m2');}
+    if(m.type==='dist'||m.type==='calib'){line(P[0],P[1]);const L2=GD(P[0],P[1]);text({x:(P[0].x+P[1].x)/2,y:(P[0].y+P[1].y)/2},'L='+L2.toFixed(dec)+'m');}
+    else if(m.type==='poly'){pl(P,false);let s=0;for(let i=1;i<P.length;i++)s+=GD(P[i-1],P[i]);text(P[P.length-1],'L='+s.toFixed(dec)+'m');}
+    else if(m.type==='area'){pl(P,true);text(centroid(P),'E='+polyArea(P.map(p=>gpt(m,p))).toFixed(dec)+'m2');}
     else if(m.type==='angle'){line(P[1],P[0]);line(P[1],P[2]);const a=angAt(P[0],P[1],P[2]);text(P[1],S.angU==='grad'?(a*200/Math.PI).toFixed(4)+'g':(a*180/Math.PI).toFixed(2)+'%%d');}
     else if(m.type==='ccr'||m.type==='arc3'){let c,r;if(m.type==='ccr'){c=P[0];r=Math.hypot(P[1].x-P[0].x,P[1].y-P[0].y);}else{const k=circ(P[0].x,P[0].y,P[1].x,P[1].y,P[2].x,P[2].y);if(!k)continue;c={x:k[0],y:k[1]};r=Math.hypot(P[0].x-k[0],P[0].y-k[1]);}
-      const a=T(c);w(0,'CIRCLE',8,lay,10,F(a[0]),20,F(a[1]),30,0,40,F(r*f));text(c,'R='+(r*f).toFixed(dec)+'m');}
+      const rp=m.type==='ccr'?P[1]:P[0],rr=GD(c,rp),a=T(c);w(0,'CIRCLE',8,lay,10,F(a[0]),20,F(a[1]),30,0,40,F(rr));text(c,'R='+rr.toFixed(dec)+'m');}
     else if(m.type==='point'){const a=T(P[0]);w(0,'POINT',8,lay,10,F(a[0]),20,F(a[1]),30,0);text(P[0],ascii(m.name.replace('Σ','S'))+' '+a[0].toFixed(3)+','+a[1].toFixed(3));}
     else if(m.type==='note'){const a=T(P[0]);w(0,'POINT',8,lay,10,F(a[0]),20,F(a[1]),30,0);}
   }
+  const gk=S.gref[S.pageNum],kk=S.kov[S.pageNum];
+  if(gk&&kk&&kk.ring){w(0,'POLYLINE',8,'MET_KAEK',66,1,70,1,10,0,20,0,30,0);kk.ring.forEach(e=>w(0,'VERTEX',8,'MET_KAEK',10,F(e[0]),20,F(e[1]),30,0));w(0,'SEQEND',8,'MET_KAEK');
+    w(0,'TEXT',8,'MET_KAEK',10,F(kk.ring[0][0]),20,F(kk.ring[0][1]),30,0,40,F(0.0025*S.scaleN),1,'KAEK '+kk.kaek);}
+  if(gk&&gk.pts)gk.pts.forEach(q=>{w(0,'POINT',8,'MET_GEOANAFORA',10,F(q.E),20,F(q.N),30,0);w(0,'TEXT',8,'MET_GEOANAFORA',10,F(q.E),20,F(q.N),30,0,40,F(0.002*S.scaleN),1,latin(q.name));});
   w(0,'ENDSEC',0,'EOF');
-  download(L.join('\r\n'),baseName()+'_pdfdim_sel'+S.pageNum+'.dxf','application/dxf');
+  download(L.join('\r\n'),baseName()+'_pdfdim_sel'+S.pageNum+(gk?'_EGSA87':'')+'.dxf','application/dxf');
   if(ms.some(m=>m.type==='note'))toast('Οι σημειώσεις εξάγονται ως σημεία (κείμενα στο CSV)');}
 $('#btnCSV').onclick=exportCSV;$('#btnDXF').onclick=exportDXF;
 
@@ -1402,9 +1519,10 @@ stage.addEventListener('drop',e=>{const f=e.dataTransfer.files&&e.dataTransfer.f
 window.addEventListener('beforeunload',e=>{if(S.fkey)autoSave();if(S.meas.length&&S.autoFail&&!S.leaving){e.preventDefault();e.returnValue='';}});
 
 
-function applyTheme(t){document.documentElement.setAttribute('data-theme',t);try{localStorage.setItem('hexis_theme',t);}catch(e){}
+function applyTheme(t){document.documentElement.setAttribute('data-theme',t);try{localStorage.setItem('hexis_theme',t);}catch(e){}const ls=$('#lightSw');if(ls)ls.checked=t==='light';
   $('#btnTheme').textContent=t==='light'?'☾':'☀';$('#btnTheme').title=t==='light'?'Σκουρόχρωμο θέμα':'Ανοιχτόχρωμο θέμα';
   const m=document.querySelector('meta[name=theme-color]');if(m)m.content=t==='light'?'#f3f6fb':'#070b14';req();}
+$('#lightSw').onchange=e=>applyTheme(e.target.checked?'light':'dark');
 $('#btnTheme').onclick=()=>applyTheme(document.documentElement.getAttribute('data-theme')==='light'?'dark':'light');
 applyTheme(document.documentElement.getAttribute('data-theme')||'dark');
 updToggles();updScaleUI();renderList();updateLive();updOrigin();updRotUI();setTool('select');updUndoUI();
@@ -1446,10 +1564,10 @@ function b64(u8){let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCo
 function unb64(s){const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u;}
 
 /* ---------- κατάσταση εργασίας ---------- */
-function workState(){return {v:1,name:S.fileName,t:Date.now(),page:S.pageNum,rot:S.rot,meas:S.meas,cnt:S.cnt,idc:S.idc,origin:S.origin,
+function workState(){return {v:1,name:S.fileName,t:Date.now(),page:S.pageNum,rot:S.rot,meas:S.meas,cnt:S.cnt,idc:S.idc,origin:S.origin,gref:S.gref,kov:S.kov,
   sc:[S.scaleN,S.mPerPt,S.scaleSrc,S.userScale],out:S.proj?S.proj.out:null};}
 async function restoreWork(w){
-  S.meas=JSON.parse(JSON.stringify(w.meas||[]));S.cnt=w.cnt||{};S.origin=w.origin||null;
+  S.meas=JSON.parse(JSON.stringify(w.meas||[]));S.cnt=w.cnt||{};S.origin=w.origin||null;S.gref=JSON.parse(JSON.stringify(w.gref||{}));S.kov=JSON.parse(JSON.stringify(w.kov||{}));
   S.idc=Math.max(w.idc||1,...S.meas.map(m=>m.id+1),1);
   if(w.sc){S.scaleN=w.sc[0];S.mPerPt=w.sc[1];S.scaleSrc=w.sc[2];S.userScale=w.sc[3];}
   if(S.proj&&w.out)S.proj.out=w.out;
@@ -1457,7 +1575,8 @@ async function restoreWork(w){
   const pg=Math.min(Math.max(1,w.page||1),S.doc.numPages);
   if(pg!==S.pageNum)await loadPage(pg);
   if(w.rot)rotateTo(w.rot);
-  updScaleUI();updOrigin();renderList();updateLive();updStatus();req();updUndoUI();
+  if(Object.keys(S.gref).length)needProj().catch(()=>{});
+  updScaleUI();updOrigin();renderList();updateLive();updStatus();req();updUndoUI();renderGeoCard();updNorth();
   toast('Συνέχεια εργασίας: '+S.meas.length+' μετρήσεις/σημειώσεις');
 }
 const AK='pdfdim_ws';let _autoT=null;
@@ -1482,7 +1601,7 @@ async function openBytes(bytes,name,opt){
     $('#fileName').textContent=(S.proj&&S.proj.name?S.proj.name+' › ':'')+name;
     const sel=$('#pageSel');sel.innerHTML='';
     for(let i=1;i<=S.doc.numPages;i++){const o=document.createElement('option');o.value=i;o.textContent='Σελ. '+i+' / '+S.doc.numPages;sel.appendChild(o);}
-    sel.hidden=S.doc.numPages<2;
+    sel.hidden=S.doc.numPages<2;document.body.classList.toggle('multip',S.doc.numPages>1);
     $('#empty').style.display='none';
     await loadPage(1);
   }catch(e){console.error(e);busy(false);toast('Δεν άνοιξε το PDF: '+(e.message||e),true);return false;}
@@ -1526,14 +1645,14 @@ const projWorkPath=u=>u+'/'+S.proj.id+'/pdfdim/'+(S.proj.fid||'x').replace(/[^a-
 
 /* ---------- σχεδίαση μετρήσεων σε φύλλο (για PDF / εικόνες) ---------- */
 async function fontsReady(){try{await Promise.all(['700 12px "JetBrains Mono"','600 11px Manrope','600 13px Manrope','700 16px Manrope','800 12px Manrope'].map(f=>document.fonts.load(f)));}catch(e){}}
-function annotPages(){const s=new Set(S.meas.map(m=>m.page));if(S.origin)s.add(S.origin.page);return [...s].sort((a,b)=>a-b);}
+function annotPages(){const s=new Set(S.meas.map(m=>m.page));if(S.origin)s.add(S.origin.page);Object.keys(S.kov||{}).forEach(k=>s.add(+k));return [...s].sort((a,b)=>a-b);}
 function annotCanvas(pn,W,H,k,z0){
   const c=document.createElement('canvas');c.width=Math.max(1,Math.round(W*k));c.height=Math.max(1,Math.round(H*k));
   const x=c.getContext('2d');const sv={z:S.z,rot:S.rot,tx:S.tx,ty:S.ty,pageNum:S.pageNum,W:S.W,H:S.H,hit:S.hit};
   try{S.z=z0;S.rot=0;S.tx=0;S.ty=0;S.pageNum=pn;S.W=W;S.H=H;S.hit=[];
     x.setTransform(c.width/W/z0,0,0,c.height/H/z0,0,0);
     for(const m of S.meas)if(m.page===pn)drawMeas(x,m,false);
-    drawOrigin(x);
+    drawOrigin(x);drawKaek(x);
   }finally{Object.assign(S,sv);}
   return c;
 }
@@ -1577,12 +1696,12 @@ async function tablePages(){
     x.textAlign='right';x.font='700 9px Manrope,sans-serif';x.fillStyle='#55627a';x.fillText('HEXIS · PDF Dim',PW-M,58);x.textAlign='left';
     x.font='500 9px Manrope,sans-serif';x.fillStyle='#55627a';
     x.fillText(ellip(x,(S.proj&&S.proj.name?'Έργο: '+S.proj.name+'  ·  ':'')+'Σχέδιο: '+S.fileName,PW-2*M),M,88);
-    x.fillText('Ημερομηνία: '+date+'  ·  Συντεταγμένες: '+(S.origin?'από αρχή χρήστη (X '+fN(S.origin.E,3)+', Y '+fN(S.origin.N,3)+')':'από κάτω αριστερή γωνία φύλλου')+(n>1?'  ·  φύλλο '+(pi+1)+'/'+n:''),M,102);
+    x.fillText('Ημερομηνία: '+date+'  ·  Συντεταγμένες: '+(Object.keys(S.gref).length?'ΕΓΣΑ87 (γεωαναφορά)':S.origin?'από αρχή χρήστη (X '+fN(S.origin.E,3)+', Y '+fN(S.origin.N,3)+')':'από κάτω αριστερή γωνία φύλλου')+(n>1?'  ·  φύλλο '+(pi+1)+'/'+n:''),M,102);
     let y=top-RH,xx=M;x.fillStyle='#eef2f8';x.fillRect(M,y,PW-2*M,RH);x.fillStyle='#0f1a2e';x.font='700 8px Manrope,sans-serif';
     cols.forEach(([h,w])=>{x.fillText(h,xx+3,y+11.5);xx+=w;});
     rows.slice(pi*per,(pi+1)*per).forEach((m,i)=>{y+=RH;if(i%2){x.fillStyle='#f7f9fc';x.fillRect(M,y,PW-2*M,RH);}
       x.strokeStyle='#e3e8f1';x.lineWidth=.5;x.beginPath();x.moveTo(M,y+RH);x.lineTo(PW-M,y+RH);x.stroke();
-      const inf=info(m),vals=[String(pi*per+i+1),m.name,m.type==='area'?SHAPEN[m.shape||'poly']:TYPEN[m.type],m.type==='note'?m.text:inf.sh,m.note||'',m.type==='note'?'':scaleTxt(m.N),String(m.page)];
+      const inf=info(m),vals=[String(pi*per+i+1),m.name,m.type==='area'?SHAPEN[m.shape||'poly']:TYPEN[m.type],m.type==='note'?m.text:inf.sh,m.note||'',mScale(m),String(m.page)];
       xx=M;vals.forEach((v,j)=>{const w=cols[j][1];x.fillStyle=j===3?'#0e7490':'#0f1a2e';
         x.font=j===3&&m.type!=='note'?'700 8px "JetBrains Mono",monospace':'500 8px Manrope,sans-serif';
         if(j===0){x.fillStyle=COL[m.type];x.beginPath();x.arc(xx+4,y+8.5,2.6,0,TAU);x.fill();x.fillStyle='#55627a';x.fillText(v,xx+9,y+11.5);}
@@ -1638,6 +1757,8 @@ async function doSave(kind){
     if(kind==='work'){const w=workState();w.app='HEXIS PDF Dim';w.pdf=b64(S.bytes);busy(false);
       download(new Blob([JSON.stringify(w)],{type:'application/json'}),baseName()+'.hexdim');toast('Αρχείο εργασίας: άνοιξέ το με «Άνοιγμα» για να συνεχίσεις');return;}
     if(kind==='proj'){await saveToProject();return;}
+    if(kind==='kmz'){await exportKMZ();return;}
+    if(kind==='world'){await exportWorld();return;}
     if(kind==='entry'){await toEntry();return;}
   }catch(e){console.error(e);toast('Αποτυχία: '+(e.message||e),true);}
   finally{busy(false);}
@@ -1689,7 +1810,7 @@ async function toEntry(){
 /* ---------- παράθυρο αποθήκευσης ---------- */
 function openSave(){
   if(!S.page)return toast('Άνοιξε πρώτα ένα σχέδιο',true);
-  $('#sProj').hidden=!S.proj;if(S.proj)$('#sProjName').textContent=S.proj.name?'«'+S.proj.name+'»':'';
+  $('#sProj').hidden=!S.proj;$('#sGeo').hidden=!S.gref[S.pageNum];if(S.proj)$('#sProjName').textContent=S.proj.name?'«'+S.proj.name+'»':'';
   $('#sTable').checked=!!SOPT.table;$('#sLbl').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===SOPT.lbl));
   $('#saveDlg').hidden=false;closePanelMobile();
 }
@@ -1703,6 +1824,642 @@ $('#btnPDF').onclick=()=>doSave('pdf');
 $('#bShot').onclick=()=>doSave('shot');
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();if($('#saveDlg').hidden)openSave();}
   else if(e.key==='Escape'&&!$('#saveDlg').hidden)closeSave();},true);
+
+/* ============================================================
+   ΓΕΩΑΝΑΦΟΡΑ — ΕΓΣΑ87 (EPSG:2100)
+   Μοντέλο: E = p0·u + p1·v + p2 , N = p3·u + p4·v + p5  με u = x, v = −y (σημεία φύλλου σε pt)
+   Τρόποι: αυτόματα από τοπογραφικό (πίνακας κορυφών / κάνναβος), σημεία ελέγχου,
+   τοποθέτηση σε χάρτη, ταίριασμα σε γεωτεμάχιο ΚΑΕΚ. GPS θέση πάνω στο σχέδιο.
+   ============================================================ */
+const GLIB={proj4:'https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.11.0/proj4.js',
+  lfJs:'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',lfCss:'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css',
+  zip:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'};
+const EGSA87='+proj=tmerc +lat_0=0 +lon_0=24 +k=0.9996 +x_0=500000 +y_0=0 +ellps=GRS80 +towgs84=-199.87,74.79,246.62,0,0,0,0 +units=m +no_defs';
+const ARC_KAEK='https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/GEOTEMAXIA_LEITOURGOUN_ON_gdb/FeatureServer/0/query';
+const KAEK_GEO=SB_URL+'/functions/v1/kaek-geo';
+const PROJ_LL=(()=>{const a=parseFloat(QS.get('lat')),b=parseFloat(QS.get('lng'));return isFinite(a)&&isFinite(b)&&Math.abs(a)>1?{lat:a,lng:b}:null;})();
+S.gref={};S.kov={};S.gcp=null;S.gps=null;S.afterAuto=null;
+let _p4P=null,_lfP=null,_zipP=null;
+async function needProj(){if(!window.proj4){if(!_p4P)_p4P=loadScript(GLIB.proj4);try{await _p4P;}catch(e){_p4P=null;throw e;}}if(!proj4.defs('EPSG:2100'))proj4.defs('EPSG:2100',EGSA87);}
+function loadCss(href){return new Promise(res=>{if(document.querySelector('link[href="'+href+'"]'))return res();const l=document.createElement('link');l.rel='stylesheet';l.href=href;l.onload=res;l.onerror=res;document.head.appendChild(l);});}
+async function needLeaflet(){if(window.L&&L.map)return;if(!_lfP)_lfP=Promise.all([loadCss(GLIB.lfCss),loadScript(GLIB.lfJs)]);try{await _lfP;}catch(e){_lfP=null;throw e;}}
+async function needZip(){if(window.JSZip)return;if(!_zipP)_zipP=loadScript(GLIB.zip);try{await _zipP;}catch(e){_zipP=null;throw e;}}
+const toWgs=(E,N)=>{const r=proj4('EPSG:2100','WGS84',[E,N]);return {lat:r[1],lng:r[0]};};
+const toEgsa=(lat,lng)=>proj4('WGS84','EPSG:2100',[lng,lat]);
+const inGreece=(E,N)=>E>50000&&E<1000000&&N>3700000&&N<4700000;
+
+/* ---------- μαθηματικά ---------- */
+function fitT(P,mode,fixS){
+  const n=P.length;if(n<2)return null;
+  let mu=0,mv=0,mE=0,mN=0;P.forEach(p=>{mu+=p.u;mv+=p.v;mE+=p.E;mN+=p.N;});mu/=n;mv/=n;mE/=n;mN/=n;
+  if(mode==='affine'&&n>=3){
+    let Suu=0,Suv=0,Svv=0,SuE=0,SvE=0,SuN=0,SvN=0;
+    P.forEach(p=>{const du=p.u-mu,dv=p.v-mv,dE=p.E-mE,dN=p.N-mN;Suu+=du*du;Suv+=du*dv;Svv+=dv*dv;SuE+=du*dE;SvE+=dv*dE;SuN+=du*dN;SvN+=dv*dN;});
+    const D=Suu*Svv-Suv*Suv;if(Math.abs(D)<1e-9*(Suu*Svv+1e-12))return null;
+    const p0=(SuE*Svv-SvE*Suv)/D,p1=(SvE*Suu-SuE*Suv)/D,p3=(SuN*Svv-SvN*Suv)/D,p4=(SvN*Suu-SuN*Suv)/D;
+    return [p0,p1,mE-p0*mu-p1*mv,p3,p4,mN-p3*mu-p4*mv];
+  }
+  let Suu=0,A=0,B=0;P.forEach(p=>{const du=p.u-mu,dv=p.v-mv,dE=p.E-mE,dN=p.N-mN;Suu+=du*du+dv*dv;A+=du*dE+dv*dN;B+=du*dN-dv*dE;});
+  if(Suu<1e-9)return null;
+  let a,b;if(fixS){const th=Math.atan2(B,A);a=fixS*Math.cos(th);b=fixS*Math.sin(th);}else{a=A/Suu;b=B/Suu;}
+  return [a,-b,mE-a*mu+b*mv,b,a,mN-b*mu-a*mv];
+}
+const grApply=(p,x,y)=>[p[0]*x-p[1]*y+p[2],p[3]*x-p[4]*y+p[5]];
+function grInv(p,E,N){const D=p[0]*p[4]-p[1]*p[3],dE=E-p[2],dN=N-p[5];const u=(p[4]*dE-p[1]*dN)/D,v=(-p[3]*dE+p[0]*dN)/D;return {x:u,y:-v};}
+const grScale=p=>Math.sqrt(Math.abs(p[0]*p[4]-p[1]*p[3]));
+const grRotDeg=p=>Math.atan2(p[3],p[0])*180/Math.PI;
+function solveGcp(pts,mode,fixS){
+  const P=pts.filter(q=>q.on!==false).map(q=>({u:q.x,v:-q.y,E:q.E,N:q.N}));
+  const md=mode==='affine'&&P.length>=3?'affine':'helmert';const p=fitT(P,md,fixS);if(!p)return null;
+  let s2=0,n=0,mx=0;pts.forEach(q=>{const e=grApply(p,q.x,q.y);q.rE=e[0]-q.E;q.rN=e[1]-q.N;q.r=Math.hypot(q.rE,q.rN);if(q.on!==false){s2+=q.r*q.r;n++;mx=Math.max(mx,q.r);}});
+  const k=md==='affine'?6:fixS?3:4,dof=2*n-k;
+  return {p,type:md,n,rms:Math.sqrt(s2/n),max:mx,dof};
+}
+const tolM=()=>0.0002*(S.scaleN||100);
+function quality(rms,dof){if(!(dof>0))return {t:'χωρίς έλεγχο — πρόσθεσε 3ο σημείο',c:'warn'};const T=tolM();
+  return rms<=T?{t:'πολύ καλή',c:'ok'}:rms<=3*T?{t:'αποδεκτή',c:'warn'}:{t:'έλεγξε τα σημεία',c:'bad'};}
+const fM=v=>fN(v,v<1?3:2)+' m';
+
+/* ---------- εφαρμογή στις μετρήσεις ---------- */
+const useG=()=>!!(S.gref[S.pageNum]&&S.scaleSrc==='georef');
+function gpt(m,p){const g=m.g&&S.gref[m.page];if(g){const e=grApply(g.p,p.x,p.y);return {x:e[0],y:e[1]};}return {x:p.x*m.f,y:-p.y*m.f};}
+const mScale=m=>m.type==='note'?'':(m.g&&S.gref[m.page]?'ΕΓΣΑ87':scaleTxt(m.N));
+function grSet(page,g,opt){
+  opt=opt||{};pushHist();
+  g.t=Date.now();S.gref[page]=g;
+  const N=grScale(g.p)/PT_M;
+  if(page===S.pageNum){S.userScale=true;S.scaleN=N;S.mPerPt=grScale(g.p);S.scaleSrc='georef';}
+  if(opt.applyAll!==false)S.meas.forEach(m=>{if(m.page===page&&m.type!=='note'&&m.type!=='calib'){m.g=true;m.f=grScale(g.p);m.N=N;}});
+  needProj().catch(()=>{});
+  updScaleUI();renderList();updateLive();updStatus();renderGeoCard();updNorth();req();scheduleAutosave();
+}
+function grClear(){const pg=S.pageNum;if(!S.gref[pg])return;pushHist();delete S.gref[pg];delete S.kov[pg];
+  S.meas.forEach(m=>{if(m.page===pg)m.g=false;});if(S.scaleSrc==='georef'){if(S.detect.length){S.scaleN=S.detect[0].N;S.mPerPt=S.scaleN*PT_M;S.scaleSrc='auto';}else S.scaleSrc='manual';}
+  updScaleUI();renderList();updateLive();renderGeoCard();updNorth();req();toast('Η γεωαναφορά της σελίδας καταργήθηκε');}
+
+/* ---------- γενικό παράθυρο επιλογών ---------- */
+function choose(title,html,buttons){return new Promise(res=>{
+  const m=$('#modal2'),b=m.querySelector('.mbody'),a=m.querySelector('.mact');m.querySelector('.mtitle').textContent=title;b.innerHTML=html;
+  a.innerHTML=buttons.map((x,i)=>`<button data-i="${i}" class="${x.pri?'go':''}">${esc(x.t)}</button>`).join('');
+  const vals=()=>{const o={};b.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k]=i.type==='checkbox'?i.checked:i.value);return o;};
+  const done=k=>{m.hidden=true;a.onclick=b.onclick=m.onkeydown=null;res({k,v:vals()});};
+  a.onclick=e=>{const t=e.target.closest('button');if(t)done(buttons[+t.dataset.i].k);};
+  b.onclick=e=>{const t=e.target.closest('[data-pick]');if(t)done(t.dataset.pick);};
+  m.onkeydown=e=>{if(e.key==='Escape')done(null);if(e.key==='Enter'&&e.target.tagName==='INPUT'){const d=buttons.find(x=>x.pri);if(d)done(d.k);}};
+  m.hidden=false;setTimeout(()=>{const f=b.querySelector('input:not([type=checkbox]),select');if(f)f.focus();},40);
+});}
+
+/* ---------- οδηγός ---------- */
+async function geoWizard(){
+  if(!S.page)return toast('Άνοιξε πρώτα ένα σχέδιο',true);
+  closePanelMobile();
+  const has=!!S.gref[S.pageNum];
+  const r=await choose('Γεωαναφορά σχεδίου',`
+    <p>Η γεωαναφορά «δένει» το σχέδιο με το <b>ΕΓΣΑ87</b>: κάθε σημείο αποκτά πραγματικές συντεταγμένες, οι μετρήσεις και τα DXF βγαίνουν στη σωστή θέση, το σχέδιο φαίνεται πάνω στον χάρτη και στο πεδίο βλέπεις τη θέση σου πάνω του.${has?' <b>Η σελίδα έχει ήδη γεωαναφορά</b> — με νέα, η παλιά αντικαθίσταται.':''}</p>
+    <div class="sgrp">Διάλεξε τρόπο</div>
+    <button class="sopt pri" data-pick="auto"><b>1 · Αυτόματα από το τοπογραφικό</b><small>Διαβάζει τον πίνακα συντεταγμένων κορυφών ή τον κάνναβο του φύλλου και βρίσκει μόνο του τα σημεία. Ακρίβεια: όσο το σχέδιο.</small></button>
+    <button class="sopt" data-pick="gcp"><b>2 · Με γνωστά σημεία</b><small>Πατάς 2 ή περισσότερα σημεία στο σχέδιο (γωνίες, σταυρούς κανάβου, κορυφές) και δίνεις τις συντεταγμένες τους: με πληκτρολόγηση, από αρχείο, από τον χάρτη ή από το GPS.</small></button>
+    <button class="sopt" data-pick="place"><b>3 · Τοποθέτηση πάνω στον χάρτη</b><small>Για κατόψεις και σχέδια χωρίς συντεταγμένες: σέρνεις και στρίβεις το σχέδιο πάνω στη δορυφορική εικόνα. Ακρίβεια περίπου 1–3 m.</small></button>
+    <button class="sopt" data-pick="kaek"><b>4 · Από γεωτεμάχιο Κτηματολογίου (ΚΑΕΚ)</b><small>Ταιριάζει το περίγραμμα του οικοπέδου του σχεδίου στο όριο του ΚΑΕΚ και δείχνει πόσο αποκλίνουν, κορυφή προς κορυφή.</small></button>`,
+    [{t:'Κλείσιμο',k:null}]);
+  if(r.k==='auto')autoTopo();else if(r.k==='gcp')gcpStart();else if(r.k==='place')placeOnMap();else if(r.k==='kaek')kaekFlow();
+}
+
+/* ---------- 2 · σημεία ελέγχου ---------- */
+function gcpStart(pre){
+  const cur=S.gref[S.pageNum];
+  if(!S.gcp||S.gcp.page!==S.pageNum)S.gcp={page:S.pageNum,pts:[],mode:'helmert',list:[],seq:false,sol:null};
+  if(pre){Object.assign(S.gcp,pre);}
+  else if(!S.gcp.pts.length&&cur&&cur.pts&&cur.pts.length)S.gcp.pts=JSON.parse(JSON.stringify(cur.pts)),S.gcp.mode=cur.type||'helmert';
+  gcpSolve();setTool('gcp');renderGeoCard();openGeoCard();
+  toast(S.gcp.seq&&gcpNext()?'Πάτα στο σχέδιο την κορυφή «'+gcpNext().name+'»':'Πάτα στο σχέδιο ένα σημείο με γνωστές συντεταγμένες');
+}
+function gcpNext(){const g=S.gcp;if(!g||!g.list.length)return null;const used=new Set(g.pts.map(p=>p.name));return g.list.find(q=>!used.has(q.name)&&!q.skip)||null;}
+function gcpSolve(){const g=S.gcp;if(!g)return;g.sol=solveGcp(g.pts,g.mode,null);renderGeoCard();req();updHint();}
+async function gcpAdd(p){
+  const g=S.gcp;if(!g)return;
+  const nx=g.seq?gcpNext():null;
+  if(nx){g.pts.push({x:p.x,y:p.y,E:nx.E,N:nx.N,name:nx.name,on:true});gcpSolve();const n2=gcpNext();
+    updHint();toast('«'+nx.name+'» ✓'+(n2?' — επόμενη: «'+n2.name+'»':' — όλες οι κορυφές της λίστας μπήκαν'));return;}
+  const r=await gcpDialog(p);if(!r)return;
+  g.pts.push({x:p.x,y:p.y,E:r.E,N:r.N,name:r.name,on:true});gcpSolve();
+}
+function gcpDialog(p){return new Promise(res=>{
+  const d=$('#gcpDlg'),g=S.gcp,used=new Set(g.pts.map(q=>q.name));
+  const free=g.list.filter(q=>!used.has(q.name));
+  $('#gcpT').textContent='Σημείο ελέγχου '+(g.pts.length+1);
+  $('#gcpListW').hidden=!free.length;
+  $('#gcpList').innerHTML='<option value="">— πληκτρολόγηση —</option>'+free.map((q,i)=>`<option value="${i}">${esc(q.name)} · X ${fN(q.E,2)} · Y ${fN(q.N,2)}</option>`).join('');
+  let auto='';
+  if(S.gref[S.pageNum]&&!g.pts.length){const e=grApply(S.gref[S.pageNum].p,p.x,p.y);auto='Εκτίμηση από την τρέχουσα γεωαναφορά: X '+fN(e[0],2)+' · Y '+fN(e[1],2);}
+  $('#gcpName').value='Κ'+(g.pts.length+1);$('#gcpE').value='';$('#gcpN').value='';$('#gcpMsg').textContent=auto;
+  $('#gcpList').onchange=e=>{const q=free[+e.target.value];if(q){$('#gcpName').value=q.name;$('#gcpE').value=String(q.E).replace('.',',');$('#gcpN').value=String(q.N).replace('.',',');}};
+  const done=v=>{d.hidden=true;$('#gcpOk').onclick=$('#gcpCancel').onclick=$('#gcpMap').onclick=$('#gcpGps').onclick=d.onkeydown=null;res(v);};
+  $('#gcpCancel').onclick=()=>done(null);
+  $('#gcpOk').onclick=()=>{const E=num($('#gcpE').value),N=num($('#gcpN').value);
+    if(!isFinite(E)||!isFinite(N)){$('#gcpMsg').innerHTML='<span class="warn">Συμπλήρωσε X και Y σε μέτρα (ΕΓΣΑ87).</span>';return;}
+    if(!inGreece(E,N)){$('#gcpMsg').innerHTML='<span class="warn">Οι τιμές δεν μοιάζουν με ΕΓΣΑ87 (X περίπου 100.000–900.000, Y περίπου 3.800.000–4.650.000). Μήπως μπήκαν ανάποδα;</span>';return;}
+    done({E,N,name:$('#gcpName').value.trim()||('Κ'+(g.pts.length+1))});};
+  $('#gcpMap').onclick=async()=>{d.hidden=true;const c=await openMap('pick',{title:'Διάλεξε το σημείο στον χάρτη'});d.hidden=false;
+    if(c){$('#gcpE').value=fN(c.E,2);$('#gcpN').value=fN(c.N,2);$('#gcpMsg').textContent='Από τον χάρτη · ακρίβεια περίπου 1–3 m (όσο η δορυφορική εικόνα).';}};
+  $('#gcpGps').onclick=async()=>{$('#gcpMsg').textContent='Λήψη θέσης GPS…';try{const q=await gpsOnce();$('#gcpE').value=fN(q.E,2);$('#gcpN').value=fN(q.N,2);
+    $('#gcpMsg').innerHTML='Από το GPS της συσκευής · ακρίβεια <b>±'+fN(q.acc,0)+' m</b>. Στάσου ακριβώς πάνω στο σημείο που πάτησες στο σχέδιο.';}catch(e){$('#gcpMsg').innerHTML='<span class="warn">'+esc(e.message||e)+'</span>';}};
+  d.onkeydown=e=>{if(e.key==='Escape')done(null);if(e.key==='Enter')$('#gcpOk').click();};
+  d.hidden=false;setTimeout(()=>(free.length?$('#gcpList'):$('#gcpE')).focus(),40);
+});}
+function gcpFinish(){
+  const g=S.gcp;if(!g||!g.sol)return toast('Χρειάζονται τουλάχιστον 2 σημεία',true);
+  const s=g.sol,q=quality(s.rms,s.dof);
+  grSet(g.page,{p:s.p,type:s.type,method:'points',n:s.n,rms:s.rms,max:s.max,dof:s.dof,pts:JSON.parse(JSON.stringify(g.pts)),
+    acc:s.dof>0?'Μέσο σφάλμα '+fM(s.rms)+' ('+q.t+')':'Με 2 σημεία δεν υπάρχει έλεγχος'});
+  S.gcp=null;setTool('select');renderGeoCard();toast('Γεωαναφορά εφαρμόστηκε · '+s.n+' σημεία'+(s.dof>0?' · μέσο σφάλμα '+fM(s.rms):''));
+}
+function gcpCancel(){S.gcp=null;if(S.tool==='gcp')setTool('select');renderGeoCard();req();}
+function parseCoordText(t){
+  const out=[];String(t).split(/\r?\n/).forEach((ln,i)=>{ln=ln.trim();if(!ln)return;
+    const parts=ln.split(/[;\t,]+|\s+/).filter(Boolean);const nums=[];let name='';
+    parts.forEach(x=>{const v=parseFloat(x.replace(',','.'));if(/^-?\d+([.,]\d+)?$/.test(x)&&isFinite(v))nums.push(v);else if(!name)name=x;});
+    if(ln.includes(',')&&!ln.includes(';')&&!ln.includes('\t')){const cs=ln.split(',');if(cs.length===3&&isFinite(parseFloat(cs[1]))&&isFinite(parseFloat(cs[2]))){out.push({name:cs[0].trim()||String(i+1),E:parseFloat(cs[1]),N:parseFloat(cs[2])});return;}}
+    let E=null,N=null;for(let k=0;k<nums.length-1;k++){if(inGreece(nums[k],nums[k+1])){E=nums[k];N=nums[k+1];if(!name&&k>0)name=String(nums[0]);break;}}
+    if(E!=null)out.push({name:name||String(out.length+1),E,N});});
+  return out;
+}
+async function gcpImport(){
+  const inp=document.createElement('input');inp.type='file';inp.accept='.txt,.csv,.xyz,.dat,text/plain';
+  inp.onchange=async()=>{const f=inp.files[0];if(!f)return;const L=parseCoordText(await f.text());
+    if(!L.length)return toast('Δεν βρέθηκαν συντεταγμένες ΕΓΣΑ87 στο αρχείο (μορφή: όνομα,X,Y)',true);
+    if(!S.gcp)gcpStart();S.gcp.list=L;S.gcp.seq=true;setTool('gcp');renderGeoCard();updHint();
+    toast('Φορτώθηκαν '+L.length+' σημεία. Πάτα στο σχέδιο το «'+gcpNext().name+'»');};
+  inp.click();
+}
+
+/* ---------- 1 · αυτόματα από τοπογραφικό ---------- */
+function pnum(s){s=String(s).trim();if(!s)return NaN;
+  if(/^\d{1,3}([ .]\d{3})+(,\d+)?$/.test(s))s=s.replace(/[ .]/g,'').replace(',','.');
+  else if(/^\d+,\d+$/.test(s))s=s.replace(',','.');
+  else if(/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(s))s=s.replace(/,/g,'');
+  return /^\d+(\.\d+)?$/.test(s)?parseFloat(s):NaN;}
+async function pageTexts(page){
+  const tc=await page.getTextContent(),vp=page.getViewport({scale:1});
+  return tc.items.filter(i=>i.str&&i.str.trim()).map((i,id)=>{const t=i.transform,ang=Math.atan2(t[1],t[0]),h=Math.hypot(t[2],t[3])||i.height||6,w=i.width||0;
+    const cx=t[4]+Math.cos(ang)*w/2-Math.sin(ang)*h*.35,cy=t[5]+Math.sin(ang)*w/2+Math.cos(ang)*h*.35;
+    const c=vp.convertToViewportPoint(cx,cy),o=vp.convertToViewportPoint(t[4],t[5]),e=vp.convertToViewportPoint(t[4]+Math.cos(ang),t[5]+Math.sin(ang));
+    return {id,s:i.str.trim(),x:c[0],y:c[1],ox:o[0],oy:o[1],h,horiz:Math.abs(e[1]-o[1])<0.25};});
+}
+function tableRows(items){
+  const H=items.filter(i=>i.horiz).sort((a,b)=>a.oy-b.oy||a.ox-b.ox),lines=[];
+  H.forEach(it=>{const L=lines.find(l=>Math.abs(l.y-it.oy)<Math.max(1.5,it.h*.45));if(L)L.items.push(it);else lines.push({y:it.oy,items:[it]});});
+  const rows=[];
+  lines.forEach(l=>{l.items.sort((a,b)=>a.ox-b.ox);
+    const toks=[];l.items.forEach(it=>it.s.split(/\s+/).forEach(s=>s&&toks.push({s,it})));
+    const inR=v=>isFinite(v)&&((v>=1e5&&v<1e6)||(v>=3.7e6&&v<4.7e6));
+    const merged=[];for(let i=0;i<toks.length;i++){const s=toks[i].s;let best=null;
+      if(/^\d{1,3}$/.test(s)){let j=i+1,acc=s;while(toks[j]&&/^\d{3}([.,]\d+)?$/.test(toks[j].s)){acc+=' '+toks[j].s;const v=pnum(acc);if(inR(v))best={s:acc,v,j};if(/[.,]/.test(toks[j].s))break;j++;}}
+      if(best){merged.push({s:best.s,v:best.v,it:toks[i].it});i=best.j;}else merged.push({s,v:pnum(s),it:toks[i].it});}
+    for(let k=0;k<merged.length-1;k++){const a=merged[k].v,b=merged[k+1].v;let E=null,N=null;
+      if(inGreece(a,b)&&a<1e6&&b>3.7e6){E=a;N=b;}else if(inGreece(b,a)&&b<1e6&&a>3.7e6){E=b;N=a;}
+      if(E!=null){let lab='';for(let q=k-1;q>=0;q--){const s=merged[q].s;if(s.length<=8&&!/^\d{5,}/.test(s)){lab=s;break;}}
+        rows.push({name:lab.replace(/[.:)]$/,''),E,N,ids:l.items.map(i=>i.id)});break;}}
+  });
+  const seen=new Set();return rows.filter(r=>{const k=r.name+'|'+r.E;if(seen.has(k))return false;seen.add(k);return true;})
+    .map((r,i)=>(r.name||(r.name=String(i+1)),r));
+}
+const normLab=s=>String(s).replace(/\s+/g,'').replace(/[.:]$/,'').toUpperCase().replace(/^K/,'Κ').replace(/^S/,'Σ').replace(/^A/,'Α');
+function vertexCands(x,y,R){const g=S.geo;if(!g||!g.PG)return [];const c=[];
+  around(g.PG,x,y,R,i=>{if(g.ptt[i]!==1)return;const px=g.pts[2*i],py=g.pts[2*i+1],d=Math.hypot(px-x,py-y);if(d<=R)c.push({x:px,y:py,d});});
+  c.sort((a,b)=>a.d-b.d);const out=[];c.forEach(q=>{if(!out.some(o=>Math.hypot(o.x-q.x,o.y-q.y)<0.3))out.push(q);});return out.slice(0,4);}
+function matchTable(rows,items){
+  const tabIds=new Set();rows.forEach(r=>r.ids.forEach(i=>tabIds.add(i)));
+  const L=rows.map(r=>{const k=normLab(r.name),cands=[];
+    items.forEach(it=>{if(tabIds.has(it.id))return;if(normLab(it.s)!==k)return;vertexCands(it.x,it.y,Math.max(14,it.h*2.6)).forEach(v=>cands.push(v));});
+    return {r,cands};}).filter(l=>l.cands.length);
+  if(L.length<2)return {labels:L.length,res:null};
+  let best=null;const tol=2.2;
+  const trial=p=>{const s=grScale(p);if(!(s>1e-4&&s<20))return;let inl=[],sd=0;
+    L.forEach(l=>{const q=grInv(p,l.r.E,l.r.N);let bd=1e9,bv=null;l.cands.forEach(v=>{const d=Math.hypot(v.x-q.x,v.y-q.y);if(d<bd){bd=d;bv=v;}});if(bd<tol){inl.push({l,v:bv});sd+=bd;}});
+    if(!best||inl.length>best.inl.length||(inl.length===best.inl.length&&sd<best.sd))best={p,inl,sd};};
+  const pairs=[];for(let i=0;i<L.length;i++)for(let j=i+1;j<L.length;j++)pairs.push([i,j]);
+  for(let t=pairs.length-1;t>0;t--){const k=Math.floor(Math.random()*(t+1));[pairs[t],pairs[k]]=[pairs[k],pairs[t]];}
+  pairs.slice(0,400).forEach(([i,j])=>{L[i].cands.slice(0,2).forEach(a=>L[j].cands.slice(0,2).forEach(b=>{
+    const p=fitT([{u:a.x,v:-a.y,E:L[i].r.E,N:L[i].r.N},{u:b.x,v:-b.y,E:L[j].r.E,N:L[j].r.N}],'helmert');if(p)trial(p);}));});
+  if(!best||best.inl.length<2)return {labels:L.length,res:null};
+  let pts=best.inl.map(o=>({x:o.v.x,y:o.v.y,E:o.l.r.E,N:o.l.r.N,name:o.l.r.name,on:true}));
+  let sol=solveGcp(pts,'helmert');
+  if(sol){trial(sol.p);pts=best.inl.map(o=>({x:o.v.x,y:o.v.y,E:o.l.r.E,N:o.l.r.N,name:o.l.r.name,on:true}));sol=solveGcp(pts,'helmert');}
+  return {labels:L.length,res:sol?{pts,sol}:null};
+}
+function lsq1(P){const n=P.length;let sx=0,sy=0,sxx=0,sxy=0;P.forEach(([x,y])=>{sx+=x;sy+=y;sxx+=x*x;sxy+=x*y;});const d=n*sxx-sx*sx;if(Math.abs(d)<1e-9)return null;const a=(n*sxy-sx*sy)/d;return {a,b:(sy-a*sx)/n};}
+function gridDetect(items,skip){
+  const E=[],N=[];items.forEach(it=>{if(skip&&skip.has(it.id))return;const v=pnum(it.s.replace(/\s/g,''));if(!isFinite(v))return;const rd=Math.abs(v-Math.round(v/10)*10)<1e-6;
+    if(rd&&v>=100000&&v<1000000)E.push({it,v});else if(rd&&v>=3700000&&v<4700000)N.push({it,v});});
+  if(new Set(E.map(e=>e.v)).size<2||new Set(N.map(e=>e.v)).size<2)return null;
+  const g=S.geo,lines={v:[],h:[],vs:[],hs:[]};
+  if(g&&g.nseg){for(let i=0;i<g.nseg;i++){const ax=g.segs[4*i],ay=g.segs[4*i+1],bx=g.segs[4*i+2],by=g.segs[4*i+3],L=Math.hypot(bx-ax,by-ay);if(L<25)continue;
+    if(Math.abs(bx-ax)<0.02*L)lines.v.push((ax+bx)/2);else if(Math.abs(by-ay)<0.02*L)lines.h.push((ay+by)/2);}}
+  if(g&&g.nseg){for(let i=0;i<g.nseg;i++){const ax=g.segs[4*i],ay=g.segs[4*i+1],bx=g.segs[4*i+2],by=g.segs[4*i+3],L=Math.hypot(bx-ax,by-ay);if(L<4||L>=25)continue;
+    if(Math.abs(bx-ax)<0.02*L)lines.vs.push((ax+bx)/2);else if(Math.abs(by-ay)<0.02*L)lines.hs.push((ay+by)/2);}}
+  const snapTo=(arr,x)=>{let b=x,bd=7;arr.forEach(q=>{const d=Math.abs(q-x);if(d<bd){bd=d;b=q;}});return b;};
+  const fitG=(pe,pn)=>{const fe=lsq1(pe),fn=lsq1(pn);if(!fe||!fn||!(fe.a>0)||!(fn.a<0))return null;if(Math.abs(fe.a+fn.a)/fe.a>0.03)return null;
+    const s=(fe.a-fn.a)/2;let c0=0,f0=0;pe.forEach(([x,v])=>c0+=v-s*x);pn.forEach(([y,v])=>f0+=v+s*y);c0/=pe.length;f0/=pn.length;
+    const p=[s,0,c0,0,s,f0];let s2=0,n=0,mx=0;pe.forEach(([x,v])=>{const r=s*x+c0-v;s2+=r*r;n++;mx=Math.max(mx,Math.abs(r));});pn.forEach(([y,v])=>{const r=-s*y+f0-v;s2+=r*r;n++;mx=Math.max(mx,Math.abs(r));});
+    return {p,rms:Math.sqrt(s2/n),max:mx,n};};
+  const vars=[[E.map(e=>[e.it.x,e.v]),N.map(e=>[e.it.y,e.v])],[E.map(e=>[snapTo(lines.v,e.it.x),e.v]),N.map(e=>[snapTo(lines.h,e.it.y),e.v])],
+    [E.map(e=>[snapTo(lines.vs.concat(lines.v),e.it.x),e.v]),N.map(e=>[snapTo(lines.hs.concat(lines.h),e.it.y),e.v])]];
+  let best=null;vars.forEach(([pe,pn])=>{const f=fitG(pe,pn);if(f&&(!best||f.rms<best.rms-1e-9))best=f;});
+  if(!best||best.rms>Math.max(1,5*tolM()))return null;
+  const {p,max:mx,n}=best;
+  return {p,rms:best.rms,max:mx,nE:new Set(E.map(e=>e.v)).size,nN:new Set(N.map(e=>e.v)).size,dof:n-3};
+}
+async function autoTopo(){
+  busy(true,'Ανάγνωση τοπογραφικού…');let items,rows,mt,gr;
+  try{items=await pageTexts(S.page);rows=tableRows(items);mt=rows.length>=2?matchTable(rows,items):null;const sk=new Set();rows.forEach(r=>r.ids.forEach(i=>sk.add(i)));gr=gridDetect(items,sk);}
+  catch(e){console.error(e);busy(false);return toast('Αποτυχία ανάγνωσης: '+(e.message||e),true);}
+  busy(false);
+  const sc=r=>'1:'+fN(grScale(r)/PT_M,0);
+  const tbl=mt&&mt.res,good=tbl&&tbl.sol.n>=2;
+  if(good||gr){
+    const useT=good&&(!gr||tbl.sol.n>=3||tbl.sol.rms<=gr.rms);
+    let html='';
+    if(useT){const s=tbl.sol,q=quality(s.rms,s.dof);
+      html=`<p>Βρέθηκε <b>πίνακας συντεταγμένων με ${rows.length} κορυφές</b> και εντοπίστηκαν στο σχέδιο οι <b>${s.n}</b> (${esc(tbl.pts.map(p=>p.name).join(', '))}).</p>
+      <div class="kv"><span>Μέσο σφάλμα</span><span class="${q.c}">${fM(s.rms)} · ${q.t}</span><span>Μέγιστο</span><span>${fM(s.max)}</span><span>Ανοχή σχεδίου</span><span>≈ ${fM(tolM())}</span><span>Κλίμακα από τη γεωαναφορά</span><span>${sc(s.p)}</span></div>
+      ${rows.length>s.n?'<p class="note">Οι υπόλοιπες κορυφές δεν βρέθηκαν με ετικέτα πάνω στο σχέδιο. Με «Έλεγχος σημείων» μπορείς να τις προσθέσεις με κλικ.</p>':''}`;}
+    else{const q=quality(gr.rms,gr.dof);
+      html=`<p>Βρέθηκε <b>κάνναβος ΕΓΣΑ87</b> με ${gr.nE} τιμές X και ${gr.nN} τιμές Y στο περιθώριο του φύλλου.</p>
+      <div class="kv"><span>Μέσο σφάλμα</span><span class="${q.c}">${fM(gr.rms)} · ${q.t}</span><span>Κλίμακα από τον κάνναβο</span><span>${sc(gr.p)}</span></div>
+      <p class="note">Ο κάνναβος θεωρείται παράλληλος στο φύλλο (βορράς προς τα πάνω).</p>`;}
+    const r=await choose('Αυτόματη γεωαναφορά',html+'<label class="ck"><input type="checkbox" data-k="all" checked>Εφαρμογή και στις υπάρχουσες μετρήσεις της σελίδας</label>',
+      [{t:'Άκυρο',k:null},useT?{t:'Έλεγχος σημείων',k:'edit'}:null,{t:'Εφαρμογή',k:'ok',pri:true}].filter(Boolean));
+    if(r.k==='ok'){if(useT){const s=tbl.sol;grSet(S.pageNum,{p:s.p,type:'helmert',method:'table',n:s.n,rms:s.rms,max:s.max,dof:s.dof,pts:tbl.pts,acc:'Από τον πίνακα κορυφών · μέσο σφάλμα '+fM(s.rms)},{applyAll:r.v.all});}
+      else grSet(S.pageNum,{p:gr.p,type:'helmert',method:'grid',n:gr.nE+gr.nN,rms:gr.rms,max:gr.max,dof:gr.dof,acc:'Από τον κάνναβο · μέσο σφάλμα '+fM(gr.rms)},{applyAll:r.v.all});
+      toast('Γεωαναφορά εφαρμόστηκε');}
+    else if(r.k==='edit')gcpStart({pts:tbl.pts,list:rows.map(x=>({name:x.name,E:x.E,N:x.N})),seq:true,mode:'helmert'});
+    return;
+  }
+  if(rows.length>=2){
+    const r=await choose('Αυτόματη γεωαναφορά',`<p>Βρέθηκε <b>πίνακας συντεταγμένων με ${rows.length} κορυφές</b> (${esc(rows.slice(0,8).map(x=>x.name).join(', '))}${rows.length>8?'…':''}), αλλά οι ετικέτες τους δεν εντοπίστηκαν με ασφάλεια πάνω στο σχέδιο.</p>
+      <p>Συνέχισε με κλικ: σου ζητείται κάθε φορά η επόμενη κορυφή του πίνακα και την πατάς στο σχέδιο (η έλξη κουμπώνει στη γωνία). Με 3 ή περισσότερες κορυφές βλέπεις και το σφάλμα.</p>`,
+      [{t:'Άκυρο',k:null},{t:'Συνέχεια με κλικ',k:'seq',pri:true}]);
+    if(r.k==='seq')gcpStart({list:rows.map(x=>({name:x.name,E:x.E,N:x.N})),seq:true,pts:[]});
+    return;
+  }
+  const r=await choose('Αυτόματη γεωαναφορά',`<p>Δεν βρέθηκε <b>πίνακας συντεταγμένων</b> ούτε <b>κάνναβος ΕΓΣΑ87</b> στα κείμενα του φύλλου.</p>
+    <p class="note">Συμβαίνει όταν το σχέδιο δεν έχει συντεταγμένες ή είναι σάρωση (εικόνα χωρίς κείμενα). Διάλεξε άλλον τρόπο:</p>`,
+    [{t:'Κλείσιμο',k:null},{t:'Με γνωστά σημεία',k:'gcp'},{t:'Στον χάρτη',k:'place',pri:true}]);
+  if(r.k==='gcp')gcpStart();else if(r.k==='place')placeOnMap();
+}
+
+/* ---------- GPS ---------- */
+function gpsOnce(){return new Promise(async(res,rej)=>{if(!navigator.geolocation)return rej(new Error('Η συσκευή δεν δίνει θέση GPS'));
+  try{await needProj();}catch(e){return rej(e);}
+  navigator.geolocation.getCurrentPosition(p=>{const e=toEgsa(p.coords.latitude,p.coords.longitude);res({E:e[0],N:e[1],acc:p.coords.accuracy,lat:p.coords.latitude,lng:p.coords.longitude});},
+    e=>rej(new Error(e.code===1?'Δεν δόθηκε άδεια θέσης στον browser':'Δεν βρέθηκε θέση GPS — δοκίμασε σε ανοιχτό χώρο')),{enableHighAccuracy:true,timeout:25000,maximumAge:0});});}
+async function gpsToggle(){
+  if(S.gps){navigator.geolocation.clearWatch(S.gps.id);S.gps=null;updToggles();req();updateLive();updStatus();return toast('Θέση GPS: ανενεργή');}
+  if(!S.gref[S.pageNum])return toast('Για τη θέση σου πάνω στο σχέδιο χρειάζεται πρώτα γεωαναφορά',true);
+  if(!navigator.geolocation)return toast('Η συσκευή δεν δίνει θέση GPS',true);
+  try{await needProj();}catch(e){return toast(e.message,true);}
+  S.gps={first:true};
+  S.gps.id=navigator.geolocation.watchPosition(p=>{if(!S.gps)return;const e=toEgsa(p.coords.latitude,p.coords.longitude);
+      Object.assign(S.gps,{E:e[0],N:e[1],acc:p.coords.accuracy,t:Date.now()});
+      if(S.gps.first){S.gps.first=false;const g=S.gref[S.pageNum];if(g){const v=grInv(g.p,e[0],e[1]);
+        if(v.x<-S.W*.05||v.y<-S.H*.05||v.x>S.W*1.05||v.y>S.H*1.05)toast('Βρίσκεσαι εκτός του σχεδίου ('+fN(Math.hypot(v.x-S.W/2,v.y-S.H/2)*grScale(g.p)/1000,1)+' km από το κέντρο του)',true);
+        else{fix(v,S.cw/2,S.ch/2);viewChanged();}}}
+      req();updateLive();updStatus();renderGeoCard();},
+    e=>{toast(e.code===1?'Δεν δόθηκε άδεια θέσης στον browser':'Δεν βρέθηκε θέση GPS',true);if(S.gps){navigator.geolocation.clearWatch(S.gps.id);S.gps=null;updToggles();}},
+    {enableHighAccuracy:true,maximumAge:2000,timeout:30000});
+  updToggles();toast('Θέση GPS: αναζήτηση…');
+}
+function gpsPoint(){const g=S.gref[S.pageNum];if(!S.gps||!S.gps.E||!g)return toast('Δεν υπάρχει θέση GPS',true);
+  const v=grInv(g.p,S.gps.E,S.gps.N);const m=commit('point',[v]);m.note='GPS ±'+fN(S.gps.acc,0)+' m';renderList();updateLive();toast(m.name+' στη θέση σου (±'+fN(S.gps.acc,0)+' m)');}
+function targetOf(m){if(!m)return null;if(m.type==='point'||m.type==='note')return m.pts[0];if(m.type==='area'&&m.pts.length>2)return centroid(m.pts);if(m.type==='ccr')return m.pts[0];return m.pts[m.pts.length-1];}
+function gpsNavHtml(){
+  const g=S.gref[S.pageNum];if(!S.gps||!g)return '';
+  if(!S.gps.E)return '<div class="gpsbox"><b>Θέση GPS</b><span>αναζήτηση…</span></div>';
+  let h=`<div class="gpsbox"><b>Η θέση σου</b><span class="mono">X ${fN(S.gps.E,2)} · Y ${fN(S.gps.N,2)}</span><span>ακρίβεια ±${fN(S.gps.acc,0)} m</span>`;
+  const m=S.sel!=null?getM(S.sel):null,t=m&&m.page===S.pageNum?targetOf(m):null;
+  if(t){const e=grApply(g.p,t.x,t.y),dE=e[0]-S.gps.E,dN=e[1]-S.gps.N,d=Math.hypot(dE,dN),az=nrm(Math.atan2(dE,dN));
+    h+=`<span class="gnav">Προς «${esc(m.name)}»: <b>${fL(d)}</b> · αζιμούθιο <b>${fN(az*200/Math.PI,2)} grad</b> (${fN(az*180/Math.PI,1)}°)</span>`;}
+  else h+='<span class="note">Επίλεξε μια μέτρηση ή ένα σημείο για να δεις απόσταση και κατεύθυνση μέχρι εκεί.</span>';
+  return h+'<button class="btn" data-gpspt="1">Σημείο στη θέση μου</button></div>';
+}
+function drawGps(c){const g=S.gref[S.pageNum];if(!S.gps||!S.gps.E||!g)return;
+  const v=grInv(g.p,S.gps.E,S.gps.N),p=toS(v),R=Math.max(6,S.gps.acc/grScale(g.p)*S.z);
+  c.save();c.beginPath();c.arc(p.x,p.y,R,0,TAU);c.fillStyle='rgba(59,130,246,.14)';c.fill();c.strokeStyle='rgba(59,130,246,.55)';c.lineWidth=1.2;c.stroke();
+  const m=S.sel!=null?getM(S.sel):null,t=m&&m.page===S.pageNum?targetOf(m):null;
+  if(t){const q=toS(t);c.setLineDash([6,5]);c.strokeStyle='#3b82f6';c.lineWidth=2;c.beginPath();c.moveTo(p.x,p.y);c.lineTo(q.x,q.y);c.stroke();c.setLineDash([]);}
+  c.beginPath();c.arc(p.x,p.y,7.5,0,TAU);c.fillStyle='#fff';c.fill();c.beginPath();c.arc(p.x,p.y,5.5,0,TAU);c.fillStyle='#3b82f6';c.fill();c.restore();}
+
+/* ---------- σχεδίαση: σημεία ελέγχου, ΚΑΕΚ, βορράς ---------- */
+function drawGcp(c){const g=S.gcp;if(!g||g.page!==S.pageNum)return;
+  g.pts.forEach(q=>{const p=toS(q),col=q.on===false?'#64748b':(g.sol&&g.sol.dof>0?(q.r<=tolM()?'#34d399':q.r<=3*tolM()?'#fbbf24':'#fb7185'):'#fbbf24');
+    c.save();c.beginPath();c.moveTo(p.x,p.y-10);c.lineTo(p.x+8.5,p.y+5);c.lineTo(p.x-8.5,p.y+5);c.closePath();c.fillStyle='rgba(2,6,23,.55)';c.fill();c.lineWidth=2.2;c.strokeStyle=col;c.stroke();
+    c.beginPath();c.arc(p.x,p.y,1.8,0,TAU);c.fillStyle='#fff';c.fill();c.restore();
+    pill(c,q.name+(g.sol&&g.sol.dof>0&&q.on!==false?'  δ '+fN(q.r,3):''),p.x,p.y-24,col,0);});}
+function drawKaek(c){const k=S.kov[S.pageNum],g=S.gref[S.pageNum];if(!k||!g||!k.ring)return;
+  const P=k.ring.map(e=>toS(grInv(g.p,e[0],e[1])));c.save();c.setLineDash([9,5]);
+  c.strokeStyle='rgba(2,6,23,.55)';c.lineWidth=4.5;c.beginPath();P.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.closePath();c.stroke();
+  c.strokeStyle='#f59e0b';c.lineWidth=2;c.stroke();c.setLineDash([]);c.restore();
+  let top=P[0];P.forEach(p=>{if(p.y<top.y)top=p;});pill(c,'ΚΑΕΚ '+k.kaek,top.x,top.y-16,'#f59e0b',0);
+  if(k.dev)k.dev.forEach(d=>{if(d.d<Math.max(0.05,tolM()))return;const p=toS(d.v);pill(c,'Δ '+fN(d.d,2),p.x+20,p.y+16,d.d<=3*tolM()?'#fbbf24':'#fb7185',0);});}
+function updNorth(){const g=S.gref[S.pageNum],el=$('#north');if(!el)return;if(!g||!S.page){el.hidden=true;return;}
+  const D=g.p[0]*g.p[4]-g.p[1]*g.p[3],du=-g.p[1]/D,dv=g.p[0]/D,a=Math.atan2(-dv,du)+S.rot;el.hidden=false;
+  el.querySelector('svg').style.transform='rotate('+((a+Math.PI/2)*180/Math.PI)+'deg)';}
+$('#north').onclick=()=>{const g=S.gref[S.pageNum];if(!g)return;const D=g.p[0]*g.p[4]-g.p[1]*g.p[3],du=-g.p[1]/D,dv=g.p[0]/D;rotateTo(-Math.PI/2-Math.atan2(-dv,du));toast('Ο βορράς είναι πάνω');};
+
+/* ---------- κάρτα γεωαναφοράς ---------- */
+function openGeoCard(){const c=$('#grCard');if(c)c.open=true;}
+function renderGeoCard(){
+  const el=$('#grIn');if(!el)return;const g=S.gref[S.pageNum],gc=S.gcp&&S.gcp.page===S.pageNum?S.gcp:null;
+  if(!S.page){el.innerHTML='<div class="note">Άνοιξε ένα σχέδιο.</div>';return;}
+  if(gc){const s=gc.sol,q=s?quality(s.rms,s.dof):null,nx=gc.seq?gcpNext():null;
+    el.innerHTML=`<div class="gstat warn">● Σημεία ελέγχου σε εξέλιξη</div>
+      <div class="note">${nx?'Πάτα στο σχέδιο την κορυφή <b>«'+esc(nx.name)+'»</b> · <a href="#" data-g="skip">παράλειψη</a>':(S.tool==='gcp'?'Πάτα στο σχέδιο σημεία με γνωστές συντεταγμένες. Με <b>2</b> σημεία γίνεται η γεωαναφορά, με <b>3+</b> βλέπεις και το σφάλμα κάθε σημείου.':'Η προσθήκη σημείων σταμάτησε.')}</div>
+      ${s?`<div class="kv"><span>Σημεία</span><span>${s.n}</span><span>Μέσο σφάλμα</span><span class="${q.c}">${s.dof>0?fM(s.rms)+' · '+q.t:'—'}</span><span>Ανοχή σχεδίου</span><span>≈ ${fM(tolM())}</span><span>Κλίμακα</span><span>1:${fN(grScale(s.p)/PT_M,1)}</span></div>`:''}
+      <div class="glist">${gc.pts.map((p,i)=>`<div class="gpt${p.on===false?' off':''}"><label><input type="checkbox" data-gon="${i}" ${p.on!==false?'checked':''}><b>${esc(p.name)}</b></label><span class="mono">${fN(p.E,2)} / ${fN(p.N,2)}</span><span class="mono ${s&&s.dof>0&&p.on!==false?(p.r<=tolM()?'ok':p.r<=3*tolM()?'warn':'bad'):''}">${s&&s.dof>0&&p.on!==false?fN(p.r,3):''}</span><button class="x" data-gdel="${i}" title="Διαγραφή">✕</button></div>`).join('')||'<div class="empty-l">Κανένα σημείο ακόμα.</div>'}</div>
+      <div class="row"><label>Μετασχηματισμός</label></div>
+      <div class="seg" id="gMode"><button data-v="helmert" class="${gc.mode!=='affine'?'on':''}">Ομοιότητας (κανονικό)</button><button data-v="affine" class="${gc.mode==='affine'?'on':''}">Affine (σαρώσεις)</button></div>
+      <div class="note">«Affine» διορθώνει και άνιση συστολή του χαρτιού· θέλει 4+ σημεία για αξιόπιστο έλεγχο.</div>
+      <div class="btns">${S.tool!=='gcp'?'<button class="btn" data-g="cont">Συνέχεια</button>':''}<button class="btn" data-g="imp">Συντεταγμένες από αρχείο</button></div>
+      <div class="btns"><button class="btn" data-g="cancel">Ακύρωση</button><button class="btn pri" data-g="finish" ${s?'':'disabled'}>Εφαρμογή</button></div>`;
+    return;}
+  if(g){const N=grScale(g.p)/PT_M,q=g.dof>0?quality(g.rms,g.dof):null,meth={points:'σημεία ελέγχου',table:'πίνακας κορυφών τοπογραφικού',grid:'κάνναβος φύλλου',map:'τοποθέτηση στον χάρτη',kaek:'γεωτεμάχιο ΚΑΕΚ'}[g.method]||g.method;
+    const k=S.kov[S.pageNum];
+    el.innerHTML=`<div class="gstat ok">● ΕΓΣΑ87 · ενεργή γεωαναφορά</div>
+      <div class="kv"><span>Τρόπος</span><span>${esc(meth)}</span>${g.n?`<span>Σημεία</span><span>${g.n}</span>`:''}${q?`<span>Μέσο σφάλμα</span><span class="${q.c}">${fM(g.rms)} · ${q.t}</span>`:''}
+      ${k?`<span>ΚΑΕΚ</span><span>${esc(k.kaek)}</span><span>Απόκλιση μέση / μέγ.</span><span>${fM(k.mean)} / ${fM(k.max)}</span>`:''}
+      <span>Κλίμακα</span><span>1:${fN(N,N<1000?1:0)}</span><span>Στροφή ως προς Βορρά</span><span>${fN(Math.abs(grRotDeg(g.p))<0.005?0:grRotDeg(g.p),2)}°</span><span>Ακρίβεια</span><span>${esc(g.acc||'')}</span></div>
+      ${gpsNavHtml()}
+      <div class="btns"><button class="btn" data-g="map">Δες στον χάρτη</button><button class="btn" data-g="gps">${S.gps?'Απενεργοποίηση GPS':'Η θέση μου (GPS)'}</button></div>
+      <div class="btns"><button class="btn" data-g="edit">Σημεία ελέγχου</button><button class="btn" data-g="north">Βορράς πάνω</button></div>
+      <div class="btns"><button class="btn" data-g="wiz">Νέα γεωαναφορά</button><button class="btn" data-g="clear">Κατάργηση</button></div>
+      ${S.scaleSrc!=='georef'?'<div class="note warn">Οι νέες μετρήσεις χρησιμοποιούν τώρα την κλίμακα '+scaleTxt(S.scaleN)+' (όχι τη γεωαναφορά). <a href="#" data-g="usegeo">Επαναφορά στη γεωαναφορά</a></div>':''}`;
+    return;}
+  el.innerHTML=`<div class="gstat">○ Χωρίς γεωαναφορά</div>
+    <div class="note">Δέσε το σχέδιο με το <b>ΕΓΣΑ87</b> για πραγματικές συντεταγμένες, DXF στη σωστή θέση, προβολή στον χάρτη, σύγκριση με το Κτηματολόγιο και τη θέση σου (GPS) πάνω στο σχέδιο.</div>
+    <button class="btn pri" data-g="wiz">Γεωαναφορά σχεδίου…</button>`;
+}
+$('#grIn').addEventListener('click',e=>{
+  const b=e.target.closest('[data-g]');if(b){e.preventDefault();const k=b.dataset.g;
+    if(k==='wiz')geoWizard();else if(k==='finish')gcpFinish();else if(k==='cancel')gcpCancel();else if(k==='cont'){setTool('gcp');renderGeoCard();closePanelMobile();}
+    else if(k==='imp')gcpImport();else if(k==='skip'){const n=gcpNext();if(n){n.skip=true;renderGeoCard();updHint();}}
+    else if(k==='map')openMap('check',{title:'Το σχέδιο πάνω στον χάρτη'});else if(k==='gps'){gpsToggle().then(renderGeoCard);}
+    else if(k==='edit')gcpStart();else if(k==='north')$('#north').click();else if(k==='clear')grClear();
+    else if(k==='usegeo'){const g=S.gref[S.pageNum];if(g){S.scaleN=grScale(g.p)/PT_M;S.mPerPt=grScale(g.p);S.scaleSrc='georef';updScaleUI();renderGeoCard();}}
+    return;}
+  const d=e.target.closest('[data-gdel]');if(d&&S.gcp){S.gcp.pts.splice(+d.dataset.gdel,1);gcpSolve();return;}
+  const p=e.target.closest('[data-gpspt]');if(p){gpsPoint();return;}
+  const m=e.target.closest('#gMode button');if(m&&S.gcp){S.gcp.mode=m.dataset.v;gcpSolve();}
+});
+$('#grIn').addEventListener('change',e=>{const c=e.target.closest('[data-gon]');if(c&&S.gcp){S.gcp.pts[+c.dataset.gon].on=c.checked;gcpSolve();}});
+
+/* ---------- χάρτης ---------- */
+let MAPSAT=null,MAP=null,MAPMODE=null,MAPRES=null,MAPOV=null,MAPIMG=null,MAPK=null,MAPKT=null,MAPME=null,PL=null,MAPKL=null;
+async function mapImage(){
+  if(MAPIMG&&MAPIMG.page===S.pageNum&&MAPIMG.doc===S.doc)return MAPIMG;
+  const W=S.W,H=S.H,k=Math.min(3,2600/Math.max(W,H)),c=document.createElement('canvas');c.width=Math.round(W*k);c.height=Math.round(H*k);
+  const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);
+  await S.page.render({canvasContext:x,viewport:S.page.getViewport({scale:c.width/W})}).promise;
+  const id=x.getImageData(0,0,c.width,c.height),d=id.data;
+  for(let i=0;i<d.length;i+=4){const l=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2],a=Math.max(0,Math.min(255,(238-l)*2.4));d[i]=61;d[i+1]=232;d[i+2]=255;d[i+3]=a;}
+  x.putImageData(id,0,0);x.drawImage(annotCanvas(S.pageNum,W,H,k,1.4),0,0);
+  MAPIMG={c,W,H,k,page:S.pageNum,doc:S.doc};return MAPIMG;
+}
+function ovLayer(){return L.Layer.extend({
+  onAdd(map){this._m=map;this._c=L.DomUtil.create('canvas','grov',map.getPane('overlayPane'));this._c.style.pointerEvents='none';map.on('move zoom resize viewreset moveend zoomend',this._draw,this);this._draw();},
+  onRemove(map){map.off('move zoom resize viewreset moveend zoomend',this._draw,this);this._c.remove();},
+  _draw(){const m=this._m;if(!m)return;const sz=m.getSize(),d=Math.min(window.devicePixelRatio||1,2),c=this._c;
+    L.DomUtil.setPosition(c,m.containerPointToLayerPoint([0,0]));c.width=sz.x*d;c.height=sz.y*d;c.style.width=sz.x+'px';c.style.height=sz.y+'px';
+    const x=c.getContext('2d');x.setTransform(1,0,0,1,0,0);x.clearRect(0,0,c.width,c.height);const p=mapP();if(!p||!MAPIMG)return;
+    const I=MAPIMG,cp=(vx,vy)=>{const e=grApply(p,vx,vy),ll=toWgs(e[0],e[1]);return m.latLngToContainerPoint([ll.lat,ll.lng]);};
+    const P0=cp(0,0),P1=cp(I.W,0),P2=cp(0,I.H),iw=I.c.width,ih=I.c.height;
+    x.setTransform(d*(P1.x-P0.x)/iw,d*(P1.y-P0.y)/iw,d*(P2.x-P0.x)/ih,d*(P2.y-P0.y)/ih,d*P0.x,d*P0.y);
+    x.globalAlpha=+($('#mOp')?$('#mOp').value:85)/100;x.drawImage(I.c,0,0);}
+});}
+function mapP(){if(MAPMODE==='place'&&PL){const a=PL.s*Math.cos(PL.th),b=PL.s*Math.sin(PL.th);return [a,-b,PL.cE-a*PL.uc+b*PL.vc,b,a,PL.cN-b*PL.uc-a*PL.vc];}
+  const g=S.gref[S.pageNum];return g?g.p:null;}
+async function initMap(){
+  await needLeaflet();await needProj();
+  if(MAP)return;
+  MAP=L.map('mapBox',{zoomControl:false,attributionControl:false,maxZoom:21,doubleClickZoom:false,zoomAnimation:false,fadeAnimation:false}).setView([38.6,23.6],7);
+  L.control.zoom({position:'bottomright'}).addTo(MAP);
+  MAPSAT=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:18}).addTo(MAP);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:19,opacity:.85}).addTo(MAP);
+  MAPKT=L.tileLayer.wms('https://gis.ktimanet.gr/inspire/rest/services/cadastralparcels/CadastralParcelWMS/MapServer/exts/InspireView/service',{layers:'0',format:'image/png',transparent:true,version:'1.3.0',opacity:.9,maxZoom:21});
+  MAP.createPane('kaekPane').style.zIndex=460;
+  MAPOV=new (ovLayer())();MAPOV.addTo(MAP);
+  MAP.on('move',mapReadout);
+  const box=$('#mapBox');let drag=null;
+  box.addEventListener('pointerdown',e=>{if(MAPMODE!=='place'||!PL||e.button>0)return;const r=box.getBoundingClientRect(),cpt=L.point(e.clientX-r.left,e.clientY-r.top);
+    const ll=MAP.containerPointToLatLng(cpt),en=toEgsa(ll.lat,ll.lng),v=grInv(mapP(),en[0],en[1]);
+    if(v.x<0||v.y<0||v.x>MAPIMG.W||v.y>MAPIMG.H)return;
+    drag={id:e.pointerId,E:en[0],N:en[1],cE:PL.cE,cN:PL.cN};MAP.dragging.disable();e.stopPropagation();try{box.setPointerCapture(e.pointerId);}catch(_){}},true);
+  box.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;const r=box.getBoundingClientRect(),ll=MAP.containerPointToLatLng(L.point(e.clientX-r.left,e.clientY-r.top)),en=toEgsa(ll.lat,ll.lng);
+    PL.cE=drag.cE+en[0]-drag.E;PL.cN=drag.cN+en[1]-drag.N;MAPOV._draw();e.stopPropagation();},true);
+  const up=e=>{if(!drag||e.pointerId!==drag.id)return;drag=null;MAP.dragging.enable();};box.addEventListener('pointerup',up,true);box.addEventListener('pointercancel',up,true);
+}
+function mapReadout(){const el=$('#mRead');if(!el||!MAP)return;const c=MAP.getCenter(),e=toEgsa(c.lat,c.lng);el.innerHTML=`Σταυρόνημα: <b class="mono">X ${fN(e[0],2)} · Y ${fN(e[1],2)}</b>`;}
+function fitSheet(p){const B=[[0,0],[S.W,0],[S.W,S.H],[0,S.H]].map(([x,y])=>{const e=grApply(p,x,y),ll=toWgs(e[0],e[1]);return [ll.lat,ll.lng];});
+  MAP.fitBounds(B,{padding:[30,30],maxZoom:20});}
+function mapCenterDefault(){
+  const p=mapP();
+  if(p&&!(MAPMODE==='place'&&PL&&PL.pending)){fitSheet(p);return;}
+  if(PROJ_LL){MAP.setView([PROJ_LL.lat,PROJ_LL.lng],18);return;}
+}
+async function openMap(mode,opt){
+  opt=opt||{};
+  try{busy(true,'Φόρτωση χάρτη…');await initMap();await mapImage();}catch(e){busy(false);toast('Ο χάρτης δεν φορτώθηκε: '+(e.message||e),true);return null;}
+  busy(false);
+  MAPMODE=mode;$('#mapTitle').textContent=opt.title||'Χάρτης';$('#mapDlg').hidden=false;$('#mapCross').hidden=!(mode==='pick'||mode==='kaek');
+  MAP.invalidateSize();if(opt.center)MAP.setView(opt.center,opt.zoom||18);else mapCenterDefault();
+  if(MAPK){MAP.removeLayer(MAPK);MAPK=null;}
+  const k=S.kov[S.pageNum];if((mode==='check')&&k&&k.ring){MAPK=kaekLayer(k.ring);}
+  if(mode==='kaek'&&!MAP.hasLayer(MAPKT)){MAPKT.addTo(MAP);$('#mlKt').classList.add('on');}
+  renderMapSheet();MAPOV._draw();mapReadout();
+  return new Promise(res=>{MAPRES=res;});
+}
+function kaekLayer(ring){return L.polygon(ring.map(e=>{const ll=toWgs(e[0],e[1]);return [ll.lat,ll.lng];}),{pane:'kaekPane',color:'#f59e0b',weight:3,dashArray:'8 6',fill:true,fillOpacity:.06}).addTo(MAP);}
+function closeMap(v){$('#mapDlg').hidden=true;const r=MAPRES;MAPRES=null;MAPMODE=null;PL=null;if(MAPKL){MAP.removeLayer(MAPKL);MAPKL=null;}if(r)r(v===undefined?null:v);}
+function renderMapSheet(){
+  const el=$('#mapSheet'),mode=MAPMODE;let h='';
+  if(mode==='pick')h=`<div class="note">Μετακίνησε τον χάρτη ώστε το <b>σταυρόνημα</b> να πέσει ακριβώς στο σημείο που πάτησες στο σχέδιο (π.χ. γωνία κτιρίου ή φράχτη). Ακρίβεια περίπου 1–3 m.</div>
+    <div id="mRead" class="note"></div><div class="btns"><button class="btn" data-m="x">Άκυρο</button><button class="btn pri" data-m="use">Χρήση του σημείου</button></div>`;
+  else if(mode==='place')h=`<div class="note">Σύρε το <b>σχέδιο</b> (κυανές γραμμές) στη σωστή θέση. Στρίψε το με τη μπάρα ώστε να ταιριάξει με κτίρια, δρόμους ή όρια. Ο χάρτης μετακινείται σέρνοντας έξω από το σχέδιο.</div>
+    <div class="mrow"><label>Στροφή</label><button class="chip t" data-rot="-1">−1°</button><button class="chip t" data-rot="-0.1">−0,1°</button><input type="range" id="mRot" min="-180" max="180" step="0.1" value="${(PL.th*180/Math.PI).toFixed(1)}"><button class="chip t" data-rot="0.1">+0,1°</button><button class="chip t" data-rot="1">+1°</button><span class="mono" id="mRotV">${fN(PL.th*180/Math.PI,1)}°</span></div>
+    <div class="mrow"><label>Κλίμακα 1:</label><input id="mSc" class="mono" inputmode="decimal" value="${fN(PL.s/PT_M,1)}"><label>Διαφάνεια</label><input type="range" id="mOp" min="20" max="100" value="85"></div>
+    <div class="btns"><button class="btn" data-m="x">Άκυρο</button><button class="btn" data-m="here">Στο κέντρο του χάρτη</button><button class="btn pri" data-m="apply">Εφαρμογή γεωαναφοράς</button></div>`;
+  else if(mode==='check'){const g=S.gref[S.pageNum];h=`<div class="note">Το σχέδιο (κυανές γραμμές) με τις μετρήσεις, στη θέση που δίνει η γεωαναφορά. Έλεγξε ότι κάθεται σωστά στα κτίρια και στα όρια· ενεργοποίησε και τα «Όρια Κτηματολογίου».${g?' Ακρίβεια γεωαναφοράς: '+esc(g.acc||''):''}</div>
+    <div class="mrow"><label>Διαφάνεια</label><input type="range" id="mOp" min="20" max="100" value="85"></div><div class="btns"><button class="btn pri" data-m="x">Κλείσιμο</button></div>`;}
+  else if(mode==='kaek')h=`<div class="note">Βάλε το <b>σταυρόνημα</b> μέσα στο γεωτεμάχιο και πάτα «Εύρεση». Τα «Όρια Κτηματολογίου» είναι ανοιχτά για να το βρεις εύκολα.</div>
+    <div id="mRead" class="note"></div><div id="mKaek" class="note"></div><div class="btns"><button class="btn" data-m="x">Άκυρο</button><button class="btn" data-m="find">Εύρεση γεωτεμαχίου</button><button class="btn pri" data-m="usek" disabled>Χρήση του ΚΑΕΚ</button></div>`;
+  el.innerHTML=h;
+  const op=$('#mOp');if(op)op.oninput=()=>MAPOV._draw();
+  const rt=$('#mRot');if(rt)rt.oninput=()=>{PL.th=+rt.value*Math.PI/180;$('#mRotV').textContent=fN(+rt.value,1)+'°';MAPOV._draw();};
+  const scI=$('#mSc');if(scI)scI.onchange=()=>{const v=num(scI.value);if(v>0){PL.s=v*PT_M;MAPOV._draw();}};
+}
+$('#mapSheet').addEventListener('click',async e=>{
+  const r=e.target.closest('[data-rot]');if(r&&PL){let d=PL.th*180/Math.PI+(+r.dataset.rot);d=((d+540)%360)-180;PL.th=d*Math.PI/180;$('#mRot').value=d;$('#mRotV').textContent=fN(d,1)+'°';MAPOV._draw();return;}
+  const b=e.target.closest('[data-m]');if(!b)return;const k=b.dataset.m;
+  if(k==='x')return closeMap(null);
+  if(k==='use'){const c=MAP.getCenter(),en=toEgsa(c.lat,c.lng);return closeMap({E:en[0],N:en[1]});}
+  if(k==='here'&&PL){const c=MAP.getCenter(),en=toEgsa(c.lat,c.lng);PL.cE=en[0];PL.cN=en[1];MAPOV._draw();return;}
+  if(k==='apply'&&PL){const p=mapP();return closeMap({p});}
+  if(k==='find'){const c=MAP.getCenter(),en=toEgsa(c.lat,c.lng);$('#mKaek').textContent='Αναζήτηση…';
+    try{const pc=await kaekAtPoint(en[0],en[1]);if(MAPKL)MAP.removeLayer(MAPKL);MAPKL=kaekLayer(pc.ring);MAP.fitBounds(MAPKL.getBounds(),{maxZoom:19,padding:[30,30]});
+      $('#mKaek').innerHTML='Βρέθηκε <b>ΚΑΕΚ '+esc(pc.kaek)+'</b> · εμβαδόν περιγράμματος '+fAr(Math.abs(sarea(pc.ring)));$('#mapSheet [data-m=usek]').disabled=false;$('#mapSheet [data-m=usek]')._pc=pc;}
+    catch(err){$('#mKaek').innerHTML='<span class="warn">'+esc(err.message||err)+'</span>';}return;}
+  if(k==='usek')return closeMap(b._pc||null);
+});
+$('#mapClose').onclick=()=>closeMap(null);
+$('#mlSat').onclick=()=>{if(!MAP)return;if(MAP.hasLayer(MAPSAT)){MAP.removeLayer(MAPSAT);$('#mlSat').classList.remove('on');}else{MAPSAT.addTo(MAP);MAPSAT.bringToBack();$('#mlSat').classList.add('on');}};
+$('#mlKt').onclick=()=>{if(!MAP)return;if(MAP.hasLayer(MAPKT)){MAP.removeLayer(MAPKT);$('#mlKt').classList.remove('on');}else{MAPKT.addTo(MAP);$('#mlKt').classList.add('on');}};
+$('#mlMe').onclick=async()=>{try{const q=await gpsOnce();MAP.setView([q.lat,q.lng],Math.max(MAP.getZoom(),18));if(MAPME)MAP.removeLayer(MAPME);
+  MAPME=L.circle([q.lat,q.lng],{radius:Math.max(2,q.acc),color:'#3b82f6',weight:2,fillOpacity:.15}).addTo(MAP);}catch(e){toast(e.message,true);}};
+async function mapSearch(){
+  const t=$('#mapSearch').value.trim();if(!t||!MAP)return;
+  const d=t.replace(/\s/g,'');
+  if(/^\d{12}(\/\d+)?$/.test(d)){try{const pc=await kaekByCode(d.slice(0,12));if(MAPKL)MAP.removeLayer(MAPKL);MAPKL=kaekLayer(pc.ring);MAP.fitBounds(MAPKL.getBounds(),{maxZoom:19,padding:[30,30]});
+      if(MAPMODE==='kaek'){$('#mKaek').innerHTML='Βρέθηκε <b>ΚΑΕΚ '+esc(pc.kaek)+'</b>';const u=$('#mapSheet [data-m=usek]');u.disabled=false;u._pc=pc;}}catch(e){toast(e.message,true);}return;}
+  const ns=t.split(/[\s;,]+/).map(x=>parseFloat(x.replace(',','.'))).filter(isFinite);
+  const n2=(t.match(/-?\d+(?:[.,]\d+)?/g)||[]).map(x=>parseFloat(x.replace(',','.')));
+  const a=n2.length>=2?n2:ns;
+  if(a.length>=2){if(inGreece(a[0],a[1])){const ll=toWgs(a[0],a[1]);MAP.setView([ll.lat,ll.lng],19);return;}
+    if(Math.abs(a[0])<=90&&Math.abs(a[1])<=180){MAP.setView([a[0],a[1]],18);return;}}
+  toast('Γράψε ΚΑΕΚ (12 ψηφία), X Y σε ΕΓΣΑ87 ή γεωγρ. πλάτος, μήκος',true);
+}
+$('#mapGo').onclick=mapSearch;$('#mapSearch').addEventListener('keydown',e=>{if(e.key==='Enter')mapSearch();});
+
+/* ---------- 3 · τοποθέτηση στον χάρτη ---------- */
+async function placeOnMap(){
+  if(S.scaleSrc==='default'&&!S.detect.length){const r=await choose('Τοποθέτηση στον χάρτη','<p>Δεν έχει οριστεί κλίμακα για το σχέδιο. Η τοποθέτηση χρησιμοποιεί την κλίμακα για το μέγεθος· ενεργή τώρα: <b>'+scaleTxt(S.scaleN)+'</b>. Μπορείς να την αλλάξεις και μέσα στον χάρτη.</p>',[{t:'Άκυρο',k:null},{t:'Συνέχεια',k:'ok',pri:true}]);if(!r.k)return;}
+  const g=S.gref[S.pageNum];
+  try{await needLeaflet();await needProj();}catch(e){return toast(e.message,true);}
+  let cE=null,cN=null,th=0,s=S.mPerPt;
+  if(g){const e=grApply(g.p,S.W/2,S.H/2);cE=e[0];cN=e[1];th=grRotDeg(g.p)*Math.PI/180;s=grScale(g.p);}
+  else if(PROJ_LL){const e=toEgsa(PROJ_LL.lat,PROJ_LL.lng);cE=e[0];cN=e[1];}
+  PL={cE:cE||500000,cN:cN||4250000,th,s,uc:S.W/2,vc:-S.H/2,pending:cE==null};
+  const pr=openMap('place',{title:'Τοποθέτηση του σχεδίου στον χάρτη'});
+  if(PL&&PL.pending){toast('Μετακίνησε τον χάρτη στην περιοχή του έργου και πάτα «Στο κέντρο του χάρτη»');}
+  const r=await pr;if(!r||!r.p)return;
+  grSet(S.pageNum,{p:r.p,type:'helmert',method:'map',n:0,rms:0,dof:0,acc:'Τοποθέτηση στον χάρτη · περίπου 1–3 m'});
+  toast('Γεωαναφορά από τον χάρτη εφαρμόστηκε · για ακρίβεια πρόσθεσε σημεία ελέγχου');
+}
+
+/* ---------- 4 · ΚΑΕΚ ---------- */
+function sarea(r){let a=0;for(let i=0;i<r.length;i++){const p=r[i],q=r[(i+1)%r.length];a+=p[0]*q[1]-q[0]*p[1];}return a/2;}
+function pipR(pt,ring){let ins=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];if(((yi>pt[1])!==(yj>pt[1]))&&(pt[0]<(xj-xi)*(pt[1]-yi)/(yj-yi)+xi))ins=!ins;}return ins;}
+function outerRing(rings){let b=null,ba=0;rings.forEach(r=>{let q=r.map(p=>[p[0],p[1]]);if(q.length>3&&q[0][0]===q[q.length-1][0]&&q[0][1]===q[q.length-1][1])q.pop();const a=Math.abs(sarea(q));if(a>ba){ba=a;b=q;}});return b;}
+async function arcQuery(qs){const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),25000);
+  try{const r=await fetch(ARC_KAEK+'?f=json&outFields=KAEK&returnGeometry=true&outSR=2100&'+qs,{signal:ctl.signal});const j=await r.json();if(j.error)throw new Error(j.error.message||'σφάλμα υπηρεσίας');
+    return (j.features||[]).map(f=>({kaek:String((f.attributes||{}).KAEK||''),ring:outerRing((f.geometry&&f.geometry.rings)||[])})).filter(p=>p.kaek&&p.ring&&p.ring.length>=3);}
+  finally{clearTimeout(to);}}
+async function kaekByCode(code){
+  let l=[];try{l=await arcQuery('where='+encodeURIComponent("KAEK='"+code+"'"));}catch(e){console.warn(e);}
+  if(l.length)return l[0];
+  throw new Error('Δεν βρέθηκε το ΚΑΕΚ '+code+' στον χάρτη του Κτηματολογίου (λειτουργούν). Δοκίμασε να το δείξεις στον χάρτη.');
+}
+async function kaekAtPoint(E,N){
+  let l=[];try{l=await arcQuery('where=1%3D1&geometry='+encodeURIComponent([E-2,N-2,E+2,N+2].map(v=>v.toFixed(2)).join(','))+'&geometryType=esriGeometryEnvelope&inSR=2100&spatialRel=esriSpatialRelIntersects');}catch(e){console.warn(e);}
+  const hit=l.find(p=>pipR([E,N],p.ring))||l[0];if(hit)return hit;
+  await needProj();const ll=toWgs(E,N);
+  const r=await fetch(KAEK_GEO+'?lat='+ll.lat.toFixed(7)+'&lon='+ll.lng.toFixed(7)).catch(()=>null);
+  if(r&&r.ok){const j=await r.json().catch(()=>null);if(j&&j.kaek&&j.geometry_egsa){const gm=j.geometry_egsa,rings=gm.type==='MultiPolygon'?gm.coordinates.map(p=>p[0]):[gm.coordinates[0]];const ring=outerRing(rings);if(ring)return {kaek:String(j.kaek),ring};}}
+  throw new Error('Δεν βρέθηκε γεωτεμάχιο σε αυτό το σημείο.');
+}
+function nearSeg(px,py,R){let bd=Infinity,bx=0,by=0;for(let i=0;i<R.length;i++){const a=R[i],b=R[(i+1)%R.length],dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy;let t=l?((px-a[0])*dx+(py-a[1])*dy)/l:0;t=t<0?0:t>1?1:t;const x=a[0]+t*dx,y=a[1]+t*dy,d=(x-px)*(x-px)+(y-py)*(y-py);if(d<bd){bd=d;bx=x;by=y;}}return {d:Math.sqrt(bd),x:bx,y:by};}
+function samplePoly(U,n){let per=0;const L=[];for(let i=0;i<U.length;i++){const a=U[i],b=U[(i+1)%U.length],l=Math.hypot(b.u-a.u,b.v-a.v);L.push(l);per+=l;}
+  const out=[];for(let i=0;i<U.length;i++){const a=U[i],b=U[(i+1)%U.length],k=Math.max(1,Math.round(n*L[i]/per));for(let j=0;j<k;j++){const t=j/k;out.push({u:a.u+(b.u-a.u)*t,v:a.v+(b.v-a.v)*t});}}return out;}
+function fitOutline(vp,ring,fixS){
+  const U=vp.map(p=>({u:p.x,v:-p.y})),SA=samplePoly(U,160);
+  const aA=Math.abs(sarea(U.map(p=>[p.u,p.v]))),aB=Math.abs(sarea(ring));if(aA<1e-6)return null;
+  const s0=fixS||Math.sqrt(aB/aA);
+  let cu=0,cv=0;SA.forEach(p=>{cu+=p.u;cv+=p.v;});cu/=SA.length;cv/=SA.length;
+  const RB=samplePoly(ring.map(q=>({u:q[0],v:q[1]})),160);let cE=0,cN=0;RB.forEach(p=>{cE+=p.u;cN+=p.v;});cE/=RB.length;cN/=RB.length;
+  const mk=(s,th,tE,tN)=>{const a=s*Math.cos(th),b=s*Math.sin(th);return [a,-b,tE-a*cu+b*cv,b,a,tN-b*cu-a*cv];};
+  const score=p=>{let s=0;for(const q of SA){const E=p[0]*q.u+p[1]*q.v+p[2],N=p[3]*q.u+p[4]*q.v+p[5];s+=nearSeg(E,N,ring).d;}return s/SA.length;};
+  const cand=[];for(let d=0;d<360;d+=3){const p=mk(s0,d*Math.PI/180,cE,cN);cand.push({p,s:score(p)});}
+  cand.sort((a,b)=>a.s-b.s);let best=null;
+  cand.slice(0,4).forEach(c=>{let p=c.p,prev=Infinity;
+    for(let it=0;it<60;it++){const pairs=SA.map(q=>{const E=p[0]*q.u+p[1]*q.v+p[2],N=p[3]*q.u+p[4]*q.v+p[5],n=nearSeg(E,N,ring);return {u:q.u,v:q.v,E:n.x,N:n.y};});
+      const np=fitT(pairs,'helmert',fixS);if(!np)break;p=np;const sc=score(p);if(prev-sc<1e-5){prev=sc;break;}prev=sc;}
+    if(!best||prev<best.s)best={p,s:prev};});
+  const dev=vp.map(v=>{const e=grApply(best.p,v.x,v.y);return {v,d:nearSeg(e[0],e[1],ring).d};});
+  return {p:best.p,mean:dev.reduce((a,b)=>a+b.d,0)/dev.length,max:Math.max(...dev.map(d=>d.d)),dev};
+}
+async function kaekFlow(plot){
+  const areas=S.meas.filter(m=>m.page===S.pageNum&&m.type==='area'&&m.pts.length>=3).map(m=>({m,a:polyArea(m.pts)})).sort((a,b)=>b.a-a.a);
+  if(!plot){
+    const r=await choose('ΚΑΕΚ · Βήμα 1 από 2 — Περίγραμμα οικοπέδου',`<p>Πρώτα χρειάζεται το <b>περίγραμμα του οικοπέδου</b> πάνω στο σχέδιο.</p>
+      ${areas.length?`<label class="fld"><span>Διάλεξε ένα υπάρχον εμβαδόν</span><select data-k="m">${areas.map(x=>`<option value="${x.m.id}">${esc(x.m.name)} · ${esc(info(x.m).sh)} · ${x.m.pts.length} κορυφές</option>`).join('')}</select></label>`:''}
+      <p class="note">Ή πάτα «Κλικ μέσα στο οικόπεδο»: το περίγραμμα ανιχνεύεται αυτόματα. Το οικόπεδο πρέπει να φαίνεται ολόκληρο στην οθόνη.</p>`,
+      [{t:'Άκυρο',k:null},{t:'Κλικ μέσα στο οικόπεδο',k:'auto'},areas.length?{t:'Συνέχεια',k:'ok',pri:true}:null].filter(Boolean));
+    if(r.k==='auto'){S.afterAuto=m=>kaekFlow(m);setTool('auto');toast('Πάτα μέσα στο οικόπεδο');return;}
+    if(r.k!=='ok')return;plot=getM(+r.v.m);if(!plot)return;
+  }
+  const r2=await choose('ΚΑΕΚ · Βήμα 2 από 2 — Γεωτεμάχιο Κτηματολογίου',`<p>Βρες το γεωτεμάχιο που αντιστοιχεί στο οικόπεδο «${esc(plot.name)}».</p>
+    <label class="fld"><span>ΚΑΕΚ (12 ψηφία)</span><input data-k="kaek" inputmode="numeric" placeholder="π.χ. 341234567890"></label>
+    <label class="ck"><input type="checkbox" data-k="fix" ${S.scaleSrc==='default'?'':'checked'}>Κράτα την κλίμακα του σχεδίου (${scaleTxt(S.scaleN)}) — προτείνεται όταν το PDF είναι σε σωστή κλίμακα</label>`,
+    [{t:'Άκυρο',k:null},{t:'Δείξ\' το στον χάρτη',k:'map'},PROJ_LL?{t:'Στη θέση του έργου',k:'proj'}:null,{t:'Αναζήτηση ΚΑΕΚ',k:'code',pri:true}].filter(Boolean));
+  if(!r2.k)return;
+  let pc=null;
+  try{
+    if(r2.k==='code'){const c=String(r2.v.kaek||'').replace(/\D/g,'');if(c.length!==12)return toast('Το ΚΑΕΚ έχει 12 ψηφία',true);busy(true,'Αναζήτηση ΚΑΕΚ…');pc=await kaekByCode(c);}
+    else if(r2.k==='proj'){await needProj();busy(true,'Αναζήτηση γεωτεμαχίου…');const e=toEgsa(PROJ_LL.lat,PROJ_LL.lng);pc=await kaekAtPoint(e[0],e[1]);}
+    else{pc=await openMap('kaek',{title:'Δείξε το γεωτεμάχιο'});if(!pc)return;}
+  }catch(e){busy(false);return toast(e.message||String(e),true);}
+  busy(true,'Ταίριασμα περιγράμματος με το ΚΑΕΚ…');await new Promise(r=>setTimeout(r,30));
+  const fit=fitOutline(plot.pts,pc.ring,r2.v.fix?S.mPerPt:null);busy(false);
+  if(!fit)return toast('Δεν έγινε ταίριασμα',true);
+  const T=tolM(),sc=grScale(fit.p)/PT_M,worst=fit.dev.reduce((a,b,i)=>b.d>a.d?{d:b.d,i}:a,{d:-1,i:0});
+  const r3=await choose('Ταίριασμα με ΚΑΕΚ '+pc.kaek,`<p>Το περίγραμμα «${esc(plot.name)}» ταιριάστηκε στο γεωτεμάχιο <b>${esc(pc.kaek)}</b>.</p>
+    <div class="kv"><span>Μέση απόκλιση κορυφών</span><span class="${fit.mean<=Math.max(.1,T)?'ok':fit.mean<=.5?'warn':'bad'}">${fM(fit.mean)}</span><span>Μέγιστη</span><span>${fM(fit.max)} (κορυφή ${worst.i+1})</span>
+    <span>Εμβαδόν σχεδίου / ΚΑΕΚ</span><span>${fAr(polyArea(plot.pts)*grScale(fit.p)**2)} / ${fAr(Math.abs(sarea(pc.ring)))}</span><span>Κλίμακα</span><span>1:${fN(sc,1)}${r2.v.fix?' (του σχεδίου)':' (ελεύθερη)'}</span></div>
+    <p class="note">Οι αποκλίσεις φαίνονται πάνω στο σχέδιο ως «Δ» δίπλα στις κορυφές, και το όριο του ΚΑΕΚ με διακεκομμένη πορτοκαλί γραμμή. Η ακρίβεια της γεωαναφοράς είναι όσο του Κτηματολογίου· για επίσημες εργασίες χρησιμοποίησε μετρημένα σημεία.</p>`,
+    [{t:'Άκυρο',k:null},{t:'Εφαρμογή',k:'ok',pri:true}]);
+  if(r3.k!=='ok')return;
+  grSet(S.pageNum,{p:fit.p,type:'helmert',method:'kaek',n:0,rms:fit.mean,max:fit.max,dof:0,acc:'Από ΚΑΕΚ '+pc.kaek+' · μέση απόκλιση '+fM(fit.mean)});
+  S.kov[S.pageNum]={kaek:pc.kaek,ring:pc.ring,mean:fit.mean,max:fit.max,dev:fit.dev.map(d=>({v:{x:d.v.x,y:d.v.y},d:d.d})),plot:plot.id};
+  renderGeoCard();req();scheduleAutosave();
+}
+
+/* ---------- εξαγωγές γεωαναφερμένων ---------- */
+const kmlCol=(hex,a)=>{const h=hex.replace('#','');return (a||'ff')+h.slice(4,6)+h.slice(2,4)+h.slice(0,2);};
+const xmlE=s=>String(s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+async function exportKMZ(){
+  const pages=Object.keys(S.gref).map(Number);if(!pages.length)return toast('Δεν υπάρχει γεωαναφορά',true);
+  await needProj();await needZip();const zip=new JSZip();let pm='',ov='';
+  const ll=(g,p)=>{const e=grApply(g.p,p.x,p.y),w=toWgs(e[0],e[1]);return w.lng.toFixed(8)+','+w.lat.toFixed(8)+',0';};
+  for(const pn of pages){const g=S.gref[pn],pg=await S.doc.getPage(pn),vp=pg.getViewport({scale:1}),W=vp.width,H=vp.height;
+    busy(true,'KMZ · σελίδα '+pn+'…');const c=await sheetCanvas(pn,LBLZ[SOPT.lbl]||1.7,150);zip.file('sxedio_'+pn+'.jpg',await (await canvasBlob(c,'image/jpeg',.85)).arrayBuffer());
+    ov+=`<GroundOverlay><name>${xmlE(baseName())} · σελ. ${pn}</name><color>d9ffffff</color><Icon><href>sxedio_${pn}.jpg</href></Icon><gx:LatLonQuad><coordinates>${ll(g,{x:0,y:H})} ${ll(g,{x:W,y:H})} ${ll(g,{x:W,y:0})} ${ll(g,{x:0,y:0})}</coordinates></gx:LatLonQuad></GroundOverlay>`;
+    S.meas.filter(m=>m.page===pn).forEach(m=>{const P=m.pts,i=info(m),desc=xmlE((m.type==='note'?m.text:i.sh)+(m.note?' — '+m.note:''));
+      const st=`<Style><LineStyle><color>${kmlCol(COL[m.type])}</color><width>3</width></LineStyle><PolyStyle><color>${kmlCol(COL[m.type],'44')}</color></PolyStyle><IconStyle><color>${kmlCol(COL[m.type])}</color></IconStyle></Style>`;
+      let geom='';
+      if(m.type==='point'||m.type==='note')geom=`<Point><coordinates>${ll(g,P[0])}</coordinates></Point>`;
+      else if(m.type==='area')geom=`<Polygon><outerBoundaryIs><LinearRing><coordinates>${P.concat([P[0]]).map(p=>ll(g,p)).join(' ')}</coordinates></LinearRing></outerBoundaryIs></Polygon>`;
+      else if(m.type==='ccr'||m.type==='arc3'){let cc,R;if(m.type==='ccr'){cc=P[0];R=Math.hypot(P[1].x-P[0].x,P[1].y-P[0].y);}else{const k=circ(P[0].x,P[0].y,P[1].x,P[1].y,P[2].x,P[2].y);if(!k)return;cc={x:k[0],y:k[1]};R=Math.hypot(P[0].x-k[0],P[0].y-k[1]);}
+        const Q=[];for(let a=0;a<=64;a++){Q.push({x:cc.x+R*Math.cos(a/64*TAU),y:cc.y+R*Math.sin(a/64*TAU)});}geom=`<LineString><coordinates>${Q.map(p=>ll(g,p)).join(' ')}</coordinates></LineString>`;}
+      else geom=`<LineString><coordinates>${P.map(p=>ll(g,p)).join(' ')}</coordinates></LineString>`;
+      pm+=`<Placemark><name>${xmlE(m.name)}</name><description>${desc}</description>${st}${geom}</Placemark>`;});
+    const k=S.kov[pn];if(k&&k.ring)pm+=`<Placemark><name>ΚΑΕΚ ${xmlE(k.kaek)}</name><Style><LineStyle><color>ff0b9ef5</color><width>3</width></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style><Polygon><outerBoundaryIs><LinearRing><coordinates>${k.ring.concat([k.ring[0]]).map(e=>{const w=toWgs(e[0],e[1]);return w.lng.toFixed(8)+','+w.lat.toFixed(8)+',0';}).join(' ')}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>`;
+  }
+  zip.file('doc.kml',`<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2"><Document><name>${xmlE(baseName())} — PDF Dim</name>${ov}<Folder><name>Μετρήσεις</name>${pm}</Folder></Document></kml>`);
+  const blob=await zip.generateAsync({type:'blob',mimeType:'application/vnd.google-earth.kmz'});busy(false);
+  await saveBlob(blob,latin(baseName())+'_pdfdim.kmz');
+}
+async function exportWorld(){
+  const g=S.gref[S.pageNum];if(!g)return toast('Η σελίδα δεν έχει γεωαναφορά',true);
+  busy(true,'Εικόνα με world file…');const c=await sheetCanvas(S.pageNum,LBLZ[SOPT.lbl]||1.7,200),k=c.width/S.W,p=g.p;
+  const A=p[0]/k,D=p[3]/k,B=-p[1]/k,E=-p[4]/k,C=p[2]+A*.5+B*.5,F=p[5]+D*.5+E*.5;
+  const jgw=[A,D,B,E,C,F].map(v=>v.toFixed(10)).join('\r\n')+'\r\n';
+  const prj='PROJCS["GGRS87 / Greek Grid",GEOGCS["GGRS87",DATUM["Greek_Geodetic_Reference_System_1987",SPHEROID["GRS 1980",6378137,298.257222101],TOWGS84[-199.87,74.79,246.62,0,0,0,0]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",24],PARAMETER["scale_factor",0.9996],PARAMETER["false_easting",500000],PARAMETER["false_northing",0],UNIT["metre",1]]';
+  const base=latin(baseName())+'_sel'+S.pageNum;const jpg=await canvasBlob(c,'image/jpeg',.92);busy(false);
+  if(isCoarse()&&navigator.canShare){try{const fs=[new File([jpg],base+'.jpg',{type:'image/jpeg'}),new File([jgw],base+'.jgw',{type:'text/plain'}),new File([prj],base+'.prj',{type:'text/plain'})];if(navigator.canShare({files:fs})){await navigator.share({files:fs});return;}}catch(e){if(e&&e.name==='AbortError')return;}}
+  download(jpg,base+'.jpg');setTimeout(()=>download(new Blob([jgw],{type:'text/plain'}),base+'.jgw'),400);setTimeout(()=>download(new Blob([prj],{type:'text/plain'}),base+'.prj'),800);
+  toast('Εικόνα + .jgw + .prj: εισάγονται σε CAD/GIS απευθείας στη θέση τους (ΕΓΣΑ87)');
+}
+
+renderGeoCard();
 if(S.proj){
   document.body.classList.add('inproj');
   $('#btnBack').onclick=e=>{e.preventDefault();goProject('files');};
