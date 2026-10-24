@@ -258,8 +258,18 @@ input[type=range]{width:100%;accent-color:#22d3ee}
   var tok = '';
   if (raw) { try{ var s = JSON.parse(raw); tok = s.access_token || (s.currentSession && s.currentSession.access_token) || ''; }catch(e){} }
   if (!tok) { deny('login.html'); return; }
-  // Δωρεάν εργαλείο: αρκεί η σύνδεση στο HEXIS, χωρίς έλεγχο συνδρομής
-  allow();
+  fetch(SB + '/rest/v1/entitlements?select=module,active,expires_at&module=eq.' + MODULE, {
+    headers: { apikey: KEY, Authorization: 'Bearer ' + tok }
+  }).then(function(r){
+    if (r.status === 401 || r.status === 403) { if (cachedOk()) { allow(); } else { deny('hub.html'); } return null; }
+    return r.json();
+  }).then(function(rows){
+    if (rows === null) return;
+    var ok = (rows || []).some(function(e){ return e.active && (!e.expires_at || new Date(e.expires_at) > new Date()); });
+    if (ok) allow(); else deny('tool.html?id=' + MODULE);
+  }).catch(function(){
+    if (cachedOk()) allow(); else offlineMsg();
+  });
 })();
 </script>
 <header>
