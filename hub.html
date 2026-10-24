@@ -232,7 +232,8 @@ let currentUser = null;
 
 function render() {
   const g = document.getElementById('grid');
-  g.innerHTML = TOOLS.map(t => {
+  const isOwner = !!(currentUser && (window.HEXIS_OWNER_EMAILS || []).includes((currentUser.email || '').toLowerCase()));
+  g.innerHTML = TOOLS.filter(t => !t.ownerOnly || isOwner).map(t => {
     if (t.primary) {
       return '<a class="tile primary" href="' + t.href + '">'
         + '<span class="ico">' + ICONS.app + '</span>'
@@ -246,7 +247,7 @@ function render() {
       + '<span class="ico">' + (ICONS[t.id] || '') + '</span>'
       + '<h3>' + t.name + '</h3><p>' + t.desc + '</p>'
       + '<span class="foot">'
-      + (t.free ? '<span class="badge on">Δωρεάν</span>' : has ? '<span class="badge on">✓ Ενεργό</span>' : '<span class="badge lock">Add-on</span>')
+      + (t.ownerOnly ? '<span class="badge on">Ιδιωτικό · τοπικά</span>' : t.free ? '<span class="badge on">Δωρεάν</span>' : has ? '<span class="badge on">✓ Ενεργό</span>' : '<span class="badge lock">Add-on</span>')
       + '<span class="go">' + (has ? (t.download ? 'Λήψη →' : 'Άνοιγμα →') : 'Ξεκλείδωμα →') + '</span>'
       + '</span></a>';
   }).join('');
