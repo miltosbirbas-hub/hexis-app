@@ -79,7 +79,7 @@ function buildEmail_(u) {
     '• Σκέφτεσαι να τη συνεχίσεις; Αν ναι, για ποιους λόγους — κι αν όχι, τι σου έλειψε;\n\n' +
     'Απλώς απάντησε σε αυτό το email, το διαβάζω προσωπικά.\n\n' +
     'Συνέχεια στο HEXIS: ' + APP_URL + '\n\n' +
-    'Μίλτος Μπίρμπας\nΠολιτικός Μηχανικός — HEXIS\nhexis-app.gr';
+    'Μίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.';
 
   const html =
     '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#1F2836;max-width:560px">' +
@@ -93,7 +93,7 @@ function buildEmail_(u) {
     '</ul>' +
     '<p>Απλώς απάντησε σε αυτό το email, το διαβάζω προσωπικά.</p>' +
     '<p style="margin:22px 0"><a href="' + APP_URL + '" style="background:#F26B21;color:#fff;padding:11px 20px;border-radius:9px;text-decoration:none;font-weight:bold">Συνέχεια στο HEXIS →</a></p>' +
-    '<p style="color:#5B6675;font-size:13.5px">Μίλτος Μπίρμπας<br>Πολιτικός Μηχανικός — HEXIS<br><a href="https://hexis-app.gr" style="color:#E05A12">hexis-app.gr</a></p>' +
+    '<p style="color:#5B6675;font-size:13.5px"><b style="color:#1F2836">Μίλτος Μπίρμπας</b><br>Πολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP<br><a href="https://hexis-app.gr" style="color:#E05A12">hexis-app.gr</a><br><span style="font-size:12px;color:#98A1AE">powered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.</span></p>' +
     '</div>';
 
   return { subject: subject, text: text, html: html };
