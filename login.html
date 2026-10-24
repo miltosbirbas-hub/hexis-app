@@ -136,6 +136,21 @@ input:focus{border-color:var(--accent)}
     <div style="text-align:center;margin-top:12px"><a href="#" onclick="showTab('login')" style="font-size:12px;color:var(--text2);text-decoration:none">← Πίσω στη σύνδεση</a></div>
   </div>
 
+  <!-- NEW PASSWORD FORM (επαναφορά από email ή αλλαγή κωδικού) -->
+  <div id="form-newpw" style="display:none">
+    <p id="newpw-intro" style="font-size:13px;color:var(--text2);margin-bottom:16px">Όρισε τον νέο σου κωδικό.</p>
+    <div class="form-group">
+      <label>Νέος κωδικός (min 8 χαρακτήρες)</label>
+      <input type="password" id="newpw-1" placeholder="••••••••" autocomplete="new-password">
+    </div>
+    <div class="form-group">
+      <label>Επανάληψη νέου κωδικού</label>
+      <input type="password" id="newpw-2" placeholder="••••••••" autocomplete="new-password">
+    </div>
+    <button class="btn-submit" id="newpw-btn" onclick="doNewPw()">Αποθήκευση κωδικού →</button>
+    <div style="text-align:center;margin-top:12px"><a href="hub.html" style="font-size:12px;color:var(--text2);text-decoration:none">← Πίσω στο HEXIS</a></div>
+  </div>
+
   <div class="msg" id="msg"></div>
   <div class="back-link"><a href="index.html">← Πίσω στην αρχική</a></div>
 </div>
@@ -174,7 +189,9 @@ const params = new URLSearchParams(location.search);
 const mode = params.get('mode');
 const plan = params.get('plan');
 
+const PW_MODE = (mode === 'reset' || mode === 'change');
 if (mode === 'signup') showTab('signup');
+else if (PW_MODE) showNewPw();
 else {
   // Default: show hero CTA, hide login form
   document.getElementById('form-login').style.display = 'none';
@@ -188,8 +205,47 @@ if (plan) {
 
 // Check if already logged in
 sb.auth.getSession().then(({data}) => {
+  if (PW_MODE) {
+    if (data.session) {
+      document.getElementById('newpw-intro').textContent = (mode === 'reset' ? 'Επαναφορά κωδικού για ' : 'Αλλαγή κωδικού για ') + (data.session.user.email || 'τον λογαριασμό σου') + '.';
+      setTimeout(() => document.getElementById('newpw-1').focus(), 50);
+    } else {
+      showTab(mode === 'reset' ? 'forgot' : 'login');
+      showMsg(mode === 'reset'
+        ? 'Ο σύνδεσμος επαναφοράς έληξε ή χρησιμοποιήθηκε ήδη. Ζήτα νέο.'
+        : 'Συνδέσου πρώτα για να αλλάξεις τον κωδικό σου.');
+    }
+    return;
+  }
   if (data.session) window.location.href = 'hub.html';
 });
+
+function showNewPw() {
+  ['hero-cta','tabs-row'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  ['login','signup','forgot'].forEach(t => document.getElementById('form-' + t).style.display = 'none');
+  document.getElementById('form-newpw').style.display = 'block';
+  clearMsg();
+}
+
+async function doNewPw() {
+  const p1 = document.getElementById('newpw-1').value;
+  const p2 = document.getElementById('newpw-2').value;
+  if (p1.length < 8) { showMsg('Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες.'); return; }
+  if (p1 !== p2) { showMsg('Οι δύο κωδικοί δεν ταιριάζουν.'); return; }
+  const btn = document.getElementById('newpw-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Αποθήκευση...';
+  const {error} = await sb.auth.updateUser({ password: p1 });
+  btn.disabled = false; btn.textContent = 'Αποθήκευση κωδικού →';
+  if (error) {
+    const m = error.message || '';
+    showMsg(/different from the old/i.test(m) ? 'Ο νέος κωδικός πρέπει να διαφέρει από τον παλιό.'
+          : /reauthenticat|session/i.test(m) ? 'Η σύνδεση έληξε. Αποσυνδέσου, συνδέσου ξανά και δοκίμασε πάλι.'
+          : m);
+    return;
+  }
+  showMsg('✓ Ο κωδικός άλλαξε! Μεταφορά στο HEXIS...', 'success');
+  setTimeout(() => window.location.href = 'hub.html', 1200);
+}
 
 function showTab(tab) {
   // Show tabs row, hide hero CTA
@@ -226,7 +282,9 @@ async function doLogin() {
   const {error} = await sb.auth.signInWithPassword({email, password: pass});
   if (error) {
     btn.disabled = false; btn.textContent = 'Σύνδεση →';
-    showMsg(error.message === 'Invalid login credentials' ? 'Λάθος email ή κωδικός.' : error.message);
+    showMsg(error.message === 'Invalid login credentials' ? 'Λάθος email ή κωδικός.'
+          : /banned/i.test(error.message) ? 'Ο λογαριασμός έχει απενεργοποιηθεί. Επικοινώνησε με το HEXIS.'
+          : error.message);
   } else {
     showMsg('✓ Επιτυχής σύνδεση! Φόρτωση...', 'success');
     setTimeout(() => window.location.href = 'hub.html', 800);
@@ -262,7 +320,7 @@ async function doSignup() {
 async function doForgot() {
   const email = document.getElementById('forgot-email').value.trim();
   if (!email) { showMsg('Βάλε το email σου.'); return; }
-  const {error} = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + '/app.html' });
+  const {error} = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + '/login.html?mode=reset' });
   if (error) showMsg(error.message);
   else showMsg('✓ Στάλθηκε email επαναφοράς!', 'success');
 }
@@ -270,6 +328,7 @@ async function doForgot() {
 // Enter key
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter') {
+    if (document.getElementById('form-newpw').style.display !== 'none') { doNewPw(); return; }
     const form = document.getElementById('form-login').style.display !== 'none' ? 'login' :
                  document.getElementById('form-signup').style.display !== 'none' ? 'signup' : 'forgot';
     if (form === 'login') doLogin();

@@ -85,6 +85,17 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 .pill.studio{background:#E9F0FF;color:#2F6BDB}
 .pill.on{background:rgba(31,160,92,.12);color:var(--green)}
 .pill.off{background:rgba(214,69,69,.12);color:var(--red)}
+.pill.ban{background:var(--red);color:#fff}
+.urow.banned .uemail{color:var(--red);text-decoration:line-through;text-decoration-thickness:1px}
+.acct{border:1px solid var(--border);border-radius:11px;padding:12px;margin-top:4px;background:#FCFCFD}
+.acct .row{display:flex;gap:8px;flex-wrap:wrap}
+.acct .row+.row{margin-top:8px}
+.acct .row>*{flex:1;min-width:150px}
+.acct input{font-family:var(--font-b);font-size:13.5px;padding:9px 12px;border:1px solid var(--border-strong);border-radius:9px;background:#fff;color:var(--text);width:100%}
+.btn-dark{background:#1F2836;color:#fff}
+.danger{border:1px solid rgba(214,69,69,.35);background:#FFF7F7;border-radius:11px;padding:12px;margin-top:10px}
+.danger p{font-size:12.5px;color:var(--muted);margin-bottom:8px}
+.danger p b{color:var(--red)}
 .exp-soon{color:#E8830C;font-weight:700}
 .exp-past{color:var(--red);font-weight:700}
 .subact .row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
@@ -135,7 +146,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
       <input type="text" id="filter" placeholder="Φίλτρο με email..." oninput="renderUsers()">
     </div>
     <div id="users" style="margin-top:12px"><div class="empty">Φόρτωση...</div></div>
-    <div class="hint">Πάτησε σε χρήστη για να δεις και να αλλάξεις τα modules του — οι αλλαγές αποθηκεύονται αμέσως. Η συνδρομή (Starter/Pro/Studio) παραμένει στον πίνακα subscriptions.</div>
+    <div class="hint">Πάτησε σε χρήστη για να δεις και να αλλάξεις τα modules του — οι αλλαγές αποθηκεύονται αμέσως. Η συνδρομή (Starter/Pro/Studio) παραμένει στον πίνακα subscriptions. Στο κάτω μέρος κάθε χρήστη: μπλοκάρισμα email, κωδικός και διαγραφή.</div>
   </div>
   <p style="text-align:center;font-family:var(--font-m);font-size:11px;color:var(--faint);margin-top:22px" id="ver"></p>
 </div>
@@ -148,7 +159,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 <div class="toast" id="toast"></div>
 
 <script>
-const ADMIN_VERSION = 'v1.7';
+const ADMIN_VERSION = 'v1.8';
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
@@ -161,6 +172,7 @@ function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.
 async function init(){
   const { data:{ session } } = await sb.auth.getSession();
   if (!session) { location.href='login.html'; return; }
+  MY_UID = session.user.id;
   // δοκιμή admin πρόσβασης
   const { data: isAdm, error } = await sb.rpc('is_admin');
   if (error || !isAdm) { document.getElementById('gate').style.display='block'; return; }
@@ -200,6 +212,8 @@ async function reject(id){
 }
 
 let USERS = [];
+let AUTH = {};      // uid -> { banned, banned_until, email_confirmed }
+let MY_UID = null;
 let openUid = null;
 const DETAILS = {};
 
@@ -255,7 +269,9 @@ function renderDetail(uid){
 }
 
 async function loadUsers(){
-  const [au, ls] = await Promise.all([ sb.rpc('admin_all_users'), sb.rpc('admin_list_subs') ]);
+  const [au, ls, st] = await Promise.all([ sb.rpc('admin_all_users'), sb.rpc('admin_list_subs'), sb.rpc('admin_auth_status') ]);
+  AUTH = {};
+  ((st && st.data) || []).forEach(x => { AUTH[x.uid] = x; });
   if (au.error) { document.getElementById('users').innerHTML = '<div class="empty">Σφάλμα: '+au.error.message+'</div>'; return; }
   const subs = {};
   ((ls && ls.data) || []).forEach(x => { subs[x.user_id] = x; });
@@ -283,9 +299,13 @@ function renderUsers(){
     const exp = u.trial_ends_at ? new Date(u.trial_ends_at) : null;
     const expCls = exp ? (exp < now ? 'exp-past' : (exp < soon ? 'exp-soon' : '')) : '';
     const tier = String(u.tier || 'free').toLowerCase();
-    return '<div class="urow'+(open?' open':'')+'">'
+    const au = AUTH[u.uid] || {};
+    const isMe = u.uid === MY_UID;
+    return '<div class="urow'+(open?' open':'')+(au.banned?' banned':'')+'">'
       + '<button class="uhead" onclick="toggleUser(\''+u.uid+'\')">'
       + '<span class="uemail">'+u.email+'</span>'
+      + (au.banned ? '<span class="pill ban">Μπλοκ</span>' : '')
+      + (au.email_confirmed === false ? '<span class="pill off" title="Δεν έχει επιβεβαιώσει το email">ανεπιβ.</span>' : '')
       + '<span class="pill '+tier+'">'+tier+'</span>'
       + '<span class="pill '+(u.sub_active===false?'off':'on')+'">'+(u.sub_active===false?'Όχι':'Ναι')+'</span>'
       + '<span class="modcount '+expCls+'">'+(u.trial_ends_at?fmtDate(u.trial_ends_at):'—')+'</span>'
@@ -316,9 +336,77 @@ function renderUsers(){
           + '<div class="dsub">Modules</div><div class="mods">'+Object.entries(MODULES).map(([k,name]) =>
           '<div class="mrow"><span>'+name+'</span>'
           + '<button class="sw'+(mods.includes(k)?' on':'')+'" data-mod="'+k+'" data-email="'+u.email+'" data-uid="'+u.uid+'" onclick="toggleMod(this)" aria-label="'+name+'"></button></div>'
-        ).join('')+'</div>' : '')
+        ).join('')+'</div>'
+          + acctBlock(u, au, isMe) : '')
       + '</div>';
   }).join('') || '<div class="empty">Κανένας χρήστης</div>';
+}
+
+function acctBlock(u, au, isMe){
+  if (isMe) return '<div class="dsub">Λογαριασμός</div><div class="hint" style="margin-top:0">Αυτός είναι ο δικός σου λογαριασμός — για τον κωδικό σου χρησιμοποίησε την <a href="login.html?mode=change">Αλλαγή κωδικού</a>.</div>';
+  const id = u.uid;
+  return '<div class="dsub">Λογαριασμός</div><div class="acct">'
+    + '<div class="row">'
+    + (au.banned
+        ? '<button class="btn btn-ok" onclick="setBanned(\''+id+'\',false)">Ξεμπλοκάρισμα email</button>'
+        : '<button class="btn btn-dark" onclick="setBanned(\''+id+'\',true)">Μπλοκάρισμα email</button>')
+    + '<button class="btn btn-ghost" onclick="sendReset(\''+id+'\')">Email επαναφοράς κωδικού</button>'
+    + '</div>'
+    + '<div class="row">'
+    + '<input type="text" id="pw-'+id+'" placeholder="Νέος κωδικός (min 8)" autocomplete="off" spellcheck="false">'
+    + '<button class="btn btn-blue" onclick="setPw(\''+id+'\')">Ορισμός κωδικού</button>'
+    + '</div>'
+    + '</div>'
+    + '<div class="danger"><p><b>Οριστική διαγραφή</b> — σβήνονται ο λογαριασμός, η συνδρομή, τα modules, τα έργα και τα αιτήματά του. Δεν αναιρείται.</p>'
+    + '<button class="btn btn-red" style="width:100%" onclick="delUser(\''+id+'\')">Διαγραφή χρήστη</button></div>';
+}
+
+async function afterAcctChange(uid){
+  DETAILS[uid] = null;
+  await loadUsers();
+  if (openUid === uid) loadDetail(uid);
+}
+
+async function setBanned(uid, ban){
+  const u = USERS.find(x => x.uid === uid); if (!u) return;
+  if (ban && !confirm('Μπλοκάρισμα του '+u.email+';\n\nΔεν θα μπορεί να συνδεθεί και θα αποσυνδεθεί από όλες τις συσκευές. Τα δεδομένα του μένουν.')) return;
+  const { error } = await sb.rpc('admin_set_banned', { target: uid, ban: ban });
+  if (error) { toast('Σφάλμα: '+error.message); return; }
+  toast(ban ? '⛔ Μπλοκαρίστηκε — '+u.email : '✓ Ξεμπλοκαρίστηκε — '+u.email);
+  afterAcctChange(uid);
+}
+
+async function sendReset(uid){
+  const u = USERS.find(x => x.uid === uid); if (!u) return;
+  if (!confirm('Αποστολή email επαναφοράς κωδικού στο '+u.email+';')) return;
+  const { error } = await sb.auth.resetPasswordForEmail(u.email, { redirectTo: location.origin + '/login.html?mode=reset' });
+  if (error) { toast('Σφάλμα: '+error.message); return; }
+  toast('✉ Στάλθηκε email επαναφοράς στο '+u.email);
+}
+
+async function setPw(uid){
+  const u = USERS.find(x => x.uid === uid); if (!u) return;
+  const inp = document.getElementById('pw-'+uid);
+  const pw = (inp && inp.value) || '';
+  if (pw.length < 8) { toast('Ο κωδικός θέλει τουλάχιστον 8 χαρακτήρες'); return; }
+  if (!confirm('Ορισμός νέου κωδικού για τον '+u.email+';\n\nΘα αποσυνδεθεί από όλες τις συσκευές. Θυμήσου να του στείλεις τον κωδικό.')) return;
+  const { error } = await sb.rpc('admin_set_password', { target: uid, new_password: pw });
+  if (error) { toast('Σφάλμα: '+error.message); return; }
+  inp.value = '';
+  toast('✓ Ο κωδικός άλλαξε — '+u.email);
+}
+
+async function delUser(uid){
+  const u = USERS.find(x => x.uid === uid); if (!u) return;
+  const typed = prompt('ΟΡΙΣΤΙΚΗ διαγραφή του χρήστη.\n\nΓράψε το email του για επιβεβαίωση:\n'+u.email);
+  if (typed === null) return;
+  if (typed.trim().toLowerCase() !== String(u.email).toLowerCase()) { toast('Το email δεν ταιριάζει — δεν έγινε διαγραφή'); return; }
+  const { error } = await sb.rpc('admin_delete_user', { target: uid });
+  if (error) { toast('Σφάλμα: '+error.message); return; }
+  toast('🗑 Διαγράφηκε — '+u.email);
+  openUid = null;
+  delete DETAILS[uid];
+  await loadUsers();
 }
 
 function toggleUser(uid){
