@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HEXIS MAPPING</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="logo_icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#f3f1e8;--card:#fffdf7;--ink:#39422e;--soft:#6b7259;--line:#d8d5cc;--accent:#b3271e;--accent-dk:#7e1b14;--ok:#1f7a3d;--field:#f6f8ee}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:Manrope,Segoe UI,Roboto,sans-serif;line-height:1.5}
+header{background:var(--ink);color:#fff;padding:18px 16px}
+header .in{max-width:880px;margin:0 auto;display:flex;align-items:center;gap:12px}
+header b{font-size:1.25rem;letter-spacing:.06em}header small{display:block;color:#c9d0b8;font-size:.78rem;letter-spacing:.08em}
+header .who{margin-left:auto;font-size:.82rem;color:#dfe5cf;text-align:right}
+header .who button{margin-top:4px}
+main{max-width:880px;margin:22px auto;padding:0 16px;display:grid;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 2px 8px rgba(57,66,46,.06);overflow:hidden}
+.hd{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.hd .n{width:28px;height:28px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:800;font-size:.85rem}
+.hd h2{margin:0;font-size:1.02rem}.hd .r{margin-left:auto;color:var(--soft);font-size:.82rem}
+.bd{padding:14px 16px}
+label{display:block;font-weight:700;font-size:.85rem;margin:10px 0 4px}
+input{width:100%;background:var(--field);border:1.5px solid #c9d6a8;border-radius:8px;padding:10px 12px;font:inherit}
+.btn{border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:9px;padding:9px 14px;font:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;gap:6px;align-items:center}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}.btn.primary:hover{background:var(--accent-dk)}
+.btn:disabled{opacity:.55;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.hint{color:var(--soft);font-size:.85rem}
+.msg{padding:10px 12px;border-radius:9px;background:#fdf1f0;border:1px solid #f0c9c4;color:var(--accent-dk);font-size:.9rem;margin-top:10px}
+.msg.ok{background:#eef7ef;border-color:#cfe6d4;color:var(--ok)}
+ol.steps{margin:6px 0 0;padding-left:20px}ol.steps li{margin:6px 0}
+.proj{display:grid;grid-template-columns:1fr auto;gap:6px 12px;padding:12px 16px;border-top:1px solid var(--line);align-items:center}
+.proj:first-child{border-top:0}.proj b{font-size:.98rem}.proj small{color:var(--soft)}
+.tag{font-size:.75rem;font-weight:800;padding:3px 8px;border-radius:20px;background:#eef0e4;color:var(--ink)}
+.tag.run{background:#fff4dc;color:#8a5a00}.tag.ok{background:#e5f3e8;color:var(--ok)}.tag.bad{background:#fbe6e3;color:var(--accent-dk)}
+.empty{padding:16px;color:var(--soft)}
+.hidden{display:none}
+@media (max-width:560px){header .who{font-size:.74rem}.proj{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="in"><img src="logo_icon.png" alt="" width="36" height="36" style="border-radius:8px;background:#fff">
+  <div><b>HEXIS MAPPING</b><small>DRONE → ΕΓΣΑ87 · ΟΡΘΟΦΩΤΟΧΑΡΤΗΣ · ΝΕΦΟΣ · ΙΣΟΫΨΕΙΣ</small></div>
+  <div class="who" id="who"></div></div></header>
+<main>
+  <section class="card" id="loginCard">
+    <div class="hd"><div class="n">⏻</div><h2>Είσοδος</h2><span class="r">με τον λογαριασμό σου στο hexis-app.gr</span></div>
+    <div class="bd">
+      <form id="lf"><label for="em">Email</label><input type="email" id="em" autocomplete="username" required>
+        <label for="pw">Κωδικός</label><input type="password" id="pw" autocomplete="current-password" required>
+        <div class="row"><button class="btn primary" id="lb">Είσοδος</button><a class="btn" href="login.html">Νέος λογαριασμός / ξέχασα τον κωδικό</a></div></form>
+      <div id="lmsg"></div>
+    </div>
+  </section>
+
+  <section class="card hidden" id="appCard">
+    <div class="hd"><div class="n">1</div><h2>Εφαρμογή για Windows</h2><span class="r" id="ver"></span></div>
+    <div class="bd">
+      <p style="margin:0">Η επεξεργασία των φωτογραφιών γίνεται σε κάρτα γραφικών στο cloud. Η εφαρμογή στον υπολογιστή σου ανεβάζει τις φωτογραφίες, κάνει τη σήμανση των GCP και όλα τα εργαλεία πάνω στο νέφος. Τα κλειδιά μένουν στο cloud, όχι στον υπολογιστή.</p>
+      <ol class="steps">
+        <li>Κατέβασε το ZIP και αποσυμπίεσέ το όπου θέλεις (π.χ. στα Έγγραφα).</li>
+        <li>Διπλό κλικ στο <b>HEXIS_MAPPING\local\HEXIS_MAPPING.bat</b>. Την πρώτη φορά εγκαθιστά μόνο του ό,τι χρειάζεται (2–5 λεπτά) και φτιάχνει συντόμευση στην επιφάνεια εργασίας.</li>
+        <li>Στην εφαρμογή πάτα την ένδειξη επάνω δεξιά και μπες με το ίδιο email και κωδικό.</li>
+      </ol>
+      <div class="row"><button class="btn primary" id="dl">⬇ Λήψη HEXIS MAPPING</button><span class="hint" id="dlh"></span></div>
+    </div>
+  </section>
+
+  <section class="card hidden" id="projCard">
+    <div class="hd"><div class="n">2</div><h2>Τα έργα σου</h2><span class="r"><button class="btn" id="rf" style="padding:5px 10px">↻</button></span></div>
+    <div id="plist"><div class="empty">Φόρτωση…</div></div>
+  </section>
+</main>
+<script>
+const REF="oucqqudfdimccgowvpqp",SUPA=`https://${REF}.supabase.co`,KEY="sb_publishable_AjcKB0okxSvA9SUBazKEHQ_-HR0FMHP",FN=`${SUPA}/functions/v1/mapping-gw`;
+const SK=`sb-${REF}-auth-token`;                      // ίδια σύνδεση με τις άλλες σελίδες του hexis-app.gr
+const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const get=()=>{try{return JSON.parse(localStorage.getItem(SK)||"null")}catch(e){return null}};
+const put=s=>{try{s?localStorage.setItem(SK,JSON.stringify(s)):localStorage.removeItem(SK)}catch(e){}};
+async function auth(body,grant){const r=await fetch(`${SUPA}/auth/v1/token?grant_type=${grant}`,{method:"POST",headers:{apikey:KEY,"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(/Invalid login/.test(d.error_description||d.msg||"")?"Λάθος email ή κωδικός.":(d.error_description||d.msg||"Σφάλμα σύνδεσης"));
+  const s={access_token:d.access_token,refresh_token:d.refresh_token,expires_at:Math.floor(Date.now()/1000)+(d.expires_in||3600),token_type:"bearer",user:d.user};put(s);return s}
+async function token(){let s=get();if(!s)return null;
+  if(!s.expires_at||Date.now()/1000>s.expires_at-60){try{s=await auth({refresh_token:s.refresh_token},"refresh_token")}catch(e){put(null);return null}}return s.access_token}
+async function gw(action,body={}){const t=await token();if(!t)throw Object.assign(new Error("Χρειάζεται σύνδεση."),{code:401});
+  const r=await fetch(FN,{method:"POST",headers:{Authorization:`Bearer ${t}`,apikey:KEY,"Content-Type":"application/json"},body:JSON.stringify({action,...body})});
+  const d=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(d.error||`Σφάλμα ${r.status}`),{code:r.status});return d}
+const size=b=>b>1e9?(b/1e9).toFixed(2)+" GB":(b/1e6).toFixed(1)+" MB";
+const STATE={uploading:["Ανέβασμα","run"],launching:["Εκκίνηση GPU","run"],running:["Σε επεξεργασία","run"],finished:["Έτοιμο","ok"],failed:["Απέτυχε","bad"]};
+
+async function show(){
+  const s=get();$("#who").innerHTML="";
+  if(!s){$("#loginCard").classList.remove("hidden");$("#appCard").classList.add("hidden");$("#projCard").classList.add("hidden");return}
+  let me;try{me=await gw("me")}catch(e){
+    if(e.code===401){put(null);return show()}
+    $("#loginCard").classList.remove("hidden");$("#lmsg").innerHTML=`<div class="msg">${esc(e.code===403?"Ο λογαριασμός σου δεν έχει ακόμα πρόσβαση στο HEXIS MAPPING. Προς το παρόν είναι διαθέσιμο μόνο για δοκιμή.":e.message)}</div>`;
+    $("#who").innerHTML=`${esc(s.user&&s.user.email)}<br><button class="btn" id="lo" style="padding:4px 10px">Έξοδος</button>`;$("#lo").onclick=()=>{put(null);show()};return}
+  $("#loginCard").classList.add("hidden");$("#appCard").classList.remove("hidden");$("#projCard").classList.remove("hidden");
+  $("#who").innerHTML=`${esc(me.email)}${me.admin?" · διαχειριστής":""}<br><button class="btn" id="lo" style="padding:4px 10px">Έξοδος</button>`;$("#lo").onclick=()=>{put(null);show()};
+  if(me.admin&&!me.ready)$("#dlh").innerHTML=`<span style="color:var(--accent-dk)">Η πύλη δεν έχει ακόμα κλειδιά: βάλ' τα από την εφαρμογή (ένδειξη επάνω δεξιά).</span>`;
+  projects()}
+async function projects(){const el=$("#plist");el.innerHTML=`<div class="empty">Φόρτωση…</div>`;
+  try{const P=await gw("projects");if(!P.length){el.innerHTML=`<div class="empty">Δεν υπάρχουν ακόμα έργα. Ξεκίνησε μια επεξεργασία από την εφαρμογή.</div>`;return}
+    el.innerHTML=P.map(p=>{const st=p.job?STATE[p.job.state]||[p.job.state,""]:["Χωρίς επεξεργασία",""];
+      return `<div class="proj" data-id="${p.id}"><div><b>${esc(p.name)}</b><br><small>${p.job?new Date(p.job.started).toLocaleString("el-GR"):""}</small></div>
+        <div class="row" style="margin:0;justify-content:flex-end"><span class="tag ${st[1]}">${esc(st[0])}</span>${p.job&&p.job.state==="finished"?`<button class="btn" data-zip="${p.id}">⬇ Παραδοτέα (ZIP)</button>`:""}</div></div>`}).join("");
+    el.querySelectorAll("[data-zip]").forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await gw("results",{project_id:b.dataset.zip});
+      if(r.zip){location.href=r.zip.url}else{alert("Το ZIP δεν είναι ακόμα έτοιμο.")}}catch(e){alert(e.message)}b.disabled=false})}
+  catch(e){el.innerHTML=`<div class="msg">${esc(e.message)}</div>`}}
+$("#lf").onsubmit=async e=>{e.preventDefault();$("#lb").disabled=true;$("#lmsg").innerHTML="";
+  try{await auth({email:$("#em").value.trim(),password:$("#pw").value},"password");await show()}catch(err){$("#lmsg").innerHTML=`<div class="msg">${esc(err.message)}</div>`}$("#lb").disabled=false};
+$("#dl").onclick=async()=>{$("#dl").disabled=true;try{const r=await gw("app_url");$("#ver").textContent=r.version?`έκδοση ${r.version}`:"";location.href=r.url;
+  $("#dlh").textContent=r.size?`Λήψη ${size(r.size)}…`:"Λήψη…"}catch(e){$("#dlh").innerHTML=`<span style="color:var(--accent-dk)">${esc(e.message)}</span>`}$("#dl").disabled=false};
+$("#rf").onclick=projects;
+show();
+</script>
+</body>
+</html>
