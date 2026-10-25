@@ -36,7 +36,7 @@
    Το sw.js (importScripts) και το app.html τη διαβάζουν από εδώ.
    ΔΕΝ γράφεται πουθενά αλλού.
    ============================================================ */
-var VERSION = 'v4.63';
+var VERSION = 'v4.64';
 
 var BRB_TERRAIN_URL = 'https://miltosbirbas-hub.github.io/BRB-contour-live/';
 
@@ -139,9 +139,9 @@ var CATALOG = [
 
   { id:'mapping', ico:'🛰️', name:'HEXIS MAPPING',
     desc:'Drone → ορθοφωτοχάρτης, νέφος, DTM, ισοϋψείς σε ΕΓΣΑ87 · GPU στο cloud',
-    href:'http://localhost:8765', external:true, free:true, ownerOnly:true, price:'Ιδιωτικό',
-    tagline:'Ιδιωτική δοκιμή — τρέχει τοπικά (HEXIS_MAPPING.bat) και ανοίγει στο localhost:8765.',
-    feats:['Φωτοκέντρα MRK σε ΕΓΣΑ87','Αυτόματος έλεγχος ακρίβειας με σημεία ελέγχου','Γεωτεμάχια Κτηματολογίου στην πτήση','KMZ για Google Earth'] },
+    href:'mapping.html', free:true, ownerOnly:true, price:'Ιδιωτικό',
+    tagline:'Ιδιωτική δοκιμή — είσοδος με τον λογαριασμό HEXIS, λήψη της εφαρμογής για Windows, έργα και παραδοτέα από οποιονδήποτε υπολογιστή.',
+    feats:['Φωτοκέντρα MRK σε ΕΓΣΑ87 και GCP με αυτόματη τοποθέτηση','Επεξεργασία σε GPU στο cloud, παραδοτέα με email','Ορθοφωτοχάρτης, νέφος, DTM/DSM, ισοϋψείς, 3D μοντέλο','Χωματισμοί, όγκος σωρού, μηκοτομές, CAD πάνω στο νέφος'] },
 
   { id:'routeprep', ico:'🛩️', name:'Route Prep · Drone',
     desc:'KML/KMZ → DJI Pilot 2 · καθάρισμα ορίου · οδηγός αποστολής & checklist Mavic 3E',
