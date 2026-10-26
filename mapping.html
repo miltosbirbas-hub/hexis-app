@@ -39,6 +39,11 @@ ol.steps{margin:6px 0 0;padding-left:20px}ol.steps li{margin:6px 0}
 .tag.run{background:#fff4dc;color:#8a5a00}.tag.ok{background:#e5f3e8;color:var(--ok)}.tag.bad{background:#fbe6e3;color:var(--accent-dk)}
 .empty{padding:16px;color:var(--soft)}
 .hidden{display:none}
+dialog.card{max-width:min(860px,94vw);width:100%;padding:0;border:1px solid var(--line);border-radius:14px}
+dialog.card::backdrop{background:rgba(40,46,32,.45)}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:4px 0 8px}
+.kv div{background:var(--field);border:1px solid var(--line);border-radius:10px;padding:8px 10px}.kv small{display:block;color:var(--soft);font-size:.74rem}.kv b{font-size:.98rem}
+tr.click{cursor:pointer}tr.click:hover td{background:#f6f8ee}
 select{width:100%;background:var(--field);border:1.5px solid #c9d6a8;border-radius:8px;padding:10px 12px;font:inherit}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0 12px}
 table{width:100%;border-collapse:collapse;font-size:.86rem}th,td{text-align:left;padding:8px 10px;border-top:1px solid var(--line);vertical-align:top}
@@ -100,11 +105,15 @@ textarea{width:100%;background:var(--field);border:1.5px solid #c9d6a8;border-ra
       <div class="grid"><div><label for="nk">Πακέτο</label><select id="nk"></select></div>
         <div><label for="ne">Email πελάτη</label><input id="ne" type="email" placeholder="για το demo: εκεί πάνε τα παραδοτέα"></div>
         <div><label for="nn">Όνομα</label><input id="nn"></div>
-        <div><label for="nq">Φωτογραφίες (ταβάνι)</label><input id="nq" type="number" min="0" step="50"></div></div>
+        <div><label for="nq">Φωτογραφίες (ταβάνι)</label><input id="nq" type="number" min="0" step="50"></div>
+        <div><label for="nc">Πλήθος κλειδιών</label><input id="nc" type="number" min="1" max="50" value="1"></div></div>
       <label for="nt">Σημείωση</label><input id="nt" placeholder="π.χ. τιμολόγιο, συνεργάτης">
       <div class="row"><button class="btn primary" id="nb">Νέο κλειδί</button><span class="hint" id="nh"></span></div>
       <div id="newKey"></div>
     </div>
+    <div class="bd" style="padding-top:0"><div class="row"><input id="lq" type="search" placeholder="Αναζήτηση: κλειδί, όνομα, email…" style="flex:1;min-width:200px">
+      <select id="lf" style="width:auto"><option value="">Όλες</option><option value="active">Ενεργές</option><option value="new">Δεν χρησιμοποιήθηκαν</option><option value="expired">Έληξαν</option><option value="revoked">Ανακλήθηκαν</option><option value="demo">Μόνο demo</option></select>
+      <span class="hint" id="lcount"></span></div></div>
     <div class="tw" id="lics"><div class="empty">Φόρτωση…</div></div>
     <div class="bd" style="border-top:1px solid var(--line)"><b>Για τιμολόγηση μήνα</b> <span class="hint">(ποσά για το Emblem: χρεώσεις εκτός πακέτου και νέες άδειες)</span>
       <div class="row"><input id="bmM" type="month" style="width:auto"><button class="btn" id="bmGo">Εμφάνιση</button><button class="btn" id="bmCsv" disabled>⬇ Excel (CSV)</button><span class="hint" id="bmH"></span></div>
@@ -122,6 +131,7 @@ textarea{width:100%;background:var(--field);border:1.5px solid #c9d6a8;border-ra
     <div id="plist"><div class="empty">Φόρτωση…</div></div>
   </section>
 </main>
+<dialog class="card" id="kd"><div class="hd"><div class="n">🔑</div><h2 id="kdH">Κλειδί</h2><span class="r"><button class="btn" id="kdX" style="padding:5px 10px">✕</button></span></div><div class="bd" id="kdB"></div></dialog>
 <script>
 const REF="oucqqudfdimccgowvpqp",SUPA=`https://${REF}.supabase.co`,KEY="sb_publishable_AjcKB0okxSvA9SUBazKEHQ_-HR0FMHP",FN=`${SUPA}/functions/v1/mapping-gw`;
 const SK=`sb-${REF}-auth-token`;                      // ίδια σύνδεση με τις άλλες σελίδες του hexis-app.gr
@@ -181,19 +191,55 @@ async function admin(me){
     <td>${k==="perpetual"?"για πάντα · αναβαθμίσεις "+(P[k].updates_months||12)+" μήνες":P[k].months+" μήνες"}</td></tr>`).join("")}</table>`;
   const pp=ST.per_photo_eur||{};$("#pu").value=pp.ultra??0.03;$("#ph").value=pp.high??0.02;$("#pm").value=pp.medium??0.01;
   lics()}
+let LICS=[];
 async function lics(){const el=$("#lics");
-  try{const R=await gw("lic_list");
-    el.innerHTML=R.length?`<table><tr><th>Κλειδί</th><th>Πακέτο</th><th>Πελάτης</th><th>Λογαριασμός</th><th>Κατάσταση</th><th>Φωτογραφίες</th><th></th></tr>${R.map(l=>{const st=LST[l.state]||[l.state,""];
-      return `<tr><td class="key">${esc(l.key)}</td><td>${esc(l.label)}<br><small class="hint">${fdt(l.created_at,false)}${l.price_eur?" · "+eur(l.price_eur):""}</small></td>
+  try{LICS=await gw("lic_list");drawLics()}catch(e){el.innerHTML=`<div class="msg">${esc(e.message)}</div>`}}
+function drawLics(){const el=$("#lics"),q=($("#lq").value||"").trim().toLowerCase(),f=$("#lf").value;
+  const R=LICS.filter(l=>(!q||[l.key,l.name,l.email,l.user_email,l.note,l.label].join(" ").toLowerCase().includes(q))&&(!f||(f==="demo"?l.kind==="demo":l.state===f)));
+  $("#lcount").textContent=`${R.length} από ${LICS.length}`;
+  el.innerHTML=R.length?`<table><tr><th>Κλειδί</th><th>Πακέτο</th><th>Πελάτης</th><th>Λογαριασμός</th><th>Κατάσταση</th><th>Φωτογραφίες</th></tr>${R.map(l=>{const st=LST[l.state]||[l.state,""];
+      return `<tr class="click" data-k="${l.key}" title="Άνοιγμα καρτέλας"><td class="key">${esc(l.key)}</td><td>${esc(l.label)}<br><small class="hint">${fdt(l.created_at,false)}${l.price_eur?" · "+eur(l.price_eur):""}</small></td>
       <td>${esc(l.name||"")}<br><small class="hint">${esc(l.email||"")}${l.note?" · "+esc(l.note):""}</small></td><td>${esc(l.user_email||"—")}</td>
       <td><span class="tag ${st[1]}">${st[0]}</span><br><small class="hint">${l.expires_at?"έως "+fdt(l.expires_at,l.kind==="demo"):l.activated_at?"χωρίς λήξη":""}</small></td>
-      <td>${(l.used_photos||0).toLocaleString("el-GR")}${l.quota_photos>0?" / "+(+l.quota_photos).toLocaleString("el-GR"):""}<br><small class="hint">${l.jobs} εργασίες${l.over_eur?" · εκτός πακέτου "+eur(l.over_eur):""}</small></td>
-      <td style="white-space:nowrap">${l.revoked?`<button class="btn" data-un="${l.key}" style="padding:4px 9px">Επαναφορά</button>`:`<button class="btn" data-ext="${l.key}" data-d="${l.kind==="demo"?1:30}" style="padding:4px 9px">+${l.kind==="demo"?"1 ημέρα":"30 ημ."}</button> <button class="btn" data-rv="${l.key}" style="padding:4px 9px">Ανάκληση</button>`}</td></tr>`}).join("")}</table>`
-      :`<div class="empty">Κανένα κλειδί ακόμα.</div>`;
-    el.querySelectorAll("[data-rv]").forEach(b=>b.onclick=async()=>{if(!confirm(`Ανάκληση του ${b.dataset.rv}; Ο πελάτης χάνει αμέσως την πρόσβαση.`))return;await gw("lic_update",{key:b.dataset.rv,revoked:true});lics()});
-    el.querySelectorAll("[data-un]").forEach(b=>b.onclick=async()=>{await gw("lic_update",{key:b.dataset.un,revoked:false});lics()});
-    el.querySelectorAll("[data-ext]").forEach(b=>b.onclick=async()=>{await gw("lic_update",{key:b.dataset.ext,extend_days:+b.dataset.d});lics()});
-  }catch(e){el.innerHTML=`<div class="msg">${esc(e.message)}</div>`}}
+      <td>${(l.used_photos||0).toLocaleString("el-GR")}${l.quota_photos>0?" / "+(+l.quota_photos).toLocaleString("el-GR"):""}<br><small class="hint">${l.jobs} εργασίες${l.over_eur?" · εκτός πακέτου "+eur(l.over_eur):""}</small></td></tr>`}).join("")}</table>`
+    :`<div class="empty">${LICS.length?"Κανένα κλειδί με αυτά τα κριτήρια.":"Κανένα κλειδί ακόμα."}</div>`;
+  el.querySelectorAll("[data-k]").forEach(r=>r.onclick=()=>card(r.dataset.k));}
+$("#lq").oninput=drawLics;$("#lf").onchange=drawLics;
+const JST={launching:["Εκκίνηση GPU","run"],running:["Σε επεξεργασία","run"],finished:["Ολοκληρώθηκε","ok"],failed:["Απέτυχε / διακόπηκε","bad"]};
+async function card(key){const B=$("#kdB");$("#kdH").textContent=key;B.innerHTML=`<div class="empty">Φόρτωση…</div>`;$("#kd").showModal();
+  let d;try{d=await gw("lic_detail",{key})}catch(e){B.innerHTML=`<div class="msg">${esc(e.message)}</div>`;return}
+  const st=LST[d.state]||[d.state,""],U=d.usage;
+  B.innerHTML=`<div class="row" style="margin:0 0 10px"><span class="tag ${st[1]}">${st[0]}</span><b>${esc(d.label)}</b><span class="key">${esc(d.key)}</span><button class="btn" id="kdCp" style="padding:4px 9px">Αντιγραφή κλειδιού</button></div>
+    <div class="kv"><div><small>Πελάτης</small><b>${esc(d.name||"—")}</b><br><small>${esc(d.email||"")}</small></div>
+      <div><small>Λογαριασμός που την ενεργοποίησε</small><b>${esc(d.user_email||"—")}</b></div>
+      <div><small>Δημιουργία</small><b>${fdt(d.created_at)}</b>${d.price_eur?`<br><small>${eur(d.price_eur)} + ΦΠΑ</small>`:""}</div>
+      <div><small>Ενεργοποίηση</small><b>${d.activated_at?fdt(d.activated_at):"—"}</b></div>
+      <div><small>Λήξη</small><b>${d.expires_at?fdt(d.expires_at):d.activated_at?"χωρίς λήξη":"από την ενεργοποίηση"}</b>${d.kind==="perpetual"&&d.updates_until?`<br><small>αναβαθμίσεις έως ${fdt(d.updates_until,false)}</small>`:""}</div>
+      <div><small>Φωτογραφίες</small><b>${U.photos.toLocaleString("el-GR")}${d.quota_photos>0?" / "+(+d.quota_photos).toLocaleString("el-GR"):""}</b>${d.kind==="demo"?`<br><small>έως ${d.max_photos_job||150} ανά πτήση · ${U.jobs}/${d.max_jobs||3} εργασίες</small>`:""}</div>
+      <div><small>Εργασίες</small><b>${U.jobs}</b>${U.failed?`<br><small>+${U.failed} απέτυχαν/διακόπηκαν</small>`:""}</div>
+      <div><small>Εκτός πακέτου</small><b>${eur(U.over_eur)}</b><br><small>καθαρό</small></div>
+      <div><small>Χρόνος GPU · κόστος σου</small><b>${U.gpu_minutes} λεπτά</b><br><small>≈ ${eur(U.cost_eur)}</small></div></div>
+    <b>Εργασίες</b>
+    ${d.jobs.length?`<div class="tw"><table><tr><th>Ημ/νία</th><th>Έργο</th><th>Κατάσταση</th><th>Φωτογραφίες</th><th>Ποιότητα</th><th>Λεπτά GPU</th><th>Εκτός πακέτου</th></tr>${d.jobs.map(j=>{const s2=JST[j.state]||[j.state,""];
+      return `<tr><td>${fdt(j.started)}</td><td>${esc(j.project)}</td><td><span class="tag ${s2[1]}">${s2[0]}</span>${j.error?`<br><small class="hint">${esc(j.error).slice(0,120)}</small>`:""}</td>
+      <td>${j.photos.toLocaleString("el-GR")}</td><td>${esc(j.quality||"")}</td><td>${j.minutes??"—"}${j.cost_eur!=null?`<br><small class="hint">≈ ${eur(j.cost_eur)}</small>`:""}</td><td>${j.over_photos?j.over_photos+" φωτ. · "+eur(j.over_eur):"—"}</td></tr>`}).join("")}</table></div>`:`<div class="empty" style="padding:8px 0">Καμία εργασία ακόμα.</div>`}
+    ${d.projects.length?`<div style="margin-top:8px"><b>Έργα του λογαριασμού</b> <span class="hint">${d.projects.map(p=>esc(p.name)).join(" · ")}</span></div>`:""}
+    <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px"><b>Ενέργειες</b>
+      <div class="grid"><div><label for="kdN">Όνομα</label><input id="kdN" value="${esc(d.name||"")}"></div><div><label for="kdE">Email πελάτη</label><input id="kdE" type="email" value="${esc(d.email||"")}"></div>
+        <div><label for="kdQ">Ταβάνι φωτογραφιών</label><input id="kdQ" type="number" min="0" step="50" value="${d.quota_photos||0}"></div><div><label for="kdD">Παράταση (ημέρες)</label><input id="kdD" type="number" min="0" value="${d.kind==="demo"?1:30}"></div></div>
+      <label for="kdT">Σημείωση</label><input id="kdT" value="${esc(d.note||"")}">
+      <div class="row"><button class="btn primary" id="kdS">Αποθήκευση</button>${d.expires_at||d.updates_until?`<button class="btn" id="kdExt">Παράταση</button>`:""}
+        <button class="btn" id="kdRv">${d.revoked?"Επαναφορά":"Ανάκληση"}</button><button class="btn" id="kdMsg">Μήνυμα για τον πελάτη</button><span class="hint" id="kdH2"></span></div>
+      <textarea id="kdTx" rows="9" class="hidden" style="margin-top:8px"></textarea></div>`;
+  const done=async m=>{$("#kdH2").textContent=m;await lics();card(key)};
+  $("#kdCp").onclick=()=>{navigator.clipboard.writeText(d.key);$("#kdCp").textContent="Αντιγράφηκε ✓"};
+  $("#kdS").onclick=async()=>{try{await gw("lic_update",{key,name:$("#kdN").value,email:$("#kdE").value,quota_photos:+$("#kdQ").value,note:$("#kdT").value});done("Αποθηκεύτηκε ✓")}catch(e){$("#kdH2").textContent=e.message}};
+  $("#kdExt")&&($("#kdExt").onclick=async()=>{const n=+$("#kdD").value;if(!(n>0))return;try{await gw("lic_update",{key,extend_days:n});done(`Παράταση ${n} ημερών ✓`)}catch(e){$("#kdH2").textContent=e.message}});
+  $("#kdRv").onclick=async()=>{if(!d.revoked&&!confirm(`Ανάκληση του ${key}; Ο πελάτης χάνει αμέσως την πρόσβαση.`))return;
+    try{await gw("lic_update",{key,revoked:!d.revoked});done(d.revoked?"Επαναφέρθηκε ✓":"Ανακλήθηκε ✓")}catch(e){$("#kdH2").textContent=e.message}};
+  $("#kdMsg").onclick=()=>{const t=$("#kdTx");t.value=message(d);t.classList.remove("hidden");t.select();navigator.clipboard.writeText(t.value).then(()=>$("#kdH2").textContent="Το μήνυμα αντιγράφηκε ✓",()=>{})};
+}
+$("#kdX").onclick=()=>$("#kd").close();
 function message(l){const link="https://hexis-app.gr/mapping.html";
   return l.kind==="demo"?`Καλησπέρα${l.name?" "+l.name:""},\n\nσου στέλνω πρόσβαση demo στο HEXIS MAPPING για 48 ώρες.\n\n1. Άνοιξε το ${link}\n2. Στο «Κωδικός demo» γράψε: ${l.key}\n3. Κατέβασε την εφαρμογή για Windows και μπες με τον ίδιο κωδικό.\n\nΟι 48 ώρες μετράνε από την πρώτη είσοδο. Στο demo: έως ${l.max_photos_job||150} φωτογραφίες ανά πτήση, ποιότητα Γρήγορη, νέφη SLAM σε χαμηλή ανάλυση. Τα παραδοτέα έρχονται σε αυτό το email.\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.`
     :`Καλησπέρα${l.name?" "+l.name:""},\n\nη άδεια HEXIS MAPPING (${l.label}) είναι έτοιμη.\n\n1. Άνοιξε το ${link} και μπες με τον λογαριασμό σου στο hexis-app.gr.\n2. Στο «Ενεργοποίηση άδειας» γράψε: ${l.key}\n3. Κατέβασε την εφαρμογή για Windows και μπες με το ίδιο email και κωδικό.\n\nΗ διάρκεια μετράει από την ενεργοποίηση.\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.`}
@@ -227,9 +273,17 @@ function billCsv(){if(!BM)return;const m=BM.month,n=v=>String((+v||0).toFixed(2)
 $("#bmGo").onclick=billMonth;$("#bmCsv").onclick=billCsv;
 {const d=new Date();$("#bmM").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")}
 $("#nb").onclick=async()=>{$("#nb").disabled=true;
-  try{const l=await gw("lic_create",{kind:$("#nk").value,email:$("#ne").value,name:$("#nn").value,note:$("#nt").value,quota_photos:$("#nq").value});
-    $("#newKey").innerHTML=`<div class="msg ok">Νέο κλειδί <span class="key">${esc(l.key)}</span> · ${esc(l.label)}</div><label>Μήνυμα για τον πελάτη</label><textarea id="nmsg" rows="9"></textarea><div class="row"><button class="btn" id="ncp">Αντιγραφή μηνύματος</button></div>`;
-    $("#nmsg").value=message(l);$("#ncp").onclick=()=>{navigator.clipboard.writeText($("#nmsg").value);$("#ncp").textContent="Αντιγράφηκε ✓"};
+  const cnt=Math.max(1,Math.min(50,+$("#nc").value||1));
+  try{const r=await gw("lic_create",{kind:$("#nk").value,email:$("#ne").value,name:$("#nn").value,note:$("#nt").value,quota_photos:$("#nq").value,count:cnt});
+    const K=r.keys||[r],l=K[0];
+    if(K.length===1){
+      $("#newKey").innerHTML=`<div class="msg ok">Νέο κλειδί <span class="key">${esc(l.key)}</span> · ${esc(l.label)}</div><label>Μήνυμα για τον πελάτη</label><textarea id="nmsg" rows="9"></textarea><div class="row"><button class="btn" id="ncp">Αντιγραφή μηνύματος</button></div>`;
+      $("#nmsg").value=message(l);$("#ncp").onclick=()=>{navigator.clipboard.writeText($("#nmsg").value);$("#ncp").textContent="Αντιγράφηκε ✓"};
+    }else{
+      $("#newKey").innerHTML=`<div class="msg ok">${K.length} νέα κλειδιά · ${esc(l.label)}</div><label>Κλειδιά</label><textarea id="nmsg" rows="${Math.min(12,K.length+1)}" class="key"></textarea><div class="row"><button class="btn" id="ncp">Αντιγραφή όλων</button><span class="hint">Κάθε κλειδί έχει τη δική του καρτέλα στη λίστα· όνομα και email τα συμπληρώνεις εκεί όταν το δώσεις.</span></div>`;
+      $("#nmsg").value=K.map(k=>k.key).join("\n");$("#ncp").onclick=()=>{navigator.clipboard.writeText($("#nmsg").value);$("#ncp").textContent="Αντιγράφηκε ✓"};
+    }
+    $("#nc").value=1;
     ["#ne","#nn","#nt"].forEach(i=>$(i).value="");lics()}catch(e){$("#newKey").innerHTML=`<div class="msg">${esc(e.message)}</div>`}$("#nb").disabled=false};
 $("#ps").onclick=async()=>{const P=JSON.parse(JSON.stringify(ST.plans||{}));
   document.querySelectorAll("[data-pp]").forEach(i=>{P[i.dataset.pp][i.dataset.f]=+i.value});
