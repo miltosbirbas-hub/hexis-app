@@ -106,6 +106,9 @@ textarea{width:100%;background:var(--field);border:1.5px solid #c9d6a8;border-ra
       <div id="newKey"></div>
     </div>
     <div class="tw" id="lics"><div class="empty">Φόρτωση…</div></div>
+    <div class="bd" style="border-top:1px solid var(--line)"><b>Για τιμολόγηση μήνα</b> <span class="hint">(ποσά για το Emblem: χρεώσεις εκτός πακέτου και νέες άδειες)</span>
+      <div class="row"><input id="bmM" type="month" style="width:auto"><button class="btn" id="bmGo">Εμφάνιση</button><button class="btn" id="bmCsv" disabled>⬇ Excel (CSV)</button><span class="hint" id="bmH"></span></div>
+      <div class="tw" id="bmOut"></div></div>
     <div class="bd" style="border-top:1px solid var(--line)"><b>Τιμές πακέτων</b> <span class="hint">(καθαρές, χωρίς ΦΠΑ · ταβάνι φωτογραφιών 20 MP για όλη τη διάρκεια)</span>
       <div class="tw" id="plans"></div>
       <div class="grid"><div><label for="pu">Υψηλή · € / φωτογραφία πέρα από το πακέτο</label><input id="pu" type="number" step="0.005" min="0"></div>
@@ -194,6 +197,35 @@ async function lics(){const el=$("#lics");
 function message(l){const link="https://hexis-app.gr/mapping.html";
   return l.kind==="demo"?`Καλησπέρα${l.name?" "+l.name:""},\n\nσου στέλνω πρόσβαση demo στο HEXIS MAPPING για 48 ώρες.\n\n1. Άνοιξε το ${link}\n2. Στο «Κωδικός demo» γράψε: ${l.key}\n3. Κατέβασε την εφαρμογή για Windows και μπες με τον ίδιο κωδικό.\n\nΟι 48 ώρες μετράνε από την πρώτη είσοδο. Στο demo: έως ${l.max_photos_job||150} φωτογραφίες ανά πτήση, ποιότητα Γρήγορη, νέφη SLAM σε χαμηλή ανάλυση. Τα παραδοτέα έρχονται σε αυτό το email.\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.`
     :`Καλησπέρα${l.name?" "+l.name:""},\n\nη άδεια HEXIS MAPPING (${l.label}) είναι έτοιμη.\n\n1. Άνοιξε το ${link} και μπες με τον λογαριασμό σου στο hexis-app.gr.\n2. Στο «Ενεργοποίηση άδειας» γράψε: ${l.key}\n3. Κατέβασε την εφαρμογή για Windows και μπες με το ίδιο email και κωδικό.\n\nΗ διάρκεια μετράει από την ενεργοποίηση.\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.`}
+const MONTHS=["Ιανουάριος","Φεβρουάριος","Μάρτιος","Απρίλιος","Μάιος","Ιούνιος","Ιούλιος","Αύγουστος","Σεπτέμβριος","Οκτώβριος","Νοέμβριος","Δεκέμβριος"];
+const mLabel=m=>{const [y,mo]=m.split("-");return MONTHS[+mo-1]+" "+y};
+let BM=null;
+function lineText(r,m){return `HEXIS MAPPING · επεξεργασία φωτογραφιών εκτός πακέτου (${r.label}) · ${mLabel(m)} · ${r.over_photos.toLocaleString("el-GR")} φωτογραφίες`}
+function saleText(r){return `HEXIS MAPPING · άδεια χρήσης ${r.label}${r.kind==="perpetual"?" (μόνιμη, αναβαθμίσεις 1 έτους)":""} · κλειδί ${r.key}`}
+async function billMonth(){const m=$("#bmM").value;if(!m)return;$("#bmGo").disabled=true;$("#bmH").textContent="";
+  try{BM=await gw("billing_month",{month:m});const T=BM.totals;
+    const cp=(t)=>`<button class="btn" data-cp="${esc(t)}" style="padding:3px 8px;font-size:.78rem">Αντιγραφή</button>`;
+    $("#bmOut").innerHTML=(BM.over.length?`<table><tr><th>Πελάτης</th><th>Πακέτο</th><th>Φωτογραφίες εκτός</th><th>Καθαρό</th><th>ΦΠΑ</th><th>Σύνολο</th><th>Γραμμή παραστατικού</th></tr>
+      ${BM.over.map(r=>`<tr><td><b>${esc(r.name||"")}</b><br><small class="hint">${esc(r.email||r.user_email||"")}</small></td><td>${esc(r.label)}<br><span class="key" style="font-size:.75rem">${esc(r.key)}</span></td>
+        <td>${r.over_photos.toLocaleString("el-GR")}<br><small class="hint">${r.items.map(i=>`${new Date(i.date).toLocaleDateString("el-GR")} ${esc(i.project)} · ${esc(i.quality)} · ${i.over_photos}`).join("<br>")}</small></td>
+        <td>${eur(r.net_eur)}</td><td>${eur(r.vat_eur)}</td><td><b>${eur(r.total_eur)}</b></td><td>${cp(lineText(r,m))}</td></tr>`).join("")}
+      <tr><td colspan="3"><b>Σύνολο εκτός πακέτου</b></td><td><b>${eur(T.over_net)}</b></td><td></td><td><b>${eur(T.over_total)}</b></td><td></td></tr></table>`
+      :`<div class="empty">Καμία χρέωση εκτός πακέτου τον ${mLabel(m)}.</div>`)
+     +(BM.sales.length?`<div style="margin-top:12px"><b>Νέες άδειες τον ${mLabel(m)}</b></div><table><tr><th>Πελάτης</th><th>Πακέτο</th><th>Ημ/νία</th><th>Καθαρό</th><th>ΦΠΑ</th><th>Σύνολο</th><th>Γραμμή παραστατικού</th></tr>
+      ${BM.sales.map(r=>`<tr${r.revoked?' style="opacity:.5"':""}><td><b>${esc(r.name||"")}</b><br><small class="hint">${esc(r.email||r.user_email||"")}</small></td><td>${esc(r.label)}<br><span class="key" style="font-size:.75rem">${esc(r.key)}</span></td>
+        <td>${fdt(r.created_at,false)}${r.revoked?"<br><small>ανακλήθηκε</small>":""}</td><td>${eur(r.net_eur)}</td><td>${eur(r.vat_eur)}</td><td><b>${eur(r.total_eur)}</b></td><td>${cp(saleText(r))}</td></tr>`).join("")}
+      <tr><td colspan="3"><b>Σύνολο νέων αδειών</b></td><td><b>${eur(T.sales_net)}</b></td><td></td><td><b>${eur(T.sales_total)}</b></td><td></td></tr></table>`:"");
+    $("#bmOut").querySelectorAll("[data-cp]").forEach(b=>b.onclick=()=>{navigator.clipboard.writeText(b.dataset.cp);b.textContent="✓"});
+    $("#bmCsv").disabled=!(BM.over.length||BM.sales.length);
+  }catch(e){$("#bmOut").innerHTML=`<div class="msg">${esc(e.message)}</div>`}$("#bmGo").disabled=false}
+function billCsv(){if(!BM)return;const m=BM.month,n=v=>String((+v||0).toFixed(2)).replace(".",","),q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
+  const L=[["Είδος","Πελάτης","Email","Κλειδί","Πακέτο","Φωτογραφίες εκτός πακέτου","Περιγραφή","Καθαρό €","ΦΠΑ €","Σύνολο €"].map(q).join(";")];
+  BM.over.forEach(r=>L.push([q("Εκτός πακέτου"),q(r.name),q(r.email||r.user_email),q(r.key),q(r.label),q(r.over_photos.toLocaleString("el-GR")),q(lineText(r,m)),n(r.net_eur),n(r.vat_eur),n(r.total_eur)].join(";")));
+  BM.sales.filter(r=>!r.revoked).forEach(r=>L.push([q("Νέα άδεια"),q(r.name),q(r.email||r.user_email),q(r.key),q(r.label),q(""),q(saleText(r)),n(r.net_eur),n(r.vat_eur),n(r.total_eur)].join(";")));
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+L.join("\r\n")],{type:"text/csv;charset=utf-8"}));
+  a.download=`HEXIS_MAPPING_timologisi_${m}.csv`;a.click()}
+$("#bmGo").onclick=billMonth;$("#bmCsv").onclick=billCsv;
+{const d=new Date();$("#bmM").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")}
 $("#nb").onclick=async()=>{$("#nb").disabled=true;
   try{const l=await gw("lic_create",{kind:$("#nk").value,email:$("#ne").value,name:$("#nn").value,note:$("#nt").value,quota_photos:$("#nq").value});
     $("#newKey").innerHTML=`<div class="msg ok">Νέο κλειδί <span class="key">${esc(l.key)}</span> · ${esc(l.label)}</div><label>Μήνυμα για τον πελάτη</label><textarea id="nmsg" rows="9"></textarea><div class="row"><button class="btn" id="ncp">Αντιγραφή μηνύματος</button></div>`;
