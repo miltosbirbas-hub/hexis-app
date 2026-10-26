@@ -39,6 +39,14 @@ ol.steps{margin:6px 0 0;padding-left:20px}ol.steps li{margin:6px 0}
 .tag.run{background:#fff4dc;color:#8a5a00}.tag.ok{background:#e5f3e8;color:var(--ok)}.tag.bad{background:#fbe6e3;color:var(--accent-dk)}
 .empty{padding:16px;color:var(--soft)}
 .hidden{display:none}
+select{width:100%;background:var(--field);border:1.5px solid #c9d6a8;border-radius:8px;padding:10px 12px;font:inherit}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0 12px}
+table{width:100%;border-collapse:collapse;font-size:.86rem}th,td{text-align:left;padding:8px 10px;border-top:1px solid var(--line);vertical-align:top}
+th{font-size:.74rem;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);border-top:0}
+.key{font-family:ui-monospace,Consolas,monospace;font-weight:700;letter-spacing:.04em;white-space:nowrap}
+.tw{overflow-x:auto}
+.or{display:flex;align-items:center;gap:10px;color:var(--soft);font-size:.82rem;margin:16px 0 4px}.or:before,.or:after{content:"";flex:1;border-top:1px solid var(--line)}
+textarea{width:100%;background:var(--field);border:1.5px solid #c9d6a8;border-radius:8px;padding:10px 12px;font:inherit;font-size:.86rem}
 @media (max-width:560px){header .who{font-size:.74rem}.proj{grid-template-columns:1fr}}
 </style>
 </head>
@@ -54,7 +62,23 @@ ol.steps{margin:6px 0 0;padding-left:20px}ol.steps li{margin:6px 0}
         <label for="pw">Κωδικός</label><input type="password" id="pw" autocomplete="current-password" required>
         <div class="row"><button class="btn primary" id="lb">Είσοδος</button><a class="btn" href="login.html">Νέος λογαριασμός / ξέχασα τον κωδικό</a></div></form>
       <div id="lmsg"></div>
+      <div class="or">ή</div>
+      <form id="df"><label for="dk">Κωδικός demo (48 ώρες, χωρίς λογαριασμό)</label><input id="dk" placeholder="HX-XXXX-XXXX-XXXX" autocomplete="off" style="text-transform:uppercase;letter-spacing:.06em">
+        <div class="row"><button class="btn" id="db">Είσοδος demo</button></div></form>
+      <div id="dmsg"></div>
     </div>
+  </section>
+
+  <section class="card hidden" id="actCard">
+    <div class="hd"><div class="n">🔑</div><h2 id="actH">Ενεργοποίηση άδειας</h2></div>
+    <div class="bd"><p style="margin:0" id="actP">Γράψε το κλειδί άδειας HEXIS MAPPING που σου στείλαμε. Ενεργοποιείται μία φορά, στον λογαριασμό σου.</p>
+      <form id="af"><label for="ak">Κλειδί άδειας</label><input id="ak" placeholder="HX-XXXX-XXXX-XXXX" autocomplete="off" style="text-transform:uppercase;letter-spacing:.06em">
+        <div class="row"><button class="btn primary" id="ab">Ενεργοποίηση</button></div></form><div id="amsg"></div></div>
+  </section>
+
+  <section class="card hidden" id="licCard">
+    <div class="hd"><div class="n">✓</div><h2>Η άδειά σου</h2></div>
+    <div class="bd" id="licBody"></div>
   </section>
 
   <section class="card hidden" id="appCard">
@@ -64,10 +88,30 @@ ol.steps{margin:6px 0 0;padding-left:20px}ol.steps li{margin:6px 0}
       <ol class="steps">
         <li>Κατέβασε το ZIP και αποσυμπίεσέ το όπου θέλεις (π.χ. στα Έγγραφα).</li>
         <li>Διπλό κλικ στο <b>HEXIS_MAPPING\local\HEXIS_MAPPING.bat</b>. Την πρώτη φορά εγκαθιστά μόνο του ό,τι χρειάζεται (2–5 λεπτά) και φτιάχνει συντόμευση στην επιφάνεια εργασίας.</li>
-        <li>Στην εφαρμογή πάτα την ένδειξη επάνω δεξιά και μπες με το ίδιο email και κωδικό.</li>
+        <li id="stepLogin">Στην εφαρμογή πάτα την ένδειξη επάνω δεξιά και μπες με το ίδιο email και κωδικό.</li>
       </ol>
       <div class="row"><button class="btn primary" id="dl">⬇ Λήψη HEXIS MAPPING</button><span class="hint" id="dlh"></span></div>
     </div>
+  </section>
+
+  <section class="card hidden" id="admCard">
+    <div class="hd"><div class="n">A</div><h2>Κλειδιά άδειας</h2><span class="r">μόνο ο διαχειριστής</span></div>
+    <div class="bd">
+      <div class="grid"><div><label for="nk">Πακέτο</label><select id="nk"></select></div>
+        <div><label for="ne">Email πελάτη</label><input id="ne" type="email" placeholder="για το demo: εκεί πάνε τα παραδοτέα"></div>
+        <div><label for="nn">Όνομα</label><input id="nn"></div>
+        <div><label for="nq">Φωτογραφίες (ταβάνι)</label><input id="nq" type="number" min="0" step="50"></div></div>
+      <label for="nt">Σημείωση</label><input id="nt" placeholder="π.χ. τιμολόγιο, συνεργάτης">
+      <div class="row"><button class="btn primary" id="nb">Νέο κλειδί</button><span class="hint" id="nh"></span></div>
+      <div id="newKey"></div>
+    </div>
+    <div class="tw" id="lics"><div class="empty">Φόρτωση…</div></div>
+    <div class="bd" style="border-top:1px solid var(--line)"><b>Τιμές πακέτων</b> <span class="hint">(καθαρές, χωρίς ΦΠΑ · ταβάνι φωτογραφιών 20 MP για όλη τη διάρκεια)</span>
+      <div class="tw" id="plans"></div>
+      <div class="grid"><div><label for="pu">Υψηλή · € / φωτογραφία πέρα από το πακέτο</label><input id="pu" type="number" step="0.005" min="0"></div>
+        <div><label for="ph">Μεσαία · € / φωτογραφία</label><input id="ph" type="number" step="0.005" min="0"></div>
+        <div><label for="pm">Γρήγορη · € / φωτογραφία</label><input id="pm" type="number" step="0.005" min="0"></div></div>
+      <div class="row"><button class="btn" id="ps">Αποθήκευση τιμών</button><span class="hint" id="psh"></span></div></div>
   </section>
 
   <section class="card hidden" id="projCard">
@@ -79,30 +123,93 @@ ol.steps{margin:6px 0 0;padding-left:20px}ol.steps li{margin:6px 0}
 const REF="oucqqudfdimccgowvpqp",SUPA=`https://${REF}.supabase.co`,KEY="sb_publishable_AjcKB0okxSvA9SUBazKEHQ_-HR0FMHP",FN=`${SUPA}/functions/v1/mapping-gw`;
 const SK=`sb-${REF}-auth-token`;                      // ίδια σύνδεση με τις άλλες σελίδες του hexis-app.gr
 const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const get=()=>{try{return JSON.parse(localStorage.getItem(SK)||"null")}catch(e){return null}};
-const put=s=>{try{s?localStorage.setItem(SK,JSON.stringify(s)):localStorage.removeItem(SK)}catch(e){}};
+const DK="hx-mapping-demo";                           // η σύνδεση demo ΔΕΝ μοιράζεται με τις άλλες σελίδες του hexis-app.gr
+const get=()=>{try{return JSON.parse(localStorage.getItem(DK)||"null")||JSON.parse(localStorage.getItem(SK)||"null")}catch(e){return null}};
+const put=s=>{try{const demo=s?s.demo:!!localStorage.getItem(DK);const k=demo?DK:SK;s?localStorage.setItem(k,JSON.stringify(s)):localStorage.removeItem(k)}catch(e){}};
 async function auth(body,grant){const r=await fetch(`${SUPA}/auth/v1/token?grant_type=${grant}`,{method:"POST",headers:{apikey:KEY,"Content-Type":"application/json"},body:JSON.stringify(body)});
   const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(/Invalid login/.test(d.error_description||d.msg||"")?"Λάθος email ή κωδικός.":(d.error_description||d.msg||"Σφάλμα σύνδεσης"));
-  const s={access_token:d.access_token,refresh_token:d.refresh_token,expires_at:Math.floor(Date.now()/1000)+(d.expires_in||3600),token_type:"bearer",user:d.user};put(s);return s}
+  const demo=!!(get()||{}).demo&&grant==="refresh_token";
+  const s={access_token:d.access_token,refresh_token:d.refresh_token,expires_at:Math.floor(Date.now()/1000)+(d.expires_in||3600),token_type:"bearer",user:d.user,demo};put(s);return s}
 async function token(){let s=get();if(!s)return null;
   if(!s.expires_at||Date.now()/1000>s.expires_at-60){try{s=await auth({refresh_token:s.refresh_token},"refresh_token")}catch(e){put(null);return null}}return s.access_token}
+const fdt=(iso,time=true)=>iso?new Date(iso).toLocaleString("el-GR",time?{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}:{day:"2-digit",month:"2-digit",year:"numeric"}):"—";
+const eur=v=>v==null?"—":(+v).toLocaleString("el-GR",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+const LST={new:["Δεν χρησιμοποιήθηκε",""],active:["Ενεργή","ok"],expired:["Έληξε","bad"],revoked:["Ανακλήθηκε","bad"]};
 async function gw(action,body={}){const t=await token();if(!t)throw Object.assign(new Error("Χρειάζεται σύνδεση."),{code:401});
   const r=await fetch(FN,{method:"POST",headers:{Authorization:`Bearer ${t}`,apikey:KEY,"Content-Type":"application/json"},body:JSON.stringify({action,...body})});
   const d=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(d.error||`Σφάλμα ${r.status}`),{code:r.status});return d}
 const size=b=>b>1e9?(b/1e9).toFixed(2)+" GB":(b/1e6).toFixed(1)+" MB";
 const STATE={uploading:["Ανέβασμα","run"],launching:["Εκκίνηση GPU","run"],running:["Σε επεξεργασία","run"],finished:["Έτοιμο","ok"],failed:["Απέτυχε","bad"]};
 
+const hide=(...ids)=>ids.forEach(i=>$(i).classList.add("hidden")),showc=(...ids)=>ids.forEach(i=>$(i).classList.remove("hidden"));
 async function show(){
-  const s=get();$("#who").innerHTML="";
-  if(!s){$("#loginCard").classList.remove("hidden");$("#appCard").classList.add("hidden");$("#projCard").classList.add("hidden");return}
+  const s=get();$("#who").innerHTML="";hide("#actCard","#licCard","#admCard");
+  if(!s){showc("#loginCard");hide("#appCard","#projCard");return}
   let me;try{me=await gw("me")}catch(e){
     if(e.code===401){put(null);return show()}
-    $("#loginCard").classList.remove("hidden");$("#lmsg").innerHTML=`<div class="msg">${esc(e.code===403?"Ο λογαριασμός σου δεν έχει ακόμα πρόσβαση στο HEXIS MAPPING. Προς το παρόν είναι διαθέσιμο μόνο για δοκιμή.":e.message)}</div>`;
-    $("#who").innerHTML=`${esc(s.user&&s.user.email)}<br><button class="btn" id="lo" style="padding:4px 10px">Έξοδος</button>`;$("#lo").onclick=()=>{put(null);show()};return}
-  $("#loginCard").classList.add("hidden");$("#appCard").classList.remove("hidden");$("#projCard").classList.remove("hidden");
-  $("#who").innerHTML=`${esc(me.email)}${me.admin?" · διαχειριστής":""}<br><button class="btn" id="lo" style="padding:4px 10px">Έξοδος</button>`;$("#lo").onclick=()=>{put(null);show()};
+    showc("#loginCard");$("#lmsg").innerHTML=`<div class="msg">${esc(e.message)}</div>`;return}
+  const lo=()=>{$("#who").innerHTML=`${esc(me.email)}${me.admin?" · διαχειριστής":me.guest?" · demo":""}<br><button class="btn" id="lo" style="padding:4px 10px">Έξοδος</button>`;
+    $("#lo").onclick=()=>{put(null);try{localStorage.removeItem(DK)}catch(e){}show()}};lo();
+  hide("#loginCard");
+  const L=me.license;
+  if(!me.member){hide("#appCard","#projCard");showc("#actCard");
+    $("#actH").textContent=L&&L.state==="expired"?`Η άδεια ${L.kind==="demo"?"demo ":""}έληξε`:L&&L.state==="revoked"?"Η άδεια ανακλήθηκε":"Ενεργοποίηση άδειας";
+    $("#actP").textContent=me.guest||(L&&L.kind==="demo")?`Η δοκιμαστική πρόσβαση τελείωσε${L&&L.expires_at?" στις "+fdt(L.expires_at):""}. Για συνέχεια, επικοινώνησε με το HEXIS για άδεια.`
+      :"Γράψε το κλειδί άδειας HEXIS MAPPING που σου στείλαμε. Ενεργοποιείται μία φορά, στον λογαριασμό σου.";
+    $("#af").style.display=me.guest?"none":"";return}
+  showc("#appCard","#projCard");
+  $("#stepLogin").innerHTML=me.guest?`Στην εφαρμογή πάτα την ένδειξη επάνω δεξιά και γράψε τον <b>κωδικό demo</b> στο «Είσοδος demo».`
+    :"Στην εφαρμογή πάτα την ένδειξη επάνω δεξιά και μπες με το ίδιο email και κωδικό.";
+  if(L){showc("#licCard");
+    $("#licBody").innerHTML=L.kind==="demo"?`<b>Demo</b> · ενεργό έως <b>${fdt(L.expires_at)}</b><br><span class="hint">Έως ${L.max_photos_job||150} φωτογραφίες ανά πτήση, ποιότητα Γρήγορη, ${(L.max_jobs||3)-(L.jobs_used||0)} επεξεργασίες ακόμα. Νέφη SLAM σε χαμηλή ανάλυση. Τα παραδοτέα έρχονται στο ${esc(L.email||"")}.</span>`
+      :`<b>${esc(L.label)}</b>${L.expires_at?" · έως <b>"+fdt(L.expires_at,false)+"</b>":""} · κλειδί <span class="key">${esc(L.key)}</span><br><span class="hint">${L.quota_photos>0?`Φωτογραφίες: ${(L.used_photos||0).toLocaleString("el-GR")} από ${(+L.quota_photos).toLocaleString("el-GR")} για όλη τη διάρκεια.`:"Κάθε πτήση χρεώνεται ανά φωτογραφία."}${L.kind==="perpetual"&&L.updates_until?" Νέες εκδόσεις έως "+fdt(L.updates_until,false)+".":""}</span>`}
   if(me.admin&&!me.ready)$("#dlh").innerHTML=`<span style="color:var(--accent-dk)">Η πύλη δεν έχει ακόμα κλειδιά: βάλ' τα από την εφαρμογή (ένδειξη επάνω δεξιά).</span>`;
+  if(me.admin){showc("#admCard");admin(me)}
   projects()}
+let ST=null;
+async function admin(me){
+  try{ST=await gw("settings_get")}catch(e){ST={plans:{}}}
+  const P=ST.plans||{},K=["demo","month","quarter","half","year","perpetual"];
+  $("#nk").innerHTML=K.filter(k=>P[k]).map(k=>`<option value="${k}">${esc(P[k].label)}${k==="demo"?" · "+(P[k].hours||48)+" ώρες":" · "+eur(P[k].price_eur)+" + ΦΠΑ"}</option>`).join("");
+  const sync=()=>{const p=P[$("#nk").value]||{};$("#nq").value=p.quota_photos??0;$("#nh").textContent=$("#nk").value==="perpetual"?"Μόνιμη: κάθε πτήση χρεώνεται ανά φωτογραφία, νέες εκδόσεις για "+(p.updates_months||12)+" μήνες.":$("#nk").value==="demo"?"Demo: έως "+(p.max_photos_job||150)+" φωτογραφίες ανά πτήση, "+(p.max_jobs||3)+" επεξεργασίες, Γρήγορη ποιότητα.":""};
+  $("#nk").onchange=sync;sync();
+  $("#plans").innerHTML=`<table><tr><th>Πακέτο</th><th>Τιμή €</th><th>Φωτογραφίες</th><th>Διάρκεια</th></tr>${K.filter(k=>k!=="demo"&&P[k]).map(k=>`<tr><td><b>${esc(P[k].label)}</b></td>
+    <td><input data-pp="${k}" data-f="price_eur" type="number" step="10" value="${P[k].price_eur}"></td><td><input data-pp="${k}" data-f="quota_photos" type="number" step="50" value="${P[k].quota_photos}"></td>
+    <td>${k==="perpetual"?"για πάντα · αναβαθμίσεις "+(P[k].updates_months||12)+" μήνες":P[k].months+" μήνες"}</td></tr>`).join("")}</table>`;
+  const pp=ST.per_photo_eur||{};$("#pu").value=pp.ultra??0.03;$("#ph").value=pp.high??0.02;$("#pm").value=pp.medium??0.01;
+  lics()}
+async function lics(){const el=$("#lics");
+  try{const R=await gw("lic_list");
+    el.innerHTML=R.length?`<table><tr><th>Κλειδί</th><th>Πακέτο</th><th>Πελάτης</th><th>Λογαριασμός</th><th>Κατάσταση</th><th>Φωτογραφίες</th><th></th></tr>${R.map(l=>{const st=LST[l.state]||[l.state,""];
+      return `<tr><td class="key">${esc(l.key)}</td><td>${esc(l.label)}<br><small class="hint">${fdt(l.created_at,false)}${l.price_eur?" · "+eur(l.price_eur):""}</small></td>
+      <td>${esc(l.name||"")}<br><small class="hint">${esc(l.email||"")}${l.note?" · "+esc(l.note):""}</small></td><td>${esc(l.user_email||"—")}</td>
+      <td><span class="tag ${st[1]}">${st[0]}</span><br><small class="hint">${l.expires_at?"έως "+fdt(l.expires_at,l.kind==="demo"):l.activated_at?"χωρίς λήξη":""}</small></td>
+      <td>${(l.used_photos||0).toLocaleString("el-GR")}${l.quota_photos>0?" / "+(+l.quota_photos).toLocaleString("el-GR"):""}<br><small class="hint">${l.jobs} εργασίες${l.over_eur?" · εκτός πακέτου "+eur(l.over_eur):""}</small></td>
+      <td style="white-space:nowrap">${l.revoked?`<button class="btn" data-un="${l.key}" style="padding:4px 9px">Επαναφορά</button>`:`<button class="btn" data-ext="${l.key}" data-d="${l.kind==="demo"?1:30}" style="padding:4px 9px">+${l.kind==="demo"?"1 ημέρα":"30 ημ."}</button> <button class="btn" data-rv="${l.key}" style="padding:4px 9px">Ανάκληση</button>`}</td></tr>`}).join("")}</table>`
+      :`<div class="empty">Κανένα κλειδί ακόμα.</div>`;
+    el.querySelectorAll("[data-rv]").forEach(b=>b.onclick=async()=>{if(!confirm(`Ανάκληση του ${b.dataset.rv}; Ο πελάτης χάνει αμέσως την πρόσβαση.`))return;await gw("lic_update",{key:b.dataset.rv,revoked:true});lics()});
+    el.querySelectorAll("[data-un]").forEach(b=>b.onclick=async()=>{await gw("lic_update",{key:b.dataset.un,revoked:false});lics()});
+    el.querySelectorAll("[data-ext]").forEach(b=>b.onclick=async()=>{await gw("lic_update",{key:b.dataset.ext,extend_days:+b.dataset.d});lics()});
+  }catch(e){el.innerHTML=`<div class="msg">${esc(e.message)}</div>`}}
+function message(l){const link="https://hexis-app.gr/mapping.html";
+  return l.kind==="demo"?`Καλησπέρα${l.name?" "+l.name:""},\n\nσου στέλνω πρόσβαση demo στο HEXIS MAPPING για 48 ώρες.\n\n1. Άνοιξε το ${link}\n2. Στο «Κωδικός demo» γράψε: ${l.key}\n3. Κατέβασε την εφαρμογή για Windows και μπες με τον ίδιο κωδικό.\n\nΟι 48 ώρες μετράνε από την πρώτη είσοδο. Στο demo: έως ${l.max_photos_job||150} φωτογραφίες ανά πτήση, ποιότητα Γρήγορη, νέφη SLAM σε χαμηλή ανάλυση. Τα παραδοτέα έρχονται σε αυτό το email.\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.`
+    :`Καλησπέρα${l.name?" "+l.name:""},\n\nη άδεια HEXIS MAPPING (${l.label}) είναι έτοιμη.\n\n1. Άνοιξε το ${link} και μπες με τον λογαριασμό σου στο hexis-app.gr.\n2. Στο «Ενεργοποίηση άδειας» γράψε: ${l.key}\n3. Κατέβασε την εφαρμογή για Windows και μπες με το ίδιο email και κωδικό.\n\nΗ διάρκεια μετράει από την ενεργοποίηση.\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.`}
+$("#nb").onclick=async()=>{$("#nb").disabled=true;
+  try{const l=await gw("lic_create",{kind:$("#nk").value,email:$("#ne").value,name:$("#nn").value,note:$("#nt").value,quota_photos:$("#nq").value});
+    $("#newKey").innerHTML=`<div class="msg ok">Νέο κλειδί <span class="key">${esc(l.key)}</span> · ${esc(l.label)}</div><label>Μήνυμα για τον πελάτη</label><textarea id="nmsg" rows="9"></textarea><div class="row"><button class="btn" id="ncp">Αντιγραφή μηνύματος</button></div>`;
+    $("#nmsg").value=message(l);$("#ncp").onclick=()=>{navigator.clipboard.writeText($("#nmsg").value);$("#ncp").textContent="Αντιγράφηκε ✓"};
+    ["#ne","#nn","#nt"].forEach(i=>$(i).value="");lics()}catch(e){$("#newKey").innerHTML=`<div class="msg">${esc(e.message)}</div>`}$("#nb").disabled=false};
+$("#ps").onclick=async()=>{const P=JSON.parse(JSON.stringify(ST.plans||{}));
+  document.querySelectorAll("[data-pp]").forEach(i=>{P[i.dataset.pp][i.dataset.f]=+i.value});
+  try{await gw("settings_set",{values:{plans:P,per_photo_eur:{ultra:+$("#pu").value,high:+$("#ph").value,medium:+$("#pm").value}}});$("#psh").textContent="Αποθηκεύτηκαν ✓";admin()}
+  catch(e){$("#psh").textContent=e.message}};
+$("#df").onsubmit=async e=>{e.preventDefault();$("#db").disabled=true;$("#dmsg").innerHTML="";
+  try{const r=await fetch(FN,{method:"POST",headers:{apikey:KEY,"Content-Type":"application/json"},body:JSON.stringify({action:"demo_login",key:$("#dk").value})});
+    const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`Σφάλμα ${r.status}`);
+    try{localStorage.setItem(DK,JSON.stringify({access_token:d.access_token,refresh_token:d.refresh_token,expires_at:Math.floor(Date.now()/1000)+(d.expires_in||3600),token_type:"bearer",user:d.user,demo:true}))}catch(_){}
+    await show()}catch(err){$("#dmsg").innerHTML=`<div class="msg">${esc(err.message)}</div>`}$("#db").disabled=false};
+$("#af").onsubmit=async e=>{e.preventDefault();$("#ab").disabled=true;$("#amsg").innerHTML="";
+  try{await gw("activate",{key:$("#ak").value});await show()}catch(err){$("#amsg").innerHTML=`<div class="msg">${esc(err.message)}</div>`}$("#ab").disabled=false};
 async function projects(){const el=$("#plist");el.innerHTML=`<div class="empty">Φόρτωση…</div>`;
   try{const P=await gw("projects");if(!P.length){el.innerHTML=`<div class="empty">Δεν υπάρχουν ακόμα έργα. Ξεκίνησε μια επεξεργασία από την εφαρμογή.</div>`;return}
     el.innerHTML=P.map(p=>{const st=p.job?STATE[p.job.state]||[p.job.state,""]:["Χωρίς επεξεργασία",""];

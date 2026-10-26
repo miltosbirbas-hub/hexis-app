@@ -47,6 +47,19 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-b);font-size:
 .hero p{color:var(--muted);font-size:14px;margin-top:6px}
 
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:13px;margin-top:26px}
+.grid.sub{margin-top:12px}
+.cats{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;align-items:center}
+.chip{font-family:var(--font-d);font-weight:600;font-size:13px;color:var(--muted);background:#fff;border:1px solid var(--border);border-radius:99px;padding:7px 13px;cursor:pointer;white-space:nowrap}
+.chip:hover{border-color:var(--border-strong);color:var(--text)}
+.chip.on{background:#FFF3E8;border-color:rgba(242,107,33,.45);color:#E05A12}
+.chip b{font-family:var(--font-m);font-weight:600;font-size:11px;color:var(--faint);margin-left:4px}
+.search{flex:1 1 200px;min-width:180px;max-width:300px;margin-left:auto;font:inherit;font-size:13.5px;border:1px solid var(--border);border-radius:99px;padding:7px 14px;background:#fff;color:var(--text)}
+.search:focus{outline:none;border-color:rgba(242,107,33,.55)}
+.cat-hd{display:flex;align-items:baseline;gap:10px;margin-top:30px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.cat-hd h2{font-family:var(--font-d);font-size:17px;font-weight:800}
+.cat-hd span{font-size:12.5px;color:var(--faint)}
+.empty-s{color:var(--faint);font-size:13.5px;margin-top:22px}
+@media(max-width:600px){.search{max-width:none;margin-left:0}}
 .tile{
   position:relative;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
   padding:18px 16px 15px;cursor:pointer;text-align:left;color:var(--text);text-decoration:none;display:block;
@@ -182,7 +195,9 @@ footer p{font-size:11.5px;color:var(--faint)}
     <p>Επίλεξε εφαρμογή. Κάθε εργαλείο ενεργοποιείται ξεχωριστά στον λογαριασμό σου — κρατάς μόνο όσα χρειάζεσαι.</p>
   </section>
 
-  <div class="grid" id="grid"></div>
+  <div id="prim"></div>
+  <div class="cats" id="cats" role="toolbar" aria-label="Κατηγορίες"></div>
+  <div id="grid"></div>
 
   <footer>
     <p>© 2026 BRB Development ΜΟΝ. Ι.Κ.Ε. — hexis-app.gr · <a href="manual.html" style="color:var(--orange-deep);font-weight:600;text-decoration:none">Οδηγός χρήσης</a></p>
@@ -215,7 +230,7 @@ footer p{font-size:11.5px;color:var(--faint)}
 </div>
 
 <script>
-const HUB_VERSION = 'v1.9';
+const HUB_VERSION = 'v1.10';
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
@@ -230,27 +245,67 @@ const ICONS = window.HEXIS_ICONS || {};
 let myModules = new Set();
 let currentUser = null;
 
+let CUR_CAT = (function(){ try { return localStorage.getItem('hx_hub_cat') || 'all'; } catch(e) { return 'all'; } })();
+let QUERY = '';
+const CATS = window.HEXIS_CATEGORIES || [];
+const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+function tileHTML(t, isOwner) {
+  const has = !!t.free || myModules.has(t.mod || t.id);
+  const attrs = 'href="' + (t.free ? t.href : 'tool.html?id=' + t.id) + '"' + (t.free && t.external ? ' target="_blank" rel="noopener"' : '');
+  return '<a class="tile' + (has ? '' : ' locked') + '" ' + attrs + '>'
+    + (has ? '' : '<span class="lockico">🔒</span>')
+    + '<span class="ico">' + (ICONS[t.id] || '') + '</span>'
+    + '<h3>' + t.name + '</h3><p>' + t.desc + '</p>'
+    + '<span class="foot">'
+    + (t.ownerOnly ? (isOwner ? '<span class="badge on">Ιδιωτικό · τοπικά</span>' : '<span class="badge on">✓ Άδεια ενεργή</span>') : t.free ? '<span class="badge on">Δωρεάν</span>' : has ? '<span class="badge on">✓ Ενεργό</span>' : '<span class="badge lock">Add-on</span>')
+    + '<span class="go">' + (has ? (t.download ? 'Λήψη →' : 'Άνοιγμα →') : 'Ξεκλείδωμα →') + '</span>'
+    + '</span></a>';
+}
+
 function render() {
-  const g = document.getElementById('grid');
   const isOwner = !!(currentUser && (window.HEXIS_OWNER_EMAILS || []).includes((currentUser.email || '').toLowerCase()));
-  g.innerHTML = TOOLS.filter(t => !t.ownerOnly || isOwner).map(t => {
-    if (t.primary) {
-      return '<a class="tile primary" href="' + t.href + '">'
-        + '<span class="ico">' + ICONS.app + '</span>'
-        + '<span><h3>' + t.name + '</h3><p>' + t.desc + '</p></span>'
-        + '<span class="primary-cta">Άνοιγμα →</span></a>';
+  // ownerOnly: μόνο ο ιδιοκτήτης ή όποιος έχει δικαίωμα (π.χ. κλειδί άδειας HEXIS MAPPING → entitlement «mapping»)
+  const visible = TOOLS.filter(t => !t.ownerOnly || isOwner || myModules.has(t.mod || t.id));
+  const prim = visible.filter(t => t.primary), tools = visible.filter(t => !t.primary);
+  document.getElementById('prim').innerHTML = prim.map(t => '<div class="grid"><a class="tile primary" href="' + t.href + '">'
+      + '<span class="ico">' + ICONS.app + '</span>'
+      + '<span><h3>' + t.name + '</h3><p>' + t.desc + '</p></span>'
+      + '<span class="primary-cta">Άνοιγμα →</span></a></div>').join('');
+  const inCat = (t, c) => (t.cat || []).includes(c);
+  const cats = CATS.filter(c => tools.some(t => inCat(t, c.id)));
+  if (CUR_CAT !== 'all' && !cats.some(c => c.id === CUR_CAT)) CUR_CAT = 'all';
+  // πρώτα τα ενεργά/δωρεάν, μετά τα κλειδωμένα· μέσα σε κάθε ομάδα η σειρά του καταλόγου
+  const order = list => list.map((t, i) => [t, i]).sort((a, b) => {
+    const ha = !!a[0].free || myModules.has(a[0].mod || a[0].id), hb = !!b[0].free || myModules.has(b[0].mod || b[0].id);
+    return (hb - ha) || (a[1] - b[1]); }).map(x => x[0]);
+  const chips = document.getElementById('cats');
+  chips.innerHTML = '<button class="chip' + (CUR_CAT === 'all' ? ' on' : '') + '" data-cat="all">Όλα<b>' + tools.length + '</b></button>'
+    + cats.map(c => '<button class="chip' + (CUR_CAT === c.id ? ' on' : '') + '" data-cat="' + c.id + '">' + c.ico + ' ' + c.name + '<b>' + tools.filter(t => inCat(t, c.id)).length + '</b></button>').join('')
+    + '<input class="search" id="q" type="search" placeholder="Αναζήτηση εργαλείου…" aria-label="Αναζήτηση εργαλείου" value="' + QUERY.replace(/"/g, '&quot;') + '">';
+  chips.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { CUR_CAT = b.dataset.cat; try { localStorage.setItem('hx_hub_cat', CUR_CAT); } catch(e) {} render(); });
+  const qi = document.getElementById('q');
+  qi.oninput = () => { QUERY = qi.value; drawGrid(); };
+  function drawGrid() {
+    const g = document.getElementById('grid'), q = norm(QUERY.trim());
+    const match = t => !q || norm(t.name + ' ' + t.desc + ' ' + (t.tagline || '')).includes(q);
+    let html = '';
+    if (q) {                       // αναζήτηση: μία λίστα, χωρίς διπλά
+      const hits = order(tools.filter(match));
+      html = hits.length ? '<div class="grid sub">' + hits.map(t => tileHTML(t, isOwner)).join('') + '</div>' : '<p class="empty-s">Δεν βρέθηκε εργαλείο για «' + QUERY.replace(/</g, '&lt;') + '».</p>';
+    } else {
+      const show = CUR_CAT === 'all' ? cats : cats.filter(c => c.id === CUR_CAT);
+      html = show.map(c => {
+        const list = order(tools.filter(t => CUR_CAT === 'all' ? (t.cat || [])[0] === c.id : inCat(t, c.id)));   // «Όλα»: κάθε εργαλείο μία φορά
+        return '<div class="cat-hd"><h2>' + c.ico + ' ' + c.name + '</h2><span>' + c.desc + '</span></div>'
+          + '<div class="grid sub">' + list.map(t => tileHTML(t, isOwner)).join('') + '</div>';
+      }).join('');
+      const rest = tools.filter(t => !(t.cat || []).some(c => cats.some(x => x.id === c)));
+      if (CUR_CAT === 'all' && rest.length) html += '<div class="cat-hd"><h2>Άλλα</h2></div><div class="grid sub">' + rest.map(t => tileHTML(t, isOwner)).join('') + '</div>';
     }
-    const has = !!t.free || myModules.has(t.mod || t.id);
-    const attrs = 'href="' + (t.free ? t.href : 'tool.html?id=' + t.id) + '"' + (t.free && t.external ? ' target="_blank" rel="noopener"' : '');
-    return '<a class="tile' + (has ? '' : ' locked') + '" ' + attrs + '>'
-      + (has ? '' : '<span class="lockico">🔒</span>')
-      + '<span class="ico">' + (ICONS[t.id] || '') + '</span>'
-      + '<h3>' + t.name + '</h3><p>' + t.desc + '</p>'
-      + '<span class="foot">'
-      + (t.ownerOnly ? '<span class="badge on">Ιδιωτικό · τοπικά</span>' : t.free ? '<span class="badge on">Δωρεάν</span>' : has ? '<span class="badge on">✓ Ενεργό</span>' : '<span class="badge lock">Add-on</span>')
-      + '<span class="go">' + (has ? (t.download ? 'Λήψη →' : 'Άνοιγμα →') : 'Ξεκλείδωμα →') + '</span>'
-      + '</span></a>';
-  }).join('');
+    g.innerHTML = html;
+  }
+  drawGrid();
 }
 
 function showModal(id) {

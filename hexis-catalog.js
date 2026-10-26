@@ -36,127 +36,137 @@
    Το sw.js (importScripts) και το app.html τη διαβάζουν από εδώ.
    ΔΕΝ γράφεται πουθενά αλλού.
    ============================================================ */
-var VERSION = 'v4.64';
+var VERSION = 'v4.65';
 
 var BRB_TERRAIN_URL = 'https://miltosbirbas-hub.github.io/BRB-contour-live/';
+
+// Κατηγορίες του hub (σειρά εμφάνισης). Κάθε εργαλείο έχει cat:[…]· η πρώτη κατηγορία είναι η «κύρια».
+var CATEGORIES = [
+  { id:'site',   ico:'🏗️', name:'Εργοτάξιο & Επιθεώρηση', desc:'Κατασκευή, έλεγχος δόμησης, ποσότητες, στατικά στοιχεία' },
+  { id:'nomos',  ico:'⚖️', name:'Νομοθεσία & Άδειες',      desc:'Πολεοδομικοί κανονισμοί, κόστος άδειας, έλεγχοι' },
+  { id:'topo',   ico:'📐', name:'Τοπογραφία & CAD',        desc:'ΕΓΣΑ87, κτηματολόγιο, συντεταγμένες, DXF, μετρήσεις, GNSS' },
+  { id:'energy', ico:'⚡', name:'Ενεργειακή Επιθεώρηση',   desc:'ΚΕΝΑΚ, ΠΕΑ, XML ΤΕΕ' },
+  { id:'drone',  ico:'🛩️', name:'Drone',                    desc:'Σχεδιασμός πτήσης, φωτογραμμετρία, ορθοφωτοχάρτες' },
+  { id:'slam',   ico:'☁️', name:'SLAM & Νέφη σημείων',     desc:'Σαρώσεις, νέφη σημείων, όγκοι, πάχη, as-built' }
+];
 
 var CATALOG = [
   { id:'app', primary:true, ico:'🏗️', name:'Διαχείριση Έργων',
     desc:'Εργοτάξια · ημερολόγιο · φωτογραφίες με pins · εντολές · αναφορές PDF · συνεργάτες',
     href:'app.html' },
 
-  { id:'nomothesia', ico:'⚖️', name:'Νομοθεσία',
+  { id:'nomothesia', cat:['nomos'], ico:'⚖️', name:'Νομοθεσία',
     desc:'Κώδικας Ταγαρά 5306/26 · ΝΟΚ · Ν.4495 · Κτιριοδομικός + AI αναζήτηση',
     href:'nomothesia.html', price:'80€ / έτος + ΦΠΑ',
     tagline:'Όλη η πολεοδομική νομοθεσία σε ένα σημείο — με AI αναζήτηση που απαντάει σε φυσική γλώσσα.',
     feats:['Κώδικας Ταγαρά 5306/26','ΝΟΚ, Ν.4495/2017 και Κτιριοδομικός Κανονισμός','AI αναζήτηση: ρωτάς όπως θα ρωτούσες συνάδελφο','Παραπομπές σε άρθρα και διατάξεις'] },
 
-  { id:'ktima', ico:'🗺️', name:"Κτηματολόγιο & ΕΓΣΑ'87",
+  { id:'ktima', cat:['topo'], ico:'🗺️', name:"Κτηματολόγιο & ΕΓΣΑ'87",
     desc:'Χάρτης με συντεταγμένες · μετρήσεις · όρια κτηματολογίου',
     href:'ktimatologio.html', price:'50€ / έτος + ΦΠΑ',
     tagline:'Χάρτης με υπόβαθρο κτηματολογίου και συντεταγμένες ΕΓΣΑ΄87, στο χέρι σου.',
     feats:["Ζωντανές συντεταγμένες ΕΓΣΑ'87 σε κάθε σημείο",'Υπόβαθρο ορίων κτηματολογίου (WMS)','Μετρήσεις αποστάσεων και εμβαδών πάνω στον χάρτη','Ιδανικό για αυτοψίες και προέλεγχο ορίων'] },
 
-  { id:'syntetagmenes', ico:'📍', name:'HEXIS GEOmetry',
+  { id:'syntetagmenes', cat:['topo'], ico:'📍', name:'HEXIS GEOmetry',
     desc:'Συντεταγμένες ΕΓΣΑ\'87 από PDF/DXF · ΚΑΕΚ Κτηματολογίου στη θέση του οικοπέδου · Διαγράμματα Γεωμετρικών Μεταβολών (διόρθωση ορίων, κατάτμηση, συνένωση, ΧΑΧ)',
     href:'syntetagmenes.html', price:'35€ / έτος + ΦΠΑ',
     tagline:'Από το τοπογραφικό στους πίνακες συντεταγμένων, στα γεωτεμάχια ΚΑΕΚ και σε έτοιμο ΔΓΜ για την Ηλεκτρονική Υποβολή Διαγραμμάτων.',
     feats:['Εξαγωγή πινάκων οικοπέδου και κτιρίων από PDF ή DXF, με έλεγχο εμβαδού, πλευρών και γεωμετρίας','Όλο το σχέδιο σε επεξεργάσιμο DXF στο ΕΓΣΑ\'87 (πολυγραμμές με τόξα, κείμενα, layers)','Γεωτεμάχια ΚΑΕΚ της κτηματολογικής βάσης στη θέση του οικοπέδου και απάντηση στο «απαιτείται ΔΓΜ;»','ΔΓΜ διόρθωσης ορίων και εγγραπτέας πράξης (κατάτμηση, συνένωση, σύσταση/κατάργηση ΧΑΧ) κατά το Τεύχος Προδιαγραφών','DXF Πίνακα Ι που περνά το Check My DXF, πινακίδα σε ένα φύλλο με πίνακες, PDF, Excel, TXT','Περιγραφή ορίων για το συμβόλαιο, με όμορους από την πράξη και τα ΚΑΕΚ'] },
 
-  { id:'paper2dxf', ico:'📜', name:'Paper → DXF',
+  { id:'paper2dxf', cat:['topo'], ico:'📜', name:'Paper → DXF',
     desc:'Παλιά σχέδια (PDF, JPG, TIFF) σε επεξεργάσιμο DXF · γραμμές, πολυγραμμές, τόξα · ελληνικά MTEXT · κλίμακα 1:1 · 3D extrude τοίχων',
     href:'paper2dxf.html', price:'10€ / έτος + ΦΠΑ',
     tagline:'Από το χαρτί στο CAD: κάθε σχέδιο του φύλλου γίνεται γεωμετρία σε πραγματικές διαστάσεις, με τα γράμματα σωστά ελληνικά.',
     feats:['Σαρωμένα και διανυσματικά PDF, JPG, PNG, TIFF: κατόψεις, τομές, όψεις, ξυλότυποι, τοπογραφικά, όλα σε ένα DXF','Τοίχοι ως κλειστές πολυγραμμές, πόρτες ως τόξα, κύκλοι, ίσιωμα οριζόντιων/κατακόρυφων, layers ανά πάχος και χρώμα πένας','Κείμενα σε MTEXT Arial με Unicode ελληνικά και OCR στον browser, με μικρογραφία για έλεγχο και διόρθωση','Κλίμακα 1:1 από κλίμακα και dpi, γνωστή απόσταση, χωριστά Χ/Υ ή 4+ σημεία ΕΓΣΑ\'87','Προβολή 3D με ύψος τοίχων (όπως EXTRUDE) και προαιρετικό thickness στο DXF','Ανοίγει σωστά σε AutoCAD και progeCAD (DXF R2000)'] },
 
-  { id:'pdfdim', ico:'📏', name:'PDF Dim',
+  { id:'pdfdim', cat:['topo'], ico:'📏', name:'PDF Dim',
     desc:'Μετρήσεις σε σχέδια PDF · μήκη, εμβαδά, γωνίες, κύκλοι · αυτόματη κλίμακα & έλξη σε γραμμές · γεωαναφορά ΕΓΣΑ87 & ΚΑΕΚ · θέση GPS στο σχέδιο · PDF με διαστάσεις · σύνδεση με τα αρχεία του έργου',
     href:'pdfdim.html', price:'10€ / έτος + ΦΠΑ',
     tagline:'Ανοίγεις το PDF του σχεδίου και μετράς σε πραγματικά μεγέθη — με την κλίμακα να εντοπίζεται μόνη της και τον κέρσορα να κουμπώνει στις γραμμές.',
     feats:['Αναγνώριση γραμμών, τόξων και κύκλων του PDF: έλξη σε άκρο, μέσο, τομή, κέντρο, κάθετο','Αυτόματος εντοπισμός κλίμακας από το φύλλο και βαθμονόμηση με γνωστή απόσταση για σαρώσεις','Γεωαναφορά σε ΕΓΣΑ87: αυτόματα από τον πίνακα κορυφών, με σημεία ελέγχου, στον χάρτη ή στο γεωτεμάχιο ΚΑΕΚ — και η θέση σου (GPS) πάνω στο σχέδιο','PDF με τις διαστάσεις τυπωμένες πάνω στο σχέδιο, στιγμιότυπα, DXF 1:1 / CSV — και αποθήκευση απευθείας στα αρχεία του έργου'] },
 
-  { id:'dxf', ico:'📐', name:'Check My DXF', adminName:'CAD Tools (DXF + LISP)',
+  { id:'dxf', cat:['topo'], ico:'📐', name:'Check My DXF', adminName:'CAD Tools (DXF + LISP)',
     desc:'Έλεγχος διαγράμματος για Ηλεκτρονική Υποβολή ΕΚ · Πίνακας Ι · χάρτης — πακέτο CAD Tools μαζί με το LISP',
     href:'checkmydxf.html', price:'35€ / έτος + ΦΠΑ',
     tagline:'Έλεγχος διαγράμματος πριν την Ηλεκτρονική Υποβολή στο Κτηματολόγιο — χωρίς απορρίψεις.',
     feats:['Αυτόματος έλεγχος DXF για Ηλεκτρονική Υποβολή ΕΚ','Έλεγχος Πίνακα Ι και δομής αρχείου','Προεπισκόπηση σε χάρτη','Πακέτο CAD Tools: περιλαμβάνει και το LISP για AutoCAD/progeCAD'],
     note:'Το Check My DXF και το LISP HEXISCHECK/HEXISFIX πωλούνται μαζί ως ένα πακέτο (CAD Tools) — με μία ενεργοποίηση αποκτάς και τα δύο.' },
 
-  { id:'kostos', ico:'💰', name:'Κόστος Άδειας',
+  { id:'kostos', cat:['nomos'], ico:'💰', name:'Κόστος Άδειας',
     desc:'Προϋπολογισμός · Αμοιβές · Φόροι · ΕΦΚΑ · Συμφωνητικά · ΣΑΥ/ΦΑΥ · ΥΔ · XML',
     href:'adeia_kostos.html', price:'80€ / έτος + ΦΠΑ',
     tagline:'Πλήρης κοστολόγηση οικοδομικής άδειας: από τον προϋπολογισμό μέχρι το XML.',
     feats:['Συμβατικός προϋπολογισμός έργου','Αμοιβές μηχανικών, φόροι και κρατήσεις ΕΦΚΑ','Συμφωνητικά, ΣΑΥ/ΦΑΥ και Υπεύθυνες Δηλώσεις','Εξαγωγή XML για το e-Άδειες'] },
 
-  { id:'domisi', ico:'📋', name:'Έλεγχος Δόμησης',
+  { id:'domisi', cat:['site','nomos'], ico:'📋', name:'Έλεγχος Δόμησης',
     desc:'Πόρισμα Ελεγκτών · Ν.4495/2017 · ΚΥΑ 299/2014 · αμοιβή',
     href:'elegxos.html', price:'40€ / έτος + ΦΠΑ',
     tagline:'Το πόρισμα του Ελεγκτή Δόμησης, δομημένο και χωρίς παραλείψεις.',
     feats:['Δομημένο πόρισμα κατά Ν.4495/2017','Έλεγχοι σύμφωνα με την ΚΥΑ 299/2014','Υπολογισμός αμοιβής ελεγκτή','Έτοιμο κείμενο για υποβολή'] },
 
-  { id:'terrain', ico:'⛰️', name:'HEXIS Terrain',
+  { id:'terrain', cat:['slam','topo'], ico:'⛰️', name:'HEXIS Terrain',
     desc:"KMZ/KML → ΕΓΣΑ'87 · υψόμετρα DEM · ισοϋψείς · DXF εξαγωγή",
     href:BRB_TERRAIN_URL, external:true, price:'40€ / έτος + ΦΠΑ',
     tagline:'Από KMZ/KML σε τοπογραφικό υπόβαθρο ΕΓΣΑ΄87 — με υψόμετρα, ισοϋψείς και DXF.',
     feats:["Μετατροπή KMZ/KML σε ΕΓΣΑ'87",'Υψόμετρα από DEM σε κάθε κορυφή','Αυτόματες ισοϋψείς καμπύλες και TIN','Εξαγωγή έτοιμου DXF για το CAD σου'] },
 
-  { id:'asbuilt', ico:'☁️', icoSvg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="48" height="48"><defs><linearGradient id="abog" x1="100" y1="120" x2="430" y2="320" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FFB02E"/><stop offset="1" stop-color="#E8772E"/></linearGradient><linearGradient id="abbgg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#12274A"/><stop offset="1" stop-color="#0A1730"/></linearGradient></defs><rect width="512" height="512" rx="104" fill="url(#abbgg)"/><rect x="10" y="10" width="492" height="492" rx="96" fill="none" stroke="#253B63" stroke-width="4"/><g stroke="#4D8DFF" stroke-width="7" stroke-linecap="round" stroke-dasharray="2 22" opacity=".95"><line x1="180" y1="322" x2="150" y2="416"/><line x1="262" y1="326" x2="262" y2="420"/><line x1="344" y1="322" x2="376" y2="412"/></g><path d="M74 436 L160 436 L196 456 L252 456 L288 436 L344 420 L438 420" fill="none" stroke="#EEF2F8" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/><circle cx="108" cy="235" r="9" fill="url(#abog)"/><circle cx="111" cy="214" r="9" fill="url(#abog)"/><circle cx="120" cy="195" r="9" fill="url(#abog)"/><circle cx="134" cy="179" r="9" fill="url(#abog)"/><circle cx="152" cy="168" r="9" fill="url(#abog)"/><circle cx="173" cy="163" r="9" fill="url(#abog)"/><circle cx="187" cy="145" r="9" fill="url(#abog)"/><circle cx="197" cy="130" r="9" fill="url(#abog)"/><circle cx="210" cy="117" r="9" fill="url(#abog)"/><circle cx="225" cy="107" r="9" fill="url(#abog)"/><circle cx="241" cy="100" r="9" fill="url(#abog)"/><circle cx="259" cy="96" r="9" fill="url(#abog)"/><circle cx="277" cy="96" r="9" fill="url(#abog)"/><circle cx="295" cy="100" r="9" fill="url(#abog)"/><circle cx="311" cy="107" r="9" fill="url(#abog)"/><circle cx="326" cy="117" r="9" fill="url(#abog)"/><circle cx="339" cy="130" r="9" fill="url(#abog)"/><circle cx="349" cy="145" r="9" fill="url(#abog)"/><circle cx="356" cy="161" r="9" fill="url(#abog)"/><circle cx="358" cy="178" r="9" fill="url(#abog)"/><circle cx="376" cy="183" r="9" fill="url(#abog)"/><circle cx="393" cy="193" r="9" fill="url(#abog)"/><circle cx="405" cy="206" r="9" fill="url(#abog)"/><circle cx="413" cy="223" r="9" fill="url(#abog)"/><circle cx="416" cy="242" r="9" fill="url(#abog)"/><circle cx="413" cy="261" r="9" fill="url(#abog)"/><circle cx="405" cy="278" r="9" fill="url(#abog)"/><circle cx="393" cy="291" r="9" fill="url(#abog)"/><circle cx="376" cy="301" r="9" fill="url(#abog)"/><circle cx="358" cy="306" r="9" fill="url(#abog)"/><circle cx="340" cy="305" r="9" fill="url(#abog)"/><circle cx="322" cy="298" r="9" fill="url(#abog)"/><circle cx="299" cy="278" r="9" fill="url(#abog)"/><circle cx="277" cy="280" r="9" fill="url(#abog)"/><circle cx="259" cy="280" r="9" fill="url(#abog)"/><circle cx="241" cy="276" r="9" fill="url(#abog)"/><circle cx="226" cy="291" r="9" fill="url(#abog)"/><circle cx="208" cy="302" r="9" fill="url(#abog)"/><circle cx="187" cy="307" r="9" fill="url(#abog)"/><circle cx="166" cy="306" r="9" fill="url(#abog)"/><circle cx="146" cy="298" r="9" fill="url(#abog)"/><circle cx="129" cy="286" r="9" fill="url(#abog)"/><circle cx="117" cy="269" r="9" fill="url(#abog)"/><circle cx="281" cy="186" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="174" cy="225" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="324" cy="197" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="214" cy="225" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="358" cy="246" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="262" cy="240" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="238" cy="192" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="304" cy="147" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="198" cy="186" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="170" cy="259" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="252" cy="153" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="308" cy="243" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="209" cy="259" r="5.5" fill="#FFB02E" opacity=".85"/></svg>', name:'AS-BUILT CLOUD',
+  { id:'asbuilt', cat:['slam','site'], ico:'☁️', icoSvg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="48" height="48"><defs><linearGradient id="abog" x1="100" y1="120" x2="430" y2="320" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FFB02E"/><stop offset="1" stop-color="#E8772E"/></linearGradient><linearGradient id="abbgg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#12274A"/><stop offset="1" stop-color="#0A1730"/></linearGradient></defs><rect width="512" height="512" rx="104" fill="url(#abbgg)"/><rect x="10" y="10" width="492" height="492" rx="96" fill="none" stroke="#253B63" stroke-width="4"/><g stroke="#4D8DFF" stroke-width="7" stroke-linecap="round" stroke-dasharray="2 22" opacity=".95"><line x1="180" y1="322" x2="150" y2="416"/><line x1="262" y1="326" x2="262" y2="420"/><line x1="344" y1="322" x2="376" y2="412"/></g><path d="M74 436 L160 436 L196 456 L252 456 L288 436 L344 420 L438 420" fill="none" stroke="#EEF2F8" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/><circle cx="108" cy="235" r="9" fill="url(#abog)"/><circle cx="111" cy="214" r="9" fill="url(#abog)"/><circle cx="120" cy="195" r="9" fill="url(#abog)"/><circle cx="134" cy="179" r="9" fill="url(#abog)"/><circle cx="152" cy="168" r="9" fill="url(#abog)"/><circle cx="173" cy="163" r="9" fill="url(#abog)"/><circle cx="187" cy="145" r="9" fill="url(#abog)"/><circle cx="197" cy="130" r="9" fill="url(#abog)"/><circle cx="210" cy="117" r="9" fill="url(#abog)"/><circle cx="225" cy="107" r="9" fill="url(#abog)"/><circle cx="241" cy="100" r="9" fill="url(#abog)"/><circle cx="259" cy="96" r="9" fill="url(#abog)"/><circle cx="277" cy="96" r="9" fill="url(#abog)"/><circle cx="295" cy="100" r="9" fill="url(#abog)"/><circle cx="311" cy="107" r="9" fill="url(#abog)"/><circle cx="326" cy="117" r="9" fill="url(#abog)"/><circle cx="339" cy="130" r="9" fill="url(#abog)"/><circle cx="349" cy="145" r="9" fill="url(#abog)"/><circle cx="356" cy="161" r="9" fill="url(#abog)"/><circle cx="358" cy="178" r="9" fill="url(#abog)"/><circle cx="376" cy="183" r="9" fill="url(#abog)"/><circle cx="393" cy="193" r="9" fill="url(#abog)"/><circle cx="405" cy="206" r="9" fill="url(#abog)"/><circle cx="413" cy="223" r="9" fill="url(#abog)"/><circle cx="416" cy="242" r="9" fill="url(#abog)"/><circle cx="413" cy="261" r="9" fill="url(#abog)"/><circle cx="405" cy="278" r="9" fill="url(#abog)"/><circle cx="393" cy="291" r="9" fill="url(#abog)"/><circle cx="376" cy="301" r="9" fill="url(#abog)"/><circle cx="358" cy="306" r="9" fill="url(#abog)"/><circle cx="340" cy="305" r="9" fill="url(#abog)"/><circle cx="322" cy="298" r="9" fill="url(#abog)"/><circle cx="299" cy="278" r="9" fill="url(#abog)"/><circle cx="277" cy="280" r="9" fill="url(#abog)"/><circle cx="259" cy="280" r="9" fill="url(#abog)"/><circle cx="241" cy="276" r="9" fill="url(#abog)"/><circle cx="226" cy="291" r="9" fill="url(#abog)"/><circle cx="208" cy="302" r="9" fill="url(#abog)"/><circle cx="187" cy="307" r="9" fill="url(#abog)"/><circle cx="166" cy="306" r="9" fill="url(#abog)"/><circle cx="146" cy="298" r="9" fill="url(#abog)"/><circle cx="129" cy="286" r="9" fill="url(#abog)"/><circle cx="117" cy="269" r="9" fill="url(#abog)"/><circle cx="281" cy="186" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="174" cy="225" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="324" cy="197" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="214" cy="225" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="358" cy="246" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="262" cy="240" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="238" cy="192" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="304" cy="147" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="198" cy="186" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="170" cy="259" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="252" cy="153" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="308" cy="243" r="5.5" fill="#FFB02E" opacity=".85"/><circle cx="209" cy="259" r="5.5" fill="#FFB02E" opacity=".85"/></svg>', name:'AS-BUILT CLOUD',
     desc:'Πάχος κατασκευών & όγκοι cut/fill από νέφη σημείων · χάρτες με κλίμακες · Τεχνική Έκθεση PDF',
     href:'asbuilt.html', price:'80€ / έτος + ΦΠΑ',
     tagline:'Από δύο αποτυπώσεις σε τεκμηριωμένη επιμέτρηση — πάχη as-built και χωματουργικά με ένα κλικ.',
     feats:['Πραγματικό πάχος κατασκευής έναντι μελέτης, με ανοχές και φίλτρο αντικειμένων','Όγκοι εκσκαφών–επιχώσεων (cut/fill) με κατώφλι θορύβου αποτύπωσης','Δέχεται νέφη ASCII/OBJ και ισοϋψείς τοπογραφικού DXF','Τεχνική έκθεση PDF με υψομετρικούς χάρτες, ιστόγραμμα και στατιστικά — όλα τοπικά στη συσκευή'] },
 
-  { id:'plan3d', ico:'🏗️', name:'3D Κτίριο',
+  { id:'plan3d', cat:['site'], ico:'🏗️', name:'3D Κτίριο',
     desc:'Κατόψεις & ξυλότυποι (PDF/DXF) σε 3D μοντέλο · τομές · μετρήσεις · ήλιος & σκιές',
     href:'plan3d.html', price:'80€ / έτος + ΦΠΑ',
     tagline:'Από τις κατόψεις στο κτίριο — τοίχοι, κουφώματα και φέρων ακριβώς όπως είναι σχεδιασμένα.',
     feats:['Ακριβές 3D από το περίγραμμα των γραμμών κάθε κάτοψης, όροφο προς όροφο','Κουφώματα με ποδιές και πρέκια, εξώστες, φέρων οργανισμός από τον ξυλότυπο','Οριζόντιες & κατακόρυφες τομές, μετρήσεις αποστάσεων και χώρων','Ήλιος & σκιές ανά εποχή από πόλη ή συντεταγμένες ΕΓΣΑ87 · εξαγωγή GLB/OBJ'] },
 
-  { id:'toixos', ico:'🧱', name:'Τοίχος Αντιστήριξης',
+  { id:'toixos', cat:['site'], ico:'🧱', name:'Τοίχος Αντιστήριξης',
     desc:'Τοίχος προβόλου Ο/Σ · EN 1997‑1 / EN 1998‑5 / EN 1992‑1‑1 · ΚΤΣ‑2016 · τομή, οριζοντιογραφία με μεταβλητές στάθμες, ξυλότυπος, αποστράγγιση, οπλισμός, τεύχος, DXF',
     href:'toixos.html', price:'80€ / έτος + ΦΠΑ',
     tagline:'Από την κάτοψη της οδού στον πλήρη φάκελο του τοίχου — ευστάθεια, οπλισμός και σχέδια από μία διατομή.',
     feats:['Ευστάθεια (ανατροπή, ολίσθηση, φέρουσα ικανότητα) κατά EN 1997‑1 DA2 και σεισμός Mononobe‑Okabe κατά EN 1998‑5','Διαστασιολόγηση κορμού και πέδιλου κατά EN 1992‑1‑1 με επιλογή Ø/s, αγκυρώσεις και πίνακα οπλισμού ανά m','Οριζοντιογραφία πάνω σε DXF κάτοψης (ισοϋψείς, οδός, ανάντη/κατάντη): τοποθέτηση με το ποντίκι, στάθμες βάσης και στέψης ανά κορυφή, όψη/μηκοτομή','Ξυλότυπος τομής και κάτοψης, λεπτομέρεια επίχωσης‑αποστράγγισης, προμετρήσεις, τεύχος υπολογισμών και εξαγωγή όλων των σχεδίων σε DXF'] },
 
-  { id:'mpeton', ico:'🧱', name:'Σκυρόδεμα & Τοιχοποιία',
+  { id:'mpeton', cat:['site'], ico:'🧱', name:'Σκυρόδεμα & Τοιχοποιία',
     desc:'Αναλογίες μπετόν C12/15–C40 · τούβλα · σενάζ · λάσπη',
     href:'mpeton.html', price:'20€ / έτος + ΦΠΑ',
     tagline:'Υπολογιστές ποσοτήτων για σκυρόδεμα και τοιχοποιία, επί τόπου του έργου — από το κινητό σου.',
     feats:['Αναλογίες μπετόν για όλες τις κατηγορίες C12/15 έως C40','Υπολογισμός τούβλων και σενάζ ανά τοιχοποιία','Ξεχωριστή καρτέλα για λάσπη / κονιάματα','Δουλεύει offline στο εργοτάξιο (PWA)'] },
 
-  { id:'stegh', ico:'🏠', name:'Στέγη & Προμέτρηση',
+  { id:'stegh', cat:['site'], ico:'🏠', name:'Στέγη & Προμέτρηση',
     desc:'Σχεδιάζεις το περίγραμμα στο κινητό · μαχιές · ντερέδες · υψόμετρα · ποσότητες υλικών σε PDF',
     href:'stegh.html', price:'40€ / έτος + ΦΠΑ',
     tagline:'Σχεδιάζεις το περίγραμμα της στέγης με το δάχτυλο και παίρνεις τις ποσότητες — επί τόπου, χωρίς σήμα.',
     feats:['Αυτόματη επίλυση: μαχιές, ντερέδες, κορφιάδες και υψόμετρα σε κάθε κόμβο','Κεραμίδια, καβαλλάρηδες, ακροκέραμα, ξυλεία, μόνωση και μεμβράνες','Φορτία χιονιού και ανέμου κατά Ευρωκώδικα 1 (Ελληνικό Εθνικό Προσάρτημα)','Εξαγωγή PDF με σχέδιο κάτοψης και πίνακες — δουλεύει offline (PWA)'],
     note:'Στη LISP Βιβλιοθήκη CAD περιλαμβάνεται και η εντολή STEGH για AutoCAD/progeCAD: κάτοψη, ξυλότυπος, ανάπτυγμα και τομή ζευκτού.' },
 
-  { id:'rtk', ico:'🛰️', name:'RTK Checklist',
+  { id:'rtk', cat:['topo'], ico:'🛰️', name:'RTK Checklist',
     desc:'Στήσιμο Base + Rover · γνωστό σημείο / localization',
     href:'rtk_checklist.html', price:'20€ / έτος + ΦΠΑ',
     tagline:'Η λίστα ελέγχου που εξασφαλίζει σωστές μετρήσεις GNSS — πριν χάσεις μια μέρα στο πεδίο.',
     feats:['Βήμα-βήμα στήσιμο Base + Rover','Έλεγχος σε γνωστό σημείο / localization','Έλεγχοι FIX, PDOP και ύψους κεραίας','Offline PWA — δουλεύει και χωρίς σήμα'] },
 
-  { id:'mapping', ico:'🛰️', name:'HEXIS MAPPING',
+  { id:'mapping', cat:['drone','slam'], ico:'🛰️', name:'HEXIS MAPPING',
     desc:'Drone → ορθοφωτοχάρτης, νέφος, DTM, ισοϋψείς σε ΕΓΣΑ87 · GPU στο cloud',
-    href:'mapping.html', free:true, ownerOnly:true, price:'Ιδιωτικό',
-    tagline:'Ιδιωτική δοκιμή — είσοδος με τον λογαριασμό HEXIS, λήψη της εφαρμογής για Windows, έργα και παραδοτέα από οποιονδήποτε υπολογιστή.',
+    href:'mapping.html', free:true, ownerOnly:true, adminName:'HEXIS MAPPING', price:'Άδεια HEXIS MAPPING',
+    tagline:'Με κλειδί άδειας HEXIS MAPPING — είσοδος με τον λογαριασμό HEXIS, λήψη της εφαρμογής για Windows, έργα και παραδοτέα από οποιονδήποτε υπολογιστή.',
     feats:['Φωτοκέντρα MRK σε ΕΓΣΑ87 και GCP με αυτόματη τοποθέτηση','Επεξεργασία σε GPU στο cloud, παραδοτέα με email','Ορθοφωτοχάρτης, νέφος, DTM/DSM, ισοϋψείς, 3D μοντέλο','Χωματισμοί, όγκος σωρού, μηκοτομές, CAD πάνω στο νέφος'] },
 
-  { id:'routeprep', ico:'🛩️', name:'Route Prep · Drone',
+  { id:'routeprep', cat:['drone'], ico:'🛩️', name:'Route Prep · Drone',
     desc:'KML/KMZ → DJI Pilot 2 · καθάρισμα ορίου · οδηγός αποστολής & checklist Mavic 3E',
     href:'routeprep.html', price:'20€ / έτος + ΦΠΑ',
     tagline:'Από το όριο του γεωτεμαχίου σε έτοιμη αποστολή χαρτογράφησης στο DJI Pilot 2 — σε δύο λεπτά.',
     feats:['Καθαρίζει KML/KMZ από Κτηματολόγιο & Google Earth (styles, folders, label points)','Έτοιμο KMZ για import ως Area Route (Mapping) στο DJI Pilot 2','Οδηγός αποστολής 5 βημάτων: εξαγωγή → καθάρισμα → import → ρυθμίσεις → checklist','Πίνακας ύψους/GSD για Mavic 3E και checklist πεδίου — δουλεύει offline (PWA)'] },
 
-  { id:'kenak', ico:'⚡', icoSvg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14   l3.4 1.7 l-3.4 1.7 h-14 z"   fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23   l3.4 1.7 l-3.4 1.7 h-23 z"   fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg>', name:'ΚΕΝΑΚ Επιθεώρηση (Beta)',
+  { id:'kenak', cat:['energy'], ico:'⚡', icoSvg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48"> <polygon points="19,6 33.7,14.5 33.7,31.5 19,40 4.3,31.5 4.3,14.5" fill="#FFFFFF" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round"/> <g stroke="#FFFFFF" stroke-width="0.7"> <path d="M10 14.9 h14   l3.4 1.7 l-3.4 1.7 h-14 z"   fill="#0B7A3B"/> <path d="M10 19.1 h18.5 l3.4 1.7 l-3.4 1.7 h-18.5 z" fill="#F2C21C"/> <path d="M10 23.3 h23   l3.4 1.7 l-3.4 1.7 h-23 z"   fill="#E06A22"/> <path d="M10 27.5 h27.5 l3.4 1.7 l-3.4 1.7 h-27.5 z" fill="#C43A2B"/> </g> <path d="M33.7 14.5 L19 6 L4.3 14.5 V31.5 L19 40 L33.7 31.5" fill="none" stroke="#E8772E" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/> <text x="10.8" y="18.1" font-family="Arial,Helvetica,sans-serif" font-size="4.1" font-weight="900" fill="#FFFFFF">Α+</text> </svg>', name:'ΚΕΝΑΚ Επιθεώρηση (Beta)',
     desc:'Σκαρίφημα κάτοψης · κουφώματα · σκιάσεις · όροφοι · έλεγχοι ΤΟΤΕΕ · XML ΤΕΕ-ΚΕΝΑΚ',
     href:'kenak.html', price:'Δωρεάν όσο διαρκεί το Beta',
     tagline:'Από την αυτοψία στο XML του ΤΕΕ-ΚΕΝΑΚ — σχεδιάζεις την κάτοψη, βγαίνουν όψεις, σκιάσεις, συστήματα και σενάρια, έτοιμα για import.',
     feats:['Σχεδιαστικό με ΚΑΕΚ υπόβαθρο, κουφώματα, ύψη ανά τοίχο, ορόφους','Γωνίες σκίασης και συντελεστές F από τους πίνακες ΤΟΤΕΕ','Έλεγχος ορθότητας συστημάτων (λέβητες, ΑΘ, SEER) πριν την εξαγωγή','XML ΤΕΕ-ΚΕΝΑΚ 1.31 με κέλυφος, συστήματα και σενάρια — δοκιμασμένο σε πραγματικά αρχεία'],
     note:'Beta έκδοση — η εξαγωγή XML είναι δωρεάν κατά τη δοκιμαστική περίοδο. Η τιμολόγηση ανά ΠΕΑ θα ανακοινωθεί με την επίσημη κυκλοφορία.' },
 
-  { id:'lisp', mod:'dxf', ico:'⬇️', name:'LISP Βιβλιοθήκη CAD',
+  { id:'lisp', cat:['topo'], mod:'dxf', ico:'⬇️', name:'LISP Βιβλιοθήκη CAD',
     desc:'HEXISCHECK/HEXISFIX · STEGH στέγη & ξυλότυπος · EXPTXT εξαγωγή σημείων TXT · νέες ρουτίνες AutoLISP συνεχώς — AutoCAD & progeCAD',
     href:'lisplib.html', price:'35€ / έτος + ΦΠΑ',
     tagline:'Ρουτίνες AutoLISP για AutoCAD & progeCAD — βιβλιοθήκη που μεγαλώνει συνεχώς.',
@@ -199,6 +209,7 @@ g.HEXIS_PRECACHE_HTML = CATALOG
 g.HEXIS_VERSION = VERSION;
 g.HEXIS_OWNER_EMAILS = ['miltos.birbas@gmail.com','brb.develop@gmail.com'];
 g.HEXIS_CATALOG = CATALOG;
+g.HEXIS_CATEGORIES = CATEGORIES;
 g.HEXIS_ICONS = ICONS;
 g.HEXIS_TERRAIN_URL = BRB_TERRAIN_URL;
 
