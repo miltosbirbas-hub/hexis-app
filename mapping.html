@@ -60,6 +60,22 @@ textarea{width:100%;background:var(--field);border:1.5px solid #c9d6a8;border-ra
   <div><b>HEXIS MAPPING</b><small>DRONE → ΕΓΣΑ87 · ΟΡΘΟΦΩΤΟΧΑΡΤΗΣ · ΝΕΦΟΣ · ΙΣΟΫΨΕΙΣ</small></div>
   <div class="who" id="who"></div></div></header>
 <main>
+  <section class="card hidden" id="trialCard">
+    <div class="hd"><div class="n">★</div><h2>Δωρεάν δοκιμή</h2><span class="r">κωδικός demo · χωρίς χρέωση</span></div>
+    <div class="bd"><p style="margin:0">Ζήτησε κωδικό demo και δοκίμασε την εφαρμογή με δικές σου πτήσεις drone ή σαρώσεις, χωρίς λογαριασμό. Ο κωδικός έρχεται στο email σου.</p>
+      <div class="row" id="trOpenRow"><button class="btn primary" id="trOpen">Αίτημα κλειδιού δοκιμής</button></div>
+      <form id="trF" class="hidden" autocomplete="on">
+        <div class="grid"><div><label for="trN">Ονοματεπώνυμο *</label><input id="trN" autocomplete="name" required maxlength="120"></div>
+          <div><label for="trE">Email *</label><input id="trE" type="email" autocomplete="email" required maxlength="160"></div>
+          <div><label for="trP">Τηλέφωνο</label><input id="trP" type="tel" autocomplete="tel" maxlength="40"></div>
+          <div><label for="trJ">Ιδιότητα</label><select id="trJ"><option>Πολιτικός μηχανικός</option><option>Τοπογράφος μηχανικός</option><option>Αρχιτέκτονας</option><option>Αγρονόμος / χειριστής drone</option><option>Άλλο</option></select></div>
+          <div><label for="trU">Θα δοκιμάσω</label><select id="trU"><option>Πτήσεις drone</option><option>Σαρώσεις SLAM / νέφη σημείων</option><option>Και τα δύο</option></select></div></div>
+        <label for="trM">Μήνυμα (προαιρετικά)</label><textarea id="trM" rows="3" maxlength="1000" placeholder="π.χ. τι έργο θέλεις να δοκιμάσεις"></textarea>
+        <input id="trW" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;width:1px;height:1px" aria-hidden="true">
+        <div class="row"><button class="btn primary" id="trB">Αποστολή αιτήματος</button><span class="hint">Τα στοιχεία χρησιμοποιούνται μόνο για την αποστολή του κωδικού.</span></div></form>
+      <div id="trMsg"></div></div>
+  </section>
+
   <section class="card" id="loginCard">
     <div class="hd"><div class="n">⏻</div><h2>Είσοδος</h2><span class="r">με τον λογαριασμό σου στο hexis-app.gr</span></div>
     <div class="bd">
@@ -102,6 +118,9 @@ textarea{width:100%;background:var(--field);border:1.5px solid #c9d6a8;border-ra
 
   <section class="card hidden" id="admCard">
     <div class="hd"><div class="n">A</div><h2>Κλειδιά άδειας</h2><span class="r">μόνο ο διαχειριστής</span></div>
+    <div class="bd" style="border-bottom:1px solid var(--line)"><div class="row" style="margin:0"><b>Αιτήματα δοκιμής</b><span class="tag" id="trCnt"></span>
+      <label style="margin:0 0 0 auto;display:flex;gap:6px;align-items:center;font-size:.82rem"><input type="checkbox" id="trAll" style="width:auto"> όλα</label></div>
+      <div class="tw" id="trList"><div class="empty">Φόρτωση…</div></div></div>
     <div class="bd">
       <div class="grid"><div><label for="nk">Πακέτο</label><select id="nk"></select></div>
         <div><label for="ne">Email πελάτη</label><input id="ne" type="email" placeholder="για το demo: εκεί πάνε τα παραδοτέα"></div>
@@ -157,8 +176,8 @@ const STATE={uploading:["Ανέβασμα","run"],launching:["Εκκίνηση G
 
 const hide=(...ids)=>ids.forEach(i=>$(i).classList.add("hidden")),showc=(...ids)=>ids.forEach(i=>$(i).classList.remove("hidden"));
 async function show(){
-  const s=get();$("#who").innerHTML="";hide("#actCard","#licCard","#admCard");
-  if(!s){showc("#loginCard");hide("#appCard","#projCard");return}
+  const s=get();$("#who").innerHTML="";hide("#actCard","#licCard","#admCard","#trialCard");
+  if(!s){showc("#trialCard","#loginCard");hide("#appCard","#projCard");trialHash();return}
   let me;try{me=await gw("me")}catch(e){
     if(e.code===401){put(null);return show()}
     showc("#loginCard");$("#lmsg").innerHTML=`<div class="msg">${esc(e.message)}</div>`;return}
@@ -191,7 +210,7 @@ async function admin(me){
     <td><input data-pp="${k}" data-f="price_eur" type="number" step="10" value="${P[k].price_eur}"></td><td><input data-pp="${k}" data-f="quota_photos" type="number" step="50" value="${P[k].quota_photos}"></td>
     <td>${k==="perpetual"?"για πάντα · αναβαθμίσεις "+(P[k].updates_months||12)+" μήνες":P[k].months+" μήνες"}</td></tr>`).join("")}</table>`;
   const pp=ST.per_photo_eur||{};$("#pu").value=pp.ultra??0.03;$("#ph").value=pp.high??0.02;$("#pm").value=pp.medium??0.01;
-  lics()}
+  lics();trials()}
 let LICS=[];
 async function lics(){const el=$("#lics");
   try{LICS=await gw("lic_list");drawLics()}catch(e){el.innerHTML=`<div class="msg">${esc(e.message)}</div>`}}
@@ -273,6 +292,37 @@ function billCsv(){if(!BM)return;const m=BM.month,n=v=>String((+v||0).toFixed(2)
   a.download=`HEXIS_MAPPING_timologisi_${m}.csv`;a.click()}
 $("#bmGo").onclick=billMonth;$("#bmCsv").onclick=billCsv;
 {const d=new Date();$("#bmM").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")}
+// ---- αίτημα δωρεάν δοκιμής (δημόσιο) · λίστα αιτημάτων για τον διαχειριστή
+function trialHash(){if(/^#(dokimi|trial|demo)$/i.test(location.hash)){trOpenF();setTimeout(()=>$("#trialCard").scrollIntoView({behavior:"smooth",block:"start"}),50)}}
+function trOpenF(){$("#trF").classList.remove("hidden");$("#trOpenRow").classList.add("hidden");setTimeout(()=>$("#trN").focus(),60)}
+$("#trOpen").onclick=trOpenF;
+addEventListener("hashchange",()=>{if(!$("#trialCard").classList.contains("hidden"))trialHash()});
+$("#trF").onsubmit=async e=>{e.preventDefault();$("#trB").disabled=true;$("#trMsg").innerHTML="";
+  try{const r=await fetch(FN,{method:"POST",headers:{apikey:KEY,"Content-Type":"application/json"},body:JSON.stringify({action:"trial_request",name:$("#trN").value,email:$("#trE").value,phone:$("#trP").value,profession:$("#trJ").value,use:$("#trU").value,message:$("#trM").value,website:$("#trW").value})});
+    const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`Σφάλμα ${r.status}`);
+    $("#trF").classList.add("hidden");
+    $("#trMsg").innerHTML=`<div class="msg ok">Ευχαριστούμε! Το αίτημα καταχωρήθηκε. Θα λάβεις τον κωδικό demo στο <b>${esc($("#trE").value.trim())}</b> μαζί με οδηγίες εγκατάστασης.</div>`}
+  catch(err){$("#trMsg").innerHTML=`<div class="msg">${esc(err.message)}</div>`}$("#trB").disabled=false};
+let TRIALS=[],trPend=null;
+async function trials(){try{TRIALS=(await gw("trial_list")).items||[];drawTrials()}catch(e){$("#trList").innerHTML=`<div class="msg">${esc(e.message)}</div>`}}
+function drawTrials(){const all=$("#trAll").checked,R=TRIALS.filter(t=>all||t.status==="new"),n=TRIALS.filter(t=>t.status==="new").length;
+  $("#trCnt").textContent=n?`${n} νέα`:"κανένα νέο";$("#trCnt").className="tag "+(n?"run":"");
+  const ST_={new:["Νέο","run"],done:["Στάλθηκε κλειδί","ok"],rejected:["Απορρίφθηκε","bad"]};
+  $("#trList").innerHTML=R.length?`<table><tr><th>Ημερομηνία</th><th>Στοιχεία</th><th>Ενδιαφέρον</th><th>Κατάσταση</th><th></th></tr>${R.map(t=>`<tr>
+    <td><small>${new Date(t.at).toLocaleString("el-GR")}</small></td>
+    <td><b>${esc(t.name)}</b><br><a href="mailto:${esc(t.email)}">${esc(t.email)}</a>${t.phone?"<br>"+esc(t.phone):""}</td>
+    <td>${esc(t.profession||"")}<br><small>${esc(t.use||"")}</small>${t.message?`<br><small class="hint">${esc(t.message)}</small>`:""}</td>
+    <td><span class="tag ${(ST_[t.status]||["",""])[1]}">${(ST_[t.status]||[t.status])[0]}</span>${t.key?`<br><span class="key">${esc(t.key)}</span>`:""}</td>
+    <td style="white-space:nowrap">${t.status==="new"?`<button class="btn primary" data-trk="${t.id}" style="padding:4px 9px">Κλειδί demo</button> <button class="btn" data-trx="${t.id}" style="padding:4px 9px" title="Απόρριψη">✕</button>`:`<button class="btn" data-trr="${t.id}" style="padding:4px 9px" title="Ξανά σε «Νέο»">↺</button>`}</td></tr>`).join("")}</table>`
+    :`<div class="empty">${TRIALS.length?"Κανένα νέο αίτημα.":"Κανένα αίτημα ακόμα."}</div>`;
+  const set=async(id,status)=>{try{await gw("trial_set",{id,status});trials()}catch(e){alert(e.message)}};
+  document.querySelectorAll("[data-trx]").forEach(b=>b.onclick=()=>set(b.dataset.trx,"rejected"));
+  document.querySelectorAll("[data-trr]").forEach(b=>b.onclick=()=>set(b.dataset.trr,"new"));
+  document.querySelectorAll("[data-trk]").forEach(b=>b.onclick=()=>{const t=TRIALS.find(x=>x.id===b.dataset.trk);if(!t)return;trPend=t.id;
+    if([...$("#nk").options].some(o=>o.value==="demo")){$("#nk").value="demo";$("#nk").dispatchEvent(new Event("change"))}
+    $("#ne").value=t.email;$("#nn").value=t.name;$("#nt").value="Αίτημα δοκιμής "+new Date(t.at).toLocaleDateString("el-GR");$("#nc").value=1;
+    $("#nk").scrollIntoView({behavior:"smooth",block:"center"});$("#nb").focus()})}
+$("#trAll").onchange=drawTrials;
 $("#nb").onclick=async()=>{$("#nb").disabled=true;
   const cnt=Math.max(1,Math.min(50,+$("#nc").value||1));
   try{const r=await gw("lic_create",{kind:$("#nk").value,email:$("#ne").value,name:$("#nn").value,note:$("#nt").value,quota_photos:$("#nq").value,count:cnt});
@@ -285,6 +335,7 @@ $("#nb").onclick=async()=>{$("#nb").disabled=true;
       $("#nmsg").value=K.map(k=>k.key).join("\n");$("#ncp").onclick=()=>{navigator.clipboard.writeText($("#nmsg").value);$("#ncp").textContent="Αντιγράφηκε ✓"};
     }
     $("#nc").value=1;
+    if(trPend&&K.length===1){const id=trPend;trPend=null;gw("trial_set",{id,status:"done",key:l.key}).then(trials).catch(()=>{})}
     ["#ne","#nn","#nt"].forEach(i=>$(i).value="");lics()}catch(e){$("#newKey").innerHTML=`<div class="msg">${esc(e.message)}</div>`}$("#nb").disabled=false};
 $("#ps").onclick=async()=>{const P=JSON.parse(JSON.stringify(ST.plans||{}));
   document.querySelectorAll("[data-pp]").forEach(i=>{P[i.dataset.pp][i.dataset.f]=+i.value});
