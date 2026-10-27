@@ -118,6 +118,8 @@ textarea{width:100%;background:var(--field);border:1.5px solid #c9d6a8;border-ra
 
   <section class="card hidden" id="admCard">
     <div class="hd"><div class="n">A</div><h2>Κλειδιά άδειας</h2><span class="r">μόνο ο διαχειριστής</span></div>
+    <div class="bd" style="border-bottom:1px solid var(--line);background:#f7f9ee"><div class="row" style="margin:0;flex-wrap:wrap;gap:10px"><b>Εκδόσεις εφαρμογής</b>
+      <span id="verInfo" class="hint">Φόρτωση…</span><button class="btn primary" id="verRel" style="display:none">✓ Δημοσίευση στους πελάτες</button><span class="hint" id="verMsg"></span></div></div>
     <div class="bd" style="border-bottom:1px solid var(--line)"><div class="row" style="margin:0"><b>Αιτήματα δοκιμής</b><span class="tag" id="trCnt"></span>
       <label style="margin:0 0 0 auto;display:flex;gap:6px;align-items:center;font-size:.82rem"><input type="checkbox" id="trAll" style="width:auto"> όλα</label></div>
       <div class="tw" id="trList"><div class="empty">Φόρτωση…</div></div></div>
@@ -210,7 +212,7 @@ async function admin(me){
     <td><input data-pp="${k}" data-f="price_eur" type="number" step="10" value="${P[k].price_eur}"></td><td><input data-pp="${k}" data-f="quota_photos" type="number" step="50" value="${P[k].quota_photos}"></td>
     <td>${k==="perpetual"?"για πάντα · αναβαθμίσεις "+(P[k].updates_months||12)+" μήνες":P[k].months+" μήνες"}</td></tr>`).join("")}</table>`;
   const pp=ST.per_photo_eur||{};$("#pu").value=pp.ultra??0.03;$("#ph").value=pp.high??0.02;$("#pm").value=pp.medium??0.01;
-  lics();trials()}
+  lics();trials();versions()}
 let LICS=[];
 async function lics(){const el=$("#lics");
   try{LICS=await gw("lic_list");drawLics()}catch(e){el.innerHTML=`<div class="msg">${esc(e.message)}</div>`}}
@@ -303,6 +305,13 @@ $("#trF").onsubmit=async e=>{e.preventDefault();$("#trB").disabled=true;$("#trMs
     $("#trF").classList.add("hidden");
     $("#trMsg").innerHTML=`<div class="msg ok">Ευχαριστούμε! Το αίτημα καταχωρήθηκε. Θα λάβεις τον κωδικό demo στο <b>${esc($("#trE").value.trim())}</b> μαζί με οδηγίες εγκατάστασης.</div>`}
   catch(err){$("#trMsg").innerHTML=`<div class="msg">${esc(err.message)}</div>`}$("#trB").disabled=false};
+// ---- εκδόσεις: η δοκιμαστική (μόνο διαχειριστής) → σταθερή (όλοι οι πελάτες) με ένα κουμπί
+async function versions(){try{const v=await gw("app_versions");const fd=t=>t?new Date(t).toLocaleString("el-GR"):"";
+  $("#verInfo").innerHTML=`Πελάτες: <b>${esc(v.stable||"—")}</b>${v.released_at?` <span class="hint">(${fd(v.released_at)})</span>`:""} · Δοκιμαστική (μόνο εσύ): <b>${esc(v.beta||"—")}</b>${v.beta_at?` <span class="hint">(${fd(v.beta_at)})</span>`:""}`;
+  const nw=v.beta&&v.beta!==v.stable;$("#verRel").style.display=nw?"":"none";$("#verMsg").textContent=nw?"":"Οι πελάτες έχουν ήδη την τελευταία έκδοση.";
+  $("#verRel").onclick=async()=>{if(!confirm(`Δημοσίευση της ${v.beta} σε όλους τους πελάτες;\nΘα τη δουν ως «Νέα έκδοση» στην εφαρμογή τους.`))return;$("#verRel").disabled=true;
+    try{await gw("app_release",{version:v.beta});$("#verMsg").textContent="✓ Δημοσιεύτηκε.";versions()}catch(e){$("#verMsg").textContent=e.message}$("#verRel").disabled=false}}
+  catch(e){$("#verInfo").textContent=e.message}}
 let TRIALS=[],trPend=null;
 async function trials(){try{TRIALS=(await gw("trial_list")).items||[];drawTrials()}catch(e){$("#trList").innerHTML=`<div class="msg">${esc(e.message)}</div>`}}
 function drawTrials(){const all=$("#trAll").checked,R=TRIALS.filter(t=>all||t.status==="new"),n=TRIALS.filter(t=>t.status==="new").length;
