@@ -53,7 +53,7 @@ button,input,select{font-family:inherit;font-size:inherit;color:inherit}
 .handle{display:none}
 .steps{overflow:auto;flex:1;padding:6px 0}
 .app.easy #proSteps,.app:not(.easy) #easySteps{display:none!important}
-.app.easy #dispSeg,.app.easy #tXray,.app.easy #chPath,.app.easy [data-p="calib"]{display:none!important}
+.app.easy #libBox,.app.easy #dispSeg,.app.easy #tXray,.app.easy #chPath,.app.easy [data-p="calib"]{display:none!important}
 .modeSeg{margin-left:auto;margin-right:10px;background:rgba(255,255,255,.6)}
 .helpBtn{margin-left:auto;text-decoration:none;color:var(--accent);font:600 12px var(--f-ui);padding:7px 11px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.6);white-space:nowrap}.helpBtn+.modeSeg{margin-left:8px}
 @media(max-width:600px){.helpBtn{padding:6px 8px;font-size:0}.helpBtn::first-letter{font-size:13px}}
@@ -306,6 +306,7 @@ window.HEXIS_TOKEN=async function(){try{var s=JSON.parse(localStorage.getItem('s
     </div>
     <div class="ov tr">
       <div class="strip glass" id="toolSeg">
+        <button class="tb" data-t="pick" title="Pick: πάτα τοίχο ή δάπεδο για υλικό"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4.5l5 5M17 2l5 5-3 3-5-5zM14 7L5 16l-1 4 4-1 9-9"/></svg><span>Pick</span></button>
         <button class="tb on" data-t="select" title="Select"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M5 3l14 8-6 1.5L10 19z"/></svg><span>Select</span></button>
         <button class="tb" data-t="move" title="Move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg><span>Move</span></button>
         <button class="tb" data-t="rotate" title="Rotate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg><span>Rotate</span></button>
@@ -434,9 +435,9 @@ window.HEXIS_TOKEN=async function(){try{var s=JSON.parse(localStorage.getItem('s
         </div>
       </section>
       <section class="step" data-estep="2">
-        <button class="sh"><span class="num">2</span>Ύφος &amp; επίπλωση<span class="st" id="es2"></span></button>
+        <button class="sh"><span class="num">2</span>Ύφος, επίπλωση &amp; υλικά<span class="st" id="es2"></span></button>
         <div class="sb" id="eStyleBox">
-          <p class="note">Διάλεξε ύφος και γράψε τι θέλεις. Ο σχεδιαστής AI επιπλώνει κάθε χώρο στις πραγματικές του διαστάσεις, με έπιπλα του εμπορίου.</p>
+          <p class="note">Διάλεξε ύφος και γράψε τι θέλεις. Για υλικά πάτα <b>Pick</b> και έναν τοίχο ή δάπεδο. Ο σχεδιαστής AI επιπλώνει κάθε χώρο στις πραγματικές του διαστάσεις, με έπιπλα του εμπορίου.</p>
         </div>
       </section>
       <section class="step" data-estep="3">
@@ -585,7 +586,8 @@ window.HEXIS_TOKEN=async function(){try{var s=JSON.parse(localStorage.getItem('s
       <section class="step" data-step="4">
         <button class="sh"><span class="num">4</span>Υλικά &amp; φως<span class="st"></span></button>
         <div class="sb">
-          <div class="note" id="paintTarget">Κάνε κλικ σε τοίχο ή δάπεδο στο μοντέλο.</div>
+          <div id="matPanel" style="display:flex;flex-direction:column;gap:8px">
+          <div class="note" id="paintTarget">Πάτα <b>Pick</b> (πάνω δεξιά) και μετά έναν τοίχο ή δάπεδο στο μοντέλο.</div>
           <div class="seg" id="pmode"><button data-v="face" class="on">Τοίχος</button><button data-v="room">Χώρος</button><button data-v="all">Όλοι</button></div>
           <div class="seg" id="wfin"><button data-v="paint" class="on">Βαφή</button><button data-v="tile">Πλακίδια τοίχου</button></div>
           <div class="row"><button class="btn grow" id="bPatch" aria-pressed="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="6" width="16" height="12" rx="1" stroke-dasharray="3 2"/></svg>Περιοχή σε τοίχο</button><i class="sw" id="patchSw" style="width:28px;height:28px;border:1px solid var(--line)" title="Υλικό περιοχής"></i></div>
@@ -611,6 +613,19 @@ window.HEXIS_TOKEN=async function(){try{var s=JSON.parse(localStorage.getItem('s
           </details>
           <div class="lbl" style="margin-top:4px">Δάπεδα ανά χώρο</div>
           <div id="floors" style="display:flex;flex-direction:column;gap:6px"></div>
+          <details id="comBox">
+            <summary>Υλικό εμπορίου (δικό σου προϊόν)</summary>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+              <div class="seg" id="comT"><button data-v="tile" class="on">Πλακάκι / δάπεδο</button><button data-v="paint">Χρώμα βαφής</button></div>
+              <div class="g2"><div class="fld"><label for="comB">Εταιρεία</label><input id="comB" placeholder="π.χ. κατασκευαστής"></div><div class="fld"><label for="comC">Σειρά / κωδικός</label><input id="comC" placeholder="π.χ. όνομα σειράς, κωδ."></div></div>
+              <div class="g3" id="comTileF"><div class="fld"><label for="comW">Πλάτος cm</label><input id="comW" type="number" value="60" min="1"></div><div class="fld"><label for="comH">Ύψος cm</label><input id="comH" type="number" value="60" min="1"></div><div class="fld"><label for="comP">€/m²</label><input id="comP" type="number" value="30" min="0"></div></div>
+              <div class="g2" id="comPaintF" hidden><div class="fld"><label for="comHex">Χρώμα</label><input id="comHex" type="color" value="#e6ddd0" style="width:100%;height:34px"></div><div class="fld"><label for="comPP">€/m² με εργασία</label><input id="comPP" type="number" value="7" min="0"></div></div>
+              <div class="fld" id="comPhF"><label for="comPh">Φωτογραφία ενός πλακιδίου (από κατάλογο ή κινητό)</label><input type="file" id="comPh" accept="image/*"></div>
+              <button class="btn pri" id="comAdd">Προσθήκη στη λίστα</button>
+              <p class="note">Μπαίνει στα πλακίδια, στα δάπεδα ή στην παλέτα με το όνομα και την τιμή του, και μετράει στο κόστος. Μένει αποθηκευμένο σε αυτόν τον browser.</p>
+            </div>
+          </details>
+          </div>
           <div class="lbl" style="margin-top:6px">Φως</div>
           <div class="fld"><label for="hour2">Ώρα · <span id="hourV2">17:30</span></label><input type="range" id="hour2" min="5" max="23.5" step="0.25" value="17.5"></div>
           <div class="g2">
@@ -1555,7 +1570,7 @@ function pick(e){
       if(o.userData.ceiling&&!(S.view==='walk'))continue;
       if(S.cutaway&&S.view!=='walk'&&o.userData.wall&&h.point.y>1.25)continue;
       if(o.userData.patch)return{patch:o.userData.patch,wall:o.userData.wall,key:o.userData.patch.key,point:h.point};
-      if(o.userData.obj)return{obj:o.userData.obj,point:h.point};
+      if(o.userData.obj){if(S.tool==='pick')continue;return{obj:o.userData.obj,point:h.point}}
       if(o.userData.wall){const mi=h.face.materialIndex;return{wall:o.userData.wall,key:o.userData.wall.keys[mi],point:h.point}}
       if(o.userData.floorRoom)return{room:o.userData.floorRoom,point:h.point};
       if(o.userData.opening||o.userData.ceiling)continue;return null}
@@ -1598,8 +1613,8 @@ function endPtr(e){
   if(drag.type==='move'||drag.type==='rotate'){const o=drag.obj,b=drag.before,a={x:o.x,y:o.y,yaw:o.yaw,elev:o.elev};
     if(drag.moved>2)pushUndo({undo:()=>{Object.assign(o,b);placeObj(o);updateSelCard()},redo:()=>{Object.assign(o,a);placeObj(o);updateSelCard()}});drag=null;return}
   if(drag.moved<6&&drag.type!=='pinch'&&p){const h=pick(e);
-    if(h&&h.patch){selectPatch(h.patch)}else if(h&&h.obj)select(h.obj);else if(h&&h.wall){select(null);S.selWall=h;S.selRoom=null;$('#paintTarget').textContent=`Επιλέχθηκε: τοίχος${h.wall.rooms.some(r=>r)?' · '+(roomName(+h.key.split('|')[2])||'εξωτερικός'):''}`;openStep(4)}
-    else if(h&&h.room){select(null);S.selRoom=h.room;S.selWall=null;$('#paintTarget').textContent=`Επιλέχθηκε: δάπεδο · ${h.room.name}`;openStep(4)}
+    if(h&&h.patch){selectPatch(h.patch)}else if(h&&h.obj)select(h.obj);else if(h&&h.wall){select(null);S.selWall=h;S.selRoom=null;$('#paintTarget').textContent=`Επιλέχθηκε: τοίχος${h.wall.rooms.some(r=>r)?' · '+(roomName(+h.key.split('|')[2])||'εξωτερικός'):''}`+curMatText(h.key);openStep(4);showMatPanel()}
+    else if(h&&h.room){select(null);S.selRoom=h.room;S.selWall=null;$('#paintTarget').textContent=`Επιλέχθηκε: δάπεδο · ${h.room.name}`+curFloorText(h.room);openStep(4);showMatPanel()}
     else select(null)}
   if(ptrs.size===0)drag=null;
 }
@@ -2275,7 +2290,7 @@ function targetKeys(){
   if(S.paintMode==='all')return[...S.wallMats.keys()].filter(k=>k!=='ext');
   if(S.paintMode==='room'){const rid=S.selWall?+S.selWall.key.split('|')[2]:S.selRoom?.id;if(!rid){toast('Κάνε κλικ σε τοίχο ή δάπεδο του χώρου');return null}return[...S.wallMats.keys()].filter(k=>k.endsWith('|'+rid))}
   if(!S.selWall||S.selWall.key==='ext'){toast('Κάνε κλικ σε τοίχο στο μοντέλο');return null}return[S.selWall.key]}
-function applyTileChoice(id){if(!S.built){toast('Δημιούργησε πρώτα το 3D μοντέλο');return}const keys=targetKeys();if(!keys)return;
+function applyTileChoice(id){if(S.selRoom&&!S.selWall){const sel=document.querySelector(`#floors select[data-r="${S.selRoom.id}"]`);if(sel&&[...sel.options].some(o=>o.value===id)){sel.value=id;sel.dispatchEvent(new Event('change'));toast('Δάπεδο · '+S.selRoom.name+' · '+TILEMAP[id].n);return}}if(!S.built){toast('Δημιούργησε πρώτα το 3D μοντέλο');return}const keys=targetKeys();if(!keys)return;
   let h=(+$('#tH').value||220)/100;if(h>=S.A.H-0.05)h=S.A.H;
   const before=keys.map(k=>S.wallTile.get(k));const setAll=v=>{keys.forEach((k,i)=>{const x=typeof v==='function'?v(i):v;if(x)S.wallTile.set(k,x);else S.wallTile.delete(k);applyTileKey(k)});applyCutaway();S.costDirty=true};
   setAll({id,h});$$('#wtiles .tile').forEach(b=>b.classList.toggle('on',b.dataset.t===id));
@@ -2299,7 +2314,8 @@ function costRows(){const rows=[],A=S.A;if(!A||!S.built)return rows;
       rows.push({g:'Κουζίνα',n:'Νεροχύτης & μπαταρία',q:1,u:'τεμ',p:PR.sink,set:v=>PR.sink=v});
       if(o.w>=1.8)rows.push({g:'Κουζίνα',n:'Εστίες κεραμικές',q:1,u:'τεμ',p:PR.hob,set:v=>PR.hob=v});continue}
     rows.push({g:'Έπιπλα & είδη',n:o.label,q:1,u:'τεμ',p:o.price||0,set:v=>{o.price=v;updateSelCard()}})}
-  let pa=0;for(const k of S.wallPaint.keys())pa+=Math.max(0,faceArea(k)-tileArea(k));
+  let pa=0;const pb={};for(const k of S.wallPaint.keys()){const ar=Math.max(0,faceArea(k)-tileArea(k)),hx=S.wallPaint.get(k);if(PR.paintBy&&PR.paintBy[hx]!=null)pb[hx]=(pb[hx]||0)+ar;else pa+=ar}
+  for(const hx in pb){const nm=(PAL.find(x=>x[0]===hx)||[0,hx])[1];rows.push({g:'Τοίχοι',n:'Βαφή · '+nm,q:pb[hx],u:'m²',p:PR.paintBy[hx],set:v=>PR.paintBy[hx]=v})}
   for(const pt of S.patches||[])if(pt.mat.type==='paint')pa+=pt.area||0;
   if(pa>0.05)rows.push({g:'Τοίχοι',n:'Βαφή (υλικά & εργασία)',q:pa,u:'m²',p:PR.paint,set:v=>PR.paint=v});
   const tg={};let tsum=0;for(const k of S.wallTile.keys()){const t=S.wallTile.get(k);tg[t.id]=(tg[t.id]||0)+tileArea(k)}
@@ -2981,7 +2997,7 @@ $('#stAI').onclick=async()=>{if(aiCtl){aiCtl.abort();return}if(!ensureBuilt())re
     if(c!=='cancelled'&&c!=='rate_limited')applyProposal(null)}
   finally{aiCtl=null;btn.textContent='✦ AI διαρρύθμιση';$('#busy').hidden=true}};
 /* ================= MODES: Ιδιώτης (3 βήματα) · Μηχανικός (όλα τα εργαλεία) ================= */
-const EASY_MOVE=['#styles','#aiWish','#stAI','#aiNote'];const proHome=EASY_MOVE.map(q=>{const el=$(q);return[el,el.parentNode,el.nextSibling]});
+const EASY_MOVE=['#styles','#aiWish','#stAI','#aiNote','#matPanel'];const proHome=EASY_MOVE.map(q=>{const el=$(q);return[el,el.parentNode,el.nextSibling]});
 let MODE=window.HEXIS_OWNER===false?'easy':'pro',modeSaved=false;try{const v=localStorage.getItem('hexisMode2');if(v){MODE=v;modeSaved=true}}catch(e){}
 function setMode(m,save){MODE=m;if(save){modeSaved=true;try{localStorage.setItem('hexisMode2',m)}catch(e){}}$('.app').classList.toggle('easy',m==='easy');$$('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
   if(m==='easy'){const box=$('#eStyleBox');for(const [el] of proHome)box.appendChild(el)}else{for(let i=proHome.length-1;i>=0;i--){const [el,par,nx]=proHome[i];par.insertBefore(el,nx&&nx.parentNode===par?nx:null)}}
@@ -3022,6 +3038,25 @@ function phView(v){$$('#phSeg button').forEach(b=>b.classList.toggle('on',b.data
 $$('#phSeg button').forEach(b=>b.onclick=()=>phView(b.dataset.v));
 $('#phClose').onclick=()=>{$('#phMask').hidden=true};$('#phAgain').onclick=()=>{$('#phMask').hidden=true;aiPhoto()};
 $('#bPhoto').onclick=aiPhoto;$('#ePhoto2').onclick=aiPhoto;
+function showMatPanel(){const el=$('#matPanel');if(el)setTimeout(()=>el.scrollIntoView({block:'nearest',behavior:'smooth'}),60)}
+function curMatText(k){const t=S.wallTile.get(k);if(t&&TILEMAP[t.id])return' · τώρα: '+TILEMAP[t.id].n+' έως '+fmtCm(t.h)+' cm';const h=S.wallPaint.get(k);if(h){const pn=PAL.find(x=>x[0]===h);return' · τώρα: βαφή '+(pn?pn[1]:h.toUpperCase())}return''}
+function curFloorText(r){const st=S.roomFloorMat[r.id];const t=st&&st.type;if(!t)return'';return' · τώρα: '+(TILEMAP[t]?TILEMAP[t].n:FLOORS[t]?FLOORS[t].n:t)}
+/* ---- Υλικά εμπορίου του χρήστη ---- */
+let comType='tile';$$('#comT button').forEach(b=>b.onclick=()=>{comType=b.dataset.v;$$('#comT button').forEach(x=>x.classList.toggle('on',x===b));$('#comTileF').hidden=comType!=='tile';$('#comPhF').hidden=comType!=='tile';$('#comPaintF').hidden=comType!=='paint'});
+function comLoad(){let L=[];try{L=JSON.parse(localStorage.getItem('hexisComMat')||'[]')}catch(e){}return L}
+function comSave(L){try{localStorage.setItem('hexisComMat',JSON.stringify(L))}catch(e){toast('Δεν αποθηκεύτηκε μόνιμα (γεμάτη μνήμη browser)')}}
+function comRegister(m){if(m.type==='paint'){if(!PAL.some(x=>x[0]===m.hex)){PAL.push([m.hex,m.name]);const b=document.createElement('button');b.style.background=m.hex;b.dataset.c=m.hex;b.title=m.name+' · '+m.p+' €/m²';b.setAttribute('aria-label',m.name);b.onclick=()=>{if(S.patchMode){patchMaterial({type:'paint',hex:m.hex});return}paint(m.hex)};$('#pal').appendChild(b)}if(m.p)PR.paintBy=Object.assign(PR.paintBy||{},{[m.hex]:m.p});return}
+  if(TILEMAP[m.id])return;const t={id:m.id,n:m.name,fw:m.fw,fh:m.fh,look:m.img?'tex':'matte',c:m.c||'#cfc8bd',p:m.p,brand:m.brand};
+  if(m.img){const img=new Image();img.onload=()=>{t.thumb=img;tileThumbs();if(S.built)buildFloorUI()};img.src=m.img;const tex=new THREE.TextureLoader().load(m.img,()=>{S.built&&[...S.wallTile.keys()].forEach(k=>S.wallTile.get(k).id===t.id&&applyTileKey(k))});tex.encoding=THREE.sRGBEncoding;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;t.tex=tex}
+  TILES.push(t);TILEMAP[t.id]=t;tileThumbs();if(S.built)buildFloorUI()}
+function shrinkImg(file,max=512){return new Promise((res,rej)=>{const img=new Image();img.onload=()=>{const k=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+  let r=0,g=0,b=0;const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;for(let i=0;i<d.length;i+=16){r+=d[i];g+=d[i+1];b+=d[i+2]}const n=d.length/16;res({url:c.toDataURL('image/jpeg',0.85),avg:toHex(r/n,g/n,b/n)})};img.onerror=rej;img.src=URL.createObjectURL(file)})}
+$('#comAdd').onclick=async()=>{const brand=$('#comB').value.trim(),code=$('#comC').value.trim();if(!brand&&!code){toast('Γράψε εταιρεία ή κωδικό');return}const name=[brand,code].filter(Boolean).join(' · ');const L=comLoad();
+  if(comType==='paint'){const m={type:'paint',hex:$('#comHex').value,name,p:+$('#comPP').value||7};L.push(m);comSave(L);comRegister(m);toast('Το χρώμα μπήκε στην παλέτα · '+name);return}
+  const f=$('#comPh').files[0];let img=null,c=null;if(f){try{const r=await shrinkImg(f);img=r.url;c=r.avg}catch(e){toast('Η φωτογραφία δεν διαβάστηκε')}}
+  const fw=Math.max(0.01,(+$('#comW').value||60)/100),fh=Math.max(0.01,(+$('#comH').value||60)/100);const m={type:'tile',id:'com-'+Date.now(),name:name+' '+Math.round(fw*100)+'×'+Math.round(fh*100),brand,fw,fh,p:+$('#comP').value||30,img,c};
+  L.push(m);comSave(L);comRegister(m);$$('#wfin button').forEach(x=>x.classList.toggle('on',x.dataset.v==='tile'));$('#paintBox').style.display='none';$('#tileBox').style.display='flex';toast('Μπήκε στα πλακίδια και στα δάπεδα · '+m.name)};
+for(const m of comLoad())try{comRegister(m)}catch(e){}
 function parseAIJson(t){if(!t)return null;const a=t.indexOf('{'),b=t.lastIndexOf('}');if(a<0||b<a)return null;try{return JSON.parse(t.slice(a,b+1))}catch(e){return null}}
 
 
