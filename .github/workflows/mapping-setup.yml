@@ -1,0 +1,27 @@
+# HEXIS MAPPING: χτίζει το HEXIS_MAPPING_Setup.exe (περιβάλλον Python + εκκίνηση, χωρίς την εφαρμογή)
+# και το ανεβάζει στη σταθερή διεύθυνση:
+#   https://github.com/miltosbirbas-hub/hexis-app/releases/download/mapping-setup/HEXIS_MAPPING_Setup.exe
+name: HEXIS MAPPING setup
+on:
+  push:
+    branches: [main]
+    paths: ["mapping-setup/**", ".github/workflows/mapping-setup.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: sudo apt-get update -q && sudo apt-get install -y -q nsis
+      - name: Χτίσιμο
+        run: mapping-setup/build.sh "$RUNNER_TEMP/ms" "$(date +%Y.%m.%d)"
+      - name: Δημοσίευση (σταθερή διεύθυνση)
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh release view mapping-setup >/dev/null 2>&1 || gh release create mapping-setup --title "HEXIS MAPPING · εγκατάσταση Windows" --notes "Εγκατάσταση HEXIS MAPPING για Windows 10/11 (64-bit)."
+          gh release upload mapping-setup "$RUNNER_TEMP/ms/HEXIS_MAPPING_Setup.exe" --clobber
+          echo "::notice::Setup: https://github.com/${{ github.repository }}/releases/download/mapping-setup/HEXIS_MAPPING_Setup.exe"
