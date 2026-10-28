@@ -579,6 +579,10 @@ a{color:var(--accent)}
 </div>
 <script>
 function setL(l){document.querySelectorAll('.wrap[data-l]').forEach(w=>w.hidden=w.dataset.l!==l);document.documentElement.lang=l;document.title=l==='en'?'HEXIS Interior guide':'Οδηγός HEXIS Interior';document.querySelectorAll('.lsw button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.set===l));try{localStorage.setItem('hexisLang',l)}catch(e){}}
+
+// PDF: μέσα στο artifact η λήψη γίνεται μέσω του viewer· στο site δουλεύει ο απλός σύνδεσμος
+(async()=>{if(!(window.claude&&claude.use))return;const dl=await claude.use('downloads').catch(()=>null);if(!dl)return;
+  document.querySelectorAll('a.dl').forEach(a=>a.addEventListener('click',async e=>{e.preventDefault();try{const r=await fetch(a.getAttribute('href'));const b=await r.blob();await dl.save({filename:a.getAttribute('href').split('/').pop(),data:b})}catch(err){if(err&&err.code!=='declined')console.warn(err)}}))})();
 document.querySelectorAll('.lsw button').forEach(b=>b.onclick=()=>{setL(b.dataset.set);scrollTo(0,0)});
 (()=>{const q=new URLSearchParams(location.search).get('lang')||(/^#?en/.test(location.hash)?'en':null);let st=null;try{st=localStorage.getItem('hexisLang')}catch(e){}setL(q||st||(/^el/i.test(navigator.language||'el')?'el':'en'))})();
 // Παύση/αναπαραγωγή με πάτημα στο βίντεο· παύση όταν βγαίνει από την οθόνη.
