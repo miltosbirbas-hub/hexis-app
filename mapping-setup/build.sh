@@ -13,7 +13,8 @@ fi
 export MAMBA_ROOT_PREFIX="$W/mroot"
 "$W/mm/bin/micromamba" create -y -q -p "$B/python" --platform win-64 -c conda-forge python=3.12 pip >/dev/null
 mkdir -p "$W/whl"
-python3 -m pip download -q -d "$W/whl" --platform win_amd64 --python-version 3.12 --implementation cp --only-binary=:all: -r "$HERE/requirements.txt"
+python3 -m pip wheel -q --no-deps -w "$W/whl" proxy_tools          # καθαρά Python πακέτα χωρίς έτοιμο wheel
+python3 -m pip download -q -d "$W/whl" --find-links "$W/whl" --platform win_amd64 --python-version 3.12 --implementation cp --only-binary=:all: -r "$HERE/requirements.txt"
 python3 -m pip install -q --no-index --find-links "$W/whl" --target "$B/python/Lib/site-packages" --platform win_amd64 \
   --python-version 3.12 --implementation cp --only-binary=:all: --upgrade -r "$HERE/requirements.txt" 2>&1 | grep -v "dependency resolver\|requires\|root user" || true
 rm -rf "$B/python/Lib/test" "$B/python/Lib/idlelib" "$B/python/Tools" "$B/python/Library/include" "$B/python/include" \
