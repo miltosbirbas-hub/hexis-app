@@ -55,6 +55,8 @@ button,input,select{font-family:inherit;font-size:inherit;color:inherit}
 .app.easy #proSteps,.app:not(.easy) #easySteps{display:none!important}
 .app.easy #dispSeg,.app.easy #tXray,.app.easy #chPath,.app.easy [data-p="calib"]{display:none!important}
 .modeSeg{margin-left:auto;margin-right:10px;background:rgba(255,255,255,.6)}
+.helpBtn{margin-left:auto;text-decoration:none;color:var(--accent);font:600 12px var(--f-ui);padding:7px 11px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.6);white-space:nowrap}.helpBtn+.modeSeg{margin-left:8px}
+@media(max-width:600px){.helpBtn{padding:6px 8px;font-size:0}.helpBtn::first-letter{font-size:13px}}
 .modeSeg button{padding:7px 12px;font-weight:600}
 @media(max-width:600px){.top .brand>div{display:none}.modeSeg{margin-right:6px}.modeSeg button{padding:6px 8px;font-size:11.5px}}
 #eCost .tot{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}#eCost .tot b{font-size:22px;letter-spacing:-.02em}
@@ -323,6 +325,8 @@ window.HEXIS_TOKEN=async function(){try{var s=JSON.parse(localStorage.getItem('s
         <button class="tb" data-p="wall" title="Εσωτερικός τοίχος"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M5 12h14"/></svg><span>Wall</span></button>
         <button class="tb" data-p="door" title="Πόρτα"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20h16M6 20V6M6 6a14 14 0 0 1 14 14"/></svg><span>Door</span></button>
         <button class="tb" data-p="window" title="Παράθυρο"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10h18v4H3zM3 12h18"/></svg><span>Window</span></button>
+        <button class="tb" data-p="col" title="Υποστύλωμα / δόντι τοίχου"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 18h18"/><rect x="8" y="9" width="8" height="9" fill="currentColor" fill-opacity=".25"/></svg><span>Column</span></button>
+        <button class="tb" data-p="beam" title="Δοκάρι (κρέμαση από ταβάνι)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="3 2"><rect x="3" y="9" width="18" height="6"/></svg><span>Beam</span></button>
         <button class="tb" data-p="arc" title="Καμπύλη πλευρά"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 18C6 8 18 8 20 18"/><circle cx="4" cy="18" r="1.6" fill="currentColor"/><circle cx="20" cy="18" r="1.6" fill="currentColor"/></svg><span>Arc</span></button>
         <button class="tb" data-p="erase" title="Διαγραφή στοιχείου"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 19h14M8 15l8-8 3 3-8 8H8z"/></svg><span>Erase</span></button>
         <span class="sep"></span>
@@ -412,6 +416,7 @@ window.HEXIS_TOKEN=async function(){try{var s=JSON.parse(localStorage.getItem('s
       <span class="chip" id="chRooms">— χώροι</span>
       <span class="chip" id="chObjs">— αντικείμενα</span>
     </div>
+    <a class="helpBtn" id="helpBtn" href="interior-help.html" target="_blank" rel="noopener" title="Οδηγίες χρήσης">? Οδηγίες</a>
     <div class="seg modeSeg" id="modeSeg" role="group" aria-label="Λειτουργία"><button data-m="easy">Ιδιώτης</button><button data-m="pro">Μηχανικός</button></div>
     <button class="cost" id="costPill" title="Εκτίμηση κόστους"><small>Κόστος</small><b id="costV">0 €</b></button>
   </header>
@@ -526,10 +531,29 @@ window.HEXIS_TOKEN=async function(){try{var s=JSON.parse(localStorage.getItem('s
                 <div class="fld"><label for="kB">Γωνία Γ cm</label><input id="kB" type="number" value="0" min="0" step="10"></div>
                 <div class="fld"><label for="kU">Πάνω ντουλάπια</label><select id="kU" class="sel"><option value="1">Ναι</option><option value="0">Όχι</option></select></div>
               </div>
+              <div class="g3">
+                <div class="fld"><label for="kS">Γωνία προς</label><select id="kS" class="sel"><option value="L">Αριστερά</option><option value="R">Δεξιά</option></select></div>
+                <div class="fld"><label for="kFr">Ψυγείο</label><select id="kFr" class="sel"><option value="none">Ξεχωριστό</option><option value="L">Εντοιχ. αριστερά</option><option value="R">Εντοιχ. δεξιά</option></select></div>
+                <div class="fld"><label for="kOv">Φούρνος</label><select id="kOv" class="sel"><option value="under">Κάτω από εστίες</option><option value="colL">Στήλη αριστερά</option><option value="colR">Στήλη δεξιά</option><option value="none">Χωρίς</option></select></div>
+              </div>
+              <div class="g3">
+                <div class="fld"><label for="kHp">Εστίες από αριστ. cm</label><input id="kHp" type="number" value="" placeholder="αυτόματα" min="0" step="5"></div>
+                <div class="fld"><label for="kSp">Νεροχύτης από αριστ. cm</label><input id="kSp" type="number" value="" placeholder="αυτόματα" min="0" step="5"></div>
+                <div class="fld"><label for="kHd">Απορροφητήρας</label><select id="kHd" class="sel"><option value="chim">Καμινάδα</option><option value="built">Ενσωματωμένος</option><option value="none">Χωρίς</option></select></div>
+              </div>
+              <label class="row" style="font-size:12px"><input type="checkbox" id="kDw" checked> Πλυντήριο πιάτων εντοιχιζόμενο, δίπλα στον νεροχύτη</label>
               <div class="fld"><label for="kF">Πόρτες / μέτωπα</label><select id="kF"></select></div>
               <div class="fld"><label for="kT">Πάγκος</label><select id="kT"></select></div>
               <div class="fld"><label for="kPh">Δικό μου δείγμα (φωτογραφία υλικού)</label><input type="file" id="kPh" accept="image/*"></div>
               <button class="btn pri" id="kAdd">Τοποθέτηση κουζίνας</button>
+              <div class="lbl" style="margin-top:4px">Νησίδα</div>
+              <div class="g3">
+                <div class="fld"><label for="iL">Μήκος cm</label><input id="iL" type="number" value="200" min="80" step="10"></div>
+                <div class="fld"><label for="iD">Βάθος cm</label><input id="iD" type="number" value="90" min="50" step="5"></div>
+                <div class="fld"><label for="iU">Πάνω</label><select id="iU" class="sel"><option value="none">Μόνο πάγκος</option><option value="hob">Εστίες</option><option value="sink">Νεροχύτης</option><option value="bar">Μπαρ με σκαμπό</option></select></div>
+              </div>
+              <button class="btn" id="iAdd">Τοποθέτηση νησίδας</button>
+              <p class="note">Πάτα την κουζίνα ή τη νησίδα στο 3D για Move / Rotate και αλλαγές. Οι συσκευές μπαίνουν στη θέση και στο κόστος.</p>
             </div>
           </details>
           <div class="lbl">Έπιπλα · Π × Β × Υ cm · ενδεικτική τιμή</div>
@@ -1347,10 +1371,21 @@ const FCOL=[['#f4f4f1','RAL 9016 Λευκό'],['#f1ede1','RAL 9010 Λευκό κ
  ['#b8b6b0','Ανοδίωση ίνοξ'],['#8a7358','Ανοδίωση μπρονζέ'],['#a0703f','Ξυλομίμηση δρυς (golden oak)'],['#6e4a32','Ξυλομίμηση καρυδιά'],['#c39a6b','Ξυλομίμηση οξιά'],['#3a2a22','Ξυλομίμηση wenge']];
 const DCOL=[['#f3f1ec','Λάκα λευκή'],['#e9e3d6','Λάκα κρεμ'],['#c9c5bd','Λάκα γκρι'],['#2d2f33','Λάκα ανθρακί'],['#b99572','Laminate δρυς'],['#8a6a4b','Laminate καρυδιά'],['#d9c3a2','Καπλαμάς σφένδαμος'],['#6b5240','Καπλαμάς δρυς φυσικός']];
 const IDOOR={kasa:{n:'Με περιμετρική κορνίζα (κάσα & περβάζια)',p:260},flush:{n:'Χωρίς κορνίζα · κρυφή κάσα, στο ίδιο επίπεδο με τον τοίχο',p:480}};
+function colCorners(k){const c=Math.cos(k.ang||0),s2=Math.sin(k.ang||0),hw=k.w/2,hd=k.d/2;return[[-hw,-hd],[hw,-hd],[hw,hd],[-hw,hd]].map(([x,y])=>[k.p[0]+x*c-y*s2,k.p[1]+x*s2+y*c])}
+function wallFaceNear(w0,maxD){let best=maxD,res=null;const v=PL.verts;
+  if(PL.closed)for(let i=0;i<v.length;i++){if(PL.bulges&&Math.abs(PL.bulges[i]||0)>1e-6)continue;const A=v[i],B=v[(i+1)%v.length],r=proj(w0,A,B);if(r.d<best&&r.t>0&&r.t<1){const out=edgeOut(i);const inn=[-out[0],-out[1]];if((w0[0]-r.q[0])*inn[0]+(w0[1]-r.q[1])*inn[1]<-0.02)continue;best=r.d;res={q:r.q,u:[(B[0]-A[0])/r.L,(B[1]-A[1])/r.L],inn}}}
+  PL.walls.forEach(wl=>{const r=proj(w0,wl.a,wl.b);if(r.d<best&&r.t>0&&r.t<1){const u=[(wl.b[0]-wl.a[0])/r.L,(wl.b[1]-wl.a[1])/r.L];let nn=[-u[1],u[0]];const sd=(w0[0]-r.q[0])*nn[0]+(w0[1]-r.q[1])*nn[1];if(sd<0)nn=[-nn[0],-nn[1]];best=r.d;res={q:[r.q[0]+nn[0]*PL.Ti/2,r.q[1]+nn[1]*PL.Ti/2],u,inn:nn}}});return res}
+async function askCol(k,isNew){const r=await ask(isNew?'Νέο υποστύλωμα / δόντι':'Υποστύλωμα','Πλάτος κατά μήκος του τοίχου και βάθος (πόσο προεξέχει). Για ελεύθερη κολόνα ισχύουν ως διαστάσεις διατομής.',[{l:'Πλάτος (cm)',v:fmtCm(k.w)},{l:'Βάθος / προεξοχή (cm)',v:fmtCm(k.d)},{l:'Γωνία (°)',v:String(Math.round((k.ang||0)*180/Math.PI))}]);
+  if(!r)return false;const w=clamp((r[0]||40)/100,0.05,3),d=clamp((r[1]||25)/100,0.03,3);
+  if(k.face){const f=k.face;k.p=[f.q[0]+f.inn[0]*d/2+(k.p[0]-f.q[0]-f.inn[0]*k.d/2)*0,f.q[1]+f.inn[1]*d/2];k.p=[k.p[0]+f.u[0]*(k.along||0),k.p[1]+f.u[1]*(k.along||0)]}
+  k.w=w;k.d=d;if(!k.face&&isFinite(r[2]))k.ang=r[2]*Math.PI/180;return true}
+async function askBeam(bm,isNew){const r=await ask(isNew?'Νέο δοκάρι':'Δοκάρι','Πλάτος δοκαριού και κρέμαση κάτω από το ταβάνι.',[{l:'Πλάτος (cm)',v:fmtCm(bm.w)},{l:'Κρέμαση από ταβάνι (cm)',v:fmtCm(bm.drop)}]);if(!r)return false;bm.w=clamp((r[0]||25)/100,0.1,1.5);bm.drop=clamp((r[1]||50)/100,0.05,PL.H-0.5);return true}
+function doorSwing(o){return{side:o.side??(o.ref.k==='e'?-1:1),hinge:o.hinge||'a'}}
+function opPlanFrame(o){const L=lineOf(o.ref);if(!L)return null;const [A,B]=L,len=dist(A,B)||1,d=[(B[0]-A[0])/len,(B[1]-A[1])/len];const nrm=o.ref.k==='e'?edgeOut(o.ref.i):[-d[1],d[0]];const th=o.ref.k==='e'?PL.Te:PL.Ti;const c0=o.ref.k==='e'?0:-th/2;return{A,d,nrm,th,c0,c1:c0+th}}
 function opDefaults(o,onExt){if(o.kind)return o;if(o.type==='door'&&onExt&&(o.t1-o.t0)>1.1){o.kind='balS';o.type='window';o.z0=0;o.leaves=2;o.color='#f4f4f1';o.glass='double';o.shutter='none';return o}if(o.type==='window'&&o.z0<0.05){o.kind='bal';o.leaves=(o.t1-o.t0)>1.0?2:1;o.color='#f4f4f1';o.glass='double';o.shutter='none';return o}if(o.type==='door'){o.kind=onExt?'ent':'int';o.frame='kasa';o.color=onExt?'#3b3f44':'#f3f1ec'}else{o.kind='win';o.leaves=(o.t1-o.t0)>1.0?2:1;o.color='#f4f4f1';o.glass='double';o.shutter='none'}return o}
 function sysFor(k){const t=OPK[k]?.sys;return SYS.filter(x=>x.type===t)}
 function opName(o){const K=OPK[o.kind];return K?K.n:(o.type==='door'?'Πόρτα':'Παράθυρο')}
-function askOpening(o,isNew){return new Promise(res=>{const len=o.t1-o.t0;const onExt=o.ref.k==='e';opDefaults(o,onExt);
+function askOpening(o,isNew){return new Promise(res=>{$('#dlgF').innerHTML='';const len=o.t1-o.t0;const onExt=o.ref.k==='e';opDefaults(o,onExt);
   const sel=(id,opts,v)=>`<select id="${id}" class="sel" style="width:100%">${opts.map(([val,l])=>`<option value="${val}"${String(val)===String(v)?' selected':''}>${l}</option>`).join('')}</select>`;
   const draw=()=>{const k=$('#oqK')?$('#oqK').value:o.kind;const K=OPK[k]||OPK.win;const isD=K.t==='door';const sys=sysFor(k);
     const kinds=Object.entries(OPK).filter(([kk,v])=>o.type==='door'?(v.t==='door'||v.floor):true).map(([kk,v])=>[kk,v.n]);
@@ -1358,6 +1393,7 @@ function askOpening(o,isNew){return new Promise(res=>{const len=o.t1-o.t0;const 
     h+=`<div class="g2"><div class="fld"><label for="oqW">Πλάτος cm</label><input id="oqW" value="${fmtCm(len)}" inputmode="decimal"></div><div class="fld"><label for="oqH">${K.floor||isD?'Ύψος cm':'Ύψος ανωκασιού cm'}</label><input id="oqH" value="${fmtCm(o.z1)}" inputmode="decimal"></div></div>`;
     if(!isD&&!K.floor)h+=`<div class="g2"><div class="fld"><label for="oqZ">Ποδιά cm</label><input id="oqZ" value="${fmtCm(o.z0||0.9)}" inputmode="decimal"></div><div class="fld"><label for="oqT">Από αρχή τοίχου cm</label><input id="oqT" value="${fmtCm(o.t0)}" inputmode="decimal"></div></div>`;
     else h+=`<div class="fld"><label for="oqT">Από αρχή τοίχου cm</label><input id="oqT" value="${fmtCm(o.t0)}" inputmode="decimal"></div>`;
+    if(K.t==='door')h+=`<p class="note">Φορά ανοίγματος: με το εργαλείο Door πάτα δίπλα στην πόρτα, στην πλευρά και στη μεριά που θες να ανοίγει. Πάτα πάνω στον τοίχο της πόρτας για εναλλαγή.</p>`;
     if(k==='int'){h+=`<div class="fld"><label for="oqF">Κάσα</label>${sel('oqF',Object.entries(IDOOR).map(([a,b])=>[a,b.n]),o.frame||'kasa')}</div><div class="fld"><label for="oqC">Φινίρισμα φύλλου</label>${sel('oqC',DCOL,o.color||DCOL[0][0])}</div>`}
     else if(k==='ent'){h+=`<div class="fld"><label for="oqC">Χρώμα</label>${sel('oqC',FCOL,o.color||'#3b3f44')}</div>`}
     else{h+=`<div class="fld"><label for="oqS">Σύστημα προφίλ</label>${sel('oqS',[['','— χωρίς επιλογή συστήματος —'],...sys.map(x=>[x.id,`${x.brand} ${x.series}${x.depth?` · ${x.depth} mm`:''}${x.tb?' · θερμοδιακοπή':''}${x.uw?` · Uw ${x.uw}`:''}`])],o.sys||'')}</div>
@@ -1437,6 +1473,9 @@ function buildModel(){
       buildOpening(grp,o,len,th);
       grp.userData.opening=1;G.model.add(grp)}
   }
+  // δοκάρια (κρέμαση από το ταβάνι)
+  for(const bm of A.beams||[]){const L=dist(bm.a,bm.b);if(L<0.05)continue;const mat=wallMat('beam',wallHex);const mesh=new THREE.Mesh(new THREE.BoxGeometry(L,bm.drop,bm.w),mat);
+    mesh.position.copy(T((bm.a[0]+bm.b[0])/2,(bm.a[1]+bm.b[1])/2,H-bm.drop/2));mesh.rotation.y=Math.atan2(bm.b[1]-bm.a[1],bm.b[0]-bm.a[0]);mesh.castShadow=mesh.receiveShadow=true;mesh.userData.beam=bm;G.model.add(mesh)}
   // floors + ceilings
   const RG=A.RG;
   for(const r of A.rooms){
@@ -2018,10 +2057,11 @@ function buildShellDetails(){const A=S.A;if(!A)return;const grp=new THREE.Group(
     const me=new THREE.Mesh(new THREE.BoxGeometry(len,0.075,0.014),bm);const P=wallPt(f,mid,0.0375,0.007);me.position.copy(P);me.rotation.y=wallYaw(f);me.receiveShadow=true;me.userData.baseboard=1;grp.add(me)}}
   const leafM=M('#f6f5f1',{roughness:.35}),hm=METAL('#b9b9b9'),curt=FAB('#efe9df');curt.side=THREE.DoubleSide;
   for(const w of A.walls)for(const o of w.openings){const len=o.a1-o.a0;
-    if(o.type==='door'&&len<1.2){const pr=wallPt({h:w.h,c:w.c0,sgn:-1,u:w.u,n:w.n,O:w.O},(o.a0+o.a1)/2,1,0.3);const in0=!!A.roomAt(pr.x,-pr.z);const f={h:w.h,c:in0?w.c0:w.c1,sgn:in0?-1:1,u:w.u,n:w.n,O:w.O};const lw=len-0.03,lh=o.z1-0.015;const hinge=wallPt(f,f.sgn<0?o.a0+0.015:o.a1-0.015,0,0.02);
+    if(o.type==='door'&&len<1.2){const pr=wallPt({h:w.h,c:w.c0,sgn:-1,u:w.u,n:w.n,O:w.O},(o.a0+o.a1)/2,1,0.3);let in0=!!A.roomAt(pr.x,-pr.z);const mt=o.meta;let atA=true;if(mt&&mt._n&&(mt.side!=null||mt.hinge)){const sw=doorSwing(mt);wFrame(w);in0=(sw.side*(mt._n[0]*w.n[0]+mt._n[1]*w.n[1]))<0;const along=(mt._d[0]*w.u[0]+mt._d[1]*w.u[1])>0;atA=along===(sw.hinge!=='b')}else atA=!in0?false:true;const f={h:w.h,c:in0?w.c0:w.c1,sgn:in0?-1:1,u:w.u,n:w.n,O:w.O};const lw=len-0.03,lh=o.z1-0.015;const hinge=wallPt(f,atA?o.a0+0.015:o.a1-0.015,0,0.02);
       const leaf=new THREE.Group();const pnl=new THREE.Mesh(THREE.RoundedBoxGeometry?new THREE.RoundedBoxGeometry(lw,lh,0.04,2,0.005):new THREE.BoxGeometry(lw,lh,0.04),(o.meta&&o.meta.color&&!/^int/.test('')?M(o.meta.color,{roughness:.38}):leafM));pnl.position.set(lw/2,lh/2,0);pnl.castShadow=pnl.receiveShadow=true;leaf.add(pnl);
       for(const sz of[-1,1]){const hd=new THREE.Mesh(new THREE.BoxGeometry(0.13,0.018,0.018),hm);hd.position.set(lw-0.1,1.02,sz*0.035);leaf.add(hd)}
-      leaf.position.copy(hinge);leaf.rotation.y=wallYaw(f)+(f.sgn<0?1:1)*Math.PI*0.42;grp.add(leaf)}
+      wFrame(w);const cd=[w.u[0]*(atA?1:-1),w.u[1]*(atA?1:-1)],fn=[w.n[0]*f.sgn,w.n[1]*f.sgn],ph=Math.PI*0.45;const dv=[Math.cos(ph)*cd[0]+Math.sin(ph)*fn[0],Math.cos(ph)*cd[1]+Math.sin(ph)*fn[1]];
+      leaf.position.copy(hinge);leaf.rotation.y=Math.atan2(dv[1],dv[0]);leaf.userData.leafOf=mt;leaf.userData.lw=lw;grp.add(leaf)}
     if(o.type==='window'&&S.curtains){const zTop=Math.min(A.H-0.02,o.z1+0.18),hh=zTop-0.02;const pw=Math.min(0.7,len*0.32);
       for(const side of[0,1]){const rIn=A.roomAt(...(()=>{const p=wallPt({h:w.h,c:w.c0,sgn:-1,u:w.u,n:w.n,O:w.O},(o.a0+o.a1)/2,1,0.3);return[p.x,-p.z]})());const useC0=!!rIn;const f={h:w.h,c:useC0?w.c0:w.c1,sgn:useC0?-1:1,u:w.u,n:w.n,O:w.O};
         const segs=28,geo=new THREE.PlaneGeometry(pw,hh,segs,1);const p=geo.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i);p.setZ(i,Math.sin((x/pw)*Math.PI*9)*0.025)}geo.computeVertexNormals();
@@ -2093,9 +2133,16 @@ function kmat(def){const key=def.n+def.c+(def.tex?'t':'');if(kmCache.has(key))re
   kmCache.set(key,m);return m}
 BUILD.kitchen=function(o){
   const g=new THREE.Group(),L=o.w,D=0.6,F=kmat(KFRONT[o.front]||KFRONT['mel-white']),Tp=kmat(KTOP[o.top]||KTOP['qz-white']);
-  const car=M('#e8e5df',{roughness:.7}),pl=M('#2a2b2d',{roughness:.6}),met=M('#a9adb1',{metalness:.85,roughness:.3});
-  const B=o.lenB>0.6?o.lenB-D:0;
-  const run=(len,x0)=>{const cx=x0+len/2;
+  const car=M('#e8e5df',{roughness:.7}),pl=M('#2a2b2d',{roughness:.6}),met=M('#a9adb1',{metalness:.85,roughness:.3}),inox=M('#c4c8cb',{metalness:.85,roughness:.28}),glass=M('#121416',{roughness:.08,metalness:.3});
+  const B=o.lenB>0.6?o.lenB-D:0,side=o.side==='R'?1:-1;const TH=2.16;
+  // στήλες (ψυγείο / φούρνος) στα άκρα
+  let xl=-L/2,xr=L/2;const cols=[];
+  if(o.fridge==='L'&&L>=1.4){cols.push({x:xl,k:'fridge'});xl+=0.6}if(o.fridge==='R'&&L>=1.4){cols.push({x:xr-0.6,k:'fridge'});xr-=0.6}
+  if(o.oven==='colL'&&xr-xl>=1.2){cols.push({x:xl,k:'oven'});xl+=0.6}if(o.oven==='colR'&&xr-xl>=1.2){cols.push({x:xr-0.6,k:'oven'});xr-=0.6}
+  for(const c of cols){const cx=c.x+0.3;bx(g,0.6,TH,D-0.03,car,cx,TH/2,-0.015);
+    if(c.k==='fridge'){bxU(g,0.596,1.2,0.019,F,cx,0.1+0.6+0.02,D/2-0.012);bxU(g,0.596,0.8,0.019,F,cx,0.1+1.22+0.42,D/2-0.012);bx(g,0.012,0.5,0.02,met,cx-0.26,1.2,D/2+0.008);bxU(g,0.596,0.27,0.019,F,cx,TH-0.135,D/2-0.012)}
+    else{bxU(g,0.596,0.7,0.019,F,cx,0.45,D/2-0.012);bx(g,0.56,0.58,0.02,glass,cx,1.12,D/2-0.004);bx(g,0.46,0.012,0.02,met,cx,1.38,D/2+0.012);bx(g,0.56,0.38,0.02,glass,cx,1.62,D/2-0.004);bxU(g,0.596,0.42,0.019,F,cx,1.98,D/2-0.012)}}
+  const run=(x0,len,upper)=>{if(len<0.05)return;const cx=x0+len/2;
     bx(g,len,0.1,D-0.07,pl,cx,0.05,-0.035);bx(g,len,0.76,D-0.03,car,cx,0.48,-0.015);
     const n=Math.max(1,Math.round(len/0.6)),fw=len/n;
     for(let i=0;i<n;i++){const x=x0+fw*(i+.5);
@@ -2103,34 +2150,57 @@ BUILD.kitchen=function(o){
       else bxU(g,fw-0.004,0.716,0.019,F,x,0.1+0.36,D/2-0.012);
       bx(g,Math.min(0.26,fw*0.5),0.012,0.02,met,x,0.81,D/2+0.008)}
     bxU(g,len,0.04,D+0.02,Tp,cx,0.88,0.01);
-    if(o.upper!==false&&o.upper!==0){bx(g,len,0.72,0.34,car,cx,1.86,-D/2+0.17);for(let i=0;i<n;i++)bxU(g,fw-0.004,0.716,0.019,F,x0+fw*(i+.5),1.86,-D/2+0.35);
+    if(upper){bx(g,len,0.72,0.34,car,cx,1.86,-D/2+0.17);for(let i=0;i<n;i++)bxU(g,fw-0.004,0.716,0.019,F,x0+fw*(i+.5),1.86,-D/2+0.35);
       const led=new THREE.Mesh(new THREE.BoxGeometry(len-0.1,0.01,0.03),new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xfff0d0,emissiveIntensity:0}));led.position.set(cx,1.495,-D/2+0.3);g.add(led);g.userData.bulb=led}
     bxU(g,len,0.6-0.06,0.012,Tp,cx,0.9+0.27,-D/2+0.006)};
-  run(L,-L/2);
-  if(L>=1.2){const sx=-L/2+L*0.3;bx(g,0.5,0.012,0.4,M('#c9cdd0',{metalness:.8,roughness:.25}),sx,0.905,0.02);bx(g,0.44,0.013,0.34,M('#6e7376',{metalness:.6,roughness:.35}),sx,0.906,0.02);
-    cy(g,0.018,0.022,0.28,met,sx,1.04,-0.2);const sp=bx(g,0.025,0.025,0.2,met,sx,1.17,-0.11);sp.castShadow=false}
-  if(L>=1.8){const hx=-L/2+L*0.72;bx(g,0.58,0.006,0.5,M('#0d0e10',{roughness:.08,metalness:.2}),hx,0.903,0.02);
-    for(const [dx,dz,r] of [[-0.14,-0.11,0.09],[0.14,-0.11,0.07],[-0.14,0.13,0.07],[0.14,0.13,0.09]]){const ring=new THREE.Mesh(new THREE.TorusGeometry(r,0.004,6,32),M('#3a3c40'));ring.rotation.x=Math.PI/2;ring.position.set(hx+dx,0.907,0.02+dz);g.add(ring)}}
-  if(B>0){const x0=-L/2,zc=D/2+B/2;bx(g,D-0.07,0.1,B,pl,x0+D/2-0.035,0.05,zc);bx(g,D-0.03,0.76,B,car,x0+D/2-0.015,0.48,zc);
-    const n=Math.max(1,Math.round(B/0.6)),fw=B/n;for(let i=0;i<n;i++)bxU(g,0.019,0.716,fw-0.004,F,x0+D-0.012,0.46,D/2+fw*(i+.5));
-    bxU(g,D+0.02,0.04,B,Tp,x0+D/2+0.01,0.88,zc)}
+  const RL=xr-xl;const up=o.upper!==false&&o.upper!==0;
+  // θέσεις εστιών / νεροχύτη (από αριστερά της κουζίνας)
+  const clampX=(v,w)=>clamp(v,xl+w/2+0.02,xr-w/2-0.02);
+  const hx=RL>=1.2?clampX(o.hobAt!=null?-L/2+o.hobAt+0.3:xl+RL*0.72,0.6):null;
+  const sx=RL>=0.9?clampX(o.sinkAt!=null?-L/2+o.sinkAt+0.25:xl+RL*0.28,0.5):null;
+  // πάνω ντουλάπια με κενό για καμινάδα
+  if(hx!=null&&o.hood==='chim'&&up){run(xl,hx-0.45-xl,true);run(hx-0.45,0.9,false);run(hx+0.45,xr-hx-0.45,true)}else run(xl,RL,up);
+  if(sx!=null){bx(g,0.5,0.012,0.4,M('#c9cdd0',{metalness:.8,roughness:.25}),sx,0.905,0.02);bx(g,0.44,0.013,0.34,M('#6e7376',{metalness:.6,roughness:.35}),sx,0.906,0.02);
+    cy(g,0.018,0.022,0.28,met,sx,1.04,-0.2);const sp=bx(g,0.025,0.025,0.2,met,sx,1.17,-0.11);sp.castShadow=false;
+    if(o.dw!==false){const dx=clampX(sx+(sx+0.85<xr?0.55:-0.55),0.6);bxU(g,0.596,0.716,0.021,F,dx,0.46,D/2-0.01);bx(g,0.4,0.012,0.02,met,dx,0.8,D/2+0.012)}}
+  if(hx!=null){bx(g,0.58,0.006,0.5,M('#0d0e10',{roughness:.08,metalness:.2}),hx,0.903,0.02);
+    for(const [dx,dz,r] of [[-0.14,-0.11,0.09],[0.14,-0.11,0.07],[-0.14,0.13,0.07],[0.14,0.13,0.09]]){const ring=new THREE.Mesh(new THREE.TorusGeometry(r,0.004,6,32),M('#3a3c40'));ring.rotation.x=Math.PI/2;ring.position.set(hx+dx,0.907,0.02+dz);g.add(ring)}
+    if(o.oven==='under'||!o.oven){bx(g,0.58,0.5,0.025,glass,hx,0.5,D/2-0.002);bx(g,0.46,0.012,0.02,met,hx,0.79,D/2+0.014)}
+    if(o.hood==='chim'){const hb=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.42,0.18,4,1),inox);hb.rotation.y=Math.PI/4;hb.scale.set(1.25,1,0.75);hb.position.set(hx,1.6,-D/2+0.24);hb.castShadow=true;g.add(hb);bx(g,0.26,0.7,0.24,inox,hx,2.04,-D/2+0.14)}
+    else if(o.hood==='built'&&up)bx(g,0.58,0.04,0.3,inox,hx,1.48,-D/2+0.2)}
+  // γωνία Γ
+  if(B>0){const x0=side<0?-L/2:L/2-D,zc=D/2+B/2;bx(g,D-0.07,0.1,B,pl,x0+D/2+side*0.035*-1,0.05,zc);bx(g,D-0.03,0.76,B,car,x0+D/2,0.48,zc);
+    const n=Math.max(1,Math.round(B/0.6)),fw=B/n,fx=side<0?x0+D-0.012:x0+0.012;for(let i=0;i<n;i++)bxU(g,0.019,0.716,fw-0.004,F,fx,0.46,D/2+fw*(i+.5));
+    bxU(g,D+0.02,0.04,B,Tp,x0+D/2,0.88,zc);
+    if(up){bx(g,0.34,0.72,B,car,side<0?x0+0.17:x0+D-0.17,1.86,zc)}}
   return g};
-function kitchenForm(){return{w:Math.max(0.6,(+$('#kL').value||300)/100),lenB:Math.max(0,(+$('#kB').value||0)/100),upper:$('#kU').value==='1',front:$('#kF').value,top:$('#kT').value}}
-function fillKitchenForm(o){$('#kL').value=fmtCm(o.w);$('#kB').value=fmtCm(o.lenB||0);$('#kU').value=o.upper?'1':'0';$('#kF').value=o.front;$('#kT').value=o.top}
+BUILD.island=function(o){const g=new THREE.Group(),L=o.w,D=o.d,F=kmat(KFRONT[o.front]||KFRONT['mel-white']),Tp=kmat(KTOP[o.top]||KTOP['qz-white']);
+  const car=M('#e8e5df',{roughness:.7}),pl=M('#2a2b2d',{roughness:.6}),met=M('#a9adb1',{metalness:.85,roughness:.3});const bar=o.use==='bar',bd=bar?D-0.3:D;
+  bx(g,L,0.1,bd-0.08,pl,0,0.05,bar?-0.15:0);bx(g,L,0.76,bd-0.02,car,0,0.48,bar?-0.15:0);const n=Math.max(1,Math.round(L/0.6)),fw=L/n;
+  for(let i=0;i<n;i++){const x=-L/2+fw*(i+.5);bxU(g,fw-0.004,0.716,0.019,F,x,0.46,(bar?-0.15:0)+bd/2-0.002);bx(g,Math.min(0.26,fw*0.5),0.012,0.02,met,x,0.81,(bar?-0.15:0)+bd/2+0.016)}
+  bxU(g,L+0.04,0.04,D+0.02,Tp,0,0.88,0);
+  if(o.use==='hob'){bx(g,0.58,0.006,0.5,M('#0d0e10',{roughness:.08,metalness:.2}),0,0.903,0)}
+  if(o.use==='sink'){bx(g,0.5,0.012,0.4,M('#c9cdd0',{metalness:.8,roughness:.25}),0,0.905,0);cy(g,0.018,0.022,0.28,met,0,1.04,-0.25)}
+  if(bar){const sm=M('#2a2b2d',{roughness:.5});for(let i=0;i<Math.max(1,Math.floor(L/0.55));i++){const x=-L/2+0.3+i*0.55;if(x>L/2-0.2)break;cy(g,0.19,0.19,0.05,FAB('#8d939a'),x,0.66,D/2+0.15);cy(g,0.015,0.015,0.62,sm,x,0.33,D/2+0.15)}}
+  return g};
+function kitchenForm(){const num=id=>{const v=$(id).value;return v===''?null:Math.max(0,+v/100)};return{w:Math.max(0.6,(+$('#kL').value||300)/100),lenB:Math.max(0,(+$('#kB').value||0)/100),upper:$('#kU').value==='1',front:$('#kF').value,top:$('#kT').value,
+  side:$('#kS').value,fridge:$('#kFr').value,oven:$('#kOv').value,hobAt:num('#kHp'),sinkAt:num('#kSp'),hood:$('#kHd').value,dw:$('#kDw').checked}}
+function fillKitchenForm(o){$('#kS').value=o.side||'L';$('#kFr').value=o.fridge||'none';$('#kOv').value=o.oven||'under';$('#kHp').value=o.hobAt!=null?Math.round(o.hobAt*100):'';$('#kSp').value=o.sinkAt!=null?Math.round(o.sinkAt*100):'';$('#kHd').value=o.hood||'chim';$('#kDw').checked=o.dw!==false;$('#kL').value=fmtCm(o.w);$('#kB').value=fmtCm(o.lenB||0);$('#kU').value=o.upper?'1':'0';$('#kF').value=o.front;$('#kT').value=o.top}
 function kitchenOptions(){$('#kF').innerHTML=Object.entries(KFRONT).map(([k,v])=>`<option value="${k}">${v.n} · ${v.p} €/m</option>`).join('');
   $('#kT').innerHTML=Object.entries(KTOP).map(([k,v])=>`<option value="${k}">${v.n} · ${v.p} €/m</option>`).join('');$('#kF').value='ven-oak';$('#kT').value='qz-cal'}
 kitchenOptions();
-function updateKitchen(o,k){const b={w:o.w,lenB:o.lenB,upper:o.upper,front:o.front,top:o.top};Object.assign(o,k);buildRep(o);resolveObj(o);placeObj(o);select(o);
+function updateKitchen(o,k){const b={w:o.w,lenB:o.lenB,upper:o.upper,front:o.front,top:o.top,side:o.side,fridge:o.fridge,oven:o.oven,hobAt:o.hobAt,sinkAt:o.sinkAt,hood:o.hood,dw:o.dw};Object.assign(o,k);buildRep(o);resolveObj(o);placeObj(o);select(o);
   pushUndo({undo:()=>{Object.assign(o,b);buildRep(o);resolveObj(o);placeObj(o);updateSelCard()},redo:()=>{Object.assign(o,k);buildRep(o);resolveObj(o);placeObj(o);updateSelCard()}})}
 $('#kAdd').onclick=()=>{const k=kitchenForm();if(S.sel&&S.sel.kind==='kitchen'){updateKitchen(S.sel,k);return}
   placeNew({kind:'kitchen',label:'Κουζίνα',d:0.6,h:0.9,color:'#dddddd',price:0,...k})};
-['#kL','#kB','#kU','#kF','#kT'].forEach(s=>$(s).addEventListener('change',()=>{if(S.sel&&S.sel.kind==='kitchen')updateKitchen(S.sel,kitchenForm())}));
+['#kL','#kB','#kU','#kF','#kT','#kS','#kFr','#kOv','#kHp','#kSp','#kHd','#kDw'].forEach(s=>$(s).addEventListener('change',()=>{if(S.sel&&S.sel.kind==='kitchen')updateKitchen(S.sel,kitchenForm())}));
+$('#iAdd').onclick=()=>{const L=Math.max(0.8,(+$('#iL').value||200)/100),D=Math.max(0.5,(+$('#iD').value||90)/100);placeNew({kind:'island',label:'Νησίδα',w:L,d:D,h:0.9,use:$('#iU').value,front:$('#kF').value,top:$('#kT').value,color:'#dddddd',price:0})};
 $('#kPh').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;new THREE.TextureLoader().load(URL.createObjectURL(f),t=>{t.encoding=THREE.sRGBEncoding;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(1/0.6,1/0.6);
   const id='photo'+Date.now();KFRONT[id]={n:'Δικό μου δείγμα · '+f.name.slice(0,18),tex:t,p:700};KTOP[id]={n:'Δικό μου δείγμα · '+f.name.slice(0,18),tex:t,p:300};
   const fv=$('#kF').value,tv=$('#kT').value;kitchenOptions();$('#kF').value=fv;$('#kT').value=tv;toast('Το δείγμα μπήκε στις λίστες «Πόρτες» και «Πάγκος»')})});
 
 /* ================= BATH FIXTURES ================= */
-Object.assign(KIND,{kitchen:{n:'Κουζίνα',g:'furn',wall:1},toilet:{n:'Λεκάνη',g:'furn'},basin:{n:'Νιπτήρας με έπιπλο',g:'furn'},shower:{n:'Ντουζιέρα',g:'furn'}});
+Object.assign(KIND,{island:{n:'Νησίδα',g:'furn'},kitchen:{n:'Κουζίνα',g:'furn',wall:1},toilet:{n:'Λεκάνη',g:'furn'},basin:{n:'Νιπτήρας με έπιπλο',g:'furn'},shower:{n:'Ντουζιέρα',g:'furn'}});
 const CER=()=>M('#f7f7f5',{roughness:.12});
 BUILD.toilet=function(o){const g=new THREE.Group(),{w,d,h}=o;const bowl=new THREE.Mesh(new THREE.CylinderGeometry(w/2,w*0.36,0.38,28),CER());bowl.scale.z=(d-0.17)/w;bowl.position.set(0,0.19,0.085);bowl.castShadow=bowl.receiveShadow=true;g.add(bowl);
   const seat=new THREE.Mesh(new THREE.CylinderGeometry(w/2+0.005,w/2+0.005,0.025,28),M('#fbfbfa',{roughness:.3}));seat.scale.z=(d-0.17)/w;seat.position.set(0,0.395,0.085);g.add(seat);
@@ -2215,9 +2285,13 @@ $$('#wfin button').forEach(b=>b.onclick=()=>{$$('#wfin button').forEach(x=>x.cla
 tileThumbs();
 
 /* ================= COST ================= */
-const PR={sys:{},entDoor:950,roll:85,shut:160,screen:45,paint:7,tileLab:20,floor:{parquet:55,oakdark:62,tile:32,marble:95,cement:68},upperK:0.65,sink:320,hob:380};
+const PR={app:{fridge:950,oven:520,dw:480,hoodC:320,hoodB:180},sys:{},entDoor:950,roll:85,shut:160,screen:45,paint:7,tileLab:20,floor:{parquet:55,oakdark:62,tile:32,marble:95,cement:68},upperK:0.65,sink:320,hob:380};
 function costRows(){const rows=[],A=S.A;if(!A||!S.built)return rows;
   for(const o of S.objs){if(o.deleted||o.src==='scan'||o.src==='auto')continue;
+    if(o.kind==='island'){const Fr=KFRONT[o.front]||KFRONT['mel-white'],Tp=KTOP[o.top]||KTOP['qz-white'];rows.push({g:'Κουζίνα',n:'Νησίδα · κουτιά & πόρτες',q:o.w,u:'m',p:Fr.p,set:v=>Fr.p=v});rows.push({g:'Κουζίνα',n:'Νησίδα · πάγκος (βάθος '+fmtCm(o.d)+')',q:o.w*o.d/0.6,u:'m',p:Tp.p,set:v=>Tp.p=v});
+      if(o.use==='hob')rows.push({g:'Κουζίνα',n:'Εστίες νησίδας',q:1,u:'τεμ',p:PR.hob,set:v=>PR.hob=v});if(o.use==='sink')rows.push({g:'Κουζίνα',n:'Νεροχύτης νησίδας',q:1,u:'τεμ',p:PR.sink,set:v=>PR.sink=v});continue}
+    if(o.kind==='kitchen'){const apl=[];if(o.fridge&&o.fridge!=='none')apl.push(['Ψυγείο εντοιχιζόμενο','fridge']);if(o.oven&&o.oven!=='none')apl.push(['Φούρνος εντοιχιζόμενος','oven']);if(o.dw!==false)apl.push(['Πλυντήριο πιάτων εντοιχιζόμενο','dw']);if(o.hood==='chim')apl.push(['Απορροφητήρας καμινάδα','hoodC']);if(o.hood==='built')apl.push(['Απορροφητήρας ενσωματωμένος','hoodB']);
+      for(const [n,k] of apl)rows.push({g:'Συσκευές',n,q:1,u:'τεμ',p:PR.app[k],set:v=>PR.app[k]=v});}
     if(o.kind==='kitchen'){const Fr=KFRONT[o.front],Tp=KTOP[o.top],len=o.w+(o.lenB>0.6?o.lenB-0.6:0);
       rows.push({g:'Κουζίνα',n:'Κουτιά & πόρτες · '+Fr.n,q:len,u:'m',p:Fr.p,set:v=>Fr.p=v});
       if(o.upper)rows.push({g:'Κουζίνα',n:'Πάνω ντουλάπια · '+Fr.n,q:o.w,u:'m',p:Math.round(Fr.p*PR.upperK),set:v=>PR.upperK=v/Fr.p});
@@ -2256,15 +2330,15 @@ $('#costPill').onclick=()=>{openStep(6);if(innerWidth<=860)$('#app').classList.a
 /* ================= PLAN EDITOR (λογική σχεδιαστικού ΚΕΝΑΚ) ================= */
 const pc=$('#plan'),px=pc.getContext('2d');
 const PL={bulges:[],cell:42,ox:200,oy:500,tool:'outline',verts:[],closed:false,walls:[],ops:[],bg:null,bgOp:0.55,ortho:true,grid:true,gs:0.05,
-  H:2.8,Te:0.25,Ti:0.10,undo:[],redo:[],calib:[],hover:null,dimHits:[],names:[],wallStart:null,fitted:false};
+  cols:[],beams:[],H:2.8,Te:0.25,Ti:0.10,undo:[],redo:[],calib:[],hover:null,dimHits:[],names:[],wallStart:null,fitted:false};
 const pG=v=>PL.grid?Math.round(v/PL.gs)*PL.gs:v;
 const ps2w=(x,y)=>[(x-PL.ox)/PL.cell,(PL.oy-y)/PL.cell];
 const pw2s=p=>[PL.ox+p[0]*PL.cell,PL.oy-p[1]*PL.cell];
 let pW=0,pH=0,pDPR=1;
 function planResize(){const r=view.getBoundingClientRect();pDPR=Math.min(devicePixelRatio,2);pW=r.width;pH=r.height;pc.width=Math.round(pW*pDPR);pc.height=Math.round(pH*pDPR);planDraw()}
-const pState=()=>JSON.stringify({v:PL.verts,b:PL.bulges,c:PL.closed,w:PL.walls,o:PL.ops});
+const pState=()=>JSON.stringify({v:PL.verts,b:PL.bulges,c:PL.closed,w:PL.walls,o:PL.ops,k:PL.cols,m:PL.beams});
 function pPush(){PL.undo.push(pState());if(PL.undo.length>80)PL.undo.shift();PL.redo=[]}
-function pRestore(s){const o=JSON.parse(s);PL.verts=o.v;PL.bulges=o.b||o.v.map(()=>0);PL.closed=o.c;PL.walls=o.w;PL.ops=o.o}
+function pRestore(s){const o=JSON.parse(s);PL.verts=o.v;PL.bulges=o.b||o.v.map(()=>0);PL.closed=o.c;PL.walls=o.w;PL.ops=o.o;PL.cols=o.k||[];PL.beams=o.m||[]}
 function pUndo(){if(!PL.undo.length)return;PL.redo.push(pState());pRestore(PL.undo.pop());planChanged()}
 function pRedo(){if(!PL.redo.length)return;PL.undo.push(pState());pRestore(PL.redo.pop());planChanged()}
 function planChanged(){S.planChanged=true;$('#p3d').classList.add('on');planDraw()}
@@ -2312,6 +2386,13 @@ function planDraw(){
   // interior walls
   PL.walls.forEach((w,j)=>{const L=dist(w.a,w.b)||1,nx=-(w.b[1]-w.a[1])/L*PL.Ti/2,ny=(w.b[0]-w.a[0])/L*PL.Ti/2;
     const q=[[w.a[0]+nx,w.a[1]+ny],[w.b[0]+nx,w.b[1]+ny],[w.b[0]-nx,w.b[1]-ny],[w.a[0]-nx,w.a[1]-ny]].map(pw2s);c.beginPath();q.forEach((s,k)=>k?c.lineTo(s[0],s[1]):c.moveTo(s[0],s[1]));c.closePath();c.fillStyle=PCOL.wall;c.fill()});
+  // columns & beams
+  (PL.cols||[]).forEach((k,j)=>{const q=colCorners(k).map(pw2s);c.beginPath();q.forEach((s2,i)=>i?c.lineTo(s2[0],s2[1]):c.moveTo(s2[0],s2[1]));c.closePath();c.fillStyle=PCOL.wall;c.fill();
+    const m=pw2s(k.p);dimLabel(c,m[0],m[1]-Math.max(14,k.d*PL.cell/2+12),'Κ '+fmtCm(k.w)+'×'+fmtCm(k.d),{kind:'col',j},PCOL.acc2)});
+  (PL.beams||[]).forEach((bm,j)=>{const L=dist(bm.a,bm.b)||1,nx=-(bm.b[1]-bm.a[1])/L*bm.w/2,ny=(bm.b[0]-bm.a[0])/L*bm.w/2;const q=[[bm.a[0]+nx,bm.a[1]+ny],[bm.b[0]+nx,bm.b[1]+ny],[bm.b[0]-nx,bm.b[1]-ny],[bm.a[0]-nx,bm.a[1]-ny]].map(pw2s);
+    c.save();c.setLineDash([7,4]);c.strokeStyle=PCOL.acc2;c.lineWidth=1.4;c.beginPath();q.forEach((s2,i)=>i?c.lineTo(s2[0],s2[1]):c.moveTo(s2[0],s2[1]));c.closePath();c.stroke();c.restore();
+    const m=pw2s([(bm.a[0]+bm.b[0])/2,(bm.a[1]+bm.b[1])/2]);dimLabel(c,m[0],m[1],'Δ '+fmtCm(bm.w)+' · κρ '+fmtCm(bm.drop),{kind:'beam',j},PCOL.acc2)});
+  if(PL.tool==='beam'&&PL.beamStart){const a=pw2s(PL.beamStart);c.fillStyle=PCOL.acc2;c.beginPath();c.arc(a[0],a[1],4,0,7);c.fill()}
   // openings
   ops.forEach((o,k)=>{const L=lineOf(o.ref);if(!L)return;const [A,B]=L,len=dist(A,B)||1,d=[(B[0]-A[0])/len,(B[1]-A[1])/len];
     let nrm,th;if(o.ref.k==='e'){nrm=edgeOut(o.ref.i);th=PL.Te}else{nrm=[-d[1],d[0]];th=PL.Ti}
@@ -2320,8 +2401,8 @@ function planDraw(){
     c.beginPath();q.forEach((s,i)=>i?c.lineTo(s[0],s[1]):c.moveTo(s[0],s[1]));c.closePath();c.fillStyle='#fbfdfd';c.fill();
     c.strokeStyle=o.type==='door'?PCOL.acc2:PCOL.acc;c.lineWidth=1.3;
     if(o.type==='window'){for(const f of[0.2,0.5,0.8]){const a=[P0[0]+nrm[0]*(off+th*f),P0[1]+nrm[1]*(off+th*f)],b=[P1[0]+nrm[0]*(off+th*f),P1[1]+nrm[1]*(off+th*f)];const sa=pw2s(a),sb=pw2s(b);c.beginPath();c.moveTo(sa[0],sa[1]);c.lineTo(sb[0],sb[1]);c.stroke()}}
-    else{const inS=o.ref.k==='e'?-1:1;const w=o.t1-o.t0;const hinge=[P0[0]+nrm[0]*(o.ref.k==='e'?0:off),P0[1]+nrm[1]*(o.ref.k==='e'?0:off)];const leaf=[hinge[0]+nrm[0]*inS*w,hinge[1]+nrm[1]*inS*w];
-      const sh=pw2s(hinge),sl=pw2s(leaf),sp=pw2s([hinge[0]+d[0]*w,hinge[1]+d[1]*w]);c.beginPath();c.moveTo(sh[0],sh[1]);c.lineTo(sl[0],sl[1]);c.stroke();
+    else{const sw=doorSwing(o);const inS=sw.side;const w=o.t1-o.t0;const face=o.ref.k==='e'?(inS<0?0:th):(inS<0?off:off+th);const HP=sw.hinge==='b'?P1:P0,dd=sw.hinge==='b'?-1:1;const hinge=[HP[0]+nrm[0]*face,HP[1]+nrm[1]*face];const leaf=[hinge[0]+nrm[0]*inS*w,hinge[1]+nrm[1]*inS*w];
+      const sh=pw2s(hinge),sl=pw2s(leaf),sp=pw2s([hinge[0]+d[0]*w*dd,hinge[1]+d[1]*w*dd]);c.beginPath();c.moveTo(sh[0],sh[1]);c.lineTo(sl[0],sl[1]);c.stroke();
       const a0=Math.atan2(sl[1]-sh[1],sl[0]-sh[0]),a1=Math.atan2(sp[1]-sh[1],sp[0]-sh[0]);let da=a1-a0;while(da>Math.PI)da-=2*Math.PI;while(da<-Math.PI)da+=2*Math.PI;
       c.setLineDash([4,3]);c.beginPath();c.arc(sh[0],sh[1],w*PL.cell,a0,a0+da,da<0);c.stroke();c.setLineDash([])}
     const lo=o.ref.k==='e'?-0.3:off+th+0.3;const m=pw2s([(P0[0]+P1[0])/2+nrm[0]*lo,(P0[1]+P1[1])/2+nrm[1]*lo]);
@@ -2397,17 +2478,35 @@ async function pTap(w,e){
     if(!v.length||dist(p,v[v.length-1])>1e-6){pPush();v.push(p);PL.bulges.push(0);planChanged()}return}
   if(tool==='wall'){const p=pSnap(w);if(!PL.wallStart){PL.wallStart=p;planDraw();return}let b=p;const a=PL.wallStart;if(PL.ortho){if(Math.abs(b[0]-a[0])<Math.abs(b[1]-a[1]))b=[a[0],b[1]];else b=[b[0],a[1]]}
     PL.wallStart=null;if(dist(a,b)>0.2){pPush();PL.walls.push({a,b});planChanged()}else planDraw();return}
+  if(tool==='col'){const f=wallFaceNear(w,0.7);let k;
+    if(f){const q=f.q;k={p:[q[0]+f.inn[0]*0.125,q[1]+f.inn[1]*0.125],w:0.4,d:0.25,ang:Math.atan2(f.u[1],f.u[0])};k.face={q:[q[0],q[1]],u:f.u,inn:f.inn};const ad=(w[0]-q[0])*f.u[0]+(w[1]-q[1])*f.u[1];k.along=0;
+      // ο κάνναβος κατά μήκος του τοίχου
+      const g=pG(0);void g}
+    else k={p:[pG(w[0]),pG(w[1])],w:0.4,d:0.4,ang:0};
+    pPush();PL.cols.push(k);planChanged();if(await askCol(k,true)){delete k.face;delete k.along;planChanged()}else{PL.cols.splice(PL.cols.indexOf(k),1);planChanged()}return}
+  if(tool==='beam'){const p=pSnap(w);if(!PL.beamStart){PL.beamStart=p;planDraw();toast('Πάτα το τέλος του δοκαριού');return}let b2=p;const a=PL.beamStart;if(PL.ortho){if(Math.abs(b2[0]-a[0])<Math.abs(b2[1]-a[1]))b2=[a[0],b2[1]];else b2=[b2[0],a[1]]}PL.beamStart=null;
+    if(dist(a,b2)<0.2){planDraw();return}const bm={a,b:b2,w:0.25,drop:0.5};pPush();PL.beams.push(bm);planChanged();if(!(await askBeam(bm,true))){PL.beams.splice(PL.beams.indexOf(bm),1)}planChanged();return}
+  if(tool==='door'){for(const o of PL.ops){if(o.type!=='door')continue;const F=opPlanFrame(o);if(!F)continue;const rx=w[0]-F.A[0],ry=w[1]-F.A[1];const t=rx*F.d[0]+ry*F.d[1],c=rx*F.nrm[0]+ry*F.nrm[1];
+      if(t<o.t0-0.05||t>o.t1+0.05)continue;const W=o.t1-o.t0;const mid=(F.c0+F.c1)/2;if(Math.abs(c-mid)>W+0.15)continue;pPush();
+      if(c>F.c0-0.03&&c<F.c1+0.03){const cur=doorSwing(o);const seq=[[-1,'a'],[-1,'b'],[1,'b'],[1,'a']];const k=seq.findIndex(q=>q[0]===cur.side&&q[1]===cur.hinge);const nx=seq[(k+1)%4];o.side=nx[0];o.hinge=nx[1]}
+      else{o.side=c>mid?1:-1;o.hinge=t<(o.t0+o.t1)/2?'a':'b'}
+      planChanged();toast('Φορά πόρτας · πάτα στην πλευρά και στη μεριά που θες να ανοίγει');return}}
   if(tool==='door'||tool==='window'){const L=nearLine(w,Math.max(0.5,18/PL.cell));if(!L){toast('Πάτα πάνω σε τοίχο');return}
     const W=tool==='door'?0.9:1.2;const t0=clamp(pG(L.t-W/2),0.05,Math.max(0.05,L.len-W-0.05));pPush();
     const no={type:tool,ref:{k:L.k,i:L.i},t0,t1:Math.min(L.len-0.02,t0+W),z0:tool==='door'?0:0.9,z1:tool==='door'?2.1:2.2};PL.ops.push(no);planChanged();
     if(await askOpening(no,true))planChanged();else{PL.ops.splice(PL.ops.indexOf(no),1);planChanged()}return}
   if(tool==='erase'){const R=Math.max(0.3,14/PL.cell);
+    for(let j=0;j<PL.cols.length;j++){if(dist(w,PL.cols[j].p)<Math.max(R,PL.cols[j].w/2)){pPush();PL.cols.splice(j,1);planChanged();return}}
+    for(let j=0;j<PL.beams.length;j++){const bm=PL.beams[j];if(proj(w,bm.a,bm.b).d<Math.max(R*0.6,bm.w/2)){pPush();PL.beams.splice(j,1);planChanged();return}}
     for(let k=0;k<PL.ops.length;k++){const o=PL.ops[k],L=lineOf(o.ref);if(!L)continue;const d=[(L[1][0]-L[0][0])/(dist(L[0],L[1])||1),(L[1][1]-L[0][1])/(dist(L[0],L[1])||1)];const m=[L[0][0]+d[0]*(o.t0+o.t1)/2,L[0][1]+d[1]*(o.t0+o.t1)/2];
       if(dist(w,m)<Math.max(R,(o.t1-o.t0)/2)){pPush();PL.ops.splice(k,1);planChanged();return}}
     for(let j=0;j<PL.walls.length;j++){const r=proj(w,PL.walls[j].a,PL.walls[j].b);if(r.d<R){pPush();PL.walls.splice(j,1);PL.ops=PL.ops.filter(o=>!(o.ref.k==='w'&&o.ref.i===j)).map(o=>o.ref.k==='w'&&o.ref.i>j?{...o,ref:{k:'w',i:o.ref.i-1}}:o);planChanged();return}}
     toast('Πάτα πάνω σε εσωτερικό τοίχο ή κούφωμα');return}
 }
 async function pDim(d){
+  if(d.kind==='col'){const k=PL.cols[d.j];if(!k)return;pPush();const o={...k};const r=await ask('Υποστύλωμα','Διαστάσεις διατομής και γωνία.',[{l:'Πλάτος (cm)',v:fmtCm(k.w)},{l:'Βάθος (cm)',v:fmtCm(k.d)},{l:'Γωνία (°)',v:String(Math.round((k.ang||0)*180/Math.PI))}]);if(!r)return;
+    const nd=clamp((r[1]||k.d*100)/100,0.03,3);const dd=(nd-k.d)/2;const c=Math.cos(k.ang||0),s2=Math.sin(k.ang||0);k.p=[k.p[0]-s2*dd,k.p[1]+c*dd];k.w=clamp((r[0]||k.w*100)/100,0.05,3);k.d=nd;if(isFinite(r[2]))k.ang=r[2]*Math.PI/180;planChanged();return}
+  if(d.kind==='beam'){const bm=PL.beams[d.j];if(!bm)return;pPush();if(await askBeam(bm,false))planChanged();return}
   if(d.kind==='edge'){const v=PL.verts,n=v.length,i=d.i,A=v[i],B=v[(i+1)%n],L=dist(A,B);const r=await ask(`Πλευρά ${i+1}`,'Πραγματικό μήκος. Μετακινείται η επόμενη κορυφή· η απέναντι πλευρά προσαρμόζεται.',[{l:'Μήκος (m)',v:nf(L)}]);
     if(!r||!(r[0]>0.05))return;pPush();const dl=r[0]-L,u=[(B[0]-A[0])/L,(B[1]-A[1])/L];const mv=p=>[Math.round((p[0]+u[0]*dl)*1000)/1000,Math.round((p[1]+u[1]*dl)*1000)/1000];
     const j=(i+1)%n;v[j]=mv(v[j]);if(PL.closed&&n>3&&PL.ortho){const k=(i+2)%n;if(k!==i)v[k]=mv(v[k])}
@@ -2426,10 +2525,10 @@ const endP=e=>{const had=pP.has(e.pointerId);pP.delete(e.pointerId);if(pPinch){i
   pTap(d.w,e)};
 pc.addEventListener('pointerup',endP);pc.addEventListener('pointercancel',e=>{pP.delete(e.pointerId);pPinch=null;pDown=null});
 pc.addEventListener('wheel',e=>{e.preventDefault();const [sx,sy]=pXY(e);const w=ps2w(sx,sy);PL.cell=clamp(PL.cell*Math.exp(-e.deltaY*0.0012),4,400);PL.ox=sx-w[0]*PL.cell;PL.oy=sy+w[1]*PL.cell;planDraw()},{passive:false});
-addEventListener('keydown',e=>{if(S.view!=='plan'||/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName))return;if(e.key==='Escape'){PL.wallStart=null;PL.calib=[];PL.draftWall=null;planDraw()}
+addEventListener('keydown',e=>{if(S.view!=='plan'||/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName))return;if(e.key==='Escape'){PL.wallStart=null;PL.beamStart=null;PL.calib=[];PL.draftWall=null;planDraw()}
   if(e.key==='Enter'&&!PL.closed&&PL.verts.length>2&&PL.tool==='outline'){pPush();PL.closed=true;planChanged()}});
 function setPlanTool(t){PL.tool=t;PL.wallStart=null;PL.calib=[];$$('#planTools [data-p]').forEach(b=>b.classList.toggle('on',b.dataset.p===t));
-  $('#hint').textContent={outline:PL.closed?'Outline: σύρε πλευρά για μετακίνηση · πάτα διάσταση για ακριβές μήκος':'Outline: πάτα κορυφές · κλείσε πατώντας την πρώτη (ή Enter)',wall:'Wall: σύρε ή πάτα αρχή και τέλος · κουμπώνει σε κορυφές και τοίχους',door:'Door: πάτα σε τοίχο για πόρτα 90 cm ή σύρε για δικό σου πλάτος',window:'Window: πάτα σε τοίχο για παράθυρο 120 cm ή σύρε κατά μήκος',erase:'Erase: πάτα εσωτερικό τοίχο ή κούφωμα για διαγραφή',calib:'Calibrate: πάτα 2 σημεία γνωστής απόστασης πάνω στη φωτογραφία',arc:'Arc: σύρε μια πλευρά του περιγράμματος για καμπύλη · πάτα την για ακριβές βέλος'}[t]}
+  $('#hint').textContent={outline:PL.closed?'Outline: σύρε πλευρά για μετακίνηση · πάτα διάσταση για ακριβές μήκος':'Outline: πάτα κορυφές · κλείσε πατώντας την πρώτη (ή Enter)',wall:'Wall: σύρε ή πάτα αρχή και τέλος · κουμπώνει σε κορυφές και τοίχους',door:'Door: πάτα σε τοίχο για πόρτα 90 cm ή σύρε για δικό σου πλάτος',window:'Window: πάτα σε τοίχο για παράθυρο 120 cm ή σύρε κατά μήκος',erase:'Erase: πάτα εσωτερικό τοίχο ή κούφωμα για διαγραφή',calib:'Calibrate: πάτα 2 σημεία γνωστής απόστασης πάνω στη φωτογραφία',arc:'Arc: σύρε μια πλευρά του περιγράμματος για καμπύλη · πάτα την για ακριβές βέλος',col:'Column: πάτα δίπλα σε τοίχο για δόντι/υποστύλωμα (κολλάει στον τοίχο) ή στη μέση για ελεύθερο · πάτα την ετικέτα για διαστάσεις',beam:'Beam: πάτα αρχή και τέλος του δοκαριού · μετά πλάτος και κρέμαση από το ταβάνι'}[t]}
 $$('#planTools [data-p]').forEach(b=>b.onclick=()=>setPlanTool(b.dataset.p));
 $('#pOrtho').onclick=()=>{PL.ortho=!PL.ortho;$('#pOrtho').classList.toggle('on',PL.ortho);toast(PL.ortho?'Ορθογώνια σχεδίαση':'Ελεύθερη σχεδίαση · λοξοί τοίχοι σε όποια γωνία')};
 $('#pGrid').onclick=()=>{PL.grid=!PL.grid;$('#pGrid').classList.toggle('on',PL.grid)};
@@ -2443,7 +2542,7 @@ function arcPts(A,B,b){if(Math.abs(b)<1e-6)return[A,B];const c=dist(A,B);if(c<1e
   for(let i=0;i<=k;i++){const t=a0+D*i/k;out.push([cx+R*Math.cos(t),cy+R*Math.sin(t)])}out[0]=[A[0],A[1]];out[k]=[B[0],B[1]];return out}
 function planToA(){
   const v=PL.verts,n=v.length;if(!PL.closed||n<3)throw new Error('Κλείσε πρώτα το περίγραμμα της κάτοψης');
-  for(const o of PL.ops)opDefaults(o,o.ref.k==='e');
+  for(const o of PL.ops){opDefaults(o,o.ref.k==='e');const F=opPlanFrame(o);if(F){o._d=F.d;o._n=F.nrm}}
   const ccw=area2(v)>0,H=PL.H,Te=PL.Te,Ti=PL.Ti;const walls=[],LW={};let wid=0,bad=0;
   // outline → εξωτερικά τμήματα (τόξα → πολλά ευθύγραμμα τμήματα)
   const segs=[];for(let i=0;i<n;i++){const A=v[i],B=v[(i+1)%n],bu=(PL.bulges&&PL.bulges[i])||0;const pts=arcPts(A,B,bu);for(let k=0;k<pts.length-1;k++)segs.push({A:pts[k],B:pts[k+1],e:i,k,arcN:pts.length-1,arc:Math.abs(bu)>1e-6})}
@@ -2466,6 +2565,7 @@ function planToA(){
   PL.walls.forEach((iw,j)=>{const A=iw.a,B=iw.b,dx=B[0]-A[0],dy=B[1]-A[1],L=Math.hypot(dx,dy);if(L<0.05)return;
     if(Math.abs(dx)<1e-6||Math.abs(dy)<1e-6){const h=Math.abs(dy)<1e-6,c=h?A[1]:A[0],aA=h?A[0]:A[1],aB=h?B[0]:B[1];const w={id:wid++,h,c0:c-Ti/2,c1:c+Ti/2,a0:Math.min(aA,aB),a1:Math.max(aA,aB),openings:[],lineA:aA,dir:Math.sign(aB-aA)||1};walls.push(w);LW['w'+j]=[w]}
     else{const u=[dx/L,dy/L];const w={id:wid++,O:[A[0],A[1]],u,n:[-u[1],u[0]],c0:-Ti/2,c1:Ti/2,a0:0,a1:L,openings:[],lineA:0,dir:1,slant:true};walls.push(w);LW['w'+j]=[w]}});
+  for(const k of PL.cols||[]){const u=[Math.cos(k.ang||0),Math.sin(k.ang||0)];walls.push({id:wid++,O:[k.p[0],k.p[1]],u,n:[-u[1],u[0]],a0:-k.w/2,a1:k.w/2,c0:-k.d/2,c1:k.d/2,openings:[],lineA:0,dir:1,slant:true,col:true})}
   // κουφώματα: t κατά μήκος της πλευράς (χορδή για τόξα) → τμήμα
   for(const o of PL.ops){const ws=LW[o.ref.k+o.ref.i];if(!ws)continue;
     if(ws.length===1&&!ws[0].slant){const w=ws[0];const u0=w.lineA+w.dir*o.t0,u1=w.lineA+w.dir*o.t1;w.openings.push({type:o.type,meta:o,a0:Math.min(u0,u1),a1:Math.max(u0,u1),z0:o.type==='door'?0:o.z0,z1:Math.min(H,o.z1)});continue}
@@ -2488,7 +2588,7 @@ function planToA(){
     rooms.push({id:rid,cells,area,cx:sx/cells.length,cy:sy/cells.length,floorType:'parquet',floorRGB:null});rid++}
   const roomAt=(x,y)=>{const i=Math.floor((x-RG.x0)/g),j=Math.floor((y-RG.y0)/g);if(i<0||j<0||i>=RG.nx||j>=RG.ny)return 0;const v2=RG.id[j*RG.nx+i];return v2>0?v2:0};
   rooms.forEach((r,k)=>{const nm=PL.names.find(q=>roomAt(q.p[0],q.p[1])===r.id);r.name=nm?nm.n:'Χώρος '+(k+1);if(nm&&nm.floor)r.floorType=nm.floor});
-  return {H,walls,rooms,RG,roomAt,objs:[],bbox:[bx0,by0,bx1,by1],wallRGB:[234,229,219],north:[0,1],angle:0,lab:null,origin:{x:0,y:0,z:0},fromPlan:true,bad}}
+  return {H,walls,rooms,RG,roomAt,beams:(PL.beams||[]).map(b=>({...b})),objs:[],bbox:[bx0,by0,bx1,by1],wallRGB:[234,229,219],north:[0,1],angle:0,lab:null,origin:{x:0,y:0,z:0},fromPlan:true,bad}}
 function buildFromPlan(){let A;try{A=planToA()}catch(err){toast(err.message);return false}
   S.A=A;S.built=false;S.planChanged=false;$('#p3d').classList.remove('on');buildModel();setDisplay('model');
   return true}
@@ -2496,13 +2596,13 @@ $('#fH').onchange=e=>{PL.H=clamp(+e.target.value||2.8,2,6);planChanged()};
 $('#fTe').onchange=e=>{PL.Te=clamp((+e.target.value||25)/100,0.08,0.6);planChanged()};
 $('#fTi').onchange=e=>{PL.Ti=clamp((+e.target.value||10)/100,0.05,0.4);planChanged()};
 $('#bPlan').onclick=()=>{setView('plan');openStep(2)};
-$('#bNewPlan').onclick=()=>{pPush();PL.isSample=false;PL.verts=[];PL.bulges=[];PL.closed=false;PL.walls=[];PL.ops=[];PL.names=[];PL.bg=null;for(const o of S.objs)if(o.src!=='scan'){o.deleted=true;if(o.group)placeObj(o)}S.objs=S.objs.filter(o=>!o.deleted);S.wallPaint.clear();S.wallTile.clear();S.roomFloorMat={};for(const pt of S.patches)removePatchMesh(pt);S.patches=[];S.costDirty=true;planChanged();setView('plan');setPlanTool('outline');openStep(2);toast('Νέα κάτοψη · πάτα κορυφές για το περίγραμμα')};
+$('#bNewPlan').onclick=()=>{pPush();PL.isSample=false;PL.cols=[];PL.beams=[];PL.verts=[];PL.bulges=[];PL.closed=false;PL.walls=[];PL.ops=[];PL.names=[];PL.bg=null;for(const o of S.objs)if(o.src!=='scan'){o.deleted=true;if(o.group)placeObj(o)}S.objs=S.objs.filter(o=>!o.deleted);S.wallPaint.clear();S.wallTile.clear();S.roomFloorMat={};for(const pt of S.patches)removePatchMesh(pt);S.patches=[];S.costDirty=true;planChanged();setView('plan');setPlanTool('outline');openStep(2);toast('Νέα κάτοψη · πάτα κορυφές για το περίγραμμα')};
 $('#sketchIn').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const img=new Image();img.onload=()=>{
   const wppx=12/img.naturalWidth;const ctr=ps2w(pW*0.6,pH*0.5);PL.bg={img,wppx,wx0:ctr[0]-6,wy0:ctr[1]+img.naturalHeight*wppx/2};PL.bgOp=0.6;$('#pBgOp').value=0.6;
   setView('plan');planFit();setPlanTool('calib');toast('Calibrate: πάτα 2 σημεία με γνωστή απόσταση (π.χ. τις άκρες ενός τοίχου)')};img.src=URL.createObjectURL(f)});
 
 /* ================= SAMPLE SKETCH (χαρτοπετσέτα) ================= */
-function sampleSketchPlan(){PL.isSample=true;
+function sampleSketchPlan(){PL.isSample=true;PL.cols=[{p:[5.6+0.05+0.2,0.2+0.125],w:0.4,d:0.25,ang:Math.PI/2*0}];PL.beams=[{a:[0,3.4],b:[5.6,3.4],w:0.25,drop:0.5}];
   PL.verts=[[0,0],[9.4,0],[9.4,5.0],[5.6,5.0],[5.6,7.2],[0,7.2]];PL.bulges=[0,0,0,0,0,0];PL.closed=true;
   PL.walls=[{a:[5.6,0],b:[5.6,5.0]},{a:[5.6,2.8],b:[9.4,2.8]},{a:[7.6,2.8],b:[7.6,5.0]}];
   PL.ops=[{type:'door',ref:{k:'e',i:0},t0:4.2,t1:5.15,z0:0,z1:2.1},{type:'window',ref:{k:'e',i:1},t0:0.8,t1:2.2,z0:0.9,z1:2.2},
@@ -2835,8 +2935,9 @@ function aiPrompt(st,wish){const A=S.A,rooms=[];
 Client wishes (Greek, may be empty): «${wish||''}»
 Ceiling height ${r2(A.H)} m. Coordinates are plan metres (x right, y up). Each wall face has endpoints p0→p1, its length, the inward unit normal (pointing into the room) and openings measured from p0 (door/window, sill & head heights). Rooms may be slanted, curved (many short faces) or irregular — respect the real geometry.
 ROOMS = ${JSON.stringify(rooms)}
+BEAMS (below the ceiling; bottom height = ceiling − drop) = ${JSON.stringify((A.beams||[]).map(b=>({p0:b.a.map(r2),p1:b.b.map(r2),width:r2(b.w),bottom_height:r2(A.H-b.drop)})))}. Columns / wall nibs are already included as short wall faces of each room. Never place tall items (wardrobes, bookcases, kitchen upper cabinets) under a beam whose bottom is lower than the item, and prefer not to centre beds under beams.
 CATALOG (default sizes in metres; you may resize within realistic market sizes) = ${JSON.stringify(cat)}
-Extra kinds: "kitchen" (straight counter run; w = run length 1.8–4.2, d 0.6, h 0.9; place against a wall without low windows), "ceilinglamp".
+Extra kinds: "kitchen" (counter run; w = run length 1.8–4.2, d 0.6, h 0.9; place against a wall without low windows; optional "lenB" = length of the L return in m and "side" "L"|"R" for corner kitchens, "fridge" "none"|"L"|"R" built-in fridge column, "oven" "under"|"colL"|"colR"), "island" (w 1.6–3.0, d 0.9–1.2, free-standing, ≥1.0 m clear from the kitchen run, "use" "none"|"hob"|"sink"|"bar"), "ceilinglamp".
 Decide each room's use from area, shape and openings (living, kitchen = living room with kitchen run, bed, bath, office, hall, other) unless the name says it. Give a short Greek room name.
 Design rules: keep 0.9 m clear in front of doors and along circulation paths, ≥0.6 m around beds, 0.8 m behind dining chairs, never block windows with tall items (h > sill), sofa faces TV or the view, bed headboard on a solid wall, not under a window if avoidable, bath: toilet, basin, shower. Use the current trends of the style. Prefer fewer, well-placed pieces over clutter.
 Placement: for items backed against a wall give "wall" (face id of THAT room) and "at" (metres from p0 to the item's centre); the item is placed flush and faces into the room. For free-standing items give "x","y" (centre) and "facing" [dx,dy] (direction the front faces). Lamps: "pendant" over tables, "ceilinglamp" centred. Wall-hung tv/painting/mirror: also "elev" (bottom height).
@@ -2847,7 +2948,8 @@ const yawFrom=(fx,fy)=>Math.atan2(fx,-fy);
 function aiPlaceRoom(r,ar,st,add){const F=r._faces||roomFaces(r),H=S.A.H;const num=(v,d)=>{v=+v;return isFinite(v)?v:d};
   for(const it of (ar.items||[])){const k=it.kind;if(!KIND[k])continue;const def=CAT.find(c=>c.k===k);
     const o={kind:k,label:it.label||(def?def.n:KIND[k].n),w:clamp(num(it.w,def?def.w/100:0.6),0.1,6),d:clamp(num(it.d,def?def.d/100:0.5),0.02,4),h:clamp(num(it.h,def?def.h/100:0.8),0.01,H),color:/^#[0-9a-f]{6}$/i.test(it.color||'')?it.color:(def?def.c:'#cccccc'),price:num(it.price,def?def.p:0)};
-    if(k==='kitchen')Object.assign(o,{lenB:0,upper:true,front:st.front,top:st.top,color:'#dddddd',d:0.6,h:0.9});
+    if(k==='kitchen')Object.assign(o,{lenB:clamp(num(it.lenB,0),0,4),side:it.side==='R'?'R':'L',fridge:['L','R'].includes(it.fridge)?it.fridge:'none',oven:['under','colL','colR'].includes(it.oven)?it.oven:'under',hood:'chim',dw:true,upper:true,front:st.front,top:st.top,color:'#dddddd',d:0.6,h:0.9});
+    if(k==='island')Object.assign(o,{use:['hob','sink','bar'].includes(it.use)?it.use:'none',front:st.front,top:st.top,color:'#dddddd',h:0.9});
     const f=it.wall&&F.find(x=>x.id===it.wall);
     if(f){const at=clamp(num(it.at,f.len/2),o.w/2,Math.max(o.w/2,f.len-o.w/2));let {p:[px,py],nin}=f.at(at);
       if(f.curved){const a=f.at(at-o.w/2),b=f.at(at+o.w/2);const dx=b.p[0]-a.p[0],dy=b.p[1]-a.p[1],L=Math.hypot(dx,dy)||1;let nn=[-dy/L,dx/L];if(nn[0]*nin[0]+nn[1]*nin[1]<0)nn=[-nn[0],-nn[1]];nin=nn;
@@ -2972,7 +3074,7 @@ function loop(now){
   requestAnimationFrame(loop)}
 setQuality(RQ.q);
 resize();
-PL.verts=[];PL.bulges=[];PL.closed=false;PL.walls=[];PL.ops=[];PL.names=[];PL.isSample=false;setMode(MODE);
+PL.verts=[];PL.bulges=[];PL.closed=false;PL.walls=[];PL.ops=[];PL.cols=[];PL.beams=[];PL.names=[];PL.isSample=false;setMode(MODE);
 setPath('sketch',true);openStep(1);setTimeout(()=>toast('Νέο έργο · πάτα τις γωνίες της κάτοψης, ανέβασε φωτογραφία σκίτσου ή φόρτωσε «Δείγμα»'),400);
 applyLighting();
 requestAnimationFrame(loop);
