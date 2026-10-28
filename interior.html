@@ -438,6 +438,7 @@ window.HEXIS_TOKEN=async function(){try{var s=JSON.parse(localStorage.getItem('s
         <button class="sh"><span class="num">3</span>Αποτέλεσμα &amp; κόστος<span class="st" id="es3"></span></button>
         <div class="sb">
           <button class="btn pri" id="ePhoto2">✦ Φωτορεαλιστικό με AI</button>
+          <div class="seg phQ" style="align-self:flex-start"><button data-q="fast">Πρόχειρο · ~6¢</button><button data-q="best" class="on">Τελικό · ~13¢</button></div>
           <div class="row"><button class="btn grow" id="eTour">Περιήγηση</button><button class="btn grow" id="eWalk">Περπάτα μέσα</button></div>
           <div class="seg" id="eDay" style="align-self:flex-start"><button data-h="10">Πρωί</button><button data-h="17.5" class="on">Απόγευμα</button><button data-h="21.5">Βράδυ</button></div>
           <div class="card" id="eCost"><p class="note">Το κόστος εμφανίζεται μόλις επιπλωθεί ο χώρος.</p></div>
@@ -607,6 +608,7 @@ window.HEXIS_TOKEN=async function(){try{var s=JSON.parse(localStorage.getItem('s
         <button class="sh"><span class="num">5</span>Περιήγηση<span class="st"></span></button>
         <div class="sb">
           <button class="btn pri" id="bPhoto">✦ Φωτορεαλιστικό με AI</button>
+          <div class="seg phQ" style="align-self:flex-start"><button data-q="fast">Πρόχειρο · ~6¢</button><button data-q="best" class="on">Τελικό · ~13¢</button></div>
           <p class="note">Στήσε την κάμερα όπως θες (Orbit ή Walk), διάλεξε ώρα και πάτα. Το AI κρατά γεωμετρία, ανοίγματα και έπιπλα και αποδίδει φως και υλικά σαν φωτογραφία.</p>
           <div class="row"><button class="btn grow" id="bTour">Αυτόματη διαδρομή</button><button class="btn grow" id="bWalk">Walk</button></div>
           <p class="note">Walk: W A S D ή βέλη, σύρσιμο για ματιά, Shift για γρήγορα. Στο κινητό: joystick.</p>
@@ -2893,7 +2895,8 @@ $('#eToPro').onclick=e=>{e.preventDefault();setMode('pro',true);_openStep(6)};
 function loadSample(){pPush&&pPush();sampleSketchPlan();S.store.sketch={...(S.store.sketch||{}),seeded:false};buildFromPlan();seedSketchFurniture();S.store.sketch.seeded=true;setDisplay('model');setView('orbit');focusAll();refreshLists();S.costDirty=true;openStep(3);toast('Δείγμα · διαμέρισμα 4 χώρων από σκίτσο σε χαρτοπετσέτα')}
 $('#eSample').onclick=loadSample;$('#bSample').onclick=loadSample;
 /* ---- ✦ Φωτορεαλιστικό με AI: καρέ 3D → AI απόδοση (κρατά γεωμετρία) ---- */
-let phCtl=null,phLast=null;
+let phCtl=null,phLast=null;let PHQ='best';
+$$('.phQ button').forEach(b=>b.onclick=()=>{PHQ=b.dataset.q;$$('.phQ button').forEach(x=>x.classList.toggle('on',x.dataset.q===PHQ))});
 function grabFrame(maxW=1600){if(RQ.composer&&RQ.q==='fast')setQuality('high');renderFrame();const src=renderer.domElement;const k=Math.min(1,maxW/src.width);const c=document.createElement('canvas');c.width=Math.round(src.width*k);c.height=Math.round(src.height*k);
   const g=c.getContext('2d');g.fillStyle='#e9eef1';g.fillRect(0,0,c.width,c.height);g.drawImage(src,0,0,c.width,c.height);return c.toDataURL('image/jpeg',0.9)}
 function photoPrompt(){const st=STYLES.find(x=>x.id===curStyle)||STYLES[0];const h=S.hour,night=h<6.5||h>20;
@@ -2907,10 +2910,10 @@ async function aiPhoto(){const ep=window.HEXIS_RENDER_ENDPOINT;if(!S.built){toas
   if(S.view==='plan')setView('orbit');const shot=grabFrame();phLast=shot;$('#phB').src=shot;
   $('#busy').textContent='✦ Φωτορεαλιστική απόδοση';$('#busy').hidden=false;phCtl=new AbortController();const t0=performance.now();
   try{const tk=window.HEXIS_TOKEN&&await window.HEXIS_TOKEN();
-    const r=await fetch(ep,{method:'POST',signal:phCtl.signal,headers:{'content-type':'application/json',...(tk?{authorization:'Bearer '+tk}:{})},body:JSON.stringify({image:shot.split(',')[1],prompt:photoPrompt(),quality:RQ.q==='ultra'?'best':'best'})});
+    const r=await fetch(ep,{method:'POST',signal:phCtl.signal,headers:{'content-type':'application/json',...(tk?{authorization:'Bearer '+tk}:{})},body:JSON.stringify({image:shot.split(',')[1],prompt:photoPrompt(),quality:PHQ})});
     const js=await r.json().catch(()=>({}));if(!r.ok||!js.image)throw new Error(js.error||('HTTP '+r.status));
     const url='data:'+(js.mime||'image/png')+';base64,'+js.image;$('#phA').src=url;$('#phDl').href=url;$('#phDl').download='hexis-interior-'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'')+'.'+((js.mime||'').includes('jpeg')?'jpg':'png');
-    $('#phInfo').textContent=`${((performance.now()-t0)/1000).toFixed(0)} s`;phView('ai');$('#phMask').hidden=false}
+    $('#phInfo').textContent=`${PHQ==='fast'?'Πρόχειρο':'Τελικό'} · ${((performance.now()-t0)/1000).toFixed(0)} s`;phView('ai');$('#phMask').hidden=false}
   catch(e){toast(/forbidden|login/.test(e.message)?'Χρειάζεται σύνδεση στο hexis-app':/rate/.test(e.message)?'Πολλά αιτήματα · δοκίμασε σε λίγο':/GEMINI|key/i.test(e.message)?'Λείπει το κλειδί της υπηρεσίας εικόνων στο Supabase':'Η απόδοση απέτυχε · '+String(e.message).slice(0,80))}
   finally{$('#busy').hidden=true;phCtl=null}}
 function phView(v){$$('#phSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));$('#phA').hidden=v!=='ai';$('#phB').hidden=v!=='3d'}
