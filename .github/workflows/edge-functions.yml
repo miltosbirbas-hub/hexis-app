@@ -1,0 +1,21 @@
+name: Deploy Supabase Edge Functions
+# Ανεβάζει αυτόματα τις functions του φακέλου supabase/functions σε κάθε push.
+# Χρειάζεται μία φορά το secret SUPABASE_ACCESS_TOKEN (Settings → Secrets and variables → Actions).
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/functions/**']
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Έλεγχος token
+        env: { T: "${{ secrets.SUPABASE_ACCESS_TOKEN }}" }
+        run: '[ -n "$T" ] || { echo "::error::Λείπει το secret SUPABASE_ACCESS_TOKEN"; exit 1; }'
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - name: Deploy interior-ai
+        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN }}" }
+        run: supabase functions deploy interior-ai --no-verify-jwt --project-ref oucqqudfdimccgowvpqp
