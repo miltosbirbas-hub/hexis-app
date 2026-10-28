@@ -12,6 +12,7 @@
 // ============================================================================
 
 const SB = "https://oucqqudfdimccgowvpqp.supabase.co";
+const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8"; // δημόσιο anon key (ίδιο με τις σελίδες)
 const OWNERS = ["miltos.birbas@gmail.com", "brb.develop@gmail.com"];
 const CORS = {
   "Access-Control-Allow-Origin": "https://hexis-app.gr",
@@ -27,7 +28,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   try {
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-    const anon = Deno.env.get("SUPABASE_ANON_KEY");
+    const anon = Deno.env.get("SUPABASE_ANON_KEY") || ANON;
     if (!apiKey || !anon) throw new Error("Missing secrets");
 
     // 1. ποιος είναι ο χρήστης
