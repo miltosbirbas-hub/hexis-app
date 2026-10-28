@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     const image = typeof body.image === "string" ? body.image : "";
     const prompt = typeof body.prompt === "string" ? body.prompt.slice(0, 6000) : "";
     if (!image || image.length > 8_000_000 || !prompt) return json({ error: "bad input" }, 400);
-    const model = Deno.env.get("GEMINI_IMAGE_MODEL") || (body.quality === "fast" ? "gemini-2.5-flash-image" : "gemini-3-pro-image-preview");
+    const model = Deno.env.get("GEMINI_IMAGE_MODEL") || (body.quality === "fast" ? "gemini-3.1-flash-image" : "gemini-3-pro-image");
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": gkey },
