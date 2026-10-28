@@ -41,9 +41,14 @@ VIAddVersionKey "LegalCopyright" "BRB Development"
 !insertmacro MUI_LANGUAGE "Greek"
 
 !macro STOPAPP
+  ; 1) ευγενικά: ο τοπικός server κλείνει μόνος του
   IfFileExists "$INSTDIR\python\python.exe" 0 +2
     nsExec::Exec '"$INSTDIR\python\python.exe" -c "import urllib.request as u; u.urlopen(u.Request(\"http://127.0.0.1:8765/api/shutdown\", data=b\"{}\", method=\"POST\"), timeout=3)"'
-  Sleep 1200
+  Sleep 1500
+  ; 2) ό,τι τρέχει ακόμα από τον φάκελο της εφαρμογής (παράθυρα, server, παλιές εκδόσεις) τερματίζεται,
+  ;    αλλιώς τα αρχεία (π.χ. python3.dll) είναι κλειδωμένα και δεν αντικαθίστανται
+  nsExec::Exec `powershell -NoProfile -ExecutionPolicy Bypass -Command "$$d='$INSTDIR\python\'; Get-Process | Where-Object { $$_.Path -and $$_.Path.StartsWith($$d, [StringComparison]::OrdinalIgnoreCase) } | Stop-Process -Force"`
+  Sleep 1500
 !macroend
 
 Function RunApp

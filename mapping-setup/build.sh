@@ -18,7 +18,7 @@ python3 -m pip download -q -d "$W/whl" --find-links "$W/whl" --platform win_amd6
 python3 -m pip install -q --no-index --find-links "$W/whl" --target "$B/python/Lib/site-packages" --platform win_amd64 \
   --python-version 3.12 --implementation cp --only-binary=:all: --upgrade -r "$HERE/requirements.txt" 2>&1 | grep -v "dependency resolver\|requires\|root user" || true
 rm -rf "$B/python/Lib/test" "$B/python/Lib/idlelib" "$B/python/Tools" "$B/python/Library/include" "$B/python/include" \
-       "$B/python/python312.pdb" "$B/python/Lib/site-packages/bin" "$B/python/Lib/site-packages/"*.whl
+       "$B/python/python312.pdb" "$B/python/python.pdb" "$B/python/pythonw.pdb" "$B/python/Lib/site-packages/bin" "$B/python/Lib/site-packages/"*.whl
 find "$B/python" -name __pycache__ -type d -prune -exec rm -rf {} +
 cd "$HERE"
 makensis -V2 -DVERSION="$VER" -DSRC="$B" -DOUT="$W/HEXIS_MAPPING_Setup.exe" hexis_mapping_setup.nsi
