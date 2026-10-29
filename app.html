@@ -2,6 +2,18 @@
 <html lang="el">
 <head>
 <script>if(/type=recovery/.test(location.hash))location.replace('login.html?mode=reset'+location.hash);</script>
+<script>
+/* v4.94: Η εγκατεστημένη εφαρμογή ανοίγει πάντα στο Hub. Αν το app.html ανοίξει
+   ως πρώτη σελίδα σε standalone (παλιά εικονίδια iOS/Android με start_url=app.html),
+   πήγαινε στο hub.html. Μέσα από το hub/εργαλεία ανοίγει κανονικά. */
+(function(){try{
+  var sa=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
+  var inSess=sessionStorage.getItem('hx_sm_open')==='1';
+  var ref=document.referrer||'', same=ref&&ref.indexOf(location.origin)===0;
+  if(sa&&!inSess&&!same&&!/[?&]sm=1/.test(location.search)){location.replace('hub.html'+location.hash);return;}
+  sessionStorage.setItem('hx_sm_open','1');
+}catch(e){}})();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -13,7 +25,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="BRB">
+<meta name="apple-mobile-web-app-title" content="HEXIS">
 <link rel="apple-touch-icon" href="icon-192.png">
 
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
