@@ -53,6 +53,16 @@ Deno.serve(async (req) => {
     // 4. κλήση μοντέλου (ο client δεν επιλέγει model/max_tokens)
     const body = await req.json();
     // μονάδες: άδεια PRO / συνδρομή / δωρεάν / πακέτο (βλ. interior-billing.sql)
+    // βελτίωση περιγραφής: σύντομη κλήση, δεν χρεώνει μονάδες (μόνο το όριο αιτημάτων/ώρα)
+    if (body.mode === "enhance") {
+      const pr = typeof body.prompt === "string" ? body.prompt.slice(0, 6000) : "";
+      if (!pr) return json({ error: "No prompt" }, 400);
+      const r1 = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({ model: Deno.env.get("ENHANCE_MODEL") || "claude-sonnet-5-5", max_tokens: 900, messages: [{ role: "user", content: pr }] }) });
+      const d1 = await r1.json();
+      if (!r1.ok) return json({ error: d1?.error?.message || "upstream" }, r1.status);
+      return json({ text: (d1.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("") });
+    }
     const kind = "layout";
     const rpc = (name: string, args: unknown) => fetch(SB + "/rest/v1/rpc/" + name, { method: "POST", headers: { apikey: anon, Authorization: auth, "Content-Type": "application/json" }, body: JSON.stringify(args) }).then((r) => r.json()).catch(() => null);
     const q = await rpc("interior_consume", { p_kind: kind });
