@@ -1,19 +1,40 @@
-name: Deploy Supabase Edge Functions
-# Ανεβάζει αυτόματα τις functions του φακέλου supabase/functions σε κάθε push.
-# Χρειάζεται μία φορά το secret SUPABASE_ACCESS_TOKEN (Settings → Secrets and variables → Actions).
-# Χειροκίνητο (Actions → Run workflow) μέχρι να μπει το secret· η interior-ai ανέβηκε ήδη από το Dashboard.
+name: Deploy Supabase (functions + SQL)
+# Ανεβάζει τις Edge Functions του supabase/functions και τρέχει τα αρχεία SQL της λίστας.
+# Χρειάζεται μία φορά το secret SUPABASE_ACCESS_TOKEN (GitHub → Settings → Secrets and variables → Actions).
+# Τρέχει αυτόματα όταν αλλάζουν functions ή τα SQL της λίστας, ή χειροκίνητα (Actions → Run workflow).
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/**"
+      - "interior-billing.sql"
+      - "hexis-payments.sql"
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: oucqqudfdimccgowvpqp
     steps:
       - uses: actions/checkout@v4
       - name: Έλεγχος token
-        env: { T: "${{ secrets.SUPABASE_ACCESS_TOKEN }}" }
-        run: '[ -n "$T" ] || { echo "::error::Λείπει το secret SUPABASE_ACCESS_TOKEN"; exit 1; }'
+        run: '[ -n "$SUPABASE_ACCESS_TOKEN" ] || { echo "::error::Λείπει το secret SUPABASE_ACCESS_TOKEN"; exit 1; }'
+      - name: SQL (με τη σειρά)
+        run: |
+          for f in interior-billing.sql hexis-payments.sql; do
+            echo "== $f"
+            jq -Rs '{query: .}' "$f" > /tmp/q.json
+            code=$(curl -sS -o /tmp/r.json -w '%{http_code}' -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data @/tmp/q.json)
+            head -c 600 /tmp/r.json; echo
+            [ "$code" -lt 300 ] || { echo "::error::$f απέτυχε ($code)"; exit 1; }
+          done
       - uses: supabase/setup-cli@v1
         with: { version: latest }
-      - name: Deploy interior-ai
-        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN }}" }
-        run: supabase functions deploy interior-ai --no-verify-jwt --project-ref oucqqudfdimccgowvpqp
+      - name: Deploy functions
+        run: |
+          for d in supabase/functions/*/; do
+            n=$(basename "$d"); echo "== $n"
+            supabase functions deploy "$n" --no-verify-jwt --project-ref "$REF"
+          done
