@@ -74,11 +74,20 @@ Deno.serve(async (req) => {
 ITEM: "${String(it.name || "").slice(0, 120)}" · type ${String(it.kind || "")} · approx. size W×D×H ${dims} cm · main colour ${String(it.color || "")} · style ${String(it.style || "")}.
 Prefer products close in size (±15%) and look. Use web search. Only list product pages you actually found in the search results (exact URL).
 Answer with JSON only: {"products":[{"store":"…","name":"…","price_eur":123.0,"w":0,"d":0,"h":0,"url":"https://…","note":"short Greek note: why it fits / differences"}]} (w,d,h in cm, 0 if unknown; price with VAT, null if not shown).`;
-      const r2 = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-        body: JSON.stringify({ model: "claude-sonnet-5-5", max_tokens: 2500, messages: [{ role: "user", content: pr }],
-          tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5, user_location: { type: "approximate", country: "GR", timezone: "Europe/Athens" } }] }) });
-      const d2 = await r2.json();
-      if (!r2.ok) { await rpc0("interior_refund", { p_id: q0.id }); return json({ error: d2?.error?.message || "upstream" }, r2.status); }
+      // κλήση με web search · συνέχεια όταν ο server σταματά με pause_turn (μακριές αναζητήσεις)
+      const tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 6, user_location: { type: "approximate", country: "GR", timezone: "Europe/Athens" } }];
+      const msgs: any[] = [{ role: "user", content: pr }];
+      const all: any[] = []; let d2: any = null; let usageIn = 0, usageOut = 0;
+      for (let turn = 0; turn < 4; turn++) {
+        const r2 = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+          body: JSON.stringify({ model: Deno.env.get("SHOP_MODEL") || "claude-sonnet-5-5", max_tokens: 4000, messages: msgs, tools }) });
+        d2 = await r2.json();
+        if (!r2.ok) { await rpc0("interior_refund", { p_id: q0.id }); return json({ error: "anthropic " + r2.status + ": " + (d2?.error?.message || "upstream") }, 502); }
+        all.push(...(d2.content || [])); usageIn += d2.usage?.input_tokens || 0; usageOut += d2.usage?.output_tokens || 0;
+        if (d2.stop_reason !== "pause_turn") break;
+        msgs.push({ role: "assistant", content: d2.content });
+      }
+      d2 = { content: all, usage: { input_tokens: usageIn, output_tokens: usageOut } };
       const found = new Set<string>(); let searches = 0;
       for (const c of d2.content || []) { if (c.type === "server_tool_use") searches++; if (c.type === "web_search_tool_result" && Array.isArray(c.content)) for (const x of c.content) if (x.url) found.add(String(x.url).split("#")[0]); }
       const txt = (d2.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("");
@@ -86,11 +95,11 @@ Answer with JSON only: {"products":[{"store":"…","name":"…","price_eur":123.
       try { const a0 = txt.indexOf("{"), b0 = txt.lastIndexOf("}"); prods = JSON.parse(txt.slice(a0, b0 + 1)).products || []; } catch (_e) { prods = []; }
       const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch (_e) { return ""; } };
       const hosts = new Set([...found].map(host));
-      prods = prods.filter((x: any) => x && typeof x.url === "string" && /^https:\/\//.test(x.url) && (found.has(x.url.split("#")[0]) || hosts.has(host(x.url)))).slice(0, 4)
+      prods = prods.filter((x: any) => x && typeof x.url === "string" && /^https?:\/\//.test(x.url) && (found.has(x.url.split("#")[0]) || hosts.has(host(x.url)) || /\.gr$/.test(host(x.url)))).slice(0, 4)
         .map((x: any) => ({ ...x, verified: found.has(String(x.url).split("#")[0]) }));
       const u2 = d2.usage || {}; const cost = ((u2.input_tokens || 0) * 2 + (u2.output_tokens || 0) * 10) / 1e6 + searches * 0.01;
       await saveCost(q0.id, cost, "claude-sonnet-5-5+web", u2.input_tokens || 0, u2.output_tokens || 0);
-      if (!prods.length) { await rpc0("interior_refund", { p_id: q0.id }); return json({ products: [], error: "none" }); }
+      if (!prods.length) { await rpc0("interior_refund", { p_id: q0.id }); return json({ products: [], error: "none", searches, found: found.size, raw: txt.slice(0, 300) }); }
       return json({ products: prods, cost_usd: Math.round(cost * 10000) / 10000 });
     }
     const kind = "layout";
