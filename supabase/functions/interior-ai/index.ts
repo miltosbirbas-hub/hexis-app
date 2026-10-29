@@ -97,6 +97,22 @@ Answer with JSON only: {"products":[{"store":"…","name":"…","price_eur":123.
       const hosts = new Set([...found].map(host));
       prods = prods.filter((x: any) => x && typeof x.url === "string" && /^https?:\/\//.test(x.url) && (found.has(x.url.split("#")[0]) || hosts.has(host(x.url)) || /\.gr$/.test(host(x.url)))).slice(0, 4)
         .map((x: any) => ({ ...x, verified: found.has(String(x.url).split("#")[0]) }));
+      // φωτογραφία προϊόντος: og:image της σελίδας, κατεβαίνει εδώ ώστε η εφαρμογή να τη δείχνει χωρίς να ανοίγει το κατάστημα
+      const UA = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36", "Accept-Language": "el-GR,el;q=0.9" };
+      const tmo = (ms: number) => { const c = new AbortController(); setTimeout(() => c.abort(), ms); return c.signal; };
+      const b64 = (buf: ArrayBuffer) => { let s = ""; const u = new Uint8Array(buf); for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(s); };
+      await Promise.all(prods.map(async (x: any) => {
+        try {
+          const pg = await fetch(x.url, { headers: UA, signal: tmo(7000), redirect: "follow" }); if (!pg.ok) return;
+          const html = (await pg.text()).slice(0, 400000);
+          const m = html.match(/<meta[^>]+(?:property|name)=["'](?:og:image|og:image:secure_url|twitter:image)["'][^>]+content=["']([^"']+)["']/i) || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:og:image|twitter:image)["']/i);
+          if (!m) return; let iu = m[1].replace(/&amp;/g, "&"); if (iu.startsWith("//")) iu = "https:" + iu; else if (iu.startsWith("/")) iu = new URL(iu, x.url).href;
+          const im = await fetch(iu, { headers: UA, signal: tmo(6000) }); if (!im.ok) return;
+          const ct = im.headers.get("content-type") || "image/jpeg"; if (!/^image\/(jpeg|png|webp)/.test(ct)) return;
+          const buf = await im.arrayBuffer(); if (buf.byteLength > 450000) { x.img_url = iu; return; }
+          x.img = "data:" + ct.split(";")[0] + ";base64," + b64(buf);
+        } catch (_e) { /* χωρίς φωτογραφία */ }
+      }));
       const u2 = d2.usage || {}; const cost = ((u2.input_tokens || 0) * 2 + (u2.output_tokens || 0) * 10) / 1e6 + searches * 0.01;
       await saveCost(q0.id, cost, "claude-sonnet-5-5+web", u2.input_tokens || 0, u2.output_tokens || 0);
       if (!prods.length) { await rpc0("interior_refund", { p_id: q0.id }); return json({ products: [], error: "none", searches, found: found.size, raw: txt.slice(0, 300) }); }
