@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>HEXIS Interior · Σύνδεση</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Commissioner:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{--bg:#eef3f5;--surface:#ffffff;--ink:#10212a;--muted:#566872;--line:rgba(16,50,64,.14);--accent:#0796a8;--accent2:#4c6bea;--f:"Commissioner",system-ui,sans-serif;--m:"JetBrains Mono",ui-monospace,monospace}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px 16px;background:radial-gradient(1200px 600px at 15% 0%,#dff1f4 0%,transparent 60%),radial-gradient(900px 600px at 100% 100%,#e5e9fb 0%,transparent 55%),var(--bg);color:var(--ink);font:15px/1.55 var(--f)}
+.card{width:min(420px,100%);background:rgba(255,255,255,.82);backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:20px;padding:28px 26px;box-shadow:0 18px 50px rgba(16,40,60,.10);display:flex;flex-direction:column;gap:14px}
+.brand{display:flex;align-items:center;gap:12px}.brand small{display:block;font:600 11px var(--m);letter-spacing:.18em;color:var(--muted)}.brand b{font-size:17px;letter-spacing:.06em}
+h1{margin:4px 0 0;font-size:24px;letter-spacing:-.01em}
+p{margin:0;color:var(--muted);font-size:14px}
+label{font-size:12.5px;font-weight:600;color:var(--muted)}
+input{width:100%;font:500 15px var(--f);padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);outline:none}
+input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(7,150,168,.14)}
+.code{font:600 20px var(--m);letter-spacing:.4em;text-align:center}
+button{font:600 15px var(--f);padding:12px 16px;border-radius:12px;border:0;cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+button:disabled{opacity:.55;cursor:default}
+.ghost{background:none;color:var(--accent);padding:6px 0;font-size:13.5px}
+.msg{font-size:13.5px;padding:10px 12px;border-radius:10px;background:rgba(7,150,168,.09);color:var(--ink)}.msg.err{background:rgba(214,69,69,.09)}
+.alt{border-top:1px solid var(--line);padding-top:12px;font-size:13px;color:var(--muted);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.alt a{color:var(--accent);text-decoration:none;font-weight:600}
+.lang{margin-left:auto;font:600 11px var(--m);color:var(--muted);background:none;border:1px solid var(--line);padding:5px 9px;border-radius:999px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="brand">
+    <svg width="40" height="40" viewBox="0 0 34 34" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0796A8"/><stop offset="1" stop-color="#4C6BEA"/></linearGradient></defs><rect x="1" y="1" width="32" height="32" rx="9" fill="url(#lg)"/><path d="M8 9h18v16H8z M17 9v9 M17 21v4 M8 17h6" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>
+    <div><small>HEXIS</small><b>INTERIOR</b></div>
+    <button class="lang" id="lang" type="button">EN</button>
+  </div>
+  <h1 data-t="h">Σύνδεση με email</h1>
+  <p data-t="p">Χωρίς κωδικό. Γράψε το email σου και θα σου στείλουμε σύνδεσμο εισόδου. Η πρώτη φωτορεαλιστική εικόνα είναι δώρο.</p>
+  <form id="f1">
+    <label for="em" data-t="l">Email</label>
+    <input id="em" type="email" autocomplete="email" required placeholder="name@example.com">
+    <div style="height:10px"></div>
+    <button id="b1" type="submit" data-t="b">Στείλε μου σύνδεσμο</button>
+  </form>
+  <form id="f2" hidden>
+    <div class="msg" id="sent"></div>
+    <div style="height:10px"></div>
+    <label for="cd" data-t="cl">ή γράψε τον κωδικό από το email</label>
+    <input id="cd" class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="······">
+    <div style="height:10px"></div>
+    <button id="b2" type="submit" data-t="cb">Είσοδος</button>
+    <button class="ghost" id="again" type="button" data-t="ag">Άλλο email / ξανά αποστολή</button>
+  </form>
+  <div class="msg err" id="err" hidden></div>
+  <div class="alt"><span data-t="pro">Μηχανικός με λογαριασμό HEXIS;</span><a href="login.html?next=interior.html" data-t="pl">Είσοδος με κωδικό →</a></div>
+</main>
+<script>
+const SB='https://oucqqudfdimccgowvpqp.supabase.co';
+const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
+const sb=window.supabase.createClient(SB,KEY,{auth:{detectSessionInUrl:true,persistSession:true,flowType:'implicit'}});
+const $=q=>document.querySelector(q);
+const T={el:{h:'Σύνδεση με email',p:'Χωρίς κωδικό. Γράψε το email σου και θα σου στείλουμε σύνδεσμο εισόδου. Η πρώτη φωτορεαλιστική εικόνα είναι δώρο.',l:'Email',b:'Στείλε μου σύνδεσμο',cl:'ή γράψε τον κωδικό από το email',cb:'Είσοδος',ag:'Άλλο email / ξανά αποστολή',pro:'Μηχανικός με λογαριασμό HEXIS;',pl:'Είσοδος με κωδικό →',sent:e=>'Στείλαμε σύνδεσμο στο '+e+'. Άνοιξέ τον από αυτή τη συσκευή.',wait:'Περίμενε λίγο πριν ξαναζητήσεις email.',bad:'Ο κωδικός δεν είναι σωστός ή έληξε.',gen:'Κάτι πήγε στραβά · δοκίμασε ξανά.'},
+ en:{h:'Sign in with email',p:'No password. Enter your email and we will send you a sign-in link. Your first photoreal image is free.',l:'Email',b:'Send me a link',cl:'or type the code from the email',cb:'Sign in',ag:'Different email / send again',pro:'Engineer with a HEXIS account?',pl:'Sign in with password →',sent:e=>'We sent a link to '+e+'. Open it on this device.',wait:'Please wait a little before requesting another email.',bad:'The code is wrong or has expired.',gen:'Something went wrong · try again.'}};
+let L=(()=>{try{const v=localStorage.getItem('hexisLang');if(v)return v}catch(e){}return /^el/i.test(navigator.language||'el')?'el':'en'})();
+function tr(){document.documentElement.lang=L;document.querySelectorAll('[data-t]').forEach(n=>{const v=T[L][n.dataset.t];if(typeof v==='string')n.textContent=v});$('#lang').textContent=L==='el'?'EN':'EL'}
+$('#lang').onclick=()=>{L=L==='el'?'en':'el';try{localStorage.setItem('hexisLang',L)}catch(e){}tr()};tr();
+const go=()=>location.replace('interior.html');
+const err=m=>{$('#err').textContent=m;$('#err').hidden=!m};
+sb.auth.onAuthStateChange((ev,s)=>{if(s&&s.access_token)go()});
+sb.auth.getSession().then(({data})=>{if(data.session)go()});
+let EM='';
+$('#f1').onsubmit=async e=>{e.preventDefault();err('');EM=$('#em').value.trim();if(!EM)return;$('#b1').disabled=true;
+  const {error}=await sb.auth.signInWithOtp({email:EM,options:{emailRedirectTo:location.origin+'/interior-login.html',shouldCreateUser:true}});$('#b1').disabled=false;
+  if(error){err(/rate|seconds|after/i.test(error.message)?T[L].wait:(error.message||T[L].gen));return}
+  $('#sent').textContent=T[L].sent(EM);$('#f1').hidden=true;$('#f2').hidden=false;$('#cd').focus()};
+$('#f2').onsubmit=async e=>{e.preventDefault();err('');const t=$('#cd').value.replace(/\s/g,'');if(t.length<6)return;$('#b2').disabled=true;
+  const {data,error}=await sb.auth.verifyOtp({email:EM,token:t,type:'email'});$('#b2').disabled=false;if(error||!data.session){err(T[L].bad);return}go()};
+$('#again').onclick=()=>{$('#f2').hidden=true;$('#f1').hidden=false;err('')};
+</script>
+</body>
+</html>

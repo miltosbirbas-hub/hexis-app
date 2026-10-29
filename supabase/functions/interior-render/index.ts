@@ -3,12 +3,11 @@
 // Φωτορεαλιστική απόδοση: καρέ 3D (JPEG base64) + οδηγίες → μοντέλο εικόνας → εικόνα (base64).
 // Secret: GEMINI_API_KEY (Google AI Studio). Προαιρετικά GEMINI_IMAGE_MODEL.
 // Deploy: Dashboard → Edge Functions (Verify JWT: OFF — ο έλεγχος χρήστη γίνεται εδώ).
-// Πρόσβαση: ιδιοκτήτες ή ενεργό entitlement «interior». Όριο: 20 αποδόσεις/ώρα ανά χρήστη.
+// Πρόσβαση: κάθε συνδεδεμένος χρήστης· οι μονάδες ελέγχονται από interior_consume (interior-billing.sql). Όριο: 20 αποδόσεις/ώρα ανά χρήστη.
 // ============================================================================
 
 const SB = "https://oucqqudfdimccgowvpqp.supabase.co";
 const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8"; // δημόσιο anon key (ίδιο με τις σελίδες)
-const OWNERS = ["miltos.birbas@gmail.com", "brb.develop@gmail.com"];
 const CORS = {
   "Access-Control-Allow-Origin": "https://hexis-app.gr",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -32,20 +31,20 @@ Deno.serve(async (req) => {
     if (!u.ok) return json({ error: "login" }, 401);
     const user = await u.json();
     const email = String(user.email || "").toLowerCase();
-    if (!OWNERS.includes(email)) {
-      const e = await fetch(SB + "/rest/v1/entitlements?select=active,expires_at&module=eq.interior", { headers: { apikey: anon, Authorization: auth } });
-      const rows = e.ok ? await e.json() : [];
-      const ok = (rows || []).some((r: any) => r.active && (!r.expires_at || new Date(r.expires_at) > new Date()));
-      if (!ok) return json({ error: "forbidden" }, 403);
-    }
     const now = Date.now(), list = (hits.get(user.id) || []).filter((t) => now - t < 3600e3);
     if (list.length >= 20) return json({ error: "rate_limited" }, 429);
     list.push(now); hits.set(user.id, list);
 
     const body = await req.json();
+    // μονάδες: άδεια PRO / συνδρομή / δωρεάν / πακέτο (βλ. interior-billing.sql)
+    const kind = (body.quality === "fast" ? "draft" : "final");
+    const rpc = (name: string, args: unknown) => fetch(SB + "/rest/v1/rpc/" + name, { method: "POST", headers: { apikey: anon, Authorization: auth, "Content-Type": "application/json" }, body: JSON.stringify(args) }).then((r) => r.json()).catch(() => null);
+    const q = await rpc("interior_consume", { p_kind: kind });
+    if (!q || q.ok !== true) return json({ error: "quota", reason: q?.msg || "quota", used: q?.used, limit: q?.limit }, 402);
+    const refund = () => rpc("interior_refund", { p_id: q.id });
     const image = typeof body.image === "string" ? body.image : "";
     const prompt = typeof body.prompt === "string" ? body.prompt.slice(0, 6000) : "";
-    if (!image || image.length > 8_000_000 || !prompt) return json({ error: "bad input" }, 400);
+    if (!image || image.length > 8_000_000 || !prompt) { await refund(); return json({ error: "bad input" }, 400); }
     const model = Deno.env.get("GEMINI_IMAGE_MODEL") || (body.quality === "fast" ? "gemini-3.1-flash-image" : "gemini-3-pro-image");
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: "POST",
@@ -56,11 +55,11 @@ Deno.serve(async (req) => {
       }),
     });
     const data = await res.json();
-    if (!res.ok) return json({ error: data?.error?.message || "upstream" }, res.status);
+    if (!res.ok) { await refund(); return json({ error: data?.error?.message || "upstream" }, res.status); }
     const parts = data?.candidates?.[0]?.content?.parts || [];
     const img = parts.map((p: any) => p.inlineData || p.inline_data).find((x: any) => x && x.data);
-    if (!img) return json({ error: "no image: " + (parts.map((p: any) => p.text).join(" ").slice(0, 200) || data?.candidates?.[0]?.finishReason || "") }, 502);
-    return json({ image: img.data, mime: img.mimeType || img.mime_type || "image/png", model });
+    if (!img) { await refund(); return json({ error: "no image: " + (parts.map((p: any) => p.text).join(" ").slice(0, 200) || data?.candidates?.[0]?.finishReason || "") }, 502); }
+    return json({ image: img.data, mime: img.mimeType || img.mime_type || "image/png", model, source: q.source });
   } catch (err) {
     return json({ error: String(err) }, 500);
   }
