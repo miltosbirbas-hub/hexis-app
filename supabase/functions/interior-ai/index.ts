@@ -72,10 +72,10 @@ Deno.serve(async (req) => {
       const dims = [it.w, it.d, it.h].map((v: unknown) => Math.round(+(v as number) * 100) || "?").join("×");
       const pr = `Find 4 real products for sale in Greece that match this interior item, each from a DIFFERENT Greek online shop (e.g. skroutz.gr, ikea.com/gr, leroymerlin.gr, praktiker.gr, kotsovolos.gr, public.gr, e-shop.gr, or specialist Greek retailers for professional equipment).
 ITEM: "${String(it.name || "").slice(0, 120)}" · type ${String(it.kind || "")} · approx. size W×D×H ${dims} cm · main colour ${String(it.color || "")} · style ${String(it.style || "")}.
-Prefer products close in size (±15%) and look. Use web search. Only list product pages you actually found in the search results (exact URL).
+Search in Greek and English (e.g. "τραπεζάκι σαλονιού 120x60 skroutz"). Prefer products close in size (±15%) and look. Use web search. Only list product pages you actually found in the search results (exact URL).
 Answer with JSON only: {"products":[{"store":"…","name":"…","price_eur":123.0,"w":0,"d":0,"h":0,"url":"https://…","note":"short Greek note: why it fits / differences"}]} (w,d,h in cm, 0 if unknown; price with VAT, null if not shown).`;
       // κλήση με web search · συνέχεια όταν ο server σταματά με pause_turn (μακριές αναζητήσεις)
-      const tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 6, user_location: { type: "approximate", country: "GR", timezone: "Europe/Athens" } }];
+      const tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }];
       const msgs: any[] = [{ role: "user", content: pr }];
       const all: any[] = []; let d2: any = null; let usageIn = 0, usageOut = 0;
       for (let turn = 0; turn < 4; turn++) {
