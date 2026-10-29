@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
 
     // 4. κλήση μοντέλου (ο client δεν επιλέγει model/max_tokens)
     const body = await req.json();
+    const rpc0 = (name: string, args: unknown) => fetch(SB + "/rest/v1/rpc/" + name, { method: "POST", headers: { apikey: anon, Authorization: auth, "Content-Type": "application/json" }, body: JSON.stringify(args) }).then((r) => r.json()).catch(() => null);
     // μονάδες: άδεια PRO / συνδρομή / δωρεάν / πακέτο (βλ. interior-billing.sql)
     // βελτίωση περιγραφής: σύντομη κλήση, δεν χρεώνει μονάδες (μόνο το όριο αιτημάτων/ώρα)
     if (body.mode === "enhance") {
@@ -62,6 +63,35 @@ Deno.serve(async (req) => {
       const d1 = await r1.json();
       if (!r1.ok) return json({ error: d1?.error?.message || "upstream" }, r1.status);
       return json({ text: (d1.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("") });
+    }
+    // αναζήτηση στο εμπόριο: η AI ψάχνει στο web πραγματικά προϊόντα από ελληνικά e-shop (χρεώνει 1 μονάδα AI)
+    if (body.mode === "shop") {
+      const it = body.item || {};
+      const q0 = await rpc0("interior_consume", { p_kind: "layout" });
+      if (!q0 || q0.ok !== true) return json({ error: "quota", reason: q0?.msg || "quota" }, 402);
+      const dims = [it.w, it.d, it.h].map((v: unknown) => Math.round(+(v as number) * 100) || "?").join("×");
+      const pr = `Find 4 real products for sale in Greece that match this interior item, each from a DIFFERENT Greek online shop (e.g. skroutz.gr, ikea.com/gr, leroymerlin.gr, praktiker.gr, kotsovolos.gr, public.gr, e-shop.gr, or specialist Greek retailers for professional equipment).
+ITEM: "${String(it.name || "").slice(0, 120)}" · type ${String(it.kind || "")} · approx. size W×D×H ${dims} cm · main colour ${String(it.color || "")} · style ${String(it.style || "")}.
+Prefer products close in size (±15%) and look. Use web search. Only list product pages you actually found in the search results (exact URL).
+Answer with JSON only: {"products":[{"store":"…","name":"…","price_eur":123.0,"w":0,"d":0,"h":0,"url":"https://…","note":"short Greek note: why it fits / differences"}]} (w,d,h in cm, 0 if unknown; price with VAT, null if not shown).`;
+      const r2 = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({ model: "claude-sonnet-5-5", max_tokens: 2500, messages: [{ role: "user", content: pr }],
+          tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5, user_location: { type: "approximate", country: "GR", timezone: "Europe/Athens" } }] }) });
+      const d2 = await r2.json();
+      if (!r2.ok) { await rpc0("interior_refund", { p_id: q0.id }); return json({ error: d2?.error?.message || "upstream" }, r2.status); }
+      const found = new Set<string>(); let searches = 0;
+      for (const c of d2.content || []) { if (c.type === "server_tool_use") searches++; if (c.type === "web_search_tool_result" && Array.isArray(c.content)) for (const x of c.content) if (x.url) found.add(String(x.url).split("#")[0]); }
+      const txt = (d2.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("");
+      let prods: any[] = [];
+      try { const a0 = txt.indexOf("{"), b0 = txt.lastIndexOf("}"); prods = JSON.parse(txt.slice(a0, b0 + 1)).products || []; } catch (_e) { prods = []; }
+      const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch (_e) { return ""; } };
+      const hosts = new Set([...found].map(host));
+      prods = prods.filter((x: any) => x && typeof x.url === "string" && /^https:\/\//.test(x.url) && (found.has(x.url.split("#")[0]) || hosts.has(host(x.url)))).slice(0, 4)
+        .map((x: any) => ({ ...x, verified: found.has(String(x.url).split("#")[0]) }));
+      const u2 = d2.usage || {}; const cost = ((u2.input_tokens || 0) * 2 + (u2.output_tokens || 0) * 10) / 1e6 + searches * 0.01;
+      await saveCost(q0.id, cost, "claude-sonnet-5-5+web", u2.input_tokens || 0, u2.output_tokens || 0);
+      if (!prods.length) { await rpc0("interior_refund", { p_id: q0.id }); return json({ products: [], error: "none" }); }
+      return json({ products: prods, cost_usd: Math.round(cost * 10000) / 10000 });
     }
     const kind = "layout";
     const rpc = (name: string, args: unknown) => fetch(SB + "/rest/v1/rpc/" + name, { method: "POST", headers: { apikey: anon, Authorization: auth, "Content-Type": "application/json" }, body: JSON.stringify(args) }).then((r) => r.json()).catch(() => null);
