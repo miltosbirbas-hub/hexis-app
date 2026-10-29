@@ -16,4 +16,4 @@ jobs:
           jq -Rs '{query: .}' tools/query.sql > /tmp/q.json
           curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data @/tmp/q.json > /tmp/r.json
           # μόνο μη προσωπικά δεδομένα: εμφανίζονται ως annotations
-          jq -c . /tmp/r.json | fold -w 3500 | while IFS= read -r l; do echo "::notice::$l"; done
+          i=0; base64 -w 3000 /tmp/r.json | while IFS= read -r l; do i=$((i+1)); echo "::notice title=p$i::$l"; done
