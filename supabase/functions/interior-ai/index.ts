@@ -52,13 +52,17 @@ Deno.serve(async (req) => {
     const refund = () => rpc("interior_refund", { p_id: q.id });
     const prompt = typeof body.prompt === "string" ? body.prompt.slice(0, 120000) : "";
     if (!prompt) { await refund(); return json({ error: "No prompt" }, 400); }
+    // καρέ βίντεο χώρου (αναγνώριση αντικειμένων): έως 8 JPEG/PNG σε base64
+    const imgs = (Array.isArray(body.images) ? body.images : []).slice(0, 8)
+      .map((d: unknown) => String(d || "")).map((d: string) => { const m = d.match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/); return m ? { type: "image", source: { type: "base64", media_type: m[1], data: m[2] } } : null; })
+      .filter((x: unknown) => x && (x as any).source.data.length < 2_500_000);
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
         model: "claude-sonnet-5-5",
         max_tokens: 12000,
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "user", content: imgs.length ? [...imgs, { type: "text", text: prompt }] : prompt }],
       }),
     });
     const data = await res.json();
