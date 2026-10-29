@@ -96,7 +96,9 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 .danger{border:1px solid rgba(214,69,69,.35);background:#FFF7F7;border-radius:11px;padding:12px;margin-top:10px}
 .danger p{font-size:12.5px;color:var(--muted);margin-bottom:8px}
 .danger p b{color:var(--red)}
-.exp-soon{color:#E8830C;font-weight:700}
+.exp-soon{color:#B85F00;font-weight:700}
+.urow.st-ok{background:#E8F6EE;border-color:#B9E2C9}.urow.st-soon{background:#FFF0DD;border-color:#F5C58A}.urow.st-exp{background:#FDE7E7;border-color:#F2B8B8}
+.urow.st-ok.open,.urow.st-soon.open,.urow.st-exp.open{background:#fff}
 .exp-past{color:var(--red);font-weight:700}
 .subact .row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
 .subact .row>*{flex:1;min-width:120px}
@@ -235,7 +237,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 <div class="toast" id="toast"></div>
 
 <script>
-const ADMIN_VERSION = 'v2.3';
+const ADMIN_VERSION = 'v2.4';
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
@@ -345,7 +347,8 @@ function renderDetail(uid){
 }
 
 async function loadUsers(){
-  const [au, ls, st] = await Promise.all([ sb.rpc('admin_all_users'), sb.rpc('admin_list_subs'), sb.rpc('admin_auth_status') ]);
+  const [au, ls, st, ex] = await Promise.all([ sb.rpc('admin_all_users'), sb.rpc('admin_list_subs'), sb.rpc('admin_auth_status'), sb.rpc('admin_user_expiry') ]);
+  UEXP = {};((ex && ex.data) || []).forEach(x => { UEXP[x.uid] = x; });
   AUTH = {};
   ((st && st.data) || []).forEach(x => { AUTH[x.uid] = x; });
   if (au.error) { document.getElementById('users').innerHTML = '<div class="empty">Σφάλμα: '+au.error.message+'</div>'; return; }
@@ -363,7 +366,11 @@ async function loadUsers(){
   renderUsers();
 }
 
-let USTAB='active';
+let USTAB='active',UEXP={};
+// πραγματική λήξη: η τελευταία ενεργή άδεια εφαρμογής ή η δοκιμή · null = χωρίς λήξη
+function effExp(u){const x=UEXP[u.uid]||{},now=Date.now();const le=x.last_exp?new Date(x.last_exp).getTime():null,tr=u.trial_ends_at?new Date(u.trial_ends_at).getTime():null;
+  if(x.perm_mods>0)return{perm:true};const c=[le,tr].filter(v=>v);if(!c.length)return String(u.tier||'free').toLowerCase()!=='free'?{perm:true}:{t:null};return{t:Math.max(...c)}}
+function rowCls(u){if(userState(u)==='blocked')return'';const e=effExp(u);if(e.perm)return' st-ok';if(!e.t)return' st-exp';const d=(e.t-Date.now())/864e5;return d<0?' st-exp':d<=30?' st-soon':' st-ok'}
 function userState(u){const au=AUTH[u.uid]||{};if(au.banned||u.sub_active===false)return'blocked';
   const now=Date.now(),exp=u.trial_ends_at?new Date(u.trial_ends_at).getTime():null,tier=String(u.tier||'free').toLowerCase(),mods=(u.modules||[]).length;
   if(mods>0)return'active';if(tier!=='free'&&(exp===null||exp>now))return'active';if(exp&&exp>now)return'trial';return'expired'}
@@ -381,19 +388,20 @@ function renderUsers(){
     const mods = u.modules || [];
     const open = openUid === u.uid;
     const now = new Date(), soon = new Date(Date.now() + 14*864e5);
-    const exp = u.trial_ends_at ? new Date(u.trial_ends_at) : null;
+    const eE = effExp(u), exp = eE.t ? new Date(eE.t) : null;
     const expCls = exp ? (exp < now ? 'exp-past' : (exp < soon ? 'exp-soon' : '')) : '';
     const tier = String(u.tier || 'free').toLowerCase();
     const au = AUTH[u.uid] || {};
     const isMe = u.uid === MY_UID;
-    return '<div class="urow'+(open?' open':'')+(au.banned?' banned':'')+'">'
+    const ee = effExp(u);
+    return '<div class="urow'+rowCls(u)+(open?' open':'')+(au.banned?' banned':'')+'">'
       + '<button class="uhead" onclick="toggleUser(\''+u.uid+'\')">'
       + '<span class="uemail">'+u.email+'</span>'
       + (au.banned ? '<span class="pill ban">Μπλοκ</span>' : '')
       + (au.email_confirmed === false ? '<span class="pill off" title="Δεν έχει επιβεβαιώσει το email">ανεπιβ.</span>' : '')
       + '<span class="pill '+tier+'">'+tier+'</span>'
       + '<span class="pill '+(u.sub_active===false?'off':'on')+'">'+(u.sub_active===false?'Όχι':'Ναι')+'</span>'
-      + '<span class="modcount '+expCls+'">'+(u.trial_ends_at?fmtDate(u.trial_ends_at):'—')+'</span>'
+      + '<span class="modcount '+(ee.perm?'':expCls)+'" title="'+(ee.perm?'Έχει άδεια χωρίς ημερομηνία λήξης':'Λήξη της τελευταίας ενεργής άδειας')+'">'+(ee.perm?'χωρίς λήξη':ee.t?fmtDate(new Date(ee.t).toISOString()):'—')+'</span>'
       + '<span class="modcount" title="Τελευταία χρήση">⏱ '+fmtAgo(u.last_seen)+'</span>'
       + '<span class="modcount">'+mods.length+' / '+Object.keys(MODULES).length+'</span>'
       + '<span class="arr">'+(open?'▼':'▶')+'</span>'
