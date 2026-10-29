@@ -219,6 +219,13 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
     <div class="ixrow"><input id="ixGEmail" type="email" placeholder="Email λογαριασμού πελάτη" style="flex:1">
       <select id="ixGKind"><option value="pack5">HXI-P5 · Ιδιώτης · 5 εικόνες · 4,90 €</option><option value="pack15">HXI-P15 · Ιδιώτης · 15 εικόνες · 9,90 €</option><option value="pack40">HXI-P40 · Ιδιώτης · 40 εικόνες · 19,90 €</option><option value="sub1">HXI-SUB · Ιδιώτης · συνδρομή 1 μήνα · 9,90 €</option><option value="pro50">HXI-PRO-50 · PRO · +50 τελικές · 12 € + ΦΠΑ</option><option value="manual">Δώρο / διόρθωση (μονάδες)</option></select>
       <input id="ixGCred" type="number" min="1" placeholder="μονάδες" style="width:90px;display:none"><button class="btn btn-ok" id="ixGrant">Πίστωση</button></div>
+    <div class="ixsub">Πραγματικό κόστος AI · προπληρωμένο υπόλοιπο <span class="hint" style="margin:0">· κάθε κλήση γράφει το κόστος της από τα tokens του παρόχου</span></div>
+    <div class="kpis" id="aiBud" style="margin:0 0 8px"></div>
+    <div class="ixrow"><select id="aiProv"><option value="google">Google · εικόνες (Gemini)</option><option value="anthropic">Anthropic · AI διαρρύθμιση / αναγνώριση</option></select>
+      <input id="aiAmt" type="number" min="1" step="1" placeholder="Ποσό" style="width:100px!important"><select id="aiCur"><option>EUR</option><option>USD</option></select>
+      <input id="aiNote" placeholder="Σημείωση" style="flex:1"><button class="btn btn-orange" id="aiAdd">+ Φόρτωση</button>
+      <label style="font-size:12.5px">1 $ = <input id="aiFx" type="number" step="0.01" min="0.5" max="1.5" style="width:70px!important"> €</label></div>
+    <div id="aiTop" class="hint" style="margin-top:6px"></div>
     <div class="ixsub">Χρήστες <span class="hint" style="margin:0">· κόστος = πραγματικό κόστος AI (USD), το βλέπεις μόνο εσύ</span></div>
     <div class="ixtw" id="ixUsers"><div class="empty">Φόρτωση...</div></div>
     <div class="ixsub">Κλειδιά</div>
@@ -237,7 +244,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 <div class="toast" id="toast"></div>
 
 <script>
-const ADMIN_VERSION = 'v2.4';
+const ADMIN_VERSION = 'v2.5';
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
@@ -585,6 +592,20 @@ document.getElementById('ixGKind').onchange=e=>{document.getElementById('ixGCred
 document.getElementById('ixGrant').onclick=async()=>{const em=document.getElementById('ixGEmail').value.trim();if(!em){toast('Γράψε email');return}
   const kind=document.getElementById('ixGKind').value;const {data,error}=await sb.rpc('admin_interior_grant',{p_email:em,p_kind:kind,p_credits:+document.getElementById('ixGCred').value||0,p_note:null});
   if(error){toast(error.message);return}if(!data.ok){toast(data.msg);return}toast(kind==='sub1'?'Συνδρομή έως '+ixd(data.sub_until):'Μονάδες: '+data.credits);ixLoad()};
+
+// πραγματικό κόστος AI και υπόλοιπο προπληρωμένων μονάδων
+const eu=v=>(v==null?'—':(+v).toLocaleString('el-GR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €');
+async function aiBudLoad(d){if(!d){const r=await sb.rpc('admin_ai_budget');if(r.error){document.getElementById('aiBud').innerHTML='<div class="empty">'+r.error.message+'</div>';return}d=r.data}
+  const N={google:'Google · εικόνες',anthropic:'Anthropic · AI κειμένου'};document.getElementById('aiFx').value=d.fx;
+  document.getElementById('aiBud').innerHTML=d.providers.map(p=>{const low=p.remaining_eur!=null&&p.topped_eur>0&&p.remaining_eur<p.topped_eur*0.15;
+    return '<div class="kpi"'+(low?' style="background:#FDE7E7;border-color:#F2B8B8"':'')+'><small>'+N[p.provider]+'</small><b>'+(p.remaining_eur==null?'—':eu(p.remaining_eur))+'</b><span>'+(p.topped_eur?'φόρτωσες '+eu(p.topped_eur)+' · ':'καταχώρισε φόρτωση · ')+'ξοδεύτηκαν '+eu(p.spent_eur)+' σε '+p.uses+' χρήσεις'+(p.avg_eur?' · '+eu(p.avg_eur)+'/χρήση':'')+' · 30 ημ. '+eu(p.last30_eur)+(p.uses>p.uses_real?' · '+(p.uses-p.uses_real)+' με εκτίμηση':'')+'</span></div>'}).join('');
+  document.getElementById('aiTop').innerHTML=(d.topups||[]).map(t=>new Date(t.at).toLocaleDateString('el-GR')+' · '+N[t.provider]+' · '+t.amount+' '+t.currency+(t.note?' · '+t.note:'')+' <a href="#" data-tdel="'+t.id+'">×</a>').join('<br>')||'Καμία φόρτωση ακόμα · γράψε πόσα φόρτωσες στον πάροχο για να βλέπεις το υπόλοιπο.';
+  document.querySelectorAll('[data-tdel]').forEach(a=>a.onclick=async e=>{e.preventDefault();if(!confirm('Διαγραφή φόρτωσης;'))return;const r=await sb.rpc('admin_ai_topup_delete',{p_id:+a.dataset.tdel});if(r.error)toast(r.error.message);else aiBudLoad(r.data)})}
+document.getElementById('aiAdd').onclick=async()=>{const a=+document.getElementById('aiAmt').value;if(!(a>0)){toast('Γράψε ποσό');return}
+  const r=await sb.rpc('admin_ai_topup',{p_provider:document.getElementById('aiProv').value,p_amount:a,p_currency:document.getElementById('aiCur').value,p_note:document.getElementById('aiNote').value||null});
+  if(r.error){toast(r.error.message);return}document.getElementById('aiAmt').value='';document.getElementById('aiNote').value='';toast('Καταχωρίστηκε');aiBudLoad(r.data)};
+document.getElementById('aiFx').onchange=async e=>{const r=await sb.rpc('admin_ai_set_fx',{p_fx:+e.target.value});if(r.error)toast(r.error.message);else{toast('Ισοτιμία αποθηκεύτηκε');aiBudLoad(r.data)}};
+(function aiWait(){const m=document.getElementById('main');if(m&&m.style.display!=='none'){aiBudLoad();return}setTimeout(aiWait,500)})();
 (function ixWait(){const m=document.getElementById('main');if(m&&m.style.display!=='none'){ixLoad();return}setTimeout(ixWait,400)})();
 
 // ===== Πληρωμές hub (Stripe) → ουρά παραστατικών =====

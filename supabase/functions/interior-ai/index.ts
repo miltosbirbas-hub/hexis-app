@@ -21,6 +21,14 @@ const CORS = {
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 const hits = new Map<string, number[]>();
+// πραγματικό κόστος κλήσης → interior_usage (με service role· ο χρήστης δεν μπορεί να το αλλάξει)
+async function saveCost(id: number, cost: number, model: string, tin: number, tout: number) {
+  const srk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!srk || !id) return;
+  await fetch(SB + "/rest/v1/interior_usage?id=eq." + id, { method: "PATCH", headers: { apikey: srk, Authorization: "Bearer " + srk, "Content-Type": "application/json", Prefer: "return=minimal" },
+    body: JSON.stringify({ cost_usd: Math.round(cost * 10000) / 10000, model, in_tokens: tin, out_tokens: tout, real_cost: true }) }).catch(() => null);
+}
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -68,7 +76,12 @@ Deno.serve(async (req) => {
     const data = await res.json();
     if (!res.ok) { await refund(); return json({ error: data?.error?.message || "upstream" }, res.status); }
     const text = (data.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("");
-    return json({ text, usage: data.usage, source: q.source });
+    // τιμοκατάλογος USD ανά 1M tokens (αλλάζει με secrets CLAUDE_IN_USD / CLAUDE_OUT_USD)
+    const pin = +(Deno.env.get("CLAUDE_IN_USD") || 2), pout = +(Deno.env.get("CLAUDE_OUT_USD") || 10);
+    const u0 = data.usage || {}, tin = (u0.input_tokens || 0) + (u0.cache_creation_input_tokens || 0) + (u0.cache_read_input_tokens || 0), tout = u0.output_tokens || 0;
+    const cost = (tin * pin + tout * pout) / 1e6;
+    await saveCost(q.id, cost, data.model || "claude-sonnet-5-5", tin, tout);
+    return json({ text, usage: data.usage, source: q.source, cost_usd: Math.round(cost * 10000) / 10000 });
   } catch (err) {
     return json({ error: String(err) }, 500);
   }

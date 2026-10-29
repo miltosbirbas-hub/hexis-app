@@ -17,6 +17,15 @@ const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 const hits = new Map<string, number[]>();
 
+
+// πραγματικό κόστος κλήσης → interior_usage (με service role· ο χρήστης δεν μπορεί να το αλλάξει)
+async function saveCost(id: number, cost: number, model: string, tin: number, tout: number) {
+  const srk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!srk || !id) return;
+  await fetch(SB + "/rest/v1/interior_usage?id=eq." + id, { method: "PATCH", headers: { apikey: srk, Authorization: "Bearer " + srk, "Content-Type": "application/json", Prefer: "return=minimal" },
+    body: JSON.stringify({ cost_usd: Math.round(cost * 10000) / 10000, model, in_tokens: tin, out_tokens: tout, real_cost: true }) }).catch(() => null);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -59,7 +68,15 @@ Deno.serve(async (req) => {
     const parts = data?.candidates?.[0]?.content?.parts || [];
     const img = parts.map((p: any) => p.inlineData || p.inline_data).find((x: any) => x && x.data);
     if (!img) { await refund(); return json({ error: "no image: " + (parts.map((p: any) => p.text).join(" ").slice(0, 200) || data?.candidates?.[0]?.finishReason || "") }, 502); }
-    return json({ image: img.data, mime: img.mimeType || img.mime_type || "image/png", model, source: q.source });
+    // πραγματικό κόστος από usageMetadata (USD ανά 1M tokens, τιμοκατάλογος Google)
+    const pro = !/flash/.test(model), um = data.usageMetadata || {};
+    const pIn = pro ? 2 : 0.5, pTxt = pro ? 12 : 3, pImg = pro ? 120 : 60;
+    const det = um.candidatesTokensDetails || [];
+    const imgT = det.filter((d: any) => d.modality === "IMAGE").reduce((a: number, d: any) => a + (d.tokenCount || 0), 0) || (um.candidatesTokenCount || 0);
+    const txtT = det.filter((d: any) => d.modality === "TEXT").reduce((a: number, d: any) => a + (d.tokenCount || 0), 0) + (um.thoughtsTokenCount || 0);
+    const tin = um.promptTokenCount || 0, cost = (tin * pIn + imgT * pImg + txtT * pTxt) / 1e6;
+    await saveCost(q.id, cost, model, tin, imgT + txtT);
+    return json({ image: img.data, mime: img.mimeType || img.mime_type || "image/png", model, source: q.source, cost_usd: Math.round(cost * 10000) / 10000 });
   } catch (err) {
     return json({ error: String(err) }, 500);
   }

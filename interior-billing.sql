@@ -90,7 +90,7 @@ end $$;
 
 create or replace function public.interior_cost(k text)
 returns numeric language sql immutable as $$
-  select case k when 'final' then 0.134 when 'final4k' then 0.24 when 'draft' then 0.039 when 'layout' then 0.08 else 0 end
+  select case k when 'final' then 0.134 when 'final4k' then 0.24 when 'draft' then 0.067 when 'layout' then 0.08 else 0 end
 $$;
 
 -- ------------------------------------------------------------
