@@ -54,17 +54,26 @@ Deno.serve(async (req) => {
     const image = typeof body.image === "string" ? body.image : "";
     const prompt = typeof body.prompt === "string" ? body.prompt.slice(0, 6000) : "";
     if (!image || image.length > 8_000_000 || !prompt) { await refund(); return json({ error: "bad input" }, 400); }
-    const model = Deno.env.get("GEMINI_IMAGE_MODEL") || (body.quality === "fast" ? "gemini-3.1-flash-image" : "gemini-3-pro-image");
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": gkey },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }, { inline_data: { mime_type: "image/jpeg", data: image } }] }],
-        generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) { await refund(); return json({ error: data?.error?.message || "upstream" }, res.status); }
+    // μοντέλα με σειρά δοκιμής: αν κάποιο δεν υπάρχει/δεν επιτρέπεται στο κλειδί, πάμε στο επόμενο
+    const first = Deno.env.get("GEMINI_IMAGE_MODEL") || (body.quality === "fast" ? "gemini-3.1-flash-image" : "gemini-3-pro-image");
+    const chain = [...new Set([first, body.quality === "fast" ? "gemini-3.1-flash-image-preview" : "gemini-3-pro-image-preview", "gemini-3.1-flash-image", "gemini-2.5-flash-image"])];
+    let res: Response | null = null, data: any = null, model = first; const tried: string[] = [];
+    for (const m of chain) {
+      model = m;
+      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": gkey },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }, { inline_data: { mime_type: "image/jpeg", data: image } }] }],
+          generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
+        }),
+      });
+      data = await res.json().catch(() => ({}));
+      if (res.ok) break;
+      tried.push(m + ": " + res.status + " " + String(data?.error?.message || "").slice(0, 120));
+      if (![400, 403, 404].includes(res.status)) break; // όριο/υπερφόρτωση: όχι άλλη δοκιμή
+    }
+    if (!res || !res.ok) { await refund(); return json({ error: "google · " + tried.join(" | ") }, res ? res.status : 502); }
     const parts = data?.candidates?.[0]?.content?.parts || [];
     const img = parts.map((p: any) => p.inlineData || p.inline_data).find((x: any) => x && x.data);
     if (!img) { await refund(); return json({ error: "no image: " + (parts.map((p: any) => p.text).join(" ").slice(0, 200) || data?.candidates?.[0]?.finishReason || "") }, 502); }

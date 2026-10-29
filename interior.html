@@ -3287,7 +3287,8 @@ async function aiPhoto(){const ep=window.HEXIS_RENDER_ENDPOINT;if(!S.built){toas
     const js=await r.json().catch(()=>({}));if(r.status===402){licQuota(js,PHQ==='fast'?'draft':'final');return}if(!r.ok||!js.image)throw new Error(js.error||('HTTP '+r.status));licLoad();aiReal('google',js.cost_usd);
     const url='data:'+(js.mime||'image/png')+';base64,'+js.image;$('#phA').src=url;$('#phDl').href=url;$('#phDl').download='hexis-interior-'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'')+'.'+((js.mime||'').includes('jpeg')?'jpg':'png');
     $('#phInfo').textContent=`${PHQ==='fast'?'Πρόχειρο':'Τελικό'} · ${((performance.now()-t0)/1000).toFixed(0)} s`;phView('ai');$('#phMask').hidden=false}
-  catch(e){toast(/forbidden|login/.test(e.message)?'Χρειάζεται σύνδεση στο hexis-app':/rate/.test(e.message)?'Πολλά αιτήματα · δοκίμασε σε λίγο':/GEMINI|key/i.test(e.message)?'Λείπει το κλειδί της υπηρεσίας εικόνων στο Supabase':'Η απόδοση απέτυχε · '+String(e.message).slice(0,80))}
+  catch(e){console.warn('render',e);const m=String(e.message||e);const t=/forbidden|login/.test(m)?'Χρειάζεται σύνδεση στο hexis-app':/rate|quota|RESOURCE_EXHAUSTED|429/i.test(m)?'Η υπηρεσία εικόνων έφτασε το όριό της · δοκίμασε σε λίγο':/GEMINI|API key|key not valid|PERMISSION/i.test(m)?'Πρόβλημα με το κλειδί της υπηρεσίας εικόνων στο Supabase':'Η απόδοση απέτυχε';
+    let n=$('#phErr');if(!n){n=document.createElement('p');n.id='phErr';n.className='note';n.style.cssText='margin:0;color:#b3261e;word-break:break-word'}const vb=$('#ePhoto2').offsetParent?$('#ePhoto2'):$('#bPhoto');vb.after(n);n.textContent=t+' · '+m.slice(0,300);toast(t)}
   finally{$('#busy').hidden=true;phCtl=null}}
 function phView(v){$$('#phSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));$('#phA').hidden=v!=='ai';$('#phB').hidden=v!=='3d'}
 $$('#phSeg button').forEach(b=>b.onclick=()=>phView(b.dataset.v));
