@@ -160,6 +160,11 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
   <div class="card" id="hxCard">
     <h2>Πληρωμές · προς έκδοση παραστατικού <span class="count" id="hxCnt">0</span></h2>
     <div class="hint" style="margin:0 0 8px">Κάθε πληρωμή μέσω Stripe ενεργοποιείται αυτόματα. Εδώ κόβεις το παραστατικό στο Emblem με τον κωδικό είδους και πατάς «Εκδόθηκε».</div>
+    <div class="ixsub" style="margin-top:4px">Δωρεάν ή demo (καταγράφεται με 0,00 € για μηδενικό παραστατικό)</div>
+    <div class="ixrow" style="margin-top:0"><input id="hxGEmail" type="email" placeholder="Email λογαριασμού" style="flex:1;min-width:200px"><select id="hxGSku"><option value="">Φόρτωση…</option></select>
+      <select id="hxGDays"><option value="">Πλήρες (όπως το προϊόν)</option><option value="7">Demo 7 ημέρες</option><option value="14">Demo 14 ημέρες</option><option value="30">Demo 30 ημέρες</option></select>
+      <input id="hxGNote" placeholder="Σημείωση" style="width:160px"><button class="btn btn-ok" id="hxGGo">Ενεργοποίηση</button></div>
+    <div style="height:10px"></div>
     <div class="ixrow" style="margin-top:0"><label style="display:flex;gap:6px;align-items:center;font-size:12.5px"><input type="checkbox" id="hxAll" style="width:auto!important"> όλες</label><span class="grow" style="flex:1"></span><button class="btn btn-no" id="hxCsv">CSV μήνα</button></div>
     <div class="ixtw" id="hxList"><div class="empty">Φόρτωση...</div></div>
   </div>
@@ -193,7 +198,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 <div class="toast" id="toast"></div>
 
 <script>
-const ADMIN_VERSION = 'v2.0';
+const ADMIN_VERSION = 'v2.1';
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
@@ -535,12 +540,17 @@ async function hxLoad(){const {data,error}=await sb.rpc('admin_hx_orders',{p_all
   HXO=data||[];const pend=HXO.filter(o=>o.invoice_status!=='issued');document.getElementById('hxCnt').textContent=pend.length;
   const f=v=>(+v).toFixed(2).replace('.',',');
   L.innerHTML=HXO.length?`<table><tr><th>Ημ/νία</th><th>Κωδικός</th><th>Είδος</th><th>Πελάτης</th><th>ΑΦΜ</th><th>Παραστ.</th><th>Καθαρό</th><th>ΦΠΑ</th><th>Σύνολο</th><th>Ενεργοποίηση</th><th>Παραστατικό</th></tr>`+
-    HXO.map(o=>`<tr><td>${new Date(o.created_at).toLocaleString('el-GR',{dateStyle:'short',timeStyle:'short'})}</td><td class="k">${ixe(o.sku)}</td><td>${ixe(o.item)}${o.renewal?' <span class="ixtag sub">ανανέωση</span>':''}</td><td>${ixe(o.email||'')}${o.customer_name?'<br><small>'+ixe(o.customer_name)+'</small>':''}</td><td class="k">${ixe(o.tax_id||'—')}</td><td><span class="ixtag ${o.doc_type==='ΤΠΥ'?'pro':''}">${o.doc_type}</span></td><td>${f(o.net)}</td><td>${f(o.vat)}</td><td><b>${f(o.gross)} €</b></td>
+    HXO.map(o=>`<tr><td>${new Date(o.created_at).toLocaleString('el-GR',{dateStyle:'short',timeStyle:'short'})}</td><td class="k">${ixe(o.sku)}</td><td>${ixe(o.item)}${o.renewal?' <span class="ixtag sub">ανανέωση</span>':''}${o.source==='free'?' <span class="ixtag">ΔΩΡΕΑΝ</span>':o.source==='demo'?' <span class="ixtag pro">DEMO '+o.demo_days+' ημ.</span>':''}</td><td>${ixe(o.email||'')}${o.customer_name?'<br><small>'+ixe(o.customer_name)+'</small>':''}</td><td class="k">${ixe(o.tax_id||'—')}</td><td><span class="ixtag ${o.doc_type==='ΤΠΥ'?'pro':''}">${o.doc_type}</span></td><td>${f(o.net)}</td><td>${f(o.vat)}</td><td><b>${f(o.gross)} €</b></td>
       <td>${o.status==='fulfilled'?'✓ '+ixe(o.fulfill_note||''):`<span style="color:var(--red)">${ixe(o.status)} ${ixe(o.fulfill_note||'')}</span> <button class="btn btn-no" style="padding:2px 8px;font-size:11px" data-rf="${o.id}">Ξανά</button>`}</td>
       <td>${o.invoice_status==='issued'?'✓ '+ixe(o.invoice_ref||''):`<button class="btn btn-ok" style="padding:3px 9px;font-size:11.5px" data-inv="${o.id}">Εκδόθηκε</button>`}</td></tr>`).join('')+'</table>':'<div class="empty">Καμία πληρωμή ακόμα.</div>';
   L.querySelectorAll('[data-inv]').forEach(b=>b.onclick=async()=>{const ref=prompt('Αριθμός παραστατικού (προαιρετικό):','');if(ref===null)return;const {error}=await sb.rpc('admin_hx_invoiced',{p_id:b.dataset.inv,p_ref:ref});toast(error?error.message:'Σημειώθηκε');hxLoad()});
   L.querySelectorAll('[data-rf]').forEach(b=>b.onclick=async()=>{const {data,error}=await sb.rpc('admin_hx_refulfill',{p_id:b.dataset.rf});toast(error?error.message:(data&&data.msg)||'OK');hxLoad();ixLoad()})}
 document.getElementById('hxAll').onchange=hxLoad;
+(async()=>{const {data}=await sb.from('hx_products').select('sku,name_el,gross_cents,app').order('sort');const S=document.getElementById('hxGSku');
+  S.innerHTML=(data||[]).map(p=>`<option value="${ixe(p.sku)}">${ixe(p.sku)} · ${ixe(p.name_el)}</option>`).join('')||'<option value="">— τρέξε το hexis-payments.sql —</option>'})();
+document.getElementById('hxGGo').onclick=async()=>{const em=document.getElementById('hxGEmail').value.trim(),sku=document.getElementById('hxGSku').value;if(!em||!sku){toast('Γράψε email και διάλεξε προϊόν');return}
+  const d=document.getElementById('hxGDays').value;const {data,error}=await sb.rpc('admin_hx_grant',{p_email:em,p_sku:sku,p_days:d?+d:null,p_note:document.getElementById('hxGNote').value||null});
+  if(error){toast(error.message);return}toast(data.ok?'✓ '+data.msg:data.msg);hxLoad();if(typeof ixLoad==='function')ixLoad()};
 document.getElementById('hxCsv').onclick=()=>{const m0=new Date();m0.setDate(1);m0.setHours(0,0,0,0);const R=HXO.filter(o=>new Date(o.created_at)>=m0);
   const rows=[['Ημερομηνία','Κωδικός είδους','Είδος','Email','Επωνυμία','ΑΦΜ','Παραστατικό','Καθαρό','ΦΠΑ','Σύνολο','Αρ. παραστατικού']].concat(R.map(o=>[new Date(o.created_at).toLocaleString('el-GR'),o.sku,o.item,o.email||'',o.customer_name||'',o.tax_id||'',o.doc_type,(+o.net).toFixed(2).replace('.',','),(+o.vat).toFixed(2).replace('.',','),(+o.gross).toFixed(2).replace('.',','),o.invoice_ref||'']));
   const csv='\ufeff'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(';')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='hexis-pliromes-'+m0.toISOString().slice(0,7)+'.csv';a.click()};

@@ -48,6 +48,8 @@ create table if not exists public.hx_orders (
   fulfilled_at    timestamptz,
   invoiced_at     timestamptz
 );
+alter table public.hx_orders add column if not exists demo_days integer;
+alter table public.hx_orders add column if not exists source text not null default 'stripe';  -- stripe | free | demo
 create index if not exists hx_orders_user on public.hx_orders(user_id, created_at desc);
 create index if not exists hx_orders_inv on public.hx_orders(invoice_status, created_at);
 
@@ -74,11 +76,25 @@ on conflict (sku) do update set name_el = excluded.name_el, name_en = excluded.n
   grant_kind = excluded.grant_kind, grant_value = excluded.grant_value, recurring = excluded.recurring, descriptor = excluded.descriptor, sort = excluded.sort;
 
 -- ------------------------------------------------------------
+-- Κατάλογος · υπόλοιπες εφαρμογές του hub (άδεια 1 έτους = module στο entitlements)
+-- ------------------------------------------------------------
+insert into public.hx_products(sku, app, name_el, name_en, gross_cents, grant_kind, grant_value, recurring, descriptor, sort) values
+ ('HX-KENAK-10',  'kenak',         'HEXIS ΚΕΝΑΚ · πακέτο 10 ΠΕΑ',               'HEXIS KENAK · 10 EPC pack',               6200, 'kenak_tokens', '{"packs":1}',                       null, 'KENAK',    100),
+ ('HX-STEGH-1Y',  'stegh',         'HEXIS Στέγη & Προμέτρηση · άδεια 1 έτους',  'HEXIS Roof & Take-off · 1-year licence',  1240, 'module_year',  '{"module":"stegh","months":12}',     null, 'STEGH',    110),
+ ('HX-PDFDIM-1Y', 'pdfdim',        'HEXIS PDF Dim · άδεια 1 έτους',             'HEXIS PDF Dim · 1-year licence',          1240, 'module_year',  '{"module":"pdfdim","months":12}',    null, 'PDFDIM',   120),
+ ('HX-P2DXF-1Y',  'paper2dxf',     'HEXIS Paper → DXF · άδεια 1 έτους',         'HEXIS Paper → DXF · 1-year licence',      1240, 'module_year',  '{"module":"paper2dxf","months":12}', null, 'PAPERDXF', 130),
+ ('HX-GEOM-1Y',   'syntetagmenes', 'HEXIS GEOmetry · άδεια 1 έτους',            'HEXIS GEOmetry · 1-year licence',         4340, 'module_year',  '{"module":"syntetagmenes","months":12}', null, 'GEOMETRY', 140),
+ ('HX-3D-1Y',     'plan3d',        'HEXIS 3D Κτίριο · άδεια 1 έτους',           'HEXIS 3D Building · 1-year licence',      2480, 'module_year',  '{"module":"plan3d","months":12}',    null, '3DKTIRIO', 150),
+ ('HX-TOIXOS-1Y', 'toixos',        'HEXIS Τοίχος Αντιστήριξης · άδεια 1 έτους', 'HEXIS Retaining Wall · 1-year licence',   2480, 'module_year',  '{"module":"toixos","months":12}',    null, 'TOIXOS',   160)
+on conflict (sku) do update set name_el = excluded.name_el, name_en = excluded.name_en, gross_cents = excluded.gross_cents,
+  grant_kind = excluded.grant_kind, grant_value = excluded.grant_value, recurring = excluded.recurring, descriptor = excluded.descriptor, sort = excluded.sort;
+
+-- ------------------------------------------------------------
 -- Ενεργοποίηση (μόνο service_role · από hx-stripe-webhook)
 -- ------------------------------------------------------------
 create or replace function public.hx_fulfill(p_order uuid)
 returns json language plpgsql security definer set search_path = public, auth as $$
-declare o hx_orders; p hx_products; u uuid; c int; mo int; note text;
+declare o hx_orders; p hx_products; u uuid; c int; mo int; note text; span interval; md text; n int;
 begin
   select * into o from hx_orders where id = p_order for update;
   if o.id is null then return json_build_object('ok',false,'msg','order'); end if;
@@ -88,6 +104,8 @@ begin
   if u is null and o.customer_email is not null then select id into u from auth.users where lower(email) = lower(o.customer_email); end if;
   if u is null then update hx_orders set status = 'failed', fulfill_note = 'Δεν βρέθηκε λογαριασμός' where id = o.id; return json_build_object('ok',false,'msg','user'); end if;
 
+  -- demo: χρονική ισχύς σε ημέρες αντί για μήνες
+  span := case when o.demo_days is not null then make_interval(days => o.demo_days) else make_interval(months => coalesce((p.grant_value->>'months')::int,1)) end;
   if p.grant_kind = 'interior_credits' then
     c := (p.grant_value->>'credits')::int;
     insert into interior_accounts(user_id) values (u) on conflict (user_id) do nothing;
@@ -98,15 +116,28 @@ begin
   elsif p.grant_kind = 'interior_sub' then
     mo := coalesce((p.grant_value->>'months')::int,1);
     insert into interior_accounts(user_id) values (u) on conflict (user_id) do nothing;
-    update interior_accounts set sub_until = greatest(coalesce(sub_until, now()), now()) + make_interval(months => mo) + interval '2 days', updated_at = now() where user_id = u;
+    update interior_accounts set sub_until = greatest(coalesce(sub_until, now()), now()) + span + (case when o.demo_days is null then interval '2 days' else interval '0' end), updated_at = now() where user_id = u;
     insert into interior_grants(user_id, kind, credits, amount_eur, note) values (u, 'sub1', 0, o.amount_cents/100.0, 'stripe '||o.sku);
-    note := 'συνδρομή +'||mo||' μήνας';
+    note := 'συνδρομή +'||coalesce(o.demo_days::text||' ημέρες', mo||' μήνας');
   elsif p.grant_kind = 'interior_pro' then
     mo := (p.grant_value->>'months')::int;
     insert into interior_accounts(user_id) values (u) on conflict (user_id) do nothing;
-    update interior_accounts set pro_until = greatest(coalesce(pro_until, now()), now()) + make_interval(months => mo), updated_at = now() where user_id = u;
+    update interior_accounts set pro_until = greatest(coalesce(pro_until, now()), now()) + span, updated_at = now() where user_id = u;
     insert into interior_grants(user_id, kind, credits, amount_eur, note) values (u, 'pro'||mo||'m', 0, o.amount_cents/100.0, 'stripe '||o.sku);
-    note := 'PRO +'||mo||' μήνες';
+    note := 'PRO +'||coalesce(o.demo_days::text||' ημέρες', mo||' μήνες');
+  elsif p.grant_kind = 'module_year' then
+    md := p.grant_value->>'module';
+    update entitlements set active = true, expires_at = greatest(coalesce(expires_at, now()), now()) + span where user_id = u and module = md;
+    get diagnostics n = row_count;
+    if n = 0 then insert into entitlements(user_id, module, active, expires_at) values (u, md, true, now() + span); end if;
+    note := md||' έως '||to_char((select max(expires_at) from entitlements where user_id = u and module = md),'DD/MM/YYYY');
+  elsif p.grant_kind = 'kenak_tokens' then
+    begin
+      perform public.kenak_grant(u, coalesce((p.grant_value->>'packs')::int,1));
+      note := 'ΚΕΝΑΚ +'||(10*coalesce((p.grant_value->>'packs')::int,1))||' ΠΕΑ';
+    exception when others then
+      update hx_orders set status = 'failed', fulfill_note = 'kenak_grant: '||sqlerrm where id = o.id; return json_build_object('ok',false,'msg','kenak');
+    end;
   else
     update hx_orders set status = 'failed', fulfill_note = 'Άγνωστο grant: '||p.grant_kind where id = o.id;
     return json_build_object('ok',false,'msg','grant');
@@ -120,14 +151,15 @@ revoke execute on function public.hx_fulfill(uuid) from public, anon, authentica
 -- ------------------------------------------------------------
 -- Διαχείριση: ουρά παραστατικών για το Emblem
 -- ------------------------------------------------------------
+drop function if exists public.admin_hx_orders(boolean);
 create or replace function public.admin_hx_orders(p_all boolean default false)
 returns table(id uuid, created_at timestamptz, sku text, item text, email text, customer_name text, tax_id text, doc_type text,
-  net numeric, vat numeric, gross numeric, status text, fulfill_note text, invoice_status text, invoice_ref text, renewal boolean)
+  net numeric, vat numeric, gross numeric, status text, fulfill_note text, invoice_status text, invoice_ref text, renewal boolean, source text, demo_days int)
 language plpgsql stable security definer set search_path = public, auth as $$
 begin
   if not public.is_admin() then raise exception 'forbidden'; end if;
   return query select o.id, o.created_at, o.sku, p.name_el, coalesce(o.customer_email, u.email::text), o.customer_name, o.tax_id, o.doc_type,
-      round(o.net_cents/100.0,2), round(o.vat_cents/100.0,2), round(o.amount_cents/100.0,2), o.status, o.fulfill_note, o.invoice_status, o.invoice_ref, o.stripe_invoice is not null
+      round(o.net_cents/100.0,2), round(o.vat_cents/100.0,2), round(o.amount_cents/100.0,2), o.status, o.fulfill_note, o.invoice_status, o.invoice_ref, o.stripe_invoice is not null, o.source, o.demo_days
     from hx_orders o join hx_products p on p.sku = o.sku left join auth.users u on u.id = o.user_id
     where p_all or o.invoice_status <> 'issued' or o.created_at > now() - interval '30 days'
     order by o.created_at desc limit 500;
@@ -146,6 +178,23 @@ begin
   if not public.is_admin() then raise exception 'forbidden'; end if;
   return public.hx_fulfill(p_id);
 end $$;
+
+-- Δωρεάν / demo από τον διαχειριστή: καταγράφεται ως παραγγελία 0,00 € (για μηδενικό παραστατικό)
+create or replace function public.admin_hx_grant(p_email text, p_sku text, p_days int default null, p_note text default null)
+returns json language plpgsql security definer set search_path = public, auth as $$
+declare u uuid; em text; oid uuid;
+begin
+  if not public.is_admin() then raise exception 'forbidden'; end if;
+  select id, email into u, em from auth.users where lower(email) = lower(trim(p_email));
+  if u is null then return json_build_object('ok',false,'msg','Δεν υπάρχει λογαριασμός με αυτό το email'); end if;
+  if not exists (select 1 from hx_products where sku = p_sku) then return json_build_object('ok',false,'msg','Άγνωστος κωδικός'); end if;
+  insert into hx_orders(user_id, sku, amount_cents, net_cents, vat_cents, customer_email, doc_type, source, demo_days, fulfill_note)
+    values (u, p_sku, 0, 0, 0, em, 'ΑΠΥ', case when p_days is null then 'free' else 'demo' end, nullif(p_days,0), p_note)
+    returning id into oid;
+  return public.hx_fulfill(oid);
+end $$;
+revoke execute on function public.admin_hx_grant(text,text,int,text) from public, anon;
+grant execute on function public.admin_hx_grant(text,text,int,text) to authenticated;
 
 revoke execute on function public.admin_hx_orders(boolean) from public, anon;
 revoke execute on function public.admin_hx_invoiced(uuid,text) from public, anon;
