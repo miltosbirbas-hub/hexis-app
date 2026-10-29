@@ -306,3 +306,29 @@ revoke execute on function public.interior_status() from public, anon;
 grant execute on function public.interior_consume(text), public.interior_refund(bigint), public.interior_redeem(text), public.interior_status(),
   public.admin_interior_new_keys(text,int,text,text,text), public.admin_interior_keys(), public.admin_interior_revoke(text),
   public.admin_interior_grant(text,text,int,text), public.admin_interior_overview() to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Πορτοφόλι χρήστη: υπόλοιπο μονάδων, αξία σε €, ιστορικό χρήσης (v4.87)
+-- Αξία μονάδας = τιμή καταλόγου του πακέτου (και για δωρεάν/demo πακέτα), μέσος όρος βάσει μονάδων.
+create or replace function public.interior_wallet(p_limit int default 40)
+returns json language plpgsql security definer set search_path to 'public' as $$
+declare u uuid := auth.uid(); a interior_accounts; cr int; epu numeric; hist json; tot_units int; tot_eur numeric;
+begin
+  if u is null then return json_build_object('ok',false); end if;
+  select * into a from interior_accounts where user_id = u;
+  cr := case when a.user_id is null then 0 when a.credits_until is null or a.credits_until > now() then coalesce(a.credits,0) else 0 end;
+  select coalesce(sum(g.credits),0),
+         coalesce(sum(g.credits * case g.kind when 'pack5' then 0.98 when 'pack15' then 0.66 when 'pack40' then 0.4975 when 'pro50' then 0.2976 else 0.98 end),0)
+    into tot_units, tot_eur from interior_grants g where g.user_id = u and g.credits > 0;
+  epu := case when tot_units > 0 then round(tot_eur / tot_units, 4) else 0.98 end;
+  select coalesce(json_agg(x order by x.created_at desc),'[]'::json) into hist from (
+    select id, created_at, kind, units, source, refunded,
+           case when source = 'credits' and not refunded then round(units * epu, 2) else 0 end as eur
+    from interior_usage where user_id = u order by created_at desc limit greatest(1, least(p_limit, 200))) x;
+  return json_build_object('ok',true,'credits',cr,'credits_until',a.credits_until,'eur_per_unit',epu,'value_eur',round(cr*epu,2),
+    'bought_units',tot_units,'bought_value_eur',round(tot_eur,2),
+    'spent_units',(select coalesce(sum(units),0) from interior_usage where user_id=u and source='credits' and not refunded),
+    'history',hist);
+end $$;
+revoke all on function public.interior_wallet(int) from public, anon;
+grant execute on function public.interior_wallet(int) to authenticated;
