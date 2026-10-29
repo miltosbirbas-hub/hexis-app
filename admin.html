@@ -132,6 +132,8 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 .ixtw td{border-bottom:1px solid var(--border);padding:5px 6px;white-space:nowrap}.ixtw .k{font-family:var(--font-m);font-weight:600}
 .ixtag{font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:#EFF3F8}.ixtag.pro{background:#FFF3E8;color:#E05A12}.ixtag.sub{background:#E8F6EE;color:#1F7A4A}
 .ixkey{background:#F7F9FB;border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-top:10px;font-size:13px}
+.ustabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}.ustabs button{font-family:var(--font-d);font-weight:600;font-size:12.5px;color:var(--muted);background:#F4F6F9;border:1px solid var(--border);border-radius:99px;padding:6px 12px;cursor:pointer}
+.ustabs button b{font-size:11px;margin-left:4px;color:var(--faint)}.ustabs button.on{background:#FFF3E8;border-color:#F7C9A6;color:#E05A12}.ustabs button.on b{color:#E05A12}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:6px}
 .kpi{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:2px;box-shadow:0 1px 2px rgba(16,40,70,.05)}
 .kpi small{font-size:11.5px;color:var(--muted);font-weight:600}.kpi b{font-family:var(--font-d);font-size:24px;font-weight:800;color:var(--text)}.kpi span{font-size:11.5px;color:var(--faint)}
@@ -169,7 +171,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
   </nav>
   <section class="adc">
   <div class="kpis" id="kpis">
-    <div class="kpi"><small>Χρήστες</small><b id="kUsr">—</b><span id="kUsr2"></span></div>
+    <div class="kpi"><small>Ενεργοί χρήστες</small><b id="kUsr">—</b><span id="kUsr2"></span></div>
     <div class="kpi"><small>Πωλήσεις μήνα</small><b id="kSales">—</b><span id="kSales2"></span></div>
     <div class="kpi"><small>Προς έκδοση παραστατικού</small><b id="kInv">—</b><span>στο Emblem</span></div>
     <div class="kpi"><small>Κόστος AI μήνα</small><b id="kAi">—</b><span>Interior</span></div>
@@ -184,8 +186,9 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
   <div class="card" data-sec="users">
     <h2>Χρήστες <span class="count" id="u-count">0</span></h2>
     <div class="searchrow">
-      <input type="text" id="filter" placeholder="Φίλτρο με email..." oninput="renderUsers()">
+      <input type="text" id="filter" placeholder="Αναζήτηση email σε όλους..." oninput="renderUsers()">
     </div>
+    <div class="ustabs" id="uTabs"><button data-st="active" class="on">Ενεργοί <b>0</b></button><button data-st="trial">Σε δοκιμή <b>0</b></button><button data-st="expired">Έληξαν / ανενεργοί <b>0</b></button><button data-st="blocked">Μπλοκαρισμένοι <b>0</b></button><button data-st="all">Όλοι <b>0</b></button></div>
     <div id="users" style="margin-top:12px"><div class="empty">Φόρτωση...</div></div>
     <div class="hint">Πάτησε σε χρήστη για να δεις και να αλλάξεις τα modules του — οι αλλαγές αποθηκεύονται αμέσως. Η συνδρομή (Starter/Pro/Studio) παραμένει στον πίνακα subscriptions. Στο κάτω μέρος κάθε χρήστη: μπλοκάρισμα email, κωδικός και διαγραφή.</div>
   </div>
@@ -232,7 +235,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 <div class="toast" id="toast"></div>
 
 <script>
-const ADMIN_VERSION = 'v2.2';
+const ADMIN_VERSION = 'v2.3';
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
@@ -360,11 +363,20 @@ async function loadUsers(){
   renderUsers();
 }
 
+let USTAB='active';
+function userState(u){const au=AUTH[u.uid]||{};if(au.banned||u.sub_active===false)return'blocked';
+  const now=Date.now(),exp=u.trial_ends_at?new Date(u.trial_ends_at).getTime():null,tier=String(u.tier||'free').toLowerCase(),mods=(u.modules||[]).length;
+  if(mods>0)return'active';if(tier!=='free'&&(exp===null||exp>now))return'active';if(exp&&exp>now)return'trial';return'expired'}
 function renderUsers(){
   document.getElementById('users').classList.toggle('focusmode', !!openUid);
   const f = (document.getElementById('filter').value || '').toLowerCase();
-  const list = USERS.filter(u => (u.email||'').toLowerCase().includes(f));
-  document.getElementById('u-count').textContent = USERS.length;
+  const cnt={active:0,trial:0,expired:0,blocked:0,all:USERS.length};USERS.forEach(u=>cnt[userState(u)]++);
+  document.querySelectorAll('#uTabs [data-st]').forEach(b=>{b.querySelector('b').textContent=cnt[b.dataset.st];b.classList.toggle('on',b.dataset.st===USTAB)});
+  const ts=u=>u.last_seen?new Date(u.last_seen).getTime():0;
+  const list = USERS.filter(u => f ? (u.email||'').toLowerCase().includes(f) : (USTAB==='all'||userState(u)===USTAB))
+    .sort((a,b)=>USTAB==='trial'?(new Date(a.trial_ends_at)-new Date(b.trial_ends_at)):(ts(b)-ts(a)));
+  document.getElementById('u-count').textContent = cnt.active;
+  if(!list.length){document.getElementById('users').innerHTML='<div class="empty">'+(f?'Κανένας χρήστης με αυτό το email.':'Κανένας χρήστης σε αυτή την κατηγορία.')+'</div>';return}
   document.getElementById('users').innerHTML = list.map(u => {
     const mods = u.modules || [];
     const open = openUid === u.uid;
@@ -590,14 +602,15 @@ document.getElementById('hxCsv').onclick=()=>{const m0=new Date();m0.setDate(1);
   const csv='\ufeff'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(';')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='hexis-pliromes-'+m0.toISOString().slice(0,7)+'.csv';a.click()};
 (function hxWait(){const m=document.getElementById('main');if(m&&m.style.display!=='none'){hxLoad();return}setTimeout(hxWait,400)})();
 
+document.querySelectorAll('#uTabs [data-st]').forEach(b=>b.onclick=()=>{USTAB=b.dataset.st;renderUsers()});
 // ===== Διάταξη υπολογιστή: πλαϊνό μενού + δείκτες =====
 (function(){const C=document.querySelector('.adc');document.querySelectorAll('#adNav [data-go]').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('#adNav [data-go]').forEach(x=>x.classList.toggle('on',x===b));const g=b.dataset.go;
   if(g==='all')C.removeAttribute('data-only');else{C.setAttribute('data-only',g);C.querySelectorAll('.card').forEach(c=>c.classList.toggle('show',c.dataset.sec===g))}window.scrollTo({top:0,behavior:'smooth'})});
  const eur=v=>(+v||0).toLocaleString('el-GR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
  function kpi(){try{const T=(id,v)=>{const e=document.getElementById(id);if(e&&e.textContent!==String(v))e.textContent=v};
-   const U=typeof USERS!=='undefined'?USERS:[];T('kUsr',U.length);T('nUsr',U.length);
-   const act=U.filter(u=>u.sub_active||(u.modules&&u.modules.length)).length;T('kUsr2',act?act+' με ενεργό module':'');
+   const U=typeof USERS!=='undefined'?USERS:[];const actN=U.filter(u=>{try{return userState(u)==='active'}catch(e){return false}}).length;T('kUsr',actN);T('nUsr',actN);
+   T('kUsr2','ενεργοί από '+U.length+' συνολικά');
    const R=document.getElementById('req-count');const rq=R?R.textContent:'0';T('kReq',rq);T('nReq',rq);
    const O=typeof HXO!=='undefined'?HXO:[];const m0=new Date();m0.setDate(1);m0.setHours(0,0,0,0);
    const mo=O.filter(o=>new Date(o.created_at)>=m0&&o.source!=='free'&&o.source!=='demo');T('kSales',eur(mo.reduce((a,o)=>a+(+o.gross||0),0)));T('kSales2',mo.length+' πληρωμές');
