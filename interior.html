@@ -3274,6 +3274,14 @@ let phCtl=null,phLast=null;let PHQ='best';
 $$('.phQ button').forEach(b=>b.onclick=()=>{PHQ=b.dataset.q;$$('.phQ button').forEach(x=>x.classList.toggle('on',x.dataset.q===PHQ))});
 function grabFrame(maxW=1600){if(RQ.composer&&RQ.q==='fast')setQuality('high');renderFrame();const src=renderer.domElement;const k=Math.min(1,maxW/src.width);const c=document.createElement('canvas');c.width=Math.round(src.width*k);c.height=Math.round(src.height*k);
   const g=c.getContext('2d');g.fillStyle='#e9eef1';g.fillRect(0,0,c.width,c.height);g.drawImage(src,0,0,c.width,c.height);return c.toDataURL('image/jpeg',0.9)}
+
+// φωτογραφίες προϊόντων που φαίνονται στο κάδρο → αναφορές για την AI (θέση στο κάδρο, διαστάσεις)
+function photoRefs(){const out=[];if(!S.objs)return out;camera.updateMatrixWorld();const fr=new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
+  const cand=S.objs.filter(o=>!o.deleted&&!o.hidden&&o.img&&o.group).map(o=>{const b=new THREE.Box3().setFromObject(o.group);if(b.isEmpty()||!fr.intersectsBox(b))return null;const c=b.getCenter(new THREE.Vector3()).project(camera);
+    const d=camera.position.distanceTo(b.getCenter(new THREE.Vector3()));const x=(c.x+1)/2,y=(1-c.y)/2;if(x<-0.1||x>1.1||y<-0.1||y>1.1)return null;
+    const hx=x<0.33?'left':x>0.66?'right':'centre',vy=y<0.33?'upper':y>0.66?'lower':'middle';return{o,d,where:`in the ${vy} ${hx} part of the 3D view (≈${Math.round(x*100)}% from left, ${Math.round(y*100)}% from top), ${d.toFixed(1)} m from the camera`}}).filter(Boolean).sort((a,b)=>a.d-b.d).slice(0,6);
+  for(const c of cand)out.push({img:c.o.img,label:String(c.o.label||'').slice(0,80),dims:`${Math.round(c.o.w*100)}×${Math.round(c.o.d*100)}×${Math.round(c.o.h*100)} cm`,where:c.where});return out}
+function photoAspect(){const c=renderer.domElement,r=c.width/c.height;const L=[['21:9',21/9],['16:9',16/9],['3:2',1.5],['4:3',4/3],['1:1',1],['3:4',0.75],['2:3',2/3],['9:16',9/16]];return L.reduce((a,b)=>Math.abs(b[1]-r)<Math.abs(a[1]-r)?b:a)[0]}
 let PHR=1;
 function photoPrompt(){const st=STYLES.find(x=>x.id===curStyle)||STYLES[0];const h=S.hour,night=h<6.5||h>20;
   const rooms=(S.A?.rooms||[]).map(r=>r.name).join(', ');const brief=(typeof STYLE_BRIEF!=='undefined'&&STYLE_BRIEF[st.id])||st.q;
@@ -3287,7 +3295,7 @@ function photoPrompt(){const st=STYLES.find(x=>x.id===curStyle)||STYLES[0];const
 ${keep}
 ${level}
 Lighting: ${night?'evening: interior lamps on (neutral warm-white 3500 K, soft pools of light), deep blue dusk outside the windows':`natural daylight through the windows around ${Math.floor(h)}:00, soft bounce light, gentle sun patches`}, physically correct global illumination, soft contact shadows, ambient occlusion, realistic reflections, subtle real-world imperfections, true-to-life colour, sharp focus.
-Style: ${st.n} — ${brief}. Rooms: ${rooms}.${prods?`\nThese are the real products chosen by the client; render them as close as possible to these products: ${prods}.`:''}${wish?`\nClient brief (apply to look, materials and mood; never move the layout): ${wish}`:''}
+Style: ${st.n} — ${brief}. Rooms: ${rooms}.${prods?`\nThese are the real products chosen by the client; render them as close as possible to these products: ${prods}. When a reference image of a product is attached after the 3D view, copy that product's real design exactly for the piece at the stated position.`:''}${wish?`\nClient brief (apply to look, materials and mood; never move the layout): ${wish}`:''}
 No people, no text, no watermark, no borders.`}
 $$('.phR button').forEach(b=>b.onclick=()=>{PHR=+b.dataset.r;$$('.phR button').forEach(x=>x.classList.toggle('on',+x.dataset.r===PHR))});
 async function aiPhoto(){const ep=window.HEXIS_RENDER_ENDPOINT;if(!S.built){toast('Δημιούργησε πρώτα το 3D μοντέλο');return}
@@ -3295,7 +3303,7 @@ async function aiPhoto(){const ep=window.HEXIS_RENDER_ENDPOINT;if(!S.built){toas
   if(S.view==='plan')setView('orbit');const shot=grabFrame();phLast=shot;$('#phB').src=shot;
   $('#busy').textContent='✦ Φωτορεαλιστική απόδοση';$('#busy').hidden=false;phCtl=new AbortController();const t0=performance.now();
   try{const tk=window.HEXIS_TOKEN&&await window.HEXIS_TOKEN();
-    const r=await fetch(ep,{method:'POST',signal:phCtl.signal,headers:{'content-type':'application/json',...(tk?{authorization:'Bearer '+tk}:{})},body:JSON.stringify({image:shot.split(',')[1],prompt:photoPrompt(),quality:PHQ})});
+    const r=await fetch(ep,{method:'POST',signal:phCtl.signal,headers:{'content-type':'application/json',...(tk?{authorization:'Bearer '+tk}:{})},body:JSON.stringify({image:shot.split(',')[1],prompt:photoPrompt(),quality:PHQ,refs:photoRefs(),aspect:photoAspect()})});
     const js=await r.json().catch(()=>({}));if(r.status===402){licQuota(js,PHQ==='fast'?'draft':'final');return}if(!r.ok||!js.image)throw new Error(js.error||('HTTP '+r.status));licLoad();aiReal('google',js.cost_usd);
     const url='data:'+(js.mime||'image/png')+';base64,'+js.image;$('#phA').src=url;$('#phDl').href=url;$('#phDl').download='hexis-interior-'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'')+'.'+((js.mime||'').includes('jpeg')?'jpg':'png');
     $('#phInfo').textContent=`${PHQ==='fast'?'Πρόχειρο':'Τελικό'} · ${((performance.now()-t0)/1000).toFixed(0)} s`;phView('ai');$('#phMask').hidden=false}

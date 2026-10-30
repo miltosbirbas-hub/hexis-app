@@ -58,18 +58,31 @@ Deno.serve(async (req) => {
     const first = Deno.env.get("GEMINI_IMAGE_MODEL") || (body.quality === "fast" ? "gemini-3.1-flash-image" : "gemini-3-pro-image");
     const chain = [...new Set([first, body.quality === "fast" ? "gemini-3.1-flash-image-preview" : "gemini-3-pro-image-preview", "gemini-3.1-flash-image", "gemini-2.5-flash-image"])];
     let res: Response | null = null, data: any = null, model = first; const tried: string[] = [];
-    for (const m of chain) {
+    // φωτογραφίες προϊόντων του εμπορίου (έως 6) ως αναφορές για να αποδοθούν τα πραγματικά έπιπλα
+    const refParts: any[] = [];
+    for (const r of (Array.isArray(body.refs) ? body.refs : []).slice(0, 6)) {
+      const m0 = String(r?.img || "").match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/);
+      if (!m0 || m0[2].length > 1_400_000) continue;
+      refParts.push({ text: `Reference image ${refParts.length / 2 + 2}: the real product "${String(r.label || "").slice(0, 80)}" (${String(r.dims || "")}). It stands ${String(r.where || "in the frame").slice(0, 80)}. Render that piece to look exactly like this product (shape, legs, upholstery, material, colour, details), at its size and position in the 3D view.` });
+      refParts.push({ inline_data: { mime_type: m0[1], data: m0[2] } });
+    }
+    const aspect = ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3", "21:9"].includes(body.aspect) ? body.aspect : "";
+    let hiRes = body.quality !== "fast";
+    for (let ci = 0; ci < chain.length; ci++) {
+      const m = chain[ci];
       model = m;
       res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": gkey },
         body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }, { inline_data: { mime_type: "image/jpeg", data: image } }] }],
-          generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
+          contents: [{ role: "user", parts: [{ text: prompt }, { inline_data: { mime_type: "image/jpeg", data: image } }, ...refParts] }],
+          generationConfig: hiRes ? { responseModalities: ["TEXT", "IMAGE"], imageConfig: { imageSize: "2K", ...(aspect ? { aspectRatio: aspect } : {}) } } : { responseModalities: ["TEXT", "IMAGE"] },
         }),
       });
       data = await res.json().catch(() => ({}));
       if (res.ok) break;
+      // αν το μοντέλο δεν δέχεται μέγεθος εικόνας, ξανά το ίδιο χωρίς αυτό
+      if (hiRes && res.status === 400 && /image_?config|image_?size|aspect/i.test(String(data?.error?.message || ""))) { hiRes = false; ci--; continue; }
       tried.push(m + ": " + res.status + " " + String(data?.error?.message || "").slice(0, 120));
       if (![400, 403, 404].includes(res.status)) break; // όριο/υπερφόρτωση: όχι άλλη δοκιμή
     }
