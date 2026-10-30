@@ -16,7 +16,7 @@ if('serviceWorker' in navigator)addEventListener('load',function(){navigator.ser
 </script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Commissioner:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Commissioner:wght@400;500;600;700&family=Michroma&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#eef3f5;--ink:#10212a;--muted:#566872;--line:rgba(16,50,64,.14);--accent:#0796a8;--accent2:#4c6bea;--f:"Commissioner",system-ui,sans-serif;--m:"JetBrains Mono",ui-monospace,monospace}
 *{box-sizing:border-box}
@@ -38,9 +38,76 @@ button:disabled{opacity:.55;cursor:default}
 .spin{width:28px;height:28px;border:3px solid rgba(7,150,168,.2);border-top-color:var(--accent);border-radius:50%;animation:s 0.9s linear infinite;margin:6px auto}
 @keyframes s{to{transform:rotate(360deg)}}
 [hidden]{display:none!important}
+/* οθόνη εκκίνησης: εξώφυλλο HEXIS INTERIOR σε όλη την οθόνη, 7 δευτερόλεπτα */
+#hxSplash{position:fixed;inset:0;z-index:9999;background:#0A111D;color:#F4F8FC;overflow:hidden;display:flex;flex-direction:column;padding:max(22px,env(safe-area-inset-top)) clamp(20px,5vw,64px) max(20px,env(safe-area-inset-bottom));font-family:var(--f);transition:opacity .6s ease}
+#hxSplash.out{opacity:0;pointer-events:none}
+#hxSplash::before{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.09) 1px,transparent 1.2px);background-size:16px 16px;pointer-events:none}
+#hxSplash::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,rgba(255,255,255,.07) 0%,rgba(255,255,255,0) 35%,rgba(255,255,255,0) 72%,rgba(255,255,255,.04) 100%);pointer-events:none}
+#hxSplash .sp-top{position:relative;display:flex;justify-content:space-between;align-items:center}
+#hxSplash .sp-logo{display:flex;align-items:center;gap:12px;font:400 clamp(11px,1.3vw,14px) Michroma,sans-serif;letter-spacing:.28em;color:#C9D4E2}
+#hxSplash .sp-ed{font:400 clamp(9px,1vw,11px) Michroma,sans-serif;letter-spacing:.25em;color:#2FD3F5;border:1px solid #2FD3F5;padding:7px 12px;border-radius:2px}
+#hxSplash .sp-art{position:relative;flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;padding:2vh 0}
+#hxSplash .sp-art svg{width:100%;height:100%;max-width:900px}
+#hxSplash .sp-txt{position:relative;display:flex;flex-direction:column;gap:clamp(8px,1.4vh,14px)}
+#hxSplash .sp-bar{height:2px;width:72px;background:#2FD3F5}
+#hxSplash h2{margin:0;font:400 clamp(30px,6vw,72px)/1.1 Michroma,sans-serif;letter-spacing:.08em;color:#F4F8FC}
+#hxSplash .sp-tag{margin:0;font-weight:400;font-size:clamp(14px,1.6vw,18px);line-height:1.5;color:#B8C5D4}
+#hxSplash .sp-foot{position:relative;margin-top:clamp(14px,3vh,28px);padding-top:14px;border-top:1px solid rgba(255,255,255,.12);display:flex;justify-content:space-between;align-items:flex-end;gap:16px}
+#hxSplash .sp-feat{display:flex;gap:clamp(16px,3vw,32px)}
+#hxSplash .sp-feat b{display:block;font:400 clamp(11px,1.2vw,13px) Michroma,sans-serif;color:#2FD3F5}
+#hxSplash .sp-feat span{font-size:10px;letter-spacing:.12em;color:#8D9DB0}
+#hxSplash .sp-url{font-size:11px;letter-spacing:.14em;color:#8D9DB0}
+#hxSplash .sp-prog{position:absolute;left:0;bottom:0;height:3px;width:100%;background:#2FD3F5;transform-origin:0 50%;transform:scaleX(0);animation:spProg 7s linear forwards}
+#hxSplash .sp-draw{stroke-dasharray:1400;stroke-dashoffset:1400;animation:spDraw 2.6s ease-out .2s forwards}
+#hxSplash .sp-fade{opacity:0;animation:spFade 1s ease-out 1.6s forwards}
+#hxSplash .sp-txt,#hxSplash .sp-top{opacity:0;animation:spFade .9s ease-out .4s forwards}
+@keyframes spProg{to{transform:scaleX(1)}}
+@keyframes spDraw{to{stroke-dashoffset:0}}
+@keyframes spFade{to{opacity:1}}
+@media (prefers-reduced-motion:reduce){#hxSplash .sp-draw{stroke-dashoffset:0;animation:none}#hxSplash .sp-fade,#hxSplash .sp-txt,#hxSplash .sp-top{opacity:1;animation:none}}
+@media (orientation:landscape) and (max-height:500px){#hxSplash .sp-foot{display:none}#hxSplash h2{font-size:clamp(24px,5vh,40px)}}
 </style>
 </head>
 <body>
+<div id="hxSplash" role="img" aria-label="HEXIS INTERIOR">
+  <div class="sp-top">
+    <div class="sp-logo"><svg width="28" height="30" viewBox="0 0 26 28" aria-hidden="true"><polygon points="13,1 25,7.5 25,20.5 13,27 1,20.5 1,7.5" fill="none" stroke="#2FD3F5" stroke-width="1.6"/><polygon points="13,8 19,11.5 19,18 13,21.5 7,18 7,11.5" fill="#2FD3F5" opacity=".35"/></svg>HEXIS</div>
+    <div class="sp-ed">PRO EDITION</div>
+  </div>
+  <div class="sp-art">
+    <svg viewBox="0 0 480 330" aria-hidden="true">
+      <g fill="none" stroke="#2FD3F5" stroke-width="1.2" class="sp-draw"><polyline points="240,40 420,130 420,270 240,320 60,270 60,130 240,40"/><path d="M240 40V200M60 270L240 200M420 270L240 200"/></g>
+      <g fill="none" stroke="#2FD3F5" stroke-width=".5" opacity=".28"><path d="M105 252L285 182M150 235L330 300M195 217L375 287M105 252L285 317M195 306L375 235M150 290L330 218"/></g>
+      <g class="sp-fade">
+        <g fill="none" stroke="#8B9BFF" stroke-width="1" opacity=".9"><polygon points="300,118 352,143 352,213 300,188"/><path d="M326 130V200M300 153L352 178"/></g>
+        <g fill="rgba(61,224,255,.10)" stroke="#E8F6FF" stroke-width="1.1"><polygon points="110,238 190,206 230,222 150,254"/><polygon points="110,238 150,254 150,272 110,256"/><polygon points="150,254 230,222 230,240 150,272"/><polygon points="110,238 110,218 190,186 190,206"/></g>
+        <g fill="none" stroke="#E8F6FF" stroke-width="1.1"><ellipse cx="262" cy="262" rx="30" ry="12"/><path d="M262 262V284M380 250V175M366 175H394L388 158H372Z"/></g>
+        <g fill="#2FD3F5"><circle cx="240" cy="40" r="3"/><circle cx="420" cy="130" r="3"/><circle cx="60" cy="130" r="3"/><circle cx="240" cy="200" r="3"/><circle cx="240" cy="320" r="3"/><circle cx="420" cy="270" r="3"/><circle cx="60" cy="270" r="3"/></g>
+        <g font-family="Commissioner,sans-serif" font-size="9" fill="#9FB0C4" letter-spacing="1"><text x="430" y="205">3.20</text><text x="18" y="205">4.85</text><text x="246" y="122">2.80</text></g>
+      </g>
+    </svg>
+  </div>
+  <div class="sp-txt">
+    <div class="sp-bar"></div>
+    <h2>HEXIS<br>INTERIOR</h2>
+    <p class="sp-tag">Από τη σάρωση και το σκαρίφημα,<br>στον φωτορεαλιστικό χώρο.</p>
+  </div>
+  <div class="sp-foot">
+    <div class="sp-feat"><div><b>3D</b><span>SCAN</span></div><div><b>AI</b><span>LAYOUT</span></div><div><b>4K</b><span>RENDER</span></div></div>
+    <div class="sp-url">hexis-app.gr</div>
+  </div>
+  <div class="sp-prog"></div>
+</div>
+<script>/* οθόνη εκκίνησης: μία φορά ανά άνοιγμα (session), 7 δευτερόλεπτα, μετά ανοίγει η εφαρμογή */
+(function(){var D=7000,el=document.getElementById('hxSplash'),seen=false;
+  try{seen=sessionStorage.getItem('hxiSplash')==='1';sessionStorage.setItem('hxiSplash','1')}catch(e){}
+  if(seen){el.remove();window.__hxSplashEnd=Date.now();return}
+  window.__hxSplashEnd=Date.now()+D;
+  setTimeout(function(){el.classList.add('out');setTimeout(function(){el.remove()},650)},D);
+})();
+/* περιμένει να τελειώσει η οθόνη εκκίνησης πριν αλλάξει σελίδα ή ανοίξει η εφαρμογή */
+window.__hxAfterSplash=function(fn){var w=(window.__hxSplashEnd||0)-Date.now();if(w>0)setTimeout(fn,w);else fn()};
+</script>
 <main class="card">
   <div class="brand">
     <svg width="40" height="40" viewBox="0 0 34 34" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0796A8"/><stop offset="1" stop-color="#4C6BEA"/></linearGradient></defs><rect x="1" y="1" width="32" height="32" rx="9" fill="url(#lg)"/><path d="M8 9h18v16H8z M17 9v9 M17 21v4 M8 17h6" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>
@@ -88,10 +155,10 @@ var K='sb-oucqqudfdimccgowvpqp-auth-token',$=function(q){return document.querySe
 function show(v){['vWait','vKey','vDev','vReq'].forEach(function(x){$('#'+x).hidden=x!==v})}
 function err(m){$('#err').textContent=m||'';$('#err').hidden=!m}
 function sess(){try{var s=JSON.parse(localStorage.getItem(K)||'null');return s&&(s.currentSession||s)}catch(e){return null}}
-async function token(){var s=sess();if(!s||!s.access_token){location.replace('interior-login.html');return''}
+async function token(){var s=sess();if(!s||!s.access_token){__hxAfterSplash(function(){location.replace('interior-login.html')});return''}
   if(s.refresh_token&&s.expires_at&&s.expires_at*1000<Date.now()+120000){var r=await fetch(SB+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:ANON,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:s.refresh_token})});
     if(r.ok){var n=await r.json();n.expires_at=n.expires_at||Math.floor(Date.now()/1000)+(n.expires_in||3600);localStorage.setItem(K,JSON.stringify(n));return n.access_token}
-    localStorage.removeItem(K);location.replace('interior-login.html');return''}
+    localStorage.removeItem(K);__hxAfterSplash(function(){location.replace('interior-login.html')});return''}
   return s.access_token}
 var hex=function(b){return Array.prototype.map.call(new Uint8Array(b),function(x){return('0'+x.toString(16)).slice(-2)}).join('')};
 async function device(){var id=null;try{id=localStorage.getItem('hxi_dev')}catch(e){}
@@ -110,11 +177,11 @@ var DEV=null;
 function launch(d){var dev=JSON.stringify(DEV);
   var guard=d.admin?'':"<script>(function(){addEventListener('contextmenu',function(e){if(!e.target.closest('input,textarea,[contenteditable]'))e.preventDefault()},true);addEventListener('keydown',function(e){var k=(e.key||'').toLowerCase();if(e.key==='F12'||(e.ctrlKey||e.metaKey)&&(k==='u'||k==='s'&&!e.shiftKey||e.shiftKey&&['i','j','c'].indexOf(k)>=0))e.preventDefault()},true);addEventListener('dragstart',function(e){if(e.target&&e.target.tagName==='IMG')e.preventDefault()},true)})();<\/script>";
   var html=d.app.replace('<head>','<head><link rel="manifest" href="interior-manifest.json"><meta name="theme-color" content="#0796A8"><script>window.HEXIS_DEVICE='+dev+';<\/script>'+guard);
-  document.open();document.write(html);document.close()}
+  __hxAfterSplash(function(){document.open();document.write(html);document.close()})}
 async function boot(){show('vWait');err('');
   var d=await call('boot');if(!d)return;
   if(d._s===200&&d.app)return launch(d);
-  if(d._s===401){localStorage.removeItem(K);return location.replace('interior-login.html')}
+  if(d._s===401){localStorage.removeItem(K);return __hxAfterSplash(function(){location.replace('interior-login.html')})}
   if(d.need==='key'){var s=sess();$('#who').textContent=s&&s.user&&s.user.email?'Λογαριασμός: '+s.user.email:'';show('vKey');$('#k').focus();return}
   if(d.need==='device'){var a=d.active||{};$('#devTxt').textContent='Ο λογαριασμός σου είναι ανοιχτός τώρα σε «'+(a.name||'άλλη συσκευή')+'». Μπορείς να τον ανοίξεις εδώ· η άλλη συσκευή κλειδώνει μέσα σε λίγα λεπτά.';show('vDev');return}
   show(d.need==='admin'?'vDev':'vWait');if(d.need==='admin'){$('#devTxt').textContent='';$('#bTake').hidden=true}
@@ -126,7 +193,7 @@ $('#bTake').onclick=async function(){this.disabled=true;var d=await call('takeov
 $('#toReq').onclick=function(){err('');show('vReq');$('#rqN').focus()};$('#reqBack').onclick=function(){err('');show('vKey')};
 $('#fReq').onsubmit=async function(e){e.preventDefault();err('');$('#bReq').disabled=true;var d=await call('request',{name:$('#rqN').value,profession:$('#rqP').value,phone:$('#rqT').value,message:$('#rqM').value});$('#bReq').disabled=false;
   if(d&&d.ok){$('#fReq').hidden=true;$('#reqOk').hidden=false;return}err((d&&d.error)||'Δεν στάλθηκε · δοκίμασε ξανά.')};
-$('#out').onclick=function(){try{localStorage.removeItem(K)}catch(e){}location.replace('interior-login.html')};
+$('#out').onclick=function(){try{localStorage.removeItem(K)}catch(e){}__hxAfterSplash(function(){location.replace('interior-login.html')})};
 device().then(function(d){DEV=d;boot()}).catch(function(e){err(String(e&&e.message||e))});
 })();
 </script>
