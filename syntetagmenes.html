@@ -477,7 +477,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       <circle cx="10" cy="28" r="2.4" fill="#22d3ee"/><circle cx="16" cy="12" r="2.4" fill="#8b5cf6"/><circle cx="27" cy="15" r="2.4" fill="#8b5cf6"/><circle cx="31" cy="26" r="2.4" fill="#fb7185"/>
     </svg>
     <div>
-      <h1>HEXIS <span>GEOmetry</span> <small id="geoBuild" style="font:600 10px var(--f-mono);color:var(--faint);letter-spacing:0">build 30.10-17h</small></h1>
+      <h1>HEXIS <span>GEOmetry</span> <small id="geoBuild" style="font:600 10px var(--f-mono);color:var(--faint);letter-spacing:0">build 30.10-18h</small></h1>
       <small>Συντεταγμένες ΕΓΣΑ87 · ΚΑΕΚ Κτηματολογίου · Διαγράμματα Γεωμετρικών Μεταβολών</small>
     </div>
   </div>
@@ -512,7 +512,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       <circle cx="40" cy="40" r="26" opacity=".5"/><circle cx="40" cy="40" r="12"/><path d="M40 4v18M40 58v18M4 40h18M58 40h18"/><circle cx="40" cy="40" r="2.5" fill="currentColor"/>
     </svg>
     <h3>Σύρε εδώ το PDF ή το DXF</h3>
-    <p>ή πάτησε για επιλογή αρχείου. Τα PDF από CAD διαβάζονται απευθείας, χωρίς αλλοίωση των τιμών· τα σκαναρισμένα (και φωτογραφίες από κινητό, ακόμα και διπλωμένου χαρτιού) ισιώνονται και καθαρίζονται αυτόματα και περνούν από ανάγνωση AI με διπλό έλεγχο· αν δεν βρεθεί πίνακας, πάτα «Επιλογή περιοχής» και πιάσε τον με πλαίσιο — στο κινητό ανοίγει σε πλήρη οθόνη, με zoom δύο δαχτύλων, λαβές διόρθωσης και φακό μεγέθυνσης. Το DXF του σχεδίου σου διαβάζεται κατευθείαν στο ΕΓΣΑ87.</p>
+    <p>ή πάτησε για επιλογή αρχείου. Τα PDF από CAD διαβάζονται απευθείας, χωρίς αλλοίωση των τιμών· τα σκαναρισμένα (και φωτογραφίες από κινητό, ακόμα και διπλωμένου χαρτιού) ισιώνονται και καθαρίζονται αυτόματα και περνούν από ανάγνωση AI με διπλό έλεγχο· αν δεν βρεθεί πίνακας, πάτα «Επιλογή περιοχής» και πιάσε τον με πλαίσιο — στο κινητό ανοίγει σε πλήρη οθόνη, με zoom δύο δαχτύλων, λαβές διόρθωσης και φακό μεγέθυνσης. Το DXF του σχεδίου σου διαβάζεται κατευθείαν στο ΕΓΣΑ87. Στην καρτέλα «Χάρτης», πάτα σε οποιοδήποτε σημείο για τον ΚΑΕΚ και οδηγίες Google Maps.</p>
     <span class="row">
       <span class="btn primary">Επιλογή PDF / DXF</span>
       <button class="btn" type="button" id="bSample">Άνοιγμα παραδείγματος</button>
@@ -8594,9 +8594,77 @@ root.CmdCheck = api;
       var errs = 0;
       sat.on('tileerror', function () { if (++errs === 3) { $('#mapNote').hidden = false; $('#mapNote').textContent = 'Το υπόβαθρο δεν φορτώνει εδώ. Τα πολύγωνα εμφανίζονται κανονικά στη σωστή θέση.'; } });
       S.mapLayer = L.layerGroup().addTo(S.map);
+      S.tapLayer = L.layerGroup().addTo(S.map);
+      S.map.on('click', onMapTap);
     }
     setTimeout(function () { S.map.invalidateSize(); drawMap(true); }, 30);
   }
+  // ---------- πάτημα στον χάρτη: ΚΑΕΚ στο σημείο + οδηγίες Google Maps ----------
+  var tapSeq = 0;
+  function gmapsDir(lat, lon) { return 'https://www.google.com/maps/dir/?api=1&destination=' + lat.toFixed(6) + ',' + lon.toFixed(6) + '&travelmode=driving'; }
+  function tapHtml(lat, lon, xy, body) {
+    return '<div style="min-width:210px;font:13px/1.45 var(--f-body)">' + body
+      + '<div style="color:#56607f;font:11.5px var(--f-mono);margin:6px 0">ΕΓΣΑ87 ' + xy[0].toFixed(2) + ', ' + xy[1].toFixed(2) + '</div>'
+      + '<a href="' + gmapsDir(lat, lon) + '" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:6px;height:38px;border-radius:9px;background:#1a73e8;color:#fff;font-weight:700;text-decoration:none">'
+      + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 11l18-8-8 18-2-8z"/></svg>Οδηγίες Google Maps</a></div>';
+  }
+  function parcelAtLoaded(xy) {
+    var list = (S.kaek && S.kaek.parcels) || [];
+    return list.filter(function (p) { return (p.rings || []).some(function (r) { return CoordParser.pointInPoly(xy, r, 0); }); }).sort(function (a, b) { return (a.area || 0) - (b.area || 0); })[0] || null;
+  }
+  async function parcelAtLive(xy, ll) {
+    async function viaArcgis() {
+      var d = 0.5, res = await InspireKaek.fetchArcgis([xy[0] - d, xy[1] - d, xy[0] + d, xy[1] + d], { count: 20, timeout: 15000 });
+      var hit = res.parcels.map(function (p) { return { kaek: p.kaek, area: p.area, rings: rings(p.geom), info: parcelInfo(p.attrs), src: 'λειτουργούν Κτηματολόγιο' }; })
+        .filter(function (p) { return p.rings.some(function (r) { return CoordParser.pointInPoly(xy, r, 0); }); })
+        .sort(function (a, b) { return (a.area || 1e12) - (b.area || 1e12); })[0];
+      return hit || null;
+    }
+    async function viaHexis() {
+      var ctl = new AbortController(), to = setTimeout(function () { ctl.abort(); }, 20000), r;
+      try { r = await fetch(HEXIS.kaekGeo + '?lat=' + ll[0].toFixed(7) + '&lon=' + ll[1].toFixed(7), { signal: ctl.signal }); } finally { clearTimeout(to); }
+      if (!r || !r.ok) return null;
+      var j = await r.json().catch(function () { return null; });
+      if (!j || j.error || !j.kaek) return null;
+      return { kaek: j.kaek, area: j.area_m2, rings: j.geometry_egsa ? rings(j.geometry_egsa) : [], approx: !!j.approx, ota: j.region || null, src: 'βάση ΚΑΕΚ HEXIS' };
+    }
+    var order = kaekSource() === 'inspire' ? [viaArcgis, viaHexis] : [viaHexis, viaArcgis];
+    for (var i = 0; i < order.length; i++) { try { var h = await order[i](); if (h) return h; } catch (e) { /* δοκίμασε την επόμενη πηγή */ } }
+    return null;
+  }
+  async function onMapTap(ev) {
+    var lat = ev.latlng.lat, lon = ev.latlng.lng, seq = ++tapSeq;
+    try { await loadScript(LIBS.proj4); proj4.defs('EPSG:2100', EGSA87); } catch (e) {}
+    var xy = proj4('WGS84', 'EPSG:2100', [lon, lat]);
+    S.tapLayer.clearLayers();
+    var pop = L.popup({ maxWidth: 280, autoPanPaddingTopLeft: [10, 60] }).setLatLng(ev.latlng).setContent(tapHtml(lat, lon, xy, '<b>ΚΑΕΚ…</b> <span style="color:#56607f">αναζήτηση</span>')).openOn(S.map);
+    var p = parcelAtLoaded(xy);
+    if (p) p = { kaek: p.kaek, area: p.area, rings: p.rings, info: p.info, src: (S.kaek && S.kaek.source === 'inspire') ? 'λειτουργούν Κτηματολόγιο' : 'βάση ΚΑΕΚ HEXIS' };
+    else p = await parcelAtLive(xy, [lat, lon]);
+    if (seq !== tapSeq) return; // νεότερο πάτημα
+    var body;
+    if (!p) body = '<b>Δεν βρέθηκε ΚΑΕΚ</b><div style="color:#56607f;font-size:12px">στο σημείο αυτό (εκτός κτηματογραφημένης περιοχής ή χωρίς σύνδεση).</div>';
+    else {
+      var ota = (p.info && p.info.ota) || p.ota || '';
+      body = '<div style="font-size:11px;color:#56607f;font-weight:700;letter-spacing:.04em">ΚΑΕΚ</div>'
+        + '<div style="display:flex;align-items:center;gap:6px"><b style="font:700 15px var(--f-mono)">' + esc(p.kaek) + '</b>'
+        + '<button type="button" data-copy="' + esc(p.kaek) + '" style="border:1px solid #c9d2e6;background:#fff;border-radius:7px;height:26px;padding:0 8px;font-size:11.5px;font-weight:700">Copy</button></div>'
+        + (p.area ? '<div>Εμβαδό <b>' + fixed(p.area, 2) + ' m²</b>' + (p.approx ? ' <span style="color:#b45309">(κοντινό γεωτεμάχιο)</span>' : '') + '</div>' : '')
+        + (ota ? '<div>' + esc(ota) + '</div>' : '')
+        + (p.info && p.info.xrhsh ? '<div style="color:#56607f">Χρήση: ' + esc(p.info.xrhsh) + '</div>' : '')
+        + '<div style="color:#8a93ad;font-size:11px">' + esc(p.src) + '</div>';
+      if (p.rings && p.rings.length) {
+        var llr = p.rings.map(function (r) { return r.map(function (q) { var g = proj4('EPSG:2100', 'WGS84', q); return [g[1], g[0]]; }); });
+        L.polygon(llr, { color: '#facc15', weight: 3, fillColor: '#facc15', fillOpacity: 0.12, interactive: false }).addTo(S.tapLayer);
+      }
+    }
+    pop.setContent(tapHtml(lat, lon, xy, body));
+  }
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('.leaflet-popup [data-copy]'); if (!b) return;
+    var v = b.getAttribute('data-copy');
+    (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(function () { toast('Αντιγράφηκε ο ΚΑΕΚ ' + v); }, function () { toast('ΚΑΕΚ ' + v); });
+  });
   function drawMap(fit) {
     if (!S.map) return;
     S.mapLayer.clearLayers();
