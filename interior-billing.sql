@@ -516,3 +516,49 @@ begin
 end $$;
 revoke all on function public.admin_interior_requests(), public.admin_interior_request_approve(bigint,text), public.admin_interior_request_reject(bigint) from public, anon;
 grant execute on function public.admin_interior_requests(), public.admin_interior_request_approve(bigint,text), public.admin_interior_request_reject(bigint) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Έργα στο cloud (v4.114): κάθε λογαριασμός βλέπει μόνο τα δικά του.
+create table if not exists public.interior_projects (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  name       text not null default 'Έργο',
+  data       jsonb not null,
+  thumb      text,
+  size       integer,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists interior_projects_user on public.interior_projects(user_id, updated_at desc);
+alter table public.interior_projects enable row level security;
+revoke all on public.interior_projects from anon, authenticated;
+
+create or replace function public.interior_project_list()
+returns table(id uuid, name text, thumb text, size int, updated_at timestamptz)
+language sql stable security definer set search_path = public as $$
+  select id, name, thumb, size, updated_at from interior_projects where user_id = auth.uid() order by updated_at desc limit 200
+$$;
+create or replace function public.interior_project_get(p_id uuid)
+returns json language sql stable security definer set search_path = public as $$
+  select json_build_object('id', id, 'name', name, 'data', data, 'updated_at', updated_at) from interior_projects where id = p_id and user_id = auth.uid()
+$$;
+create or replace function public.interior_project_save(p_id uuid, p_name text, p_data jsonb, p_thumb text default null)
+returns json language plpgsql security definer set search_path = public as $$
+declare u uuid := auth.uid(); n int; sz int := octet_length(p_data::text); rid uuid;
+begin
+  if u is null then return json_build_object('ok',false,'msg','login'); end if;
+  if not interior_has_access(u) then return json_build_object('ok',false,'msg','Χρειάζεται κλειδί πρόσβασης'); end if;
+  if sz > 12000000 then return json_build_object('ok',false,'msg','Πολύ μεγάλο έργο (όριο 12 MB)'); end if;
+  if p_id is not null and exists (select 1 from interior_projects where id = p_id and user_id = u) then
+    update interior_projects set name = left(coalesce(nullif(trim(p_name),''),'Έργο'),120), data = p_data, thumb = left(p_thumb, 200000), size = sz, updated_at = now() where id = p_id returning id into rid;
+  else
+    select count(*) into n from interior_projects where user_id = u;
+    if n >= 200 then return json_build_object('ok',false,'msg','Έως 200 έργα ανά λογαριασμό'); end if;
+    insert into interior_projects(user_id, name, data, thumb, size) values (u, left(coalesce(nullif(trim(p_name),''),'Έργο'),120), p_data, left(p_thumb, 200000), sz) returning id into rid;
+  end if;
+  return json_build_object('ok',true,'id',rid);
+end $$;
+create or replace function public.interior_project_delete(p_id uuid)
+returns void language sql security definer set search_path = public as $$ delete from interior_projects where id = p_id and user_id = auth.uid() $$;
+revoke all on function public.interior_project_list(), public.interior_project_get(uuid), public.interior_project_save(uuid,text,jsonb,text), public.interior_project_delete(uuid) from public, anon;
+grant execute on function public.interior_project_list(), public.interior_project_get(uuid), public.interior_project_save(uuid,text,jsonb,text), public.interior_project_delete(uuid) to authenticated;
