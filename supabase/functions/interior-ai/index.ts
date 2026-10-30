@@ -149,29 +149,42 @@ Answer with JSON only: {"products":[{"store":"…","name":"…","price_eur":123.
     const imgs = (Array.isArray(body.images) ? body.images : []).slice(0, 8)
       .map((d: unknown) => String(d || "")).map((d: string) => { const m = d.match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/); return m ? { type: "image", source: { type: "base64", media_type: m[1], data: m[2] } } : null; })
       .filter((x: unknown) => x && (x as any).source.data.length < 2_500_000);
-    // η διαρρύθμιση θέλει απάντηση JSON, όχι μακρύ «σκέψη»: χωρίς thinking· αν το μοντέλο δεν το δέχεται, περισσότερα tokens
-    const call = (extra: Record<string, unknown>) => fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({
-        model: Deno.env.get("LAYOUT_MODEL") || "claude-sonnet-5-5",
-        max_tokens: 12000,
-        messages: [{ role: "user", content: imgs.length ? [...imgs, { type: "text", text: prompt }] : prompt }],
-        ...extra,
-      }),
+    // μεγάλη απάντηση (διαρρύθμιση / αναγνώριση από βίντεο): η σύνδεση κρατιέται ζωντανή με κενά μέχρι να έρθει το αποτέλεσμα
+    // (το JSON επιτρέπει κενά στην αρχή· έτσι δεν κόβεται στο όριο αδράνειας των 150 s)
+    const work = (async () => {
+      // η διαρρύθμιση θέλει απάντηση JSON, όχι μακρύ «σκέψη»: χωρίς thinking· αν το μοντέλο δεν το δέχεται, περισσότερα tokens
+      const call = (extra: Record<string, unknown>) => fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({
+          model: Deno.env.get("LAYOUT_MODEL") || "claude-sonnet-5-5",
+          max_tokens: 12000,
+          messages: [{ role: "user", content: imgs.length ? [...imgs, { type: "text", text: prompt }] : prompt }],
+          ...extra,
+        }),
+      });
+      let res = await call({ thinking: { type: "disabled" } });
+      let data = await res.json();
+      if (!res.ok && res.status === 400 && /thinking/i.test(String(data?.error?.message || ""))) { res = await call({ max_tokens: 32000 }); data = await res.json(); }
+      if (res.ok && !(data.content || []).some((c: any) => c.type === "text" && c.text) && data.stop_reason === "max_tokens") { res = await call({ max_tokens: 32000, thinking: { type: "enabled", budget_tokens: 4000 } }); data = await res.json(); }
+      const text = (data.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("");
+      // τιμοκατάλογος USD ανά 1M tokens (αλλάζει με secrets CLAUDE_IN_USD / CLAUDE_OUT_USD)
+      const pin = +(Deno.env.get("CLAUDE_IN_USD") || 2), pout = +(Deno.env.get("CLAUDE_OUT_USD") || 10);
+      const u0 = data.usage || {}, tin = (u0.input_tokens || 0) + (u0.cache_creation_input_tokens || 0) + (u0.cache_read_input_tokens || 0), tout = u0.output_tokens || 0;
+      const cost = (tin * pin + tout * pout) / 1e6;
+      await saveCost(q.id, cost, data.model || "claude-sonnet-5-5", tin, tout);
+      if (!res.ok) { await refund(); return { error: data?.error?.message || "upstream", status: res.status }; }
+      return { text, usage: data.usage, source: q.source, cost_usd: Math.round(cost * 10000) / 10000 };
+    })().catch(async (e) => { await refund(); return { error: String(e) }; });
+    const enc = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(ctl) {
+        const ka = setInterval(() => { try { ctl.enqueue(enc.encode(" ")); } catch { /* κλειστό */ } }, 8000);
+        const out = await work; clearInterval(ka);
+        ctl.enqueue(enc.encode(JSON.stringify(out))); ctl.close();
+      },
     });
-    let res = await call({ thinking: { type: "disabled" } });
-    let data = await res.json();
-    if (!res.ok && res.status === 400 && /thinking/i.test(String(data?.error?.message || ""))) { res = await call({ max_tokens: 32000 }); data = await res.json(); }
-    if (res.ok && !(data.content || []).some((c: any) => c.type === "text" && c.text) && data.stop_reason === "max_tokens") { res = await call({ max_tokens: 32000, thinking: { type: "enabled", budget_tokens: 4000 } }); data = await res.json(); }
-    if (!res.ok) { await refund(); return json({ error: data?.error?.message || "upstream" }, res.status); }
-    const text = (data.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("");
-    // τιμοκατάλογος USD ανά 1M tokens (αλλάζει με secrets CLAUDE_IN_USD / CLAUDE_OUT_USD)
-    const pin = +(Deno.env.get("CLAUDE_IN_USD") || 2), pout = +(Deno.env.get("CLAUDE_OUT_USD") || 10);
-    const u0 = data.usage || {}, tin = (u0.input_tokens || 0) + (u0.cache_creation_input_tokens || 0) + (u0.cache_read_input_tokens || 0), tout = u0.output_tokens || 0;
-    const cost = (tin * pin + tout * pout) / 1e6;
-    await saveCost(q.id, cost, data.model || "claude-sonnet-5-5", tin, tout);
-    return json({ text, usage: data.usage, source: q.source, cost_usd: Math.round(cost * 10000) / 10000 });
+    return new Response(stream, { status: 200, headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "no-store" } });
   } catch (err) {
     return json({ error: String(err) }, 500);
   }
