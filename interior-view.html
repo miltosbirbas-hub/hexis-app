@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>HEXIS Interior · Προβολή έργου</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="favicon.ico">
+<style>
+:root{--bg:#eef3f5;--ink:#10212a;--muted:#566872;--line:rgba(16,50,64,.14);--accent:#0796a8}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px 16px;background:radial-gradient(1200px 600px at 15% 0%,#dff1f4 0%,transparent 60%),var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+.card{width:min(420px,100%);background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:20px;padding:28px 26px;box-shadow:0 18px 50px rgba(16,40,60,.10);display:flex;flex-direction:column;gap:12px;text-align:center;align-items:center}
+.sp{width:34px;height:34px;border-radius:50%;border:3px solid #cfe3e7;border-top-color:var(--accent);animation:r 1s linear infinite}@keyframes r{to{transform:rotate(360deg)}}
+h1{margin:0;font-size:19px}p{margin:0;color:var(--muted);font-size:14px}
+a.b{display:inline-block;margin-top:6px;padding:10px 16px;border-radius:12px;background:var(--accent);color:#fff;text-decoration:none;font-weight:600}
+</style>
+</head>
+<body>
+<main class="card" id="c"><div class="sp"></div><h1 id="h">Φόρτωση του έργου…</h1><p id="p">Το σπίτι σου σε 3D ανοίγει σε λίγα δευτερόλεπτα.</p></main>
+<script>
+(function(){
+var SB='https://oucqqudfdimccgowvpqp.supabase.co',GW=SB+'/functions/v1/interior-gw';
+var ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
+var t=(new URLSearchParams(location.search).get('s')||'').replace(/[^A-Za-z0-9_-]/g,'');
+function fail(m){var c=document.getElementById('c');c.innerHTML='<h1>Δεν ανοίγει το έργο</h1><p></p><a class="b" href="https://hexis-app.gr/">hexis-app.gr</a>';c.querySelector('p').textContent=m||'Ο σύνδεσμος δεν είναι έγκυρος.'}
+if(!t){fail();return}
+fetch(GW,{method:'POST',headers:{apikey:ANON,Authorization:'Bearer '+ANON,'Content-Type':'application/json'},body:JSON.stringify({action:'share_get',token:t})})
+ .then(function(r){return r.json().then(function(d){if(!r.ok||!d.app)throw new Error(d.error||('Σφάλμα '+r.status));return d})})
+ .then(function(d){document.open();document.write(d.app);document.close()})
+ .catch(function(e){fail(e.message==='Failed to fetch'?'Δεν υπάρχει σύνδεση στο ίντερνετ. Δοκίμασε ξανά.':e.message)});
+})();
+</script>
+</body>
+</html>

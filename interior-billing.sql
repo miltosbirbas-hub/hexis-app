@@ -562,3 +562,58 @@ create or replace function public.interior_project_delete(p_id uuid)
 returns void language sql security definer set search_path = public as $$ delete from interior_projects where id = p_id and user_id = auth.uid() $$;
 revoke all on function public.interior_project_list(), public.interior_project_get(uuid), public.interior_project_save(uuid,text,jsonb,text), public.interior_project_delete(uuid) from public, anon;
 grant execute on function public.interior_project_list(), public.interior_project_get(uuid), public.interior_project_save(uuid,text,jsonb,text), public.interior_project_delete(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Σύνδεσμος για τον πελάτη (v4.115): προβολή έργου χωρίς λογαριασμό, σχόλια και έγκριση.
+create table if not exists public.interior_shares (
+  token      text primary key,
+  project_id uuid not null references public.interior_projects(id) on delete cascade,
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  show_cost  boolean not null default true,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz,
+  revoked    boolean not null default false,
+  views      integer not null default 0,
+  last_view  timestamptz
+);
+create table if not exists public.interior_share_events (
+  id      bigserial primary key,
+  token   text not null references public.interior_shares(token) on delete cascade,
+  at      timestamptz not null default now(),
+  kind    text not null check (kind in ('comment','approve')),
+  name    text,
+  text    text,
+  seen    boolean not null default false
+);
+create index if not exists interior_share_events_tok on public.interior_share_events(token, at desc);
+alter table public.interior_shares enable row level security;
+alter table public.interior_share_events enable row level security;
+revoke all on public.interior_shares, public.interior_share_events from anon, authenticated;
+
+create or replace function public.interior_share_create(p_project uuid, p_show_cost boolean default true, p_days int default 90)
+returns json language plpgsql security definer set search_path = public as $$
+declare u uuid := auth.uid(); t text;
+begin
+  if u is null or not exists (select 1 from interior_projects where id = p_project and user_id = u) then return json_build_object('ok',false,'msg','not found'); end if;
+  t := translate(encode(decode(replace(gen_random_uuid()::text,'-','') || replace(gen_random_uuid()::text,'-',''),'hex'),'base64'),'+/=','-_');
+  t := left(t, 26);
+  insert into interior_shares(token, project_id, user_id, show_cost, expires_at) values (t, p_project, u, coalesce(p_show_cost,true), case when p_days > 0 then now() + make_interval(days => p_days) end);
+  return json_build_object('ok',true,'token',t);
+end $$;
+create or replace function public.interior_share_list(p_project uuid)
+returns json language sql stable security definer set search_path = public as $$
+  select coalesce(json_agg(json_build_object('token',s.token,'show_cost',s.show_cost,'created_at',s.created_at,'expires_at',s.expires_at,'revoked',s.revoked,'views',s.views,'last_view',s.last_view,
+    'events',(select coalesce(json_agg(json_build_object('id',e.id,'at',e.at,'kind',e.kind,'name',e.name,'text',e.text,'seen',e.seen) order by e.at desc),'[]'::json) from interior_share_events e where e.token = s.token)) order by s.created_at desc),'[]'::json)
+  from interior_shares s where s.project_id = p_project and s.user_id = auth.uid()
+$$;
+create or replace function public.interior_share_revoke(p_token text)
+returns void language sql security definer set search_path = public as $$ update interior_shares set revoked = true where token = p_token and user_id = auth.uid() $$;
+create or replace function public.interior_share_seen(p_project uuid)
+returns void language sql security definer set search_path = public as $$
+  update interior_share_events e set seen = true from interior_shares s where e.token = s.token and s.project_id = p_project and s.user_id = auth.uid() $$;
+-- νέα σχόλια σε όλα τα έργα (για την ένδειξη στο κουμπί Έργα)
+create or replace function public.interior_share_unseen()
+returns int language sql stable security definer set search_path = public as $$
+  select count(*)::int from interior_share_events e join interior_shares s on s.token = e.token where s.user_id = auth.uid() and not e.seen $$;
+revoke all on function public.interior_share_create(uuid,boolean,int), public.interior_share_list(uuid), public.interior_share_revoke(text), public.interior_share_seen(uuid), public.interior_share_unseen() from public, anon;
+grant execute on function public.interior_share_create(uuid,boolean,int), public.interior_share_list(uuid), public.interior_share_revoke(text), public.interior_share_seen(uuid), public.interior_share_unseen() to authenticated;
