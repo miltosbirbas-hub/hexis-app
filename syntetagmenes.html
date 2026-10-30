@@ -477,7 +477,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       <circle cx="10" cy="28" r="2.4" fill="#22d3ee"/><circle cx="16" cy="12" r="2.4" fill="#8b5cf6"/><circle cx="27" cy="15" r="2.4" fill="#8b5cf6"/><circle cx="31" cy="26" r="2.4" fill="#fb7185"/>
     </svg>
     <div>
-      <h1>HEXIS <span>GEOmetry</span></h1>
+      <h1>HEXIS <span>GEOmetry</span> <small id="geoBuild" style="font:600 10px var(--f-mono);color:var(--faint);letter-spacing:0">build 30.10-17h</small></h1>
       <small>Συντεταγμένες ΕΓΣΑ87 · ΚΑΕΚ Κτηματολογίου · Διαγράμματα Γεωμετρικών Μεταβολών</small>
     </div>
   </div>
@@ -6565,6 +6565,7 @@ root.CmdCheck = api;
       var textCount = pages.reduce(function (a, p) { return a + p.items.filter(function (it) { return it.str.trim(); }).length; }, 0);
       S.textless = textCount < 15;
       S.photoScan = pages.some(function (p) { return p.ocrItems; });
+      if (S.photoScan) setTimeout(function () { toast('Φωτογραφία/σάρωση κινητού: το κείμενο της εφαρμογής σάρωσης αγνοείται — ανάγνωση εικόνας με ίσιωμα.'); }, 400);
       S.isDxf = !!pages[0].isDxf;
       if (S.isDxf) {
         S.textless = false;
@@ -8449,8 +8450,13 @@ root.CmdCheck = api;
       var r = await Engine.call('extract', { num: pg.num, items: inside });
       got = r.tables.filter(function (t) { return !S.tables.some(function (o) { return o.page === t.page && o.points.length === t.points.length && o.points.every(function (p, i) { return p.X.canon === t.points[i].X.canon && p.Y.canon === t.points[i].Y.canon; }); }); });
       got = mergeFragments(got);
+      // Έλεγχος πληρότητας: αν το κείμενο της περιοχής έχει πολύ περισσότερες συντεταγμένες απ' όσες βγήκαν,
+      // το κείμενο είναι αναξιόπιστο (π.χ. αναγνώριση εφαρμογής σάρωσης) → ανάγνωση εικόνας.
+      var yTok = inside.filter(function (it) { return String(it.str).split(/\s+/).some(function (w) { return CoordParser.coordReading(w, 'Y'); }); }).length;
+      var gotPts = got.reduce(function (n, t) { return n + t.points.length; }, 0);
+      if (yTok >= 4 && gotPts < 0.8 * yTok) { got = []; }
       got.forEach(function (t) { t.id = 't' + (newId++); t.bbox = rect; t.picked = true; });
-      if (!got.length && r.tables.length) { toast('Ο πίνακας αυτής της περιοχής υπάρχει ήδη στη λίστα.'); var ex = r.tables[0]; return; }
+      if (!got.length && r.tables.length && !(yTok >= 4 && gotPts < 0.8 * yTok)) { toast('Ο πίνακας αυτής της περιοχής υπάρχει ήδη στη λίστα.'); return; }
     }
     // 2. αλλιώς ανάγνωση εικόνας της περιοχής, όπως τη βλέπεις στην οθόνη
     if (!got.length) {
