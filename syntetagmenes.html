@@ -357,7 +357,7 @@ tr:hover .rowbtn, .rowbtn:focus-visible { opacity: 1; }
 #fineRot { width: 96px; accent-color: var(--cyan); }
 #bSelRegion[aria-pressed="true"] { box-shadow: 0 0 0 3px color-mix(in oklab, var(--cyan) 35%, transparent); }
 .pdfstage svg .selcatch { pointer-events: all; cursor: crosshair; }
-.sel-hint { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 5; padding: 8px 14px; border-radius: 10px; background: var(--surface); border: 1px solid var(--cyan); font-size: 12.5px; font-weight: 600; box-shadow: var(--shadow); white-space: nowrap; max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; }
+.sel-hint { pointer-events: none; opacity: .92; position: absolute; left: 50%; top: 8px; transform: translateX(-50%); z-index: 5; padding: 6px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--cyan); font-size: 12.5px; font-weight: 600; box-shadow: var(--shadow); white-space: nowrap; max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; }
 .pdfstage { transition: transform .2s ease; }
 @media (prefers-reduced-motion: reduce) { .pdfstage { transition: none; } }
 .plan svg { width: 100%; height: 100%; display: block; }
@@ -8145,8 +8145,13 @@ root.CmdCheck = api;
   // ---------- επιλογή περιοχής σε πλήρη οθόνη (κινητό / αφή) ----------
   // Στο κινητό το δάχτυλο κρύβει το σημείο και η σελίδα κυλάει αντί να σχεδιάζει πλαίσιο.
   // Εδώ: σχέδιο σε πλήρη οθόνη, zoom με δύο δάχτυλα, πλαίσιο με μεγάλες λαβές, φακός μεγέθυνσης.
+  var lastPtr = 'mouse';
+  document.addEventListener('pointerdown', function (ev) { lastPtr = ev.pointerType || 'mouse'; }, true);
   function useSelFS() {
-    try { return window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 900; } catch (e) { return window.innerWidth < 900; }
+    // δάχτυλο/γραφίδα, οθόνη αφής ή στενή οθόνη → πλήρης οθόνη επιλογής
+    if (lastPtr === 'touch' || lastPtr === 'pen') return true;
+    try { if (window.matchMedia('(pointer: coarse)').matches || window.matchMedia('(any-pointer: coarse)').matches && window.innerWidth < 1200) return true; } catch (e) {}
+    return window.innerWidth < 900 || (navigator.maxTouchPoints > 0 && window.innerWidth < 1200);
   }
   var FS = { open: false, pg: null, vp: null, W: 0, H: 0, k: 1, tx: 0, ty: 0, fitK: 1, rect: null, mode: 'box', ptrs: {}, act: null };
   var HANDLE = 26; // ακτίνα «πιασίματος» λαβής σε px οθόνης
