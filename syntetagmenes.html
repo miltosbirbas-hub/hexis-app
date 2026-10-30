@@ -393,6 +393,29 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   .exports { order: 3; width: 100%; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
   .brand small { display: none; }
 }
+/* ---------- επιλογή περιοχής σε πλήρη οθόνη (κινητό / αφή) ---------- */
+.pdfstage svg .selcatch { touch-action: none; }
+.selfs { position: fixed; inset: 0; z-index: 85; display: flex; flex-direction: column; background: var(--bg); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.selfs[hidden] { display: none; }
+.selfs-top, .selfs-bot { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface); border-color: var(--line); flex-wrap: wrap; }
+.selfs-top { border-bottom: 1px solid var(--line); padding-top: max(8px, env(safe-area-inset-top)); }
+.selfs-bot { border-top: 1px solid var(--line); padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+.selfs-top b { font: 600 14px var(--f-display); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.selfs .seg { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); }
+.selfs .seg button { border: 0; background: none; height: 38px; padding: 0 14px; border-radius: 7px; font-weight: 700; font-size: 13px; color: var(--muted); }
+.selfs .seg button[aria-pressed="true"] { background: var(--cyan); color: #fff; }
+.selfs .btn { min-height: 40px; }
+.selfs-msg { flex: 1 1 100%; font-size: 12.5px; color: var(--muted); line-height: 1.35; }
+.selfs-msg b { color: var(--text); }
+.selfs-bot .grow { flex: 1; }
+.selfs-vp { position: relative; flex: 1; min-height: 0; overflow: hidden; touch-action: none; background: var(--surface-2); }
+.selfs-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.selfs-world canvas { display: block; background: #fff; box-shadow: 0 6px 30px -8px rgba(0,0,0,.35); }
+.selfs-world svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.selfs-loupe { position: absolute; width: 132px; height: 132px; border-radius: 50%; border: 3px solid var(--cyan); box-shadow: var(--shadow); pointer-events: none; background: #fff; overflow: hidden; }
+.selfs-loupe[hidden] { display: none; }
+.selfs-loupe canvas { width: 100%; height: 100%; display: block; }
+.selfs-busy { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 600; color: var(--muted); }
 </style>
 <!-- inline: leaflet css φορτώνεται δυναμικά -->
 </head>
@@ -489,7 +512,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       <circle cx="40" cy="40" r="26" opacity=".5"/><circle cx="40" cy="40" r="12"/><path d="M40 4v18M40 58v18M4 40h18M58 40h18"/><circle cx="40" cy="40" r="2.5" fill="currentColor"/>
     </svg>
     <h3>Σύρε εδώ το PDF ή το DXF</h3>
-    <p>ή πάτησε για επιλογή αρχείου. Τα PDF από CAD διαβάζονται απευθείας, χωρίς αλλοίωση των τιμών· τα σκαναρισμένα περνούν από ανάγνωση AI με διπλό έλεγχο. Το DXF του σχεδίου σου διαβάζεται κατευθείαν στο ΕΓΣΑ87.</p>
+    <p>ή πάτησε για επιλογή αρχείου. Τα PDF από CAD διαβάζονται απευθείας, χωρίς αλλοίωση των τιμών· τα σκαναρισμένα (και από κινητό) περνούν από ανάγνωση AI με διπλό έλεγχο· αν δεν βρεθεί πίνακας, πάτα «Επιλογή περιοχής» και πιάσε τον με πλαίσιο — στο κινητό ανοίγει σε πλήρη οθόνη, με zoom δύο δαχτύλων, λαβές διόρθωσης και φακό μεγέθυνσης. Το DXF του σχεδίου σου διαβάζεται κατευθείαν στο ΕΓΣΑ87.</p>
     <span class="row">
       <span class="btn primary">Επιλογή PDF / DXF</span>
       <button class="btn" type="button" id="bSample">Άνοιγμα παραδείγματος</button>
@@ -552,6 +575,30 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
 
 <div class="gate" id="gate" hidden><div class="box" id="gateBox"></div></div>
 <div class="toast" id="toast" hidden></div>
+<div class="selfs" id="selFS" hidden role="dialog" aria-modal="true" aria-label="Επιλογή περιοχής">
+  <div class="selfs-top">
+    <b id="selFSTitle">Επιλογή περιοχής</b>
+    <div class="seg" role="group" aria-label="Λειτουργία">
+      <button type="button" data-fsmode="box" aria-pressed="true">Πλαίσιο</button>
+      <button type="button" data-fsmode="pan" aria-pressed="false">Pan</button>
+    </div>
+    <button type="button" class="btn small icon-btn" data-fs="-" aria-label="Σμίκρυνση">−</button>
+    <button type="button" class="btn small icon-btn" data-fs="+" aria-label="Μεγέθυνση">+</button>
+    <button type="button" class="btn small" data-fs="fit">Fit</button>
+  </div>
+  <div class="selfs-vp" id="selFSvp">
+    <div class="selfs-world" id="selFSworld"><canvas id="selFScv"></canvas><svg id="selFSov"></svg></div>
+    <div class="selfs-loupe" id="selFSloupe" hidden><canvas id="selFSlc" width="264" height="264"></canvas></div>
+    <div class="selfs-busy" id="selFSbusy" hidden>Φόρτωση σχεδίου…</div>
+  </div>
+  <div class="selfs-bot">
+    <div class="selfs-msg" id="selFSmsg"></div>
+    <button type="button" class="btn" data-fs="clear">Νέο πλαίσιο</button>
+    <span class="grow"></span>
+    <button type="button" class="btn" data-fs="cancel">Ακύρωση</button>
+    <button type="button" class="btn primary" data-fs="ok" disabled>Ανάγνωση</button>
+  </div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script id="engineSrc" type="text/plain">/* HEXIS ΣΥΝΤΕΤΑΓΜΕΝΕΣ — parser πινάκων συντεταγμένων ΕΓΣΑ87
@@ -8058,6 +8105,7 @@ root.CmdCheck = api;
   }
   // ---------- χειροκίνητη επιλογή περιοχής ----------
   function setSelMode(on) {
+    if (on && useSelFS()) { S.selMode = false; S.drag = null; $('#bSelRegion').setAttribute('aria-pressed', 'false'); $('#selHint').hidden = true; if (S.view !== 'pdf') setView('pdf'); openSelFS(); return; }
     S.selMode = on; S.drag = null;
     $('#bSelRegion').setAttribute('aria-pressed', String(on));
     $('#selHint').hidden = !on;
@@ -8083,6 +8131,7 @@ root.CmdCheck = api;
     if (!S.selMode || !S.drag) return;
     var p = localPt(ev); S.drag.x1 = p[0]; S.drag.y1 = p[1]; drawOverlay();
   });
+  $('#ov').addEventListener('pointercancel', function () { if (S.drag) { S.drag = null; drawOverlay(); } });
   $('#ov').addEventListener('pointerup', function (ev) {
     if (!S.selMode || !S.drag) return;
     var d = S.drag; S.drag = null;
@@ -8092,6 +8141,208 @@ root.CmdCheck = api;
     setSelMode(false);
     readRegion(S.pages[S.page - 1], rect);
   });
+
+  // ---------- επιλογή περιοχής σε πλήρη οθόνη (κινητό / αφή) ----------
+  // Στο κινητό το δάχτυλο κρύβει το σημείο και η σελίδα κυλάει αντί να σχεδιάζει πλαίσιο.
+  // Εδώ: σχέδιο σε πλήρη οθόνη, zoom με δύο δάχτυλα, πλαίσιο με μεγάλες λαβές, φακός μεγέθυνσης.
+  function useSelFS() {
+    try { return window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 900; } catch (e) { return window.innerWidth < 900; }
+  }
+  var FS = { open: false, pg: null, vp: null, W: 0, H: 0, k: 1, tx: 0, ty: 0, fitK: 1, rect: null, mode: 'box', ptrs: {}, act: null };
+  var HANDLE = 26; // ακτίνα «πιασίματος» λαβής σε px οθόνης
+  async function openSelFS() {
+    var pg = S.pages[S.page - 1]; if (!pg) return;
+    var box = $('#selFS'); box.hidden = false; FS.open = true; FS.pg = pg; FS.rect = null; FS.act = null; FS.ptrs = {};
+    document.documentElement.style.overflow = 'hidden';
+    setFSMode('box');
+    $('#selFSTitle').textContent = 'Επιλογή περιοχής' + (S.pages.length > 1 ? ' · σελ. ' + pg.num : '');
+    $('#selFSbusy').hidden = false; $('#selFSworld').style.visibility = 'hidden';
+    fsMsg();
+    try {
+      var R = rotOf(pg.num), v1 = pg.page.getViewport({ scale: 1, rotation: R.r });
+      var longPx = 3200, maxPx = 12e6, sc = longPx / Math.max(v1.width, v1.height);
+      if (v1.width * v1.height * sc * sc > maxPx) sc = Math.sqrt(maxPx / (v1.width * v1.height));
+      FS.vp = pg.page.getViewport({ scale: sc, rotation: R.r });
+      var cv = $('#selFScv'); cv.width = Math.floor(FS.vp.width); cv.height = Math.floor(FS.vp.height);
+      FS.W = cv.width; FS.H = cv.height; cv.style.width = FS.W + 'px'; cv.style.height = FS.H + 'px';
+      var ov = $('#selFSov'); ov.setAttribute('width', FS.W); ov.setAttribute('height', FS.H); ov.setAttribute('viewBox', '0 0 ' + FS.W + ' ' + FS.H);
+      fsFit(); fsDraw();
+      await pg.page.render({ canvasContext: cv.getContext('2d'), viewport: FS.vp }).promise;
+    } catch (e) { toast('Δεν φορτώθηκε το σχέδιο: ' + e.message, true); }
+    $('#selFSbusy').hidden = true; $('#selFSworld').style.visibility = '';
+  }
+  function closeSelFS() {
+    FS.open = false; FS.act = null; FS.ptrs = {}; $('#selFS').hidden = true; $('#selFSloupe').hidden = true;
+    document.documentElement.style.overflow = '';
+    var cv = $('#selFScv'); cv.width = 1; cv.height = 1; // απελευθέρωση μνήμης στο κινητό
+  }
+  function setFSMode(m) {
+    FS.mode = m;
+    $$('#selFS [data-fsmode]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.fsmode === m)); });
+    fsMsg();
+  }
+  function fsMsg() {
+    var t;
+    if (!FS.rect) t = FS.mode === 'box' ? '<b>Σύρε με το δάχτυλο</b> ένα πλαίσιο γύρω από τον πίνακα συντεταγμένων. Δύο δάχτυλα: zoom και μετακίνηση.' : '<b>Pan:</b> ένα δάχτυλο μετακινεί το σχέδιο. Πάτα «Πλαίσιο» για να σχεδιάσεις.';
+    else t = 'Τράβα τις <b>λαβές</b> για να διορθώσεις το πλαίσιο ή σύρε το από μέσα. Πιάσε ολόκληρο τον πίνακα, με τις στήλες Χ και Υ.';
+    $('#selFSmsg').innerHTML = t;
+    $('#selFS [data-fs="ok"]').disabled = !FS.rect;
+  }
+  function fsVpBox() { return $('#selFSvp').getBoundingClientRect(); }
+  function fsFit() {
+    var b = fsVpBox(), pad = 12;
+    FS.fitK = Math.min((b.width - 2 * pad) / FS.W, (b.height - 2 * pad) / FS.H);
+    FS.k = FS.fitK; FS.tx = (b.width - FS.W * FS.k) / 2; FS.ty = (b.height - FS.H * FS.k) / 2;
+    fsApply();
+  }
+  function fsClampK(k) { return Math.max(FS.fitK * 0.6, Math.min(FS.fitK * 40, Math.max(k, 0.02))); }
+  function fsApply() {
+    // όχι εκτός οθόνης: κρατάμε τουλάχιστον 60 px του σχεδίου μέσα
+    var b = fsVpBox(), w = FS.W * FS.k, h = FS.H * FS.k, m = 60;
+    FS.tx = Math.min(b.width - m, Math.max(m - w, FS.tx)); FS.ty = Math.min(b.height - m, Math.max(m - h, FS.ty));
+    $('#selFSworld').style.transform = 'translate(' + FS.tx + 'px,' + FS.ty + 'px) scale(' + FS.k + ')';
+    fsDraw();
+  }
+  function fsZoomAt(k, sx, sy) { // sx, sy: σημείο οθόνης μέσα στο viewport που μένει σταθερό
+    k = fsClampK(k); var wx = (sx - FS.tx) / FS.k, wy = (sy - FS.ty) / FS.k;
+    FS.k = k; FS.tx = sx - wx * k; FS.ty = sy - wy * k; fsApply();
+  }
+  function fsLocal(ev) { var b = fsVpBox(); return [ev.clientX - b.left, ev.clientY - b.top]; }
+  function fsToWorld(p) { return [Math.max(0, Math.min(FS.W, (p[0] - FS.tx) / FS.k)), Math.max(0, Math.min(FS.H, (p[1] - FS.ty) / FS.k))]; }
+  function fsNorm(r) { return { x0: Math.min(r.x0, r.x1), y0: Math.min(r.y0, r.y1), x1: Math.max(r.x0, r.x1), y1: Math.max(r.y0, r.y1) }; }
+  function fsDraw() {
+    var ov = $('#selFSov'), h = '', k = FS.k || 1, sw = 2 / k, hr = 11 / k, col = css('--cyan');
+    // πίνακες που ήδη βρέθηκαν σε αυτή τη σελίδα, αχνά, για προσανατολισμό
+    if (FS.vp && FS.pg) S.tables.forEach(function (t) {
+      if (t.page !== FS.pg.num || !t.bbox) return;
+      var r = FS.vp.convertToViewportRectangle(t.bbox);
+      h += '<rect x="' + Math.min(r[0], r[2]) + '" y="' + Math.min(r[1], r[3]) + '" width="' + Math.abs(r[2] - r[0]) + '" height="' + Math.abs(r[3] - r[1]) + '" fill="none" stroke="' + css(TYPE[t.type].css) + '" stroke-width="' + (1.5 / k) + '" stroke-dasharray="' + (5 / k) + ' ' + (4 / k) + '"/>';
+    });
+    if (FS.rect) {
+      var r = fsNorm(FS.rect), w = r.x1 - r.x0, hh = r.y1 - r.y0;
+      h += '<path d="M0 0H' + FS.W + 'V' + FS.H + 'H0Z M' + r.x0 + ' ' + r.y0 + 'V' + r.y1 + 'H' + r.x1 + 'V' + r.y0 + 'Z" fill="#0d1530" fill-opacity="0.28" fill-rule="evenodd"/>';
+      h += '<rect x="' + r.x0 + '" y="' + r.y0 + '" width="' + w + '" height="' + hh + '" fill="' + col + '" fill-opacity="0.06" stroke="' + col + '" stroke-width="' + sw + '"/>';
+      [[r.x0, r.y0], [r.x1, r.y0], [r.x1, r.y1], [r.x0, r.y1]].forEach(function (q) { h += '<circle cx="' + q[0] + '" cy="' + q[1] + '" r="' + hr + '" fill="#fff" stroke="' + col + '" stroke-width="' + (3 / k) + '"/>'; });
+      [[(r.x0 + r.x1) / 2, r.y0], [r.x1, (r.y0 + r.y1) / 2], [(r.x0 + r.x1) / 2, r.y1], [r.x0, (r.y0 + r.y1) / 2]].forEach(function (q) { h += '<rect x="' + (q[0] - hr * 0.7) + '" y="' + (q[1] - hr * 0.7) + '" width="' + (hr * 1.4) + '" height="' + (hr * 1.4) + '" rx="' + (3 / k) + '" fill="#fff" stroke="' + col + '" stroke-width="' + (2.5 / k) + '"/>'; });
+    }
+    ov.innerHTML = h;
+  }
+  // τι πιάνει το δάχτυλο: γωνία, πλευρά, εσωτερικό ή τίποτα
+  function fsHit(p) {
+    if (!FS.rect) return null;
+    var r = fsNorm(FS.rect), X0 = r.x0 * FS.k + FS.tx, X1 = r.x1 * FS.k + FS.tx, Y0 = r.y0 * FS.k + FS.ty, Y1 = r.y1 * FS.k + FS.ty;
+    var corners = [['nw', X0, Y0], ['ne', X1, Y0], ['se', X1, Y1], ['sw', X0, Y1]], best = null, bd = HANDLE;
+    corners.forEach(function (c) { var d = Math.hypot(p[0] - c[1], p[1] - c[2]); if (d < bd) { bd = d; best = c[0]; } });
+    if (best) return best;
+    var inX = p[0] > X0 && p[0] < X1, inY = p[1] > Y0 && p[1] < Y1, e = HANDLE * 0.8;
+    if (inX && Math.abs(p[1] - Y0) < e) return 'n'; if (inX && Math.abs(p[1] - Y1) < e) return 's';
+    if (inY && Math.abs(p[0] - X0) < e) return 'w'; if (inY && Math.abs(p[0] - X1) < e) return 'e';
+    if (inX && inY) return 'move';
+    return null;
+  }
+  function fsLoupe(p, w) {
+    var L = $('#selFSloupe'), b = fsVpBox(), size = 132, z = 3;
+    // ο φακός πάει στην απέναντι πλευρά από το δάχτυλο, για να μη κρύβεται
+    var lx = p[0] < b.width / 2 ? b.width - size - 12 : 12, ly = 12;
+    if (p[1] < size + 40) ly = Math.max(12, b.height - size - 12);
+    L.style.left = lx + 'px'; L.style.top = ly + 'px'; L.hidden = false;
+    var lc = $('#selFSlc'), g = lc.getContext('2d'), src = size / (FS.k * z);
+    g.fillStyle = '#fff'; g.fillRect(0, 0, lc.width, lc.height);
+    g.imageSmoothingEnabled = true;
+    try { g.drawImage($('#selFScv'), w[0] - src / 2, w[1] - src / 2, src, src, 0, 0, lc.width, lc.height); } catch (e) {}
+    var c = lc.width / 2, s = lc.width / src;
+    if (FS.rect) { var r = fsNorm(FS.rect); g.strokeStyle = css('--cyan'); g.lineWidth = 2; g.strokeRect(c + (r.x0 - w[0]) * s, c + (r.y0 - w[1]) * s, (r.x1 - r.x0) * s, (r.y1 - r.y0) * s); }
+    g.strokeStyle = '#e11d48'; g.lineWidth = 2; g.beginPath(); g.moveTo(c - 18, c); g.lineTo(c + 18, c); g.moveTo(c, c - 18); g.lineTo(c, c + 18); g.stroke();
+  }
+  (function () {
+    var vpEl = $('#selFSvp');
+    vpEl.addEventListener('contextmenu', function (ev) { ev.preventDefault(); });
+    function ids() { return Object.keys(FS.ptrs); }
+    function startPinch() {
+      var a = FS.ptrs[ids()[0]], b = FS.ptrs[ids()[1]];
+      FS.act = { kind: 'pinch', d0: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, k0: FS.k, m0: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], tx0: FS.tx, ty0: FS.ty };
+      $('#selFSloupe').hidden = true;
+    }
+    vpEl.addEventListener('pointerdown', function (ev) {
+      if (!FS.open) return;
+      ev.preventDefault();
+      try { vpEl.setPointerCapture(ev.pointerId); } catch (e) {}
+      var p = fsLocal(ev); FS.ptrs[ev.pointerId] = p;
+      if (ids().length === 2) { if (FS.act && FS.act.prev !== undefined) FS.rect = FS.act.prev; startPinch(); fsDraw(); fsMsg(); return; }
+      if (ids().length > 2) return;
+      var hit = fsHit(p), w = fsToWorld(p);
+      if (hit === 'move') FS.act = { kind: 'move', w0: w, r0: fsNorm(FS.rect), prev: FS.rect };
+      else if (hit) FS.act = { kind: 'handle', h: hit, prev: FS.rect };
+      else if (FS.mode === 'box' && (ev.pointerType !== 'mouse' || ev.button === 0)) FS.act = { kind: 'draw', prev: FS.rect, w0: w };
+      else FS.act = { kind: 'pan', p0: p, tx0: FS.tx, ty0: FS.ty };
+      if (FS.act.kind === 'handle') { FS.rect = fsNorm(FS.rect); fsLoupe(p, w); }
+    });
+    vpEl.addEventListener('pointermove', function (ev) {
+      if (!FS.open || !FS.ptrs[ev.pointerId]) return;
+      var p = fsLocal(ev); FS.ptrs[ev.pointerId] = p;
+      var a = FS.act; if (!a) return;
+      if (a.kind === 'pinch') {
+        if (ids().length < 2) return;
+        var A = FS.ptrs[ids()[0]], B = FS.ptrs[ids()[1]], d = Math.hypot(A[0] - B[0], A[1] - B[1]) || 1, m = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2];
+        var k = fsClampK(a.k0 * d / a.d0), wx = (a.m0[0] - a.tx0) / a.k0, wy = (a.m0[1] - a.ty0) / a.k0;
+        FS.k = k; FS.tx = m[0] - wx * k; FS.ty = m[1] - wy * k; fsApply(); return;
+      }
+      if (a.kind === 'pan') { FS.tx = a.tx0 + p[0] - a.p0[0]; FS.ty = a.ty0 + p[1] - a.p0[1]; fsApply(); return; }
+      var w = fsToWorld(p);
+      if (a.kind === 'draw') { FS.rect = { x0: a.w0[0], y0: a.w0[1], x1: w[0], y1: w[1] }; }
+      else if (a.kind === 'move') {
+        var r = a.r0, dx = w[0] - a.w0[0], dy = w[1] - a.w0[1];
+        dx = Math.max(-r.x0, Math.min(FS.W - r.x1, dx)); dy = Math.max(-r.y0, Math.min(FS.H - r.y1, dy));
+        FS.rect = { x0: r.x0 + dx, y0: r.y0 + dy, x1: r.x1 + dx, y1: r.y1 + dy };
+      } else if (a.kind === 'handle') {
+        var R = FS.rect, h = a.h;
+        if (h.indexOf('n') >= 0) R.y0 = w[1]; if (h.indexOf('s') >= 0) R.y1 = w[1];
+        if (h.indexOf('w') >= 0) R.x0 = w[0]; if (h.indexOf('e') >= 0) R.x1 = w[0];
+      }
+      fsDraw();
+      if (a.kind !== 'move') fsLoupe(p, w);
+    });
+    function end(ev) {
+      if (!FS.ptrs[ev.pointerId]) return;
+      delete FS.ptrs[ev.pointerId];
+      try { vpEl.releasePointerCapture(ev.pointerId); } catch (e) {}
+      var a = FS.act;
+      if (a && a.kind === 'pinch') {
+        if (ids().length === 1) { var q = FS.ptrs[ids()[0]]; FS.act = { kind: 'pan', p0: q, tx0: FS.tx, ty0: FS.ty }; } else FS.act = null;
+        return;
+      }
+      if (ids().length) return;
+      FS.act = null; $('#selFSloupe').hidden = true;
+      if (!a) return;
+      if (a.kind === 'draw' || a.kind === 'handle') {
+        var r = FS.rect && fsNorm(FS.rect);
+        // πολύ μικρό πλαίσιο (π.χ. απλό άγγιγμα) = άκυρο
+        if (!r || (r.x1 - r.x0) * FS.k < 14 || (r.y1 - r.y0) * FS.k < 14) FS.rect = a.prev || null;
+        else { FS.rect = r; if (a.kind === 'draw') setFSMode('pan'); }
+      }
+      fsDraw(); fsMsg();
+    }
+    vpEl.addEventListener('pointerup', end);
+    vpEl.addEventListener('pointercancel', function (ev) { if (FS.act && FS.act.prev !== undefined && FS.act.kind === 'draw') FS.rect = FS.act.prev; end(ev); });
+    vpEl.addEventListener('wheel', function (ev) { if (!FS.open) return; ev.preventDefault(); var p = fsLocal(ev); fsZoomAt(FS.k * (ev.deltaY < 0 ? 1.2 : 1 / 1.2), p[0], p[1]); }, { passive: false });
+    $('#selFS').addEventListener('click', function (ev) {
+      var m = ev.target.closest('[data-fsmode]'); if (m) { setFSMode(m.dataset.fsmode); return; }
+      var b = ev.target.closest('[data-fs]'); if (!b) return;
+      var c = b.dataset.fs, vb = fsVpBox();
+      if (c === '+' || c === '-') fsZoomAt(FS.k * (c === '+' ? 1.5 : 1 / 1.5), vb.width / 2, vb.height / 2);
+      else if (c === 'fit') fsFit();
+      else if (c === 'clear') { FS.rect = null; setFSMode('box'); fsDraw(); }
+      else if (c === 'cancel') closeSelFS();
+      else if (c === 'ok' && FS.rect) {
+        var r = fsNorm(FS.rect), A = FS.vp.convertToPdfPoint(r.x0, r.y0), B = FS.vp.convertToPdfPoint(r.x1, r.y1);
+        var rect = [Math.min(A[0], B[0]), Math.min(A[1], B[1]), Math.max(A[0], B[0]), Math.max(A[1], B[1])], pg = FS.pg;
+        closeSelFS();
+        readRegion(pg, rect);
+      }
+    });
+    document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && FS.open) closeSelFS(); });
+    window.addEventListener('resize', function () { if (FS.open && FS.W) fsFit(); });
+  })();
 
   async function readRegion(pg, rect) {
     // 1. κείμενο PDF μέσα στο πλαίσιο
