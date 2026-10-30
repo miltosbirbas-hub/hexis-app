@@ -149,16 +149,21 @@ Answer with JSON only: {"products":[{"store":"…","name":"…","price_eur":123.
     const imgs = (Array.isArray(body.images) ? body.images : []).slice(0, 8)
       .map((d: unknown) => String(d || "")).map((d: string) => { const m = d.match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/); return m ? { type: "image", source: { type: "base64", media_type: m[1], data: m[2] } } : null; })
       .filter((x: unknown) => x && (x as any).source.data.length < 2_500_000);
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    // η διαρρύθμιση θέλει απάντηση JSON, όχι μακρύ «σκέψη»: χωρίς thinking· αν το μοντέλο δεν το δέχεται, περισσότερα tokens
+    const call = (extra: Record<string, unknown>) => fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
-        model: "claude-sonnet-5-5",
+        model: Deno.env.get("LAYOUT_MODEL") || "claude-sonnet-5-5",
         max_tokens: 12000,
         messages: [{ role: "user", content: imgs.length ? [...imgs, { type: "text", text: prompt }] : prompt }],
+        ...extra,
       }),
     });
-    const data = await res.json();
+    let res = await call({ thinking: { type: "disabled" } });
+    let data = await res.json();
+    if (!res.ok && res.status === 400 && /thinking/i.test(String(data?.error?.message || ""))) { res = await call({ max_tokens: 32000 }); data = await res.json(); }
+    if (res.ok && !(data.content || []).some((c: any) => c.type === "text" && c.text) && data.stop_reason === "max_tokens") { res = await call({ max_tokens: 32000, thinking: { type: "enabled", budget_tokens: 4000 } }); data = await res.json(); }
     if (!res.ok) { await refund(); return json({ error: data?.error?.message || "upstream" }, res.status); }
     const text = (data.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("");
     // τιμοκατάλογος USD ανά 1M tokens (αλλάζει με secrets CLAUDE_IN_USD / CLAUDE_OUT_USD)
