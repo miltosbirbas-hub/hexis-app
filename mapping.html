@@ -251,12 +251,14 @@ async function card(key){const B=$("#kdB");$("#kdH").textContent=key;B.innerHTML
         <div><label for="kdQ">Ταβάνι φωτογραφιών</label><input id="kdQ" type="number" min="0" step="50" value="${d.quota_photos||0}"></div><div><label for="kdD">Παράταση (ημέρες)</label><input id="kdD" type="number" min="0" value="${d.kind==="demo"?1:30}"></div></div>
       <label for="kdT">Σημείωση</label><input id="kdT" value="${esc(d.note||"")}">
       <div class="row"><button class="btn primary" id="kdS">Αποθήκευση</button>${d.expires_at||d.updates_until?`<button class="btn" id="kdExt">Παράταση</button>`:""}
-        <button class="btn" id="kdRv">${d.revoked?"Επαναφορά":"Ανάκληση"}</button><button class="btn" id="kdMsg">Μήνυμα για τον πελάτη</button><span class="hint" id="kdH2"></span></div>
+        <button class="btn" id="kdRv">${d.revoked?"Επαναφορά":"Ανάκληση"}</button><button class="btn" id="kdMsg">Μήνυμα για τον πελάτη</button><button class="btn" id="kdDev" title="Ο πελάτης άλλαξε υπολογιστή πολλές φορές ή δεν αναγνωρίζεται ο υπολογιστής του">Μηδενισμός υπολογιστή</button><span class="hint" id="kdH2"></span></div>
       <textarea id="kdTx" rows="9" class="hidden" style="margin-top:8px"></textarea></div>`;
   const done=async m=>{$("#kdH2").textContent=m;await lics();card(key)};
   $("#kdCp").onclick=()=>{navigator.clipboard.writeText(d.key);$("#kdCp").textContent="Αντιγράφηκε ✓"};
   $("#kdS").onclick=async()=>{try{await gw("lic_update",{key,name:$("#kdN").value,email:$("#kdE").value,quota_photos:+$("#kdQ").value,note:$("#kdT").value});done("Αποθηκεύτηκε ✓")}catch(e){$("#kdH2").textContent=e.message}};
   $("#kdExt")&&($("#kdExt").onclick=async()=>{const n=+$("#kdD").value;if(!(n>0))return;try{await gw("lic_update",{key,extend_days:n});done(`Παράταση ${n} ημερών ✓`)}catch(e){$("#kdH2").textContent=e.message}});
+  $("#kdDev").onclick=async()=>{if(!confirm(`Μηδενισμός υπολογιστή για το ${key}; Ο πελάτης θα δηλώσει ξανά τον υπολογιστή του στην επόμενη είσοδο.`))return;
+    try{await gw("lic_device_reset",{key});done("Μηδενίστηκε ✓")}catch(e){$("#kdH2").textContent=e.message}};
   $("#kdRv").onclick=async()=>{if(!d.revoked&&!confirm(`Ανάκληση του ${key}; Ο πελάτης χάνει αμέσως την πρόσβαση.`))return;
     try{await gw("lic_update",{key,revoked:!d.revoked});done(d.revoked?"Επαναφέρθηκε ✓":"Ανακλήθηκε ✓")}catch(e){$("#kdH2").textContent=e.message}};
   $("#kdMsg").onclick=()=>{const t=$("#kdTx");t.value=message(d);t.classList.remove("hidden");t.select();navigator.clipboard.writeText(t.value).then(()=>$("#kdH2").textContent="Το μήνυμα αντιγράφηκε ✓",()=>{})};

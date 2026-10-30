@@ -15,7 +15,7 @@ const SB = "https://oucqqudfdimccgowvpqp.supabase.co";
 const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8"; // δημόσιο anon key (ίδιο με τις σελίδες)
 const CORS = {
   "Access-Control-Allow-Origin": "https://hexis-app.gr",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-hx-ticket",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const json = (o: unknown, status = 200) =>
@@ -29,6 +29,21 @@ async function saveCost(id: number, cost: number, model: string, tin: number, to
     body: JSON.stringify({ cost_usd: Math.round(cost * 10000) / 10000, model, in_tokens: tin, out_tokens: tout, real_cost: true }) }).catch(() => null);
 }
 
+
+// ---- εισιτήριο πύλης (interior-gw): υπογεγραμμένο, 12 λεπτά, δεμένο στον χρήστη
+async function ticketOk(t: string, uid: string) {
+  try {
+    const srk = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    const [b, s] = String(t || "").split(".");
+    if (!b || !s || !srk) return false;
+    const dec = (x: string) => Uint8Array.from(atob(x.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((x.length + 3) % 4)), (c) => c.charCodeAt(0));
+    const body = new TextDecoder().decode(dec(b)), [u, , exp] = body.split(".");
+    if (u !== uid || !(+exp > Date.now())) return false;
+    const raw = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode("hx-interior-ticket:" + srk)));
+    const k = await crypto.subtle.importKey("raw", raw, { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+    return await crypto.subtle.verify("HMAC", k, dec(s), new TextEncoder().encode(body));
+  } catch { return false; }
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -45,6 +60,7 @@ Deno.serve(async (req) => {
     if (!u.ok) return json({ error: "login" }, 401);
     const user = await u.json();
     const email = String(user.email || "").toLowerCase();
+    if (!(await ticketOk(req.headers.get("x-hx-ticket") || "", user.id))) return json({ error: "Η εφαρμογή ανοίγει μόνο από το hexis-app.gr με ενεργό κλειδί. Ανανέωσε τη σελίδα." }, 403);
 
     const now = Date.now(), list = (hits.get(user.id) || []).filter((t) => now - t < 3600e3);
     if (list.length >= 30) return json({ error: "rate_limited" }, 429);

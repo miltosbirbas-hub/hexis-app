@@ -208,7 +208,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
   <div class="card" id="ixCard" data-sec="interior">
     <h2>HEXIS Interior · άδειες & μονάδες</h2>
     <div class="ixgrid">
-      <div><label>Νέο κλειδί PRO</label><select id="ixPlan"><option value="m1">HXI-PRO-1M · 1 μήνας · 35 € + ΦΠΑ</option><option value="m6">HXI-PRO-6M · 6 μήνες · 180 € + ΦΠΑ</option><option value="y1" selected>HXI-PRO-12M · 12 μήνες · 330 € + ΦΠΑ</option></select></div>
+      <div><label>Νέο κλειδί πρόσβασης</label><select id="ixPlan"><option value="d2">HXI-DEMO · δοκιμή 48 ωρών · δωρεάν</option><option value="acc">HXI-ACC · πρόσβαση ιδιώτη · χωρίς λήξη</option><option value="m1">HXI-PRO-1M · 1 μήνας · 35 € + ΦΠΑ</option><option value="m6">HXI-PRO-6M · 6 μήνες · 180 € + ΦΠΑ</option><option value="y1" selected>HXI-PRO-12M · 12 μήνες · 330 € + ΦΠΑ</option></select></div>
       <div><label>Email πελάτη</label><input id="ixEmail" type="email" placeholder="προαιρετικό"></div>
       <div><label>Όνομα</label><input id="ixName"></div>
       <div><label>Πλήθος</label><input id="ixCount" type="number" min="1" max="50" value="1"></div>
@@ -230,6 +230,10 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
     <div class="ixtw" id="ixUsers"><div class="empty">Φόρτωση...</div></div>
     <div class="ixsub">Κλειδιά</div>
     <div class="ixtw" id="ixKeys"><div class="empty">Φόρτωση...</div></div>
+    <div class="ixsub">Συσκευές <span class="hint" style="margin:0">· κάθε λογαριασμός ανοίγει σε μία συσκευή κάθε φορά · έως 5 αλλαγές / 30 ημέρες</span></div>
+    <div class="ixtw" id="ixDev"><div class="empty">Φόρτωση...</div></div>
+    <div class="ixsub">Αρχείο ασφαλείας <span class="hint" style="margin:0">· είσοδοι, λάθος κλειδιά, αλλαγές συσκευής</span></div>
+    <div class="ixtw" id="ixAud" style="max-height:320px;overflow:auto"><div class="empty">Φόρτωση...</div></div>
   </div>
   </section>
   </div>
@@ -567,7 +571,7 @@ async function toggleMod(btn){
 
 
 // ===== HEXIS Interior: άδειες PRO, πακέτα, κόστος =====
-const IXP={m1:'1 μήνας',m6:'6 μήνες',y1:'12 μήνες'};
+const IXP={d2:'Demo 48 ωρών',acc:'Πρόσβαση ιδιώτη',m1:'PRO 1 μήνας',m6:'PRO 6 μήνες',y1:'PRO 12 μήνες'};
 const ixd=v=>v?new Date(v).toLocaleDateString('el-GR'):'—';
 const ixe=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 async function ixLoad(){
@@ -581,11 +585,19 @@ async function ixLoad(){
   document.getElementById('ixKeys').innerHTML=K.length?`<table><tr><th>Κλειδί</th><th>Διάρκεια</th><th>Πελάτης</th><th>Δημιουργία</th><th>Ενεργοποίηση</th><th>PRO έως</th><th></th></tr>`+
     K.map(r=>`<tr style="${r.revoked?'opacity:.45':''}"><td class="k">${ixe(r.key)}</td><td>${IXP[r.plan]||r.plan}</td><td>${ixe(r.redeemed_email||r.email||r.name||'')}${r.note?' · '+ixe(r.note):''}</td><td>${ixd(r.created_at)}</td><td>${r.redeemed_at?ixd(r.redeemed_at):'<span class="ixtag">νέο</span>'}</td><td>${ixd(r.pro_until)}</td><td>${r.revoked?'ανακλήθηκε':`<button class="btn btn-no" style="padding:3px 9px;font-size:11.5px" data-rv="${ixe(r.key)}">Ανάκληση</button>`}</td></tr>`).join('')+'</table>':'<div class="empty">Κανένα κλειδί ακόμα.</div>';
   document.querySelectorAll('[data-rv]').forEach(b=>b.onclick=async()=>{if(!confirm('Ανάκληση του κλειδιού '+b.dataset.rv+';'))return;const {error}=await sb.rpc('admin_interior_revoke',{p_key:b.dataset.rv});toast(error?error.message:'Ανακλήθηκε');ixLoad()});
+  const [dv,au]=await Promise.all([sb.rpc('admin_interior_devices'),sb.rpc('admin_interior_audit',{p_limit:150})]);
+  const ixt=v=>v?new Date(v).toLocaleString('el-GR',{dateStyle:'short',timeStyle:'short'}):'—';
+  const D=dv.data||[];document.getElementById('ixDev').innerHTML=dv.error?'<div class="empty">'+ixe(dv.error.message)+'</div>':D.length?`<table><tr><th>Λογαριασμός</th><th>Συσκευή</th><th>IP</th><th>Δέσμευση</th><th>Τελευταία</th><th>Αλλαγές 30 ημ.</th><th>Πρόσβαση έως</th><th>Λάθη 24ω</th><th></th></tr>`+
+    D.map(r=>`<tr><td>${ixe(r.email)}</td><td>${ixe(r.name||'')}</td><td>${ixe(r.ip||'')}</td><td>${ixt(r.bound_at)}</td><td>${ixt(r.last_seen)}</td><td>${r.moves>=4?'<b style="color:#c0392b">'+r.moves+'</b>':r.moves}</td><td>${r.access_until&&new Date(r.access_until).getFullYear()>2100?'χωρίς λήξη':ixd(r.access_until)}</td><td>${r.fails_24h?'<b style="color:#c0392b">'+r.fails_24h+'</b>':0}</td><td><button class="btn btn-no" style="padding:3px 9px;font-size:11.5px" data-dr="${ixe(r.email)}">Μηδενισμός</button></td></tr>`).join('')+'</table>':'<div class="empty">Καμία συσκευή ακόμα.</div>';
+  document.querySelectorAll('[data-dr]').forEach(b=>b.onclick=async()=>{if(!confirm('Μηδενισμός συσκευής για '+b.dataset.dr+'; Θα μπορεί να ανοίξει από νέα συσκευή.'))return;const {error}=await sb.rpc('admin_interior_device_reset',{p_email:b.dataset.dr});toast(error?error.message:'Έγινε');ixLoad()});
+  const AN={boot:'Είσοδος',redeem:'Κλειδί',device_bind:'Νέα συσκευή',device_move:'Αλλαγή συσκευής',device_reset:'Μηδενισμός συσκευής',revoke:'Ανάκληση',hb:'Έλεγχος'};
+  const Au=au.data||[];document.getElementById('ixAud').innerHTML=au.error?'<div class="empty">'+ixe(au.error.message)+'</div>':Au.length?`<table><tr><th>Πότε</th><th>Λογαριασμός</th><th>Ενέργεια</th><th></th><th>IP</th><th>Στοιχεία</th></tr>`+
+    Au.map(r=>`<tr style="${r.ok?'':'background:rgba(214,69,69,.08)'}"><td>${ixt(r.at)}</td><td>${ixe(r.email||'—')}</td><td>${AN[r.action]||ixe(r.action)}</td><td>${r.ok?'✓':'✗'}</td><td>${ixe(r.ip||'')}</td><td>${ixe(r.info||'')}</td></tr>`).join('')+'</table>':'<div class="empty">Κενό.</div>';
 }
 document.getElementById('ixNew').onclick=async()=>{const plan=document.getElementById('ixPlan').value;
   const {data,error}=await sb.rpc('admin_interior_new_keys',{p_plan:plan,p_count:+document.getElementById('ixCount').value||1,p_email:document.getElementById('ixEmail').value,p_name:document.getElementById('ixName').value,p_note:document.getElementById('ixNote').value});
   if(error){toast(error.message);return}
-  const keys=(data||[]).map(r=>r.key);const msg=`Καλησπέρα,\n\nτο κλειδί σας για το HEXIS Interior PRO (${IXP[plan]}):\n\n${keys.join('\n')}\n\nΆνοιξε το https://hexis-app.gr/interior.html, συνδέσου με το email σου και πάτα «Λογαριασμός» → «Κλειδί PRO».\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.`;
+  const keys=(data||[]).map(r=>r.key);const msg=`Καλησπέρα,\n\nτο κλειδί σας για το HEXIS Interior (${IXP[plan]}):\n\n${keys.join('\n')}\n\n1. Άνοιξε το https://hexis-app.gr/interior.html\n2. Συνδέσου με το email σου (έρχεται σύνδεσμος ή κωδικός στο email).\n3. Γράψε το κλειδί στο «Κλειδί πρόσβασης». Δένεται με τον λογαριασμό σου και ανοίγει σε μία συσκευή κάθε φορά.${plan==='d2'?'\n\nΗ δοκιμή διαρκεί 48 ώρες από την ενεργοποίηση.':''}\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.`;
   document.getElementById('ixOut').innerHTML=`<div class="ixkey"><b>${keys.length>1?keys.length+' νέα κλειδιά':'Νέο κλειδί'}</b> · ${IXP[plan]}<textarea id="ixMsg" rows="${Math.min(14,9+keys.length)}" style="width:100%;margin-top:8px;font-family:var(--font-m);font-size:12px;border:1px solid var(--border-strong);border-radius:8px;padding:8px">${ixe(msg)}</textarea><button class="btn btn-ok" id="ixCopy" style="margin-top:6px">Αντιγραφή μηνύματος</button></div>`;
   document.getElementById('ixCopy').onclick=()=>{navigator.clipboard.writeText(document.getElementById('ixMsg').value).then(()=>toast('Αντιγράφηκε'))};ixLoad()};
 document.getElementById('ixGKind').onchange=e=>{document.getElementById('ixGCred').style.display=e.target.value==='manual'?'':'none'};

@@ -138,6 +138,7 @@ declare u uuid := auth.uid(); a interior_accounts; m0 timestamptz := date_trunc(
 begin
   if u is null then return json_build_object('ok',false,'msg','login'); end if;
   if p_kind not in ('final','final4k','draft','layout') then return json_build_object('ok',false,'msg','bad kind'); end if;
+  if not interior_has_access(u) then return json_build_object('ok',false,'msg','Χρειάζεται κλειδί πρόσβασης HEXIS Interior'); end if;
   insert into interior_accounts(user_id) values (u) on conflict (user_id) do nothing;
   select * into a from interior_accounts where user_id = u for update;
   cr := case when a.credits_until is null or a.credits_until > now() then a.credits else 0 end;
@@ -332,3 +333,141 @@ begin
 end $$;
 revoke all on function public.interior_wallet(int) from public, anon;
 grant execute on function public.interior_wallet(int) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- ΠΡΟΣΒΑΣΗ ΜΕ ΚΛΕΙΔΙ (v4.105): η εφαρμογή ανοίγει μόνο με κλειδί που δίνει ο διαχειριστής.
+-- Πλάνα: d2 = demo 48 ωρών · acc = πρόσβαση ιδιώτη (χωρίς λήξη) · m1/m6/y1 = PRO 1/6/12 μήνες.
+-- Μία συσκευή κάθε φορά (interior_devices) · αρχείο ασφαλείας (interior_audit). Τα διαχειρίζεται η πύλη interior-gw.
+alter table public.interior_accounts add column if not exists access_until timestamptz;
+alter table public.interior_keys drop constraint if exists interior_keys_plan_check;
+alter table public.interior_keys add constraint interior_keys_plan_check check (plan in ('d2','acc','m1','m6','y1'));
+
+create table if not exists public.interior_devices (
+  user_id    uuid primary key references auth.users(id) on delete cascade,
+  device_id  text not null,
+  fp         text,                       -- αποτύπωμα συσκευής (hash)
+  name       text,
+  ip         text,
+  bound_at   timestamptz not null default now(),
+  last_seen  timestamptz not null default now(),
+  moves      jsonb not null default '[]'::jsonb     -- χρονικές στιγμές αλλαγής συσκευής
+);
+create table if not exists public.interior_audit (
+  id       bigserial primary key,
+  user_id  uuid,
+  at       timestamptz not null default now(),
+  action   text not null,
+  ok       boolean not null default true,
+  ip       text,
+  device   text,
+  info     text
+);
+create index if not exists interior_audit_user_time on public.interior_audit(user_id, at desc);
+alter table public.interior_devices enable row level security;
+alter table public.interior_audit   enable row level security;
+revoke all on public.interior_devices, public.interior_audit from anon, authenticated;   -- μόνο service role / RPC
+
+create or replace function public.interior_has_access(u uuid)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare a interior_accounts;
+begin
+  if u is null then return false; end if;
+  if interior_is_owner(u) or coalesce(public.is_admin(), false) and auth.uid() = u then return true; end if;
+  if interior_is_pro(u) then return true; end if;
+  select * into a from interior_accounts where user_id = u;
+  return coalesce(a.access_until > now(), false);
+end $$;
+revoke all on function public.interior_has_access(uuid) from public, anon;
+
+-- εξαργύρωση κλειδιού: όλα τα πλάνα δίνουν πρόσβαση· τα PRO και PRO λειτουργίες
+create or replace function public.interior_redeem(p_key text)
+returns json language plpgsql security definer set search_path = public as $$
+declare u uuid := auth.uid(); k interior_keys; base timestamptz; until_ts timestamptz; acc_ts timestamptz; fails int;
+begin
+  if u is null then return json_build_object('ok',false,'msg','login'); end if;
+  select count(*) into fails from interior_audit where user_id = u and action = 'redeem' and not ok and at > now() - interval '1 hour';
+  if fails >= 8 then return json_build_object('ok',false,'msg','Πολλές λάθος προσπάθειες · δοκίμασε σε μία ώρα'); end if;
+  select * into k from interior_keys where key = upper(trim(p_key)) for update;
+  if k.key is null or k.revoked or (k.redeemed_by is not null and k.redeemed_by <> u) then
+    insert into interior_audit(user_id, action, ok, info) values (u, 'redeem', false, left(upper(trim(p_key)), 20));
+    return json_build_object('ok',false,'msg', case when k.key is null then 'Το κλειδί δεν υπάρχει' when k.revoked then 'Το κλειδί έχει ανακληθεί' else 'Το κλειδί χρησιμοποιήθηκε ήδη από άλλο λογαριασμό' end);
+  end if;
+  if k.redeemed_by = u then return json_build_object('ok',true,'msg','Το κλειδί είναι ήδη ενεργό στον λογαριασμό σου'); end if;
+  insert into interior_accounts(user_id) values (u) on conflict (user_id) do nothing;
+  if k.plan in ('m1','m6','y1') then
+    select greatest(coalesce(pro_until, now()), now()) into base from interior_accounts where user_id = u;
+    until_ts := base + make_interval(months => k.months);
+    update interior_accounts set pro_until = until_ts, access_until = greatest(coalesce(access_until, now()), until_ts), updated_at = now() where user_id = u;
+  else
+    acc_ts := case k.plan when 'd2' then now() + interval '48 hours' else now() + interval '100 years' end;
+    update interior_accounts set access_until = greatest(coalesce(access_until, now()), acc_ts), updated_at = now() where user_id = u;
+  end if;
+  update interior_keys set redeemed_by = u, redeemed_at = now() where key = k.key;
+  insert into interior_audit(user_id, action, ok, info) values (u, 'redeem', true, k.key);
+  return json_build_object('ok',true,'msg',case k.plan when 'd2' then 'Demo 48 ωρών ενεργό' when 'acc' then 'Πρόσβαση ενεργή' else 'PRO ενεργό' end,'pro_until',until_ts);
+end $$;
+
+create or replace function public.admin_interior_new_keys(p_plan text, p_count int default 1, p_email text default null, p_name text default null, p_note text default null)
+returns setof public.interior_keys language plpgsql security definer set search_path = public as $$
+declare i int; k text; mo int := case p_plan when 'm1' then 1 when 'm6' then 6 when 'y1' then 12 when 'd2' then 0 when 'acc' then 0 end;
+  al text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+begin
+  if not public.is_admin() then raise exception 'forbidden'; end if;
+  if mo is null then raise exception 'plan'; end if;
+  for i in 1..greatest(1, least(coalesce(p_count,1), 50)) loop
+    loop
+      -- κρυπτογραφικά τυχαίο (gen_random_uuid), 12 χαρακτήρες από 32 = 60 bit
+      k := 'HXI-' || (select string_agg(substr(al, 1 + (get_byte(b, n) % 32), 1), '' order by n) from (select decode(replace(gen_random_uuid()::text,'-',''),'hex') b) x, generate_series(0,11) n);
+      k := substr(k,1,8) || '-' || substr(k,9,4) || '-' || substr(k,13,4);
+      exit when not exists (select 1 from interior_keys where key = k);
+    end loop;
+    insert into interior_keys(key, plan, months, email, name, note) values (k, p_plan, mo, nullif(trim(p_email),''), nullif(trim(p_name),''), nullif(trim(p_note),''));
+    return query select * from interior_keys where key = k;
+  end loop;
+end $$;
+
+-- ανάκληση: κόβει αμέσως και την πρόσβαση
+create or replace function public.admin_interior_revoke(p_key text)
+returns void language plpgsql security definer set search_path = public as $$
+declare r uuid; mo int; pl text;
+begin
+  if not public.is_admin() then raise exception 'forbidden'; end if;
+  update interior_keys set revoked = true where key = p_key returning redeemed_by, months, plan into r, mo, pl;
+  if r is not null then
+    if pl in ('m1','m6','y1') then update interior_accounts set pro_until = greatest(now(), pro_until - make_interval(months => mo)) where user_id = r; end if;
+    if not exists (select 1 from interior_keys where redeemed_by = r and not revoked) then update interior_accounts set access_until = now(), pro_until = least(pro_until, now()) where user_id = r; end if;
+    insert into interior_audit(user_id, action, info) values (r, 'revoke', p_key);
+  end if;
+end $$;
+
+create or replace function public.admin_interior_devices()
+returns table(email text, device text, name text, ip text, bound_at timestamptz, last_seen timestamptz, moves int, access_until timestamptz, fails_24h int)
+language plpgsql stable security definer set search_path = public, auth as $$
+begin
+  if not public.is_admin() then raise exception 'forbidden'; end if;
+  return query select u.email::text, d.device_id, d.name, d.ip, d.bound_at, d.last_seen,
+    (select count(*)::int from jsonb_array_elements_text(d.moves) m where m::timestamptz > now() - interval '30 days'),
+    a.access_until, (select count(*)::int from interior_audit x where x.user_id = d.user_id and not x.ok and x.at > now() - interval '24 hours')
+    from interior_devices d join auth.users u on u.id = d.user_id left join interior_accounts a on a.user_id = d.user_id order by d.last_seen desc;
+end $$;
+create or replace function public.admin_interior_device_reset(p_email text)
+returns void language plpgsql security definer set search_path = public, auth as $$
+declare u uuid;
+begin
+  if not public.is_admin() then raise exception 'forbidden'; end if;
+  select id into u from auth.users where lower(email) = lower(trim(p_email));
+  delete from interior_devices where user_id = u;
+  insert into interior_audit(user_id, action, info) values (u, 'device_reset', 'admin');
+end $$;
+create or replace function public.admin_interior_audit(p_limit int default 200)
+returns table(at timestamptz, email text, action text, ok boolean, ip text, device text, info text)
+language plpgsql stable security definer set search_path = public, auth as $$
+begin
+  if not public.is_admin() then raise exception 'forbidden'; end if;
+  return query select x.at, u.email::text, x.action, x.ok, x.ip, x.device, x.info from interior_audit x left join auth.users u on u.id = x.user_id
+    order by x.at desc limit greatest(1, least(p_limit, 1000));
+end $$;
+revoke all on function public.admin_interior_devices(), public.admin_interior_device_reset(text), public.admin_interior_audit(int) from public, anon;
+grant execute on function public.admin_interior_devices(), public.admin_interior_device_reset(text), public.admin_interior_audit(int),
+  public.interior_redeem(text), public.admin_interior_new_keys(text,int,text,text,text), public.admin_interior_revoke(text) to authenticated;
+grant execute on function public.interior_has_access(uuid) to service_role;
