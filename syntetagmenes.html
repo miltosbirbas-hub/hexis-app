@@ -8370,6 +8370,43 @@ root.CmdCheck = api;
     window.addEventListener('resize', function () { if (FS.open && FS.W) fsFit(); });
   })();
 
+  // Ένωση κομματιών του ίδιου πίνακα σε έναν. Δεν ενώνει όταν τα κομμάτια έχουν διαφορετικούς τίτλους
+  // (τότε είναι πραγματικά διαφορετικοί πίνακες, π.χ. οικόπεδο και κτίριο).
+  function mergeFragments(list) {
+    if (!list || list.length < 2) return list || [];
+    var titles = {}; list.forEach(function (t) { var k = String(t.title || '').replace(/\s+/g, ' ').trim().toUpperCase(); if (k) titles[k] = 1; });
+    if (Object.keys(titles).length > 1) return list;
+    var first = list.filter(function (t) { return t.title; })[0] || list[0];
+    var pts = [], byVal = {}, dropped = [];
+    list.forEach(function (t) {
+      (t.aiDropped || []).forEach(function (d) { dropped.push(d); });
+      t.points.forEach(function (p) {
+        var k = p.X.canon + ',' + p.Y.canon;
+        // ίδια κορυφή δύο φορές μέσα στις τελευταίες γραμμές = επικάλυψη κομματιών (το κλείσιμο 1 … 1 μένει όπως είναι)
+        if (byVal[k] && pts.length - pts.lastIndexOf(byVal[k]) <= 4) return;
+        // επικάλυψη με ελαφρώς διαφορετική ανάγνωση της ίδιας γραμμής: ίδια ετικέτα, < 1 m απόσταση, στις τελευταίες γραμμές
+        var near = p.label && pts.slice(-4).filter(function (q) { return q.label === p.label && Math.abs(q.X.value - p.X.value) < 1 && Math.abs(q.Y.value - p.Y.value) < 1; })[0];
+        if (near) { if (near.X.canon !== p.X.canon || near.Y.canon !== p.Y.canon) near.flags.aiUnsure = true; return; }
+        byVal[k] = p; pts.push(p);
+      });
+    });
+    var m = {};
+    for (var key in first) m[key] = first[key];
+    m.points = pts; m.aiDropped = dropped;
+    m.statedCands = (list.filter(function (t) { return t.statedCands && t.statedCands.length; })[0] || first).statedCands || [];
+    if (!m.type) m.type = (list.filter(function (t) { return t.type; })[0] || {}).type || null;
+    return [m];
+  }
+  // Πάνω/κάτω μισό μιας περιοχής, όπως φαίνεται όρθια (με επικάλυψη, για να μη χαθεί γραμμή στο κόψιμο)
+  function splitRectRows(pg, rect, viewRot) {
+    var vp = pg.page.getViewport({ scale: 1, rotation: viewRot });
+    var r = vp.convertToViewportRectangle(rect);
+    var x0 = Math.min(r[0], r[2]), x1 = Math.max(r[0], r[2]), y0 = Math.min(r[1], r[3]), y1 = Math.max(r[1], r[3]);
+    var mid = (y0 + y1) / 2, ov = (y1 - y0) * 0.08;
+    function back(a, b, c, d) { var p = vp.convertToPdfPoint(a, b), q = vp.convertToPdfPoint(c, d); return [Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[0], q[0]), Math.max(p[1], q[1])]; }
+    return [back(x0, y0, x1, mid + ov), back(x0, mid - ov, x1, y1)];
+  }
+
   async function readRegion(pg, rect) {
     // 1. κείμενο PDF μέσα στο πλαίσιο
     var inside = pg.items.filter(function (it) { var x = it.transform[4], y = it.transform[5]; return x >= rect[0] && x <= rect[2] && y >= rect[1] && y <= rect[3]; });
@@ -8377,7 +8414,8 @@ root.CmdCheck = api;
     if (inside.length >= 4) {
       var r = await Engine.call('extract', { num: pg.num, items: inside });
       got = r.tables.filter(function (t) { return !S.tables.some(function (o) { return o.page === t.page && o.points.length === t.points.length && o.points.every(function (p, i) { return p.X.canon === t.points[i].X.canon && p.Y.canon === t.points[i].Y.canon; }); }); });
-      got.forEach(function (t) { t.id = 't' + (newId++); t.bbox = t.bbox || rect; t.picked = true; });
+      got = mergeFragments(got);
+      got.forEach(function (t) { t.id = 't' + (newId++); t.bbox = rect; t.picked = true; });
       if (!got.length && r.tables.length) { toast('Ο πίνακας αυτής της περιοχής υπάρχει ήδη στη λίστα.'); var ex = r.tables[0]; return; }
     }
     // 2. αλλιώς ανάγνωση εικόνας της περιοχής, όπως τη βλέπεις στην οθόνη
@@ -8389,13 +8427,24 @@ root.CmdCheck = api;
         var imA = await renderRegion(pg, rect, 2000, rot);
         var ra = await callAI({ mode: 'read', page: pg.num, pass: 'A', tiles: [{ row: 0, col: 0, of: 0, data: imA }] });
         if (ra.rotation) { rot = (rot + ra.rotation) % 360; R.r = ((R.r + ra.rotation) % 360 + 360) % 360; R.manual = false; }
-        setAIMsg('Ανάγνωση περιοχής, 2η φορά…');
-        var imB = await renderRegion(pg, padRect(rect, 0.04, pg), 1500, rot);
-        var rb = await callAI({ mode: 'read', page: pg.num, pass: 'B', tiles: [{ row: 0, col: 0, of: 0, data: imB }] });
-        var A = CoordParser.fromAI(ra.tables, pg.num), B = CoordParser.fromAI(rb.tables, pg.num);
-        S.notes = S.notes.concat(CoordParser.crossCheckAI(A, B));
-        A.forEach(function (t) { t.id = 't' + (newId++); t.bbox = rect; t.picked = true; t.viewRot = R.r; if (!t.type) t.type = 'other'; });
-        got = A;
+        // 2η ανάγνωση σε δύο μισά (πάνω/κάτω) με διπλή ανάλυση: τα ψηφία των σκαναρισμένων πινάκων διαβάζονται καθαρότερα
+        var halves = splitRectRows(pg, padRect(rect, 0.02, pg), R.r), rbT = [];
+        for (var hi = 0; hi < halves.length; hi++) {
+          setAIMsg('Ανάγνωση περιοχής, 2η φορά (' + (hi + 1) + '/2)…');
+          var imB = await renderRegion(pg, halves[hi], 1600, rot);
+          var rb = await callAI({ mode: 'read', page: pg.num, pass: 'B', tiles: [{ row: 0, col: 0, of: 0, data: imB }] });
+          rbT = rbT.concat(rb.tables || []);
+        }
+        // η περιοχή που διάλεξες = ένας πίνακας: τα κομμάτια ενώνονται
+        var A = mergeFragments(CoordParser.fromAI(ra.tables, pg.num)), B = mergeFragments(CoordParser.fromAI(rbT, pg.num));
+        var nA = A.reduce(function (n, t) { return n + t.points.length; }, 0), nB = B.reduce(function (n, t) { return n + t.points.length; }, 0);
+        var P = nB > nA ? B : A, Q = P === A ? B : A; // κύρια = η πληρέστερη ανάγνωση, η άλλη για διασταύρωση
+        S.notes = S.notes.concat(CoordParser.crossCheckAI(P, Q));
+        P.forEach(function (t) {
+          t.id = 't' + (newId++); t.bbox = rect; t.picked = true; t.viewRot = R.r; if (!t.type) t.type = 'other';
+          if (t.aiDropped && t.aiDropped.length) S.notes.push('«' + (t.title || 'Πίνακας') + '»: κάποιες γραμμές δεν διαβάστηκαν ως συντεταγμένες ΕΓΣΑ87 — έλεγξε ότι υπάρχουν όλες οι κορυφές.');
+        });
+        got = P;
       } catch (e) { clearInterval(S.aiTimer); S.ai = { running: false, error: e.message }; renderAll(); toast(e.message, true); return; }
       clearInterval(S.aiTimer); S.ai = { running: false };
     }
@@ -8788,6 +8837,22 @@ root.CmdCheck = api;
     return [Math.max(v[0], rect[0] - m), Math.max(v[1], rect[1] - m), Math.min(v[2], rect[2] + m), Math.min(v[3], rect[3] + m)];
   }
   // Κανονικοποιημένο ορθογώνιο (0–1000 της επισκόπησης) → ορθογώνιο user space
+  // Περιοχές που επικαλύπτονται (ο ίδιος πίνακας κομμένος στα όρια των τμημάτων εντοπισμού) γίνονται μία
+  function mergeOverlapRegions(list) {
+    var out = (list || []).map(function (r) { var o = {}; for (var k in r) o[k] = r[k]; return o; }), changed = true;
+    while (changed) {
+      changed = false;
+      for (var i = 0; i < out.length && !changed; i++) for (var j = i + 1; j < out.length && !changed; j++) {
+        var a = out[i], b = out[j];
+        var ix = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0), iy = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
+        if (ix > 0 && iy > 0 && (a.rotation || 0) === (b.rotation || 0)) {
+          a.x0 = Math.min(a.x0, b.x0); a.y0 = Math.min(a.y0, b.y0); a.x1 = Math.max(a.x1, b.x1); a.y1 = Math.max(a.y1, b.y1);
+          a.title = a.title || b.title; out.splice(j, 1); changed = true;
+        }
+      }
+    }
+    return out;
+  }
   function regionToRect(pg, rg) {
     var base = pg.page.getViewport({ scale: 1 });
     var pts = [[rg.x0, rg.y0], [rg.x1, rg.y0], [rg.x1, rg.y1], [rg.x0, rg.y1]].map(function (q) { return base.convertToPdfPoint(q[0] / 1000 * base.width, q[1] / 1000 * base.height); });
@@ -8896,7 +8961,7 @@ root.CmdCheck = api;
       for (var i = 0; i < S.pages.length; i++) {
         var pg = S.pages[i];
         setAIMsg('Σελίδα ' + pg.num + ': εντοπισμός πινάκων…');
-        var regions = await locateTables(pg);
+        var regions = mergeOverlapRegions(await locateTables(pg));
         if (!regions.length) { S.notes.push('Σελ. ' + pg.num + ': δεν εντοπίστηκε πίνακας συντεταγμένων.'); continue; }
         for (var ri = 0; ri < regions.length; ri++) {
           var rg = regions[ri], rect = regionToRect(pg, rg);
@@ -8907,7 +8972,9 @@ root.CmdCheck = api;
           setAIMsg('Σελίδα ' + pg.num + ', πίνακας ' + (ri + 1) + '/' + regions.length + ': ανάγνωση Β…');
           var imB = await renderRegion(pg, padRect(rect, 0.10, pg), 1500, rg.rotation);
           var rb = await callAI({ mode: 'read', page: pg.num, pass: 'B', tiles: [{ row: 0, col: 0, of: 0, data: imB }] });
-          var A = CoordParser.fromAI(ra.tables, pg.num), B = CoordParser.fromAI(rb.tables, pg.num);
+          var A = mergeFragments(CoordParser.fromAI(ra.tables, pg.num)), B = mergeFragments(CoordParser.fromAI(rb.tables, pg.num));
+          var nA = A.reduce(function (n, t) { return n + t.points.length; }, 0), nB = B.reduce(function (n, t) { return n + t.points.length; }, 0);
+          if (nB > nA) { var tmp = A; A = B; B = tmp; } // κύρια = η πληρέστερη ανάγνωση
           S.notes = S.notes.concat(CoordParser.crossCheckAI(A, B));
           A.forEach(function (t) {
             t.bbox = rect; t.viewRot = ((pg.page.rotate + rg.rotation) % 360);
