@@ -6,6 +6,15 @@
 <title>HEXIS Interior</title>
 <meta name="robots" content="noindex">
 <link rel="icon" href="favicon.ico">
+<link rel="manifest" href="interior-manifest.json">
+<meta name="theme-color" content="#0796A8">
+<link rel="apple-touch-icon" href="interior-icon-192.png">
+<script>/* εγκατάσταση ως εφαρμογή επιφάνειας εργασίας: κρατάμε το αίτημα του browser για όταν πατηθεί το κουμπί */
+addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__hxBip=e;try{window.dispatchEvent(new Event('hx-installable'))}catch(x){}});
+addEventListener('appinstalled',function(){window.__hxBip=null;try{localStorage.setItem('hxInstalled','1')}catch(x){}});
+if('serviceWorker' in navigator)addEventListener('load',function(){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(function(){})});
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Commissioner:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
@@ -100,7 +109,7 @@ async function call(action,extra){var t=await token();if(!t)return null;
 var DEV=null;
 function launch(d){var dev=JSON.stringify(DEV);
   var guard=d.admin?'':"<script>(function(){addEventListener('contextmenu',function(e){if(!e.target.closest('input,textarea,[contenteditable]'))e.preventDefault()},true);addEventListener('keydown',function(e){var k=(e.key||'').toLowerCase();if(e.key==='F12'||(e.ctrlKey||e.metaKey)&&(k==='u'||k==='s'&&!e.shiftKey||e.shiftKey&&['i','j','c'].indexOf(k)>=0))e.preventDefault()},true);addEventListener('dragstart',function(e){if(e.target&&e.target.tagName==='IMG')e.preventDefault()},true)})();<\/script>";
-  var html=d.app.replace('<head>','<head><script>window.HEXIS_DEVICE='+dev+';<\/script>'+guard);
+  var html=d.app.replace('<head>','<head><link rel="manifest" href="interior-manifest.json"><meta name="theme-color" content="#0796A8"><script>window.HEXIS_DEVICE='+dev+';<\/script>'+guard);
   document.open();document.write(html);document.close()}
 async function boot(){show('vWait');err('');
   var d=await call('boot');if(!d)return;
