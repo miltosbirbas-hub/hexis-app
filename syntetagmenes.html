@@ -8373,29 +8373,39 @@ root.CmdCheck = api;
   // Ένωση κομματιών του ίδιου πίνακα σε έναν. Δεν ενώνει όταν τα κομμάτια έχουν διαφορετικούς τίτλους
   // (τότε είναι πραγματικά διαφορετικοί πίνακες, π.χ. οικόπεδο και κτίριο).
   function mergeFragments(list) {
-    if (!list || list.length < 2) return list || [];
+    list = (list || []).filter(function (t) { return t.points && t.points.length; });
+    if (!list.length) return [];
     var titles = {}; list.forEach(function (t) { var k = String(t.title || '').replace(/\s+/g, ' ').trim().toUpperCase(); if (k) titles[k] = 1; });
-    if (Object.keys(titles).length > 1) return list;
+    if (list.length > 1 && Object.keys(titles).length > 1) return list.map(cleanTable);
     var first = list.filter(function (t) { return t.title; })[0] || list[0];
-    var pts = [], byVal = {}, dropped = [];
-    list.forEach(function (t) {
-      (t.aiDropped || []).forEach(function (d) { dropped.push(d); });
-      t.points.forEach(function (p) {
-        var k = p.X.canon + ',' + p.Y.canon;
-        // ίδια κορυφή δύο φορές μέσα στις τελευταίες γραμμές = επικάλυψη κομματιών (το κλείσιμο 1 … 1 μένει όπως είναι)
-        if (byVal[k] && pts.length - pts.lastIndexOf(byVal[k]) <= 4) return;
-        // επικάλυψη με ελαφρώς διαφορετική ανάγνωση της ίδιας γραμμής: ίδια ετικέτα, < 1 m απόσταση, στις τελευταίες γραμμές
-        var near = p.label && pts.slice(-4).filter(function (q) { return q.label === p.label && Math.abs(q.X.value - p.X.value) < 1 && Math.abs(q.Y.value - p.Y.value) < 1; })[0];
-        if (near) { if (near.X.canon !== p.X.canon || near.Y.canon !== p.Y.canon) near.flags.aiUnsure = true; return; }
-        byVal[k] = p; pts.push(p);
-      });
-    });
+    var all = [], dropped = [];
+    list.forEach(function (t) { (t.aiDropped || []).forEach(function (d) { dropped.push(d); }); t.points.forEach(function (p) { all.push(p); }); });
     var m = {};
     for (var key in first) m[key] = first[key];
-    m.points = pts; m.aiDropped = dropped;
+    m.points = all; m.aiDropped = dropped;
     m.statedCands = (list.filter(function (t) { return t.statedCands && t.statedCands.length; })[0] || first).statedCands || [];
     if (!m.type) m.type = (list.filter(function (t) { return t.type; })[0] || {}).type || null;
-    return [m];
+    return [cleanTable(m)];
+  }
+  // Καθάρισμα: καμία κορυφή δύο φορές (ίδια τιμή, ή ίδια ετικέτα σε < 1 m), κλείσιμο 1…1 έξω,
+  // και αν όλες οι ετικέτες είναι αριθμοί, σειρά κατά αριθμό — αλλιώς το πολύγωνο βγαίνει μπερδεμένο.
+  function cleanTable(t) {
+    var out = [], byVal = {}, byLab = {};
+    t.points.forEach(function (p) {
+      var k = p.X.canon + ',' + p.Y.canon, lab = p.label != null ? String(p.label).trim() : '';
+      if (byVal[k]) return;
+      var q = lab && byLab[lab];
+      if (q && Math.abs(q.X.value - p.X.value) < 1 && Math.abs(q.Y.value - p.Y.value) < 1) { q.flags.aiUnsure = true; return; }
+      byVal[k] = p; if (lab && !byLab[lab]) byLab[lab] = p; out.push(p);
+    });
+    var labs = out.map(function (p) { return String(p.label == null ? '' : p.label).trim(); });
+    var numeric = out.length > 2 && labs.every(function (l) { return /^\d+$/.test(l); });
+    if (numeric) {
+      var uniq = {}; labs.forEach(function (l) { uniq[l] = 1; });
+      if (Object.keys(uniq).length === labs.length) out.sort(function (a, b) { return +a.label - +b.label; });
+    }
+    t.points = out;
+    return t;
   }
   // Πάνω/κάτω μισό μιας περιοχής, όπως φαίνεται όρθια (με επικάλυψη, για να μη χαθεί γραμμή στο κόψιμο)
   function splitRectRows(pg, rect, viewRot) {
@@ -8438,7 +8448,7 @@ root.CmdCheck = api;
         // η περιοχή που διάλεξες = ένας πίνακας: τα κομμάτια ενώνονται
         var A = mergeFragments(CoordParser.fromAI(ra.tables, pg.num)), B = mergeFragments(CoordParser.fromAI(rbT, pg.num));
         var nA = A.reduce(function (n, t) { return n + t.points.length; }, 0), nB = B.reduce(function (n, t) { return n + t.points.length; }, 0);
-        var P = nB > nA ? B : A, Q = P === A ? B : A; // κύρια = η πληρέστερη ανάγνωση, η άλλη για διασταύρωση
+        var P = nB > nA + 1 ? B : A, Q = P === A ? B : A; // κύρια = η ενιαία ανάγνωση, εκτός αν η άλλη έχει σαφώς περισσότερες κορυφές
         S.notes = S.notes.concat(CoordParser.crossCheckAI(P, Q));
         P.forEach(function (t) {
           t.id = 't' + (newId++); t.bbox = rect; t.picked = true; t.viewRot = R.r; if (!t.type) t.type = 'other';
@@ -8974,7 +8984,7 @@ root.CmdCheck = api;
           var rb = await callAI({ mode: 'read', page: pg.num, pass: 'B', tiles: [{ row: 0, col: 0, of: 0, data: imB }] });
           var A = mergeFragments(CoordParser.fromAI(ra.tables, pg.num)), B = mergeFragments(CoordParser.fromAI(rb.tables, pg.num));
           var nA = A.reduce(function (n, t) { return n + t.points.length; }, 0), nB = B.reduce(function (n, t) { return n + t.points.length; }, 0);
-          if (nB > nA) { var tmp = A; A = B; B = tmp; } // κύρια = η πληρέστερη ανάγνωση
+          if (nB > nA + 1) { var tmp = A; A = B; B = tmp; } // κύρια = η πληρέστερη ανάγνωση
           S.notes = S.notes.concat(CoordParser.crossCheckAI(A, B));
           A.forEach(function (t) {
             t.bbox = rect; t.viewRot = ((pg.page.rotate + rg.rotation) % 360);
