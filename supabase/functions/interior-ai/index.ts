@@ -152,7 +152,6 @@ Answer with JSON only: {"products":[{"store":"…","name":"…","price_eur":123.
     // μεγάλη απάντηση (διαρρύθμιση / αναγνώριση από βίντεο): η σύνδεση κρατιέται ζωντανή με κενά μέχρι να έρθει το αποτέλεσμα
     // (το JSON επιτρέπει κενά στην αρχή· έτσι δεν κόβεται στο όριο αδράνειας των 150 s)
     const work = (async () => {
-      // η διαρρύθμιση θέλει απάντηση JSON, όχι μακρύ «σκέψη»: χωρίς thinking· αν το μοντέλο δεν το δέχεται, περισσότερα tokens
       const call = (extra: Record<string, unknown>) => fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
@@ -163,10 +162,10 @@ Answer with JSON only: {"products":[{"store":"…","name":"…","price_eur":123.
           ...extra,
         }),
       });
-      let res = await call({ thinking: { type: "disabled" } });
+      // το μοντέλο σκέφτεται προσαρμοστικά· effort "low" = ελάχιστη σκέψη, τα tokens πάνε στην απάντηση (JSON)
+      let res = await call({ max_tokens: 24000, output_config: { effort: "low" } });
       let data = await res.json();
-      if (!res.ok && res.status === 400 && /thinking/i.test(String(data?.error?.message || ""))) { res = await call({ max_tokens: 32000 }); data = await res.json(); }
-      if (res.ok && !(data.content || []).some((c: any) => c.type === "text" && c.text) && data.stop_reason === "max_tokens") { res = await call({ max_tokens: 32000, thinking: { type: "enabled", budget_tokens: 4000 } }); data = await res.json(); }
+      if (!res.ok && res.status === 400 && /effort|output_config/i.test(String(data?.error?.message || ""))) { res = await call({ max_tokens: 32000 }); data = await res.json(); }
       const text = (data.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("");
       // τιμοκατάλογος USD ανά 1M tokens (αλλάζει με secrets CLAUDE_IN_USD / CLAUDE_OUT_USD)
       const pin = +(Deno.env.get("CLAUDE_IN_USD") || 2), pout = +(Deno.env.get("CLAUDE_OUT_USD") || 10);
