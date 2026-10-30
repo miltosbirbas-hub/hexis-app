@@ -512,7 +512,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       <circle cx="40" cy="40" r="26" opacity=".5"/><circle cx="40" cy="40" r="12"/><path d="M40 4v18M40 58v18M4 40h18M58 40h18"/><circle cx="40" cy="40" r="2.5" fill="currentColor"/>
     </svg>
     <h3>Σύρε εδώ το PDF ή το DXF</h3>
-    <p>ή πάτησε για επιλογή αρχείου. Τα PDF από CAD διαβάζονται απευθείας, χωρίς αλλοίωση των τιμών· τα σκαναρισμένα (και από κινητό) περνούν από ανάγνωση AI με διπλό έλεγχο· αν δεν βρεθεί πίνακας, πάτα «Επιλογή περιοχής» και πιάσε τον με πλαίσιο — στο κινητό ανοίγει σε πλήρη οθόνη, με zoom δύο δαχτύλων, λαβές διόρθωσης και φακό μεγέθυνσης. Το DXF του σχεδίου σου διαβάζεται κατευθείαν στο ΕΓΣΑ87.</p>
+    <p>ή πάτησε για επιλογή αρχείου. Τα PDF από CAD διαβάζονται απευθείας, χωρίς αλλοίωση των τιμών· τα σκαναρισμένα (και φωτογραφίες από κινητό, ακόμα και διπλωμένου χαρτιού) ισιώνονται και καθαρίζονται αυτόματα και περνούν από ανάγνωση AI με διπλό έλεγχο· αν δεν βρεθεί πίνακας, πάτα «Επιλογή περιοχής» και πιάσε τον με πλαίσιο — στο κινητό ανοίγει σε πλήρη οθόνη, με zoom δύο δαχτύλων, λαβές διόρθωσης και φακό μεγέθυνσης. Το DXF του σχεδίου σου διαβάζεται κατευθείαν στο ΕΓΣΑ87.</p>
     <span class="row">
       <span class="btn primary">Επιλογή PDF / DXF</span>
       <button class="btn" type="button" id="bSample">Άνοιγμα παραδείγματος</button>
@@ -6438,7 +6438,11 @@ root.CmdCheck = api;
         var paths = [];
         try { paths = PdfGeom.extractGeometry(ol, pdfjsLib.OPS, ocNames); } catch (e) { console.warn('γεωμετρία σελ. ' + i, e); }
         var hasImg = ol.fnArray.some(function (f) { return f === pdfjsLib.OPS.paintImageXObject || f === pdfjsLib.OPS.paintInlineImageXObject || f === pdfjsLib.OPS.paintJpegXObject; });
-        pages.push({ num: i, page: page, items: tc.items.filter(function (it) { return 'str' in it; }), paths: paths, width: vp.width, height: vp.height, hasImg: hasImg });
+        var items = tc.items.filter(function (it) { return 'str' in it; }), ocrItems = null;
+        // Σκαναρισμένο από κινητό (Genius Scan, CamScanner, κλπ.): μία φωτογραφία με αόρατο κείμενο-αναγνώριση από πάνω.
+        // Αυτό το κείμενο είναι γεμάτο λάθη (π.χ. «4301751390», «43017??-42») — δεν το εμπιστευόμαστε ποτέ: η σελίδα διαβάζεται ως εικόνα.
+        if (hasImg && paths.length < 40 && isPhotoScan(ol)) { ocrItems = items; items = []; }
+        pages.push({ num: i, page: page, items: items, ocrItems: ocrItems, paths: paths, width: vp.width, height: vp.height, hasImg: hasImg });
         await tick();
       }
       stage('read', 'done', doc.numPages + (doc.numPages === 1 ? ' σελίδα' : ' σελίδες'));
@@ -6539,6 +6543,17 @@ root.CmdCheck = api;
     var sum = cands.reduce(function (s, t) { return s + Math.abs(CoordParser.polyArea(world(t))); }, 0);
     if (Math.abs(sum - A) <= Math.max(0.5, 0.005 * A)) cands.forEach(function (t) { t.type = 'newparcel'; t.typeAuto = 'τμήματα που μαζί καλύπτουν το οικόπεδο'; t.include = true; });
   }
+  // Η σελίδα είναι φωτογραφία/σάρωση: μία μεγάλη εικόνα και όλο το κείμενο αόρατο (text render mode 3) ή καθόλου διανυσματικά
+  function isPhotoScan(ol) {
+    var O = pdfjsLib.OPS, img = 0, invisible = 0, visibleText = 0, mode = 0;
+    for (var k = 0; k < ol.fnArray.length; k++) {
+      var f = ol.fnArray[k];
+      if (f === O.paintImageXObject || f === O.paintJpegXObject || f === O.paintInlineImageXObject) img++;
+      else if (f === O.setTextRenderingMode) mode = ol.argsArray[k] && ol.argsArray[k][0];
+      else if (f === O.showText || f === O.showSpacedText || f === O.nextLineShowText || f === O.nextLineSetSpacingShowText) { if (mode === 3) invisible++; else visibleText++; }
+    }
+    return img >= 1 && img <= 4 && (invisible > 0 ? invisible >= 3 * visibleText : visibleText < 15);
+  }
   async function finishLoad(pages, name, doc) {
     try {
       stage('find', 'on'); await tick();
@@ -6549,6 +6564,7 @@ root.CmdCheck = api;
       S.scales = r.scales; S.res = {}; S.geo = {}; S.residOk = {}; S.kaek = null; S.dgm = null; S.dgmOwn = null; S.dgmSkip = {}; S.dgmAssign = {}; S.dgmSkipOwn = null; S.bld = []; $('#tabDgm').hidden = true; S.ai = null; S.aiDone = false; S.rot = {}; S.selMode = false; S.drag = null;
       var textCount = pages.reduce(function (a, p) { return a + p.items.filter(function (it) { return it.str.trim(); }).length; }, 0);
       S.textless = textCount < 15;
+      S.photoScan = pages.some(function (p) { return p.ocrItems; });
       S.isDxf = !!pages[0].isDxf;
       if (S.isDxf) {
         S.textless = false;
@@ -8391,6 +8407,14 @@ root.CmdCheck = api;
   // και αν όλες οι ετικέτες είναι αριθμοί, σειρά κατά αριθμό — αλλιώς το πολύγωνο βγαίνει μπερδεμένο.
   function cleanTable(t) {
     var out = [], byVal = {}, byLab = {};
+    // έλεγχος κλεισίματος: η τελευταία γραμμή «1» πρέπει να έχει τις συντεταγμένες της κορυφής 1.
+    // Αν έχει τις συντεταγμένες άλλης κορυφής, οι αριθμοί κορυφών διαβάστηκαν μετατοπισμένοι κατά γραμμή.
+    var P0 = t.points, last = P0[P0.length - 1];
+    if (P0.length > 3 && last && last.label != null) {
+      var same = P0.filter(function (q, i) { return i < P0.length - 1 && String(q.label).trim() === String(last.label).trim(); })[0];
+      var twin = P0.filter(function (q, i) { return i < P0.length - 1 && q.X.canon === last.X.canon && q.Y.canon === last.Y.canon; })[0];
+      if (same && twin && same !== twin) t.labelShift = true;
+    }
     t.points.forEach(function (p) {
       var k = p.X.canon + ',' + p.Y.canon, lab = p.label != null ? String(p.label).trim() : '';
       if (byVal[k]) return;
@@ -8441,7 +8465,7 @@ root.CmdCheck = api;
         var halves = splitRectRows(pg, padRect(rect, 0.02, pg), R.r), rbT = [];
         for (var hi = 0; hi < halves.length; hi++) {
           setAIMsg('Ανάγνωση περιοχής, 2η φορά (' + (hi + 1) + '/2)…');
-          var imB = await renderRegion(pg, halves[hi], 1600, rot);
+          var imB = await renderRegion(pg, halves[hi], 1600, rot, null, isImagePage(pg));
           var rb = await callAI({ mode: 'read', page: pg.num, pass: 'B', tiles: [{ row: 0, col: 0, of: 0, data: imB }] });
           rbT = rbT.concat(rb.tables || []);
         }
@@ -8453,6 +8477,7 @@ root.CmdCheck = api;
         P.forEach(function (t) {
           t.id = 't' + (newId++); t.bbox = rect; t.picked = true; t.viewRot = R.r; if (!t.type) t.type = 'other';
           if (t.aiDropped && t.aiDropped.length) S.notes.push('«' + (t.title || 'Πίνακας') + '»: κάποιες γραμμές δεν διαβάστηκαν ως συντεταγμένες ΕΓΣΑ87 — έλεγξε ότι υπάρχουν όλες οι κορυφές.');
+          if (t.labelShift) S.notes.push('«' + (t.title || 'Πίνακας') + '»: το κλείσιμο του πίνακα δεν ταιριάζει με την κορυφή του — οι αριθμοί κορυφών ίσως διαβάστηκαν μετατοπισμένοι κατά μία γραμμή. Σύγκρινέ τους με το σχέδιο.');
         });
         got = P;
       } catch (e) { clearInterval(S.aiTimer); S.ai = { running: false, error: e.message }; renderAll(); toast(e.message, true); return; }
@@ -8816,7 +8841,7 @@ root.CmdCheck = api;
     gate('<h3>Ανάγνωση με AI</h3><p>Οι σελίδες θα σταλούν ως εικόνα στην υπηρεσία ανάγνωσης του HEXIS. Γίνονται δύο ανεξάρτητες αναγνώσεις και συγκρίνονται κορυφή προς κορυφή. Οι πίνακες που θα βρεθούν προστίθενται «προς επιβεβαίωση».</p><div class="row"><button class="btn" data-g="no">Άκυρο</button><button class="btn primary" data-g="yes">Ανάγνωση</button></div>', function (a) { if (a === 'yes') runAI(); });
   }
   // Απόδοση περιοχής σελίδας (user space) σε υψηλή ανάλυση, γυρισμένη όρθια
-  async function renderRegion(pg, rect, longPx, rotation, maxScale) {
+  async function renderRegion(pg, rect, longPx, rotation, maxScale, enhance) {
     var base = pg.page.getViewport({ scale: 1 });
     var r = base.convertToViewportRectangle(rect);
     var vx0 = Math.min(r[0], r[2]), vy0 = Math.min(r[1], r[3]), w = Math.abs(r[2] - r[0]), h = Math.abs(r[3] - r[1]);
@@ -8838,8 +8863,113 @@ root.CmdCheck = api;
       else { o.translate(0, out.height); o.rotate(-Math.PI / 2); }
       o.drawImage(cv, 0, 0);
     }
+    if (enhance || isImagePage(pg)) { try { out = deskewScan(out); } catch (e) { console.warn('deskew', e); } }
+    if (enhance) { try { out = enhanceScan(out); } catch (e) { console.warn('enhance', e); } }
     S.lastCrop = out; // για έλεγχο
     return out.toDataURL('image/jpeg', 0.92).split(',')[1];
+  }
+  // Καθάρισμα φωτογραφίας/σάρωσης κινητού: αφαίρεση σκιών (τσακίσεις, φωτισμός), γκρι κλίμακα, ενίσχυση αντίθεσης.
+  // Το φόντο εκτιμάται με πολύ θολή μικρή εκδοχή της εικόνας και διαιρείται — μένουν μαύρα γράμματα σε λευκό.
+  // Ίσιωμα στραβής φωτογραφίας/σάρωσης: βρίσκει τη γωνία όπου οι γραμμές του πίνακα γίνονται οριζόντιες
+  // (μέγιστη «οξύτητα» της οριζόντιας προβολής των σκούρων εικονοστοιχείων) και γυρίζει την εικόνα.
+  // Χωρίς αυτό, σε κεκλιμένο πίνακα ο αριθμός κορυφής ζευγαρώνει με τη συντεταγμένη της διπλανής γραμμής.
+  function deskewScan(src) {
+    var W = src.width, H = src.height, f = Math.min(1, 1000 / Math.max(W, H));
+    var w = Math.max(8, Math.round(W * f)), h = Math.max(8, Math.round(H * f));
+    var c = document.createElement('canvas'); c.width = w; c.height = h;
+    var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.drawImage(src, 0, 0, w, h);
+    var d = g.getImageData(0, 0, w, h).data, sum = 0, n = w * h;
+    for (var i = 0; i < n; i++) sum += 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+    var th = Math.min(150, (sum / n) * 0.6), xs = [], ys = [];
+    for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) { var k = (y * w + x) * 4; if (0.299 * d[k] + 0.587 * d[k + 1] + 0.114 * d[k + 2] < th) { xs.push(x); ys.push(y); } }
+    if (xs.length < 200) return src;
+    var xc = w / 2, diag = Math.ceil(Math.hypot(w, h)) + 2, bins = new Float64Array(diag * 2);
+    function bestAngle(i0, i1) { // εύρος σημείων [i0, i1) — τα ys είναι ταξινομημένα κατά y
+      function score(t) { bins.fill(0); for (var j = i0; j < i1; j++) bins[Math.round(ys[j] + (xs[j] - xc) * t) + diag]++; var s2 = 0; for (var b = 0; b < bins.length; b++) s2 += bins[b] * bins[b]; return s2; }
+      var best = 0, bs = -1, deg, v;
+      for (deg = -10; deg <= 10.001; deg += 0.5) { v = score(Math.tan(deg * Math.PI / 180)); if (v > bs) { bs = v; best = deg; } }
+      var c0 = best; for (deg = c0 - 0.5; deg <= c0 + 0.501; deg += 0.1) { v = score(Math.tan(deg * Math.PI / 180)); if (v > bs) { bs = v; best = deg; } }
+      return best;
+    }
+    // κλίση ανά ζώνη ύψους (το διπλωμένο/κυρτό χαρτί γέρνει διαφορετικά πάνω και κάτω)
+    var NB = Math.max(1, Math.min(8, Math.round(h / 120))), bandH = h / NB, cy = [], ang = [];
+    var idx = 0;
+    for (var bnd = 0; bnd < NB; bnd++) {
+      var y0 = bnd * bandH - bandH * 0.25, y1 = (bnd + 1) * bandH + bandH * 0.25;
+      var i0 = 0; while (i0 < ys.length && ys[i0] < y0) i0++;
+      var i1 = i0; while (i1 < ys.length && ys[i1] < y1) i1++;
+      if (i1 - i0 < 150) continue;
+      cy.push((bnd + 0.5) * bandH); ang.push(bestAngle(i0, i1));
+    }
+    if (!ang.length) return src;
+    // εξομάλυνση: διάμεσος γειτόνων, για να μη «σπάσει» από μια ζώνη με σχέδιο αντί για κείμενο
+    var sm = ang.map(function (a0, i) { var nb = [ang[i - 1], a0, ang[i + 1]].filter(function (q) { return q != null; }).sort(function (p, q) { return p - q; }); return nb[Math.floor(nb.length / 2)]; });
+    if (sm.every(function (a0) { return Math.abs(a0) < 0.3; }) || sm.some(function (a0) { return Math.abs(a0) > 9.9; })) return src;
+    function tAt(yy) { // εφαπτομένη κλίσης στο ύψος yy (κλίμακα ανάλυσης)
+      if (yy <= cy[0]) return Math.tan(sm[0] * Math.PI / 180);
+      for (var q = 1; q < cy.length; q++) if (yy <= cy[q]) { var u = (yy - cy[q - 1]) / (cy[q] - cy[q - 1]); return Math.tan((sm[q - 1] * (1 - u) + sm[q] * u) * Math.PI / 180); }
+      return Math.tan(sm[sm.length - 1] * Math.PI / 180);
+    }
+    // αναδιάταξη: κάθε στήλη μετακινείται κατακόρυφα ώστε οι γραμμές του πίνακα να γίνουν οριζόντιες
+    var maxT = Math.max.apply(null, sm.map(function (a0) { return Math.abs(Math.tan(a0 * Math.PI / 180)); }));
+    var pad = Math.ceil(maxT * W / 2) + 2, OW = W, OH = H + 2 * pad;
+    var sc = document.createElement('canvas'); sc.width = W; sc.height = H;
+    var sg = sc.getContext('2d'); sg.drawImage(src, 0, 0);
+    var sd = sg.getImageData(0, 0, W, H).data;
+    var out = document.createElement('canvas'); out.width = OW; out.height = OH;
+    var og = out.getContext('2d'), oi = og.createImageData(OW, OH), od = oi.data, XC = W / 2;
+    for (var oy = 0; oy < OH; oy++) {
+      var t = tAt((oy - pad) * f);
+      for (var ox = 0; ox < OW; ox++) {
+        var syf = (oy - pad) - (ox - XC) * t, sy0 = Math.floor(syf), fr = syf - sy0, o4 = (oy * OW + ox) * 4;
+        if (sy0 < 0 || sy0 >= H - 1) { od[o4] = od[o4 + 1] = od[o4 + 2] = 255; od[o4 + 3] = 255; continue; }
+        var a4 = (sy0 * W + ox) * 4, b4 = a4 + W * 4;
+        od[o4] = sd[a4] * (1 - fr) + sd[b4] * fr; od[o4 + 1] = sd[a4 + 1] * (1 - fr) + sd[b4 + 1] * fr; od[o4 + 2] = sd[a4 + 2] * (1 - fr) + sd[b4 + 2] * fr; od[o4 + 3] = 255;
+      }
+    }
+    og.putImageData(oi, 0, 0);
+    S.lastSkew = sm;
+    return out;
+  }
+  function enhanceScan(src) {
+    var W = src.width, H = src.height;
+    var out = document.createElement('canvas'); out.width = W; out.height = H;
+    var o = out.getContext('2d'); o.drawImage(src, 0, 0);
+    var im = o.getImageData(0, 0, W, H), d = im.data;
+    var bw = Math.max(4, Math.round(W / 24)), bh = Math.max(4, Math.round(H / 24));
+    var sm = document.createElement('canvas'); sm.width = bw; sm.height = bh;
+    var sx = sm.getContext('2d'); sx.imageSmoothingEnabled = true; sx.imageSmoothingQuality = 'high';
+    // φόντο ≈ η φωτεινότερη τιμή γύρω: πρώτα σμίκρυνση (μέσος όρος), μετά «διαστολή» προς τα φωτεινά
+    sx.drawImage(src, 0, 0, bw, bh);
+    var sd = sx.getImageData(0, 0, bw, bh).data, bg = new Float32Array(bw * bh);
+    for (var y = 0; y < bh; y++) for (var x = 0; x < bw; x++) {
+      var m = 0;
+      for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) {
+        var xx = Math.min(bw - 1, Math.max(0, x + dx)), yy = Math.min(bh - 1, Math.max(0, y + dy)), i = (yy * bw + xx) * 4;
+        var g = 0.299 * sd[i] + 0.587 * sd[i + 1] + 0.114 * sd[i + 2]; if (g > m) m = g;
+      }
+      bg[y * bw + x] = Math.max(m, 40);
+    }
+    var vals = new Uint8ClampedArray(W * H), hist = new Uint32Array(256);
+    for (var py = 0; py < H; py++) {
+      var fy = Math.min(bh - 1.001, Math.max(0, (py + 0.5) / H * bh - 0.5)), y0 = Math.floor(fy), ty = fy - y0;
+      for (var px = 0; px < W; px++) {
+        var fx = Math.min(bw - 1.001, Math.max(0, (px + 0.5) / W * bw - 0.5)), x0 = Math.floor(fx), tx = fx - x0;
+        var b = (bg[y0 * bw + x0] * (1 - tx) + bg[y0 * bw + x0 + 1] * tx) * (1 - ty) + (bg[(y0 + 1) * bw + x0] * (1 - tx) + bg[(y0 + 1) * bw + x0 + 1] * tx) * ty;
+        var k = (py * W + px) * 4, g2 = 0.299 * d[k] + 0.587 * d[k + 1] + 0.114 * d[k + 2];
+        var v = Math.min(255, 255 * g2 / b); vals[py * W + px] = v; hist[v | 0]++;
+      }
+    }
+    // επίπεδα: το 1% πιο σκούρο → μαύρο, ό,τι πάνω από ~92% του λευκού → λευκό
+    var n = W * H, acc = 0, lo = 0; for (var q = 0; q < 256; q++) { acc += hist[q]; if (acc >= n * 0.01) { lo = q; break; } }
+    var hi = 235; if (hi - lo < 40) lo = Math.max(0, hi - 40);
+    for (var j = 0; j < n; j++) {
+      var t = (vals[j] - lo) / (hi - lo); t = t < 0 ? 0 : t > 1 ? 1 : t;
+      var c = 255 * Math.pow(t, 1.6); // σκουραίνει τις λεπτές γραμμές των ψηφίων
+      d[j * 4] = d[j * 4 + 1] = d[j * 4 + 2] = c;
+    }
+    o.putImageData(im, 0, 0);
+    return out;
   }
   function padRect(rect, f, pg) {
     var w = rect[2] - rect[0], h = rect[3] - rect[1], m = Math.max(w, h) * f;
@@ -8848,6 +8978,7 @@ root.CmdCheck = api;
   }
   // Κανονικοποιημένο ορθογώνιο (0–1000 της επισκόπησης) → ορθογώνιο user space
   // Περιοχές που επικαλύπτονται (ο ίδιος πίνακας κομμένος στα όρια των τμημάτων εντοπισμού) γίνονται μία
+  function isImagePage(pg) { return !!(pg && (pg.ocrItems || (pg.hasImg && !pg.items.length))); }
   function mergeOverlapRegions(list) {
     var out = (list || []).map(function (r) { var o = {}; for (var k in r) o[k] = r[k]; return o; }), changed = true;
     while (changed) {
@@ -8980,7 +9111,7 @@ root.CmdCheck = api;
           var ra = await callAI({ mode: 'read', page: pg.num, pass: 'A', tiles: [{ row: 0, col: 0, of: 0, data: imA }] });
           if (ra.rotation) rg.rotation = (rg.rotation + ra.rotation) % 360; // η ανάγνωση είδε ότι η εικόνα δεν ήταν όρθια
           setAIMsg('Σελίδα ' + pg.num + ', πίνακας ' + (ri + 1) + '/' + regions.length + ': ανάγνωση Β…');
-          var imB = await renderRegion(pg, padRect(rect, 0.10, pg), 1500, rg.rotation);
+          var imB = await renderRegion(pg, padRect(rect, 0.10, pg), 1500, rg.rotation, null, isImagePage(pg));
           var rb = await callAI({ mode: 'read', page: pg.num, pass: 'B', tiles: [{ row: 0, col: 0, of: 0, data: imB }] });
           var A = mergeFragments(CoordParser.fromAI(ra.tables, pg.num)), B = mergeFragments(CoordParser.fromAI(rb.tables, pg.num));
           var nA = A.reduce(function (n, t) { return n + t.points.length; }, 0), nB = B.reduce(function (n, t) { return n + t.points.length; }, 0);
@@ -8988,6 +9119,7 @@ root.CmdCheck = api;
           S.notes = S.notes.concat(CoordParser.crossCheckAI(A, B));
           A.forEach(function (t) {
             t.bbox = rect; t.viewRot = ((pg.page.rotate + rg.rotation) % 360);
+            if (t.labelShift) S.notes.push('«' + (t.title || 'Πίνακας') + '»: το κλείσιμο του πίνακα δεν ταιριάζει με την κορυφή του — οι αριθμοί κορυφών ίσως διαβάστηκαν μετατοπισμένοι κατά μία γραμμή. Σύγκρινέ τους με το σχέδιο.');
             if (t.aiDropped && t.aiDropped.length) S.notes.push('«' + (t.title || 'Πίνακας') + '»: παραλείφθηκαν οι γραμμές ' + t.aiDropped.join(', ') + ' γιατί δεν διαβάστηκαν ως έγκυρες συντεταγμένες ΕΓΣΑ87.');
           });
           found = found.concat(A);
