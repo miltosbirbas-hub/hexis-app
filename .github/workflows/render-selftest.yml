@@ -1,4 +1,4 @@
-name: Interior · έλεγχος φωτορεαλιστικού
+name: Interior · έλεγχος AI
 # Στέλνει τα δείγματα selftest/req-*.json στη function interior-render με ένα προσωρινό κλειδί μιας εκτέλεσης
 # και ανεβάζει τις εικόνες στον κλάδο selftest-out για έλεγχο ποιότητας. Δεν χρεώνει κανέναν χρήστη.
 on:
@@ -48,6 +48,16 @@ jobs:
           print(n,meta)
           PY
             rm -f out/$n.resp.json
+          done
+      - name: AI κειμένου (διαρρύθμιση, βελτίωση περιγραφής, εμπόριο)
+        run: |
+          for f in selftest/ai-*.json; do
+            n=$(basename "$f" .json)
+            if [ -n "${{ github.event.inputs.only }}" ] && [ "$(basename $f)" != "${{ github.event.inputs.only }}" ]; then continue; fi
+            t0=$(date +%s)
+            code=$(curl -s -m 280 -o out/$n.json -w '%{http_code}' -X POST "https://$REF.supabase.co/functions/v1/interior-ai" \
+              -H "Content-Type: application/json" -H "x-hx-selftest: $KEY" --data-binary @"$f")
+            echo "$n HTTP $code $(( $(date +%s)-t0 ))s"; head -c 400 out/$n.json; echo
           done
       - name: Κλείσιμο κλειδιού
         if: always()

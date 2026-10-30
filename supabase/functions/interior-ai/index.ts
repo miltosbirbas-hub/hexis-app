@@ -55,20 +55,24 @@ Deno.serve(async (req) => {
 
     // 1. ποιος είναι ο χρήστης
     const auth = req.headers.get("authorization") || "";
-    if (!auth.startsWith("Bearer ")) return json({ error: "login" }, 401);
-    const u = await fetch(SB + "/auth/v1/user", { headers: { apikey: anon, Authorization: auth } });
-    if (!u.ok) return json({ error: "login" }, 401);
-    const user = await u.json();
-    const email = String(user.email || "").toLowerCase();
-    if (!(await ticketOk(req.headers.get("x-hx-ticket") || "", user.id))) return json({ error: "Η εφαρμογή ανοίγει μόνο από το hexis-app.gr με ενεργό κλειδί. Ανανέωσε τη σελίδα." }, 403);
-
-    const now = Date.now(), list = (hits.get(user.id) || []).filter((t) => now - t < 3600e3);
-    if (list.length >= 30) return json({ error: "rate_limited" }, 429);
-    list.push(now); hits.set(user.id, list);
+    // αυτόματος έλεγχος ποιότητας από το GitHub Actions (προσωρινό SELFTEST_KEY), χωρίς χρέωση χρήστη
+    const stk = Deno.env.get("SELFTEST_KEY") || "";
+    const selftest = stk.length >= 32 && req.headers.get("x-hx-selftest") === stk;
+    if (!selftest) {
+      if (!auth.startsWith("Bearer ")) return json({ error: "login" }, 401);
+      const u = await fetch(SB + "/auth/v1/user", { headers: { apikey: anon, Authorization: auth } });
+      if (!u.ok) return json({ error: "login" }, 401);
+      const user = await u.json();
+      if (!(await ticketOk(req.headers.get("x-hx-ticket") || "", user.id))) return json({ error: "Η εφαρμογή ανοίγει μόνο από το hexis-app.gr με ενεργό κλειδί. Ανανέωσε τη σελίδα." }, 403);
+      const now = Date.now(), list = (hits.get(user.id) || []).filter((t) => now - t < 3600e3);
+      if (list.length >= 30) return json({ error: "rate_limited" }, 429);
+      list.push(now); hits.set(user.id, list);
+    }
+    const stRpc = async (name: string) => name === "interior_consume" ? { ok: true, id: 0, source: "selftest" } : null;
 
     // 4. κλήση μοντέλου (ο client δεν επιλέγει model/max_tokens)
     const body = await req.json();
-    const rpc0 = (name: string, args: unknown) => fetch(SB + "/rest/v1/rpc/" + name, { method: "POST", headers: { apikey: anon, Authorization: auth, "Content-Type": "application/json" }, body: JSON.stringify(args) }).then((r) => r.json()).catch(() => null);
+    const rpc0 = (name: string, args: unknown): Promise<any> => selftest ? stRpc(name) : fetch(SB + "/rest/v1/rpc/" + name, { method: "POST", headers: { apikey: anon, Authorization: auth, "Content-Type": "application/json" }, body: JSON.stringify(args) }).then((r) => r.json()).catch(() => null);
     // μονάδες: άδεια PRO / συνδρομή / δωρεάν / πακέτο (βλ. interior-billing.sql)
     // βελτίωση περιγραφής: σύντομη κλήση, δεν χρεώνει μονάδες (μόνο το όριο αιτημάτων/ώρα)
     if (body.mode === "enhance") {
@@ -135,7 +139,7 @@ Answer with JSON only: {"products":[{"store":"…","name":"…","price_eur":123.
       return json({ products: prods, cost_usd: Math.round(cost * 10000) / 10000 });
     }
     const kind = "layout";
-    const rpc = (name: string, args: unknown) => fetch(SB + "/rest/v1/rpc/" + name, { method: "POST", headers: { apikey: anon, Authorization: auth, "Content-Type": "application/json" }, body: JSON.stringify(args) }).then((r) => r.json()).catch(() => null);
+    const rpc = (name: string, args: unknown): Promise<any> => selftest ? stRpc(name) : fetch(SB + "/rest/v1/rpc/" + name, { method: "POST", headers: { apikey: anon, Authorization: auth, "Content-Type": "application/json" }, body: JSON.stringify(args) }).then((r) => r.json()).catch(() => null);
     const q = await rpc("interior_consume", { p_kind: kind });
     if (!q || q.ok !== true) return json({ error: "quota", reason: q?.msg || "quota", used: q?.used, limit: q?.limit }, 402);
     const refund = () => rpc("interior_refund", { p_id: q.id });
