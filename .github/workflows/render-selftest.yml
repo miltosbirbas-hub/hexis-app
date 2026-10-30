@@ -1,0 +1,60 @@
+name: Interior · έλεγχος φωτορεαλιστικού
+# Στέλνει τα δείγματα selftest/req-*.json στη function interior-render με ένα προσωρινό κλειδί μιας εκτέλεσης
+# και ανεβάζει τις εικόνες στον κλάδο selftest-out για έλεγχο ποιότητας. Δεν χρεώνει κανέναν χρήστη.
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Μόνο αυτό το αρχείο (π.χ. req-final.json) · κενό = όλα"
+        required: false
+permissions:
+  contents: write
+concurrency: { group: render-selftest, cancel-in-progress: false }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: oucqqudfdimccgowvpqp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - name: Προσωρινό κλειδί
+        run: |
+          KEY=$(openssl rand -hex 32); echo "::add-mask::$KEY"; echo "KEY=$KEY" >> $GITHUB_ENV
+          supabase secrets set SELFTEST_KEY=$KEY --project-ref $REF >/dev/null
+          sleep 25
+      - name: Αποδόσεις
+        run: |
+          mkdir -p out
+          for f in selftest/req-*.json; do
+            n=$(basename "$f" .json)
+            if [ -n "${{ github.event.inputs.only }}" ] && [ "$(basename $f)" != "${{ github.event.inputs.only }}" ]; then continue; fi
+            t0=$(date +%s)
+            code=$(curl -s -m 280 -o out/$n.resp.json -w '%{http_code}' -X POST "https://$REF.supabase.co/functions/v1/interior-render" \
+              -H "Content-Type: application/json" -H "x-hx-selftest: $KEY" --data-binary @"$f")
+            t1=$(date +%s)
+            python3 - "$n" "$code" "$((t1-t0))" <<'PY'
+          import json,sys,base64
+          n,code,secs=sys.argv[1],sys.argv[2],sys.argv[3]
+          try: d=json.load(open(f'out/{n}.resp.json'))
+          except Exception as e: d={'error':'bad json '+str(e)}
+          meta={'http':code,'seconds':int(secs),'model':d.get('model'),'cost_usd':d.get('cost_usd'),'error':d.get('error')}
+          if d.get('image'):
+            ext='jpg' if 'jpeg' in (d.get('mime') or '') else 'png'
+            open(f'out/{n}.{ext}','wb').write(base64.b64decode(d['image']))
+          json.dump(meta,open(f'out/{n}.meta.json','w'),ensure_ascii=False)
+          print(n,meta)
+          PY
+            rm -f out/$n.resp.json
+          done
+      - name: Κλείσιμο κλειδιού
+        if: always()
+        run: supabase secrets unset SELFTEST_KEY --project-ref $REF >/dev/null || true
+      - name: Αποτελέσματα στον κλάδο selftest-out
+        run: |
+          cd out && git init -q && git checkout -q -b selftest-out
+          git config user.name "selftest" && git config user.email "selftest@hexis-app.gr"
+          git add -A && git commit -qm "selftest ${GITHUB_RUN_ID}"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" selftest-out

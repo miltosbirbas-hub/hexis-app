@@ -49,24 +49,29 @@ Deno.serve(async (req) => {
     const anon = Deno.env.get("SUPABASE_ANON_KEY") || ANON;
     if (!gkey) return json({ error: "Missing GEMINI_API_KEY" }, 500);
 
+    // αυτόματος έλεγχος ποιότητας από το GitHub Actions: προσωρινό κλειδί μιας εκτέλεσης (SELFTEST_KEY), χωρίς χρέωση χρήστη
+    const stk = Deno.env.get("SELFTEST_KEY") || "";
+    const selftest = stk.length >= 32 && req.headers.get("x-hx-selftest") === stk;
     const auth = req.headers.get("authorization") || "";
-    if (!auth.startsWith("Bearer ")) return json({ error: "login" }, 401);
-    const u = await fetch(SB + "/auth/v1/user", { headers: { apikey: anon, Authorization: auth } });
-    if (!u.ok) return json({ error: "login" }, 401);
-    const user = await u.json();
-    const email = String(user.email || "").toLowerCase();
-    if (!(await ticketOk(req.headers.get("x-hx-ticket") || "", user.id))) return json({ error: "Η εφαρμογή ανοίγει μόνο από το hexis-app.gr με ενεργό κλειδί. Ανανέωσε τη σελίδα." }, 403);
-    const now = Date.now(), list = (hits.get(user.id) || []).filter((t) => now - t < 3600e3);
-    if (list.length >= 20) return json({ error: "rate_limited" }, 429);
-    list.push(now); hits.set(user.id, list);
-
-    const body = await req.json();
-    // μονάδες: άδεια PRO / συνδρομή / δωρεάν / πακέτο (βλ. interior-billing.sql)
-    const kind = (body.quality === "fast" ? "draft" : "final");
     const rpc = (name: string, args: unknown) => fetch(SB + "/rest/v1/rpc/" + name, { method: "POST", headers: { apikey: anon, Authorization: auth, "Content-Type": "application/json" }, body: JSON.stringify(args) }).then((r) => r.json()).catch(() => null);
-    const q = await rpc("interior_consume", { p_kind: kind });
-    if (!q || q.ok !== true) return json({ error: "quota", reason: q?.msg || "quota", used: q?.used, limit: q?.limit }, 402);
-    const refund = () => rpc("interior_refund", { p_id: q.id });
+    let q: any = { ok: true, id: 0, source: "selftest" };
+    let body: any;
+    if (!selftest) {
+      if (!auth.startsWith("Bearer ")) return json({ error: "login" }, 401);
+      const u = await fetch(SB + "/auth/v1/user", { headers: { apikey: anon, Authorization: auth } });
+      if (!u.ok) return json({ error: "login" }, 401);
+      const user = await u.json();
+      if (!(await ticketOk(req.headers.get("x-hx-ticket") || "", user.id))) return json({ error: "Η εφαρμογή ανοίγει μόνο από το hexis-app.gr με ενεργό κλειδί. Ανανέωσε τη σελίδα." }, 403);
+      const now = Date.now(), list = (hits.get(user.id) || []).filter((t) => now - t < 3600e3);
+      if (list.length >= 20) return json({ error: "rate_limited" }, 429);
+      list.push(now); hits.set(user.id, list);
+      body = await req.json();
+      // μονάδες: άδεια PRO / συνδρομή / δωρεάν / πακέτο (βλ. interior-billing.sql)
+      const kind = (body.quality === "fast" ? "draft" : "final");
+      q = await rpc("interior_consume", { p_kind: kind });
+      if (!q || q.ok !== true) return json({ error: "quota", reason: q?.msg || "quota", used: q?.used, limit: q?.limit }, 402);
+    } else body = await req.json();
+    const refund = () => q.id ? rpc("interior_refund", { p_id: q.id }) : Promise.resolve(null);
     const image = typeof body.image === "string" ? body.image : "";
     const prompt = typeof body.prompt === "string" ? body.prompt.slice(0, 6000) : "";
     if (!image || image.length > 8_000_000 || !prompt) { await refund(); return json({ error: "bad input" }, 400); }
