@@ -18,6 +18,7 @@ h1{margin:4px 0 0;font-size:22px}
 p{margin:0;color:var(--muted);font-size:14px}
 label{font-size:12.5px;font-weight:600;color:var(--muted)}
 input{width:100%;font:600 18px var(--m);letter-spacing:.12em;text-transform:uppercase;text-align:center;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);outline:none}
+input.t,select.t,textarea.t{font:500 15px var(--f);letter-spacing:0;text-transform:none;text-align:left;width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink)}
 input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(7,150,168,.14)}
 button{font:600 15px var(--f);padding:12px 16px;border-radius:12px;border:0;cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 3px 0 #05707e,0 8px 18px rgba(7,150,168,.25);transition:transform .06s,box-shadow .06s}
 button:active{transform:translateY(3px);box-shadow:0 0 0 #05707e,0 3px 8px rgba(7,150,168,.2)}
@@ -46,6 +47,20 @@ button:disabled{opacity:.55;cursor:default}
       <button id="bKey" type="submit">Ενεργοποίηση</button>
     </form>
     <p id="who" style="font-size:12.5px"></p>
+    <button class="ghost" id="toReq" type="button" style="text-align:left">Δεν έχω κλειδί · ζήτησε δοκιμή 48 ωρών →</button>
+  </section>
+  <section id="vReq" hidden>
+    <h1>Αίτημα δοκιμής</h1>
+    <p>Συμπλήρωσε τα στοιχεία σου. Μόλις εγκριθεί, έρχεται κλειδί δοκιμής 48 ωρών στο email του λογαριασμού σου.</p>
+    <form id="fReq" style="display:flex;flex-direction:column;gap:9px;margin-top:6px">
+      <label for="rqN">Ονοματεπώνυμο</label><input id="rqN" class="t" autocomplete="name" required>
+      <label for="rqP">Επάγγελμα</label><select id="rqP" class="t"><option>Αρχιτέκτονας</option><option>Πολιτικός μηχανικός</option><option>Διακοσμητής / interior designer</option><option>Κατασκευαστής / εργολάβος</option><option>Ιδιώτης</option><option>Άλλο</option></select>
+      <label for="rqT">Τηλέφωνο (προαιρετικά)</label><input id="rqT" class="t" type="tel" autocomplete="tel">
+      <label for="rqM">Μήνυμα (προαιρετικά)</label><textarea id="rqM" class="t" rows="3" placeholder="π.χ. για ποιο έργο θέλεις να το δοκιμάσεις"></textarea>
+      <button id="bReq" type="submit">Αποστολή αιτήματος</button>
+      <button class="ghost" id="reqBack" type="button">← Έχω ήδη κλειδί</button>
+    </form>
+    <div class="msg" id="reqOk" hidden>Το αίτημα στάλθηκε ✓ Θα λάβεις το κλειδί στο email σου. Μετά γράψ' το εδώ, στο «Κλειδί πρόσβασης».</div>
   </section>
   <section id="vDev" hidden>
     <h1>Ανοιχτό σε άλλη συσκευή</h1>
@@ -61,7 +76,7 @@ button:disabled{opacity:.55;cursor:default}
 var SB='https://oucqqudfdimccgowvpqp.supabase.co',GW=SB+'/functions/v1/interior-gw';
 var ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 var K='sb-oucqqudfdimccgowvpqp-auth-token',$=function(q){return document.querySelector(q)};
-function show(v){['vWait','vKey','vDev'].forEach(function(x){$('#'+x).hidden=x!==v})}
+function show(v){['vWait','vKey','vDev','vReq'].forEach(function(x){$('#'+x).hidden=x!==v})}
 function err(m){$('#err').textContent=m||'';$('#err').hidden=!m}
 function sess(){try{var s=JSON.parse(localStorage.getItem(K)||'null');return s&&(s.currentSession||s)}catch(e){return null}}
 async function token(){var s=sess();if(!s||!s.access_token){location.replace('interior-login.html');return''}
@@ -99,6 +114,9 @@ $('#k').addEventListener('input',function(){var c=this.value.toUpperCase().repla
 $('#fKey').onsubmit=async function(e){e.preventDefault();err('');$('#bKey').disabled=true;var d=await call('activate',{key:$('#k').value});$('#bKey').disabled=false;
   if(d&&d.ok)return boot();err((d&&d.error)||'Το κλειδί δεν δέχτηκε.')};
 $('#bTake').onclick=async function(){this.disabled=true;var d=await call('takeover');this.disabled=false;if(d&&d.ok)return boot();err((d&&d.error)||'Δεν έγινε η αλλαγή.')};
+$('#toReq').onclick=function(){err('');show('vReq');$('#rqN').focus()};$('#reqBack').onclick=function(){err('');show('vKey')};
+$('#fReq').onsubmit=async function(e){e.preventDefault();err('');$('#bReq').disabled=true;var d=await call('request',{name:$('#rqN').value,profession:$('#rqP').value,phone:$('#rqT').value,message:$('#rqM').value});$('#bReq').disabled=false;
+  if(d&&d.ok){$('#fReq').hidden=true;$('#reqOk').hidden=false;return}err((d&&d.error)||'Δεν στάλθηκε · δοκίμασε ξανά.')};
 $('#out').onclick=function(){try{localStorage.removeItem(K)}catch(e){}location.replace('interior-login.html')};
 device().then(function(d){DEV=d;boot()}).catch(function(e){err(String(e&&e.message||e))});
 })();

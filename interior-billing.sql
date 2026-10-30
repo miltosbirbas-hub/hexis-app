@@ -471,3 +471,48 @@ revoke all on function public.admin_interior_devices(), public.admin_interior_de
 grant execute on function public.admin_interior_devices(), public.admin_interior_device_reset(text), public.admin_interior_audit(int),
   public.interior_redeem(text), public.admin_interior_new_keys(text,int,text,text,text), public.admin_interior_revoke(text) to authenticated;
 grant execute on function public.interior_has_access(uuid) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Αιτήματα πρόσβασης (v4.113): ο συνάδελφος συνδέεται με email και ζητά κλειδί δοκιμής από τη σελίδα εισόδου.
+create table if not exists public.interior_requests (
+  id          bigserial primary key,
+  user_id     uuid references auth.users(id) on delete cascade,
+  email       text not null,
+  name        text,
+  profession  text,
+  phone       text,
+  message     text,
+  created_at  timestamptz not null default now(),
+  status      text not null default 'new' check (status in ('new','done','rejected')),
+  key         text
+);
+create index if not exists interior_requests_time on public.interior_requests(created_at desc);
+alter table public.interior_requests enable row level security;
+revoke all on public.interior_requests from anon, authenticated;
+
+create or replace function public.admin_interior_requests()
+returns setof public.interior_requests language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'forbidden'; end if;
+  return query select * from interior_requests order by (status = 'new') desc, created_at desc limit 300;
+end $$;
+-- έγκριση: νέο κλειδί (demo 48 ωρών ή άλλο πλάνο) για το email του αιτήματος
+create or replace function public.admin_interior_request_approve(p_id bigint, p_plan text default 'd2')
+returns json language plpgsql security definer set search_path = public as $$
+declare r interior_requests; k interior_keys;
+begin
+  if not public.is_admin() then raise exception 'forbidden'; end if;
+  select * into r from interior_requests where id = p_id for update;
+  if r.id is null then raise exception 'not found'; end if;
+  select * into k from admin_interior_new_keys(p_plan, 1, r.email, r.name, 'αίτημα #' || r.id || coalesce(' · ' || r.profession, '')) limit 1;
+  update interior_requests set status = 'done', key = k.key where id = p_id;
+  return json_build_object('key', k.key, 'email', r.email, 'name', r.name, 'plan', p_plan);
+end $$;
+create or replace function public.admin_interior_request_reject(p_id bigint)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'forbidden'; end if;
+  update interior_requests set status = 'rejected' where id = p_id;
+end $$;
+revoke all on function public.admin_interior_requests(), public.admin_interior_request_approve(bigint,text), public.admin_interior_request_reject(bigint) from public, anon;
+grant execute on function public.admin_interior_requests(), public.admin_interior_request_approve(bigint,text), public.admin_interior_request_reject(bigint) to authenticated;
