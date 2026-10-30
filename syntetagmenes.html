@@ -395,7 +395,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
 }
 /* ---------- επιλογή περιοχής σε πλήρη οθόνη (κινητό / αφή) ---------- */
 .pdfstage svg .selcatch { touch-action: none; }
-.selfs { position: fixed; inset: 0; z-index: 85; display: flex; flex-direction: column; background: var(--bg); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.selfs { position: fixed; inset: 0; z-index: 85; touch-action: none; transform-origin: 0 0; display: flex; flex-direction: column; background: var(--bg); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .selfs[hidden] { display: none; }
 .selfs-top, .selfs-bot { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface); border-color: var(--line); flex-wrap: wrap; }
 .selfs-top { border-bottom: 1px solid var(--line); padding-top: max(8px, env(safe-area-inset-top)); }
@@ -8157,7 +8157,12 @@ root.CmdCheck = api;
   var HANDLE = 26; // ακτίνα «πιασίματος» λαβής σε px οθόνης
   async function openSelFS() {
     var pg = S.pages[S.page - 1]; if (!pg) return;
-    var box = $('#selFS'); box.hidden = false; FS.open = true; FS.pg = pg; FS.rect = null; FS.act = null; FS.ptrs = {};
+    // Μηδενισμός της μεγέθυνσης σελίδας του browser (δύο δάχτυλα) όσο είναι ανοιχτή η επιλογή:
+    // αλλιώς η πλήρης οθόνη βγαίνει έξω από το ορατό κομμάτι και τα αγγίγματα πάνε στη σελίδα.
+    var mv = document.querySelector('meta[name="viewport"]');
+    if (mv) { if (FS.meta == null) FS.meta = mv.getAttribute('content'); mv.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no'); }
+    await new Promise(function (r) { setTimeout(r, 180); });
+    var box = $('#selFS'); box.hidden = false; fsLayout(); FS.open = true; FS.pg = pg; FS.rect = null; FS.act = null; FS.ptrs = {};
     document.documentElement.style.overflow = 'hidden';
     setFSMode('box');
     $('#selFSTitle').textContent = 'Επιλογή περιοχής' + (S.pages.length > 1 ? ' · σελ. ' + pg.num : '');
@@ -8178,6 +8183,7 @@ root.CmdCheck = api;
   }
   function closeSelFS() {
     FS.open = false; FS.act = null; FS.ptrs = {}; $('#selFS').hidden = true; $('#selFSloupe').hidden = true;
+    var mv = document.querySelector('meta[name="viewport"]'); if (mv && FS.meta != null) { mv.setAttribute('content', FS.meta); FS.meta = null; }
     document.documentElement.style.overflow = '';
     var cv = $('#selFScv'); cv.width = 1; cv.height = 1; // απελευθέρωση μνήμης στο κινητό
   }
@@ -8193,7 +8199,22 @@ root.CmdCheck = api;
     $('#selFSmsg').innerHTML = t;
     $('#selFS [data-fs="ok"]').disabled = !FS.rect;
   }
-  function fsVpBox() { return $('#selFSvp').getBoundingClientRect(); }
+  function fsVpBox() { var v = $('#selFSvp'); return { width: v.clientWidth, height: v.clientHeight }; }
+  // Αν η σελίδα είναι ήδη μεγεθυμένη με δύο δάχτυλα (zoom του browser), η πλήρης οθόνη
+  // ταιριάζει στο ΟΡΑΤΟ κομμάτι και αντισταθμίζει τη μεγέθυνση, ώστε οι μπάρες να φαίνονται πάντα.
+  function fsLayout() {
+    var el = $('#selFS'), vv = window.visualViewport;
+    if (!vv) { FS.F = 1; return; }
+    var sc = vv.scale || 1;
+    el.style.inset = 'auto'; el.style.left = vv.offsetLeft + 'px'; el.style.top = vv.offsetTop + 'px';
+    el.style.width = (vv.width * sc) + 'px'; el.style.height = (vv.height * sc) + 'px';
+    el.style.transform = Math.abs(sc - 1) > 0.01 ? 'scale(' + (1 / sc) + ')' : '';
+    FS.F = sc;
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function () { if (FS.open) { fsLayout(); if (FS.W) fsFit(); } });
+    window.visualViewport.addEventListener('scroll', function () { if (FS.open) fsLayout(); });
+  }
   function fsFit() {
     var b = fsVpBox(), pad = 12;
     FS.fitK = Math.min((b.width - 2 * pad) / FS.W, (b.height - 2 * pad) / FS.H);
@@ -8212,7 +8233,7 @@ root.CmdCheck = api;
     k = fsClampK(k); var wx = (sx - FS.tx) / FS.k, wy = (sy - FS.ty) / FS.k;
     FS.k = k; FS.tx = sx - wx * k; FS.ty = sy - wy * k; fsApply();
   }
-  function fsLocal(ev) { var b = fsVpBox(); return [ev.clientX - b.left, ev.clientY - b.top]; }
+  function fsLocal(ev) { var b = $('#selFSvp').getBoundingClientRect(), F = FS.F || 1; return [(ev.clientX - b.left) * F, (ev.clientY - b.top) * F]; }
   function fsToWorld(p) { return [Math.max(0, Math.min(FS.W, (p[0] - FS.tx) / FS.k)), Math.max(0, Math.min(FS.H, (p[1] - FS.ty) / FS.k))]; }
   function fsNorm(r) { return { x0: Math.min(r.x0, r.x1), y0: Math.min(r.y0, r.y1), x1: Math.max(r.x0, r.x1), y1: Math.max(r.y0, r.y1) }; }
   function fsDraw() {
