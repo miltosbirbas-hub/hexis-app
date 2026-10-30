@@ -139,18 +139,29 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:6px}
 .kpi{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:2px;box-shadow:0 1px 2px rgba(16,40,70,.05)}
 .kpi small{font-size:11.5px;color:var(--muted);font-weight:600}.kpi b{font-family:var(--font-d);font-size:24px;font-weight:800;color:var(--text)}.kpi span{font-size:11.5px;color:var(--faint)}
-.adnav{display:none}
-@media(min-width:1100px){
-  .wrap{max-width:1500px;padding:0 28px 60px}
-  .adl{display:grid;grid-template-columns:230px minmax(0,1fr);gap:26px;align-items:start}
-  .adnav{display:flex;flex-direction:column;gap:4px;position:sticky;top:16px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:10px;margin-top:6px}
-  .adnav button{display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:var(--font-d);font-weight:600;font-size:13.5px;color:var(--muted);background:none;border:0;border-radius:9px;padding:10px 12px;cursor:pointer;text-align:left}
-  .adnav button:hover{background:#F4F6F9;color:var(--text)}.adnav button.on{background:#FFF3E8;color:#E05A12}
-  .adnav button b{font-size:11px;background:#EFF3F8;color:var(--muted);border-radius:99px;padding:1px 8px}.adnav button.on b{background:#fff;color:#E05A12}
-  .adnav-ft{border-top:1px solid var(--border);margin-top:8px;padding:10px 12px 4px;display:flex;flex-direction:column;gap:6px}.adnav-ft a{font-size:12.5px;color:var(--muted);text-decoration:none}.adnav-ft a:hover{color:var(--orange)}
-  .adc .card{margin-top:16px}.adc[data-only] .card{display:none}.adc[data-only] .card.show{display:block}
-  .ixtw table,.tw table{font-size:13px}
-}
+.tabs{position:sticky;top:0;z-index:20;display:flex;gap:4px;flex-wrap:wrap;background:#F6F8FB;padding:12px 0 10px;margin-top:4px;border-bottom:1px solid var(--border)}
+.tabs button{display:flex;align-items:center;gap:8px;font-family:var(--font-d);font-weight:700;font-size:14px;color:var(--muted);background:#fff;border:1px solid var(--border);border-radius:11px;padding:10px 16px;cursor:pointer}
+.tabs button:hover{color:var(--text);border-color:var(--border-strong)}
+.tabs button.on{background:#1F2836;border-color:#1F2836;color:#fff}
+.tabs button b{font-size:11px;background:#EFF3F8;color:var(--muted);border-radius:99px;padding:1px 8px}.tabs button.on b{background:var(--orange);color:#fff}
+.tabs button b:empty{display:none}
+.adc .card{display:none;margin-top:14px}.adc .card.show{display:block}
+.subtabs{display:flex;gap:6px;flex-wrap:wrap;margin:-2px 0 12px;border-bottom:1px solid var(--border);padding-bottom:10px}
+.subtabs button{font-family:var(--font-d);font-weight:600;font-size:13px;color:var(--muted);background:#F4F6F9;border:1px solid var(--border);border-radius:99px;padding:6px 14px;cursor:pointer}
+.subtabs button.on{background:#FFF3E8;border-color:#F7C9A6;color:#E05A12}
+.subtabs button b{font-size:11px;margin-left:4px}
+.sub{display:none}.sub.show{display:block}.sub>.ixsub:first-child{margin-top:4px}
+/* οι λίστες κυλάνε μέσα στην κάρτα, όχι όλη η σελίδα */
+.scrl{max-height:calc(100vh - 330px);min-height:180px;overflow:auto}
+.ixtw th{position:sticky;top:0;background:#fff;z-index:1}
+.kpis{margin-top:4px}.kpi{padding:10px 14px}.kpi b{font-size:20px}
+.tlinks{display:flex;gap:8px;align-items:center}
+.tlinks a.ext{font-size:12.5px;color:var(--muted);text-decoration:none;padding:8px 6px}.tlinks a.ext:hover{color:var(--orange)}
+#mpCard input,#mpCard select{font-family:var(--font-b);font-size:13.5px;padding:8px 10px;border:1px solid var(--border-strong);border-radius:9px;outline:none;width:100%}
+.mtag{font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:#EFF3F8;color:var(--muted)}.mtag.ok{background:#E8F6EE;color:#1F7A4A}.mtag.bad{background:#FDE7E7;color:var(--red)}.mtag.run{background:#FFF3E8;color:#E05A12}
+.mbtn{font-family:var(--font-d);font-weight:600;font-size:12px;padding:4px 9px;border-radius:7px;border:1px solid var(--border-strong);background:#fff;color:var(--muted);cursor:pointer}.mbtn:hover{color:var(--text)}
+@media(min-width:1100px){.wrap{max-width:1500px;padding:0 28px 30px}.ixtw table,.tw table{font-size:13px}}
+@media(max-width:700px){.scrl{max-height:none}.tabs button{padding:8px 11px;font-size:13px}.kpis{display:none}}
 </style>
 </head>
 <body>
@@ -160,17 +171,8 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
       <img src="icon-192.png" alt="">
       <span class="bname">HEXIS <em>Admin</em></span>
     </div>
-    <a class="back" href="hub.html">&larr; Hub</a>
+    <div class="tlinks"><a class="ext" href="https://dashboard.stripe.com" target="_blank" rel="noopener">Stripe ↗</a><a class="ext" href="https://supabase.com/dashboard/project/oucqqudfdimccgowvpqp" target="_blank" rel="noopener">Supabase ↗</a><a class="back" href="hub.html">&larr; Hub</a></div>
   </header>
-  <div class="adl">
-  <nav class="adnav" id="adNav">
-    <button data-go="all" class="on"><span>Επισκόπηση</span></button>
-    <button data-go="requests"><span>Αιτήματα</span><b id="nReq">0</b></button>
-    <button data-go="users"><span>Χρήστες</span><b id="nUsr">0</b></button>
-    <button data-go="payments"><span>Πληρωμές & παραστατικά</span><b id="nPay">0</b></button>
-    <button data-go="interior"><span>Interior · άδειες</span></button>
-    <div class="adnav-ft"><a href="https://dashboard.stripe.com" target="_blank" rel="noopener">Stripe ↗</a><a href="https://supabase.com/dashboard/project/oucqqudfdimccgowvpqp" target="_blank" rel="noopener">Supabase ↗</a></div>
-  </nav>
   <section class="adc">
   <div class="kpis" id="kpis">
     <div class="kpi"><small>Ενεργοί χρήστες</small><b id="kUsr">—</b><span id="kUsr2"></span></div>
@@ -179,10 +181,17 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
     <div class="kpi"><small>Κόστος AI μήνα</small><b id="kAi">—</b><span>Interior</span></div>
     <div class="kpi"><small>Αιτήματα</small><b id="kReq">—</b><span>ενεργοποίησης</span></div>
   </div>
+  <nav class="tabs" id="adNav">
+    <button data-go="users"><span>Χρήστες HEXIS</span><b id="nUsr"></b></button>
+    <button data-go="interior"><span>Interior · κλειδιά</span><b id="nIx"></b></button>
+    <button data-go="mapping"><span>Mapping · κλειδιά</span><b id="nMap"></b></button>
+    <button data-go="payments"><span>Πληρωμές</span><b id="nPay"></b></button>
+    <button data-go="requests"><span>Αιτήματα</span><b id="nReq"></b></button>
+  </nav>
 
   <div class="card" data-sec="requests">
     <h2>Αιτήματα ενεργοποίησης <span class="count" id="req-count">0</span></h2>
-    <div id="req-list"><div class="empty">Φόρτωση...</div></div>
+    <div id="req-list" class="scrl"><div class="empty">Φόρτωση...</div></div>
   </div>
 
   <div class="card" data-sec="users">
@@ -191,7 +200,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
       <input type="text" id="filter" placeholder="Αναζήτηση email σε όλους..." oninput="renderUsers()">
     </div>
     <div class="ustabs" id="uTabs"><button data-st="active" class="on">Ενεργοί <b>0</b></button><button data-st="trial">Σε δοκιμή <b>0</b></button><button data-st="expired">Έληξαν / ανενεργοί <b>0</b></button><button data-st="blocked">Μπλοκαρισμένοι <b>0</b></button><button data-st="all">Όλοι <b>0</b></button></div>
-    <div id="users" style="margin-top:12px"><div class="empty">Φόρτωση...</div></div>
+    <div id="users" class="scrl" style="margin-top:12px"><div class="empty">Φόρτωση...</div></div>
     <div class="hint">Πάτησε σε χρήστη για να δεις και να αλλάξεις τα modules του — οι αλλαγές αποθηκεύονται αμέσως. Η συνδρομή (Starter/Pro/Studio) παραμένει στον πίνακα subscriptions. Στο κάτω μέρος κάθε χρήστη: μπλοκάρισμα email, κωδικός και διαγραφή.</div>
   </div>
   <div class="card" id="hxCard" data-sec="payments">
@@ -203,10 +212,12 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
       <input id="hxGNote" placeholder="Σημείωση" style="width:160px"><button class="btn btn-ok" id="hxGGo">Ενεργοποίηση</button></div>
     <div style="height:10px"></div>
     <div class="ixrow" style="margin-top:0"><label style="display:flex;gap:6px;align-items:center;font-size:12.5px"><input type="checkbox" id="hxAll" style="width:auto!important"> όλες</label><span class="grow" style="flex:1"></span><button class="btn btn-no" id="hxCsv">CSV μήνα</button></div>
-    <div class="ixtw" id="hxList"><div class="empty">Φόρτωση...</div></div>
+    <div class="ixtw scrl" id="hxList"><div class="empty">Φόρτωση...</div></div>
   </div>
   <div class="card" id="ixCard" data-sec="interior">
     <h2>HEXIS Interior · άδειες & μονάδες</h2>
+    <div class="subtabs" data-grp="ix"><button data-sub="keys" class="on">Κλειδιά</button><button data-sub="req">Αιτήματα δοκιμής<b id="ixReqN"></b></button><button data-sub="sales">Πωλήσεις & κόστος AI</button><button data-sub="sec">Συσκευές & ασφάλεια</button></div>
+    <div class="sub show" data-sub="keys">
     <div class="ixgrid">
       <div><label>Νέο κλειδί πρόσβασης</label><select id="ixPlan"><option value="d2">HXI-DEMO · δοκιμή 48 ωρών · δωρεάν</option><option value="acc">HXI-ACC · πρόσβαση ιδιώτη · χωρίς λήξη</option><option value="m1">HXI-PRO-1M · 1 μήνας · 35 € + ΦΠΑ</option><option value="m6">HXI-PRO-6M · 6 μήνες · 180 € + ΦΠΑ</option><option value="y1" selected>HXI-PRO-12M · 12 μήνες · 330 € + ΦΠΑ</option></select></div>
       <div><label>Email πελάτη</label><input id="ixEmail" type="email" placeholder="προαιρετικό"></div>
@@ -215,8 +226,14 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
     </div>
     <div class="ixrow"><input id="ixNote" placeholder="Σημείωση (π.χ. τιμολόγιο)" style="flex:1"><button class="btn btn-orange" id="ixNew">Νέο κλειδί</button></div>
     <div id="ixOut"></div>
+    <div class="ixsub">Κλειδιά</div>
+    <div class="ixtw scrl" id="ixKeys" style="max-height:calc(100vh - 470px)"><div class="empty">Φόρτωση...</div></div>
+    </div>
+    <div class="sub" data-sub="req">
     <div class="ixsub">Αιτήματα δοκιμής <span class="hint" style="margin:0">· από τη σελίδα εισόδου του Interior · «Έγκριση» φτιάχνει κλειδί demo 48 ωρών και ετοιμάζει το email</span></div>
-    <div class="ixtw" id="ixReq"><div class="empty">Φόρτωση...</div></div>
+    <div class="ixtw scrl" id="ixReq"><div class="empty">Φόρτωση...</div></div>
+    </div>
+    <div class="sub" data-sub="sales">
     <div class="ixsub">Πώληση πακέτου (μέχρι να μπουν πληρωμές με κάρτα)</div>
     <div class="ixrow"><input id="ixGEmail" type="email" placeholder="Email λογαριασμού πελάτη" style="flex:1">
       <select id="ixGKind"><option value="pack5">HXI-P5 · Ιδιώτης · 5 εικόνες · 4,90 €</option><option value="pack15">HXI-P15 · Ιδιώτης · 15 εικόνες · 9,90 €</option><option value="pack40">HXI-P40 · Ιδιώτης · 40 εικόνες · 19,90 €</option><option value="sub1">HXI-SUB · Ιδιώτης · συνδρομή 1 μήνα · 9,90 €</option><option value="pro50">HXI-PRO-50 · PRO · +50 τελικές · 12 € + ΦΠΑ</option><option value="manual">Δώρο / διόρθωση (μονάδες)</option></select>
@@ -229,16 +246,37 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
       <label style="font-size:12.5px">1 $ = <input id="aiFx" type="number" step="0.01" min="0.5" max="1.5" style="width:70px!important"> €</label></div>
     <div id="aiTop" class="hint" style="margin-top:6px"></div>
     <div class="ixsub">Χρήστες <span class="hint" style="margin:0">· κόστος = πραγματικό κόστος AI (USD), το βλέπεις μόνο εσύ</span></div>
-    <div class="ixtw" id="ixUsers"><div class="empty">Φόρτωση...</div></div>
-    <div class="ixsub">Κλειδιά</div>
-    <div class="ixtw" id="ixKeys"><div class="empty">Φόρτωση...</div></div>
+    <div class="ixtw scrl" id="ixUsers" style="max-height:calc(100vh - 560px)"><div class="empty">Φόρτωση...</div></div>
+    </div>
+    <div class="sub" data-sub="sec">
     <div class="ixsub">Συσκευές <span class="hint" style="margin:0">· κάθε λογαριασμός ανοίγει σε μία συσκευή κάθε φορά · έως 5 αλλαγές / 30 ημέρες</span></div>
     <div class="ixtw" id="ixDev"><div class="empty">Φόρτωση...</div></div>
     <div class="ixsub">Αρχείο ασφαλείας <span class="hint" style="margin:0">· είσοδοι, λάθος κλειδιά, αλλαγές συσκευής</span></div>
     <div class="ixtw" id="ixAud" style="max-height:320px;overflow:auto"><div class="empty">Φόρτωση...</div></div>
+    </div>
+  </div>
+  <div class="card" id="mpCard" data-sec="mapping">
+    <h2>HEXIS MAPPING · άδειες <span class="count" id="mpCnt">0</span><span style="flex:1"></span><a class="mbtn" href="mapping.html" target="_blank" rel="noopener" style="text-decoration:none">Πλήρης διαχείριση ↗</a></h2>
+    <div class="subtabs" data-grp="mp"><button data-sub="keys" class="on">Κλειδιά</button><button data-sub="req">Αιτήματα δοκιμής<b id="mpReqN"></b></button></div>
+    <div class="sub show" data-sub="keys">
+      <div class="ixgrid">
+        <div><label>Νέο κλειδί</label><select id="mpKind"><option value="">Φόρτωση…</option></select></div>
+        <div><label>Email πελάτη</label><input id="mpEmail" type="email" placeholder="προαιρετικό"></div>
+        <div><label>Όνομα</label><input id="mpName"></div>
+        <div><label>Ταβάνι φωτογραφιών</label><input id="mpQuota" type="number" min="0" step="50" value="0"></div>
+        <div><label>Πλήθος</label><input id="mpCount" type="number" min="1" max="50" value="1"></div>
+      </div>
+      <div class="ixrow"><input id="mpNote" placeholder="Σημείωση (π.χ. τιμολόγιο)" style="flex:1"><button class="btn btn-orange" id="mpNew">Νέο κλειδί</button></div>
+      <div id="mpOut"></div>
+      <div class="ixrow" style="margin-top:14px"><input id="mpQ" placeholder="Αναζήτηση κλειδιού, πελάτη, email…" style="flex:1"><select id="mpF"><option value="">Όλα</option><option value="active">Ενεργά</option><option value="new">Δεν χρησιμοποιήθηκαν</option><option value="demo">Demo</option><option value="expired">Έληξαν</option><option value="revoked">Ανακλήθηκαν</option></select><span class="hint" id="mpShown" style="margin:0"></span></div>
+      <div class="ixtw scrl" id="mpList" style="margin-top:8px;max-height:calc(100vh - 500px)"><div class="empty">Ανοίγει όταν διαλέξεις την καρτέλα.</div></div>
+    </div>
+    <div class="sub" data-sub="req">
+      <div class="ixrow" style="margin-top:0"><label style="display:flex;gap:6px;align-items:center;font-size:12.5px"><input type="checkbox" id="mpTrAll" style="width:auto!important"> και τα παλιά</label></div>
+      <div class="ixtw scrl" id="mpTr" style="margin-top:8px"><div class="empty">Φόρτωση...</div></div>
+    </div>
   </div>
   </section>
-  </div>
   <p style="text-align:center;font-family:var(--font-m);font-size:11px;color:var(--faint);margin-top:22px" id="ver"></p>
 </div>
 
@@ -250,7 +288,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 <div class="toast" id="toast"></div>
 
 <script>
-const ADMIN_VERSION = 'v2.5';
+const ADMIN_VERSION = 'v2.6';
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
@@ -604,7 +642,7 @@ const IXMAIL=(r,key)=>{const sig='\n\nΜίλτος Μπίρμπας\nΠολιτ�
 async function ixReqLoad(){const el=document.getElementById('ixReq');const {data,error}=await sb.rpc('admin_interior_requests');if(error){el.innerHTML='<div class="empty">'+ixe(error.message)+' · τρέξε το interior-billing.sql</div>';return}
   const R=data||[];const nn=R.filter(r=>r.status==='new').length;const t=v=>v?new Date(v).toLocaleString('el-GR',{dateStyle:'short',timeStyle:'short'}):'—';
   el.innerHTML=R.length?`<table><tr><th>Πότε</th><th>Όνομα</th><th>Επάγγελμα</th><th>Email</th><th>Τηλέφωνο</th><th>Μήνυμα</th><th>Κατάσταση</th><th></th></tr>`+R.map(r=>`<tr style="${r.status==='new'?'background:rgba(224,90,18,.07)':'opacity:.7'}"><td>${t(r.created_at)}</td><td>${ixe(r.name||'')}</td><td>${ixe(r.profession||'')}</td><td>${ixe(r.email)}</td><td>${ixe(r.phone||'')}</td><td style="max-width:240px">${ixe(r.message||'')}</td><td>${r.status==='new'?'<b style="color:#E05A12">νέο</b>':r.status==='done'?'κλειδί '+ixe(r.key||''):'απορρίφθηκε'}</td><td style="white-space:nowrap">${r.status==='new'?`<button class="btn btn-ok" style="padding:3px 9px;font-size:11.5px" data-ra="${r.id}">Έγκριση</button> <button class="btn btn-no" style="padding:3px 9px;font-size:11.5px" data-rr="${r.id}">Απόρριψη</button>`:r.key?`<a class="btn" style="padding:3px 9px;font-size:11.5px" href="mailto:${encodeURIComponent(r.email)}?subject=${encodeURIComponent('HEXIS Interior · κλειδί δοκιμής')}&body=${encodeURIComponent(IXMAIL(r,r.key))}">Email</a>`:''}</td></tr>`).join('')+'</table>':'<div class="empty">Κανένα αίτημα ακόμα.</div>';
-  const nav=document.querySelector('[data-go="interior"] span');if(nav)nav.textContent='Interior · άδειες'+(nn?` (${nn})`:'');
+  const nb=document.getElementById('ixReqN');if(nb)nb.textContent=nn||'';
   el.querySelectorAll('[data-ra]').forEach(b=>b.onclick=async()=>{const {data:d,error:e}=await sb.rpc('admin_interior_request_approve',{p_id:+b.dataset.ra,p_plan:'d2'});if(e){toast(e.message);return}
     const r=R.find(x=>x.id==b.dataset.ra);const msg=IXMAIL(r,d.key);document.getElementById('ixOut').innerHTML=`<div class="ixkey"><b>Κλειδί για ${ixe(r.name||r.email)}</b> · ${ixe(d.key)}<textarea id="ixMsg" rows="12" style="width:100%;margin-top:8px;font-family:var(--font-m);font-size:12px;border:1px solid var(--border-strong);border-radius:8px;padding:8px">${ixe(msg)}</textarea><div style="display:flex;gap:6px;margin-top:6px"><a class="btn btn-ok" href="mailto:${encodeURIComponent(r.email)}?subject=${encodeURIComponent('HEXIS Interior · κλειδί δοκιμής')}&body=${encodeURIComponent(msg)}">Άνοιγμα email</a><button class="btn" id="ixCopy">Αντιγραφή μηνύματος</button></div></div>`;
     document.getElementById('ixCopy').onclick=()=>{navigator.clipboard.writeText(msg).then(()=>toast('Αντιγράφηκε'))};document.getElementById('ixOut').scrollIntoView({behavior:'smooth',block:'center'});ixLoad()});
@@ -659,19 +697,98 @@ document.getElementById('hxCsv').onclick=()=>{const m0=new Date();m0.setDate(1);
 (function hxWait(){const m=document.getElementById('main');if(m&&m.style.display!=='none'){hxLoad();return}setTimeout(hxWait,400)})();
 
 document.querySelectorAll('#uTabs [data-st]').forEach(b=>b.onclick=()=>{USTAB=b.dataset.st;renderUsers()});
-// ===== Διάταξη υπολογιστή: πλαϊνό μενού + δείκτες =====
-(function(){const C=document.querySelector('.adc');document.querySelectorAll('#adNav [data-go]').forEach(b=>b.onclick=()=>{
-  document.querySelectorAll('#adNav [data-go]').forEach(x=>x.classList.toggle('on',x===b));const g=b.dataset.go;
-  if(g==='all')C.removeAttribute('data-only');else{C.setAttribute('data-only',g);C.querySelectorAll('.card').forEach(c=>c.classList.toggle('show',c.dataset.sec===g))}window.scrollTo({top:0,behavior:'smooth'})});
+// ===== Καρτέλες: μία ενότητα τη φορά, χωρίς κύλιση όλης της σελίδας =====
+(function(){const C=document.querySelector('.adc'),T=['users','interior','mapping','payments','requests'];
+  function go(g){if(!T.includes(g))g='users';document.querySelectorAll('#adNav [data-go]').forEach(x=>x.classList.toggle('on',x.dataset.go===g));
+    C.querySelectorAll('.card[data-sec]').forEach(c=>c.classList.toggle('show',c.dataset.sec===g));
+    try{localStorage.setItem('hxAdmTab',g)}catch(e){}if(location.hash!=='#'+g)history.replaceState(null,'','#'+g);
+    if(g==='mapping')setTimeout(()=>{if(typeof mpOpen==='function')mpOpen()},0);window.scrollTo({top:0})}
+  document.querySelectorAll('#adNav [data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+  document.querySelectorAll('.subtabs').forEach(bar=>bar.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{
+    bar.querySelectorAll('[data-sub]').forEach(x=>x.classList.toggle('on',x===b));
+    [...bar.parentElement.children].filter(e=>e.classList.contains('sub')).forEach(e=>e.classList.toggle('show',e.dataset.sub===b.dataset.sub))}));
+  let st='';try{st=localStorage.getItem('hxAdmTab')||''}catch(e){}go(location.hash.slice(1)||st);
+  window.addEventListener('hashchange',()=>go(location.hash.slice(1)));
+  window.hxGo=go})();
+
+// ===== HEXIS MAPPING · κλειδιά (μέσω της πύλης mapping-gw) =====
+const MP_FN='https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/mapping-gw',MP_KEY='sb_publishable_AjcKB0okxSvA9SUBazKEHQ_-HR0FMHP';
+const mEsc=v=>String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const mDt=(iso,t)=>iso?new Date(iso).toLocaleString('el-GR',t?{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}:{day:'2-digit',month:'2-digit',year:'numeric'}):'—';
+const mEur=v=>v==null?'—':(+v).toLocaleString('el-GR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+const MST={new:['Δεν χρησιμοποιήθηκε',''],active:['Ενεργή','ok'],expired:['Έληξε','bad'],revoked:['Ανακλήθηκε','bad']};
+async function mgw(action,body={}){const {data:{session}}=await sb.auth.getSession();if(!session)throw new Error('Χρειάζεται σύνδεση.');
+  const r=await fetch(MP_FN,{method:'POST',headers:{Authorization:'Bearer '+session.access_token,apikey:MP_KEY,'Content-Type':'application/json'},body:JSON.stringify({action,...body})});
+  const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||('Σφάλμα '+r.status));return d}
+function mpMsg(l){const link='https://hexis-app.gr/mapping.html',sig='\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.';
+  return l.kind==='demo'?`Καλησπέρα${l.name?' '+l.name:''},\n\nσου στέλνω πρόσβαση demo στο HEXIS MAPPING για 48 ώρες.\n\n1. Άνοιξε το ${link}\n2. Στο «Κωδικός demo» γράψε: ${l.key}\n3. Κατέβασε την εφαρμογή για Windows και μπες με τον ίδιο κωδικό.\n\nΟι 48 ώρες μετράνε από την πρώτη είσοδο. Στο demo: έως ${l.max_photos_job||150} φωτογραφίες ανά πτήση, ποιότητα Γρήγορη, νέφη SLAM σε χαμηλή ανάλυση. Τα παραδοτέα έρχονται σε αυτό το email.`+sig
+   :`Καλησπέρα${l.name?' '+l.name:''},\n\nη άδεια HEXIS MAPPING (${l.label}) είναι έτοιμη.\n\n1. Άνοιξε το ${link} και μπες με τον λογαριασμό σου στο hexis-app.gr.\n2. Στο «Ενεργοποίηση άδειας» γράψε: ${l.key}\n3. Κατέβασε την εφαρμογή για Windows και μπες με το ίδιο email και κωδικό.\n\nΗ διάρκεια μετράει από την ενεργοποίηση.`+sig}
+let MPL=[],MPT=[],MPP={},mpTrPend=null,mpLoaded=false;
+const $m=id=>document.getElementById(id);
+async function mpOpen(force){if(mpLoaded&&!force)return;mpLoaded=true;
+  try{const st=await mgw('settings_get');MPP=st.plans||{};const K=['demo','month','quarter','half','year','perpetual'].filter(k=>MPP[k]);
+    $m('mpKind').innerHTML=K.map(k=>`<option value="${k}"${k==='year'?' selected':''}>${mEsc(MPP[k].label)}${k==='demo'?' · '+(MPP[k].hours||48)+' ώρες · δωρεάν':' · '+mEur(MPP[k].price_eur)+' + ΦΠΑ'}</option>`).join('');
+    $m('mpKind').onchange=()=>{const p=MPP[$m('mpKind').value]||{};$m('mpQuota').value=p.quota_photos??0};$m('mpKind').onchange()}
+  catch(e){$m('mpKind').innerHTML='<option value="">—</option>';$m('mpList').innerHTML='<div class="empty">'+mEsc(e.message)+'</div>';mpLoaded=false;return}
+  mpLics();mpTrials()}
+async function mpLics(){try{MPL=await mgw('lic_list');mpDraw()}catch(e){$m('mpList').innerHTML='<div class="empty">'+mEsc(e.message)+'</div>'}}
+function mpDraw(){const q=($m('mpQ').value||'').trim().toLowerCase(),f=$m('mpF').value;
+  const act=MPL.filter(l=>l.state==='active').length;$m('mpCnt').textContent=MPL.length;$m('nMap').textContent=act||'';
+  const R=MPL.filter(l=>(!q||[l.key,l.name,l.email,l.user_email,l.note,l.label].join(' ').toLowerCase().includes(q))&&(!f||(f==='demo'?l.kind==='demo':l.state===f)));
+  $m('mpShown').textContent=R.length+' από '+MPL.length;
+  $m('mpList').innerHTML=R.length?`<table><tr><th>Κλειδί</th><th>Πακέτο</th><th>Πελάτης</th><th>Λογαριασμός</th><th>Κατάσταση</th><th>Φωτογραφίες</th><th></th></tr>${R.map(l=>{const st=MST[l.state]||[l.state,''];
+    return `<tr><td class="k">${mEsc(l.key)}</td><td>${mEsc(l.label)}<br><small class="hint" style="margin:0">${mDt(l.created_at)}${l.price_eur?' · '+mEur(l.price_eur):''}</small></td>
+      <td>${mEsc(l.name||'')}<br><small class="hint" style="margin:0">${mEsc(l.email||'')}${l.note?' · '+mEsc(l.note):''}</small></td><td>${mEsc(l.user_email||'—')}</td>
+      <td><span class="mtag ${st[1]}">${st[0]}</span><br><small class="hint" style="margin:0">${l.expires_at?'έως '+mDt(l.expires_at,l.kind==='demo'):l.activated_at?'χωρίς λήξη':''}</small></td>
+      <td>${(l.used_photos||0).toLocaleString('el-GR')}${l.quota_photos>0?' / '+(+l.quota_photos).toLocaleString('el-GR'):''}<br><small class="hint" style="margin:0">${l.jobs||0} εργασίες${l.over_eur?' · εκτός '+mEur(l.over_eur):''}</small></td>
+      <td><button class="mbtn" data-mc="${mEsc(l.key)}">Κλειδί</button> <button class="mbtn" data-mm="${mEsc(l.key)}">Μήνυμα</button> <button class="mbtn" data-mx="${mEsc(l.key)}">Παράταση</button> <button class="mbtn" data-mr="${mEsc(l.key)}">${l.state==='revoked'?'Επαναφορά':'Ανάκληση'}</button></td></tr>`}).join('')}</table>`
+    :`<div class="empty">${MPL.length?'Κανένα κλειδί με αυτά τα κριτήρια.':'Κανένα κλειδί ακόμα.'}</div>`;
+  const L=k=>MPL.find(x=>x.key===k);
+  $m('mpList').querySelectorAll('[data-mc]').forEach(b=>b.onclick=()=>navigator.clipboard.writeText(b.dataset.mc).then(()=>toast('Αντιγράφηκε το κλειδί')));
+  $m('mpList').querySelectorAll('[data-mm]').forEach(b=>b.onclick=()=>navigator.clipboard.writeText(mpMsg(L(b.dataset.mm))).then(()=>toast('Αντιγράφηκε το μήνυμα για τον πελάτη')));
+  $m('mpList').querySelectorAll('[data-mx]').forEach(b=>b.onclick=async()=>{const l=L(b.dataset.mx);const n=+prompt('Παράταση '+l.key+' κατά πόσες ημέρες;',l.kind==='demo'?'1':'30');if(!(n>0))return;
+    try{await mgw('lic_update',{key:l.key,extend_days:n});toast('Παράταση '+n+' ημερών ✓');mpLics()}catch(e){toast(e.message)}});
+  $m('mpList').querySelectorAll('[data-mr]').forEach(b=>b.onclick=async()=>{const l=L(b.dataset.mr),rv=l.state!=='revoked';if(rv&&!confirm('Ανάκληση του '+l.key+'; Ο πελάτης χάνει αμέσως την πρόσβαση.'))return;
+    try{await mgw('lic_update',{key:l.key,revoked:rv});toast(rv?'Ανακλήθηκε':'Επαναφέρθηκε');mpLics()}catch(e){toast(e.message)}})}
+$m('mpQ').oninput=mpDraw;$m('mpF').onchange=mpDraw;
+$m('mpNew').onclick=async()=>{const b=$m('mpNew');b.disabled=true;const cnt=Math.max(1,Math.min(50,+$m('mpCount').value||1));
+  try{const r=await mgw('lic_create',{kind:$m('mpKind').value,email:$m('mpEmail').value,name:$m('mpName').value,note:$m('mpNote').value,quota_photos:$m('mpQuota').value,count:cnt});
+    const K=r.keys||[r],l=K[0],txt=K.length===1?mpMsg(l):K.map(x=>x.key).join('\n');
+    $m('mpOut').innerHTML=`<div class="ixkey"><b>${K.length===1?'Νέο κλειδί <span class="k" style="font-family:var(--font-m)">'+mEsc(l.key)+'</span>':K.length+' νέα κλειδιά'}</b> · ${mEsc(l.label)}<textarea id="mpTx" rows="${K.length===1?9:Math.min(10,K.length+1)}" style="width:100%;margin-top:8px;font-family:var(--font-b);font-size:13px;padding:8px;border:1px solid var(--border-strong);border-radius:9px"></textarea><div class="ixrow"><button class="btn btn-ok" id="mpCp">${K.length===1?'Αντιγραφή μηνύματος':'Αντιγραφή όλων'}</button></div></div>`;
+    $m('mpTx').value=txt;$m('mpCp').onclick=()=>navigator.clipboard.writeText(txt).then(()=>toast('Αντιγράφηκε'));
+    if(mpTrPend){try{await mgw('trial_set',{id:mpTrPend,status:'done',key:l.key})}catch(e){}mpTrPend=null;mpTrials()}
+    ['mpEmail','mpName','mpNote'].forEach(i=>$m(i).value='');$m('mpCount').value=1;mpLics()}
+  catch(e){toast(e.message)}b.disabled=false};
+async function mpTrials(){try{MPT=(await mgw('trial_list')).items||[];mpDrawTr()}catch(e){$m('mpTr').innerHTML='<div class="empty">'+mEsc(e.message)+'</div>'}}
+function mpDrawTr(){const all=$m('mpTrAll').checked,n=MPT.filter(t=>t.status==='new').length,R=MPT.filter(t=>all||t.status==='new');$m('mpReqN').textContent=n||'';
+  const S={new:['Νέο','run'],done:['Στάλθηκε κλειδί','ok'],rejected:['Απορρίφθηκε','bad']};
+  $m('mpTr').innerHTML=R.length?`<table><tr><th>Ημερομηνία</th><th>Στοιχεία</th><th>Ενδιαφέρον</th><th>Κατάσταση</th><th></th></tr>${R.map(t=>`<tr><td>${mDt(t.at,1)}</td>
+    <td><b>${mEsc(t.name)}</b><br>${mEsc(t.email)}${t.phone?' · '+mEsc(t.phone):''}</td><td>${mEsc(t.profession||'')}<br><small class="hint" style="margin:0">${mEsc(t.use||'')}</small></td>
+    <td><span class="mtag ${(S[t.status]||['',''])[1]}">${(S[t.status]||[t.status])[0]}</span>${t.key?'<br><span class="k">'+mEsc(t.key)+'</span>':''}</td>
+    <td>${t.status==='new'?`<button class="mbtn" data-tk="${t.id}">Κλειδί demo</button> <button class="mbtn" data-tx="${t.id}">✕</button>`:`<button class="mbtn" data-tr="${t.id}">↺</button>`}</td></tr>`).join('')}</table>`
+    :`<div class="empty">${MPT.length?'Κανένα νέο αίτημα.':'Κανένα αίτημα ακόμα.'}</div>`;
+  const set=async(id,status)=>{try{await mgw('trial_set',{id,status});mpTrials()}catch(e){toast(e.message)}};
+  $m('mpTr').querySelectorAll('[data-tx]').forEach(b=>b.onclick=()=>set(b.dataset.tx,'rejected'));
+  $m('mpTr').querySelectorAll('[data-tr]').forEach(b=>b.onclick=()=>set(b.dataset.tr,'new'));
+  $m('mpTr').querySelectorAll('[data-tk]').forEach(b=>b.onclick=()=>{const t=MPT.find(x=>String(x.id)===b.dataset.tk);if(!t)return;mpTrPend=t.id;
+    if([...$m('mpKind').options].some(o=>o.value==='demo')){$m('mpKind').value='demo';$m('mpKind').onchange&&$m('mpKind').onchange()}
+    $m('mpEmail').value=t.email||'';$m('mpName').value=t.name||'';$m('mpNote').value='Αίτημα δοκιμής '+new Date(t.at).toLocaleDateString('el-GR');$m('mpCount').value=1;
+    document.querySelector('.subtabs[data-grp="mp"] [data-sub="keys"]').click();$m('mpNew').focus()})}
+$m('mpTrAll').onchange=mpDrawTr;
+// μετρητές στις καρτέλες: φόρτωση Mapping στο παρασκήνιο μόλις μπει ο διαχειριστής
+new MutationObserver(()=>{if($m('ixOut').innerHTML.trim()){const b=document.querySelector('.subtabs[data-grp="ix"] [data-sub="keys"]');if(b&&!b.classList.contains('on'))b.click()}}).observe($m('ixOut'),{childList:true});
+(function mpWait(){const m=document.getElementById('main');if(m&&m.style.display!=='none'){mpOpen();return}setTimeout(mpWait,500)})();
+
+(function(){
  const eur=v=>(+v||0).toLocaleString('el-GR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
  function kpi(){try{const T=(id,v)=>{const e=document.getElementById(id);if(e&&e.textContent!==String(v))e.textContent=v};
-   const U=typeof USERS!=='undefined'?USERS:[];const actN=U.filter(u=>{try{return userState(u)==='active'}catch(e){return false}}).length;T('kUsr',actN);T('nUsr',actN);
+   const U=typeof USERS!=='undefined'?USERS:[];const actN=U.filter(u=>{try{return userState(u)==='active'}catch(e){return false}}).length;T('kUsr',actN);T('nUsr',actN||'');
    T('kUsr2','ενεργοί από '+U.length+' συνολικά');
-   const R=document.getElementById('req-count');const rq=R?R.textContent:'0';T('kReq',rq);T('nReq',rq);
+   const R=document.getElementById('req-count');const rq=R?R.textContent:'0';T('kReq',rq);T('nReq',(+rq)||'');
    const O=typeof HXO!=='undefined'?HXO:[];const m0=new Date();m0.setDate(1);m0.setHours(0,0,0,0);
    const mo=O.filter(o=>new Date(o.created_at)>=m0&&o.source!=='free'&&o.source!=='demo');T('kSales',eur(mo.reduce((a,o)=>a+(+o.gross||0),0)));T('kSales2',mo.length+' πληρωμές');
-   const pend=O.filter(o=>o.invoice_status!=='issued'&&(+o.gross||0)>0).length;T('kInv',pend);T('nPay',pend);
-   const I=window.IXU||[];T('kAi','$'+I.reduce((a,r)=>a+(+r.m_cost_usd||0),0).toFixed(2))}catch(e){}}
+   const pend=O.filter(o=>o.invoice_status!=='issued'&&(+o.gross||0)>0).length;T('kInv',pend);T('nPay',pend||'');
+   const I=window.IXU||[];T('nIx',I.length||'');T('kAi','$'+I.reduce((a,r)=>a+(+r.m_cost_usd||0),0).toFixed(2))}catch(e){}}
  setInterval(kpi,1500);kpi()})();
 init();
 document.getElementById('ver').textContent = 'HEXIS Admin ' + ADMIN_VERSION + ' — αυτόματες ενημερώσεις ενεργές';
