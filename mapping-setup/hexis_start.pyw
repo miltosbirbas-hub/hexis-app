@@ -157,7 +157,26 @@ def auto_update():
         pass
 
 
+def ensure_shortcut():
+    """Εικονίδιο στην επιφάνεια εργασίας (και στο OneDrive\\Desktop): αν λείπει, ξαναμπαίνει· πάντα με το εικονίδιο HEXIS."""
+    if not sys.platform.startswith("win"):
+        return
+    try:
+        import subprocess
+        pyw = Path(sys.executable).with_name("pythonw.exe")
+        ico = ROOT / "HEXIS_MAPPING.ico"
+        ps = ("$d=[Environment]::GetFolderPath('Desktop'); if(-not $d){$d=Join-Path $env:USERPROFILE 'Desktop'}; "
+              "$l=Join-Path $d 'HEXIS MAPPING.lnk'; $w=New-Object -ComObject WScript.Shell; $s=$w.CreateShortcut($l); "
+              f"$s.TargetPath='{pyw}'; $s.Arguments='\"{ROOT / 'hexis_start.pyw'}\"'; $s.WorkingDirectory='{ROOT}'; "
+              f"$s.IconLocation='{ico},0'; $s.Description='HEXIS MAPPING'; $s.Save()")
+        subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps],
+                         creationflags=0x08000000, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+
+
 if SERVER.exists() and "--reinstall" not in sys.argv:
+    ensure_shortcut()
     auto_update()
     run_app()
     sys.exit(0)
@@ -388,6 +407,7 @@ def worker():
         elif not dv.get("exempt"):
             gw(s, "device_claim")                         # δέσμευση αυτού του υπολογιστή από την αρχή
         install_app(s, set_progress)
+        ensure_shortcut()
         ui(lambda: root.after(600, lambda: (root.destroy(), _launch())))
     except requests.RequestException:
         ui(lambda: fail("Δεν υπάρχει σύνδεση στο διαδίκτυο. Έλεγξε τη σύνδεση και δοκίμασε ξανά."))
