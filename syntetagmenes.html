@@ -487,7 +487,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       <circle cx="10" cy="28" r="2.4" fill="#22d3ee"/><circle cx="16" cy="12" r="2.4" fill="#8b5cf6"/><circle cx="27" cy="15" r="2.4" fill="#8b5cf6"/><circle cx="31" cy="26" r="2.4" fill="#fb7185"/>
     </svg>
     <div>
-      <h1>HEXIS <span>GEOmetry</span> <small id="geoBuild" style="font:600 10px var(--f-mono);color:var(--faint);letter-spacing:0">build 31.10-11h</small></h1>
+      <h1>HEXIS <span>GEOmetry</span> <small id="geoBuild" style="font:600 10px var(--f-mono);color:var(--faint);letter-spacing:0">build 31.10-12h</small></h1>
       <small>Συντεταγμένες ΕΓΣΑ87 · ΚΑΕΚ Κτηματολογίου · Διαγράμματα Γεωμετρικών Μεταβολών</small>
     </div>
   </div>
@@ -8075,14 +8075,19 @@ root.CmdCheck = api;
   // ---------- διάλογος ----------
   var gateCb;
   function gate(html, cb) { $('#gateBox').innerHTML = html; $('#gate').hidden = false; gateCb = cb; var b = $('#gateBox [data-g="yes"]') || $('#gateBox button'); if (b) b.focus(); }
+  // Κλείσιμο με κλικ έξω από το παράθυρο ΜΟΝΟ αν και το πάτημα ξεκίνησε έξω, και ΠΟΤΕ όταν το παράθυρο έχει πεδία
+  // (αλλιώς ένα σύρσιμο του ποντικιού από πεδίο προς τα έξω έκλεινε τη φόρμα και χάνονταν όσα γράφτηκαν).
+  var gateDownOut = false;
+  $('#gate').addEventListener('pointerdown', function (ev) { gateDownOut = ev.target === $('#gate'); });
   $('#gate').addEventListener('click', function (ev) {
     var b = ev.target.closest('[data-g]');
     if (!b && ev.target !== $('#gate')) return;
+    if (!b && (!gateDownOut || $('#gateBox').querySelector('input, textarea, select'))) return;
     var a = b ? b.dataset.g : 'no', cb = gateCb; gateCb = null;
     if (cb) { var keep = cb(a); if (keep === true) return; }
     $('#gate').hidden = true;
   });
-  document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && !$('#gate').hidden) { $('#gate').hidden = true; gateCb = null; } });
+  document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && !$('#gate').hidden && !$('#gateBox').querySelector('input, textarea, select')) { $('#gate').hidden = true; gateCb = null; } });
 
   // ---------- προβολή: σελίδα PDF ----------
   function renderPageBtns() {
