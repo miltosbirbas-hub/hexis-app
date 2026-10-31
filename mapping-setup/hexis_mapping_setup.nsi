@@ -11,6 +11,9 @@ SetCompressorDictSize 64
 !ifndef VERSION
   !define VERSION "1.0"
 !endif
+!ifndef RTVER
+  !define RTVER "dev"
+!endif
 !define APP "HEXIS MAPPING"
 !define UNKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\HEXIS_MAPPING"
 Name "${APP}"
@@ -61,15 +64,21 @@ Section "HEXIS MAPPING" SEC1
   SectionIn RO
   !insertmacro STOPAPP
   SetOutPath "$INSTDIR"
-  ; αν κάποιο αρχείο είναι ακόμα κλειδωμένο, ο παλιός φάκελος μετονομάζεται (επιτρέπεται και με φορτωμένες DLL)
-  ; και σβήνεται στην επόμενη επανεκκίνηση· η νέα εγκατάσταση γράφεται σε καθαρό φάκελο, χωρίς σφάλμα
+  ; ίδιο περιβάλλον Python με το εγκατεστημένο: δεν ξαναγράφεται (καμία σύγκρουση με κλειδωμένα αρχεία)
+  StrCpy $1 ""
+  ClearErrors
+  FileOpen $0 "$INSTDIR\python\rtver.txt" r
+  IfErrors +3
+    FileRead $0 $1
+    FileClose $0
+  StrCmp $1 "${RTVER}" py_done
   RMDir /r "$INSTDIR\python"
-  IfFileExists "$INSTDIR\python\*.*" 0 py_clean
-    System::Call 'kernel32::GetTickCount()i.r0'
-    Rename "$INSTDIR\python" "$INSTDIR\python_old_$0"
-    RMDir /r /REBOOTOK "$INSTDIR\python_old_$0"
-  py_clean:
+  ; αρχείο που μένει κλειδωμένο (π.χ. ucrtbase.dll από πρόγραμμα που δεν κλείνει): παραλείπεται αθόρυβα αντί για σφάλμα —
+  ; είναι το ίδιο αρχείο συστήματος σε κάθε έκδοση
+  SetOverwrite try
   File /r "${SRC}\python"
+  SetOverwrite on
+  py_done:
   File "hexis_start.pyw"
   File "HEXIS_MAPPING.ico"
   File "HEXIS_MAPPING.png"
