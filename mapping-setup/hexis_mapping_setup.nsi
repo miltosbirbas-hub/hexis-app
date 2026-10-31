@@ -48,7 +48,9 @@ VIAddVersionKey "LegalCopyright" "BRB Development"
   ; 2) ό,τι τρέχει ακόμα από τον φάκελο της εφαρμογής (παράθυρα, server, παλιές εκδόσεις) τερματίζεται,
   ;    αλλιώς τα αρχεία (π.χ. python3.dll) είναι κλειδωμένα και δεν αντικαθίστανται
   nsExec::Exec `powershell -NoProfile -ExecutionPolicy Bypass -Command "$$d='$INSTDIR\python\'; Get-Process | Where-Object { $$_.Path -and $$_.Path.StartsWith($$d, [StringComparison]::OrdinalIgnoreCase) } | Stop-Process -Force"`
-  Sleep 1500
+  ; 3) και όσα έχουν φορτωμένη DLL από εκεί ή γραμμή εντολών μέσα στον φάκελο (π.χ. python από άλλη διαδρομή)
+  nsExec::Exec `powershell -NoProfile -ExecutionPolicy Bypass -Command "$$d='$INSTDIR'; Get-CimInstance Win32_Process | Where-Object { ($$_.ExecutablePath -and $$_.ExecutablePath.StartsWith($$d, [StringComparison]::OrdinalIgnoreCase)) -or ($$_.CommandLine -and $$_.CommandLine.IndexOf($$d, [StringComparison]::OrdinalIgnoreCase) -ge 0) } | ForEach-Object { Stop-Process -Id $$_.ProcessId -Force -ErrorAction SilentlyContinue }; Get-Process | Where-Object { try { $$_.Modules | Where-Object { $$_.FileName -and $$_.FileName.StartsWith($$d, [StringComparison]::OrdinalIgnoreCase) } } catch { $$false } } | Stop-Process -Force -ErrorAction SilentlyContinue"`
+  Sleep 2000
 !macroend
 
 Function RunApp
@@ -59,7 +61,14 @@ Section "HEXIS MAPPING" SEC1
   SectionIn RO
   !insertmacro STOPAPP
   SetOutPath "$INSTDIR"
+  ; αν κάποιο αρχείο είναι ακόμα κλειδωμένο, ο παλιός φάκελος μετονομάζεται (επιτρέπεται και με φορτωμένες DLL)
+  ; και σβήνεται στην επόμενη επανεκκίνηση· η νέα εγκατάσταση γράφεται σε καθαρό φάκελο, χωρίς σφάλμα
   RMDir /r "$INSTDIR\python"
+  IfFileExists "$INSTDIR\python\*.*" 0 py_clean
+    System::Call 'kernel32::GetTickCount()i.r0'
+    Rename "$INSTDIR\python" "$INSTDIR\python_old_$0"
+    RMDir /r /REBOOTOK "$INSTDIR\python_old_$0"
+  py_clean:
   File /r "${SRC}\python"
   File "hexis_start.pyw"
   File "HEXIS_MAPPING.ico"

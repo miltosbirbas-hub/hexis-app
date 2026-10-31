@@ -57,7 +57,108 @@ def run_app():
     runpy.run_path(str(SERVER), run_name="__main__")
 
 
+def _vkey(v):
+    import re
+    return re.sub(r"\D", "", str(v or ""))[:12]
+
+
+def auto_update():
+    """Σε κάθε εκκίνηση: αν υπάρχει νεότερη έκδοση για τον λογαριασμό, κατεβαίνει και μπαίνει ΠΡΙΝ ανοίξει η εφαρμογή
+    (μικρό παράθυρο προόδου). Χωρίς διαδίκτυο ή με οποιοδήποτε σφάλμα: ανοίγει η έκδοση που υπάρχει."""
+    try:
+        import requests
+        import urllib.request
+        try:                                               # η εφαρμογή τρέχει ήδη: δεν αλλάζουμε αρχεία κάτω από τα πόδια της
+            urllib.request.urlopen("http://127.0.0.1:8765/api/version", timeout=1.5)
+            return
+        except Exception:
+            pass
+        sess = json.loads(SESSION.read_text(encoding="utf-8"))
+        tok = sess.get("access_token")
+        if not tok:
+            return
+        if sess.get("expires_at", 0) < time.time() and sess.get("refresh_token"):
+            r = requests.post(f"{SUPA}/auth/v1/token?grant_type=refresh_token", json={"refresh_token": sess["refresh_token"]},
+                              headers={"apikey": KEY}, timeout=8)
+            if r.status_code != 200:
+                return
+            d = r.json(); tok = d["access_token"]
+            sess.update(access_token=tok, refresh_token=d["refresh_token"], expires_at=time.time() + int(d.get("expires_in", 3600)) - 60)
+            tmp = SESSION.with_name(SESSION.name + ".tmp"); tmp.write_text(json.dumps(sess, ensure_ascii=False, indent=1), encoding="utf-8")
+            os.replace(tmp, SESSION)
+        dev = {}
+        try:
+            dev = json.loads((DATA / "device.json").read_text(encoding="utf-8"))
+        except Exception:
+            pass
+        r = requests.post(FN, json={"action": "app_url", "device": dev.get("id")}, headers={"Authorization": f"Bearer {tok}", "apikey": KEY}, timeout=8)
+        if r.status_code != 200:
+            return
+        d = r.json()
+        try:
+            cur = (APP / "local" / "VERSION").read_text(encoding="utf-8").strip()
+        except Exception:
+            cur = ""
+        latest = d.get("version")
+        if not (latest and d.get("url") and len(_vkey(latest)) == 12 and (len(_vkey(cur)) < 12 or _vkey(latest) > _vkey(cur))):
+            return
+        import tkinter as tk
+        from tkinter import ttk
+        w = tk.Tk(); w.title("HEXIS MAPPING"); w.configure(bg="#f6f8fc"); w.resizable(False, False)
+        try:
+            w.iconbitmap(str(ROOT / "HEXIS_MAPPING.ico"))
+        except Exception:
+            pass
+        tk.Label(w, text=f"Νέα έκδοση {latest}", font=("Segoe UI", 12, "bold"), bg="#f6f8fc", fg="#0a1430").pack(padx=24, pady=(18, 4))
+        lab = tk.Label(w, text="Λήψη…", font=("Segoe UI", 10), bg="#f6f8fc", fg="#4a5876"); lab.pack(padx=24)
+        bar = ttk.Progressbar(w, length=320, maximum=1.0); bar.pack(padx=24, pady=(8, 18))
+        w.update_idletasks(); w.geometry(f"+{(w.winfo_screenwidth() - w.winfo_width()) // 2}+{(w.winfo_screenheight() - w.winfo_height()) // 3}")
+        res = {}
+
+        def job():
+            try:
+                with requests.get(d["url"], stream=True, timeout=60) as g:
+                    g.raise_for_status(); n = int(g.headers.get("content-length") or 0); buf = io.BytesIO(); got = 0
+                    for ch in g.iter_content(1 << 16):
+                        buf.write(ch); got += len(ch)
+                        if n:
+                            res["p"] = got / n * 0.9; res["t"] = f"Λήψη… {got / 1e6:.1f} / {n / 1e6:.1f} MB"
+                res["t"] = "Εγκατάσταση…"; res["p"] = 0.95
+                tmp = ROOT / "HEXIS_MAPPING.new"; shutil.rmtree(tmp, ignore_errors=True)
+                with zipfile.ZipFile(buf) as z:
+                    z.extractall(tmp)
+                src = tmp / "HEXIS_MAPPING" if (tmp / "HEXIS_MAPPING").is_dir() else tmp
+                if not (src / "local" / "server.py").exists():
+                    raise RuntimeError("ημιτελής λήψη")
+                old = ROOT / "HEXIS_MAPPING.old"; shutil.rmtree(old, ignore_errors=True)
+                if APP.exists():
+                    os.replace(APP, old)
+                os.replace(src, APP)
+                shutil.rmtree(old, ignore_errors=True); shutil.rmtree(tmp, ignore_errors=True)
+                res["ok"] = True
+            except Exception as e:
+                res["err"] = str(e)
+                if not APP.exists() and (ROOT / "HEXIS_MAPPING.old").exists():
+                    os.replace(ROOT / "HEXIS_MAPPING.old", APP)
+            res["done"] = True
+
+        threading.Thread(target=job, daemon=True).start()
+
+        def tick():
+            if "p" in res:
+                bar["value"] = res["p"]
+            if "t" in res:
+                lab.config(text=res["t"])
+            if res.get("done"):
+                w.destroy(); return
+            w.after(150, tick)
+        tick(); w.mainloop()
+    except Exception:
+        pass
+
+
 if SERVER.exists() and "--reinstall" not in sys.argv:
+    auto_update()
     run_app()
     sys.exit(0)
 
