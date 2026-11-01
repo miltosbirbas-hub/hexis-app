@@ -180,6 +180,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
     <div class="kpi"><small>Προς έκδοση παραστατικού</small><b id="kInv">—</b><span>στο Emblem</span></div>
     <div class="kpi"><small>Κόστος AI μήνα</small><b id="kAi">—</b><span>Interior</span></div>
     <div class="kpi"><small>Αιτήματα</small><b id="kReq">—</b><span>ενεργοποίησης</span></div>
+    <a class="kpi" id="kGpuBox" href="https://www.runpod.io/console/user/billing" target="_blank" rel="noopener" title="Υπόλοιπο λογαριασμού GPU (HEXIS MAPPING) · κλικ για ανανέωση" style="text-decoration:none;color:inherit"><small>Υπόλοιπο GPU · Mapping</small><b id="kGpu">—</b><span id="kGpu2">φόρτωση…</span></a>
   </div>
   <nav class="tabs" id="adNav">
     <button data-go="users"><span>Χρήστες HEXIS</span><b id="nUsr"></b></button>
@@ -257,6 +258,10 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
   </div>
   <div class="card" id="mpCard" data-sec="mapping">
     <h2>HEXIS MAPPING · άδειες <span class="count" id="mpCnt">0</span><span style="flex:1"></span><a class="mbtn" href="mapping.html" target="_blank" rel="noopener" style="text-decoration:none">Πλήρης διαχείριση ↗</a></h2>
+    <div id="mpBal" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 12px;padding:10px 14px;border:1px solid var(--line,#e5e5e5);border-radius:12px">
+      <span id="mpBalTxt">Υπόλοιπο λογαριασμού GPU: φόρτωση…</span><span style="flex:1"></span>
+      <button class="mbtn" id="mpBalRef" type="button">↻</button>
+      <a class="mbtn" id="mpBalTop" href="https://www.runpod.io/console/user/billing" target="_blank" rel="noopener" style="text-decoration:none;background:#E8590C;color:#fff;border-color:#E8590C">➕ Ανανέωση υπολοίπου GPU</a></div>
     <div class="subtabs" data-grp="mp"><button data-sub="keys" class="on">Κλειδιά</button><button data-sub="req">Αιτήματα δοκιμής<b id="mpReqN"></b></button></div>
     <div class="sub show" data-sub="keys">
       <div class="ixgrid">
@@ -288,7 +293,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 <div class="toast" id="toast"></div>
 
 <script>
-const ADMIN_VERSION = 'v2.6';
+const ADMIN_VERSION = 'v2.7';
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
@@ -723,6 +728,20 @@ async function mgw(action,body={}){const {data:{session}}=await sb.auth.getSessi
 function mpMsg(l){const link='https://hexis-app.gr/mapping.html',sig='\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.';
   return l.kind==='demo'?`Καλησπέρα${l.name?' '+l.name:''},\n\nσου στέλνω πρόσβαση demo στο HEXIS MAPPING για 48 ώρες.\n\n1. Άνοιξε το ${link}\n2. Στο «Κωδικός demo» γράψε: ${l.key}\n3. Κατέβασε την εφαρμογή για Windows και μπες με τον ίδιο κωδικό.\n\nΟι 48 ώρες μετράνε από την πρώτη είσοδο. Στο demo: έως ${l.max_photos_job||150} φωτογραφίες ανά πτήση, ποιότητα Γρήγορη, νέφη SLAM σε χαμηλή ανάλυση. Τα παραδοτέα έρχονται σε αυτό το email.`+sig
    :`Καλησπέρα${l.name?' '+l.name:''},\n\nη άδεια HEXIS MAPPING (${l.label}) είναι έτοιμη.\n\n1. Άνοιξε το ${link} και μπες με τον λογαριασμό σου στο hexis-app.gr.\n2. Στο «Ενεργοποίηση άδειας» γράψε: ${l.key}\n3. Κατέβασε την εφαρμογή για Windows και μπες με το ίδιο email και κωδικό.\n\nΗ διάρκεια μετράει από την ενεργοποίηση.`+sig}
+// υπόλοιπο λογαριασμού GPU (Runpod) + κατανάλωση: χαμηλό = κόκκινο· η πληρωμή γίνεται στη σελίδα χρέωσης του παρόχου
+const usdF=v=>v==null||isNaN(v)?'—':'$'+(+v).toLocaleString('el-GR',{minimumFractionDigits:2,maximumFractionDigits:2});
+async function gpuBal(){let B;try{B=await mgw('cloud_balance')}catch(e){B={error:e.message}}
+  const box=document.getElementById('kGpuBox'),t=document.getElementById('mpBalTxt');if(!box||!t)return;
+  if(B.topup_url){box.href=B.topup_url;document.getElementById('mpBalTop').href=B.topup_url}
+  if(B.balance_usd==null){document.getElementById('kGpu').textContent='—';document.getElementById('kGpu2').textContent=B.error||'χωρίς στοιχεία';t.textContent='Υπόλοιπο GPU: '+(B.error||'—');return}
+  const low=B.balance_usd<10||(B.jobs_left!=null&&B.jobs_left<5),L=B.last30||{};
+  document.getElementById('kGpu').textContent=usdF(B.balance_usd);
+  document.getElementById('kGpu2').textContent=low?'χαμηλό · κλικ για ανανέωση':(B.jobs_left!=null?'~'+B.jobs_left+' εργασίες':'διαθέσιμο');
+  box.style.background=low?'#FDE7E7':'';box.style.borderColor=low?'#F2B8B8':'';
+  t.innerHTML=(low?'<b style="color:#C92A2A">⚠ Χαμηλό υπόλοιπο GPU</b> · ':'Υπόλοιπο GPU ')+'<b>'+usdF(B.balance_usd)+'</b>'+(B.jobs_left!=null?' · ~'+B.jobs_left+' εργασίες (μέσο '+usdF(B.avg_job_usd)+')':'')+
+    ' · τώρα '+usdF(B.spend_per_hr)+'/ώρα'+(B.running?' ('+B.running+' σε επεξεργασία)':'')+' · 30 ημ. '+usdF(L.usd)+(L.jobs!=null?' σε '+L.jobs+' εργασίες':'')}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)gpuBal()});setInterval(gpuBal,5*60*1000);setTimeout(gpuBal,800);
+document.getElementById('mpBalRef').onclick=gpuBal;
 let MPL=[],MPT=[],MPP={},mpTrPend=null,mpLoaded=false;
 const $m=id=>document.getElementById(id);
 async function mpOpen(force){if(mpLoaded&&!force)return;mpLoaded=true;
