@@ -66,6 +66,10 @@ ol.steps b{color:var(--strong)}
 .tag{font-size:.75rem;font-weight:800;padding:3px 8px;border-radius:20px;background:var(--panel2);color:var(--pale);border:1px solid var(--line)}
 .tag.run{background:rgba(255,181,71,.12);color:var(--runtext);border-color:rgba(255,181,71,.35)}.tag.ok{background:rgba(57,255,20,.10);color:var(--oktext);border-color:rgba(57,255,20,.35)}.tag.bad{background:rgba(255,107,94,.12);color:var(--badtext);border-color:rgba(255,107,94,.35)}
 .empty{padding:16px;color:var(--soft)}
+.live{grid-column:1/-1;margin-top:4px}.live .pb{height:8px;border-radius:6px;background:var(--line);overflow:hidden;margin:6px 0}
+.live .pb i{display:block;height:100%;background:var(--accent);transition:width .6s}
+.live .st{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:.85rem}.live .tl{font-size:.78rem;color:var(--soft);margin-top:6px;line-height:1.55}
+.live .acc{margin-top:6px;font-size:.85rem}.proj.focus{outline:2px solid var(--accent);outline-offset:-2px}
 .hidden{display:none}
 dialog.card{max-width:min(860px,94vw);width:100%;padding:0;border:1px solid var(--line);border-radius:14px}
 dialog.card::backdrop{background:var(--backdrop)}
@@ -385,11 +389,41 @@ $("#df").onsubmit=async e=>{e.preventDefault();$("#db").disabled=true;$("#dmsg")
     await show()}catch(err){$("#dmsg").innerHTML=`<div class="msg">${esc(err.message)}</div>`}$("#db").disabled=false};
 $("#af").onsubmit=async e=>{e.preventDefault();$("#ab").disabled=true;$("#amsg").innerHTML="";
   try{await gw("activate",{key:$("#ak").value});await show()}catch(err){$("#amsg").innerHTML=`<div class="msg">${esc(err.message)}</div>`}$("#ab").disabled=false};
+// ---- παρακολούθηση από το κινητό: μόνο ανάγνωση (στάδιο, πρόοδος, χρόνος, ακρίβεια) · καμία παρέμβαση
+const STG=[["downloading","Λήψη φωτογραφιών",.01],["preparing","Προετοιμασία",.02],["engine:dataset","Έλεγχος φωτογραφιών",.03],["engine:opensfm","Επίλυση φωτογραφιών",.05],
+  ["engine:openmvs","Πυκνό νέφος σημείων",.45],["engine:odm_filterpoints","Καθάρισμα νέφους",.6],["engine:odm_meshing","Πλέγμα επιφάνειας",.62],["engine:mvs_texturing","Υφή ορθοφωτοχάρτη",.66],
+  ["engine:odm_georeferencing","Γεωαναφορά",.76],["engine:odm_dem","DSM / DTM",.8],["engine:odm_orthophoto","Ορθοφωτοχάρτης",.85],["engine:odm_report","Αναφορά",.89],
+  ["postprocessing","ΕΓΣΑ87, ισοϋψείς, έλεγχος ακρίβειας",.9],["delivering","Ανέβασμα παραδοτέων",.96],["done","Ολοκληρώθηκε",1]];
+function liveHTML(j){const R=j.remote||{},T=R.timeline||{},now=Date.now()/1000;
+  const seen=STG.filter(([k])=>T[k]);const cur=R.state==="done"?STG[STG.length-1]:(seen[seen.length-1]||STG[0]);
+  const t0=T.downloading||(j.gpu_started?Date.parse(j.gpu_started)/1000:now),el=Math.max(0,(R.state==="done"&&T.done?T.done:now)-t0);
+  const frac=Math.min(1,Math.max(cur[2],.01)),eta=j.eta&&j.eta.gpu?j.eta.gpu*60:null;
+  const left=R.state==="done"?0:eta?Math.max(0,eta-el):(frac>.08?el/frac-el:null);
+  const tl=seen.map(([k,l],i)=>{const nx=seen[i+1]?T[seen[i+1][0]]:(R.state==="done"?T.done:now);return `${l} · ${Math.max(1,Math.round((nx-T[k])/60))}′`}).join(" → ");
+  const ec=(R.early_check||{});const A=R.accuracy;
+  return `<div class="live"><div class="st"><b>${esc(R.state==="failed"?"Διακόπηκε":cur[1])}</b><span>${Math.round(el/60)}′ από την έναρξη${left!=null&&R.state!=="done"&&R.state!=="failed"?` · απομένουν ~${Math.max(1,Math.round(left/60))}′`:""}</span></div>
+    <div class="pb"><i style="width:${Math.round(frac*100)}%"></i></div>
+    ${ec.ok===true?`<div class="hint">✓ Έλεγχος μετά την επίλυση: σωστή (${ec.shots||"?"}/${ec.images||"?"} φωτογραφίες)</div>`:ec.ok===false?`<div class="hint" style="color:var(--badtext)">✗ Έλεγχος μετά την επίλυση: ${esc(ec.reason||"")}</div>`:""}
+    ${A&&A.dH_dtm?`<div class="acc">Ακρίβεια στα σημεία ελέγχου: RMSE ύψους <b>${(A.dH_dtm.rmse*100).toFixed(1)} cm</b> (DTM, n=${A.dH_dtm.n})</div>`:""}
+    ${R.state==="failed"&&R.detail?`<div class="hint" style="color:var(--badtext)">${esc(R.detail)}</div>`:""}
+    ${tl?`<div class="tl">${esc(tl)}</div>`:""}</div>`}
+let LIVE=null,NOTIF={};
+async function liveTick(ids){for(const id of ids){try{const j=await gw("status",{project_id:id});const box=document.querySelector(`[data-live="${id}"]`);if(!box||!j)continue;
+    box.innerHTML=liveHTML(j);
+    const done=["finished","failed"].includes(j.state)||["done","failed"].includes((j.remote||{}).state);
+    if(done&&!NOTIF[id]){NOTIF[id]=1;try{if(window.Notification&&Notification.permission==="granted")new Notification("HEXIS MAPPING",{body:j.state==="finished"?"Τα παραδοτέα είναι έτοιμα.":"Η επεξεργασία διακόπηκε."})}catch(e){}
+      setTimeout(projects,1500)}}catch(e){}}}
 async function projects(){const el=$("#plist");el.innerHTML=`<div class="empty">Φόρτωση…</div>`;
   try{const P=await gw("projects");if(!P.length){el.innerHTML=`<div class="empty">Δεν υπάρχουν ακόμα έργα. Ξεκίνησε μια επεξεργασία από την εφαρμογή.</div>`;return}
     el.innerHTML=P.map(p=>{const st=p.job?STATE[p.job.state]||[p.job.state,""]:["Χωρίς επεξεργασία",""];
       return `<div class="proj" data-id="${p.id}"><div><b>${esc(p.name)}</b><br><small>${p.job?new Date(p.job.started).toLocaleString("el-GR"):""}</small></div>
-        <div class="row" style="margin:0;justify-content:flex-end"><span class="tag ${st[1]}">${esc(st[0])}</span>${p.job&&p.job.state==="finished"?`<button class="btn" data-zip="${p.id}">⬇ Παραδοτέα (ZIP)</button>`:""}</div></div>`}).join("");
+        <div class="row" style="margin:0;justify-content:flex-end"><span class="tag ${st[1]}">${esc(st[0])}</span>${p.job&&p.job.state==="finished"?`<button class="btn" data-zip="${p.id}">⬇ Παραδοτέα (ZIP)</button>`:""}</div>
+        ${p.job&&["running","launching","uploading"].includes(p.job.state)?`<div data-live="${p.id}" class="live"><div class="hint">Φόρτωση προόδου…</div></div>`:""}</div>`}).join("");
+    const run=P.filter(p=>p.job&&["running","launching","uploading"].includes(p.job.state)).map(p=>p.id);
+    clearInterval(LIVE);if(run.length){liveTick(run);LIVE=setInterval(()=>{if(!document.hidden)liveTick(run)},30000);
+      try{if(window.Notification&&Notification.permission==="default")Notification.requestPermission()}catch(e){}}
+    const want=(location.hash.match(/p=([\w-]+)/)||[])[1];
+    if(want){const it=el.querySelector(`[data-id="${want}"]`);if(it){it.classList.add("focus");it.scrollIntoView({block:"center"})}}
     el.querySelectorAll("[data-zip]").forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await gw("results",{project_id:b.dataset.zip});
       if(r.zip){location.href=r.zip.url}else{alert("Το ZIP δεν είναι ακόμα έτοιμο.")}}catch(e){alert(e.message)}b.disabled=false})}
   catch(e){el.innerHTML=`<div class="msg">${esc(e.message)}</div>`}}
@@ -398,6 +432,7 @@ $("#lf").onsubmit=async e=>{e.preventDefault();$("#lb").disabled=true;$("#lmsg")
 $("#dl").onclick=async()=>{$("#dl").disabled=true;try{const r=await gw("app_url");$("#ver").textContent=r.version?`έκδοση ${r.version}`:"";location.href=r.url;
   $("#dlh").textContent=r.size?`Λήψη ${size(r.size)}…`:"Λήψη…"}catch(e){$("#dlh").innerHTML=`<span style="color:var(--accent-dk)">${esc(e.message)}</span>`}$("#dl").disabled=false};
 $("#rf").onclick=projects;
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&LIVE&&get())projects()});   // ξύπνημα κινητού → αμέσως νέα πρόοδος
 show();
 </script>
 <script>/* θέμα: Σκούρο (Neon) ↔ Ανοιχτό, αποθηκεύεται στον browser */
