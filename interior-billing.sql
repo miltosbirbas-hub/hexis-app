@@ -336,11 +336,11 @@ grant execute on function public.interior_wallet(int) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- ΠΡΟΣΒΑΣΗ ΜΕ ΚΛΕΙΔΙ (v4.105): η εφαρμογή ανοίγει μόνο με κλειδί που δίνει ο διαχειριστής.
--- Πλάνα: d2 = demo 48 ωρών · acc = πρόσβαση ιδιώτη (χωρίς λήξη) · m1/m6/y1 = PRO 1/6/12 μήνες.
+-- Πλάνα: d2 = demo 48 ωρών · d5/d7 = demo 5/7 ημερών · acc = πρόσβαση ιδιώτη (χωρίς λήξη) · m1/m6/y1 = PRO 1/6/12 μήνες.
 -- Μία συσκευή κάθε φορά (interior_devices) · αρχείο ασφαλείας (interior_audit). Τα διαχειρίζεται η πύλη interior-gw.
 alter table public.interior_accounts add column if not exists access_until timestamptz;
 alter table public.interior_keys drop constraint if exists interior_keys_plan_check;
-alter table public.interior_keys add constraint interior_keys_plan_check check (plan in ('d2','acc','m1','m6','y1'));
+alter table public.interior_keys add constraint interior_keys_plan_check check (plan in ('d2','d5','d7','acc','m1','m6','y1'));
 
 create table if not exists public.interior_devices (
   user_id    uuid primary key references auth.users(id) on delete cascade,
@@ -399,17 +399,17 @@ begin
     until_ts := base + make_interval(months => k.months);
     update interior_accounts set pro_until = until_ts, access_until = greatest(coalesce(access_until, now()), until_ts), updated_at = now() where user_id = u;
   else
-    acc_ts := case k.plan when 'd2' then now() + interval '48 hours' else now() + interval '100 years' end;
+    acc_ts := case k.plan when 'd2' then now() + interval '48 hours' when 'd5' then now() + interval '5 days' when 'd7' then now() + interval '7 days' else now() + interval '100 years' end;
     update interior_accounts set access_until = greatest(coalesce(access_until, now()), acc_ts), updated_at = now() where user_id = u;
   end if;
   update interior_keys set redeemed_by = u, redeemed_at = now() where key = k.key;
   insert into interior_audit(user_id, action, ok, info) values (u, 'redeem', true, k.key);
-  return json_build_object('ok',true,'msg',case k.plan when 'd2' then 'Demo 48 ωρών ενεργό' when 'acc' then 'Πρόσβαση ενεργή' else 'PRO ενεργό' end,'pro_until',until_ts);
+  return json_build_object('ok',true,'msg',case k.plan when 'd2' then 'Demo 48 ωρών ενεργό' when 'd5' then 'Demo 5 ημερών ενεργό' when 'd7' then 'Demo 7 ημερών ενεργό' when 'acc' then 'Πρόσβαση ενεργή' else 'PRO ενεργό' end,'pro_until',until_ts);
 end $$;
 
 create or replace function public.admin_interior_new_keys(p_plan text, p_count int default 1, p_email text default null, p_name text default null, p_note text default null)
 returns setof public.interior_keys language plpgsql security definer set search_path = public as $$
-declare i int; k text; mo int := case p_plan when 'm1' then 1 when 'm6' then 6 when 'y1' then 12 when 'd2' then 0 when 'acc' then 0 end;
+declare i int; k text; mo int := case p_plan when 'm1' then 1 when 'm6' then 6 when 'y1' then 12 when 'd2' then 0 when 'd5' then 0 when 'd7' then 0 when 'acc' then 0 end;
   al text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 begin
   if not public.is_admin() then raise exception 'forbidden'; end if;
