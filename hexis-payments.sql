@@ -90,6 +90,16 @@ on conflict (sku) do update set name_el = excluded.name_el, name_en = excluded.n
   grant_kind = excluded.grant_kind, grant_value = excluded.grant_value, recurring = excluded.recurring, descriptor = excluded.descriptor, sort = excluded.sort;
 
 -- ------------------------------------------------------------
+-- HEXIS MAPPING · πληρωμή ανά εργασία drone (ποσό ανά εργασία από την πύλη mapping-gw, όχι από τον κατάλογο)
+-- ------------------------------------------------------------
+alter table public.hx_orders add column if not exists ref text;          -- αναφορά της εφαρμογής (π.χ. id εργασίας MAPPING)
+insert into public.hx_products(sku, app, name_el, name_en, gross_cents, grant_kind, grant_value, recurring, descriptor, sort, active) values
+ ('MAP-JOB', 'mapping', 'HEXIS MAPPING · επεξεργασία πτήσης drone', 'HEXIS MAPPING · drone flight processing', 0, 'mapping_job', '{}', null, 'MAPPING', 900, false)
+on conflict (sku) do update set name_el = excluded.name_el, name_en = excluded.name_en, grant_kind = excluded.grant_kind, descriptor = excluded.descriptor, active = false;
+alter table if exists public.mapping_jobs add column if not exists paid_at timestamptz;
+alter table if exists public.mapping_jobs add column if not exists pay_order uuid;
+
+-- ------------------------------------------------------------
 -- Ενεργοποίηση (μόνο service_role · από hx-stripe-webhook)
 -- ------------------------------------------------------------
 create or replace function public.hx_fulfill(p_order uuid)
@@ -138,6 +148,11 @@ begin
     exception when others then
       update hx_orders set status = 'failed', fulfill_note = 'kenak_grant: '||sqlerrm where id = o.id; return json_build_object('ok',false,'msg','kenak');
     end;
+  elsif p.grant_kind = 'mapping_job' then
+    -- η πληρωμή της εργασίας: η πύλη MAPPING ξεκινά την επεξεργασία μόλις δει paid_at
+    update mapping_jobs set paid_at = coalesce(paid_at, now()), pay_order = o.id where id::text = o.ref;
+    get diagnostics n = row_count;
+    note := 'MAPPING εργασία '||left(coalesce(o.ref,''),8)||case when n = 0 then ' (δεν βρέθηκε)' else '' end;
   else
     update hx_orders set status = 'failed', fulfill_note = 'Άγνωστο grant: '||p.grant_kind where id = o.id;
     return json_build_object('ok',false,'msg','grant');

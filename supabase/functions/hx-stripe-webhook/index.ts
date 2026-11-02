@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
       const md = s.metadata || {};
       const taxIds = s.customer_details?.tax_ids || [];
       const tax = taxIds.length ? String(taxIds[0].value || "") : "";
-      row = { sku: md.sku, user_id: md.user_id || s.client_reference_id || null, stripe_session: s.id, stripe_customer: s.customer || null, stripe_sub: s.subscription || null,
+      row = { sku: md.sku, ref: md.ref || null, user_id: md.user_id || s.client_reference_id || null, stripe_session: s.id, stripe_customer: s.customer || null, stripe_sub: s.subscription || null,
         amount_cents: s.amount_total, customer_email: s.customer_details?.email || s.customer_email || null,
         customer_name: s.customer_details?.business_name || s.customer_details?.name || null, tax_id: tax || null, doc_type: tax ? "ΤΠΥ" : "ΑΠΥ" };
     } else if (ev.type === "invoice.paid") {

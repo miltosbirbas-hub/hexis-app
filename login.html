@@ -105,8 +105,40 @@ input:focus{border-color:var(--accent)}
       </div>
     </div>
     <div class="form-group">
-      <label>Εταιρεία / Γραφείο</label>
-      <input type="text" id="signup-company" placeholder="π.χ. BRB Development">
+      <label>Επάγγελμα</label>
+      <input type="text" id="signup-prof" placeholder="π.χ. Πολιτικός Μηχανικός, Τοπογράφος" autocomplete="organization-title">
+    </div>
+    <div class="form-group">
+      <label>Εταιρεία / Γραφείο <small style="font-weight:400">(προαιρετικό)</small></label>
+      <input type="text" id="signup-company" placeholder="π.χ. BRB Development" autocomplete="organization">
+    </div>
+    <div class="form-group">
+      <label>Διεύθυνση (οδός, αριθμός)</label>
+      <input type="text" id="signup-addr" placeholder="π.χ. Αγγελοπούλου 12" autocomplete="street-address">
+    </div>
+    <div class="name-grid">
+      <div class="form-group">
+        <label>Τ.Κ.</label>
+        <input type="text" id="signup-zip" placeholder="30100" inputmode="numeric" maxlength="5" autocomplete="postal-code">
+      </div>
+      <div class="form-group">
+        <label>Πόλη</label>
+        <input type="text" id="signup-city" placeholder="Αγρίνιο" autocomplete="address-level2">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Τηλέφωνο</label>
+      <input type="tel" id="signup-phone" placeholder="69XXXXXXXX" inputmode="tel" autocomplete="tel">
+    </div>
+    <div class="name-grid">
+      <div class="form-group">
+        <label>ΑΦΜ <small style="font-weight:400">(για τιμολόγιο)</small></label>
+        <input type="text" id="signup-afm" placeholder="προαιρετικό" inputmode="numeric" maxlength="9">
+      </div>
+      <div class="form-group">
+        <label>ΔΟΥ <small style="font-weight:400">(για τιμολόγιο)</small></label>
+        <input type="text" id="signup-doy" placeholder="προαιρετικό">
+      </div>
     </div>
     <div class="form-group">
       <label>Email</label>
@@ -298,7 +330,13 @@ async function doSignup() {
   const company = document.getElementById('signup-company').value.trim();
   const email = document.getElementById('signup-email').value.trim();
   const pass = document.getElementById('signup-pass').value;
-  if (!fname || !email || !pass) { showMsg('Συμπλήρωσε όλα τα υποχρεωτικά πεδία.'); return; }
+  const v = id => (document.getElementById(id) || {}).value?.trim() || '';
+  const prof = v('signup-prof'), addr = v('signup-addr'), zip = v('signup-zip'), city = v('signup-city'),
+        phone = v('signup-phone').replace(/[\s-]/g, ''), afm = v('signup-afm'), doy = v('signup-doy');
+  if (!fname || !lname || !email || !pass || !prof || !addr || !zip || !city || !phone) { showMsg('Συμπλήρωσε όλα τα υποχρεωτικά πεδία (ονοματεπώνυμο, επάγγελμα, διεύθυνση, Τ.Κ., πόλη, τηλέφωνο).'); return; }
+  if (!/^\d{5}$/.test(zip)) { showMsg('Ο Τ.Κ. έχει 5 ψηφία.'); return; }
+  if (!/^\+?\d{10,14}$/.test(phone)) { showMsg('Γράψε έγκυρο τηλέφωνο (10 ψηφία).'); return; }
+  if (afm && !/^\d{9}$/.test(afm)) { showMsg('Ο ΑΦΜ έχει 9 ψηφία.'); return; }
   if (pass.length < 8) { showMsg('Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες.'); return; }
   const consent = document.getElementById('signup-consent');
   if (!consent || !consent.checked) { showMsg('Πρέπει να αποδεχτείς τους Όρους και την Πολιτική Απορρήτου.'); return; }
@@ -306,7 +344,8 @@ async function doSignup() {
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Δημιουργία...';
   const {data, error} = await sb.auth.signUp({
     email, password: pass,
-    options: { data: { full_name: fname + ' ' + lname, company, plan: plan || 'starter', trial_start: new Date().toISOString() } }
+    options: { data: { full_name: fname + ' ' + lname, company, plan: plan || 'starter', trial_start: new Date().toISOString(),
+      billing: { name: fname + ' ' + lname, profession: prof, company, address: addr, zip, city, phone, afm, doy, at: new Date().toISOString() } } }
   });
   if (error) {
     btn.disabled = false; btn.textContent = 'Δημιουργία λογαριασμού →';
