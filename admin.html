@@ -162,6 +162,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 .mbtn{font-family:var(--font-d);font-weight:600;font-size:12px;padding:4px 9px;border-radius:7px;border:1px solid var(--border-strong);background:#fff;color:var(--muted);cursor:pointer}.mbtn:hover{color:var(--text)}
 @media(min-width:1100px){.wrap{max-width:1500px;padding:0 28px 30px}.ixtw table,.tw table{font-size:13px}}
 @media(max-width:700px){.scrl{max-height:none}.tabs button{padding:8px 11px;font-size:13px}.kpis{display:none}}
+.sosnav span{color:#d11a1a;font-weight:800}.sosnav.alert{background:#d11a1a!important;border-color:#a50f0f!important}.sosnav.alert span,.sosnav.alert b{color:#fff!important}
 </style>
 </head>
 <body>
@@ -188,6 +189,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
     <button data-go="mapping"><span>Mapping · κλειδιά</span><b id="nMap"></b></button>
     <button data-go="payments"><span>Πληρωμές</span><b id="nPay"></b></button>
     <button data-go="requests"><span>Αιτήματα</span><b id="nReq"></b></button>
+    <button data-go="sos" class="sosnav" title="Αναφορές προβλημάτων από την εφαρμογή"><span>🆘 SOS</span><b id="nSos"></b></button>
   </nav>
 
   <div class="card" data-sec="requests">
@@ -217,7 +219,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
   </div>
   <div class="card" id="ixCard" data-sec="interior">
     <h2>HEXIS Interior · άδειες & μονάδες</h2>
-    <div class="subtabs" data-grp="ix"><button data-sub="keys" class="on">Κλειδιά</button><button data-sub="req">Αιτήματα δοκιμής<b id="ixReqN"></b></button><button data-sub="sales">Πωλήσεις & κόστος AI</button><button data-sub="sec">Συσκευές & ασφάλεια</button></div>
+    <div class="subtabs" data-grp="ix"><button data-sub="keys" class="on">Κλειδιά</button><button data-sub="req">Αιτήματα δοκιμής<b id="ixReqN"></b></button><button data-sub="sales">Πωλήσεις & κόστος AI</button><button data-sub="sec">Συσκευές & ασφάλεια</button><button data-sub="rep">SOS · Προβλήματα<b id="ixRepN"></b></button></div>
     <div class="sub show" data-sub="keys">
     <div class="ixgrid">
       <div><label>Νέο κλειδί πρόσβασης</label><select id="ixPlan"><option value="d2">HXI-DEMO · δοκιμή 48 ωρών · δωρεάν</option><option value="d5">HXI-DEMO · δοκιμή 5 ημερών · δωρεάν</option><option value="d7">HXI-DEMO · δοκιμή 7 ημερών · δωρεάν</option><option value="acc">HXI-ACC · πρόσβαση ιδιώτη · χωρίς λήξη</option><option value="m1">HXI-PRO-1M · 1 μήνας · 35 € + ΦΠΑ</option><option value="m6">HXI-PRO-6M · 6 μήνες · 180 € + ΦΠΑ</option><option value="y1" selected>HXI-PRO-12M · 12 μήνες · 330 € + ΦΠΑ</option></select></div>
@@ -248,6 +250,10 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
     <div id="aiTop" class="hint" style="margin-top:6px"></div>
     <div class="ixsub">Χρήστες <span class="hint" style="margin:0">· κόστος = πραγματικό κόστος AI (USD), το βλέπεις μόνο εσύ</span></div>
     <div class="ixtw scrl" id="ixUsers" style="max-height:calc(100vh - 560px)"><div class="empty">Φόρτωση...</div></div>
+    </div>
+    <div class="sub" data-sub="rep">
+    <div class="ixsub">Αναφορές προβλημάτων <span class="hint" style="margin:0">· από το κόκκινο κουμπί SOS μέσα στην εφαρμογή · στιγμιότυπο, συσκευή και τα τελευταία κουμπιά · χρειάζεται μία φορά το interior-reports.sql</span></div>
+    <div class="ixtw scrl" id="ixRep" style="max-height:calc(100vh - 300px)"><div class="empty">Φόρτωση...</div></div>
     </div>
     <div class="sub" data-sub="sec">
     <div class="ixsub">Συσκευές <span class="hint" style="margin:0">· κάθε λογαριασμός ανοίγει σε μία συσκευή κάθε φορά · έως 5 αλλαγές / 30 ημέρες</span></div>
@@ -630,7 +636,7 @@ async function ixLoad(){
   document.getElementById('ixKeys').innerHTML=K.length?`<table><tr><th>Κλειδί</th><th>Διάρκεια</th><th>Πελάτης</th><th>Δημιουργία</th><th>Ενεργοποίηση</th><th>PRO έως</th><th></th></tr>`+
     K.map(r=>`<tr style="${r.revoked?'opacity:.45':''}"><td class="k">${ixe(r.key)}</td><td>${IXP[r.plan]||r.plan}</td><td>${ixe(r.redeemed_email||r.email||r.name||'')}${r.note?' · '+ixe(r.note):''}</td><td>${ixd(r.created_at)}</td><td>${r.redeemed_at?ixd(r.redeemed_at):'<span class="ixtag">νέο</span>'}</td><td>${ixd(r.pro_until)}</td><td>${r.revoked?'ανακλήθηκε':`<button class="btn btn-no" style="padding:3px 9px;font-size:11.5px" data-rv="${ixe(r.key)}">Ανάκληση</button>`}</td></tr>`).join('')+'</table>':'<div class="empty">Κανένα κλειδί ακόμα.</div>';
   document.querySelectorAll('[data-rv]').forEach(b=>b.onclick=async()=>{if(!confirm('Ανάκληση του κλειδιού '+b.dataset.rv+';'))return;const {error}=await sb.rpc('admin_interior_revoke',{p_key:b.dataset.rv});toast(error?error.message:'Ανακλήθηκε');ixLoad()});
-  ixReqLoad();
+  ixReqLoad();ixRepLoad();
   const [dv,au]=await Promise.all([sb.rpc('admin_interior_devices'),sb.rpc('admin_interior_audit',{p_limit:150})]);
   const ixt=v=>v?new Date(v).toLocaleString('el-GR',{dateStyle:'short',timeStyle:'short'}):'—';
   const D=dv.data||[];document.getElementById('ixDev').innerHTML=dv.error?'<div class="empty">'+ixe(dv.error.message)+'</div>':D.length?`<table><tr><th>Λογαριασμός</th><th>Συσκευή</th><th>IP</th><th>Δέσμευση</th><th>Τελευταία</th><th>Αλλαγές 30 ημ.</th><th>Πρόσβαση έως</th><th>Λάθη 24ω</th><th></th></tr>`+
@@ -644,6 +650,16 @@ async function ixLoad(){
 // ===== αιτήματα δοκιμής Interior
 const IXMAIL=(r,key)=>{const sig='\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.';
   return `Καλησπέρα${r.name?' '+r.name:''},\n\nσου στέλνω πρόσβαση δοκιμής 48 ωρών στο HEXIS Interior.\n\nΚλειδί: ${key}\n\n1. Άνοιξε το https://hexis-app.gr/interior.html\n2. Μπες με το email σου (${r.email}) · έρχεται κωδικός στο email.\n3. Γράψε το κλειδί στο «Κλειδί πρόσβασης».\n\nΟι 48 ώρες μετράνε από τη στιγμή που θα γράψεις το κλειδί. Οδηγίες χρήσης: https://hexis-app.gr/interior-help.html`+sig};
+async function ixRepLoad(){const el=document.getElementById('ixRep');if(!el)return;const {data,error}=await sb.rpc('admin_interior_reports');if(error){el.innerHTML='<div class="empty">'+ixe(error.message)+' · τρέξε μία φορά το interior-reports.sql στο Supabase</div>';return}
+  const R=data||[];const nn=R.filter(r=>r.status==='new').length;const n=document.getElementById('ixRepN');if(n)n.textContent=nn?' '+nn:'';const ns=document.getElementById('nSos');if(ns)ns.textContent=nn?String(nn):'';document.querySelectorAll('.sosnav').forEach(b=>b.classList.toggle('alert',nn>0));if(nn&&!window.__sosToast){window.__sosToast=1;toast('🆘 '+nn+(nn===1?' νέα αναφορά SOS':' νέες αναφορές SOS')+' · δες την καρτέλα SOS')}const t=v=>v?new Date(v).toLocaleString('el-GR',{dateStyle:'short',timeStyle:'short'}):'—';
+  el.innerHTML=R.length?R.map(r=>{const c=r.ctx||{};return `<div style="display:flex;gap:12px;padding:10px;border-bottom:1px solid rgba(0,0,0,.08);${r.status==='new'?'background:rgba(224,90,18,.07)':'opacity:.75'}">
+    ${r.shot?`<a href="${r.shot}" target="_blank" rel="noopener"><img src="${r.shot}" style="width:220px;max-height:150px;object-fit:contain;border:1px solid rgba(0,0,0,.12);border-radius:6px;background:#fff"></a>`:''}
+    <div style="flex:1;min-width:0"><div><b>${ixe(r.email||'')}</b> · ${t(r.created_at)} · <span class="ixtag">${r.status==='new'?'νέο':r.status==='fixed'?'διορθώθηκε':'είδα'}</span></div>
+    <div style="margin:4px 0;white-space:pre-wrap">${ixe(r.text||'')}</div>
+    <div class="hint" style="margin:0">${ixe([c.view,c.ws,c.tool,c.w&&c.h?c.w+'×'+c.h:'',c.touch?'touch':'',(c.ua||'').replace(/.*\((.*?)\).*/,'$1').slice(0,60)].filter(Boolean).join(' · '))}</div>
+    <details><summary class="hint" style="cursor:pointer;margin:0">τελευταίες ενέργειες (${(c.log||[]).length})</summary><pre style="white-space:pre-wrap;font-size:11px;max-height:200px;overflow:auto">${ixe((c.log||[]).join('\n'))}</pre></details>
+    <div style="display:flex;gap:6px;margin-top:4px"><button class="btn" data-rps="${r.id}" data-s="seen">Το είδα</button><button class="btn btn-ok" data-rps="${r.id}" data-s="fixed">Διορθώθηκε</button></div></div></div>`}).join(''):'<div class="empty">Καμία αναφορά ακόμα</div>';
+  el.querySelectorAll('[data-rps]').forEach(b=>b.onclick=async()=>{const {error}=await sb.rpc('admin_interior_report_set',{p_id:+b.dataset.rps,p_status:b.dataset.s});toast(error?error.message:'OK');ixRepLoad()})}
 async function ixReqLoad(){const el=document.getElementById('ixReq');const {data,error}=await sb.rpc('admin_interior_requests');if(error){el.innerHTML='<div class="empty">'+ixe(error.message)+' · τρέξε το interior-billing.sql</div>';return}
   const R=data||[];const nn=R.filter(r=>r.status==='new').length;const t=v=>v?new Date(v).toLocaleString('el-GR',{dateStyle:'short',timeStyle:'short'}):'—';
   el.innerHTML=R.length?`<table><tr><th>Πότε</th><th>Όνομα</th><th>Επάγγελμα</th><th>Email</th><th>Τηλέφωνο</th><th>Μήνυμα</th><th>Κατάσταση</th><th></th></tr>`+R.map(r=>`<tr style="${r.status==='new'?'background:rgba(224,90,18,.07)':'opacity:.7'}"><td>${t(r.created_at)}</td><td>${ixe(r.name||'')}</td><td>${ixe(r.profession||'')}</td><td>${ixe(r.email)}</td><td>${ixe(r.phone||'')}</td><td style="max-width:240px">${ixe(r.message||'')}</td><td>${r.status==='new'?'<b style="color:#E05A12">νέο</b>':r.status==='done'?'κλειδί '+ixe(r.key||''):'απορρίφθηκε'}</td><td style="white-space:nowrap">${r.status==='new'?`<button class="btn btn-ok" style="padding:3px 9px;font-size:11.5px" data-ra="${r.id}">Έγκριση</button> <button class="btn btn-no" style="padding:3px 9px;font-size:11.5px" data-rr="${r.id}">Απόρριψη</button>`:r.key?`<a class="btn" style="padding:3px 9px;font-size:11.5px" href="mailto:${encodeURIComponent(r.email)}?subject=${encodeURIComponent('HEXIS Interior · κλειδί δοκιμής')}&body=${encodeURIComponent(IXMAIL(r,r.key))}">Email</a>`:''}</td></tr>`).join('')+'</table>':'<div class="empty">Κανένα αίτημα ακόμα.</div>';
@@ -704,7 +720,7 @@ document.getElementById('hxCsv').onclick=()=>{const m0=new Date();m0.setDate(1);
 document.querySelectorAll('#uTabs [data-st]').forEach(b=>b.onclick=()=>{USTAB=b.dataset.st;renderUsers()});
 // ===== Καρτέλες: μία ενότητα τη φορά, χωρίς κύλιση όλης της σελίδας =====
 (function(){const C=document.querySelector('.adc'),T=['users','interior','mapping','payments','requests'];
-  function go(g){if(!T.includes(g))g='users';document.querySelectorAll('#adNav [data-go]').forEach(x=>x.classList.toggle('on',x.dataset.go===g));
+  function go(g){if(g==='sos'){g='interior';setTimeout(()=>{const b=document.querySelector('[data-grp="ix"] [data-sub="rep"]');if(b)b.click()},50)}if(!T.includes(g))g='users';document.querySelectorAll('#adNav [data-go]').forEach(x=>x.classList.toggle('on',x.dataset.go===g));
     C.querySelectorAll('.card[data-sec]').forEach(c=>c.classList.toggle('show',c.dataset.sec===g));
     try{localStorage.setItem('hxAdmTab',g)}catch(e){}if(location.hash!=='#'+g)history.replaceState(null,'','#'+g);
     if(g==='mapping')setTimeout(()=>{if(typeof mpOpen==='function')mpOpen()},0);window.scrollTo({top:0})}
