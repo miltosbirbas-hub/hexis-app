@@ -1,5 +1,5 @@
--- HEXIS INTERIOR · αναφορές προβλημάτων από την εφαρμογή (κουμπί «⚠ Πρόβλημα»)
--- Τρέξε το μία φορά στο Supabase → SQL Editor. Δεν πειράζει τίποτα άλλο.
+-- HEXIS INTERIOR + HEXIS MAPPING · αναφορές SOS. Τρέξε το μία φορά στο Supabase → SQL Editor (ασφαλές να ξανατρέξει).
+-- SOS αναφορές από HEXIS INTERIOR και HEXIS MAPPING (ίδιος πίνακας, στήλη app) · ασφαλές να ξανατρέξει
 create table if not exists public.interior_reports (
   id         bigserial primary key,
   user_id    uuid references auth.users(id) on delete set null,
@@ -10,11 +10,11 @@ create table if not exists public.interior_reports (
   status     text not null default 'new',
   created_at timestamptz not null default now()
 );
+alter table public.interior_reports add column if not exists app text not null default 'interior';
 create index if not exists interior_reports_time on public.interior_reports(created_at desc);
 alter table public.interior_reports enable row level security;
 revoke all on public.interior_reports from anon, authenticated;
 
--- αποστολή από την εφαρμογή (συνδεδεμένος χρήστης) · έως 15 ανά ώρα · στιγμιότυπο έως ~600 KB
 create or replace function public.interior_report(p_text text, p_ctx jsonb, p_shot text)
 returns json language plpgsql security definer set search_path = public as $$
 declare u uuid := auth.uid(); n int; em text;
@@ -23,20 +23,20 @@ begin
   select count(*) into n from interior_reports where user_id = u and created_at > now() - interval '1 hour';
   if n >= 15 then return json_build_object('ok', false, 'msg', 'Πολλές αναφορές · δοκίμασε σε λίγο.'); end if;
   select email into em from auth.users where id = u;
-  insert into interior_reports(user_id, email, text, ctx, shot)
+  insert into interior_reports(user_id, email, text, ctx, shot, app)
   values (u, em, left(coalesce(p_text,''), 3000), p_ctx,
-          case when p_shot like 'data:image/%' and length(p_shot) < 800000 then p_shot else null end);
+          case when p_shot like 'data:image/%' and length(p_shot) < 800000 then p_shot else null end, 'interior');
   return json_build_object('ok', true);
 end $$;
 revoke all on function public.interior_report(text,jsonb,text) from public, anon;
 grant execute on function public.interior_report(text,jsonb,text) to authenticated;
 
--- διαχειριστής: λίστα και κατάσταση
+drop function if exists public.admin_interior_reports();
 create or replace function public.admin_interior_reports()
 returns setof public.interior_reports language plpgsql stable security definer set search_path = public as $$
 begin
   if not public.is_admin() then raise exception 'forbidden'; end if;
-  return query select * from interior_reports order by (status = 'new') desc, created_at desc limit 200;
+  return query select * from interior_reports order by (status = 'new') desc, created_at desc limit 300;
 end $$;
 create or replace function public.admin_interior_report_set(p_id bigint, p_status text)
 returns json language plpgsql security definer set search_path = public as $$
