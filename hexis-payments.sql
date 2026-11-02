@@ -98,6 +98,10 @@ insert into public.hx_products(sku, app, name_el, name_en, gross_cents, grant_ki
 on conflict (sku) do update set name_el = excluded.name_el, name_en = excluded.name_en, grant_kind = excluded.grant_kind, descriptor = excluded.descriptor, active = false;
 alter table if exists public.mapping_jobs add column if not exists paid_at timestamptz;
 alter table if exists public.mapping_jobs add column if not exists pay_order uuid;
+alter table if exists public.mapping_jobs add column if not exists pay_session text;
+alter table if exists public.mapping_jobs add column if not exists pay_eur numeric;
+alter table if exists public.mapping_jobs add column if not exists images integer;
+alter table if exists public.mapping_jobs add column if not exists kind text;
 
 -- ------------------------------------------------------------
 -- Ενεργοποίηση (μόνο service_role · από hx-stripe-webhook)
