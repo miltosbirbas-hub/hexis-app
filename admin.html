@@ -748,7 +748,7 @@ async function mgw(action,body={}){const {data:{session}}=await sb.auth.getSessi
   const r=await fetch(MP_FN,{method:'POST',headers:{Authorization:'Bearer '+session.access_token,apikey:MP_KEY,'Content-Type':'application/json'},body:JSON.stringify({action,...body})});
   const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||('Σφάλμα '+r.status));return d}
 function mpMsg(l){const link='https://hexis-app.gr/mapping.html',sig='\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.';
-  return l.kind==='demo'?`Καλησπέρα${l.name?' '+l.name:''},\n\nσου στέλνω πρόσβαση demo στο HEXIS MAPPING για 48 ώρες.\n\n1. Άνοιξε το ${link}\n2. Στο «Κωδικός demo» γράψε: ${l.key}\n3. Κατέβασε την εφαρμογή για Windows και μπες με τον ίδιο κωδικό.\n\nΟι 48 ώρες μετράνε από την πρώτη είσοδο. Στο demo: έως ${l.max_photos_job||150} φωτογραφίες ανά πτήση, ποιότητα Γρήγορη, νέφη SLAM σε χαμηλή ανάλυση. Τα παραδοτέα έρχονται σε αυτό το email.`+sig
+  return l.kind==='demo'?`Καλησπέρα${l.name?' '+l.name:''},\n\nσου στέλνω πρόσβαση demo στο HEXIS MAPPING για 7 ημέρες.\n\n1. Άνοιξε το ${link}\n2. Στο «Κωδικός demo» γράψε: ${l.key}\n3. Κατέβασε την εφαρμογή για Windows και μπες με τον ίδιο κωδικό.\n\nΟι 7 ημέρες μετράνε από την πρώτη είσοδο. Στο demo: έως ${l.max_photos_job||150} φωτογραφίες ανά πτήση, ποιότητα Γρήγορη, νέφη SLAM σε χαμηλή ανάλυση. Τα παραδοτέα έρχονται σε αυτό το email.`+sig
    :`Καλησπέρα${l.name?' '+l.name:''},\n\nη άδεια HEXIS MAPPING (${l.label}) είναι έτοιμη.\n\n1. Άνοιξε το ${link} και μπες με τον λογαριασμό σου στο hexis-app.gr.\n2. Στο «Ενεργοποίηση άδειας» γράψε: ${l.key}\n3. Κατέβασε την εφαρμογή για Windows και μπες με το ίδιο email και κωδικό.\n\nΗ διάρκεια μετράει από την ενεργοποίηση.`+sig}
 // υπόλοιπο λογαριασμού GPU (Runpod) + κατανάλωση: χαμηλό = κόκκινο· η πληρωμή γίνεται στη σελίδα χρέωσης του παρόχου
 const usdF=v=>v==null||isNaN(v)?'—':'$'+(+v).toLocaleString('el-GR',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -768,7 +768,7 @@ let MPL=[],MPT=[],MPP={},mpTrPend=null,mpLoaded=false;
 const $m=id=>document.getElementById(id);
 async function mpOpen(force){if(mpLoaded&&!force)return;mpLoaded=true;
   try{const st=await mgw('settings_get');MPP=st.plans||{};const K=['demo','month','quarter','half','year','perpetual'].filter(k=>MPP[k]);
-    $m('mpKind').innerHTML=K.map(k=>`<option value="${k}"${k==='year'?' selected':''}>${mEsc(MPP[k].label)}${k==='demo'?' · '+(MPP[k].hours||48)+' ώρες · δωρεάν':' · '+mEur(MPP[k].price_eur)+' + ΦΠΑ'}</option>`).join('');
+    $m('mpKind').innerHTML=K.map(k=>`<option value="${k}"${k==='year'?' selected':''}>${mEsc(MPP[k].label)}${k==='demo'?' · '+Math.round((MPP[k].hours||168)/24)+' ημέρες · δωρεάν':' · '+mEur(MPP[k].price_eur)+' + ΦΠΑ'}</option>`).join('');
     $m('mpKind').onchange=()=>{const p=MPP[$m('mpKind').value]||{};$m('mpQuota').value=p.quota_photos??0};$m('mpKind').onchange()}
   catch(e){$m('mpKind').innerHTML='<option value="">—</option>';$m('mpList').innerHTML='<div class="empty">'+mEsc(e.message)+'</div>';mpLoaded=false;return}
   mpLics();mpTrials()}

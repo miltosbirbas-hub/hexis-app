@@ -114,7 +114,7 @@ th{font-size:.74rem;text-transform:uppercase;letter-spacing:.04em;color:var(--so
         <div class="row"><button class="btn primary" id="lb">Είσοδος</button><a class="btn" href="login.html">Νέος λογαριασμός / ξέχασα τον κωδικό</a></div></form>
       <div id="lmsg"></div>
       <div class="or">ή</div>
-      <form id="df"><label for="dk">Κωδικός demo (48 ώρες, χωρίς λογαριασμό)</label><input id="dk" placeholder="HX-XXXX-XXXX-XXXX" autocomplete="off" style="text-transform:uppercase;letter-spacing:.06em">
+      <form id="df"><label for="dk">Κωδικός demo (7 ημέρες, χωρίς λογαριασμό)</label><input id="dk" placeholder="HX-XXXX-XXXX-XXXX" autocomplete="off" style="text-transform:uppercase;letter-spacing:.06em">
         <div class="row"><button class="btn" id="db">Είσοδος demo</button></div></form>
       <div id="dmsg"></div>
     </div>
@@ -235,7 +235,7 @@ let ST=null;
 async function admin(me){
   try{ST=await gw("settings_get")}catch(e){ST={plans:{}}}
   const P=ST.plans||{},K=["demo","month","quarter","half","year","perpetual"];
-  $("#nk").innerHTML=K.filter(k=>P[k]).map(k=>`<option value="${k}">${esc(P[k].label)}${k==="demo"?" · "+(P[k].hours||48)+" ώρες":" · "+eur(P[k].price_eur)+" + ΦΠΑ"}</option>`).join("");
+  $("#nk").innerHTML=K.filter(k=>P[k]).map(k=>`<option value="${k}">${esc(P[k].label)}${k==="demo"?" · "+Math.round((P[k].hours||168)/24)+" ημέρες":" · "+eur(P[k].price_eur)+" + ΦΠΑ"}</option>`).join("");
   const sync=()=>{const p=P[$("#nk").value]||{};$("#nq").value=p.quota_photos??0;$("#nh").textContent=$("#nk").value==="perpetual"?"Μόνιμη: κάθε πτήση χρεώνεται ανά φωτογραφία, νέες εκδόσεις για "+(p.updates_months||12)+" μήνες.":$("#nk").value==="demo"?"Demo: έως "+(p.max_photos_job||150)+" φωτογραφίες ανά πτήση, "+(p.max_jobs||3)+" επεξεργασίες, Γρήγορη ποιότητα.":""};
   $("#nk").onchange=sync;sync();
   $("#plans").innerHTML=`<table><tr><th>Πακέτο</th><th>Τιμή €</th><th>Φωτογραφίες</th><th>Διάρκεια</th></tr>${K.filter(k=>k!=="demo"&&P[k]).map(k=>`<tr><td><b>${esc(P[k].label)}</b></td>
@@ -295,7 +295,7 @@ async function card(key){const B=$("#kdB");$("#kdH").textContent=key;B.innerHTML
 }
 $("#kdX").onclick=()=>$("#kd").close();
 function message(l){const link="https://hexis-app.gr/mapping.html";
-  return l.kind==="demo"?`Καλησπέρα${l.name?" "+l.name:""},\n\nσου στέλνω πρόσβαση demo στο HEXIS MAPPING για 48 ώρες.\n\n1. Άνοιξε το ${link}\n2. Στο «Κωδικός demo» γράψε: ${l.key}\n3. Κατέβασε την εφαρμογή για Windows και μπες με τον ίδιο κωδικό.\n\nΟι 48 ώρες μετράνε από την πρώτη είσοδο. Στο demo: έως ${l.max_photos_job||150} φωτογραφίες ανά πτήση, ποιότητα Γρήγορη, νέφη SLAM σε χαμηλή ανάλυση. Τα παραδοτέα έρχονται σε αυτό το email.\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.`
+  return l.kind==="demo"?`Καλησπέρα${l.name?" "+l.name:""},\n\nσου στέλνω πρόσβαση demo στο HEXIS MAPPING για 7 ημέρες.\n\n1. Άνοιξε το ${link}\n2. Στο «Κωδικός demo» γράψε: ${l.key}\n3. Κατέβασε την εφαρμογή για Windows και μπες με τον ίδιο κωδικό.\n\nΟι 7 ημέρες μετράνε από την πρώτη είσοδο. Στο demo: έως ${l.max_photos_job||150} φωτογραφίες ανά πτήση, ποιότητα Γρήγορη, νέφη SLAM σε χαμηλή ανάλυση. Τα παραδοτέα έρχονται σε αυτό το email.\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.`
     :`Καλησπέρα${l.name?" "+l.name:""},\n\nη άδεια HEXIS MAPPING (${l.label}) είναι έτοιμη.\n\n1. Άνοιξε το ${link} και μπες με τον λογαριασμό σου στο hexis-app.gr.\n2. Στο «Ενεργοποίηση άδειας» γράψε: ${l.key}\n3. Κατέβασε την εφαρμογή για Windows και μπες με το ίδιο email και κωδικό.\n\nΗ διάρκεια μετράει από την ενεργοποίηση.\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.`}
 const MONTHS=["Ιανουάριος","Φεβρουάριος","Μάρτιος","Απρίλιος","Μάιος","Ιούνιος","Ιούλιος","Αύγουστος","Σεπτέμβριος","Οκτώβριος","Νοέμβριος","Δεκέμβριος"];
 const mLabel=m=>{const [y,mo]=m.split("-");return MONTHS[+mo-1]+" "+y};
