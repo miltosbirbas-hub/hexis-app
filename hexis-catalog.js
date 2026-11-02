@@ -36,7 +36,7 @@
    Το sw.js (importScripts) και το app.html τη διαβάζουν από εδώ.
    ΔΕΝ γράφεται πουθενά αλλού.
    ============================================================ */
-var VERSION = 'v4.184';
+var VERSION = 'v4.185';
 
 var BRB_TERRAIN_URL = 'https://miltosbirbas-hub.github.io/BRB-contour-live/';
 
