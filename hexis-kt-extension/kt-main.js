@@ -10,6 +10,8 @@
   const open0 = window.open;
   window.open = function (url, ...rest) {
     try { if (on() && url) { post({ type: "url", url: String(url) }); return null; } } catch (e) {}
+    // όσο το πρόσθετο ανοίγει το ακίνητο: στην ίδια καρτέλα, όχι σε νέα (αλλιώς η εργασία «χάνεται»)
+    try { if (document.documentElement.dataset.hxNav === "1" && url) { location.assign(new URL(String(url), location.href).href); return window; } } catch (e) {}
     return open0.call(this, url, ...rest);
   };
   // 2) PDF που φτιάχνεται στη σελίδα (fetch/XHR → Blob → createObjectURL)

@@ -160,8 +160,14 @@
     const row = cells.map((c) => c.closest("tr,li,.row,.result")).find(Boolean) || cells[0];
     if (!row) return { wait: "Δεν βρέθηκε αποτέλεσμα για το ΚΑΕΚ — πιθανώς δεν υπάρχει στο λειτουργούν Κτηματολόγιο. Πάτα «Παράλειψη»." };
     const link = row.querySelector("a,button,input[type=button],input[type=submit]") || row;
-    JOB.step = "property"; await save();
-    link.click(); await sleep(3500);
+    JOB.step = "property"; JOB.lastRun = Date.now(); await save();
+    // το ακίνητο ανοίγει ΣΤΗΝ ΙΔΙΑ καρτέλα (το site το ανοίγει σε νέα — εκεί η εργασία σταματούσε)
+    const href = link.getAttribute && link.getAttribute("href");
+    if (href && !/^javascript:|^#/i.test(href)) { location.assign(new URL(href, location.href).href); await sleep(5000); return { next: true }; }
+    try { link.removeAttribute("target"); const f = link.closest("form"); if (f) f.target = "_self"; } catch (e) {}
+    document.documentElement.dataset.hxNav = "1";
+    link.click(); await sleep(4000);
+    document.documentElement.dataset.hxNav = "";
     return { next: true };
   }
   // στοιχεία που κατεβάζουν/δείχνουν έγγραφο (με κείμενο, τίτλο ή μόνο εικονίδιο μέσα σε γραμμή πίνακα εγγράφων)
@@ -202,8 +208,16 @@
     const got = [];
     JOB.owner = JOB.owner || {};
     if (!JOB.owner[k.kaek]) { const o = readOwner(); if (o) { JOB.owner[k.kaek] = o; await save(); } }
-    const p = findClickable(/ΑΠΟΣΠΑΣΜΑ ΠΕΡΙΓΡΑΦΙΚΗΣ/);
-    if (!p) return { wait: "Δεν βρίσκω το «ΑΠΟΣΠΑΣΜΑ ΠΕΡΙΓΡΑΦΙΚΗΣ ΒΑΣΗΣ» στην οθόνη ακινήτου." };
+    let p = findClickable(/ΑΠΟΣΠΑΣΜΑ ΠΕΡΙΓΡΑΦΙΚΗΣ/);
+    if (!p) { await sleep(2500); p = findClickable(/ΑΠΟΣΠΑΣΜΑ ΠΕΡΙΓΡΑΦΙΚΗΣ/); }
+    if (!p) {
+      // δεν είμαστε στην οθόνη ακινήτου (π.χ. γύρισε στην αρχική): ξαναψάχνουμε το ΚΑΕΚ, έως 2 φορές
+      JOB.retry = (JOB.retry || 0) + 1;
+      if (JOB.retry <= 2) { JOB.step = "search"; await save(); return { next: true }; }
+      JOB.retry = 0; await save();
+      return { wait: "Δεν βρίσκω το «ΑΠΟΣΠΑΣΜΑ ΠΕΡΙΓΡΑΦΙΚΗΣ ΒΑΣΗΣ». Αν το ακίνητο άνοιξε σε άλλη καρτέλα, πήγαινε εκεί και πάτα «▶ Αυτόματα όλα» — ή πάτα «Διάγνωση σελίδας» στην οθόνη του ακινήτου και στείλ' το." };
+    }
+    JOB.retry = 0;
     say("ΚΦ (περιγραφική βάση)…"); if (await grab(p, { kaek: k.kaek, kind: "kf" })) got.push("ΚΦ");
     const x = findClickable(/ΑΠΟΣΠΑΣΜΑ ΧΩΡΙΚΗΣ/);
     if (x) { say("ΚΔ (χωρική βάση)…"); if (await grab(x, { kaek: k.kaek, kind: "kd" })) got.push("ΚΔ"); }
@@ -235,6 +249,7 @@
       }
       if (isLogin()) { render("Συνδέσου με τους κωδικούς ΤΕΕ σε αυτή τη σελίδα. Μετά τη σύνδεση η εργασία συνεχίζει μόνη της.", true); RUN = false; return; }
       const k = JOB.kaeks[JOB.i];
+      JOB.lastRun = Date.now();
       render(`ΚΑΕΚ ${k.kaek}: ${JOB.step === "search" ? "αναζήτηση" : JOB.step === "result" ? "επιλογή αποτελέσματος" : "λήψη αρχείων"}…`);
       let r;
       try { r = JOB.step === "search" ? await stepSearch(k) : JOB.step === "result" ? await stepResult(k) : await stepProperty(k); }
@@ -258,6 +273,10 @@
     if (isLogin()) { render("Συνδέσου με τους κωδικούς ΤΕΕ σε αυτή τη σελίδα. Μετά τη σύνδεση πάτα «▶ Αυτόματα όλα». (Αν το ΤΕΕ βγάλει «Invalid state»: κλείσε τις άλλες καρτέλες Κτηματολογίου/ΤΕΕ και ξεκίνα πάλι — μην πατάς «Πίσω» ή ανανέωση στη σελίδα του ΤΕΕ.)", true); return; }
     render("Έτοιμο. Πάτα «▶ Αυτόματα όλα» για όλα τα ΚΑΕΚ ή «Μόνο το τρέχον».");
     RUN = !!JOB.running; AUTO = JOB.auto !== false;
+    // αν το site άνοιξε το ακίνητο σε ΝΕΑ καρτέλα, η εργασία συνεχίζει εδώ
+    if (!RUN && JOB.i < JOB.kaeks.length && JOB.step !== "search" && Date.now() - (JOB.lastRun || 0) < 180000 && findClickable(/ΑΠΟΣΠΑΣΜΑ ΠΕΡΙΓΡΑΦΙΚΗΣ/)) { RUN = true; JOB.step = "property"; }
+    // δομή κάθε σελίδας για διάγνωση (χωρίς ονόματα) — μπαίνει στο ZIP μόνο αν κάτι λείπει
+    try { send({ type: "diag", kaek: location.pathname + " · " + (JOB.step || ""), d: structure() }); } catch (e) {}
     if (RUN) loop();
   })();
   window.addEventListener("beforeunload", () => { if (JOB) { JOB.running = RUN; JOB.auto = AUTO; chrome.runtime.sendMessage({ type: "setJob", job: JOB }); } });
