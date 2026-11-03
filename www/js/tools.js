@@ -737,6 +737,10 @@
       <label class="chk"><input type="checkbox" id="sp" ${S.soundPoint !== false ? 'checked' : ''}> Ήχος όταν αποθηκεύεται σημείο</label>
       <label class="chk"><input type="checkbox" id="sf" ${S.soundFix !== false ? 'checked' : ''}> Ήχος όταν η λύση γίνεται FIX ή χάνεται (FLOAT)</label>
       <div class="row"><label class="fld grow"><span>Ένταση</span><input id="vol" type="range" min="0.05" max="1" step="0.05" value="${S.volume != null ? S.volume : 0.25}" style="min-height:40px;padding:0"></label><button class="btn" id="vt">▶ Δοκιμή</button></div>
+      <h4>Φωνητικές εντολές</h4>
+      <label class="chk"><input type="checkbox" id="vc" ${A.voice && A.voice.on ? 'checked' : ''}> Ενεργές (το μικρόφωνο ακούει συνεχώς)</label>
+      <label class="chk"><input type="checkbox" id="vs" ${S.voiceSay !== false ? 'checked' : ''}> Φωνητική επιβεβαίωση («Αποθηκεύτηκε P12»)</label>
+      <p class="muted">Πες: <b>«Πάρε»</b> = μέτρηση σημείου (στη χάραξη: καταγραφή Pn) · <b>«Σβήσε»</b> = διαγραφή του τελευταίου μετρημένου · <b>«Αναίρεση»</b> = επαναφορά · <b>«Επόμενο» / «Προηγούμενο»</b> = σημείο χάραξης · <b>«Άκυρο»</b> = διακοπή μέτρησης. Στα αγγλικά: Take, Delete, Undo, Next, Previous, Stop.</p>
       <h4>Χάραξη</h4>
       <div class="row"><label class="fld grow"><span>Ανοχή οριζ. (m)</span><input id="th" type="number" step="0.001" value="${S.tolH}"></label><label class="fld grow"><span>Ανοχή κατακ. (m)</span><input id="tv" type="number" step="0.001" value="${S.tolV}"></label></div>
       <label class="chk"><input type="checkbox" id="bp" ${S.beep ? 'checked' : ''}> Ήχοι καθοδήγησης</label>
@@ -761,7 +765,9 @@
       b.querySelector('#qce').onclick = () => { const c = HQC.CLASSES[b.querySelector('#qc').value]; const opts = [...$('sv-epochs').options].map(o => +o.value).filter(v => v > 0); const e = opts.reduce((a, v) => Math.abs(v - c.epochs) < Math.abs(a - c.epochs) ? v : a, opts[0]); S.epochs = c.epochs > 60 ? c.epochs : e; if (c.epochs > 60 && ![...$('sv-epochs').options].some(o => +o.value === c.epochs)) $('sv-epochs').add(new Option(String(c.epochs), String(c.epochs))); A.toast('Εποχές: ' + S.epochs); };
       b.querySelector('#ok').onclick = () => {
         const nl = b.querySelector('#lng').value;
-        Object.assign(S, { qcClass: b.querySelector('#qc').value, tolH: num(b.querySelector('#th').value) || 0.02, tolV: num(b.querySelector('#tv').value) || 0.02, beep: b.querySelector('#bp').checked, autoNext: b.querySelector('#an').checked, theme, textSize: b.querySelector('#tsz').value, fixWait: Math.max(0, parseInt(b.querySelector('#fw').value, 10) || 0), soundPoint: b.querySelector('#sp').checked, soundFix: b.querySelector('#sf').checked, volume: parseFloat(b.querySelector('#vol').value), textH: num(b.querySelector('#tx').value) || 0.25, googleKey: b.querySelector('#gk').value.trim() });
+        const wantV = b.querySelector('#vc').checked;
+        Object.assign(S, { qcClass: b.querySelector('#qc').value, tolH: num(b.querySelector('#th').value) || 0.02, tolV: num(b.querySelector('#tv').value) || 0.02, beep: b.querySelector('#bp').checked, autoNext: b.querySelector('#an').checked, theme, textSize: b.querySelector('#tsz').value, fixWait: Math.max(0, parseInt(b.querySelector('#fw').value, 10) || 0), soundPoint: b.querySelector('#sp').checked, soundFix: b.querySelector('#sf').checked, volume: parseFloat(b.querySelector('#vol').value), textH: num(b.querySelector('#tx').value) || 0.25, googleKey: b.querySelector('#gk').value.trim(), voiceSay: b.querySelector('#vs').checked, voice: wantV });
+        if (A.voice && wantV !== A.voice.on) (wantV ? A.voice.start() : A.voice.stop());
         A.saveSettings(); A.applySettings(); A.updateStakeTarget(); A.closeSheet(); A.toast('✓ Αποθηκεύτηκε', 'ok');
         if (nl !== HI18N.lang()) setTimeout(() => HI18N.setLang(nl), 400);
       };

@@ -16,6 +16,18 @@ import java.net.URL;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.OpenableColumns;
+import android.provider.DocumentsContract;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
+import android.speech.tts.TextToSpeech;
+import androidx.activity.result.ActivityResult;
+import com.getcapacitor.annotation.ActivityCallback;
+import java.util.ArrayList;
+import java.util.Locale;
 import android.os.Build;
 import android.util.Base64;
 
@@ -49,7 +61,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @CapacitorPlugin(
     name = "HexisGnss",
     permissions = {
-        @Permission(strings = { Manifest.permission.BLUETOOTH_CONNECT }, alias = "bt31")
+        @Permission(strings = { Manifest.permission.BLUETOOTH_CONNECT }, alias = "bt31"),
+        @Permission(strings = { Manifest.permission.RECORD_AUDIO }, alias = "mic")
     }
 )
 public class HexisGnssPlugin extends Plugin {
@@ -92,6 +105,9 @@ public class HexisGnssPlugin extends Plugin {
                     while (running) {
                         int n = in.read(buf);
                         if (n < 0) break;
+                        if ("gnss".equals(channel) && rawOut != null) {
+                            try { rawOut.write(buf, 0, n); rawBytes += n; } catch (Exception ignored) { }
+                        }
                         for (int i = 0; i < n; i++) {
                             int b = buf[i] & 0xFF;
                             if (b == '\n' || b == '\r') {
@@ -486,26 +502,239 @@ public class HexisGnssPlugin extends Plugin {
         final Uri u = uri;
         final String mime = intent.getType();
         new Thread(() -> {
-            try {
-                String name = "αρχείο";
-                try (Cursor c = getContext().getContentResolver().query(u, null, null, null, null)) {
-                    if (c != null && c.moveToFirst()) { int i = c.getColumnIndex(OpenableColumns.DISPLAY_NAME); if (i >= 0) name = c.getString(i); }
-                } catch (Exception ignored) { }
-                if ("αρχείο".equals(name) && u.getLastPathSegment() != null) name = u.getLastPathSegment();
-                ByteArrayOutputStream b = new ByteArrayOutputStream();
-                try (InputStream in = getContext().getContentResolver().openInputStream(u)) {
-                    byte[] buf = new byte[65536]; int n;
-                    while (in != null && (n = in.read(buf)) > 0) { b.write(buf, 0, n); if (b.size() > 80_000_000) throw new IOException("Πολύ μεγάλο αρχείο"); }
-                }
-                JSObject f = new JSObject();
-                f.put("name", name); f.put("mime", mime == null ? "" : mime);
-                f.put("data", Base64.encodeToString(b.toByteArray(), Base64.NO_WRAP));
-                deliver(f);
-            } catch (Exception e) {
+            try { deliver(readUri(u, mime)); } catch (Exception e) {
                 JSObject o = new JSObject(); o.put("channel", "file"); o.put("state", "error"); o.put("message", "Άνοιγμα αρχείου: " + e.getMessage());
                 notifyListeners("status", o);
             }
         }, "hexis-open").start();
+    }
+
+
+    private JSObject readUri(Uri u, String mime) throws Exception {
+        String name = "αρχείο";
+        try (Cursor c = getContext().getContentResolver().query(u, null, null, null, null)) {
+            if (c != null && c.moveToFirst()) { int i = c.getColumnIndex(OpenableColumns.DISPLAY_NAME); if (i >= 0) name = c.getString(i); }
+        } catch (Exception ignored) { }
+        if ("αρχείο".equals(name) && u.getLastPathSegment() != null) name = u.getLastPathSegment();
+        if (mime == null) { try { mime = getContext().getContentResolver().getType(u); } catch (Exception ignored) { } }
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        try (InputStream in = getContext().getContentResolver().openInputStream(u)) {
+            byte[] buf = new byte[65536]; int n;
+            while (in != null && (n = in.read(buf)) > 0) { b.write(buf, 0, n); if (b.size() > 80_000_000) throw new IOException("Πολύ μεγάλο αρχείο"); }
+        }
+        JSObject f = new JSObject();
+        f.put("name", name); f.put("mime", mime == null ? "" : mime);
+        f.put("data", Base64.encodeToString(b.toByteArray(), Base64.NO_WRAP));
+        return f;
+    }
+
+    // ---------- Επιλογή αρχείου: ανοίγει κατευθείαν στις «Λήψεις» ----------
+    @PluginMethod
+    public void pickFile(PluginCall call) {
+        Intent it = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        it.addCategory(Intent.CATEGORY_OPENABLE);
+        it.setType("*/*");
+        if (Build.VERSION.SDK_INT >= 26) {
+            try { it.putExtra(DocumentsContract.EXTRA_INITIAL_URI, Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADownload")); } catch (Exception ignored) { }
+        }
+        startActivityForResult(call, it, "pickResult");
+    }
+
+    @ActivityCallback
+    private void pickResult(PluginCall call, ActivityResult result) {
+        if (call == null) return;
+        if (result.getResultCode() != android.app.Activity.RESULT_OK || result.getData() == null || result.getData().getData() == null) { call.resolve(new JSObject()); return; }
+        final Uri u = result.getData().getData();
+        new Thread(() -> {
+            try { call.resolve(readUri(u, null)); } catch (Exception e) { call.reject("Άνοιγμα αρχείου: " + e.getMessage()); }
+        }, "hexis-pick").start();
+    }
+
+    // ---------- Φωνητικές εντολές (συνεχής ακρόαση) και φωνητική επιβεβαίωση ----------
+    private SpeechRecognizer sr = null;
+    private volatile boolean listening = false;
+    private String voiceLang = "el-GR";
+    private int voiceSeq = 0;
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private TextToSpeech tts = null;
+    private boolean ttsReady = false;
+
+    @PluginMethod
+    public void voiceStart(PluginCall call) {
+        voiceLang = call.getString("lang", "el-GR");
+        if (getPermissionState("mic") != PermissionState.GRANTED) { requestPermissionForAlias("mic", call, "micPermCb"); return; }
+        startVoice(call);
+    }
+
+    @PermissionCallback
+    private void micPermCb(PluginCall call) {
+        if (getPermissionState("mic") != PermissionState.GRANTED) { call.reject("Δεν δόθηκε άδεια μικροφώνου"); return; }
+        startVoice(call);
+    }
+
+    private void startVoice(PluginCall call) {
+        if (!SpeechRecognizer.isRecognitionAvailable(getContext())) { call.reject("Η συσκευή δεν έχει υπηρεσία αναγνώρισης φωνής (Google)"); return; }
+        listening = true;
+        main.post(this::listenOnce);
+        call.resolve();
+    }
+
+    private void voiceEv(String type, String text, boolean partial) {
+        JSObject o = new JSObject(); o.put("type", type); o.put("text", text == null ? "" : text); o.put("partial", partial); o.put("seq", voiceSeq);
+        notifyListeners("voice", o);
+    }
+
+    private void listenOnce() {
+        if (!listening) return;
+        try {
+            if (sr == null) {
+                sr = SpeechRecognizer.createSpeechRecognizer(getContext());
+                sr.setRecognitionListener(new RecognitionListener() {
+                    public void onReadyForSpeech(Bundle b) { voiceEv("ready", null, false); }
+                    public void onBeginningOfSpeech() { }
+                    public void onRmsChanged(float v) { }
+                    public void onBufferReceived(byte[] b) { }
+                    public void onEndOfSpeech() { }
+                    public void onEvent(int t, Bundle b) { }
+                    public void onPartialResults(Bundle b) {
+                        ArrayList<String> r = b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                        if (r != null && !r.isEmpty()) voiceEv("text", android.text.TextUtils.join(" | ", r), true);
+                    }
+                    public void onResults(Bundle b) {
+                        ArrayList<String> r = b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                        if (r != null && !r.isEmpty()) voiceEv("text", android.text.TextUtils.join(" | ", r), false);
+                        restart(150);
+                    }
+                    public void onError(int e) {
+                        if (e == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) { listening = false; voiceEv("error", "Δεν υπάρχει άδεια μικροφώνου", false); return; }
+                        restart(e == SpeechRecognizer.ERROR_RECOGNIZER_BUSY || e == SpeechRecognizer.ERROR_CLIENT ? 1200 : 250);
+                    }
+                });
+            }
+            voiceSeq++;
+            Intent it = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+            it.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+            it.putExtra(RecognizerIntent.EXTRA_LANGUAGE, voiceLang);
+            it.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+            it.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
+            it.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true);
+            it.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, getContext().getPackageName());
+            sr.startListening(it);
+        } catch (Exception ex) {
+            try { if (sr != null) sr.destroy(); } catch (Exception ignored) { }
+            sr = null; restart(1500);
+        }
+    }
+
+    private void restart(long ms) {
+        if (!listening) return;
+        main.postDelayed(() -> { try { if (sr != null) sr.cancel(); } catch (Exception ignored) { } listenOnce(); }, ms);
+    }
+
+    @PluginMethod
+    public void voiceStop(PluginCall call) {
+        listening = false;
+        main.post(() -> { try { if (sr != null) { sr.cancel(); sr.destroy(); } } catch (Exception ignored) { } sr = null; });
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void speak(PluginCall call) {
+        final String text = call.getString("text", "");
+        final String lang = call.getString("lang", "el-GR");
+        call.resolve();
+        main.post(() -> {
+            try {
+                if (tts == null) {
+                    tts = new TextToSpeech(getContext(), st -> { ttsReady = st == TextToSpeech.SUCCESS; if (ttsReady) say(text, lang); });
+                } else if (ttsReady) say(text, lang);
+            } catch (Exception ignored) { }
+        });
+    }
+
+    private void say(String text, String lang) {
+        try { tts.setLanguage(Locale.forLanguageTag(lang)); tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "hexis"); } catch (Exception ignored) { }
+    }
+
+
+    // ---------- Static: καταγραφή όλων των δεδομένων του δέκτη (για μεταγενέστερη επεξεργασία) ----------
+    private volatile OutputStream rawOut = null;
+    private volatile long rawBytes = 0;
+    private File rawFile = null;
+    private String rawName = null;
+
+    @PluginMethod
+    public void rawLogStart(PluginCall call) {
+        try {
+            if (rawOut != null) { try { rawOut.close(); } catch (Exception ignored) { } rawOut = null; }
+            rawName = call.getString("name", "static.gnss").replaceAll("[\\\\/:*?\"<>|]", "_");
+            File dir = new File(getContext().getExternalFilesDir(null), "Static"); dir.mkdirs();
+            rawFile = new File(dir, rawName);
+            rawBytes = 0;
+            rawOut = new java.io.BufferedOutputStream(new FileOutputStream(rawFile), 65536);
+            call.resolve();
+        } catch (Exception e) { call.reject("Καταγραφή static: " + e.getMessage()); }
+    }
+
+    @PluginMethod
+    public void rawLogStatus(PluginCall call) {
+        JSObject o = new JSObject(); o.put("bytes", rawBytes); o.put("on", rawOut != null); call.resolve(o);
+    }
+
+    @PluginMethod
+    public void rawLogStop(PluginCall call) {
+        new Thread(() -> {
+            JSObject o = new JSObject();
+            try {
+                OutputStream r = rawOut; rawOut = null;
+                if (r != null) { r.flush(); r.close(); }
+                o.put("bytes", rawBytes);
+                if (rawFile == null || !rawFile.exists()) { call.resolve(o); return; }
+                o.put("file", rawFile.getAbsolutePath());
+                // αντίγραφο στα Έγγραφα/HEXIS PAD/Static — ορατό από τη Διαχείριση αρχείων και τον υπολογιστή
+                String shown = null;
+                try {
+                    if (Build.VERSION.SDK_INT >= 29) {
+                        android.content.ContentValues cv = new android.content.ContentValues();
+                        cv.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, rawName);
+                        cv.put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream");
+                        cv.put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Documents/HEXIS PAD/Static");
+                        Uri dst = getContext().getContentResolver().insert(android.provider.MediaStore.Files.getContentUri("external"), cv);
+                        if (dst != null) {
+                            try (InputStream in = new java.io.FileInputStream(rawFile); OutputStream out = getContext().getContentResolver().openOutputStream(dst)) {
+                                byte[] b = new byte[65536]; int n; while ((n = in.read(b)) > 0) out.write(b, 0, n);
+                            }
+                            shown = "Documents/HEXIS PAD/Static/" + rawName;
+                        }
+                    } else {
+                        File d = new File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOCUMENTS), "HEXIS PAD/Static"); d.mkdirs();
+                        File f = new File(d, rawName);
+                        try (InputStream in = new java.io.FileInputStream(rawFile); OutputStream out = new FileOutputStream(f)) {
+                            byte[] b = new byte[65536]; int n; while ((n = in.read(b)) > 0) out.write(b, 0, n);
+                        }
+                        shown = "Documents/HEXIS PAD/Static/" + rawName;
+                    }
+                } catch (Exception ignored) { }
+                o.put("path", shown != null ? shown : rawFile.getAbsolutePath());
+                call.resolve(o);
+            } catch (Exception e) { call.reject("Καταγραφή static: " + e.getMessage()); }
+        }, "hexis-raw").start();
+    }
+
+    @PluginMethod
+    public void shareFile(PluginCall call) {
+        try {
+            File f = new File(call.getString("file", ""));
+            Uri uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", f);
+            Intent it = new Intent(Intent.ACTION_SEND);
+            it.setType("application/octet-stream");
+            it.putExtra(Intent.EXTRA_STREAM, uri);
+            it.putExtra(Intent.EXTRA_SUBJECT, f.getName());
+            it.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            Intent ch = Intent.createChooser(it, f.getName()); ch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(ch);
+            call.resolve();
+        } catch (Exception e) { call.reject("Κοινή χρήση: " + e.getMessage()); }
     }
 
     private void deliver(JSObject f) {
@@ -562,6 +791,9 @@ public class HexisGnssPlugin extends Plugin {
         for (Conn c : conns.values()) c.close();
         conns.clear();
         if (ntrip != null) ntrip.halt();
+        listening = false;
+        try { if (sr != null) sr.destroy(); } catch (Exception ignored) { }
+        try { if (tts != null) tts.shutdown(); } catch (Exception ignored) { }
         super.handleOnDestroy();
     }
 }

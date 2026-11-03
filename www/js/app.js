@@ -8,7 +8,7 @@
 
   const DEF = {
     crs: 'EGSA87_HEPOS', crsCustom: '', theme: 'light', antH: 1.8, onlyFix: true, epochs: 5, qcClass: 'RT3',
-    tolH: 0.02, tolV: 0.02, beep: true, heightMode: 'msl', base: 'none', uiv: 3, overlays: { esri_labels: false, kt_wms: false, hexis_kaek: false },
+    tolH: 0.02, tolV: 0.02, beep: true, heightMode: 'msl', base: 'none', uiv: 4, voiceSay: true, overlays: { esri_labels: false, kt_wms: false, hexis_kaek: false },
     googleKey: '', soRef: 'move', ntrip: { host: '', port: 2101, mount: '', user: '', pass: '', gga: true, auto: false }, gnss: { type: 'bt', address: '', name: '', host: '', port: 0, init: '' },
     laser: { address: '', name: '' }, decl: 4.5, fixWait: 10, soundPoint: true, soundFix: true, volume: 0.25, lastProject: null, textH: 0.25,
   };
@@ -264,6 +264,24 @@
     return /^t\d+/.test(v) ? { sec: parseInt(v.slice(1), 10) } : (parseInt(v, 10) || 1);
   };
 
+  // Σημείο από εποχές (κοινό για απλή, συνεχή και static μέτρηση)
+  A.buildPoint = function (r, epochs, opt) {
+    opt = opt || {};
+    const ev = A.qc.evaluate(r.eps, { epochs, fixAge: r.fixAge, jumps: r.jumps || 0 });
+    const last = r.eps[r.eps.length - 1];
+    const m = ev.mean;
+    const ll = HGEO.toLL(m.E, m.N);
+    const pt = {
+      id: uid(), name: opt.name || $('sv-name').value.trim() || '1', code: opt.code != null ? opt.code : $('sv-code').value.trim(), type: opt.type || 'survey',
+      E: m.E, N: m.N, Z: m.Z, lat: ll.lat, lon: ll.lon, ellH: last.ellH != null ? last.ellH + (m.Z - last.Z) : null,
+      fix: last.fix.toUpperCase(), hrms: ev.hrms, vrms: ev.vrms, pdop: last.pdop, sats: last.sats, age: last.age, antH: last.antH,
+      time: Date.now(), epochs: r.eps.length, qc: { level: ev.level, cls: ev.cls, stdH: ev.stdH, stdV: ev.stdV, maxH: ev.maxH, maxV: ev.maxV }, photos: [],
+      crs: HGEO.crsName(), baseSession: A.proj.activeBase || null, baseId: A.nmea.baseId || null,
+    };
+    return { pt, ev };
+  };
+  A.storeSurvey = (pt, ev, opt) => storeSurvey(pt, ev, opt || {});
+
   A.measure = async function (opt) {
     opt = opt || {};
     const btn = opt.btn || $('btn-measure-pt');
@@ -282,17 +300,7 @@
         if (age0 < fw) await A.waitFix(fw, (a, n) => { btn.innerHTML = a > 0 ? `⏳ FIX ${a.toFixed(0)}/${n} s — Άκυρο` : '⏳ Αναμονή FIX — Άκυρο'; });
       }
       const r = await A.collect(epochs, onlyFix, (i, n, msg) => { btn.innerHTML = msg ? '⏳ ' + msg : `■ ${i}/${n} — Άκυρο`; });
-      const ev = A.qc.evaluate(r.eps, { epochs: typeof epochs === 'object' ? 1 : epochs, fixAge: r.fixAge, jumps: r.jumps });
-      const last = r.eps[r.eps.length - 1];
-      const m = ev.mean;
-      const ll = HGEO.toLL(m.E, m.N);
-      const pt = {
-        id: uid(), name: opt.name || $('sv-name').value.trim() || '1', code: opt.code != null ? opt.code : $('sv-code').value.trim(), type: opt.type || 'survey',
-        E: m.E, N: m.N, Z: m.Z, lat: ll.lat, lon: ll.lon, ellH: last.ellH != null ? last.ellH + (m.Z - last.Z) : null,
-        fix: last.fix.toUpperCase(), hrms: ev.hrms, vrms: ev.vrms, pdop: last.pdop, sats: last.sats, age: last.age, antH: last.antH,
-        time: Date.now(), epochs: r.eps.length, qc: { level: ev.level, cls: ev.cls, stdH: ev.stdH, stdV: ev.stdV, maxH: ev.maxH, maxV: ev.maxV }, photos: [],
-        crs: HGEO.crsName(), baseSession: A.proj.activeBase || null, baseId: A.nmea.baseId || null,
-      };
+      const { pt, ev } = A.buildPoint(r, typeof epochs === 'object' ? 1 : epochs, opt);
       if (opt.raw) return { pt, ev };
       if (ev.level === 'fail') {
         A.sheet('QC: η μέτρηση δεν πέρασε', `<div class="result fail"><b>${esc(pt.name)}</b> — κλάση ${esc(HQC.CLASSES[ev.cls].name)}</div>${A.qcTable(ev)}
@@ -996,7 +1004,8 @@
     if (st) A.settings = Object.assign(JSON.parse(JSON.stringify(DEF)), st, { ntrip: Object.assign({}, DEF.ntrip, st.ntrip || {}), gnss: Object.assign({}, DEF.gnss, st.gnss || {}), overlays: Object.assign({}, DEF.overlays, st.overlays || {}) });
     if (st && !st.uiv) { A.settings.base = 'none'; A.settings.theme = 'light'; }
     if (st && (st.uiv || 0) < 3 && /^EGSA87/.test(A.settings.crs)) A.settings.crs = 'EGSA87_HEPOS';
-    A.settings.uiv = 3;
+    if (st && (st.uiv || 0) < 4 && Array.isArray(A.settings.toolbar) && A.settings.toolbar.length && !A.settings.toolbar.includes('voice')) A.settings.toolbar = A.settings.toolbar.concat(['|', 'cont', 'static', 'voice', 'dellast']);
+    A.settings.uiv = 4;
     await HHEPOS.load();
     A.map = new HMAP.MapView($('map'));
     A.map.toLL = (E, N) => { try { return HGEO.toLL(E, N); } catch (e) { return null; } };

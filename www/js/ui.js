@@ -17,6 +17,10 @@
     kt: { i: '▦', l: 'Κτημ/γιο', f: () => toggleKt(), on: () => ov('kt_wms') || ov('hexis_kaek') },
     sat: { i: '◐', l: 'Δορυφ.', f: () => toggleSat(), on: () => A.settings.base !== 'none' },
     layers: { i: '≣', l: 'Layers', f: () => A.mapAction('layers') },
+    voice: { i: '🎙︎', l: 'Φωνή', f: () => A.voice.toggle(), on: () => A.voice && A.voice.on },
+    cont: { i: '⟳', l: 'Συνεχής', f: () => A.contSheet(), on: () => A.cont && A.cont.on },
+    static: { i: '◷', l: 'Static', f: () => A.staticSheet(), on: () => A.static && A.static.on },
+    dellast: { i: '⌫', l: 'Σβήσε τελευταίο', f: () => A.deleteLast() },
     measure: { i: '⟷', l: 'Μέτρηση', f: () => A.mapAction('measure'), on: () => !!A._measureMode },
     import: { i: '⤓', l: 'Εισαγωγή', f: () => A.importSheet() },
     export: { i: '⤒', l: 'Εξαγωγή', f: () => A.exportSheet() },
@@ -44,7 +48,7 @@
     settings: { i: '⚙', l: 'Ρυθμίσεις', f: () => A.settingsSheet() },
     help: { i: '?', l: 'Οδηγίες', f: () => A.helpSheet() },
   };
-  const DEFAULT = ['home', 'survey', 'stake', 'points', '|', 'extents', 'zoomin', 'zoomout', 'follow', '|', 'kt', 'sat', 'layers', 'measure', '|', 'import', 'export'];
+  const DEFAULT = ['home', 'survey', 'stake', 'points', '|', 'extents', 'zoomin', 'zoomout', 'follow', '|', 'kt', 'sat', 'layers', 'measure', '|', 'cont', 'static', 'voice', 'dellast', '|', 'import', 'export'];
 
   function toggleKt() {
     const on = !(ov('kt_wms') || ov('hexis_kaek'));
@@ -123,6 +127,9 @@
     if (k === 'survey') { close(); A.setTab('survey'); }
     if (k === 'stake') { close(); A.setTab('stake'); A.setStakeMode('point'); if (!A.stake.target) { const l = A.stakeList(); if (l.length) A.setTarget(l.find(p => !p.done) || l[0]); else A.toast('Εισήγαγε σημεία χάραξης (Εισαγωγή αρχείου) ή πάτα ⌖ στον χάρτη'); } }
     if (k === 'stakeline') { close(); A.setTab('stake'); A.setStakeMode('line'); if (!A.stake.line) A.pickLineSheet(); }
+    if (k === 'cont') { close(); A.setTab('survey'); A.contSheet(); }
+    if (k === 'static') { close(); A.setTab('survey'); A.staticSheet(); }
+    if (k === 'voice') { close(); A.voice.toggle(); }
     if (k === 'floor') { close(); A.runTool('floor'); }
     if (k === 'square') { close(); A.runTool('square'); }
     if (k === 'cogo') { close(); A.cogoSheet(); }

@@ -363,8 +363,14 @@
     A.sheet('Εισαγωγή', `<button class="btn primary big" id="ia-file">📂 Επιλογή αρχείου</button>
       <p class="muted">Αναγνωρίζεται αυτόματα: <b>TXT, CSV, XYZ, PNT</b> (οποιοδήποτε διαχωριστικό), <b>XLS, XLSX, ODS</b> (επιλογή φύλλου), <b>DXF, DWG</b> (υπόβαθρο), <b>KML, GeoJSON</b>. Μετά βλέπεις προεπισκόπηση και διορθώνεις τις στήλες πριν την εισαγωγή.</p>
       <button class="btn" id="ia-paste">📋 Επικόλληση συντεταγμένων (από email, Excel κ.λπ.)</button>
-      <p class="muted">Από άλλες εφαρμογές: «Άνοιγμα με» ή «Κοινή χρήση» → HEXIS PAD.</p>`, b => {
-      b.querySelector('#ia-file').onclick = () => {
+      <p class="muted">Το «Επιλογή αρχείου» ανοίγει κατευθείαν στις <b>Λήψεις</b> (εκεί που αποθηκεύονται τα συνημμένα του email).</p>
+      <p class="muted"><b>Πιο γρήγορα από το email:</b> πάτα το συνημμένο → «Άνοιγμα με» → <b>HEXIS PAD</b>. Το αρχείο ανοίγει κατευθείαν στον οδηγό εισαγωγής, χωρίς Λήψεις.</p>`, b => {
+      b.querySelector('#ia-file').onclick = async () => {
+        const NP = g.Capacitor && g.Capacitor.isNativePlatform && g.Capacitor.isNativePlatform() && g.Capacitor.Plugins.HexisGnss;
+        if (NP && NP.pickFile) {
+          try { const r = await NP.pickFile(); if (r && r.data) { A.closeSheet(); A.handleIncoming(r); } return; }
+          catch (e) { A.toast(e.message || String(e), 'bad'); return; }
+        }
         const inp = $('file-in'); inp.value = '';
         inp.accept = '.txt,.csv,.xyz,.pnt,.asc,.dat,.xls,.xlsx,.xlsm,.ods,.dxf,.dwg,.kml,.geojson,.json,text/*,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
         inp.onchange = () => { const f = inp.files[0]; if (f) A.importAny(f); };
