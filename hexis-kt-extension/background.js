@@ -14,8 +14,21 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   (async () => {
     if (msg.type === "job") {
       const job = Object.assign({}, msg.job, { i: 0, step: "search", done: {}, log: [], originTab: sender.tab && sender.tab.id });
-      await chrome.storage.local.set({ job });
-      await chrome.tabs.create({ url: KT_LOGIN });
+      // ΜΙΑ καρτέλα Κτηματολογίου: δεύτερη καρτέλα σύνδεσης ακυρώνει τη σύνδεση ΤΕΕ της πρώτης («Invalid state»)
+      const prev = (await chrome.storage.local.get("ktTab")).ktTab;
+      let tab = null;
+      if (prev != null) { try { tab = await chrome.tabs.get(prev); } catch (e) { tab = null; } }
+      if (tab && /^https:\/\/ktimatologio\.gov\.gr\/Professionals\//.test(tab.url || tab.pendingUrl || "")) {
+        await chrome.storage.local.set({ job });
+        await chrome.tabs.update(tab.id, { active: true });
+        try { await chrome.windows.update(tab.windowId, { focused: true }); } catch (e) {}
+        try { await chrome.tabs.reload(tab.id); } catch (e) {}
+      } else {
+        if (tab) { try { await chrome.tabs.update(tab.id, { active: true }); } catch (e) {} }
+        await chrome.storage.local.set({ job });
+        if (tab) await chrome.tabs.update(tab.id, { url: KT_LOGIN });
+        else { const t = await chrome.tabs.create({ url: KT_LOGIN }); await chrome.storage.local.set({ ktTab: t.id }); }
+      }
       reply({ ok: true });
     } else if (msg.type === "getJob") {
       reply((await chrome.storage.local.get("job")).job || null);
