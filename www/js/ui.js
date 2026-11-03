@@ -21,6 +21,7 @@
     cont: { i: '⟳', l: 'Συνεχής', f: () => A.contSheet(), on: () => A.cont && A.cont.on },
     static: { i: '◷', l: 'Static', f: () => A.staticSheet(), on: () => A.static && A.static.on },
     tilt: { i: '∠', l: 'IMU κλίση', f: () => A.imuSheet(), on: () => A.settings.imu && A.settings.imu.on },
+    hiddenpt: { i: '✕', l: 'Δυσπρόσιτο', f: () => { A.setTab('survey'); A.hiddenFromSurvey(); } },
     dellast: { i: '⌫', l: 'Σβήσε τελευταίο', f: () => A.deleteLast() },
     measure: { i: '⟷', l: 'Μέτρηση', f: () => A.mapAction('measure'), on: () => !!A._measureMode },
     import: { i: '⤓', l: 'Εισαγωγή', f: () => A.importSheet() },

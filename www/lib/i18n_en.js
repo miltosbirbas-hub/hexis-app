@@ -36,3 +36,26 @@ Object.assign(window.HEXIS_EN, {
   "Δεν δόθηκε άδεια μικροφώνου": "Microphone permission not granted", "Δεν υπάρχει άδεια μικροφώνου": "No microphone permission",
   "Η συσκευή δεν έχει υπηρεσία αναγνώρισης φωνής (Google)": "This device has no speech recognition service (Google)"
 });
+Object.assign(window.HEXIS_EN, {
+  "Δέκτης με Unicore (UM981/UM982)": "Receiver with Unicore (UM981/UM982)", "Άλλος": "Other",
+  "Αναμονή ενεργοποίησης αντιστάθμισης": "Waiting for tilt compensation to be enabled", "Κράτα το κοντάρι ακίνητο και κατακόρυφο": "Hold the pole still and vertical",
+  "Αναμονή για FIX": "Waiting for FIX", "Κούνησε το κοντάρι (μύτη στο έδαφος) μπρος-πίσω, δεξιά-αριστερά": "Rock the pole (tip on the ground) back-forth and left-right",
+  "Χαμηλή ακρίβεια IMU — κούνησε το κοντάρι": "Low IMU accuracy — rock the pole", "IMU έτοιμο": "IMU ready", "μέχρι": "up to",
+  "Πολύ μεγάλη κλίση": "Tilt too large", "Κλίση τώρα": "Current tilt", "μέγιστο": "maximum", "Κατάσταση IMU": "IMU status", "Μήνυμα δέκτη": "Receiver message",
+  "ο δέκτης δεν στέλνει γωνία κλίσης": "the receiver does not send the tilt angle",
+  "Η αντιστάθμιση γίνεται μέσα στον δέκτη. Αν δεν στέλνει τη γωνία, η εφαρμογή δεν μπορεί να ελέγξει το όριο — τήρησε το όριο του κατασκευαστή και την αρχικοποίηση.": "Compensation is done inside the receiver. If it does not send the angle, the app cannot check the limit — keep to the manufacturer's limit and initialisation.",
+  "χωρίς IMU — μέτρηση με κατακόρυφο κοντάρι (αλφάδι)": "no IMU — measure with a vertical pole (bubble)", "Αρχικοποίηση": "Initialisation", "χωρίς IMU": "no IMU", "Χωρίς IMU": "No IMU",
+  "IMU — κλίση κονταριού": "IMU — pole tilt", "Μέτρηση με κεκλιμένο κοντάρι (αντιστάθμιση IMU του δέκτη)": "Measure with tilted pole (receiver IMU compensation)",
+  "Κατασκευαστής": "Manufacturer", "Μοντέλο": "Model", "Δικό μου όριο κλίσης (°) — κενό = όριο κατασκευαστή": "My own tilt limit (°) — empty = manufacturer's limit",
+  "Ο δέκτης δίνει τη θέση στη": "The receiver outputs the position at the", "μύτη του κονταριού": "pole tip",
+  "(το ύψος κονταριού είναι ρυθμισμένο στον δέκτη — η εφαρμογή δεν το αφαιρεί ξανά)": "(the pole height is set in the receiver — the app does not subtract it again)",
+  "Αυτόματη αναγνώριση μοντέλου από το όνομα Bluetooth": "Detect the model automatically from the Bluetooth name", "Ζωντανά": "Live",
+  "⚙ Ενεργοποίηση αντιστάθμισης στον δέκτη (εντολές Unicore)": "⚙ Enable compensation in the receiver (Unicore commands)",
+  "Η αντιστάθμιση γίνεται": "Compensation is done", "μέσα στον δέκτη": "inside the receiver",
+  ". Πριν μετρήσεις: ύψος κονταριού σωστό και στον δέκτη, αρχικοποίηση IMU όπως ορίζει ο κατασκευαστής, και έλεγχος σε γνωστό σημείο με κεκλιμένο κοντάρι.": ". Before measuring: correct pole height in the receiver too, IMU initialisation as the manufacturer specifies, and a check on a known point with a tilted pole.",
+  "Μέγιστη κλίση": "Maximum tilt", "Ακρίβεια κατασκευαστή": "Manufacturer accuracy", "μέτρηση με κατακόρυφο κοντάρι (αλφάδι)": "measure with a vertical pole (bubble)",
+  "Εστάλη στον δέκτη": "Sent to the receiver", "Το μοντέλο αυτό δεν έχει IMU": "This model has no IMU", "ενεργό": "on", "Κλίση": "Tilt",
+  "IMU / κλίση κονταριού": "IMU / pole tilt", "IMU κλίση": "IMU tilt", "Δυσπρόσιτο": "Inaccessible", "Δυσπρ.": "Inacc.",
+  "Κράτα και τα βοηθητικά σημεία στη λίστα": "Keep the helper points in the list too", "💾 Αποθήκευση στην αποτύπωση": "💾 Save to survey",
+  "Περπάτα ~20 m ή κούνησε το κοντάρι 10–20 s": "Walk ~20 m or rock the pole for 10–20 s", "Κούνησε το κοντάρι μερικά δευτερόλεπτα": "Rock the pole for a few seconds"
+});

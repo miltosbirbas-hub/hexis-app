@@ -49,6 +49,7 @@
     switch (a) {
       case 'take':
         if (A._cancelCollect) return say('Μέτρηση σε εξέλιξη', 'Measuring'); // ποτέ δεν ακυρώνει κατά λάθος
+        { const hm = !$('sheet').classList.contains('hidden') && $('ll-meas'); if (hm) { hm.click(); break; } } // δυσπρόσιτο: επόμενο από τα 4 σημεία
         if (stakeMode()) A.storeStake(); else A.measure();
         break;
       case 'cancel':

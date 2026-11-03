@@ -149,7 +149,7 @@
       <label class="fld grow"><span>Μοντέλο</span><select id="im-m">${opts(curBrand)}</select></label></div>
       <div id="im-spec"></div>
       <label class="fld"><span>Δικό μου όριο κλίσης (°) — κενό = όριο κατασκευαστή</span><input id="im-max" type="number" min="1" max="90" step="1" inputmode="numeric" value="${s.max > 0 ? s.max : ''}"></label>
-      <label class="chk"><input type="checkbox" id="im-tip" ${s.tip ? 'checked' : ''}> Ο δέκτης δίνει τη θέση στη <b>μύτη του κονταριού</b> (το ύψος κονταριού είναι ρυθμισμένο στον δέκτη — η εφαρμογή δεν το αφαιρεί ξανά)</label>
+      <label class="chk"><input type="checkbox" id="im-tip" ${s.tip ? 'checked' : ''}> <span>Ο δέκτης δίνει τη θέση στη <b>μύτη του κονταριού</b> (το ύψος κονταριού είναι ρυθμισμένο στον δέκτη — η εφαρμογή δεν το αφαιρεί ξανά)</span></label>
       <label class="chk"><input type="checkbox" id="im-auto" ${s.auto ? 'checked' : ''}> Αυτόματη αναγνώριση μοντέλου από το όνομα Bluetooth</label>
       <h4>Ζωντανά</h4><div id="imu-live">${liveHtml()}</div>
       <div id="im-uc" class="hidden"><button class="btn" id="im-send">⚙ Ενεργοποίηση αντιστάθμισης στον δέκτη (εντολές Unicore)</button>

@@ -130,7 +130,7 @@
   tools.hidden = function (sel) {
     sel.m = sel.m || 'll';
     const modes = { ll: 'Δύο σημεία πριν + δύο μετά (τομή ευθειών)', polar: 'Απόσταση + αζιμούθιο (laser)', dd: 'Τομή δύο αποστάσεων', line: 'Στην προέκταση ευθείας' };
-    const open = () => A.sheet('Δυσπρόσιτο σημείο', `<select id="hm">${Object.entries(modes).map(([k, v]) => `<option value="${k}" ${k === sel.m ? 'selected' : ''}>${v}</option>`).join('')}</select><div id="hb"></div><div id="r"></div>${resultActions(null, 'ΔΣ1')}`, b => {
+    const open = () => A.sheet('Δυσπρόσιτο σημείο', `<select id="hm">${Object.entries(modes).map(([k, v]) => `<option value="${k}" ${k === sel.m ? 'selected' : ''}>${v}</option>`).join('')}</select><div id="hb"></div><div id="r"></div>${sel.survey ? surveyActions() : resultActions(null, 'ΔΣ1')}`, b => {
       b.querySelector('#hm').onchange = e => { sel.m = e.target.value; open(); };
       const hb = b.querySelector('#hb');
       let calc = () => null;
@@ -224,10 +224,34 @@
         box.innerHTML = `<div class="result ${warn ? 'warn' : 'ok'}">${kvHtml([['X', F(p.E)], ['Y', F(p.N)], ['Z', F(p.Z)]].concat(extra))}${warn}</div>`;
       };
       show();
-      bindResult(b, () => calc() || (A.toast('Συμπλήρωσε τα στοιχεία', 'bad'), null), 'ΔΥΣΠΡ');
+      if (sel.survey) bindSurvey(b, sel, () => calc() || (A.toast('Συμπλήρωσε τα στοιχεία', 'bad'), null));
+      else bindResult(b, () => calc() || (A.toast('Συμπλήρωσε τα στοιχεία', 'bad'), null), 'ΔΥΣΠΡ');
     });
     open();
   };
+  // Δυσπρόσιτο από την αποτύπωση: το αποτέλεσμα γίνεται κανονικό σημείο αποτύπωσης (επόμενος αριθμός, κωδικός, γραμμή)
+  function surveyActions() {
+    return `<div class="row"><label class="fld grow"><span>Σημείο</span><input id="res-name" value="${esc($('sv-name').value || '1')}"></label><label class="fld grow"><span>Κωδικός</span><input id="res-code" list="code-list" value="${esc($('sv-code').value || '')}"></label></div>
+      <label class="chk"><input type="checkbox" id="res-keep" ${A.settings.hiddenKeep !== false ? 'checked' : ''}> Κράτα και τα βοηθητικά σημεία στη λίστα</label>
+      <button class="btn primary big" id="res-sv">💾 Αποθήκευση στην αποτύπωση</button>`;
+  }
+  function bindSurvey(b, sel, getP) {
+    b.querySelector('#res-sv').onclick = () => {
+      const p = getP(); if (!p) return;
+      const keep = b.querySelector('#res-keep').checked; A.settings.hiddenKeep = keep; A.saveSettings();
+      let name = b.querySelector('#res-name').value.trim() || '1'; while (A.findPoint(name)) name = A.nextName(name);
+      $('sv-name').value = name; $('sv-code').value = b.querySelector('#res-code').value.trim();
+      const helpers = ['a', 'b', 'c', 'd'].map(k => sel[k]).filter(x => x && x.code === 'ΤΟΜΗ');
+      let ll = { lat: null, lon: null }; try { ll = HGEO.toLL(p.E, p.N); } catch (e) { }
+      const pt = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, code: $('sv-code').value, type: 'survey', E: p.E, N: p.N, Z: p.Z != null ? p.Z : null, lat: ll.lat, lon: ll.lon,
+        fix: 'CALC', hrms: null, vrms: null, time: Date.now(), epochs: 4, photos: [], crs: HGEO.crsName(), note: 'Δυσπρόσιτο — ' + ({ ll: 'τομή ευθειών (2 πριν + 2 μετά)', polar: 'απόσταση + αζιμούθιο', dd: 'τομή αποστάσεων', line: 'προέκταση ευθείας' }[sel.m] || '') + (p._ang ? ' · γωνία ' + p._ang.toFixed(1) + '°' : ''),
+        hidden: { m: sel.m, from: ['a', 'b', 'c', 'd'].map(k => sel[k] && sel[k].name).filter(Boolean) } };
+      if (!keep && helpers.length) { const ids = new Set(helpers.map(h => h.id)); A.proj.points = A.proj.points.filter(x => !ids.has(x.id)); }
+      A.closeSheet();
+      A.storeSurvey(pt, null, { force: true });
+    };
+  }
+  A.hiddenFromSurvey = () => tools.hidden({ survey: true, m: 'll' });
 
   tools.intersect = function (sel) { sel.m = 'll'; tools.hidden(sel); };
 
@@ -365,6 +389,7 @@
   };
 
   // ==================== Offset / laser από τη Survey ====================
+  $('btn-hidden').onclick = () => A.hiddenFromSurvey();
   $('btn-offset').onclick = () => {
     const sel = {};
     if (A.pos) sel.a = { name: 'Τρέχουσα θέση', E: A.pos.E, N: A.pos.N, Z: A.pos.Z, _tmp: true };
