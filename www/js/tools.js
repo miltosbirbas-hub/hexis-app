@@ -128,8 +128,8 @@
 
   // Δυσπρόσιτο σημείο
   tools.hidden = function (sel) {
-    sel.m = sel.m || 'polar';
-    const modes = { polar: 'Απόσταση + αζιμούθιο (laser)', dd: 'Τομή δύο αποστάσεων', line: 'Στην προέκταση ευθείας', ll: 'Τομή δύο ευθειών (γωνία κτιρίου)' };
+    sel.m = sel.m || 'll';
+    const modes = { ll: 'Δύο σημεία πριν + δύο μετά (τομή ευθειών)', polar: 'Απόσταση + αζιμούθιο (laser)', dd: 'Τομή δύο αποστάσεων', line: 'Στην προέκταση ευθείας' };
     const open = () => A.sheet('Δυσπρόσιτο σημείο', `<select id="hm">${Object.entries(modes).map(([k, v]) => `<option value="${k}" ${k === sel.m ? 'selected' : ''}>${v}</option>`).join('')}</select><div id="hb"></div><div id="r"></div>${resultActions(null, 'ΔΣ1')}`, b => {
       b.querySelector('#hm').onchange = e => { sel.m = e.target.value; open(); };
       const hb = b.querySelector('#hb');
@@ -172,15 +172,56 @@
         hb.querySelector('#d').oninput = hb.querySelector('#o').oninput = () => show();
       }
       if (sel.m === 'll') {
-        hb.innerHTML = `<p class="muted">Δύο σημεία σε κάθε τοίχο — βρίσκει τη γωνία όπου η ράβδος δεν μπαίνει.</p>${pp('a', 'Ευθεία 1 · σημείο Α')}${pp('b', 'Ευθεία 1 · σημείο Β')}${pp('c', 'Ευθεία 2 · σημείο Γ')}${pp('d', 'Ευθεία 2 · σημείο Δ')}`;
+        const K = ['a', 'b', 'c', 'd'];
+        const next = K.find(k => !sel[k]);
+        const lbl = { a: '1 · πριν (μακριά)', b: '2 · πριν (κοντά στο σημείο)', c: '3 · μετά (κοντά στο σημείο)', d: '4 · μετά (μακριά)' };
+        hb.innerHTML = `<svg viewBox="0 0 320 130" style="width:100%;max-width:420px;height:auto;display:block;margin:2px auto 4px">
+            <line x1="20" y1="110" x2="160" y2="22" stroke="#0060a8" stroke-width="3"/><line x1="160" y1="22" x2="300" y2="110" stroke="#5b2fd6" stroke-width="3"/>
+            <line x1="104" y1="57" x2="160" y2="22" stroke="#c4145a" stroke-width="2" stroke-dasharray="5 4"/><line x1="160" y1="22" x2="216" y2="57" stroke="#c4145a" stroke-width="2" stroke-dasharray="5 4"/>
+            ${[[40, 97, '1'], [96, 62, '2'], [224, 62, '3'], [280, 97, '4']].map(([x, y, t], i) => `<circle cx="${x}" cy="${y}" r="9" fill="${sel[K[i]] ? '#0b8a45' : '#fff'}" stroke="${i < 2 ? '#0060a8' : '#5b2fd6'}" stroke-width="3"/><text x="${x}" y="${y + 26}" text-anchor="middle" font-size="15" font-weight="800" fill="currentColor">${t}</text>`).join('')}
+            <g stroke="#c4145a" stroke-width="4"><line x1="151" y1="13" x2="169" y2="31"/><line x1="169" y1="13" x2="151" y2="31"/></g>
+            <text x="180" y="20" font-size="14" font-weight="800" fill="#c4145a">δυσπρόσιτο</text></svg>
+          <p class="muted">Μέτρησε δύο σημεία πάνω στην ευθεία <b>πριν</b> το δυσπρόσιτο (1, 2) και δύο πάνω στην ευθεία <b>μετά</b> (3, 4). Η τομή των δύο ευθειών είναι το δυσπρόσιτο σημείο.</p>
+          ${next ? `<button class="btn primary big" id="ll-meas" style="white-space:normal">● Μέτρηση σημείου ${({ a: '1 (πριν)', b: '2 (πριν)', c: '3 (μετά)', d: '4 (μετά)' })[next]}</button>` : `<button class="btn" id="ll-clear">↺ Νέα τομή</button>`}
+          ${K.map(k => pp(k, 'Σημείο ' + lbl[k] + (sel[k] ? ' ✓' : ''))).join('')}`;
         bindPP(b, sel, open, open);
-        calc = () => (sel.a && sel.b && sel.c && sel.d) ? HCOGO.lineLine(sel.a, sel.b, sel.c, sel.d) : null;
+        const mb = hb.querySelector('#ll-meas');
+        if (mb) mb.onclick = async () => {
+          if (!A.pos) return A.toast('Δεν υπάρχει θέση GNSS', 'bad');
+          try {
+            const r = await A.measure({ raw: true, btn: mb }); if (!r) return;
+            const pt = r.pt; pt.name = A.uniqueName('ΔΣ' + ({ a: '1', b: '2', c: '3', d: '4' }[next]) + '_' + (A.proj.points.length + 1)); pt.code = 'ΤΟΜΗ';
+            A.storePoint(pt, true); sel[next] = pt; A.sound('point'); open();
+          } catch (e) { A.toast(e.message, 'bad'); }
+        };
+        const cl = hb.querySelector('#ll-clear'); if (cl) cl.onclick = () => { K.forEach(k => delete sel[k]); A.map.layers.measure = []; A.map.redraw(); open(); };
+        calc = () => {
+          if (!(sel.a && sel.b && sel.c && sel.d)) return null;
+          const p = HCOGO.lineLine(sel.a, sel.b, sel.d, sel.c); if (!p) return null;
+          const q = HCOGO.lineLine(sel.d, sel.c, sel.a, sel.b);
+          const z1 = p.Z, z2 = q ? q.Z : null;
+          p.Z = (z1 != null && z2 != null) ? (z1 + z2) / 2 : (z1 != null ? z1 : z2);
+          p._dz = (z1 != null && z2 != null) ? z1 - z2 : null;
+          const L1 = Math.hypot(sel.b.E - sel.a.E, sel.b.N - sel.a.N), L2 = Math.hypot(sel.c.E - sel.d.E, sel.c.N - sel.d.N);
+          const t1 = ((p.E - sel.a.E) * (sel.b.E - sel.a.E) + (p.N - sel.a.N) * (sel.b.N - sel.a.N)) / (L1 * L1);
+          const t2 = ((p.E - sel.d.E) * (sel.c.E - sel.d.E) + (p.N - sel.d.N) * (sel.c.N - sel.d.N)) / (L2 * L2);
+          p._ang = HCOGO.angleAt(p, sel.a, sel.d);
+          p._d2 = Math.hypot(p.E - sel.b.E, p.N - sel.b.N); p._d3 = Math.hypot(p.E - sel.c.E, p.N - sel.c.N);
+          p._warn = [];
+          if (p._ang < 20 || p._ang > 160) p._warn.push('Οι ευθείες τέμνονται υπό πολύ οξεία γωνία — αδύναμη γεωμετρία');
+          if (t1 < 1 || t2 < 1) p._warn.push('Η τομή δεν βρίσκεται μετά τα σημεία 2 και 3 — έλεγξε τη σειρά');
+          if (p._d2 > 3 * L1 || p._d3 > 3 * L2) p._warn.push('Μεγάλη προέκταση σε σχέση με την απόσταση των σημείων — βάλε τα σημεία πιο αραιά');
+          A.map.layers.measure = [sel.a, p, sel.d]; A.map.redraw();
+          return p;
+        };
+        A._onSheetClose = () => { A.map.layers.measure = []; A.map.redraw(); };
       }
       const show = () => {
         const p = calc(); const box = b.querySelector('#r');
         if (!p) { box.innerHTML = ''; return; }
-        const extra = sel.m === 'll' ? [['Γωνία τομής', HCOGO.angleAt(p, sel.a, sel.c).toFixed(3) + '°']] : [];
-        box.innerHTML = `<div class="result">${kvHtml([['X', F(p.E)], ['Y', F(p.N)], ['Z', F(p.Z)]].concat(extra))}</div>`;
+        const extra = sel.m === 'll' ? [['Γωνία ευθειών', p._ang.toFixed(2) + '°'], ['Απόσταση από 2 / από 3', p._d2.toFixed(3) + ' / ' + p._d3.toFixed(3) + ' m']].concat(p._dz != null ? [['Διαφορά Z των δύο ευθειών', p._dz.toFixed(3) + ' m']] : []) : [];
+        const warn = p._warn && p._warn.length ? `<br>⚠ ${p._warn.map(esc).join('<br>⚠ ')}` : '';
+        box.innerHTML = `<div class="result ${warn ? 'warn' : 'ok'}">${kvHtml([['X', F(p.E)], ['Y', F(p.N)], ['Z', F(p.Z)]].concat(extra))}${warn}</div>`;
       };
       show();
       bindResult(b, () => calc() || (A.toast('Συμπλήρωσε τα στοιχεία', 'bad'), null), 'ΔΥΣΠΡ');
