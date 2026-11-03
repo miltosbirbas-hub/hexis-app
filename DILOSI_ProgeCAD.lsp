@@ -1,5 +1,5 @@
 ;;; ================================================================
-;;; DILOSI.LSP v1.2 - HEXIS CAD Tools / BRB DEVELOPMENT MON. I.K.E.
+;;; DILOSI.LSP v1.3 - HEXIS CAD Tools / BRB DEVELOPMENT MON. I.K.E.
 ;;; Δηλώσεις τοπογραφικού διαγράμματος:
 ;;;   - Δήλωση Μηχανικού Ν.651/77 & Ν.1337/83 (εντός / εκτός σχεδίου)
 ;;;   - Δήλωση Ιδιοκτήτη Ν.4030/2011 (θέση - όρια - ανάθεση)
@@ -252,6 +252,7 @@
   (w "      : edit_box { key = \"ot\"; label = \"Ο.Τ. :\"; edit_width = 10; }")
   (w "      : edit_box { key = \"kaek\"; label = \"ΚΑΕΚ :\"; edit_width = 22; }")
   (w "    }")
+  (w "    : button { key = \"bkaek\"; label = \"<< Συμπλήρωση από ΚΑΕΚ (HEXIS-APP: όροι, ΦΕΚ, θέση)\"; width = 52; }")
   (w "  }")
   (w "  : row {")
   (w "    : button { key = \"prev\"; label = \"< Πίσω\"; width = 12; }")
@@ -439,6 +440,38 @@
   (action_tile "ins"  "(dl:grab *KEYS*)(done_dialog 1)")
   (action_tile "can"  "(done_dialog 0)"))
 
+
+;; ---------------- συμπλήρωση από ΚΑΕΚ (HEXIS-APP) ----------------
+(defun dl:from-kaek ( / d k f2 st)
+  (if (null hx:oroi)
+        (if (findfile "HEXISNET.lsp") (load (findfile "HEXISNET.lsp"))
+          (if (findfile "HEXISNET_ProgeCAD.lsp") (load (findfile "HEXISNET_ProgeCAD.lsp")))))
+      (if (null hx:oroi)
+        (progn (princ (strcat "\n" "Δεν βρέθηκε το HEXISNET.lsp — φόρτωσέ το με APPLOAD.")) (setq d 'skip)))
+  (setq k (dl:get "kaek"))
+  (if (and hx:oroi (/= d 'skip))
+    (if (not (dl:nz k))
+      (alert "Γράψε πρώτα το ΚΑΕΚ στη σελίδα 1.")
+      (if (setq d (hx:oroi k))
+        (progn
+          (defun f2 (key fld) (if (and (/= (hx:v d key) "") (not (dl:nz (dl:get fld)))) (dl:set fld (hx:v d key))))
+          (f2 "EMBADON" "emb") (f2 "DIMOS" "dimos") (f2 "OT" "ot") (f2 "OIKISMOS" "thesi")
+          (setq st (hx:v d "KATASTASI"))
+          (dl:set "pos" (cond ((= st "sxedio") "0") ((= st "oikismos") "2") (T "3")))
+          (if (= (hx:v d "GPS") "1") (progn (dl:set "gps" "1") (f2 "FEK_GPS" "gpsfek")))
+          (if (= (hx:v d "ZOE") "1") (progn (dl:set "zoe" "1") (f2 "FEK_ZOE" "zoefek")))
+          (f2 "FEK_SXEDIO" "fekrym") (f2 "FEK_OROI" "fekoron") (f2 "FEK_OIKISMOU" "oikfek")
+          (f2 "ART_EMB" "artemb") (f2 "PROSOPO" "pros")
+          (cond ((= (hx:v d "ARTIO") "1") (dl:set "artio" "1")) ((= (hx:v d "ARTIO") "0") (dl:set "artio" "0")))
+          (if (= (hx:v d "ARXAIO") "1") (dl:set "arxaio" "1"))
+          (if (= (hx:v d "REMA") "1") (dl:set "rema" "1"))
+          (alert (strcat "HEXIS-APP — ΚΑΕΚ " (hx:v d "KAEK") "\n\n"
+                         (hx:v d "KATASTASI_TXT")
+                         (if (/= (hx:v d "MAX_DOMISI") "") (strcat "\nΜέγιστη δόμηση: " (hx:v d "MAX_DOMISI") " τ.μ. · Σ.Α.Ο. " (hx:v d "SAO")) "")
+                         "\n\nΣυμπληρώθηκαν: θέση, ΦΕΚ, αρτιότητα, πρόσωπο και τα κενά πεδία."
+                         "\nΈλεγξε τις σελίδες 2-4 πριν την εισαγωγή."))))))
+  (princ))
+
 (defun dl:dialog ( / dcl pg res id)
   (dl:init)
   (setq dcl (dl:dclfile))
@@ -456,7 +489,8 @@
            (dl:fill *KEYS*)
            (action_tile "eidos" "(dl:set \"eidos\" $value)")
            (action_tile "bpoly" "(dl:grab *KEYS*)(done_dialog 21)")
-           (action_tile "btab"  "(dl:grab *KEYS*)(done_dialog 22)"))
+           (action_tile "btab"  "(dl:grab *KEYS*)(done_dialog 22)")
+           (action_tile "bkaek" "(dl:grab *KEYS*)(done_dialog 23)"))
           ((= pg 2)
            (setq *KEYS* (list "gps" "gpsfek" "zoe" "zoefek" "parad" "fekrym" "fekoron" "oikfek"))
            (set_tile (strcat "p" (dl:get "pos")) "1")
@@ -496,6 +530,7 @@
           ((= res 1) (setq pg 0))
           ((= res 21) (dl:prop-info nil) (setq pg 1))
           ((= res 22) (dl:table-info) (setq pg 1))
+          ((= res 23) (dl:from-kaek) (setq pg 1))
           ((and (> res 10) (< res 16)) (setq pg (- res 10)))
           (T (setq pg 0))))))
   res)

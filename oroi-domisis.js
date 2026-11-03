@@ -189,7 +189,7 @@ const STATUS_LABEL = {
 function oikismosMax(E){
   if(!(E>0)) return null;
   if(E <= 200) return {max:E,   rule:"γήπεδο έως 200 τ.μ. → ΣΔ 1 (δόμηση = εμβαδόν)"};
-  if(E < 700)  return {max:240, rule:"γήπεδο έως 699,99 τ.μ. → μέγιστη δόμηση 240 τ.μ."};
+  if(E < 700)  return {max:240, rule:"γήπεδο έως 699,99 τ.μ. → μέγιστη δόμηση 240 τ.μ. (+ πατάρι ξηράς δόμησης έως 40 τ.μ.)"};
   return {max:400, rule:"γήπεδο από 700 τ.μ. → μέγιστη δόμηση 400 τ.μ."};
 }
 /* Ενιαίος υπολογισμός (καθαρή συνάρτηση — ελέγχεται με τεστ) */
@@ -209,7 +209,14 @@ function computeCalc(st, E, L){
     if(smallSettlementRegime(L)){ const m = oikismosMax(E); if(m && m.max < mx){ mx = m.max; rule = m.rule + " (όριο οικισμού <2.000 κατ.)"; } }
     return {kind:"sxedio", max:mx, sao:mx/E, rule, sd:s0, kalPct:kv, kalM2: kv!=null ? kv*E/100 : null};
   }
-  return {kind:"ektos", kalPct:10, kalM2:0.10*E};
+  const k = ektosKatoikia(E);
+  return {kind:"ektos", kalPct:10, kalM2:0.10*E, max: k ? k.max : null, sao: k ? k.max/E : null, rule: k ? k.rule : null};
+}
+/* εκτός σχεδίου, κατοικία (άρ.256 ν.5306/2026 — ίδιος κανόνας με το OROIDOM) */
+function ektosKatoikia(E){
+  if(!(E >= 4000)) return null;
+  if(E <= 8000) return {max:186 + (E-4000)*0.018, rule:"κατοικία, Ε 4.000–8.000 τ.μ.: 186 + (Ε−4.000)×0,018 τ.μ."};
+  return {max:Math.min(360, 258 + (E-8000)*0.009), rule:"κατοικία, Ε > 8.000 τ.μ.: 258 + (Ε−8.000)×0,009 τ.μ., μέγιστο 360 τ.μ."};
 }
 function num(v){ const n = typeof v==="number" ? v : parseFloat(String(v||"").replace(",",".")); return isFinite(n) ? n : null; }
 
@@ -296,8 +303,12 @@ function renderResults(){
     if(a0 && a0.ELAX_EMBADO_M2) h += cardRow("Έλεγχος αρτιότητας (κατά κανόνα)", artiCheck(E, front, a0.ELAX_EMBADO_M2, a0.ELAX_PROSOP_M), "για παρεκκλίσεις δες τους όρους πιο πάνω");
   } else {
     h += cardRow("Έλεγχος αρτιότητας (κατά κανόνα)", artiCheck(E, front, 4000, 25), "πρόσωπο 45 μ. & βάθος 50 μ. όταν το πρόσωπο είναι σε διεθνή/εθνική/επαρχιακή/δημοτική/κοινοτική οδό · μεταβατικές παρεκκλίσεις άρθ. 273");
-    h += cardRow("Μέγιστη κάλυψη", `<b>${fmt(0.10*E)} τ.μ.</b> (10%)`, "");
-    h += `<div class="od-txt">Η μέγιστη δόμηση εκτός σχεδίου εξαρτάται από τη χρήση (κατοικία, τουριστικά, αγροτικά κ.λπ., άρθ. 251–262) — δεν υπολογίζεται αυτόματα εδώ.</div>`;
+    if(C.max!=null){
+      h += cardRow("Μέγιστη δόμηση κατοικίας", `<b class="od-big">${fmt(C.max)} τ.μ.</b>`, esc(C.rule) + " (άρ. 256)");
+      h += cardRow("Σ.Α.Ο.", `<b class="od-big">${fmt(C.sao,3)}</b>`, `${fmt(C.max)} ÷ ${fmt(E)} τ.μ. — μέγιστη δόμηση ÷ εμβαδόν γηπέδου`);
+    } else h += cardRow("Μέγιστη δόμηση κατοικίας", "<b>—</b>", "γήπεδο κάτω από 4.000 τ.μ.: μη άρτιο κατά κανόνα — έλεγξε τις μεταβατικές παρεκκλίσεις (άρ. 273)");
+    h += cardRow("Μέγιστη κάλυψη", `<b>${fmt(C.kalM2)} τ.μ.</b> (10%)`, "");
+    h += `<div class="od-txt">Για άλλες χρήσεις (τουριστικά, αγροτικά, βιομηχανικά κ.λπ.) ισχύουν διαφορετικοί όροι — άρθ. 252–263.</div>`;
   }
   h += `</div>`;
 
@@ -359,7 +370,7 @@ function summary(){
     (r.querySelector(".od-l")||{}).textContent || "", ((r.querySelector(".od-v")||{}).innerText || "").replace(/\s*\n\s*/g," · ")]);
   return {status: STATUS_LABEL[st]||st, front: S.frontManual!=null ? S.frontManual : S.parcel && S.parcel.front, calc};
 }
-window.HXOroi = { polysOf, openRing, mainOuter, interiorPoint, _t:{ statusOf, oikismosMax, computeCalc, smallSettlementRegime },
+window.HXOroi = { polysOf, openRing, mainOuter, interiorPoint, _t:{ statusOf, oikismosMax, computeCalc, smallSettlementRegime, ektosKatoikia },
   state: ()=> S.parcel ? { parcel:S.parcel, plan:S.plan, status: statusOf((S.plan&&S.plan.layers)||{}, S.manual), summary: summary() } : null };
 
 /* ---------- ροή ---------- */

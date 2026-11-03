@@ -1,0 +1,180 @@
+;;; ================================================================
+;;; HEXISNET.LSP v1.0 - HEXIS-APP / BRB DEVELOPMENT MON. I.K.E.
+;;; Σύνδεση AutoCAD / progeCAD με τον λογαριασμό HEXIS-APP:
+;;; όροι δόμησης από ΚΑΕΚ (Ενιαίος Ψηφιακός Χάρτης + Κτηματολόγιο).
+;;; Εντολές:  HEXISLOGIN   σύνδεση με email / κωδικό HEXIS-APP
+;;;           HEXISLOGOUT  αποσύνδεση
+;;;           OROIKAEK     όροι δόμησης από ΚΑΕΚ (γραμμή εντολών)
+;;; Χρησιμοποιείται και από τα OROIDOM (επιλογή 5) και DILOSI.
+;;; Ο κωδικός ΔΕΝ αποθηκεύεται. Κρατιέται μόνο το κλειδί συνεδρίας
+;;; του λογαριασμού (μεταβλητή HEXIS_RT), που ανανεώνεται μόνο του.
+;;; Έκδοση για progeCAD — κωδικοποίηση ANSI Windows-1253 (Ελληνικά)
+;;; ================================================================
+(vl-load-com)
+
+(setq *HX-SB*   "https://oucqqudfdimccgowvpqp.supabase.co")
+(setq *HX-ANON* "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8")
+(setq *HX-FN*   (strcat *HX-SB* "/functions/v1/oroi-domisis"))
+(if (null *HX-AT*) (setq *HX-AT* nil *HX-EXP* 0.0))
+
+;; ---------------- HTTP ----------------
+(defun hx:http (method url headers body / o r)
+  (setq o (vl-catch-all-apply (function vlax-create-object) (list "MSXML2.ServerXMLHTTP.6.0")))
+  (if (or (null o) (vl-catch-all-error-p o))
+    (setq o (vl-catch-all-apply (function vlax-create-object) (list "WinHttp.WinHttpRequest.5.1"))))
+  (if (or (null o) (vl-catch-all-error-p o))
+    (list 0 "Δεν υπάρχει υποστήριξη HTTP (MSXML/WinHttp) σε αυτό το CAD.")
+    (progn
+      (setq r (vl-catch-all-apply
+        (function (lambda ()
+          (vlax-invoke-method o "open" method url :vlax-false)
+          (foreach h headers (vlax-invoke-method o "setRequestHeader" (car h) (cdr h)))
+          (vlax-invoke-method o "send" (if body body ""))
+          (list (vlax-get-property o "status") (vlax-get-property o "responseText"))))))
+      (vl-catch-all-apply (function vlax-release-object) (list o))
+      (if (vl-catch-all-error-p r)
+        (list 0 (strcat "Σφάλμα σύνδεσης: " (vl-catch-all-error-message r)))
+        r))))
+
+;; ---------------- JSON (μόνο ό,τι χρειαζόμαστε) ----------------
+(defun hx:jesc (s / i c o)
+  (setq o "" i 1)
+  (while (<= i (strlen s))
+    (setq c (substr s i 1))
+    (setq o (strcat o (cond ((= c "\\") "\\\\") ((= c "\"") "\\\"") (T c))))
+    (setq i (1+ i)))
+  o)
+(defun hx:jget (js key / p s e n)
+  (setq p (vl-string-search (strcat "\"" key "\"") js))
+  (if p
+    (progn
+      (setq s (+ p (strlen key) 2) n (strlen js))
+      (while (and (< s n) (member (substr js (1+ s) 1) (list ":" " "))) (setq s (1+ s)))
+      (if (= (substr js (1+ s) 1) "\"")
+        (progn (setq e (vl-string-search "\"" js (1+ s))) (if e (substr js (+ s 2) (- e s 1)) nil))
+        (progn (setq e s)
+               (while (and (< e n) (not (member (substr js (1+ e) 1) (list "," "}")))) (setq e (1+ e)))
+               (substr js (1+ s) (- e s)))))
+    nil))
+
+;; ---------------- συνεδρία ----------------
+(defun hx:now () (* (getvar "DATE") 86400.0))
+(defun hx:take (res / js at rt ex)
+  (setq js (cadr res))
+  (if (and (= (car res) 200) (setq at (hx:jget js "access_token")))
+    (progn
+      (setq rt (hx:jget js "refresh_token") ex (hx:jget js "expires_in"))
+      (setq *HX-AT* at *HX-EXP* (+ (hx:now) (- (if ex (atof ex) 3600.0) 120.0)))
+      (if rt (setenv "HEXIS_RT" rt))
+      T)
+    (progn
+      (setq *HX-AT* nil)
+      (princ (strcat "\n" "HEXIS-APP: "
+        (cond ((and js (vl-string-search "invalid_grant" js)) "λάθος email ή κωδικός (ή η συνεδρία έληξε).")
+              ((= (car res) 0) (cadr res))
+              (T (strcat "η σύνδεση απέτυχε (HTTP " (itoa (car res)) ").")))))
+      nil)))
+(defun hx:dcl ( / p f)
+  (setq p (strcat (getvar "TEMPPREFIX") "hexis_login.dcl") f (open p "w"))
+  (foreach s (list
+    "hxlogin : dialog { label = \"HEXIS-APP - Σύνδεση\";"
+    "  : text { label = \"Σύνδεση με τον λογαριασμό σου στο hexis-app.gr\"; }"
+    "  : edit_box { key = \"em\"; label = \"Email :\"; edit_width = 36; }"
+    "  : edit_box { key = \"pw\"; label = \"Κωδικός :\"; edit_width = 36; password_char = \"*\"; }"
+    "  : text { label = \"Ο κωδικός δεν αποθηκεύεται.\"; }"
+    "  ok_cancel;"
+    "}") (write-line s f))
+  (close f) p)
+(defun hx:ask ( / id em pw r)
+  (setq id (load_dialog (hx:dcl)))
+  (if (and (> id 0) (new_dialog "hxlogin" id))
+    (progn
+      (set_tile "em" (if (getenv "HEXIS_EMAIL") (getenv "HEXIS_EMAIL") ""))
+      (action_tile "accept" "(setq em (get_tile \"em\") pw (get_tile \"pw\")) (done_dialog 1)")
+      (setq r (start_dialog)) (unload_dialog id)
+      (if (and (= r 1) em (/= em "") pw (/= pw "")) (cons em pw) nil))
+    nil))
+(defun hx:login ( / cr ok em)
+  (if (setq cr (hx:ask))
+    (progn
+      (princ "\nHEXIS-APP: σύνδεση...")
+      (setq em (car cr))
+      (setq ok (hx:take (hx:http "POST" (strcat *HX-SB* "/auth/v1/token?grant_type=password")
+                 (list (cons "apikey" *HX-ANON*) (cons "Content-Type" "application/json"))
+                 (strcat "{\"email\":\"" (hx:jesc em) "\",\"password\":\"" (hx:jesc (cdr cr)) "\"}"))))
+      (setq cr nil)
+      (if ok (progn (setenv "HEXIS_EMAIL" em) (princ " συνδέθηκες.")))
+      ok)
+    nil))
+(defun hx:refresh ( / rt)
+  (setq rt (getenv "HEXIS_RT"))
+  (if (and rt (/= rt ""))
+    (hx:take (hx:http "POST" (strcat *HX-SB* "/auth/v1/token?grant_type=refresh_token")
+               (list (cons "apikey" *HX-ANON*) (cons "Content-Type" "application/json"))
+               (strcat "{\"refresh_token\":\"" rt "\"}")))
+    nil))
+(defun hx:token ()
+  (cond ((and *HX-AT* (< (hx:now) *HX-EXP*)) *HX-AT*)
+        ((hx:refresh) *HX-AT*)
+        ((hx:login) *HX-AT*)
+        (T nil)))
+
+;; ---------------- όροι από ΚΑΕΚ ----------------
+(defun hx:split (s / p out)
+  (setq out nil)
+  (while (setq p (vl-string-search "\n" s))
+    (setq out (cons (vl-string-trim "\r" (substr s 1 p)) out) s (substr s (+ p 2))))
+  (if (/= s "") (setq out (cons (vl-string-trim "\r" s) out)))
+  (reverse out))
+(defun hx:parse (txt / d rows p k v q)
+  (setq d nil rows nil)
+  (foreach ln (hx:split txt)
+    (if (setq p (vl-string-search "=" ln))
+      (progn
+        (setq k (substr ln 1 p) v (substr ln (+ p 2)))
+        (if (= k "ROW")
+          (if (setq q (vl-string-search "|" v))
+            (setq rows (cons (cons (substr v 1 q) (substr v (+ q 2))) rows)))
+          (setq d (cons (cons k v) d))))))
+  (cons (cons "ROWS" (reverse rows)) d))
+(defun hx:v (d k / a) (if (setq a (assoc k d)) (cdr a) ""))
+;; επιστρέφει λίστα (ΚΛΕΙΔΙ . τιμή) ή nil
+(defun hx:oroi (kaek / tk res d n)
+  (setq kaek (strcase (vl-string-trim " " kaek)) n 0 d nil)
+  (while (and (< n 2) (null d) (setq tk (hx:token)))
+    (princ (strcat "\nHEXIS-APP: όροι δόμησης για ΚΑΕΚ " kaek "..."))
+    (setq res (hx:http "POST" *HX-FN*
+                (list (cons "Content-Type" "application/json") (cons "apikey" *HX-ANON*) (cons "Authorization" (strcat "Bearer " tk)))
+                (strcat "{\"action\":\"lisp\",\"kaek\":\"" (hx:jesc kaek) "\"}")))
+    (cond
+      ((= (car res) 401) (setq *HX-AT* nil *HX-EXP* 0.0 n (1+ n)))
+      ((= (car res) 200)
+        (setq d (hx:parse (cadr res)))
+        (if (/= (hx:v d "OK") "1")
+          (progn (princ (strcat "\nHEXIS-APP: " (hx:v d "MSG"))) (setq d nil n 2))))
+      (T (princ (strcat "\nHEXIS-APP: σφάλμα " (itoa (car res)) " " (if (= (car res) 0) (cadr res) ""))) (setq n 2))))
+  (if d
+    (setq *BRB-OROI* (list (cons "OT" (hx:v d "OT"))
+                           (cons "PERIOXI" (if (/= (hx:v d "OIKISMOS") "") (hx:v d "OIKISMOS") (hx:v d "DIMOS")))
+                           (cons "FEK" (hx:v d "FEK_OROI"))
+                           (cons "KAEK" kaek))
+          *HX-LAST* d))
+  d)
+
+;; ---------------- εντολές ----------------
+(defun c:HEXISLOGIN () (setq *HX-AT* nil *HX-EXP* 0.0) (hx:login) (princ))
+(defun c:HEXISLOGOUT ()
+  (setenv "HEXIS_RT" "") (setq *HX-AT* nil *HX-EXP* 0.0)
+  (princ "\nHEXIS-APP: αποσυνδέθηκες από αυτόν τον υπολογιστή.") (princ))
+(defun c:OROIKAEK ( / k d)
+  (setq k (getstring (strcat "\n" "ΚΑΕΚ: ")))
+  (if (and k (/= k "") (setq d (hx:oroi k)))
+    (progn
+      (princ (strcat "\n" "----------------------------------------"))
+      (foreach r (hx:v d "ROWS") (princ (strcat "\n" (car r) ": " (cdr r))))
+      (princ (strcat "\n" "----------------------------------------"))
+      (princ (strcat "\n" "Για πίνακα στο σχέδιο: OROIDOM -> 5 (από ΚΑΕΚ)."))))
+  (princ))
+
+(princ "\nHEXISNET v1.0 φορτώθηκε. Εντολές: OROIKAEK, HEXISLOGIN, HEXISLOGOUT")
+(princ)

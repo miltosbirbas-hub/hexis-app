@@ -35,6 +35,12 @@ jobs:
           curl -s -o out/tif_part.bin -w "tif_range %{http_code} %{size_download}B\n" -H "x-hx-selftest: $KEY" -H "Origin: https://hexis-app.gr" -H "Range: bytes=0-65535" -D out/tif_headers.txt \
             "https://$REF.supabase.co/functions/v1/oroi-domisis?tif=https%3A%2F%2Fsdigmap.tee.gov.gr%2F_Digitize_LOW%2F2_GEOREF_EGSA_LOW%2F102691FS000831-1986E.tif" | tee -a out/summary.txt
           curl -s -o /dev/null -w "tif_bad %{http_code}\n" -H "x-hx-selftest: $KEY" "https://$REF.supabase.co/functions/v1/oroi-domisis?tif=https%3A%2F%2Fexample.com%2Fx.tif" | tee -a out/summary.txt
+          for pt in "209179.9,4296394.6" "274177.6,4277664.2" "210410.3,4292903.8"; do
+            K=$(curl -s "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/GEOTEMAXIA_LEITOURGOUN_ON_gdb/FeatureServer/0/query?f=json&where=1%3D1&geometry=$pt&geometryType=esriGeometryPoint&inSR=2100&spatialRel=esriSpatialRelIntersects&outFields=KAEK&returnGeometry=false" | python3 -c "import json,sys; f=json.load(sys.stdin).get('features',[]); print(f[0]['attributes']['KAEK'] if f else '')")
+            echo "point $pt -> KAEK $K" | tee -a out/summary.txt
+            [ -n "$K" ] && curl -s -o "out/lisp_$K.txt" -w "lisp $K %{http_code} %{time_total}s\n" -X POST "https://$REF.supabase.co/functions/v1/oroi-domisis" \
+              -H "Content-Type: application/json" -H "x-hx-selftest: $KEY" --data "{\"action\":\"lisp\",\"kaek\":\"$K\"}" | tee -a out/summary.txt
+          done
           curl -s -o out/noauth.json -w "noauth %{http_code}\n" -X POST "https://$REF.supabase.co/functions/v1/oroi-domisis" -H "Content-Type: application/json" --data '{"x":1,"y":2}' | tee -a out/summary.txt
       - name: Δημοσίευση στο probe-out
         run: |

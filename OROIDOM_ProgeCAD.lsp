@@ -1,9 +1,9 @@
-;;; OROIDOM.LSP  v3.1 — Πίνακας Όρων Δόμησης
+;;; OROIDOM.LSP  v3.2 — Πίνακας Όρων Δόμησης
 ;;; ν.5306/2026 (Ταγαράς) · ΠΔ 24.4/1985 · ΦΕΚ 289/ΑΑΠ/2011
 ;;; Εντολή: OROIDOM  |  HEXIS Platform — BRB DEVELOPMENT
 ;;; Έκδοση για ProgeCAD / IntelliCAD — κωδικοποίηση ANSI Windows-1253 (Ελληνικά)
 
-(defun C:OROIDOM ( / *error* od-txt od-hline od-len
+(defun C:OROIDOM ( / *error* od-txt od-hline od-len kaekd
                      mode fek onom subt rows
                      pt h y lblw valw totw rowh lineh row2 lbl vals v maxl )
 
@@ -29,24 +29,45 @@
                    (cons 100 "AcDbPolyline") (cons 90 2) (cons 70 0) (cons 43 w)
                    (cons 10 (list x1 y)) (cons 10 (list x2 y)))))
 
-  (initget 1 "1 2 3 4")
+  (initget 1 "1 2 3 4 5")
   (setq mode (getkword (strcat
     "\n" "Είδος δόμησης:"
     "\n" "  1  εντός σχεδίου πόλης"
     "\n" "  2  οικισμός <2000 κατ."
     "\n" "  3  οικισμός προ '23"
     "\n" "  4  εκτός σχεδίου"
-    "\n[1/2/3/4]: ")))
+    "\n" "  5  από ΚΑΕΚ (HEXIS-APP: Ενιαίος Ψηφιακός Χάρτης)"
+    "\n[1/2/3/4/5]: ")))
+
+  (if (= mode "5")
+    (progn
+      (if (null hx:oroi)
+        (if (findfile "HEXISNET.lsp") (load (findfile "HEXISNET.lsp"))
+          (if (findfile "HEXISNET_ProgeCAD.lsp") (load (findfile "HEXISNET_ProgeCAD.lsp")))))
+      (if (null hx:oroi)
+        (progn (princ (strcat "\n" "Δεν βρέθηκε το HEXISNET.lsp — φόρτωσέ το με APPLOAD.")) (exit)))
+      (setq kaekd (hx:oroi (getstring (strcat "\n" "ΚΑΕΚ: "))))
+      (if (null kaekd) (exit))))
 
   (if (member mode (list "2" "3"))
     (setq fek (getstring T (strcat "\n" "ΦΕΚ απόφ. Νομάρχη (Enter=κανένα): ")))
     (setq fek ""))
 
-  (setq onom (getstring T (strcat "\n" "Οικισμός/Περιοχή: ")))
+  (setq onom (if (= mode "5")
+    (cond ((/= (hx:v kaekd "OIKISMOS") "") (hx:v kaekd "OIKISMOS"))
+          ((/= (hx:v kaekd "DIMOS") "") (strcat "Δ. " (hx:v kaekd "DIMOS")))
+          (T (strcat "ΚΑΕΚ " (hx:v kaekd "KAEK"))))
+    (getstring T (strcat "\n" "Οικισμός/Περιοχή: "))))
   (if (= onom "") (setq onom "---"))
 
   ;; === ROWS ana mode ===
   (cond
+
+    ;; -- 5: APO KAEK (HEXIS-APP) --
+    ((= mode "5")
+      (setq subt (strcat (hx:v kaekd "KATASTASI_TXT") " — ΚΑΕΚ " (hx:v kaekd "KAEK")
+                         " · Ενιαίος Ψηφιακός Χάρτης (ΤΕΕ/ΥΠΕΝ) · HEXIS-APP"))
+      (setq rows (mapcar (function (lambda (r) (list (car r) (cdr r)))) (hx:v kaekd "ROWS"))))
 
     ;; -- 1: ENTOS SXEDIOU --
     ((= mode "1")
@@ -137,14 +158,19 @@
   (setq y (- y (* h 1.1)))
   (od-hline (car pt) (+ (car pt) totw) y (* h 0.06))
 
+  (if (= mode "5")
+    (progn
+      (setq y (- y (* h 1.3)))
+      (od-txt (car pt) y (* h 0.75) (hx:v kaekd "NOTE"))))
+
   (if (member mode (list "2" "3"))
     (progn
       (setq y (- y (* h 1.3)))
       (od-txt (car pt) y (* h 0.75)
         "Το ΠΔ 24.4/1985 ισχύει μεταβατικά (ν.5306/2026 άρ.247§3) έως την οριοθέτηση του οικισμού με νέο ΠΔ.")))
 
-  (princ (strcat "\n" "OROIDOM v3.1 — Ο πίνακας εισήχθη (layer OD-PIN, λευκά)."))
+  (princ (strcat "\n" "OROIDOM v3.2 — Ο πίνακας εισήχθη (layer OD-PIN, λευκά)."))
   (princ))
 
-(princ (strcat "\n" "OROIDOM v3.1 φορτώθηκε. Εντολή: OROIDOM"))
+(princ (strcat "\n" "OROIDOM v3.2 φορτώθηκε. Εντολή: OROIDOM"))
 (princ)

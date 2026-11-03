@@ -1,8 +1,8 @@
-;;; OROIDOM.LSP  v3.1 \U+2014 \U+03A0\U+03AF\U+03BD\U+03B1\U+03BA\U+03B1\U+03C2 \U+038C\U+03C1\U+03C9\U+03BD \U+0394\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7\U+03C2
+;;; OROIDOM.LSP  v3.2 \U+2014 \U+03A0\U+03AF\U+03BD\U+03B1\U+03BA\U+03B1\U+03C2 \U+038C\U+03C1\U+03C9\U+03BD \U+0394\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7\U+03C2
 ;;; \U+03BD.5306/2026 (\U+03A4\U+03B1\U+03B3\U+03B1\U+03C1\U+03AC\U+03C2) \U+00B7 \U+03A0\U+0394 24.4/1985 \U+00B7 \U+03A6\U+0395\U+039A 289/\U+0391\U+0391\U+03A0/2011
 ;;; \U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AE: OROIDOM  |  HEXIS Platform \U+2014 BRB DEVELOPMENT
 
-(defun C:OROIDOM ( / *error* od-txt od-hline od-len
+(defun C:OROIDOM ( / *error* od-txt od-hline od-len kaekd
                      mode fek onom subt rows
                      pt h y lblw valw totw rowh lineh row2 lbl vals v maxl )
 
@@ -28,24 +28,45 @@
                    (cons 100 "AcDbPolyline") (cons 90 2) (cons 70 0) (cons 43 w)
                    (cons 10 (list x1 y)) (cons 10 (list x2 y)))))
 
-  (initget 1 "1 2 3 4")
+  (initget 1 "1 2 3 4 5")
   (setq mode (getkword (strcat
     "\n" "\U+0395\U+03AF\U+03B4\U+03BF\U+03C2 \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7\U+03C2:"
     "\n" "  1  \U+03B5\U+03BD\U+03C4\U+03CC\U+03C2 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5 \U+03C0\U+03CC\U+03BB\U+03B7\U+03C2"
     "\n" "  2  \U+03BF\U+03B9\U+03BA\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2 <2000 \U+03BA\U+03B1\U+03C4."
     "\n" "  3  \U+03BF\U+03B9\U+03BA\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2 \U+03C0\U+03C1\U+03BF '23"
     "\n" "  4  \U+03B5\U+03BA\U+03C4\U+03CC\U+03C2 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5"
-    "\n[1/2/3/4]: ")))
+    "\n" "  5  \U+03B1\U+03C0\U+03CC \U+039A\U+0391\U+0395\U+039A (HEXIS-APP: \U+0395\U+03BD\U+03B9\U+03B1\U+03AF\U+03BF\U+03C2 \U+03A8\U+03B7\U+03C6\U+03B9\U+03B1\U+03BA\U+03CC\U+03C2 \U+03A7\U+03AC\U+03C1\U+03C4\U+03B7\U+03C2)"
+    "\n[1/2/3/4/5]: ")))
+
+  (if (= mode "5")
+    (progn
+      (if (null hx:oroi)
+        (if (findfile "HEXISNET.lsp") (load (findfile "HEXISNET.lsp"))
+          (if (findfile "HEXISNET_ProgeCAD.lsp") (load (findfile "HEXISNET_ProgeCAD.lsp")))))
+      (if (null hx:oroi)
+        (progn (princ (strcat "\n" "\U+0394\U+03B5\U+03BD \U+03B2\U+03C1\U+03AD\U+03B8\U+03B7\U+03BA\U+03B5 \U+03C4\U+03BF HEXISNET.lsp \U+2014 \U+03C6\U+03CC\U+03C1\U+03C4\U+03C9\U+03C3\U+03AD \U+03C4\U+03BF \U+03BC\U+03B5 APPLOAD.")) (exit)))
+      (setq kaekd (hx:oroi (getstring (strcat "\n" "\U+039A\U+0391\U+0395\U+039A: "))))
+      (if (null kaekd) (exit))))
 
   (if (member mode (list "2" "3"))
     (setq fek (getstring T (strcat "\n" "\U+03A6\U+0395\U+039A \U+03B1\U+03C0\U+03CC\U+03C6. \U+039D\U+03BF\U+03BC\U+03AC\U+03C1\U+03C7\U+03B7 (Enter=\U+03BA\U+03B1\U+03BD\U+03AD\U+03BD\U+03B1): ")))
     (setq fek ""))
 
-  (setq onom (getstring T (strcat "\n" "\U+039F\U+03B9\U+03BA\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2/\U+03A0\U+03B5\U+03C1\U+03B9\U+03BF\U+03C7\U+03AE: ")))
+  (setq onom (if (= mode "5")
+    (cond ((/= (hx:v kaekd "OIKISMOS") "") (hx:v kaekd "OIKISMOS"))
+          ((/= (hx:v kaekd "DIMOS") "") (strcat "\U+0394. " (hx:v kaekd "DIMOS")))
+          (T (strcat "\U+039A\U+0391\U+0395\U+039A " (hx:v kaekd "KAEK"))))
+    (getstring T (strcat "\n" "\U+039F\U+03B9\U+03BA\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2/\U+03A0\U+03B5\U+03C1\U+03B9\U+03BF\U+03C7\U+03AE: "))))
   (if (= onom "") (setq onom "---"))
 
   ;; === ROWS ana mode ===
   (cond
+
+    ;; -- 5: APO KAEK (HEXIS-APP) --
+    ((= mode "5")
+      (setq subt (strcat (hx:v kaekd "KATASTASI_TXT") " \U+2014 \U+039A\U+0391\U+0395\U+039A " (hx:v kaekd "KAEK")
+                         " \U+00B7 \U+0395\U+03BD\U+03B9\U+03B1\U+03AF\U+03BF\U+03C2 \U+03A8\U+03B7\U+03C6\U+03B9\U+03B1\U+03BA\U+03CC\U+03C2 \U+03A7\U+03AC\U+03C1\U+03C4\U+03B7\U+03C2 (\U+03A4\U+0395\U+0395/\U+03A5\U+03A0\U+0395\U+039D) \U+00B7 HEXIS-APP"))
+      (setq rows (mapcar (function (lambda (r) (list (car r) (cdr r)))) (hx:v kaekd "ROWS"))))
 
     ;; -- 1: ENTOS SXEDIOU --
     ((= mode "1")
@@ -136,14 +157,19 @@
   (setq y (- y (* h 1.1)))
   (od-hline (car pt) (+ (car pt) totw) y (* h 0.06))
 
+  (if (= mode "5")
+    (progn
+      (setq y (- y (* h 1.3)))
+      (od-txt (car pt) y (* h 0.75) (hx:v kaekd "NOTE"))))
+
   (if (member mode (list "2" "3"))
     (progn
       (setq y (- y (* h 1.3)))
       (od-txt (car pt) y (* h 0.75)
         "\U+03A4\U+03BF \U+03A0\U+0394 24.4/1985 \U+03B9\U+03C3\U+03C7\U+03CD\U+03B5\U+03B9 \U+03BC\U+03B5\U+03C4\U+03B1\U+03B2\U+03B1\U+03C4\U+03B9\U+03BA\U+03AC (\U+03BD.5306/2026 \U+03AC\U+03C1.247\U+00A73) \U+03AD\U+03C9\U+03C2 \U+03C4\U+03B7\U+03BD \U+03BF\U+03C1\U+03B9\U+03BF\U+03B8\U+03AD\U+03C4\U+03B7\U+03C3\U+03B7 \U+03C4\U+03BF\U+03C5 \U+03BF\U+03B9\U+03BA\U+03B9\U+03C3\U+03BC\U+03BF\U+03CD \U+03BC\U+03B5 \U+03BD\U+03AD\U+03BF \U+03A0\U+0394.")))
 
-  (princ (strcat "\n" "OROIDOM v3.1 \U+2014 \U+039F \U+03C0\U+03AF\U+03BD\U+03B1\U+03BA\U+03B1\U+03C2 \U+03B5\U+03B9\U+03C3\U+03AE\U+03C7\U+03B8\U+03B7 (layer OD-PIN, \U+03BB\U+03B5\U+03C5\U+03BA\U+03AC)."))
+  (princ (strcat "\n" "OROIDOM v3.2 \U+2014 \U+039F \U+03C0\U+03AF\U+03BD\U+03B1\U+03BA\U+03B1\U+03C2 \U+03B5\U+03B9\U+03C3\U+03AE\U+03C7\U+03B8\U+03B7 (layer OD-PIN, \U+03BB\U+03B5\U+03C5\U+03BA\U+03AC)."))
   (princ))
 
-(princ (strcat "\n" "OROIDOM v3.1 \U+03C6\U+03BF\U+03C1\U+03C4\U+03CE\U+03B8\U+03B7\U+03BA\U+03B5. \U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AE: OROIDOM"))
+(princ (strcat "\n" "OROIDOM v3.2 \U+03C6\U+03BF\U+03C1\U+03C4\U+03CE\U+03B8\U+03B7\U+03BA\U+03B5. \U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AE: OROIDOM"))
 (princ)
