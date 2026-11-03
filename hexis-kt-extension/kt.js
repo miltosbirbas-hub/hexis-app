@@ -5,7 +5,17 @@
 // ανοίγει καρτέλα με ΕΝΑ ZIP (φάκελος «ΚΑΕΚ - Ιδιοκτήτης - ΟΤΑ» + υποφάκελοι όμορων).
 (() => {
   "use strict";
-  const send = (m) => new Promise((res) => chrome.runtime.sendMessage(m, res));
+  // αν το πρόσθετο ενημερώθηκε/ξαναφορτώθηκε, αυτή η σελίδα πρέπει να ανανεωθεί (F5)
+  const dead = () => { try { return !chrome.runtime || !chrome.runtime.id; } catch (e) { return true; } };
+  function deadNotice() {
+    const p = document.getElementById("hx-panel"); const m = p && p.querySelector(".msg");
+    if (m) { m.textContent = "Το πρόσθετο ενημερώθηκε — κάνε ανανέωση αυτής της σελίδας (F5) και πάτα ξανά."; m.classList.add("warn"); }
+    else alert("HEXIS-APP: το πρόσθετο ενημερώθηκε — κάνε ανανέωση της σελίδας (F5).");
+  }
+  const send = (m) => new Promise((res) => {
+    if (dead()) { deadNotice(); return res(null); }
+    try { chrome.runtime.sendMessage(m, (r) => { void chrome.runtime.lastError; res(r); }); } catch (e) { deadNotice(); res(null); }
+  });
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const norm = (s) => String(s || "").toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
   const vis = (el) => !!(el && (el.offsetWidth || el.offsetHeight || el.getClientRects().length)) && getComputedStyle(el).visibility !== "hidden";

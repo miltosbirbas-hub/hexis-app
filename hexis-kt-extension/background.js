@@ -36,11 +36,18 @@ async function toOrigin(msg) {
   if (!job || job.originTab == null) return null;
   try { return await chrome.tabs.sendMessage(job.originTab, msg); } catch (e) { return null; }
 }
-async function openDone() {
+async function openDone(from) {
   const url = chrome.runtime.getURL("done.html");
   const prev = (await chrome.storage.local.get("doneTab")).doneTab;
-  if (prev != null) { try { await chrome.tabs.update(prev, { active: true, url }); return; } catch (e) {} }
-  const t = await chrome.tabs.create({ url }); await chrome.storage.local.set({ doneTab: t.id });
+  if (prev != null) {
+    try { const t = await chrome.tabs.get(prev);
+      if ((t.url || t.pendingUrl || "").startsWith(url)) { await chrome.tabs.update(prev, { active: true, url }); try { await chrome.windows.update(t.windowId, { focused: true }); } catch (e) {} return; }
+    } catch (e) {}
+  }
+  const opt = { url, active: true };
+  if (from && from.windowId != null) { opt.windowId = from.windowId; opt.index = from.index + 1; }
+  const t = await chrome.tabs.create(opt); await chrome.storage.local.set({ doneTab: t.id });
+  try { await chrome.windows.update(t.windowId, { focused: true }); } catch (e) {}
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
@@ -91,7 +98,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       if (kt != null && (!sender.tab || sender.tab.id !== kt)) { try { await chrome.tabs.update(kt, { active: true }); await chrome.tabs.sendMessage(kt, { type: "resume" }); } catch (e) {} }
       reply({ ok: true });
     } else if (msg.type === "finish") {
-      await openDone(); reply({ ok: true });
+      await openDone(sender.tab); reply({ ok: true });
     } else reply({ ok: false });
   })();
   return true;
