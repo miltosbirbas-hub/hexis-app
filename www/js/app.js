@@ -10,7 +10,7 @@
     crs: 'EGSA87_HEPOS', crsCustom: '', theme: 'light', antH: 1.8, onlyFix: true, epochs: 5, qcClass: 'RT3',
     tolH: 0.02, tolV: 0.02, beep: true, heightMode: 'msl', base: 'none', uiv: 3, overlays: { esri_labels: false, kt_wms: false, hexis_kaek: false },
     googleKey: '', soRef: 'move', ntrip: { host: '', port: 2101, mount: '', user: '', pass: '', gga: true, auto: false }, gnss: { type: 'bt', address: '', name: '', host: '', port: 0, init: '' },
-    laser: { address: '', name: '' }, decl: 4.5, lastProject: null, textH: 0.25,
+    laser: { address: '', name: '' }, decl: 4.5, fixWait: 10, soundPoint: true, soundFix: true, volume: 0.25, lastProject: null, textH: 0.25,
   };
 
   const A = g.APP = {
@@ -136,6 +136,17 @@
     if (n.speed != null && n.speed > 0.6 && n.course != null) A.moveHeading = n.course + HGEO.convergence(n.lat, n.lon) * -1;
     p.heading = A.moveHeading != null ? A.moveHeading : null;
     A.pos = p;
+    if (A._lastFix !== fix) {
+      const prev = A._lastFix; A._lastFix = fix;
+      if (prev != null && HCONN.state.gnss === 'on') {
+        const now = Date.now();
+        if (!A._fixSndT || now - A._fixSndT > 2500) {
+          A._fixSndT = now;
+          if (fix === 'fix') { A.sound('fix'); A.toast('FIX ✓', 'ok', 1800); }
+          else if (prev === 'fix') { A.sound('lost'); vibrate([200, 100, 200]); A.toast('Απώλεια FIX → ' + fix.toUpperCase(), 'bad', 2500); }
+        }
+      }
+    }
     A.liveQC = A.qc.epoch(p);
     A.epochListeners.slice().forEach(f => f(p));
     if (A.settings.ntrip.gga && HCONN.hasNative()) { const now = Date.now(); if (!A._lastGgaSent || now - A._lastGgaSent > 9000) { A._lastGgaSent = now; HCONN.ntripSetGGA(n.lastGGA); } }
@@ -193,21 +204,60 @@
   A.nextName = nextName;
   A.findPoint = name => A.proj.points.find(p => p.name === name);
 
+  // epochs: αριθμός εποχών ή {sec: δευτερόλεπτα}
   A.collect = function (epochs, onlyFix, onProgress) {
+    const secMode = typeof epochs === 'object' && epochs && epochs.sec;
+    const dur = secMode ? epochs.sec * 1000 : 0;
+    if (secMode) epochs = 1;
     return new Promise((resolve, reject) => {
       const eps = []; let skipped = 0;
       const fixAge = A.qc.fixSince ? (Date.now() - A.qc.fixSince) / 1000 : 0;
       const jumps0 = A.qc.jumps;
       const t0 = Date.now();
       const f = p => {
-        if (onlyFix && p.fix !== 'fix') { skipped++; onProgress && onProgress(eps.length, epochs, 'Αναμονή FIX…'); if (Date.now() - t0 > Math.max(30000, epochs * 3000)) { done(); reject(new Error('Δεν υπήρξε FIX — η μέτρηση ακυρώθηκε')); } return; }
-        eps.push(p); onProgress && onProgress(eps.length, epochs);
+        if (onlyFix && p.fix !== 'fix') { skipped++; onProgress && onProgress(eps.length, epochs, 'Αναμονή FIX…'); if (Date.now() - t0 > Math.max(30000, epochs * 3000, dur * 2)) { done(); reject(new Error('Δεν υπήρξε FIX — η μέτρηση ακυρώθηκε')); } return; }
+        eps.push(p);
+        if (secMode) {
+          if (!f.t1) f.t1 = Date.now();
+          const el = (Date.now() - f.t1) / 1000;
+          onProgress && onProgress(el.toFixed(0) + ' s', (dur / 1000) + ' s');
+          if (Date.now() - f.t1 >= dur) { done(); resolve({ eps, skipped, fixAge, jumps: A.qc.jumps - jumps0 }); }
+          return;
+        }
+        onProgress && onProgress(eps.length, epochs);
         if (eps.length >= epochs) { done(); resolve({ eps, skipped, fixAge, jumps: A.qc.jumps - jumps0 }); }
       };
       const done = () => { A.epochListeners = A.epochListeners.filter(x => x !== f); A._cancelCollect = null; };
       A._cancelCollect = () => { done(); reject(new Error('Ακυρώθηκε')); };
       A.epochListeners.push(f);
     });
+  };
+
+  // Αναμονή μέχρι η λύση να μείνει σε FIX για «sec» δευτερόλεπτα
+  A.waitFix = function (sec, onProgress) {
+    return new Promise((resolve, reject) => {
+      const t0 = Date.now();
+      const f = p => {
+        const age = A.qc.fixSince && p.fix === 'fix' ? (Date.now() - A.qc.fixSince) / 1000 : 0;
+        onProgress && onProgress(age, sec);
+        if (age >= sec) { done(); resolve(age); }
+        else if (Date.now() - t0 > Math.max(120000, sec * 4000)) { done(); reject(new Error('Δεν σταθεροποιήθηκε FIX — η μέτρηση ακυρώθηκε')); }
+      };
+      const done = () => { A.epochListeners = A.epochListeners.filter(x => x !== f); A._cancelCollect = null; };
+      A._cancelCollect = () => { done(); reject(new Error('Ακυρώθηκε')); };
+      A.epochListeners.push(f);
+    });
+  };
+  A.markDone = function (btn, name) {
+    if (!btn) return;
+    if (!btn.dataset.label) btn.dataset.label = btn.innerHTML;
+    btn.classList.remove('busy'); btn.classList.add('done');
+    btn.innerHTML = '✓ ' + esc(name);
+    btn.title = 'Αποθηκεύτηκε ' + name + ' — πάτα για νέα μέτρηση';
+  };
+  A.measureSpec = function () {
+    const v = $('sv-epochs').value;
+    return /^t\d+/.test(v) ? { sec: parseInt(v.slice(1), 10) } : (parseInt(v, 10) || 1);
   };
 
   A.measure = async function (opt) {
@@ -217,12 +267,18 @@
     if (!A.pos) { A.toast('Δεν υπάρχει θέση — σύνδεσε δέκτη (Μενού → Σύνδεση δέκτη)', 'bad', 3500); return; }
     const onlyFix = $('sv-onlyfix').checked;
     if (onlyFix && A.pos.fix !== 'fix') { A.toast('Αναμονή για FIX…', '', 1500); }
-    const epochs = opt.epochs || parseInt($('sv-epochs').value, 10) || 1;
-    const label = btn.innerHTML;
-    btn.classList.add('busy');
+    const epochs = opt.epochs || A.measureSpec();
+    if (!btn.dataset.label) btn.dataset.label = btn.innerHTML;
+    const label = btn.dataset.label;
+    btn.classList.remove('done'); btn.classList.add('busy');
     try {
+      const fw = A.settings.fixWait || 0;
+      if (onlyFix && fw > 0) {
+        const age0 = A.qc.fixSince && A.pos.fix === 'fix' ? (Date.now() - A.qc.fixSince) / 1000 : 0;
+        if (age0 < fw) await A.waitFix(fw, (a, n) => { btn.innerHTML = a > 0 ? `⏳ FIX ${a.toFixed(0)}/${n} s — Άκυρο` : '⏳ Αναμονή FIX — Άκυρο'; });
+      }
       const r = await A.collect(epochs, onlyFix, (i, n, msg) => { btn.innerHTML = msg ? '⏳ ' + msg : `■ ${i}/${n} — Άκυρο`; });
-      const ev = A.qc.evaluate(r.eps, { epochs, fixAge: r.fixAge, jumps: r.jumps });
+      const ev = A.qc.evaluate(r.eps, { epochs: typeof epochs === 'object' ? 1 : epochs, fixAge: r.fixAge, jumps: r.jumps });
       const last = r.eps[r.eps.length - 1];
       const m = ev.mean;
       const ll = HGEO.toLL(m.E, m.N);
@@ -247,7 +303,8 @@
     } catch (e) {
       A.toast(e.message, 'bad');
     } finally {
-      btn.classList.remove('busy'); btn.innerHTML = label;
+      btn.classList.remove('busy');
+      if (!btn.classList.contains('done')) btn.innerHTML = label;
     }
   };
 
@@ -280,7 +337,8 @@
     A.saveProject();
     A.renderPoints(); A.renderCodes(); A.updateMapLayers();
     $('sv-last').textContent = `${pt.name}: σH ${F(pt.hrms)} σV ${F(pt.vrms)} · ${pt.epochs} εποχές`;
-    A.beep(1200, 0.12); vibrate(60);
+    A.sound('point'); vibrate(80);
+    if (!opt.btn || opt.btn.id === 'btn-measure-pt') A.markDone($('btn-measure-pt'), pt.name);
     A.toast(`✓ ${pt.name} αποθηκεύτηκε${ev && ev.level === 'warn' ? ' — QC: προσοχή' : ''}${pt.check ? ' · έλεγχος ' + A.levelText(pt.check.level) : ''}`, ev && ev.level === 'warn' ? '' : 'ok');
     if (opt.after) opt.after(pt);
   }
@@ -450,6 +508,22 @@
       o.connect(gn); gn.connect(actx.destination); o.start(); o.stop(actx.currentTime + (dur || 0.08));
     } catch (e) { }
   };
+  // Ηχητικές ειδοποιήσεις: σημείο, FIX, FLOAT/απώλεια
+  A.sound = function (kind) {
+    if (kind === 'point' && A.settings.soundPoint === false) return;
+    if ((kind === 'fix' || kind === 'lost') && A.settings.soundFix === false) return;
+    const seq = { point: [[880, .09], [1320, .14]], fix: [[1046, .08], [1318, .08], [1568, .16]], lost: [[440, .18], [330, .3]], warn: [[600, .12], [600, .12]] }[kind] || [[880, .1]];
+    let t = 0;
+    seq.forEach(([f, d]) => { setTimeout(() => A.beepForce(f, d), t * 1000); t += d + 0.05; });
+  };
+  A.beepForce = function (freq, dur) {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = actx.createOscillator(), gn = actx.createGain();
+      o.type = 'square'; o.frequency.value = freq; gn.gain.value = (A.settings.volume != null ? A.settings.volume : 0.25);
+      o.connect(gn); gn.connect(actx.destination); o.start(); o.stop(actx.currentTime + dur);
+    } catch (e) { }
+  };
   function vibrate(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) { } }
   A.vibrate = vibrate;
 
@@ -483,7 +557,7 @@
   $('btn-measure-pt').onclick = () => A.measure();
   $('sv-ant').onchange = () => { A.settings.antH = parseFloat($('sv-ant').value) || 0; A.saveSettings(); };
   $('sv-onlyfix').onchange = () => { A.settings.onlyFix = $('sv-onlyfix').checked; A.saveSettings(); };
-  $('sv-epochs').onchange = () => { A.settings.epochs = parseInt($('sv-epochs').value, 10); A.saveSettings(); };
+  $('sv-epochs').onchange = () => { A.settings.epochs = $('sv-epochs').value; A.saveSettings(); };
   $('sv-code').oninput = () => A.renderCodes();
   $('sv-name').onchange = () => { A.proj.nextName = $('sv-name').value.trim(); A.saveProject(); };
   $('status').onclick = () => A.gnssSheet && A.gnssSheet();
@@ -741,7 +815,7 @@
     if (!A.pos) return A.toast('Δεν υπάρχει θέση', 'bad');
     if (!G || (!G.T && !G.live && G.surfZ == null)) return A.toast('Δεν υπάρχει στόχος', 'bad');
     const btns = [$('so-store'), $('sf-store')];
-    btns.forEach(b => b.classList.add('busy'));
+    btns.forEach(b => { if (!b.dataset.label) b.dataset.label = b.innerHTML; b.classList.remove('done'); b.innerHTML = b.dataset.label; b.classList.add('busy'); });
     try {
       const r = await A.measure({ raw: true, btn: $('so-store') });
       if (!r) return;
@@ -760,7 +834,8 @@
       }
       const ok = pt.stake.dE == null || Math.hypot(pt.stake.dE, pt.stake.dN) <= A.settings.tolH;
       A.storePoint(pt, true); A.lastPoint = pt;
-      A.beep(1500, 0.15); vibrate(80);
+      A.sound('point'); vibrate(80);
+      A.markDone($('so-store'), pt.name); A.markDone($('sf-store'), pt.name);
       A.toast(`✓ ${pt.name} — ΔXY ${Math.hypot(pt.stake.dE || 0, pt.stake.dN || 0).toFixed(3)} m${pt.stake.dZ != null ? ' · ΔZ ' + pt.stake.dZ.toFixed(3) : ''}${ok ? '' : ' (εκτός ανοχής)'}`, ok ? 'ok' : '', 3500);
       if (G.T && S.mode === 'point' && A.settings.autoNext !== false) {
         const list = A.stakeList().filter(p => !p.done);

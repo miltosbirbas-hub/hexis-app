@@ -687,6 +687,13 @@
     A.sheet('Ρυθμίσεις', `<h4>Ποιοτικός έλεγχος RTK</h4>
       <label class="fld"><span>Κλάση ακρίβειας (NGS RT1–RT4)</span><select id="qc">${Object.entries(HQC.CLASSES).map(([k, v]) => `<option value="${k}" ${k === S.qcClass ? 'selected' : ''}>${esc(v.name)} — ${(v.h95 * 100).toFixed(0)}/${(v.v95 * 100).toFixed(0)} cm · PDOP≤${v.pdop} · SV≥${v.sats} · ${v.epochs} εποχές</option>`).join('')}</select></label>
       <div class="row"><button class="btn grow" id="qce">Εφαρμογή εποχών της κλάσης</button></div>
+      <h4>Μέτρηση σημείου</h4>
+      <label class="fld"><span>Αναμονή σε σταθερό FIX πριν αρχίσει η μέτρηση (δευτ.)</span><input id="fw" type="number" min="0" step="1" inputmode="numeric" value="${S.fixWait != null ? S.fixWait : 10}"></label>
+      <p class="muted">Η μέτρηση ξεκινά μόνο όταν η λύση μείνει FIX τόσα δευτερόλεπτα συνεχόμενα. Η διάρκεια της μέτρησης (εποχές ή δευτερόλεπτα) επιλέγεται στην κάρτα Survey.</p>
+      <h4>Ήχοι</h4>
+      <label class="chk"><input type="checkbox" id="sp" ${S.soundPoint !== false ? 'checked' : ''}> Ήχος όταν αποθηκεύεται σημείο</label>
+      <label class="chk"><input type="checkbox" id="sf" ${S.soundFix !== false ? 'checked' : ''}> Ήχος όταν η λύση γίνεται FIX ή χάνεται (FLOAT)</label>
+      <div class="row"><label class="fld grow"><span>Ένταση</span><input id="vol" type="range" min="0.05" max="1" step="0.05" value="${S.volume != null ? S.volume : 0.25}" style="min-height:40px;padding:0"></label><button class="btn" id="vt">▶ Δοκιμή</button></div>
       <h4>Χάραξη</h4>
       <div class="row"><label class="fld grow"><span>Ανοχή οριζ. (m)</span><input id="th" type="number" step="0.001" value="${S.tolH}"></label><label class="fld grow"><span>Ανοχή κατακ. (m)</span><input id="tv" type="number" step="0.001" value="${S.tolV}"></label></div>
       <label class="chk"><input type="checkbox" id="bp" ${S.beep ? 'checked' : ''}> Ήχοι καθοδήγησης</label>
@@ -700,9 +707,10 @@
       <button class="btn primary" id="ok">Αποθήκευση</button>`, b => {
       let theme = S.theme;
       b.querySelectorAll('#tm button').forEach(x => x.onclick = () => { theme = x.dataset.v; b.querySelectorAll('#tm button').forEach(y => y.classList.toggle('on', y === x)); });
+      b.querySelector('#vt').onclick = () => { const v = A.settings.volume; A.settings.volume = parseFloat(b.querySelector('#vol').value); A.sound('point'); setTimeout(() => A.sound('fix'), 600); setTimeout(() => A.sound('lost'), 1300); setTimeout(() => { A.settings.volume = v; }, 2600); };
       b.querySelector('#qce').onclick = () => { const c = HQC.CLASSES[b.querySelector('#qc').value]; const opts = [...$('sv-epochs').options].map(o => +o.value); const e = opts.reduce((a, v) => Math.abs(v - c.epochs) < Math.abs(a - c.epochs) ? v : a, opts[0]); S.epochs = c.epochs > 60 ? c.epochs : e; if (c.epochs > 60 && ![...$('sv-epochs').options].some(o => +o.value === c.epochs)) $('sv-epochs').add(new Option(String(c.epochs), String(c.epochs))); A.toast('Εποχές: ' + S.epochs); };
       b.querySelector('#ok').onclick = () => {
-        Object.assign(S, { qcClass: b.querySelector('#qc').value, tolH: num(b.querySelector('#th').value) || 0.02, tolV: num(b.querySelector('#tv').value) || 0.02, beep: b.querySelector('#bp').checked, autoNext: b.querySelector('#an').checked, theme, textSize: b.querySelector('#tsz').value, textH: num(b.querySelector('#tx').value) || 0.25, googleKey: b.querySelector('#gk').value.trim() });
+        Object.assign(S, { qcClass: b.querySelector('#qc').value, tolH: num(b.querySelector('#th').value) || 0.02, tolV: num(b.querySelector('#tv').value) || 0.02, beep: b.querySelector('#bp').checked, autoNext: b.querySelector('#an').checked, theme, textSize: b.querySelector('#tsz').value, fixWait: Math.max(0, parseInt(b.querySelector('#fw').value, 10) || 0), soundPoint: b.querySelector('#sp').checked, soundFix: b.querySelector('#sf').checked, volume: parseFloat(b.querySelector('#vol').value), textH: num(b.querySelector('#tx').value) || 0.25, googleKey: b.querySelector('#gk').value.trim() });
         A.saveSettings(); A.applySettings(); A.updateStakeTarget(); A.closeSheet(); A.toast('✓ Αποθηκεύτηκε', 'ok');
       };
     });
