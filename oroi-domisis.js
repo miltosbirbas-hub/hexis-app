@@ -377,6 +377,24 @@ function summary(){
 window.HXOroi = { polysOf, openRing, mainOuter, interiorPoint, _t:{ statusOf, oikismosMax, computeCalc, smallSettlementRegime, ektosKatoikia },
   state: ()=> S.parcel ? { parcel:S.parcel, plan:S.plan, status: statusOf((S.plan&&S.plan.layers)||{}, S.manual), summary: summary() } : null };
 
+/* χωρίς οθόνη: για τον «Φάκελο Ακινήτου» (απόσπασμα ρυμοτομικού μέσα στο ZIP) */
+window.HXOroi.headless = async function(kaek){
+  const p = await getParcel({kaek}); if(!p) throw new Error("Δεν βρέθηκε το ΚΑΕΚ "+kaek+" στο Κτηματολόγιο.");
+  const po = mainOuter(p.geometry_egsa), ip = interiorPoint(po), fr = frontageOnEK(po, p.neighbors);
+  p.front = fr.ek ? fr.len : null; p.frontEK = fr.ek;
+  const plan = await getPlanning(ip[0], ip[1], po.outer);
+  const L = plan.layers || {}, st = statusOf(L, null), c = computeCalc(st, p.area_m2, L);
+  const calc = [["Εμβαδόν γεωτεμαχίου", fmt(p.area_m2)+" τ.μ."]];
+  if(p.front!=null) calc.push(["Πρόσωπο σε κοινόχρηστο (εκτίμηση)", fmt(p.front)+" μ."]);
+  if(c){
+    if(c.max!=null) calc.push(["Μέγιστη δόμηση", fmt(c.max)+" τ.μ."+(c.rule?" · "+c.rule:"")]);
+    if(c.sao!=null) calc.push(["Σ.Α.Ο.", fmt(c.sao,3)]);
+    if(c.msd!=null) calc.push(["Μέσος ΣΔ τομέα ΓΠΣ", fmt(c.msd,2)+" — ο ΣΔ του οικοπέδου προκύπτει από το ΦΕΚ"]);
+    if(c.kalM2!=null) calc.push(["Μέγιστη κάλυψη", fmt(c.kalM2)+" τ.μ."+(c.kalPct!=null?" ("+fmt0(c.kalPct)+"%)":"")]);
+  }
+  return {parcel:p, plan, status:st, summary:{status:STATUS_LABEL[st]||st, front:p.front, calc}};
+};
+
 /* ---------- ροή ---------- */
 async function lookup(q){
   if(S.busy) return;

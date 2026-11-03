@@ -1,8 +1,8 @@
-// HEXIS-APP · Φάκελος Κτηματολογίου — τρέχει ΜΟΝΟ μέσα στη δική σου συνεδρία στο
-// https://ktimatologio.gov.gr/Professionals/ (Ηλεκτρονική Έρευνα Μηχανικών).
-// Δεν διαβάζει ούτε στέλνει κωδικούς. Για κάθε ΚΑΕΚ της εργασίας: αναζήτηση → οθόνη ακινήτου →
-// «Απόσπασμα περιγραφικής βάσης», «Απόσπασμα χωρικής βάσης», έγγραφα → επόμενο ΚΑΕΚ.
-// Τα κουμπιά εντοπίζονται από το κείμενό τους (όπως τα περιγράφει το εγχειρίδιο του Κτηματολογίου).
+// HEXIS-APP · Φάκελος Κτηματολογίου — τρέχει ΜΟΝΟ μέσα στη δική σου συνεδρία στην
+// Ηλεκτρονική Έρευνα Μηχανικών του Κτηματολογίου. Δεν διαβάζει ούτε στέλνει κωδικούς.
+// Για κάθε ΚΑΕΚ: αναζήτηση → οθόνη ακινήτου → ΚΦ (περιγραφική), ΚΔ (χωρική), όλα τα έγγραφα.
+// Τα αρχεία ΔΕΝ πάνε ένα-ένα στις Λήψεις: μαζεύονται μέσα στο πρόσθετο και στο τέλος
+// ανοίγει καρτέλα με ΕΝΑ ZIP (φάκελος «ΚΑΕΚ - Ιδιοκτήτης - ΟΤΑ» + υποφάκελοι όμορων).
 (() => {
   "use strict";
   const send = (m) => new Promise((res) => chrome.runtime.sendMessage(m, res));
@@ -10,11 +10,10 @@
   const norm = (s) => String(s || "").toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
   const vis = (el) => !!(el && (el.offsetWidth || el.offsetHeight || el.getClientRects().length)) && getComputedStyle(el).visibility !== "hidden";
   const textOf = (el) => norm(el.innerText || el.value || el.getAttribute("title") || el.getAttribute("aria-label") || "");
-  const CLICKABLE = "a,button,input[type=submit],input[type=button],[role=button],[onclick],span.btn,div.btn,li";
+  const CLICKABLE = "a,button,input[type=submit],input[type=button],[role=button],[role=tab],[onclick],span.btn,div.btn,li";
 
   function findClickable(rx, root = document) {
     const all = [...root.querySelectorAll(CLICKABLE)].filter(vis);
-    // προτιμάμε το «στενότερο» στοιχείο που ταιριάζει
     const hits = all.filter((el) => rx.test(textOf(el)));
     // ίδιο κείμενο: προτιμάμε a/button από περιέκτες (li, div) — αλλιώς το κλικ «πέφτει» στο κενό
     const rank = (el) => (/^(A|BUTTON|INPUT)$/.test(el.tagName) ? 0 : el.getAttribute("role") === "button" || el.hasAttribute("onclick") ? 1 : 2);
@@ -54,7 +53,7 @@
     bd.innerHTML = `<div class="msg${warn ? " warn" : ""}">${msg || ""}</div>
       <div class="row"><button class="b p" data-a="run">${RUN ? "■ Παύση" : "▶ Αυτόματα όλα"}</button><button class="b" data-a="one">Μόνο το τρέχον</button><button class="b" data-a="skip">Παράλειψη</button></div>
       <table>${JOB.kaeks.map((k, i) => `<tr><td>${i === JOB.i ? "▶" : ""}</td><td class="k">${k.kaek}</td><td>${k.role === "main" ? "κύριο" : k.role === "ek" ? "ΕΚ" : "όμορο"}</td><td class="${done[k.kaek] ? "ok" : ""}">${done[k.kaek] ? "✓ " + done[k.kaek] : ""}</td></tr>`).join("")}</table>
-      <div class="row"><button class="b" data-a="diag" title="Αντιγράφει τη δομή της σελίδας (χωρίς στοιχεία ιδιοκτητών) για βελτίωση του πρόσθετου">Διάγνωση σελίδας</button><button class="b" data-a="stop">Τέλος εργασίας</button></div>`;
+      <div class="row"><button class="b p" data-a="zip">Φάκελος ZIP</button><button class="b" data-a="diag" title="Αντιγράφει τη δομή της σελίδας (χωρίς στοιχεία ιδιοκτητών) για βελτίωση του πρόσθετου">Διάγνωση σελίδας</button><button class="b" data-a="stop">Τέλος εργασίας</button></div>`;
     if (!panel.isConnected) document.body.appendChild(panel);
   }
   panel.addEventListener("click", async (e) => {
@@ -64,24 +63,18 @@
     if (act === "run") { RUN = !RUN; AUTO = true; render(RUN ? "Εκτέλεση…" : "Σε παύση."); if (RUN) loop(); }
     if (act === "one") { RUN = true; AUTO = false; render("Εκτέλεση για το τρέχον ΚΑΕΚ…"); loop(); }
     if (act === "skip") { JOB.i++; JOB.step = "search"; await save(); render("Παραλείφθηκε."); }
+    if (act === "zip") send({ type: "finish" });
     if (act === "diag") diagnose();
     if (act === "stop") { await send({ type: "clearJob" }); JOB = null; RUN = false; panel.remove(); }
   });
-  // μετακίνηση πάνελ
   (() => { let sx, sy, ox, oy; const hd = panel.querySelector(".hd");
     hd.addEventListener("mousedown", (e) => { if (e.target.closest("button")) return; sx = e.clientX; sy = e.clientY; const r = panel.getBoundingClientRect(); ox = r.left; oy = r.top;
       const mv = (ev) => { panel.style.left = ox + ev.clientX - sx + "px"; panel.style.top = oy + ev.clientY - sy + "px"; panel.style.right = "auto"; panel.style.bottom = "auto"; };
       const up = () => { removeEventListener("mousemove", mv); removeEventListener("mouseup", up); }; addEventListener("mousemove", mv); addEventListener("mouseup", up); }); })();
 
   const save = () => send({ type: "setJob", job: JOB });
-  // Φάκελοι: Λήψεις/HEXIS-APP/<ΚΑΕΚ - ΙΔΙΟΚΤΗΤΗΣ - ΟΤΑ κύριου>/ και μέσα υποφάκελος για κάθε όμορο
-  const BASE = { perigrafiko: "Perigrafiki_vasi", xoriko: "Xoriki_vasi", symvolaio: "Symvolaio", topografiko: "Topografiko", synyp: "Synypovallomeno", titlos: "Titlos", eggrafo: "Eggrafo" };
-  const safe = (s) => String(s || "").replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim().replace(/[. ]+$/, "").slice(0, 70);
-  const folderName = (kaek) => { const it = (JOB.kaeks || []).find((x) => x.kaek === kaek) || {}; return safe([kaek, (JOB.owner || {})[kaek], it.ota].filter(Boolean).join(" - ")); };
-  const mainKaek = () => ((JOB.kaeks || []).find((x) => x.role === "main") || {}).kaek || JOB.main;
-  const folderOf = (kaek) => kaek === mainKaek() ? folderName(kaek) : folderName(mainKaek()) + "/" + folderName(kaek);
-  const fname = (kaek, type, n) => `HEXIS-APP/${folderOf(kaek)}/${kaek}_${BASE[type] || BASE.eggrafo}${n ? "_" + n : ""}.pdf`;
-  // όνομα ιδιοκτήτη από την οθόνη ακινήτου (μόνο για να ονομαστεί ο φάκελος στον υπολογιστή σου — δεν στέλνεται πουθενά)
+
+  /* ---------- ιδιοκτήτης από την οθόνη ακινήτου (μόνο για το όνομα φακέλου στον υπολογιστή σου) ---------- */
   function readOwner() {
     const clean = (s) => String(s || "").replace(/\s+/g, " ").trim();
     const ok = (s) => s && s.length >= 3 && s.length <= 80 && /[Α-ΩA-Zα-ωa-z]/.test(s) && !/\d{5,}/.test(s);
@@ -100,54 +93,53 @@
     return "";
   }
 
-  /* ---------- άνοιγμα PDF σε νέο παράθυρο: πιάνουμε το URL και το κατεβάζουμε με όνομα ---------- */
-  let pendingName = null;
+  /* ---------- σύλληψη αρχείων ---------- */
   const b64 = (buf) => { let s = "", a = new Uint8Array(buf); for (let i = 0; i < a.length; i += 0x8000) s += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000)); return btoa(s); };
   const isPdf = (buf) => { if (!buf || buf.byteLength < 200) return false; const h = new Uint8Array(buf, 0, Math.min(1024, buf.byteLength)); for (let i = 0; i < h.length - 4; i++) if (h[i] === 0x25 && h[i + 1] === 0x50 && h[i + 2] === 0x44 && h[i + 3] === 0x46) return true; return false; };
-  // λήψη που ξεκίνησε το ίδιο το site: το background ζητά να διαβαστεί και να σταλεί και στη σελίδα του Φακέλου
+  let pending = null;        // { kaek, kind, n, got }
+  async function keep(buf, meta) {
+    if (!isPdf(buf) || !meta) return false;
+    const r = await send({ type: "file", kaek: meta.kaek, kind: meta.kind, n: meta.n || 0, b64: b64(buf) });
+    if (pending === meta) pending.got = true;
+    return !!(r && r.ok);
+  }
+  async function fetchPdf(url) {
+    try { const r = await fetch(url, { credentials: "include" }); if (!r.ok) return null; const buf = await r.arrayBuffer(); return isPdf(buf) ? buf : null; } catch (e) { return null; }
+  }
+  // το background ζητά να διαβαστεί μια λήψη που ξεκίνησε το site (για να μπει στο ZIP αντί για τις Λήψεις)
   chrome.runtime.onMessage.addListener((m, s, reply) => {
     if (!m || m.type !== "refetch") return;
-    (async () => { try { const r = await fetch(m.url, { credentials: "include" }); const buf = r.ok ? await r.arrayBuffer() : null;
-      if (isPdf(buf)) { const r2 = await send({ type: "file", name: m.name.split("/").pop(), rel: m.name.replace(/^HEXIS-APP\//, ""), b64: b64(buf), noFallback: true }); reply({ ok: !!(r2 && r2.saved) }); } else reply({ ok: false }); } catch (e) { reply({ ok: false }); } })();
+    (async () => { const buf = await fetchPdf(m.url); reply(buf ? { ok: true, b64: b64(buf) } : { ok: false }); })();
     return true;
   });
-  // πρώτα: διαβάζουμε το αρχείο μέσα στη συνεδρία και το στέλνουμε στη σελίδα του HEXIS-APP (σώζει όπου διάλεξες)
-  async function deliver(url, name) {
-    try {
-      const r = await fetch(url, { credentials: "include" });
-      if (r.ok) {
-        const buf = await r.arrayBuffer();
-        if (isPdf(buf)) { await send({ type: "file", name: name.split("/").pop(), rel: name.replace(/^HEXIS-APP\//, ""), b64: b64(buf) }); return true; }
-      }
-    } catch (e) { /* συνεχίζουμε με λήψη */ }
-    await send({ type: "download", url, name });
-    return false;
-  }
+  // από το MAIN world (kt-main.js): PDF που θα άνοιγε σε παράθυρο, blob, ή φόρμα που επέστρεψε PDF
   window.addEventListener("message", async (e) => {
-    if (e.source !== window || !e.data || e.data.src !== "hx-main" || !pendingName) return;
-    const name = pendingName; pendingName = null;
-    await deliver(new URL(e.data.url, location.href).href, name);
+    if (e.source !== window || !e.data || e.data.src !== "hx-main" || !pending) return;
+    const meta = pending;
+    if (e.data.type === "blob" && e.data.buf) await keep(e.data.buf, meta);
+    else if (e.data.url) { const buf = await fetchPdf(new URL(e.data.url, location.href).href); if (buf) await keep(buf, meta); }
   });
-  async function clickAndCapture(el, name) {
-    pendingName = name;
-    document.documentElement.dataset.hxCapture = "1";
-    await send({ type: "expect", name });
+  async function grab(el, meta) {
+    pending = meta; meta.got = false;
+    await send({ type: "expect", kaek: meta.kaek, kind: meta.kind, n: meta.n || 0 });
     const href = el.getAttribute && el.getAttribute("href");
-    if (href && !/^javascript:|^#/i.test(href)) {
-      pendingName = null; await deliver(new URL(href, location.href).href, name); await sleep(800);
-    } else { el.click(); await sleep(6000); }
+    if (href && !/^javascript:|^#/i.test(href)) { const buf = await fetchPdf(new URL(href, location.href).href); if (buf) { await keep(buf, meta); pending = null; return true; } }
+    document.documentElement.dataset.hxCapture = "1";
+    el.click();
+    for (let t = 0; t < 40 && !meta.got; t++) await sleep(250);
+    if (!meta.got) { const r = await send({ type: "captured?", kaek: meta.kaek, kind: meta.kind, n: meta.n || 0 }); meta.got = !!(r && r.ok); }
+    for (let t = 0; t < 12 && !meta.got; t++) { await sleep(500); const r = await send({ type: "captured?", kaek: meta.kaek, kind: meta.kind, n: meta.n || 0 }); meta.got = !!(r && r.ok); }
     document.documentElement.dataset.hxCapture = "";
-    pendingName = null;
+    pending = null;
+    return meta.got;
   }
 
   /* ---------- βήματα ---------- */
   async function stepSearch(k) {
     let inp = findKaekInput();
     if (!inp) {
-      // προστασία από βρόχο: το πολύ 4 μετακινήσεις μέχρι να βρεθεί το πεδίο ΚΑΕΚ
       JOB.nav = (JOB.nav || 0) + 1; await save();
       if (JOB.nav > 4) { JOB.nav = 0; await save(); return { wait: "Άνοιξε την οθόνη «ΕΡΕΥΝΑ › ΑΚΙΝΗΤΟ» — δεν βρίσκω το πεδίο ΚΑΕΚ (πάτα «Διάγνωση σελίδας» αν επιμένει)." }; }
-      // πρώτα το «ΑΚΙΝΗΤΟ» αν φαίνεται ήδη, αλλιώς το μενού «ΕΡΕΥΝΑ» (η σελίδα μπορεί να αλλάξει — συνεχίζουμε μετά τη φόρτωση)
       const m2 = findClickable(/^ΑΚΙΝΗΤΟ$/);
       if (m2) { m2.click(); await sleep(2500); }
       else { const m1 = findClickable(/^ΕΡΕΥΝΑ$/); if (m1) { m1.click(); await sleep(1200); const m3 = findClickable(/^ΑΚΙΝΗΤΟ$/); if (m3) { m3.click(); await sleep(2500); } } }
@@ -172,36 +164,75 @@
     link.click(); await sleep(3500);
     return { next: true };
   }
+  // στοιχεία που κατεβάζουν/δείχνουν έγγραφο (με κείμενο, τίτλο ή μόνο εικονίδιο μέσα σε γραμμή πίνακα εγγράφων)
+  const DOC_TXT = /^(ΠΡΟΒΟΛΗ|ΛΗΨΗ|ΑΝΟΙΓΜΑ|ΚΑΤΕΒΑΣΜΑ|ΕΜΦΑΝΙΣΗ|ΑΡΧΕΙΟ|PDF|DOWNLOAD|VIEW|ΠΡΟΒΟΛΗ ΕΓΓΡΑΦΟΥ|ΛΗΨΗ ΕΓΓΡΑΦΟΥ|ΠΡΟΒΟΛΗ ΑΡΧΕΙΟΥ)$/;
+  function docTargets() {
+    const out = new Set();
+    const els = [...document.querySelectorAll("a,button,[role=button],input[type=button],input[type=submit]")].filter((el) => vis(el) && !panel.contains(el));
+    for (const el of els) {
+      const t = textOf(el), href = el.getAttribute("href") || "";
+      if (/ΑΠΟΣΠΑΣΜΑ (ΠΕΡΙΓΡΑΦΙΚΗΣ|ΧΩΡΙΚΗΣ)|ΑΝΑΖΗΤΗΣΗ|ΕΠΙΣΤΡΟΦΗ|ΕΡΕΥΝΑ|ΑΠΟΣΥΝΔΕΣΗ|ΕΞΟΔΟΣ/.test(t)) continue;
+      const icon = !norm(el.innerText) && el.querySelector("i,svg,img,span[class*=icon],span[class*=fa]");
+      const rowTxt = norm((el.closest("tr,li,.row,.card") || el).innerText || "");
+      const secTxt = norm((el.closest("table,section,fieldset,.panel,.card,.tab-pane") || document.body).innerText || "").slice(0, 400);
+      if (/\.pdf(\?|$)/i.test(href) || DOC_TXT.test(t) || /fa-file-pdf|fa-download|pdf|download/i.test(el.className || "") ||
+          (icon && /ΣΥΜΒΟΛ|ΤΙΤΛ|ΕΓΓΡΑΦ|ΤΟΠΟΓΡΑΦ|ΣΥΝΥΠΟΒ|ΠΡΑΞ/.test(secTxt + " " + rowTxt))) out.add(el);
+    }
+    return [...out];
+  }
+  async function openDocTabs() {
+    // καρτέλες/κουμπιά «Έγγραφα», «Λίστα εγγράφων», «Τίτλοι» που κρύβουν τη λίστα
+    const tabs = [...document.querySelectorAll("[role=tab],.nav a,.nav-tabs a,.tabs a,a[data-toggle],a[data-bs-toggle],button,a,summary")]
+      .filter((el) => vis(el) && !panel.contains(el) && /^(ΕΓΓΡΑΦΑ|ΛΙΣΤΑ ΕΓΓΡΑΦΩΝ|ΤΙΤΛΟΙ|ΣΧΕΤΙΚΑ ΕΓΓΡΑΦΑ|ΣΥΝΗΜΜΕΝΑ|ΕΓΓΡΑΦΑ ΑΚΙΝΗΤΟΥ)/.test(textOf(el)) && !/\.pdf/i.test(el.getAttribute("href") || ""));
+    for (const t of tabs.slice(0, 4)) { try { t.click(); await sleep(1500); } catch (e) {} }
+  }
+  function structure() {
+    const cut = (s, n = 60) => String(s || "").replace(/\s+/g, " ").trim().slice(0, n);
+    return {
+      path: location.pathname, title: document.title,
+      inputs: [...document.querySelectorAll("input,select,textarea")].filter(vis).slice(0, 40).map((i) => ({ tag: i.tagName, type: i.type, name: i.name, id: i.id, label: cut(labelText(i), 80) })),
+      clickables: [...document.querySelectorAll("a,button,input[type=submit],input[type=button],[role=button],[role=tab]")].filter((el) => vis(el) && !panel.contains(el)).slice(0, 160).map((el) => ({ tag: el.tagName, text: cut(el.innerText || el.value, 40), title: cut(el.getAttribute("title") || el.getAttribute("aria-label"), 40), href: cut((el.getAttribute("href") || "").replace(/[?#].*/, ""), 80), cls: cut(el.className && el.className.baseVal != null ? el.className.baseVal : el.className, 50), onclick: cut(el.getAttribute("onclick"), 60), target: el.getAttribute("target") || "", icon: !!el.querySelector("i,svg,img") })),
+      tables: [...document.querySelectorAll("table")].filter(vis).slice(0, 12).map((t) => ({ th: [...t.querySelectorAll("th")].map((th) => cut(th.innerText, 30)), rows: t.querySelectorAll("tr").length })),
+      headings: [...document.querySelectorAll("h1,h2,h3,h4,legend,.panel-title,.card-header")].filter(vis).slice(0, 30).map((h) => cut(h.innerText, 50)),
+      forms: [...document.querySelectorAll("form")].slice(0, 10).map((f) => ({ action: cut((f.getAttribute("action") || "").replace(/[?#].*/, ""), 80), method: f.method, target: f.target })),
+      frames: [...document.querySelectorAll("iframe")].map((f) => cut(f.src.replace(/[?#].*/, ""), 80))
+    };
+  }
   async function stepProperty(k) {
-    let got = [];
+    const got = [];
     JOB.owner = JOB.owner || {};
     if (!JOB.owner[k.kaek]) { const o = readOwner(); if (o) { JOB.owner[k.kaek] = o; await save(); } }
     const p = findClickable(/ΑΠΟΣΠΑΣΜΑ ΠΕΡΙΓΡΑΦΙΚΗΣ/);
     if (!p) return { wait: "Δεν βρίσκω το «ΑΠΟΣΠΑΣΜΑ ΠΕΡΙΓΡΑΦΙΚΗΣ ΒΑΣΗΣ» στην οθόνη ακινήτου." };
-    say("Απόσπασμα περιγραφικής βάσης…"); await clickAndCapture(p, fname(k.kaek, "perigrafiko")); got.push("περιγρ.");
+    say("ΚΦ (περιγραφική βάση)…"); if (await grab(p, { kaek: k.kaek, kind: "kf" })) got.push("ΚΦ");
     const x = findClickable(/ΑΠΟΣΠΑΣΜΑ ΧΩΡΙΚΗΣ/);
-    if (x) { say("Απόσπασμα χωρικής βάσης…"); await clickAndCapture(x, fname(k.kaek, "xoriko")); got.push("χωρικό"); }
-    // έγγραφα (συμβόλαια, τοπογραφικά, συνυποβαλλόμενα, τίτλοι αρχικών εγγραφών)
-    const CATS = [["ΣΥΜΒΟΛΑΙ", "symvolaio"], ["ΤΟΠΟΓΡΑΦΙΚ", "topografiko"], ["ΣΥΝΥΠΟΒΑΛΛ", "synyp"], ["ΤΙΤΛ", "titlos"]];
-    const docLinks = [...document.querySelectorAll("a,button")].filter((el) => vis(el) && (/\.pdf(\?|$)/i.test(el.getAttribute("href") || "") || /^(ΠΡΟΒΟΛΗ|ΛΗΨΗ|ΑΝΟΙΓΜΑ|ΚΑΤΕΒΑΣΜΑ)$/.test(textOf(el)) || /fa-file-pdf|pdf/i.test(el.className || "")));
-    let n = 0;
-    for (const el of docLinks.slice(0, 40)) {
-      const ctx = norm((el.closest("tr,li,section,fieldset,.panel,.card,div") || el).innerText || "");
-      const sec = norm((el.closest("section,fieldset,.panel,.card,.tab-pane") || document.body).innerText || "").slice(0, 200);
-      const cat = (CATS.find(([rx]) => ctx.includes(rx) || sec.includes(rx)) || [0, "eggrafo"])[1];
-      n++; say(`Έγγραφο ${n}…`); await clickAndCapture(el, fname(k.kaek, cat, n));
+    if (x) { say("ΚΔ (χωρική βάση)…"); if (await grab(x, { kaek: k.kaek, kind: "kd" })) got.push("ΚΔ"); }
+    await openDocTabs();
+    send({ type: "diag", kaek: k.kaek, d: structure() });
+    const CATS = [["ΣΥΜΒΟΛΑΙ", "symvolaio"], ["ΤΟΠΟΓΡΑΦΙΚ", "topografiko"], ["ΣΥΝΥΠΟΒΑΛΛ", "synyp"], ["ΤΙΤΛ", "titlos"], ["ΠΡΑΞ", "praxi"]];
+    let n = 0, ok = 0;
+    for (const el of docTargets().slice(0, 40)) {
+      const ctx = norm((el.closest("tr,li,.row,.card") || el).innerText || "");
+      const sec = norm((el.closest("table,section,fieldset,.panel,.card,.tab-pane") || document.body).innerText || "").slice(0, 200);
+      const kind = (CATS.find(([rx]) => ctx.includes(rx)) || CATS.find(([rx]) => sec.includes(rx)) || [0, "eggrafo"])[1];
+      n++; say(`Έγγραφο ${n}…`);
+      if (await grab(el, { kaek: k.kaek, kind, n })) ok++;
     }
-    if (n) got.push(n + " έγγρ.");
+    if (ok) got.push(ok + " έγγρ.");
     JOB.done[k.kaek] = got.join(", ") || "—";
     JOB.i++; JOB.step = "search"; await save();
-    // επιστροφή στην αναζήτηση για το επόμενο
     if (JOB.i < JOB.kaeks.length) { const back = findClickable(/^ΕΠΙΣΤΡΟΦΗ$/) || findClickable(/^ΕΡΕΥΝΑ$/); if (back) { back.click(); await sleep(2500); } }
     return { next: true, doneOne: true };
   }
 
   async function loop() {
     while (RUN && JOB) {
-      if (JOB.i >= JOB.kaeks.length) { RUN = false; render("✓ Τελείωσε. Φάκελος: «" + folderName(mainKaek()) + "» (με υποφάκελο για κάθε όμορο) — στον φάκελο που διάλεξες στη σελίδα του Φακέλου, αλλιώς στις Λήψεις › HEXIS-APP."); return; }
+      if (JOB.i >= JOB.kaeks.length) {
+        RUN = false;
+        render("✓ Τελείωσε. Άνοιξε καρτέλα «Φάκελος ZIP»: έλεγξε τα ονόματα και πάτα «Αποθήκευση ZIP». (Αν την έκλεισες, πάτα «Φάκελος ZIP» εδώ.)");
+        if (!JOB.finished) { JOB.finished = true; await save(); send({ type: "finish" }); }
+        return;
+      }
       if (isLogin()) { render("Συνδέσου με τους κωδικούς ΤΕΕ σε αυτή τη σελίδα. Μετά τη σύνδεση η εργασία συνεχίζει μόνη της.", true); RUN = false; return; }
       const k = JOB.kaeks[JOB.i];
       render(`ΚΑΕΚ ${k.kaek}: ${JOB.step === "search" ? "αναζήτηση" : JOB.step === "result" ? "επιλογή αποτελέσματος" : "λήψη αρχείων"}…`);
@@ -214,17 +245,8 @@
     }
   }
 
-  /* ---------- διάγνωση: μόνο δομή σελίδας, χωρίς περιεχόμενο πινάκων ---------- */
   async function diagnose() {
-    const cut = (s, n = 60) => String(s || "").replace(/\s+/g, " ").trim().slice(0, n);
-    const d = {
-      path: location.pathname, title: document.title,
-      inputs: [...document.querySelectorAll("input,select,textarea")].filter(vis).slice(0, 40).map((i) => ({ tag: i.tagName, type: i.type, name: i.name, id: i.id, ph: i.placeholder, label: cut(labelText(i), 80) })),
-      clickables: [...document.querySelectorAll("a,button,input[type=submit],input[type=button],[role=button]")].filter(vis).slice(0, 120).map((el) => ({ tag: el.tagName, text: cut(el.innerText || el.value, 50), href: cut((el.getAttribute("href") || "").replace(/[?#].*/, ""), 80), cls: cut(el.className, 40), onclick: cut(el.getAttribute("onclick"), 60) })),
-      tables: [...document.querySelectorAll("table")].filter(vis).slice(0, 10).map((t) => [...t.querySelectorAll("th")].map((th) => cut(th.innerText, 30))),
-      frames: [...document.querySelectorAll("iframe")].map((f) => cut(f.src.replace(/[?#].*/, ""), 80))
-    };
-    const txt = JSON.stringify(d, null, 1);
+    const txt = JSON.stringify(structure(), null, 1);
     try { await navigator.clipboard.writeText(txt); say("Η δομή της σελίδας αντιγράφηκε — επικόλλησέ τη στο Claude. Δεν περιέχει ονόματα ή στοιχεία ιδιοκτητών."); }
     catch (e) { const w = window.open("", "_blank"); if (w) { w.document.body.innerText = txt; } }
   }
@@ -238,6 +260,5 @@
     RUN = !!JOB.running; AUTO = JOB.auto !== false;
     if (RUN) loop();
   })();
-  // κρατάμε την κατάσταση «σε εκτέλεση» ανάμεσα στις φορτώσεις σελίδων
   window.addEventListener("beforeunload", () => { if (JOB) { JOB.running = RUN; JOB.auto = AUTO; chrome.runtime.sendMessage({ type: "setJob", job: JOB }); } });
 })();

@@ -564,6 +564,36 @@ window.HXOroiExport = {
       guard(()=> runActDiagram(st, d, a))();
     });
   },
+  /* χωρίς διάλογο: απόσπασμα (PDF) + αρχεία AutoCAD (DXF/TIFF/TFW) — για τον «Φάκελο Ακινήτου» */
+  async headless(st, o2){
+    o2 = o2 || {};
+    const ip = H().interiorPoint(H().mainOuter(st.parcel.geometry_egsa));
+    let diags = []; try{ diags = await listDiagrams(ip[0], ip[1]); }catch(e){ console.warn(e); }
+    st.ot = await otOf(ip[0], ip[1]).catch(()=>null);
+    let paper = o2.paper || "A4", scale = o2.scale || suggestScale(st.parcel, paper, st.ot);
+    let ext = extentFor(st.parcel, scale, paper, st.ot);
+    if(!ext.fits && !o2.paper){ paper = "A3"; scale = o2.scale || suggestScale(st.parcel, paper, st.ot); ext = extentFor(st.parcel, scale, paper, st.ot); }
+    const o = {scale, paper, diagram: diags[0] || null, diags, epsx:true, ot:st.ot, bbox:ext.bbox, fits:ext.fits, W:ext.W, H:ext.H, parcel:st.parcel, plan:st.plan,
+      kind: st.status==="oikismos" ? "ΑΠΟΣΠΑΣΜΑ ΟΡΙΩΝ ΟΙΚΙΣΜΟΥ" : st.status==="sxedio" ? "ΑΠΟΣΠΑΣΜΑ ΡΥΜΟΤΟΜΙΚΟΥ ΣΧΕΔΙΟΥ" : "ΑΠΟΣΠΑΣΜΑ ΠΟΛΕΟΔΟΜΙΚΩΝ ΣΤΟΙΧΕΙΩΝ"};
+    const base = await baseCanvas(o);
+    const vecs = await vectors(o.bbox).catch(()=>[]);
+    const tifName = fname(o,"tif"), gt = geoTiff(base.canvas, o.bbox), dxf = makeDxf(o, vecs, gt, tifName);
+    const pdf = await makePdf(o, decorate(base, o), Object.assign({}, st.summary, {notes:base.notes}));
+    const odigies = [
+      "HEXIS-APP · Απόσπασμα σχεδίου — ΚΑΕΚ " + o.parcel.kaek + " · κλίμακα 1:" + o.scale, "",
+      "AutoCAD: άνοιξε το " + fname(o,"dxf") + " (ή INSERT στο σχέδιό σου, σημείο 0,0, κλίμακα 1) — μονάδες μέτρα, ΕΓΣΑ'87.",
+      "Το υπόβαθρο (" + tifName + ") μπαίνει αυτόματα στη σωστή θέση· κράτα όλα τα αρχεία στον ίδιο φάκελο.",
+      "Layers: PST_KAEK (περίγραμμα γεωτεμαχίου), PST_KAEK_OMORA, KAEK_KEIMENO, RYMOTOMIKI, OIKODOMIKI, POL_GRAMMES, OT, OT_ARITHMOS, ORIO_OIKISMOU, KOINOXRISTA, PLAISIO.",
+      "Υπόβαθρο: " + (o.diagramUsed ? "διάγραμμα ΦΕΚ " + (o.diagramUsed.fek||"") + " (1:" + (o.diagramUsed.scale||"—") + ")" : "ψηφιοποιημένα στοιχεία ΕΨΧ"),
+      "Πηγές: Ενιαίος Ψηφιακός Χάρτης (ΤΕΕ/ΥΠΕΝ), Ελληνικό Κτηματολόγιο. Ενημερωτικό — δεν υποκαθιστά βεβαίωση ΥΔΟΜ."].join("\r\n");
+    return {o, notes: base.notes, files: [
+      {name: fname(o,"pdf"), data: pdf},
+      {name: fname(o,"dxf"), data: new Blob([dxf])},
+      {name: tifName, data: new Blob([gt.tif])},
+      {name: fname(o,"tfw"), data: new Blob([gt.tfw])},
+      {name: fname(o,"prj"), data: new Blob([PRJ])},
+      {name: "ODIGIES_AutoCAD.txt", data: new Blob([odigies])} ]};
+  },
   _test: { geoTiff, makeDxf, packbits, extentFor, suggestScale, listDiagrams, vectors, runPdf, runZip, actsIn, runActDiagram }
 };
 

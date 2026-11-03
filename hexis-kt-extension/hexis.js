@@ -5,6 +5,7 @@
     if (e.source !== window || !e.data || e.data.src !== "hexis-app") return;
     if (e.data.type === "ping") window.postMessage({ src: "hexis-kt-ext", type: "pong", version: VERSION }, location.origin);
     if (e.data.type === "job") chrome.runtime.sendMessage({ type: "job", job: e.data.job });
+    if (e.data.type === "extra") chrome.runtime.sendMessage({ type: "extra", kaek: e.data.kaek, files: e.data.files }, (r) => window.postMessage({ src: "hexis-kt-ext", type: "extraAck", ok: !!(r && r.ok) }, location.origin));
   });
   const pend = new Map(); let seq = 0;
   window.addEventListener("message", (e) => {

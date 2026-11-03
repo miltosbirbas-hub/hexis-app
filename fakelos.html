@@ -203,7 +203,8 @@ $("kaekIn").addEventListener("keydown", e=>{ if(e.key==="Enter") $("kaekGo").cli
 
 /* ---------- 2. πρόσθετο ---------- */
 let EXT = null;   // έκδοση πρόσθετου όταν απαντήσει
-const EXT_LATEST = "0.1.4";
+const EXT_LATEST = "0.2.0";
+const EXT_ASSETS = "4.198";
 window.addEventListener("message", e=>{
   if(e.source!==window || !e.data || e.data.src!=="hexis-kt-ext") return;
   if(e.data.type==="pong"){ EXT = e.data.version; extUI(); }
@@ -224,6 +225,7 @@ function extUI(){
   $("startExt").disabled = !EXT || !n;
   $("extState").innerHTML = EXT
     ? (EXT_LATEST.localeCompare(EXT, undefined, {numeric:true})>0 ? `<div class="warn" style="margin-bottom:8px">Υπάρχει νέα έκδοση του πρόσθετου (v${EXT_LATEST}). Κατέβασε ξανά το <a href="hexis-kt-extension.zip" download>hexis-kt-extension.zip</a>, κάνε «Εξαγωγή όλων» <b>στον ίδιο φάκελο</b> (αντικατάσταση αρχείων) και πάτα το ↻ στην κάρτα του πρόσθετου στο chrome://extensions.</div>` : "")
+    + (rymStatus ? `<div class="note" style="margin-bottom:6px">${esc(rymStatus)}</div>` : "")
     + `<div class="okbox">Το πρόσθετο HEXIS-APP είναι εγκατεστημένο (v${esc(EXT)}). ${extStatus?esc(extStatus):"Πάτα «Έναρξη»: ανοίγει το Κτηματολόγιο, συνδέεσαι με τους κωδικούς ΤΕΕ και το πρόσθετο κατεβάζει τα αποσπάσματα και τα έγγραφα των επιλεγμένων ΚΑΕΚ."}</div>`
     : `<div class="warn">Για αυτόματο κατέβασμα χρειάζεται το <b>πρόσθετο HEXIS-APP</b> για Chrome ή Edge (σε υπολογιστή).</div>
        <ol class="steps note"><li>Κατέβασε το <a href="hexis-kt-extension.zip" download>hexis-kt-extension.zip</a> και αποσυμπίεσέ το σε μόνιμο φάκελο.</li>
@@ -235,8 +237,23 @@ $("startExt").onclick = ()=>{
   const sel = ROWS.filter(r=>r.sel).map(r=>({kaek:r.kaek, role:r.role, ota:r.ota||""}));
   const main = (ROWS.find(r=>r.role==="main")||{}).kaek || sel[0].kaek;
   window.postMessage({src:"hexis-app", type:"job", job:{main, kaeks:sel, origin:location.origin, t:Date.now()}}, location.origin);
-  extStatus = "Ξεκίνησε — συνέχισε στην καρτέλα του Κτηματολογίου."; extUI();
+  extStatus = "Ξεκίνησε — συνέχισε στην καρτέλα του Κτηματολογίου. Στο τέλος ανοίγει καρτέλα με ΕΝΑ ZIP για όλο τον φάκελο."; extUI();
+  makeExtract(main).catch(e=>{ console.warn(e); rymStatus = "Απόσπασμα ρυμοτομικού: δεν δημιουργήθηκε (" + (e.message||e) + ")."; extUI(); });
 };
+/* απόσπασμα ρυμοτομικού του κύριου ΚΑΕΚ (PDF + DXF/TIFF για AutoCAD) → στο ZIP του φακέλου */
+let rymStatus = "";
+const blobB64 = b => new Promise((res,rej)=>{ const r = new FileReader(); r.onload = ()=> res(String(r.result).split(",")[1]||""); r.onerror = ()=> rej(r.error); r.readAsDataURL(b); });
+async function makeExtract(kaek){
+  if(isEK(kaek)) return;
+  rymStatus = "Απόσπασμα ρυμοτομικού: δημιουργία…"; extUI();
+  if(!window.HXOroi || !window.HXOroi.headless) await load("oroi-domisis.js?v=" + EXT_ASSETS);
+  if(!window.HXOroiExport) await load("oroi-export.js?v=" + EXT_ASSETS);
+  const st = await window.HXOroi.headless(kaek);
+  const r = await window.HXOroiExport.headless(st);
+  const files = await Promise.all(r.files.map(async f=>({name:f.name, b64: await blobB64(f.data)})));
+  window.postMessage({src:"hexis-app", type:"extra", kaek, files}, location.origin);
+  rymStatus = `Απόσπασμα ρυμοτομικού 1:${r.o.scale} (PDF + DXF/TIFF για AutoCAD): έτοιμο — μπαίνει στο ZIP του φακέλου.`; extUI();
+}
 
 /* ---------- 3. αρχεία ---------- */
 const FILES = [];  // {file, kaek, type, name}
