@@ -326,7 +326,7 @@
     const x = this.x;
     const step = niceStep(80 / this.view.s);
     const a = this.s2w(0, this.h), b = this.s2w(this.w, 0);
-    x.strokeStyle = this.dark ? 'rgba(255,255,255,0.07)' : 'rgba(20,40,60,0.08)'; x.lineWidth = 1;
+    x.strokeStyle = this.dark ? 'rgba(255,255,255,0.06)' : 'rgba(20,40,60,0.05)'; x.lineWidth = 1;
     x.beginPath();
     for (let E = Math.floor(a.E / step) * step; E <= b.E; E += step) { const s = this.w2s(E, 0)[0]; x.moveTo(s, 0); x.lineTo(s, this.h); }
     for (let N = Math.floor(a.N / step) * step; N <= b.N; N += step) { const s = this.w2s(0, N)[1]; x.moveTo(0, s); x.lineTo(this.w, s); }

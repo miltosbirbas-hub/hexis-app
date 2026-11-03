@@ -43,7 +43,12 @@
   // ==================== COGO ====================
   const tools = {};
   A.runTool = name => tools[name] && tools[name]({});
-  document.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => A.runTool(b.dataset.tool));
+  A.COGO_LIST = [['inverse', '↔', 'Απόσταση / Αζιμούθιο'], ['slope', '⟋', 'Μέτρηση κλίσης'], ['extend', '→|', 'Επέκταση ευθείας'], ['densify', '┄', 'Πύκνωση ευθυγραμμίας'], ['hidden', '⌖', 'Δυσπρόσιτο σημείο'], ['floor', '▱', 'Κλίση δαπέδου / επιφάνεια'], ['square', '⊾', 'Γωνίασμα κατασκευής'], ['intersect', '✕', 'Τομή ευθειών'], ['area', '⬠', 'Εμβαδόν / περίμετρος'], ['calib', '⚙', 'Τοπική προσαρμογή']];
+  A.cogoSheet = function () {
+    A.sheet('COGO', `<div class="tool-grid">${A.COGO_LIST.map(([k, i, l]) => `<button data-tool="${k}"><i>${i}</i>${l}</button>`).join('')}</div>`, b => {
+      b.querySelectorAll('[data-tool]').forEach(x => x.onclick = () => A.runTool(x.dataset.tool));
+    });
+  };
 
   tools.inverse = function (sel) {
     const open = () => A.sheet('Απόσταση / Αζιμούθιο / Κλίση', `${pp('a', 'Από σημείο')}${pp('b', 'Προς σημείο')}<div id="r"></div>`, b => {
@@ -592,7 +597,7 @@
         await HIO.kvSet('design:' + A.proj.id, A.design);
         A.map.layers.design = model; A.map.designLayers = A.design.layerState;
         A.map.extents(); A.toast(`✓ ${f.name}: ${model.ents.length} οντότητες, ${Object.keys(model.layers).length} layers`, 'ok', 3500);
-        const bb = model.bbox; if (bb && A.settings.crs === 'EGSA87' && (bb.x0 < 50000 || bb.x1 > 1000000 || bb.y0 < 3800000 || bb.y1 > 4700000)) A.toast('Προσοχή: το σχέδιο δεν φαίνεται να είναι σε ΕΓΣΑ87 (τοπικές συντεταγμένες;)', 'bad', 6000);
+        const bb = model.bbox; if (bb && /^EGSA87/.test(A.settings.crs) && (bb.x0 < 50000 || bb.x1 > 1000000 || bb.y0 < 3800000 || bb.y1 > 4700000)) A.toast('Προσοχή: το σχέδιο δεν φαίνεται να είναι σε ΕΓΣΑ87 (τοπικές συντεταγμένες;)', 'bad', 6000);
         return;
       }
       const buf = await f.arrayBuffer(); let t = new TextDecoder('utf-8').decode(buf); if (/�/.test(t)) t = new TextDecoder('windows-1253').decode(buf);
@@ -658,7 +663,7 @@
     A.sheet('Σύστημα συντεταγμένων', `<label class="fld"><span>Χώρα / σύστημα</span><select id="cs">${Object.entries(HGEO.CRS).map(([k, v]) => `<option value="${k}" ${k === S.crs ? 'selected' : ''}>${esc(v.name)}</option>`).join('')}<option value="CUSTOM" ${S.crs === 'CUSTOM' ? 'selected' : ''}>Άλλο — δικός μου ορισμός proj4</option></select></label>
       <label class="fld" id="cw"><span>Ορισμός proj4 (π.χ. από epsg.io → PROJ.4)</span><textarea id="cd" rows="3" placeholder="+proj=tmerc +lat_0=0 +lon_0=... +towgs84=...">${esc(S.crsCustom || '')}</textarea></label>
       <label class="fld"><span>Υψόμετρα</span><select id="hm"><option value="msl" ${S.heightMode === 'msl' ? 'selected' : ''}>Ορθομετρικά από τον δέκτη (μοντέλο γεωειδούς του δέκτη / δικτύου)</option><option value="ell" ${S.heightMode === 'ell' ? 'selected' : ''}>Ελλειψοειδή (h)</option></select></label>
-      <p class="muted">Για ακρίβεια σε τοπικό δίκτυο ή διαφορετικό γεωειδές, χρησιμοποίησε COGO → Τοπική προσαρμογή σε γνωστά σημεία.</p>
+      <p class="muted">Ελλάδα: με HEPOS ή δίκτυο σε ETRS89 διάλεξε «ΕΓΣΑ87 — επίσημο μοντέλο HEPOS» (7 παράμετροι + κάνναβος διορθώσεων Κτηματολογίου, ακρίβεια εκατοστού). Το «3 παράμετροι» αποκλίνει έως και πάνω από 1 m. Για τοπικό δίκτυο ή υψόμετρα: COGO → Τοπική προσαρμογή σε γνωστά σημεία.</p>
       <div class="result" id="tt"></div><button class="btn primary" id="ok">Εφαρμογή</button>`, b => {
       const cs = b.querySelector('#cs'), cw = b.querySelector('#cw');
       const sh = () => { cw.classList.toggle('hidden', cs.value !== 'CUSTOM'); };
@@ -725,7 +730,7 @@
   A.helpSheet = function () {
     A.sheet('Οδηγίες χρήσης', `<div class="help">
       <button class="btn primary" id="hm-full">📖 Πλήρες εγχειρίδιο</button>
-      <h3>1. Σύνδεση</h3><p>Μενού → Σύνδεση δέκτη → Bluetooth (κάνε πρώτα σύζευξη από το Android) → Σύνδεση. Μετά Μενού → NTRIP: host, port, mountpoint, χρήστης, κωδικός → Έναρξη. Η γραμμή κατάστασης δείχνει FIX/FLOAT, σH/σV, δορυφόρους, ηλικία διορθώσεων και QC.</p>
+      <h3>0. Οθόνη</h3><p>⌂ αρχικό μενού. Αριστερή στήλη: ✎ Εργαλεία για προσθήκη/αφαίρεση. ▾ μικραίνει την κάρτα Survey/Stakeout. ▦ όρια Κτηματολογίου.</p><h3>1. Σύνδεση</h3><p>Μενού → Σύνδεση δέκτη → Bluetooth (κάνε πρώτα σύζευξη από το Android) → Σύνδεση. Μετά Μενού → NTRIP: host, port, mountpoint, χρήστης, κωδικός → Έναρξη. Η γραμμή κατάστασης δείχνει FIX/FLOAT, σH/σV, δορυφόρους, ηλικία διορθώσεων και QC.</p>
       <h3>2. Αποτύπωση (Survey)</h3><p>Όνομα, κωδικός, ύψος κεραίας (ράβδος + κέντρο φάσης) → ● ΜΕΤΡΗΣΗ. Γίνεται μέσος όρος εποχών και ποιοτικός έλεγχος· αν δεν περάσει, προτείνεται επανάληψη. «Γραμμή με κωδικό»: συνεχόμενα σημεία ίδιου κωδικού ενώνονται. 📷: φωτογραφία συνδεδεμένη με το τελευταίο σημείο, με υδατογράφημα συντεταγμένων.</p>
       <h3>3. Χάραξη (Stakeout)</h3><ul><li><b>Σημείο</b>: στόχος από λίστα, ◀ ▶, ή ⌖ στον χάρτη (σημεία/κορυφές DXF).</li><li><b>Γραμμή</b>: πολυγραμμή σχεδίου ή δύο σημεία. Κενή Χ.Θ. = ζωντανή χιλιομέτρηση/offset· με Χ.Θ. = στόχος, ▶ προχωρά κατά «Βήμα».</li><li><b>Επιφάνεια</b>: δάπεδο με κλίσεις ή επίπεδο 3 σημείων — δείχνει Εκσκαφή/Επίχωση.</li><li><b>Γωνίασμα</b>: βασική γραμμή, Χ.Θ./offset κάθετα.</li></ul><p>«Μπρος/Δεξιά» ως προς την κατεύθυνση που περπατάς (ή Βορράς / σημείο προσανατολισμού). ⛶ πλήρης οθόνη. ● ΚΑΤΑΓΡΑΦΗ: αποθηκεύει το χαραγμένο με ΔX/ΔY/ΔZ.</p>
       <h3>4. COGO</h3><p>Απόσταση/Αζιμούθιο, Κλίση (ζωντανά), Επέκταση ευθείας, Πύκνωση, Δυσπρόσιτο σημείο (laser, τομή αποστάσεων, προέκταση, τομή ευθειών), Κλίση δαπέδου, Γωνίασμα (και γωνίες ορθογωνίου), Εμβαδόν, Τοπική προσαρμογή.</p>

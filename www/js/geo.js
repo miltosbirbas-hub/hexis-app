@@ -3,7 +3,8 @@
   'use strict';
   // Έτοιμα συστήματα ανά χώρα. Σε όλα μπορεί να μπει και δικό σου proj4 + τοπική προσαρμογή (calibration).
   const CRS = {
-    'EGSA87': { name: 'Ελλάδα · ΕΓΣΑ87 (EPSG:2100)', def: '+proj=tmerc +lat_0=0 +lon_0=24 +k=0.9996 +x_0=500000 +y_0=0 +ellps=GRS80 +towgs84=-199.87,74.79,246.62,0,0,0,0 +units=m +no_defs' },
+    'EGSA87_HEPOS': { name: 'Ελλάδα · ΕΓΣΑ87 — επίσημο μοντέλο HEPOS (HTRS07, κάνναβος 2 km)', def: '+proj=tmerc +lat_0=0 +lon_0=24 +k=0.9996 +x_0=500000 +y_0=0 +ellps=GRS80 +units=m +no_defs', hepos: true },
+    'EGSA87': { name: 'Ελλάδα · ΕΓΣΑ87 — 3 παράμετροι (EPSG:2100, προσεγγιστικό)', def: '+proj=tmerc +lat_0=0 +lon_0=24 +k=0.9996 +x_0=500000 +y_0=0 +ellps=GRS80 +towgs84=-199.87,74.79,246.62,0,0,0,0 +units=m +no_defs' },
     'CY_LTM': { name: 'Κύπρος · CGRS93 / LTM (EPSG:6312)', def: '+proj=tmerc +lat_0=0 +lon_0=33 +k=0.99995 +x_0=200000 +y_0=-3500000 +ellps=GRS80 +towgs84=8.846,-4.394,-1.122,-0.00237,-0.146528,0.130428,0.783926 +units=m +no_defs' },
     'AL_TM': { name: 'Αλβανία · KRGJSH-2010 / Albanian TM 2010 (EPSG:6962)', def: '+proj=tmerc +lat_0=0 +lon_0=20 +k=1 +x_0=500000 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs' },
     'UK_BNG': { name: 'Ην. Βασίλειο · British National Grid (EPSG:27700)', def: '+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +towgs84=446.448,-125.157,542.06,0.15,0.247,0.842,-20.489 +units=m +no_defs' },
@@ -16,7 +17,7 @@
     'UTM_AUTO': { name: 'Παγκόσμιο · WGS84 / UTM (αυτόματη ζώνη)', def: null },
   };
   const WGS = '+proj=longlat +datum=WGS84 +no_defs';
-  let current = 'EGSA87', customDef = '';
+  let current = 'EGSA87_HEPOS', customDef = '';
 
   let utmZone = null, calib = null; // calib: {a,b,tx,ty,dz} E'=a*E-b*N+tx, N'=b*E+a*N+ty
   function def() {
@@ -39,13 +40,16 @@
   function validDef(d) { try { proj4(WGS, d, [24, 38]); return true; } catch (e) { return false; } }
 
   // lat, lon (μοίρες) -> {E, N}  (με τοπική προσαρμογή αν υπάρχει)
-  function rawGrid(lat, lon) {
+  function isHepos() { return current === 'EGSA87_HEPOS'; }
+  function rawGrid(lat, lon, h) {
+    if (isHepos() && g.HHEPOS) { if (!HHEPOS.ready()) HHEPOS.load(); const r = HHEPOS.toEGSA(lat, lon, h || 0); lastGridOk = r.grid !== false; return { E: r.E, N: r.N }; }
     if (current === 'UTM_AUTO' && utmZone == null) { utmZone = Math.floor((lon + 180) / 6) + 1; utmSouth = lat < 0; }
     const p = proj4(WGS, def(), [lon, lat]);
     return { E: p[0], N: p[1] };
   }
-  function toGrid(lat, lon) {
-    const r = rawGrid(lat, lon);
+  let lastGridOk = true;
+  function toGrid(lat, lon, h) {
+    const r = rawGrid(lat, lon, h);
     if (!calib) return r;
     return { E: calib.a * r.E - calib.b * r.N + calib.tx, N: calib.b * r.E + calib.a * r.N + calib.ty };
   }
@@ -54,6 +58,7 @@
       const x = E - calib.tx, y = N - calib.ty, d = calib.a * calib.a + calib.b * calib.b;
       E = (calib.a * x + calib.b * y) / d; N = (-calib.b * x + calib.a * y) / d;
     }
+    if (isHepos() && g.HHEPOS) { const r = HHEPOS.fromEGSA(E, N, 0); return { lat: r.lat, lon: r.lon }; }
     const p = proj4(def(), WGS, [E, N]);
     return { lat: p[1], lon: p[0] };
   }
@@ -152,5 +157,5 @@
     return d.toFixed(1) + '°';
   }
 
-  g.HGEO = { CRS, setCRS, setCalib, getCalib, solveCalib, rawGrid, heightShift, validDef, crsName, toGrid, toLL, convergence, dist, azimuth, stationOffset, pointAtStation, fmt, fmtAz };
+  g.HGEO = { isHepos, gridOk: () => lastGridOk, CRS, setCRS, setCalib, getCalib, solveCalib, rawGrid, heightShift, validDef, crsName, toGrid, toLL, convergence, dist, azimuth, stationOffset, pointAtStation, fmt, fmtAz };
 })(window);

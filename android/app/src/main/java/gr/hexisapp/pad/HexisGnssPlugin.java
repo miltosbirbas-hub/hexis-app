@@ -7,6 +7,10 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
+import android.content.Intent;
+import android.database.Cursor;
+import android.net.Uri;
+import android.provider.OpenableColumns;
 import android.os.Build;
 import android.util.Base64;
 
@@ -431,6 +435,77 @@ public class HexisGnssPlugin extends Plugin {
                 call.reject("Sourcetable: " + e.getMessage());
             }
         }, "hexis-srctable").start();
+    }
+
+    // ---------- Αρχεία από άλλες εφαρμογές («Άνοιγμα με» / «Κοινή χρήση») ----------
+    private JSObject pendingFile = null;
+
+    @Override
+    public void load() {
+        try { if (getActivity() != null) handleIntent(getActivity().getIntent()); } catch (Exception ignored) { }
+    }
+
+    @Override
+    protected void handleOnNewIntent(Intent intent) {
+        super.handleOnNewIntent(intent);
+        handleIntent(intent);
+    }
+
+    private void handleIntent(Intent intent) {
+        if (intent == null) return;
+        Uri uri = null;
+        String action = intent.getAction();
+        if (Intent.ACTION_VIEW.equals(action)) uri = intent.getData();
+        else if (Intent.ACTION_SEND.equals(action)) {
+            Object o = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+            if (o instanceof Uri) uri = (Uri) o;
+            else {
+                String txt = intent.getStringExtra(Intent.EXTRA_TEXT);
+                if (txt != null && txt.length() > 0) {
+                    JSObject f = new JSObject();
+                    f.put("name", "Κοινόχρηστο κείμενο.txt"); f.put("mime", "text/plain");
+                    f.put("data", Base64.encodeToString(txt.getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP));
+                    deliver(f);
+                }
+                return;
+            }
+        }
+        if (uri == null) return;
+        final Uri u = uri;
+        final String mime = intent.getType();
+        new Thread(() -> {
+            try {
+                String name = "αρχείο";
+                try (Cursor c = getContext().getContentResolver().query(u, null, null, null, null)) {
+                    if (c != null && c.moveToFirst()) { int i = c.getColumnIndex(OpenableColumns.DISPLAY_NAME); if (i >= 0) name = c.getString(i); }
+                } catch (Exception ignored) { }
+                if ("αρχείο".equals(name) && u.getLastPathSegment() != null) name = u.getLastPathSegment();
+                ByteArrayOutputStream b = new ByteArrayOutputStream();
+                try (InputStream in = getContext().getContentResolver().openInputStream(u)) {
+                    byte[] buf = new byte[65536]; int n;
+                    while (in != null && (n = in.read(buf)) > 0) { b.write(buf, 0, n); if (b.size() > 80_000_000) throw new IOException("Πολύ μεγάλο αρχείο"); }
+                }
+                JSObject f = new JSObject();
+                f.put("name", name); f.put("mime", mime == null ? "" : mime);
+                f.put("data", Base64.encodeToString(b.toByteArray(), Base64.NO_WRAP));
+                deliver(f);
+            } catch (Exception e) {
+                JSObject o = new JSObject(); o.put("channel", "file"); o.put("state", "error"); o.put("message", "Άνοιγμα αρχείου: " + e.getMessage());
+                notifyListeners("status", o);
+            }
+        }, "hexis-open").start();
+    }
+
+    private void deliver(JSObject f) {
+        pendingFile = f;
+        if (hasListeners("fileOpen")) { notifyListeners("fileOpen", f); pendingFile = null; }
+    }
+
+    @PluginMethod
+    public void getPendingFile(PluginCall call) {
+        JSObject r = pendingFile != null ? pendingFile : new JSObject();
+        pendingFile = null;
+        call.resolve(r);
     }
 
     @Override

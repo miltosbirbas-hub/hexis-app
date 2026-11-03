@@ -7,8 +7,8 @@
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
   const DEF = {
-    crs: 'EGSA87', crsCustom: '', theme: 'light', antH: 1.8, onlyFix: true, epochs: 5, qcClass: 'RT3',
-    tolH: 0.02, tolV: 0.02, beep: true, heightMode: 'msl', base: 'esri_sat', overlays: { esri_labels: false, kt_wms: false, hexis_kaek: false },
+    crs: 'EGSA87_HEPOS', crsCustom: '', theme: 'light', antH: 1.8, onlyFix: true, epochs: 5, qcClass: 'RT3',
+    tolH: 0.02, tolV: 0.02, beep: true, heightMode: 'msl', base: 'none', uiv: 3, overlays: { esri_labels: false, kt_wms: false, hexis_kaek: false },
     googleKey: '', soRef: 'move', ntrip: { host: '', port: 2101, mount: '', user: '', pass: '', gga: true, auto: false }, gnss: { type: 'bt', address: '', name: '', host: '', port: 0, init: '' },
     laser: { address: '', name: '' }, decl: 4.5, lastProject: null, textH: 0.25,
   };
@@ -53,7 +53,7 @@
     document.querySelector('meta[name=theme-color]').content = S.theme === 'dark' ? '#16202b' : '#f4f7fa';
     HGEO.setCRS(S.crs, S.crsCustom);
     HGEO.setCalib(A.proj && A.proj.calib ? A.proj.calib : null);
-    $('cur-crs').textContent = HGEO.crsName().split('·').pop().trim().split(' (')[0] + (A.proj && A.proj.calib ? ' + CAL' : '');
+    $('cur-crs').textContent = (HGEO.isHepos() ? 'ΕΓΣΑ87 · HEPOS' : HGEO.crsName().split('·').pop().trim().split(' (')[0].split(' — ')[0]) + (A.proj && A.proj.calib ? ' + CAL' : '');
     A.qc.cls = S.qcClass;
     $('sv-ant').value = S.antH; $('sv-onlyfix').checked = S.onlyFix; $('sv-epochs').value = String(S.epochs);
     $('so-ref').value = S.soRef;
@@ -99,7 +99,7 @@
   };
   A.refreshAll = function () {
     $('st-proj').textContent = A.proj ? A.proj.name : '';
-    $('sv-name').value = A.proj.nextName || '1';
+    $('sv-name').value = A.proj.nextName || '1'; $('sv-mini').textContent = $('sv-name').value;
     A.renderPoints(); A.renderCodes(); A.updateMapLayers(); A.updateStakeTarget();
   };
 
@@ -118,8 +118,8 @@
     const n = A.nmea;
     if (n.lat == null) { A.pos = null; A.updateStatus(); return; }
     const S = A.settings;
-    let grid; try { grid = HGEO.toGrid(n.lat, n.lon); } catch (e) { return; }
     const ellH = (n.alt != null && n.geoidSep != null) ? n.alt + n.geoidSep : null;
+    let grid; try { grid = HGEO.toGrid(n.lat, n.lon, ellH != null ? ellH : (n.alt || 0)); } catch (e) { return; }
     const H = S.heightMode === 'ell' ? ellH : n.alt;
     const fix = n.fix().key;
     const p = {
@@ -273,7 +273,7 @@
     }
     P.points.push(pt);
     if (pt.code && !P.codes.includes(pt.code)) { P.codes.unshift(pt.code); P.codes = P.codes.slice(0, 30); }
-    if (!opt.keepName) { P.nextName = nextName(pt.name); $('sv-name').value = P.nextName; }
+    if (!opt.keepName) { P.nextName = nextName(pt.name); $('sv-name').value = P.nextName; $('sv-mini').textContent = P.nextName + (($('sv-code').value) ? ' · ' + $('sv-code').value : ''); }
     A.lastPoint = pt;
     A.saveProject();
     A.renderPoints(); A.renderCodes(); A.updateMapLayers();
@@ -310,6 +310,7 @@
 
   // ---------- Λίστα σημείων ----------
   A.renderPoints = function () {
+    if (!$('pt-list')) return;
     const q = ($('pt-search').value || '').toLowerCase(), fl = $('pt-filter').value;
     const pts = A.proj.points.filter(p => (fl === 'all' || p.type === fl) && (!q || (p.name + ' ' + (p.code || '')).toLowerCase().includes(q)));
     const tagName = { survey: 'MEAS', stake: 'STAKE', staked: 'DONE', calc: 'CALC', control: 'CTRL' };
@@ -319,7 +320,6 @@
     $('pt-list').innerHTML = html || '<p class="muted">Δεν υπάρχουν σημεία. Μέτρησε από το Survey ή κάνε Εισαγωγή TXT από το Μενού.</p>';
     $('pt-list').querySelectorAll('.li').forEach(el => el.onclick = () => A.pointSheet(A.proj.points.find(p => p.id === el.dataset.id)));
   };
-  $('pt-search').oninput = () => A.renderPoints(); $('pt-filter').onchange = () => A.renderPoints();
 
   A.pointSheet = async function (p) {
     if (!p) return;
@@ -386,7 +386,6 @@
       };
     });
   };
-  $('pt-add').onclick = () => A.addPointManual();
 
   // Μέτρηση ελέγχου σε σημείο (γνωστό ή μετρημένο)
   A.checkShot = async function (p) {
@@ -453,14 +452,30 @@
   A.vibrate = vibrate;
 
   // ---------- Καρτέλες ----------
+  // Λειτουργίες: survey / stake ανοίγουν την κάρτα πάνω στον χάρτη· οι υπόλοιπες ανοίγουν φύλλο
   A.setTab = function (t) {
+    if (t === 'points') return A.pointsSheet();
+    if (t === 'cogo') return A.cogoSheet && A.cogoSheet();
+    if (t === 'menu' || t === 'home') return A.showHome && A.showHome();
     A.tab = t;
-    document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
-    document.querySelectorAll('.pane').forEach(p => p.classList.toggle('hidden', p.dataset.pane !== t));
-    if (t === 'points') A.renderPoints();
+    $('home').classList.add('hidden');
+    const dock = $('dock'); dock.classList.remove('hidden');
+    document.querySelectorAll('#dock .pane').forEach(p => p.classList.toggle('hidden', p.dataset.pane !== t));
+    $('dock-title').textContent = t === 'stake' ? 'Stakeout' : 'Survey';
+    if (A.ui) A.ui.refreshToolState();
     setTimeout(() => A.map._resize(), 30);
   };
-  document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => A.setTab(b.dataset.tab));
+  $('dock-min').onclick = () => { const d = $('dock'); d.classList.toggle('min'); $('dock-min').textContent = d.classList.contains('min') ? '▴' : '▾'; A.settings.dockMin = d.classList.contains('min'); A.saveSettings(); A.updateGuidance(); };
+  $('dock-close').onclick = () => { $('dock').classList.add('hidden'); A.tab = 'map'; if (A.ui) A.ui.refreshToolState(); };
+
+  // Λίστα σημείων σε φύλλο (ο χάρτης μένει ελεύθερος)
+  A.pointsSheet = function () {
+    A.sheet('Σημεία', `<div class="row"><input id="pt-search" class="grow" placeholder="Αναζήτηση σημείου / κωδικού"><select id="pt-filter" style="width:auto"><option value="all">Όλα</option><option value="survey">Μετρημένα</option><option value="stake">Προς χάραξη</option><option value="staked">Χαραγμένα</option><option value="calc">Υπολογισμένα</option><option value="control">Γνωστά</option></select><button class="btn" id="pt-add" title="Νέο σημείο">＋</button></div><div id="pt-list" class="list"></div>`, b => {
+      b.querySelector('#pt-search').oninput = () => A.renderPoints(); b.querySelector('#pt-filter').onchange = () => A.renderPoints();
+      b.querySelector('#pt-add').onclick = () => A.addPointManual();
+      A.renderPoints();
+    });
+  };
 
   // ---------- Survey κουμπιά ----------
   $('btn-measure-pt').onclick = () => A.measure();
@@ -543,8 +558,8 @@
     i = i < 0 ? 0 : (i + dir + list.length) % list.length;
     A.setTarget(list[i]);
   }
-  $('so-prev').onclick = $('sf-prev').onclick = () => navTarget(-1);
-  $('so-next').onclick = $('sf-next').onclick = () => navTarget(1);
+  $('so-prev').onclick = $('sf-prev').onclick = $('so-prev2').onclick = () => navTarget(-1);
+  $('so-next').onclick = $('sf-next').onclick = $('so-next2').onclick = () => navTarget(1);
   $('so-pick').onclick = () => {
     if (S.mode === 'surface') return A.runTool('floor');
     if (S.mode === 'base') return A.runTool('square');
@@ -792,7 +807,7 @@
     A._pick = { opts, cb };
     $('pick-text').textContent = text; $('pick-banner').classList.remove('hidden');
     A.closeSheet();
-    if (A.tab !== 'stake' && A.tab !== 'survey') { /* κράτα τον χάρτη ορατό */ }
+    $('home').classList.add('hidden');
   };
   $('pick-cancel').onclick = () => { A._pick = null; $('pick-banner').classList.add('hidden'); };
 
@@ -836,14 +851,15 @@
   }
 
   // ---------- Εργαλειοθήκη χάρτη ----------
-  document.querySelectorAll('#map-tools button').forEach(b => b.onclick = () => {
-    const m = A.map, a = b.dataset.act;
+  A.mapAction = function (a) {
+    const m = A.map;
     if (a === 'zoomin') m.zoom(1.6); if (a === 'zoomout') m.zoom(1 / 1.6);
-    if (a === 'extents') { if (!m.extents()) A.toast('Δεν υπάρχουν δεδομένα'); $('btn-follow').classList.remove('on'); }
-    if (a === 'follow') { m.follow = true; $('btn-follow').classList.add('on'); if (A.pos) { const z = m.view.s < 2 ? 8 : m.view.s; m.centerOn(A.pos.E, A.pos.N, z); } }
+    if (a === 'extents') { if (!m.extents()) A.toast('Δεν υπάρχουν δεδομένα'); }
+    if (a === 'follow') { m.follow = true; if (A.pos) { const z = m.view.s < 2 ? 8 : m.view.s; m.centerOn(A.pos.E, A.pos.N, z); } else A.toast('Χωρίς θέση GNSS'); }
     if (a === 'layers') A.layersSheet();
-    if (a === 'measure') { A._measureMode = !A._measureMode; b.classList.toggle('on', A._measureMode); m.layers.measure = []; $('snap-info').classList.add('hidden'); if (A._measureMode) A.toast('Πάτα σημεία στον χάρτη για μέτρηση μήκους/εμβαδού'); m.redraw(); }
-  });
+    if (a === 'measure') { A._measureMode = !A._measureMode; m.layers.measure = []; $('snap-info').classList.add('hidden'); if (A._measureMode) A.toast('Πάτα σημεία στον χάρτη για μήκος/εμβαδόν'); m.redraw(); }
+    if (A.ui) A.ui.refreshToolState();
+  };
 
   // ---------- Wake lock ----------
   let wake = null;
@@ -855,16 +871,20 @@
   A.init = async function () {
     const st = await HIO.kvGet('settings').catch(() => null);
     if (st) A.settings = Object.assign(JSON.parse(JSON.stringify(DEF)), st, { ntrip: Object.assign({}, DEF.ntrip, st.ntrip || {}), gnss: Object.assign({}, DEF.gnss, st.gnss || {}), overlays: Object.assign({}, DEF.overlays, st.overlays || {}) });
+    if (st && !st.uiv) { A.settings.base = 'none'; A.settings.theme = 'light'; }
+    if (st && (st.uiv || 0) < 3 && /^EGSA87/.test(A.settings.crs)) A.settings.crs = 'EGSA87_HEPOS';
+    A.settings.uiv = 3;
+    await HHEPOS.load();
     A.map = new HMAP.MapView($('map'));
     A.map.toLL = (E, N) => { try { return HGEO.toLL(E, N); } catch (e) { return null; } };
     A.map.toGrid = (lat, lon) => HGEO.toGrid(lat, lon);
     A.map.kaekToScreen = (E, N) => { // ΚΑΕΚ σε ΕΓΣΑ87 -> τρέχον σύστημα
-      if (A.settings.crs === 'EGSA87' && !(A.proj && A.proj.calib)) return A.map.w2s(E, N);
+      if (/^EGSA87/.test(A.settings.crs) && !(A.proj && A.proj.calib)) return A.map.w2s(E, N);
       const ll = proj4(HGEO.CRS.EGSA87.def, '+proj=longlat +datum=WGS84 +no_defs', [E, N]); const g2 = HGEO.toGrid(ll[1], ll[0]); return A.map.w2s(g2.E, g2.N);
     };
     A.map.onTap = onMapTap; A.map.onLongPress = onLongPress;
-    A.map.onPan = () => $('btn-follow').classList.remove('on');
-    A.map.onViewChange = () => A.map.loadKaek(w => { try { const ll = HGEO.toLL(w.E, w.N); const p = proj4('+proj=longlat +datum=WGS84 +no_defs', HGEO.CRS.EGSA87.def, [ll.lon, ll.lat]); return { E: p[0], N: p[1] }; } catch (e) { return null; } });
+    A.map.onPan = () => { if (A.ui) A.ui.refreshToolState(); };
+    A.map.onViewChange = () => A.map.loadKaek(w => { if (/^EGSA87/.test(A.settings.crs) && !(A.proj && A.proj.calib)) return w; try { const ll = HGEO.toLL(w.E, w.N); const p = proj4('+proj=longlat +datum=WGS84 +no_defs', HGEO.CRS.EGSA87.def, [ll.lon, ll.lat]); return { E: p[0], N: p[1] }; } catch (e) { return null; } });
     HCONN.on('nmea', onNmea);
     HCONN.on('status', d => { if (A.onConnStatus) A.onConnStatus(d); });
     HCONN.on('ntrip', d => { if (A.onNtrip) A.onNtrip(d); });
@@ -872,7 +892,9 @@
     if (!ok) await A.createProject();
     A.applySettings();
     if (!A.map.extents()) A.map.centerOn(213800, 4285200, 0.05); // Ελλάδα (Λευκάδα) αρχικά
-    A.setTab('survey'); A.updateStatus(); A.updateGuidance();
+    if (A.settings.dockMin) { $('dock').classList.add('min'); $('dock-min').textContent = '▴'; }
+    A.updateStatus(); A.updateGuidance();
+    if (A.ui) A.ui.init();
     setTimeout(() => $('splash').classList.add('out'), 700); setTimeout(() => $('splash').remove(), 1300);
     if (A.autoConnect) A.autoConnect();
     // Native: κουμπί «πίσω» Android κλείνει φύλλα
