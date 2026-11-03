@@ -350,7 +350,7 @@ async function osmStreets(bb: number[]): Promise<{ name: string; pts: Pt[] }[]> 
   const sw = egsaToWgs(bb[0], bb[1]), ne = egsaToWgs(bb[2], bb[3]);
   const qq = `[out:json][timeout:12];way["highway"]["name"](${Math.min(sw[0], ne[0]).toFixed(6)},${Math.min(sw[1], ne[1]).toFixed(6)},${Math.max(sw[0], ne[0]).toFixed(6)},${Math.max(sw[1], ne[1]).toFixed(6)});out geom;`;
   for (const host of ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]) {
-    const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 14000);
+    const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 6000);
     try {
       const r = await fetch(host, { method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "HEXIS-APP/1.0 (hexis-app.gr)" }, body: "data=" + encodeURIComponent(qq) });
       if (!r.ok) continue;
@@ -421,9 +421,27 @@ async function lispExtract(req: Request, b: HxAttr, C: Record<string, string>) {
     }
   }));
   out.push(...kaekLbl);
-  // ονόματα οδών (OpenStreetMap): στο μέσο του μεγαλύτερου τμήματος μέσα στο πλαίσιο, παράλληλα στον άξονα
+  // ονόματα οδών: OpenStreetMap (άξονας οδού)· αλλιώς από τις διευθύνσεις του ΕΨΧ (κέντρο & διεύθυνση των αριθμών της οδού)
   const seenSt = new Map<string, number>();
-  for (const st of await streetsP) {
+  const osm = await streetsP;
+  if (!osm.length) {
+    try {
+      const body = new URLSearchParams({ geometry: env, geometryType: "esriGeometryEnvelope", inSR: "2100", outSR: "2100", spatialRel: "esriSpatialRelIntersects", outFields: "ADDR", returnGeometry: "true", resultRecordCount: "2000", f: "json" });
+      const r = await fetch(BASE + "UDM_SERVICE_BUILDINGS/MapServer/1/query", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "HEXIS-APP/1.0 (hexis-app.gr)", "Referer": "https://sdigmap.tee.gov.gr/sdmquery/public/" }, body: body.toString() });
+      const j = r.ok ? await r.json() : {};
+      const by = new Map<string, Pt[]>();
+      for (const f of j.features || []) { const n = clean(String((f.attributes || {}).ADDR || "")); const g = f.geometry || {}; if (!n || g.x == null) continue; if (!by.has(n)) by.set(n, []); by.get(n)!.push([g.x, g.y]); }
+      for (const [name, pts] of by) {
+        if (pts.length < 2) continue;
+        const cx = pts.reduce((a, p) => a + p[0], 0) / pts.length, cy = pts.reduce((a, p) => a + p[1], 0) / pts.length;
+        let sxx = 0, syy = 0, sxy = 0; pts.forEach((p) => { sxx += (p[0] - cx) ** 2; syy += (p[1] - cy) ** 2; sxy += (p[0] - cx) * (p[1] - cy); });
+        let ang = 0.5 * Math.atan2(2 * sxy, sxx - syy); if (ang > Math.PI / 2) ang -= Math.PI; if (ang <= -Math.PI / 2) ang += Math.PI;
+        // μέσο σημείο ανάμεσα στις δύο πλευρές της οδού: το κέντρο προβάλλεται στον άξονα των σημείων
+        if (cx > bb[0] && cx < bb[2] && cy > bb[1] && cy < bb[3]) out.push("R=HX_ODOI|" + P2([cx, cy]) + "|" + ang.toFixed(4) + "|" + name);
+      }
+    } catch (_e) { /* χωρίς ονόματα οδών */ }
+  }
+  for (const st of osm) {
     for (const pa of clipPath(st.pts, bb)) {
       let best = -1, bi = 0;
       for (let i = 0; i < pa.length - 1; i++) { const L = Math.hypot(pa[i + 1][0] - pa[i][0], pa[i + 1][1] - pa[i][1]); if (L > best) { best = L; bi = i; } }
