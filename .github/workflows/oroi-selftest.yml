@@ -2,6 +2,9 @@ name: Όροι Δόμησης · έλεγχος
 # Καλεί τη function oroi-domisis σε δείγματα σημείων με προσωρινό κλειδί αυτοελέγχου και γράφει τα αποτελέσματα στον κλάδο probe-out.
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/oroi-selftest.yml"]
 permissions:
   contents: write
 concurrency: { group: oroi-selftest, cancel-in-progress: false }
@@ -29,6 +32,9 @@ jobs:
           call nydri '{"x":213637.6,"y":4289207.9}'
           call ektos_lef '{"x":210410.3,"y":4292903.8}'
           call lefkada_poli '{"x":213986.5,"y":4303000.3}'
+          curl -s -o out/tif_part.bin -w "tif_range %{http_code} %{size_download}B\n" -H "x-hx-selftest: $KEY" -H "Origin: https://hexis-app.gr" -H "Range: bytes=0-65535" -D out/tif_headers.txt \
+            "https://$REF.supabase.co/functions/v1/oroi-domisis?tif=https%3A%2F%2Fsdigmap.tee.gov.gr%2F_Digitize_LOW%2F2_GEOREF_EGSA_LOW%2F102691FS000831-1986E.tif" | tee -a out/summary.txt
+          curl -s -o /dev/null -w "tif_bad %{http_code}\n" -H "x-hx-selftest: $KEY" "https://$REF.supabase.co/functions/v1/oroi-domisis?tif=https%3A%2F%2Fexample.com%2Fx.tif" | tee -a out/summary.txt
           curl -s -o out/noauth.json -w "noauth %{http_code}\n" -X POST "https://$REF.supabase.co/functions/v1/oroi-domisis" -H "Content-Type: application/json" --data '{"x":1,"y":2}' | tee -a out/summary.txt
       - name: Δημοσίευση στο probe-out
         run: |
