@@ -89,6 +89,31 @@
     });
     return '﻿' + h.join(';') + '\r\n' + rows.join('\r\n') + '\r\n';
   }
+  // Αναφορά χάραξης: στόχος ↔ χαραγμένο
+  function stakeRows(st, tH, tV) {
+    return st.map(p => {
+      const s = p.stake, dh = s.dE != null ? Math.hypot(s.dE, s.dN) : null;
+      return { p, s, dh, okH: dh == null || dh <= tH, okV: s.dZ == null || Math.abs(s.dZ) <= tV };
+    });
+  }
+  function toStakeCSV(st, tH, tV) {
+    const h = ['Στόχος', 'X στόχου', 'Y στόχου', 'Z στόχου', 'Χαραγμένο', 'X', 'Y', 'Z', 'ΔX', 'ΔY', 'ΔΟριζ', 'ΔZ', 'Εντός ανοχής', 'σH', 'σV', 'Λύση', 'Ημερομηνία', 'Ώρα'];
+    const q = v => { v = v == null ? '' : String(v); return /[",;\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    return '\ufeff' + h.join(';') + '\r\n' + stakeRows(st, tH, tV).map(({ p, s, dh, okH, okV }) => {
+      const d = new Date(p.time);
+      return [s.target, f3(s.tE), f3(s.tN), f3(s.tZ), p.name, f3(p.E), f3(p.N), f3(p.Z), f3(s.dE), f3(s.dN), f3(dh), f3(s.dZ), okH && okV ? 'ΝΑΙ' : 'ΟΧΙ', f3(p.hrms), f3(p.vrms), p.fix, d.toLocaleDateString('el-GR'), d.toLocaleTimeString('el-GR')].map(q).join(';');
+    }).join('\r\n') + '\r\n';
+  }
+  function toStakeTXT(st, tH, tV, proj, crs) {
+    const pad = (v, n) => String(v == null ? '' : v).padEnd(n), pl = (v, n) => String(v == null ? '' : v).padStart(n);
+    const rows = stakeRows(st, tH, tV);
+    let t = `ΑΡΧΕΙΟ ΕΠΙΒΕΒΑΙΩΣΗΣ ΧΑΡΑΞΗΣ — HEXIS PAD\r\nΈργο: ${proj}\r\nΣύστημα: ${crs}\r\nΑνοχή: οριζ. ${tH.toFixed(3)} m · κατακ. ${tV.toFixed(3)} m\r\nΗμερομηνία: ${new Date().toLocaleString('el-GR')}\r\n\r\n`;
+    t += pad('Στόχος', 12) + pad('Χαραγμένο', 12) + pl('X', 13) + pl('Y', 14) + pl('Z', 9) + pl('ΔX', 8) + pl('ΔY', 8) + pl('ΔΟριζ', 8) + pl('ΔZ', 8) + '  Ανοχή\r\n' + '-'.repeat(100) + '\r\n';
+    rows.forEach(({ p, s, dh, okH, okV }) => { t += pad(s.target, 12) + pad(p.name, 12) + pl(f3(p.E), 13) + pl(f3(p.N), 14) + pl(f3(p.Z), 9) + pl(f3(s.dE), 8) + pl(f3(s.dN), 8) + pl(f3(dh), 8) + pl(f3(s.dZ), 8) + '  ' + (okH && okV ? 'ΝΑΙ' : 'ΟΧΙ') + '\r\n'; });
+    const ok = rows.filter(r => r.okH && r.okV).length;
+    t += '-'.repeat(100) + `\r\nΣύνολο: ${rows.length} σημεία · εντός ανοχής: ${ok} · εκτός: ${rows.length - ok}\r\n`;
+    return t;
+  }
   function photoName(p, i) { return (p.name || 'P').replace(/[^\w\-Α-ω.]/g, '_') + (i ? '_' + (i + 1) : '') + '.jpg'; }
   function toKML(points, name) {
     const esc = s => String(s == null ? '' : s).replace(/[<&>]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
@@ -222,5 +247,5 @@
     return { blob, thumb: thumbC.toDataURL('image/jpeg', 0.7) };
   }
 
-  g.HIO = { kvGet, kvSet, kvDel, photoGet, photoSet, photoDel, parsePoints, toTXT, toCSV, toKML, toGeoJSON, makeZip, share, saveToDevice, download, processPhoto, photoName, isNative };
+  g.HIO = { toStakeCSV, toStakeTXT, kvGet, kvSet, kvDel, photoGet, photoSet, photoDel, parsePoints, toTXT, toCSV, toKML, toGeoJSON, makeZip, share, saveToDevice, download, processPhoto, photoName, isNative };
 })(window);

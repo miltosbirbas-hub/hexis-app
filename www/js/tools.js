@@ -439,6 +439,8 @@
     const N = A.settings.ntrip;
     const prof = A.settings.ntripProfiles || [];
     A.sheet('NTRIP / Διορθώσεις RTK', `<p class="muted">Το κινητό συνδέεται στον caster (π.χ. δίκτυο μόνιμων σταθμών) και προωθεί τις διορθώσεις RTCM στον δέκτη μέσω Bluetooth. Στέλνει αυτόματα θέση GGA για VRS.</p>
+      <label class="fld"><span>Δίκτυο μόνιμων σταθμών</span><select id="nw">${['HEPOS (Κτηματολόγιο)', 'URANUS', 'CivilPOS', 'HxGN SmartNet', 'JGC NET', 'Άλλο δίκτυο / δικός μου caster'].map(x => `<option ${x === (N.network || 'HEPOS (Κτηματολόγιο)') ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
+      <p class="muted">Τα στοιχεία σύνδεσης (host, port, χρήστης, κωδικός) τα δίνει το δίκτυο με τη συνδρομή σου. Με «Λίστα» φέρνεις τα mountpoints. Σε όλα τα ελληνικά δίκτυα χρησιμοποίησε σύστημα «ΕΓΣΑ87 — επίσημο μοντέλο HEPOS».</p>
       ${prof.length ? `<label class="fld"><span>Αποθηκευμένα προφίλ</span><select id="pf"><option value="">—</option>${prof.map((p, i) => `<option value="${i}">${esc(p.label)}</option>`).join('')}</select></label>` : ''}
       <div class="row"><label class="fld grow"><span>Caster host</span><input id="h" value="${esc(N.host)}" placeholder="π.χ. caster.example.gr"></label><label class="fld" style="width:96px"><span>Port</span><input id="p" type="number" value="${N.port || 2101}"></label></div>
       <div class="row"><label class="fld grow"><span>Mountpoint</span><input id="m" value="${esc(N.mount)}" list="mlist"></label><button class="btn" id="tb">Λίστα</button></div><datalist id="mlist"></datalist>
@@ -448,9 +450,9 @@
       <div class="row"><button class="btn" id="sp">💾 Προφίλ</button><button class="btn grow" id="stop">Διακοπή</button><button class="btn primary grow" id="go">Έναρξη</button></div>
       <div id="ns" class="result"></div>`, b => {
       const v = id => b.querySelector(id).value;
-      const keep = () => { Object.assign(N, { host: v('#h').trim(), port: parseInt(v('#p'), 10) || 2101, mount: v('#m').trim(), user: v('#u'), pass: v('#w'), gga: b.querySelector('#g').checked, auto: b.querySelector('#au').checked }); A.saveSettings(); };
+      const keep = () => { Object.assign(N, { network: v('#nw'), host: v('#h').trim(), port: parseInt(v('#p'), 10) || 2101, mount: v('#m').trim(), user: v('#u'), pass: v('#w'), gga: b.querySelector('#g').checked, auto: b.querySelector('#au').checked }); A.saveSettings(); };
       const pf = b.querySelector('#pf'); if (pf) pf.onchange = () => { const p = prof[+pf.value]; if (p) { Object.assign(N, p.cfg); A.saveSettings(); A.ntripSheet(); } };
-      b.querySelector('#sp').onclick = () => { keep(); const label = (N.host + ' / ' + N.mount); A.settings.ntripProfiles = prof.filter(p => p.label !== label).concat([{ label, cfg: Object.assign({}, N) }]); A.saveSettings(); A.toast('✓ Προφίλ αποθηκεύτηκε', 'ok'); };
+      b.querySelector('#sp').onclick = () => { keep(); const label = ((N.network || '').split(' (')[0] + ' · ' + N.mount); A.settings.ntripProfiles = prof.filter(p => p.label !== label).concat([{ label, cfg: Object.assign({}, N) }]); A.saveSettings(); A.toast('✓ Προφίλ αποθηκεύτηκε', 'ok'); };
       b.querySelector('#tb').onclick = async () => { keep(); try { const ms = await HCONN.ntripTable(N.host, N.port, N.user, N.pass); b.querySelector('#mlist').innerHTML = ms.map(m => `<option value="${esc(m.name)}">${esc(m.name)} ${esc(m.format || '')} ${esc(m.id || '')}</option>`).join(''); A.toast(ms.length + ' mountpoints'); b.querySelector('#m').focus(); } catch (e) { A.toast(e.message || String(e), 'bad'); } };
       b.querySelector('#go').onclick = () => { keep(); if (!N.host || !N.mount) return A.toast('Συμπλήρωσε host και mountpoint', 'bad'); A.startNtrip(); };
       b.querySelector('#stop').onclick = async () => { await HCONN.ntripStop(); $('st-ntrip').className = 'st-ntrip off'; };

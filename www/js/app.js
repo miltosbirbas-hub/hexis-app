@@ -407,11 +407,15 @@
       b.querySelector('#ps-stake').onclick = () => { A.closeSheet(); A.setTab('stake'); A.setStakeMode('point'); A.setTarget(p); };
       b.querySelector('#ps-edit').onclick = () => A.editPoint(p);
       b.querySelector('#ps-check').onclick = () => A.checkShot(p);
-      b.querySelector('#ps-del').onclick = () => A.confirm('Διαγραφή', `Διαγραφή του σημείου <b>${esc(p.name)}</b>;`, 'Διαγραφή', () => {
-        (p.photos || []).forEach(ph => HIO.photoDel(ph.id));
-        A.proj.points = A.proj.points.filter(x => x !== p); A.saveProject(); A.renderPoints(); A.updateMapLayers();
-        if (A.stake.target === p) A.setTarget(null);
-      });
+      b.querySelector('#ps-del').onclick = () => A.deletePoint(p);
+    });
+  };
+  A.deletePoint = function (p) {
+    A.confirm('Διαγραφή', `Διαγραφή του σημείου <b>${esc(p.name)}</b>;`, 'Διαγραφή', () => {
+      (p.photos || []).forEach(ph => HIO.photoDel(ph.id));
+      A.proj.points = A.proj.points.filter(x => x !== p); A.saveProject(); A.renderPoints(); A.updateMapLayers();
+      if (A.stake.target === p) A.setTarget(null);
+      A.toast('Διαγράφηκε ' + p.name);
     });
   };
   A.editPoint = function (p) {
@@ -824,7 +828,7 @@
       const pt = r.pt; const G2 = guidance() || G;
       pt.type = 'staked';
       if (G.T) {
-        pt.name = A.uniqueName((G.T.name || 'S') + '_X');
+        { const base = (G.T.name || 'S') + 'n'; let nm = base, k = 2; while (A.findPoint(nm)) nm = base + (k++); pt.name = nm; }
         pt.stake = { target: G.T.name, tE: G.T.E, tN: G.T.N, tZ: G.T.Z, dE: pt.E - G.T.E, dN: pt.N - G.T.N, dZ: (pt.Z != null && G.T.Z != null) ? pt.Z - G.T.Z : null };
         pt.code = G.T.code || pt.code;
         if (S.target === G.T) { G.T.done = true; }
@@ -847,6 +851,23 @@
     } catch (e) { A.toast(e.message, 'bad'); } finally { btns.forEach(b => b.classList.remove('busy')); }
   };
   $('so-store').onclick = $('sf-store').onclick = () => A.storeStake();
+  // Αρχείο επιβεβαίωσης χάραξης (στόχος ↔ χαραγμένο) χωρίς έξοδο από τη χάραξη
+  A.stakeReport = function () {
+    const st = A.proj.points.filter(p => p.type === 'staked' && p.stake);
+    if (!st.length) return A.toast('Δεν υπάρχουν χαραγμένα σημεία ακόμα — πάτα ● ΚΑΤΑΓΡΑΦΗ στο σημείο', 'bad', 3500);
+    const tH = A.settings.tolH, tV = A.settings.tolV;
+    const ok = st.filter(p => p.stake.dE == null || Math.hypot(p.stake.dE, p.stake.dN) <= tH).length;
+    A.sheet('Αρχείο επιβεβαίωσης χάραξης', `<div class="result ${ok === st.length ? 'ok' : 'warn'}"><b>${st.length} χαραγμένα σημεία</b> · ${ok} εντός ανοχής ${tH.toFixed(3)} m</div>
+      <div class="list">${st.slice().reverse().slice(0, 60).map(p => { const dh = p.stake.dE != null ? Math.hypot(p.stake.dE, p.stake.dN) : null; return `<div class="li"><span class="nm">${esc(p.name)}</span><span class="cd">→ ${esc(p.stake.target)}</span><span class="xy" style="color:${dh != null && dh > tH ? 'var(--bad)' : 'var(--ok)'}">ΔH ${F(dh)}<br>ΔZ ${F(p.stake.dZ)}</span></div>`; }).join('')}</div>
+      <div class="row"><button class="btn grow" id="sr-save">💾 Αποθήκευση</button><button class="btn grow" id="sr-share">↗ Κοινή χρήση</button><button class="btn primary grow" id="sr-mail">✉ Email</button></div>
+      <p class="muted">Αρχεία: CSV (για Excel) και TXT με πίνακα στόχων, χαραγμένων και αποκλίσεων.</p>`, b => {
+      const files = () => { const base = 'Χάραξη_' + A.proj.name.replace(/[^\p{L}\p{N}\- ]/gu, '_').replace(/\s+/g, '_'); return [{ name: base + '.csv', data: HIO.toStakeCSV(st, tH, tV), mime: 'text/csv' }, { name: base + '.txt', data: HIO.toStakeTXT(st, tH, tV, A.proj.name, HGEO.crsName()) }]; };
+      b.querySelector('#sr-save').onclick = async () => { try { await HIO.saveToDevice(files()); A.toast('✓ Αποθηκεύτηκε', 'ok'); } catch (e) { A.toast(e.message, 'bad'); } };
+      b.querySelector('#sr-share').onclick = () => HIO.share(files(), { subject: 'Χάραξη · ' + A.proj.name });
+      b.querySelector('#sr-mail').onclick = () => HIO.share(files(), { subject: 'Επιβεβαίωση χάραξης · ' + A.proj.name, text: `${st.length} σημεία, ${ok} εντός ανοχής ${tH} m`, email: true });
+    });
+  };
+  $('so-report').onclick = () => A.stakeReport();
   $('so-photo').onclick = $('sf-photo').onclick = () => A.takePhoto(A.lastPoint && A.lastPoint.type === 'staked' ? A.lastPoint : (S.target || A.lastPoint));
   $('so-full').onclick = () => { $('so-fullscreen').classList.remove('hidden'); requestWake(); A.updateGuidance(); };
   $('sf-close').onclick = () => $('so-fullscreen').classList.add('hidden');
@@ -912,7 +933,7 @@
     const d = A.pos ? Math.hypot(r.E - A.pos.E, r.N - A.pos.N) : null;
     const name = r.ref ? r.ref.name : (r.kind === 'line' ? 'Γραμμή' : 'Κορυφή') + (r.ent ? ' · ' + r.ent.layer : '');
     $('snap-info').innerHTML = `<b>${esc(name)}</b> X ${r.E.toFixed(3)} Y ${r.N.toFixed(3)}${r.Z ? ' Z ' + r.Z.toFixed(3) : ''}${d != null ? ' · ' + d.toFixed(2) + ' m' : ''}
-      <div class="row" style="margin-top:6px"><button class="btn" id="si-so">◎ Χάραξη</button>${r.ref ? '<button class="btn" id="si-info">ℹ</button>' : '<button class="btn" id="si-add">＋ Σημείο</button>'}<button class="btn" id="si-x">✕</button></div>`;
+      <div class="row" style="margin-top:6px;flex-wrap:wrap"><button class="btn primary" id="si-so">◎ Χάραξη</button>${r.ref ? '<button class="btn" id="si-ed">✎ Ιδιότητες</button><button class="btn" id="si-info">ℹ</button><button class="btn danger" id="si-del">🗑</button>' : '<button class="btn" id="si-add">＋ Σημείο</button>'}<button class="btn" id="si-x">✕</button></div>`;
     $('snap-info').classList.remove('hidden');
     $('si-x').onclick = () => $('snap-info').classList.add('hidden');
     $('si-so').onclick = () => {
@@ -921,7 +942,11 @@
       A.setStakeMode('point');
       A.setTarget(r.ref || A.storePoint({ name: A.uniqueName('V1'), E: r.E, N: r.N, Z: r.Z || null, type: 'stake', code: r.ent ? r.ent.layer : '' }, true));
     };
-    if (r.ref) $('si-info').onclick = () => { $('snap-info').classList.add('hidden'); A.pointSheet(r.ref); };
+    if (r.ref) {
+      $('si-info').onclick = () => { $('snap-info').classList.add('hidden'); A.pointSheet(r.ref); };
+      $('si-ed').onclick = () => { $('snap-info').classList.add('hidden'); A.editPoint(r.ref); };
+      $('si-del').onclick = () => { $('snap-info').classList.add('hidden'); A.deletePoint(r.ref); };
+    }
     else $('si-add').onclick = () => { $('snap-info').classList.add('hidden'); A.addPointManual({ E: r.E, N: r.N, Z: r.Z || null, code: r.ent ? r.ent.layer : '' }); };
   }
   function onLongPress(w) {

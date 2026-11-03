@@ -22,6 +22,7 @@
     export: { i: '⤒', l: 'Εξαγωγή', f: () => A.exportSheet() },
     photo: { i: '◉', l: 'Φωτο', f: () => A.takePhoto() },
     offset: { i: '⊹', l: 'Offset', f: () => $('btn-offset').click() },
+    stakereport: { i: '📄', l: 'Αρχείο χάραξης', f: () => A.stakeReport() },
     full: { i: '⛶', l: 'Μεγάλη χάραξη', f: () => { A.setTab('stake'); $('so-full').click(); } },
     cogo: { i: '∑', l: 'COGO', f: () => A.cogoSheet() },
     inverse: { i: '↔', l: 'Απόστ/Αζιμ', f: () => A.runTool('inverse') },
