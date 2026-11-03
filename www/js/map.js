@@ -338,7 +338,7 @@
     if (!this.layers.kaek.length) return;
     const toS = (E, N) => this.kaekToScreen(E, N);
     x.lineWidth = 1.6; x.strokeStyle = onImg ? '#ffd400' : '#b8860b';
-    x.font = '600 11px Manrope,system-ui,sans-serif'; x.textAlign = 'center';
+    x.font = `600 ${Math.round(13 * (this.fontScale || 1))}px Manrope,system-ui,sans-serif`; x.textAlign = 'center';
     for (const f of this.layers.kaek) {
       x.beginPath();
       let sx = 0, sy = 0, n = 0;
@@ -412,7 +412,7 @@
     const showLbl = this.view.s > 4;
     const fg = onImg ? '#ffffff' : (this.dark ? '#e8eef5' : '#14202c');
     const halo = onImg ? 'rgba(0,0,0,0.75)' : (this.dark ? 'rgba(10,16,24,0.85)' : 'rgba(255,255,255,0.9)');
-    x.font = '600 12px Manrope,system-ui,sans-serif';
+    x.font = `600 ${Math.round(15 * (this.fontScale || 1))}px Manrope,system-ui,sans-serif`;
     for (const p of this.layers.points) {
       if (p.E == null) continue;
       const [sx, sy] = this.w2s(p.E, p.N);
@@ -435,7 +435,7 @@
       if (p.photos && p.photos.length) { x.fillStyle = '#f59e0b'; x.beginPath(); x.arc(sx + 7, sy - 7, 3, 0, 7); x.fill(); }
       if (showLbl) {
         const t = p.name + (this.view.s > 15 && p.Z != null ? '  ' + p.Z.toFixed(2) : '');
-        x.lineWidth = 3; x.strokeStyle = halo; x.strokeText(t, sx + 9, sy - 6); x.fillStyle = fg; x.fillText(t, sx + 9, sy - 6);
+        x.lineWidth = 3; x.strokeStyle = halo; x.strokeText(t, sx + 10, sy - 7); x.fillStyle = fg; x.fillText(t, sx + 10, sy - 7);
       }
     }
   };
@@ -485,11 +485,11 @@
     x.fillRect(X - 6, Y - 20, px + 60, 26);
     x.strokeStyle = onImg || this.dark ? '#fff' : '#14202c'; x.lineWidth = 2;
     x.beginPath(); x.moveTo(X, Y - 6); x.lineTo(X, Y); x.lineTo(X + px, Y); x.lineTo(X + px, Y - 6); x.stroke();
-    x.fillStyle = x.strokeStyle; x.font = '600 12px Manrope,system-ui,sans-serif';
+    x.fillStyle = x.strokeStyle; x.font = '700 14px Manrope,system-ui,sans-serif';
     x.fillText(m >= 1000 ? (m / 1000) + ' km' : (m >= 1 ? m + ' m' : (m * 100).toFixed(0) + ' cm'), X + px + 6, Y - 2);
     const L = BASEMAPS[this.base];
     if (L && L.attr) { x.font = '10px Manrope,system-ui,sans-serif'; const t = '© ' + L.attr; const w = x.measureText(t).width; x.fillStyle = 'rgba(255,255,255,0.75)'; x.fillRect(this.w - w - 10, this.h - 16, w + 8, 14); x.fillStyle = '#333'; x.fillText(t, this.w - w - 6, this.h - 5); }
-    if (this.kaekMsg && this.overlays.hexis_kaek) { x.font = '600 12px Manrope,system-ui'; x.fillStyle = '#7a5600'; x.fillText(this.kaekMsg, X, Y - 28); }
+    if (this.kaekMsg && this.overlays.hexis_kaek) { x.font = '700 14px Manrope,system-ui'; x.fillStyle = '#7a5600'; x.fillText(this.kaekMsg, X, Y - 28); }
   };
 
   function niceStep(v) { const p = Math.pow(10, Math.floor(Math.log10(v))); const n = v / p; return (n < 1.5 ? 1 : n < 3.5 ? 2 : n < 7.5 ? 5 : 10) * p; }

@@ -50,6 +50,8 @@
   A.applySettings = function () {
     const S = A.settings;
     document.documentElement.dataset.theme = S.theme;
+    document.documentElement.classList.toggle('xl', S.textSize === 'xl');
+    if (A.map) A.map.fontScale = S.textSize === 'xl' ? 1.25 : 1;
     document.querySelector('meta[name=theme-color]').content = S.theme === 'dark' ? '#16202b' : '#f4f7fa';
     HGEO.setCRS(S.crs, S.crsCustom);
     HGEO.setCalib(A.proj && A.proj.calib ? A.proj.calib : null);
@@ -691,7 +693,7 @@
     const cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - 6;
     x.lineWidth = 2; x.strokeStyle = C('--line'); x.fillStyle = C('--panel');
     x.beginPath(); x.arc(cx, cy, R, 0, 7); x.fill(); x.stroke();
-    if (!G) { x.fillStyle = C('--muted'); x.font = '600 14px system-ui'; x.textAlign = 'center'; x.fillText(A.pos ? 'Επίλεξε στόχο' : 'Χωρίς θέση', cx, cy + 5); x.textAlign = 'left'; return; }
+    if (!G) { x.fillStyle = C('--muted'); x.font = '700 16px Manrope,system-ui'; x.textAlign = 'center'; x.fillText(A.pos ? 'Επίλεξε στόχο' : 'Χωρίς θέση', cx, cy + 5); x.textAlign = 'left'; return; }
     if (G.live || G.surfZ != null) {
       // οριζόντια «αεροστάθμη»
       const v = G.live ? G.live.offset : G.dZ, tol = G.live ? A.settings.tolH : A.settings.tolV;
@@ -711,7 +713,7 @@
       x.fillStyle = C('--accent'); x.beginPath();
       x.moveTo(0, -R + 8); x.lineTo(R * 0.38, -R * 0.1); x.lineTo(R * 0.14, -R * 0.1); x.lineTo(R * 0.14, R * 0.6); x.lineTo(-R * 0.14, R * 0.6); x.lineTo(-R * 0.14, -R * 0.1); x.lineTo(-R * 0.38, -R * 0.1); x.closePath(); x.fill();
       x.restore();
-      if (G.rel == null) { x.fillStyle = C('--muted'); x.font = '700 12px system-ui'; x.fillText('N↑', 8, 16); }
+      if (G.rel == null) { x.fillStyle = C('--muted'); x.font = '800 15px Manrope,system-ui'; x.fillText('N↑', 8, 18); }
       return;
     }
     // κοντά: κλίμακα, στόχος στο κέντρο, θέση ως κουκκίδα
@@ -729,7 +731,7 @@
     x.fillStyle = inT ? C('--ok') : C('--accent');
     x.beginPath(); x.arc(cx + Math.max(-R, Math.min(R, px)), cy + Math.max(-R, Math.min(R, py)), 9, 0, 7); x.fill();
     x.strokeStyle = '#fff'; x.lineWidth = 2; x.stroke();
-    x.fillStyle = C('--muted'); x.font = '700 11px system-ui';
+    x.fillStyle = C('--muted'); x.font = '700 14px Manrope,system-ui';
     x.fillText('κύκλος: ' + (scaleM * 0.25 >= 0.1 ? (scaleM * 0.25).toFixed(2) + ' m' : (scaleM * 25).toFixed(1) + ' cm'), 6, H - 6);
   }
 
