@@ -12,7 +12,7 @@
   const DB = () => g.HIMU_DB || [];
   const BR = { chc: 'CHC Navigation', stonex: 'Stonex', hitarget: 'Hi-Target', south: 'South', comnav: 'ComNav', singular: 'Singular XYZ', kolida: 'Kolida', ruide: 'Ruide', tersus: 'Tersus', satlab: 'SatLab', foif: 'FOIF', emlid: 'Emlid', leica: 'Leica', geomax: 'GeoMax', trimble: 'Trimble', spectra: 'Spectra Geospatial', topcon: 'Topcon', sokkia: 'Sokkia', unicore: 'Δέκτης με Unicore (UM981/UM982)', other: 'Άλλος' };
 
-  const S = () => (A.settings.imu = Object.assign({ on: false, id: '', max: 0, tip: true, auto: true }, A.settings.imu || {}));
+  const S = () => (A.settings.imu = Object.assign({ on: false, id: '', max: 0, tip: true, auto: true, bubble: true, tol: 0.5, plumbGate: false }, A.settings.imu || {}));
   const T = A.tilt = { deg: null, pitch: null, roll: null, t: 0, src: '', status: '', statusT: 0 };
   const model = () => DB().find(m => m.id === S().id) || null;
   const maxDeg = () => { const s = S(), m = model(); const lim = m && m.max ? m.max : 60; return s.max > 0 ? Math.min(s.max, lim) : lim; };
@@ -59,13 +59,20 @@
     if (d[1] === 'ok') { A.toast('∠ ' + t('IMU έτοιμο') + ' — ' + t('μέχρι') + ' ' + maxDeg() + '°', 'ok', 3000); say('IMU έτοιμο. Μέχρι ' + maxDeg() + ' μοίρες', 'IMU ready. Up to ' + maxDeg() + ' degrees'); A.sound && A.sound('fix'); }
     else if (prev === 'CONVERGENCE') { A.toast('∠ ' + t(d[0]), 'bad', 3500); say(d[0], 'Move the pole to initialise the IMU'); }
   }
-  HCONN.on('nmea', d => { if (d.channel === 'gnss' && S().on) { const c = d.line && d.line.charCodeAt(1); if (d.line[0] === '#' || (d.line[0] === '$' && (c === 80 || /^\$..(HPD|HPR|TLT)/.test(d.line)))) parse(d.line); } });
+  HCONN.on('nmea', d => { if (d.channel === 'gnss' && (S().on || S().bubble)) { const c = d.line && d.line.charCodeAt(1); if (d.line[0] === '#' || (d.line[0] === '$' && (c === 80 || /^\$..(HPD|HPR|TLT)/.test(d.line)))) parse(d.line); } });
 
   // ---------- Έλεγχος κάθε εποχής ----------
   let overSince = 0, lastWarn = 0;
   A.tiltTip = () => { const s = S(); return s.on && s.tip; };
   A.tiltCheck = function (p) {
-    const s = S(); if (!s.on) return;
+    const s = S();
+    if (!s.on) {
+      // χωρίς IMU: προαιρετικά δεν παίρνει σημείο εκτός ανοχής της φούσκας κέντρωσης
+      const fr = T.deg != null && Date.now() - T.t < 2500;
+      if (fr) p.tilt = Math.round(T.deg * 100) / 100;
+      if (fr && s.plumbGate && T.deg > s.tol) p.tiltBad = t('Εκτός κέντρωσης') + ' ' + T.deg.toFixed(1) + '° > ' + s.tol + '°';
+      return;
+    }
     const now = Date.now();
     const fresh = T.deg != null && now - T.t < 2500;
     if (fresh) p.tilt = Math.round(T.deg * 10) / 10;
@@ -77,7 +84,8 @@
     } else overSince = 0;
   };
   A.tiltInfo = function (eps) {
-    const s = S(); if (!s.on) return null;
+    const s = S();
+    if (!s.on) { const v = (eps || []).map(e => e.tilt).filter(x => x != null); return v.length ? { plumb: true, deg: Math.max(...v), tol: s.tol } : null; }
     const vals = (eps || []).map(e => e.tilt).filter(v => v != null);
     const m = model();
     return { model: m ? BR[m.brand] + ' ' + m.name : 'IMU', max: maxDeg(), deg: vals.length ? Math.max(...vals) : null, tip: !!s.tip };
@@ -104,6 +112,61 @@
     const k = 'st-tilt ' + cls; if (c.className !== k) c.className = k;
     const live = $('imu-live'); if (live && now - chipT > 400) { chipT = now; live.innerHTML = liveHtml(); }
   }, 300);
+
+  // ---------- Ψηφιακή φούσκα κέντρωσης ----------
+  let bubbleBig = false;
+  function bubbleEl() {
+    let c = $('bubble');
+    if (!c) {
+      c = document.createElement('canvas'); c.id = 'bubble'; c.className = 'hidden';
+      c.title = 'Φούσκα κέντρωσης';
+      c.onclick = () => { bubbleBig = !bubbleBig; drawBubble(true); };
+      $('mapwrap').appendChild(c);
+    }
+    return c;
+  }
+  let lastDraw = 0;
+  function drawBubble(force) {
+    const s = S(), c = bubbleEl(), now = Date.now();
+    const fresh = T.deg != null && now - T.t < 2500;
+    if (!s.bubble || !fresh) { c.classList.add('hidden'); return; }
+    if (!force && now - lastDraw < 90) return; lastDraw = now;
+    c.classList.remove('hidden');
+    const css = bubbleBig ? 220 : 128, dpr = Math.min(3, g.devicePixelRatio || 1);
+    if (c.width !== css * dpr) { c.width = c.height = css * dpr; c.style.width = c.style.height = css + 'px'; }
+    const x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, css, css);
+    const cx = css / 2, cy = css / 2 - 8, R = css / 2 - 18;
+    const imu = s.on, lim = imu ? maxDeg() : null, tol = s.tol || 0.5;
+    // κλίμακα: με IMU όλο το εύρος έως λίγο πέρα από το όριο, χωρίς IMU μερικές φορές η ανοχή
+    const scale = imu ? lim * 1.15 : Math.max(tol * 4, 2);
+    const rr = d => Math.min(R, d / scale * R);
+    const deg = T.deg;
+    const col = imu ? (deg > lim ? '#c4142e' : deg > lim * 0.85 ? '#d97a00' : '#0b8a45') : (deg <= tol ? '#0b8a45' : deg <= tol * 2 ? '#d97a00' : '#c4142e');
+    // φόντο
+    x.fillStyle = 'rgba(255,255,255,.94)'; x.beginPath(); x.arc(cx, cy, R + 6, 0, 7); x.fill();
+    x.lineWidth = 1; x.strokeStyle = '#9aa7b8'; x.beginPath(); x.moveTo(cx - R, cy); x.lineTo(cx + R, cy); x.moveTo(cx, cy - R); x.lineTo(cx, cy + R); x.stroke();
+    if (imu) { // όριο IMU
+      x.fillStyle = 'rgba(11,138,69,.10)'; x.beginPath(); x.arc(cx, cy, rr(lim), 0, 7); x.fill();
+      x.lineWidth = 2.5; x.strokeStyle = '#c4142e'; x.setLineDash([5, 4]); x.beginPath(); x.arc(cx, cy, rr(lim), 0, 7); x.stroke(); x.setLineDash([]);
+    }
+    // ανοχή κατακορύφου (κέντρωση)
+    x.fillStyle = 'rgba(11,138,69,.22)'; x.beginPath(); x.arc(cx, cy, Math.max(5, rr(tol)), 0, 7); x.fill();
+    x.lineWidth = 2; x.strokeStyle = '#0b8a45'; x.beginPath(); x.arc(cx, cy, Math.max(5, rr(tol)), 0, 7); x.stroke();
+    x.lineWidth = 2; x.strokeStyle = '#10243a'; x.beginPath(); x.arc(cx, cy, R + 6, 0, 7); x.stroke();
+    // φούσκα: κατεύθυνση από pitch/roll, αλλιώς μόνο κύκλος στη γωνία
+    if (T.pitch != null && T.roll != null) {
+      const a = Math.hypot(T.roll, T.pitch) || 1, d = rr(deg);
+      const bx = cx + T.roll / a * d, by = cy - T.pitch / a * d;
+      x.fillStyle = col; x.strokeStyle = '#fff'; x.lineWidth = 2.5; x.beginPath(); x.arc(bx, by, bubbleBig ? 13 : 9, 0, 7); x.fill(); x.stroke();
+    } else {
+      x.lineWidth = 4; x.strokeStyle = col; x.beginPath(); x.arc(cx, cy, Math.max(4, rr(deg)), 0, 7); x.stroke();
+    }
+    // τιμή
+    x.fillStyle = col; x.font = `800 ${bubbleBig ? 20 : 15}px Manrope, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'alphabetic';
+    const txt = (deg < 10 ? deg.toFixed(1) : deg.toFixed(0)) + '°' + (imu ? ' / ' + lim + '°' : ' · ±' + tol + '°');
+    x.lineWidth = 4; x.strokeStyle = '#fff'; x.strokeText(txt, cx, css - 3); x.fillText(txt, cx, css - 3);
+  }
+  setInterval(() => drawBubble(false), 100);
 
   function liveHtml() {
     const now = Date.now(), fresh = T.deg != null && now - T.t < 2500;
@@ -143,7 +206,7 @@
     const cur = model();
     const curBrand = cur ? cur.brand : (brands[0] || 'other');
     const opts = b => DB().filter(m => m.brand === b).sort((x, y) => (y.year || 0) - (x.year || 0)).map(m => `<option value="${m.id}" ${m.id === s.id ? 'selected' : ''}>${esc(m.name)}${m.year ? ' (' + m.year + ')' : ''}${m.imu ? ' — IMU ' + m.max + '°' : ' — ' + t('χωρίς IMU')}</option>`).join('');
-    A.sheet('IMU — κλίση κονταριού', `
+    A.sheet('IMU / φούσκα κέντρωσης', `
       <label class="chk"><input type="checkbox" id="im-on" ${s.on ? 'checked' : ''}> Μέτρηση με κεκλιμένο κοντάρι (αντιστάθμιση IMU του δέκτη)</label>
       <div class="row"><label class="fld grow"><span>Κατασκευαστής</span><select id="im-b">${brands.map(b => `<option value="${b}" ${b === curBrand ? 'selected' : ''}>${esc(BR[b] || b)}</option>`).join('')}</select></label>
       <label class="fld grow"><span>Μοντέλο</span><select id="im-m">${opts(curBrand)}</select></label></div>
@@ -151,6 +214,10 @@
       <label class="fld"><span>Δικό μου όριο κλίσης (°) — κενό = όριο κατασκευαστή</span><input id="im-max" type="number" min="1" max="90" step="1" inputmode="numeric" value="${s.max > 0 ? s.max : ''}"></label>
       <label class="chk"><input type="checkbox" id="im-tip" ${s.tip ? 'checked' : ''}> <span>Ο δέκτης δίνει τη θέση στη <b>μύτη του κονταριού</b> (το ύψος κονταριού είναι ρυθμισμένο στον δέκτη — η εφαρμογή δεν το αφαιρεί ξανά)</span></label>
       <label class="chk"><input type="checkbox" id="im-auto" ${s.auto ? 'checked' : ''}> Αυτόματη αναγνώριση μοντέλου από το όνομα Bluetooth</label>
+      <h4>Φούσκα κέντρωσης</h4>
+      <label class="chk"><input type="checkbox" id="im-bub" ${s.bubble ? 'checked' : ''}> Εμφάνιση ψηφιακής φούσκας πάνω στον χάρτη (όταν ο δέκτης στέλνει κλίση)</label>
+      <label class="fld"><span>Ανοχή κέντρωσης / κατακορύφου (°)</span><input id="im-tol" type="number" min="0.05" max="10" step="0.05" inputmode="decimal" value="${s.tol}"></label>
+      <label class="chk"><input type="checkbox" id="im-pg" ${s.plumbGate ? 'checked' : ''}> Χωρίς IMU: να μην παίρνει σημείο εκτός ανοχής κέντρωσης</label>
       <h4>Ζωντανά</h4><div id="imu-live">${liveHtml()}</div>
       <div id="im-uc" class="hidden"><button class="btn" id="im-send">⚙ Ενεργοποίηση αντιστάθμισης στον δέκτη (εντολές Unicore)</button>
       <p class="muted">Στέλνει: CONFIG INS SLANTMEAS · CONFIG ANTENNADELTAHEN &lt;ύψος κεραίας&gt; · SLANTSTATUSA 1. Μόνο για δέκτες με ανοιχτή πλακέτα Unicore UM981/UM982· οι επώνυμοι δέκτες ενεργοποιούν την αντιστάθμιση από τη δική τους ρύθμιση.</p></div>
@@ -172,7 +239,7 @@
       };
       b.querySelector('#im-save').onclick = () => {
         const m = DB().find(x => x.id === b.querySelector('#im-m').value);
-        Object.assign(s, { on: b.querySelector('#im-on').checked, id: m ? m.id : '', max: Math.max(0, parseInt(b.querySelector('#im-max').value, 10) || 0), tip: b.querySelector('#im-tip').checked, auto: b.querySelector('#im-auto').checked });
+        Object.assign(s, { on: b.querySelector('#im-on').checked, id: m ? m.id : '', max: Math.max(0, parseInt(b.querySelector('#im-max').value, 10) || 0), tip: b.querySelector('#im-tip').checked, auto: b.querySelector('#im-auto').checked, bubble: b.querySelector('#im-bub').checked, tol: Math.max(0.05, parseFloat(String(b.querySelector('#im-tol').value).replace(',', '.')) || 0.5), plumbGate: b.querySelector('#im-pg').checked });
         if (s.on && m && !m.imu) { A.toast(t('Το μοντέλο αυτό δεν έχει IMU'), 'bad', 3500); s.on = false; }
         A.saveSettings(); A.closeSheet();
         if (s.on) { A.toast('∠ IMU ' + t('ενεργό') + ' — ' + t('μέχρι') + ' ' + maxDeg() + '°', 'ok'); say('Κλίση μέχρι ' + maxDeg() + ' μοίρες', 'Tilt up to ' + maxDeg() + ' degrees'); }

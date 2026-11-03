@@ -59,3 +59,8 @@ Object.assign(window.HEXIS_EN, {
   "Κράτα και τα βοηθητικά σημεία στη λίστα": "Keep the helper points in the list too", "💾 Αποθήκευση στην αποτύπωση": "💾 Save to survey",
   "Περπάτα ~20 m ή κούνησε το κοντάρι 10–20 s": "Walk ~20 m or rock the pole for 10–20 s", "Κούνησε το κοντάρι μερικά δευτερόλεπτα": "Rock the pole for a few seconds"
 });
+Object.assign(window.HEXIS_EN, {
+  "Εκτός κέντρωσης": "Out of plumb", "Φούσκα κέντρωσης": "Levelling bubble", "IMU / φούσκα κέντρωσης": "IMU / levelling bubble",
+  "Εμφάνιση ψηφιακής φούσκας πάνω στον χάρτη (όταν ο δέκτης στέλνει κλίση)": "Show the digital bubble on the map (when the receiver sends tilt)",
+  "Ανοχή κέντρωσης / κατακορύφου (°)": "Levelling / plumb tolerance (°)", "Χωρίς IMU: να μην παίρνει σημείο εκτός ανοχής κέντρωσης": "Without IMU: do not store a point outside the levelling tolerance"
+});
