@@ -221,6 +221,9 @@
 (defun hx:tx (lay p th str cen)
   (entmake (append (list (cons 0 "TEXT") (cons 100 "AcDbEntity") (cons 8 lay) (cons 10 (list (car p) (cadr p) 0.0)) (cons 40 th) (cons 1 str))
                    (if cen (list (cons 72 1) (cons 73 2) (cons 11 (list (car p) (cadr p) 0.0))) (list (cons 72 0))))))
+(defun hx:txr (lay p th str ang)
+  (entmake (list (cons 0 "TEXT") (cons 100 "AcDbEntity") (cons 8 lay) (cons 10 (list (car p) (cadr p) 0.0)) (cons 40 th) (cons 1 str)
+                 (cons 50 ang) (cons 72 1) (cons 73 2) (cons 11 (list (car p) (cadr p) 0.0)))))
 (defun hx:apospasma (kaek x0 ytop W h / txt lns bb ew eh f wd hd fy xy lay pts p q L y ot feks)
   (setq kaek (strcase (vl-string-trim " " kaek)))
   (princ (strcat "\n" "HEXIS-APP: \U+03B1\U+03C0\U+03CC\U+03C3\U+03C0\U+03B1\U+03C3\U+03BC\U+03B1 \U+03C1\U+03C5\U+03BC\U+03BF\U+03C4\U+03BF\U+03BC\U+03B9\U+03BA\U+03BF\U+03CD \U+03B3\U+03B9\U+03B1 \U+039A\U+0391\U+0395\U+039A " kaek "..."))
@@ -241,7 +244,7 @@
       (setq wd (* ew f) hd (* eh f))
       (foreach c (list (list "HX_APOSPASMA" 7) (list "HX_KT_GEOTEMAXIA" 8) (list "HX_ORIO_OIKISMOU" 3) (list "HX_KOINOXRISTA" 94)
                        (list "HX_OT" 4) (list "HX_POL_GRAMMES" 6) (list "HX_OIKODOMIKI" 5) (list "HX_RYMOTOMIKI" 1)
-                       (list "HX_PST_KAEK" 30) (list "HX_OT_ARITHMOS" 7))
+                       (list "HX_PST_KAEK" 30) (list "HX_OT_ARITHMOS" 7) (list "HX_KAEK_OMORA" 8) (list "HX_ODOI" 7))
         (hx:lay (car c) (cadr c)))
       ;; \U+03C4\U+03AF\U+03C4\U+03BB\U+03BF\U+03C2
       (hx:tx "HX_APOSPASMA" (list x0 (- ytop (* h 1.2))) (* h 1.2)
@@ -261,7 +264,10 @@
             (setq q (hx:fields (substr ln 3) "|") lay (car q))
             (setq p (xy (cadr q)))
             (if (= lay "HX_PST_KAEK") (setq p (list (car p) (- (cadr p) (* h 1.1)))))   ; \U+03BD\U+03B1 \U+03BC\U+03B7 \U+03C0\U+03AD\U+03C6\U+03C4\U+03B5\U+03B9 \U+03C0\U+03AC\U+03BD\U+03C9 \U+03C3\U+03C4\U+03BF\U+03BD \U+03B1\U+03C1\U+03B9\U+03B8\U+03BC\U+03CC \U+039F.\U+03A4.
-            (hx:tx lay p (if (= lay "HX_PST_KAEK") (* h 0.6) (* h 0.9)) (caddr q) T))))
+            (hx:tx lay p (cond ((= lay "HX_PST_KAEK") (* h 0.6)) ((= lay "HX_KAEK_OMORA") (* h 0.35)) (T (* h 0.9))) (caddr q) T))
+          ((= (substr ln 1 2) "R=")
+            (setq q (hx:fields (substr ln 3) "|"))
+            (hx:txr (car q) (xy (cadr q)) (* h 0.7) (nth 3 q) (atof (caddr q))))))
       ;; \U+03C0\U+03BB\U+03B1\U+03AF\U+03C3\U+03B9\U+03BF
       (hx:pl "HX_APOSPASMA" (list (list x0 fy) (list (+ x0 wd) fy) (list (+ x0 wd) (- fy hd)) (list x0 (- fy hd))) T 0.0)
       ;; \U+03B2\U+03BF\U+03C1\U+03C1\U+03AC\U+03C2

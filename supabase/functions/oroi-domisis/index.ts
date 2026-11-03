@@ -322,6 +322,45 @@ async function geoQ(layer: number, geom: string, gtype: string, fields: string):
     return (j.features || []).map((f: { attributes?: HxAttr; geometry?: { rings?: number[][][]; paths?: number[][][] } }) => ({ a: f.attributes || {}, g: f.geometry || {} }));
   } catch (_e) { return []; } finally { clearTimeout(to); }
 }
+
+/* ΕΓΣΑ'87 (TM87) <-> WGS84 — για τα ονόματα οδών από το OpenStreetMap */
+const GA = 6378137.0, GF = 1 / 298.257222101, GE2 = GF * (2 - GF), K0 = 0.9996, L0 = 24 * Math.PI / 180;
+function tmInv(x: number, y: number): [number, number] {
+  const e1 = (1 - Math.sqrt(1 - GE2)) / (1 + Math.sqrt(1 - GE2)), M = y / K0, mu = M / (GA * (1 - GE2 / 4 - 3 * GE2 * GE2 / 64 - 5 * GE2 ** 3 / 256));
+  const p1 = mu + (3 * e1 / 2 - 27 * e1 ** 3 / 32) * Math.sin(2 * mu) + (21 * e1 * e1 / 16 - 55 * e1 ** 4 / 32) * Math.sin(4 * mu) + (151 * e1 ** 3 / 96) * Math.sin(6 * mu) + (1097 * e1 ** 4 / 512) * Math.sin(8 * mu);
+  const ep2 = GE2 / (1 - GE2), C1 = ep2 * Math.cos(p1) ** 2, T1 = Math.tan(p1) ** 2, N1 = GA / Math.sqrt(1 - GE2 * Math.sin(p1) ** 2), R1 = GA * (1 - GE2) / (1 - GE2 * Math.sin(p1) ** 2) ** 1.5, D = (x - 500000) / (N1 * K0);
+  const lat = p1 - (N1 * Math.tan(p1) / R1) * (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) * D ** 4 / 24 + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ep2 - 3 * C1 * C1) * D ** 6 / 720);
+  const lon = L0 + (D - (1 + 2 * T1 + C1) * D ** 3 / 6 + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ep2 + 24 * T1 * T1) * D ** 5 / 120) / Math.cos(p1);
+  return [lat, lon];
+}
+function tmFwd(lat: number, lon: number): [number, number] {
+  const ep2 = GE2 / (1 - GE2), N = GA / Math.sqrt(1 - GE2 * Math.sin(lat) ** 2), T = Math.tan(lat) ** 2, C = ep2 * Math.cos(lat) ** 2, A = Math.cos(lat) * (lon - L0);
+  const M = GA * ((1 - GE2 / 4 - 3 * GE2 * GE2 / 64 - 5 * GE2 ** 3 / 256) * lat - (3 * GE2 / 8 + 3 * GE2 * GE2 / 32 + 45 * GE2 ** 3 / 1024) * Math.sin(2 * lat) + (15 * GE2 * GE2 / 256 + 45 * GE2 ** 3 / 1024) * Math.sin(4 * lat) - (35 * GE2 ** 3 / 3072) * Math.sin(6 * lat));
+  const x = 500000 + K0 * N * (A + (1 - T + C) * A ** 3 / 6 + (5 - 18 * T + T * T + 72 * C - 58 * ep2) * A ** 5 / 120);
+  const y = K0 * (M + N * Math.tan(lat) * (A * A / 2 + (5 - T + 9 * C + 4 * C * C) * A ** 4 / 24 + (61 - 58 * T + T * T + 600 * C - 330 * ep2) * A ** 6 / 720));
+  return [x, y];
+}
+// GGRS87 <-> WGS84 (μετάθεση γεωκέντρου -199.87, 74.79, 246.62 μ.)
+const DX = -199.87, DY = 74.79, DZ = 246.62;
+function geo2xyz(lat: number, lon: number) { const N = GA / Math.sqrt(1 - GE2 * Math.sin(lat) ** 2); return [N * Math.cos(lat) * Math.cos(lon), N * Math.cos(lat) * Math.sin(lon), N * (1 - GE2) * Math.sin(lat)]; }
+function xyz2geo(X: number, Y: number, Z: number): [number, number] { const p = Math.hypot(X, Y); let lat = Math.atan2(Z, p * (1 - GE2)); for (let i = 0; i < 6; i++) { const N = GA / Math.sqrt(1 - GE2 * Math.sin(lat) ** 2); lat = Math.atan2(Z + GE2 * N * Math.sin(lat), p); } return [lat, Math.atan2(Y, X)]; }
+function egsaToWgs(x: number, y: number): [number, number] { const [la, lo] = tmInv(x, y); const [X, Y, Z] = geo2xyz(la, lo); const [a, b] = xyz2geo(X + DX, Y + DY, Z + DZ); return [a * 180 / Math.PI, b * 180 / Math.PI]; }
+function wgsToEgsa(latD: number, lonD: number): [number, number] { const [X, Y, Z] = geo2xyz(latD * Math.PI / 180, lonD * Math.PI / 180); const [a, b] = xyz2geo(X - DX, Y - DY, Z - DZ); return tmFwd(a, b); }
+async function osmStreets(bb: number[]): Promise<{ name: string; pts: Pt[] }[]> {
+  const sw = egsaToWgs(bb[0], bb[1]), ne = egsaToWgs(bb[2], bb[3]);
+  const qq = `[out:json][timeout:12];way["highway"]["name"](${Math.min(sw[0], ne[0]).toFixed(6)},${Math.min(sw[1], ne[1]).toFixed(6)},${Math.max(sw[0], ne[0]).toFixed(6)},${Math.max(sw[1], ne[1]).toFixed(6)});out geom;`;
+  for (const host of ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]) {
+    const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 14000);
+    try {
+      const r = await fetch(host, { method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "HEXIS-APP/1.0 (hexis-app.gr)" }, body: "data=" + encodeURIComponent(qq) });
+      if (!r.ok) continue;
+      const j = await r.json();
+      return (j.elements || []).filter((e: { geometry?: unknown[]; tags?: Record<string, string> }) => e.geometry && e.tags && (e.tags["name:el"] || e.tags.name))
+        .map((e: { geometry: { lat: number; lon: number }[]; tags: Record<string, string> }) => ({ name: e.tags["name:el"] || e.tags.name, pts: e.geometry.map((g) => wgsToEgsa(g.lat, g.lon)) }));
+    } catch (_e) { /* επόμενος διακομιστής */ } finally { clearTimeout(to); }
+  }
+  return [];
+}
 async function lispExtract(req: Request, b: HxAttr, C: Record<string, string>) {
   const text = (lines: string[]) => new Response(lines.join("\r\n") + "\r\n", { status: 200, headers: { ...C, "Content-Type": "text/plain; charset=utf-8" } });
   const st = Deno.env.get("SELFTEST_KEY");
@@ -357,10 +396,17 @@ async function lispExtract(req: Request, b: HxAttr, C: Record<string, string>) {
     const paths = closed ? clipPath(pts.concat([pts[0]]), bb) : clipPath(pts, bb);
     for (const pa of paths) out.push("G=" + layer + "|" + pa.map(P2).join(";"));
   };
-  // γεωτεμάχια περιοχής (Κτηματολόγιο)
+  // γεωτεμάχια περιοχής (Κτηματολόγιο) — και το ΚΑΕΚ του καθενός
+  const kaekLbl: string[] = [];
+  const streetsP = osmStreets(bb).catch(() => []);
   try {
     const all = await ktQuery({ where: "1=1", geometry: env, geometryType: "esriGeometryEnvelope", resultRecordCount: "800" });
-    for (const pc of all) { if (pc.kaek === kaek) continue; pc.outers.concat(pc.holes).forEach((r) => add("HX_KT_GEOTEMAXIA", r, true)); }
+    for (const pc of all) {
+      if (pc.kaek === kaek) continue;
+      pc.outers.concat(pc.holes).forEach((r) => add("HX_KT_GEOTEMAXIA", r, true));
+      const c = interiorPoint(mainOuter(pc), pc.holes);
+      if (c[0] > bb[0] && c[0] < bb[2] && c[1] > bb[1] && c[1] < bb[3]) kaekLbl.push("T=HX_KAEK_OMORA|" + P2(c) + "|" + pc.kaek);
+    }
   } catch (_e) { /* χωρίς γειτονικά */ }
   const fekSet = new Set<string>();
   const defs: [number, string][] = [[3, "HX_ORIO_OIKISMOU"], [22, "HX_KOINOXRISTA"], [6, "HX_OT"], [13, "HX_POL_GRAMMES"], [12, "HX_OIKODOMIKI"], [11, "HX_RYMOTOMIKI"]];
@@ -374,6 +420,22 @@ async function lispExtract(req: Request, b: HxAttr, C: Record<string, string>) {
       if (c[0] > bb[0] && c[0] < bb[2] && c[1] > bb[1] && c[1] < bb[3]) out.push("T=HX_OT_ARITHMOS|" + P2(c) + "|" + clean(String(f.a.OT_NUM)));
     }
   }));
+  out.push(...kaekLbl);
+  // ονόματα οδών (OpenStreetMap): στο μέσο του μεγαλύτερου τμήματος μέσα στο πλαίσιο, παράλληλα στον άξονα
+  const seenSt = new Map<string, number>();
+  for (const st of await streetsP) {
+    for (const pa of clipPath(st.pts, bb)) {
+      let best = -1, bi = 0;
+      for (let i = 0; i < pa.length - 1; i++) { const L = Math.hypot(pa[i + 1][0] - pa[i][0], pa[i + 1][1] - pa[i][1]); if (L > best) { best = L; bi = i; } }
+      if (best < 12) continue;
+      const a0 = pa[bi], a1 = pa[bi + 1], mid = [(a0[0] + a1[0]) / 2, (a0[1] + a1[1]) / 2];
+      const key = st.name.toUpperCase(); const prev = seenSt.get(key) || 0;
+      if (prev >= 2) continue;   // το πολύ 2 ετικέτες ανά οδό
+      let ang = Math.atan2(a1[1] - a0[1], a1[0] - a0[0]); if (ang > Math.PI / 2) ang -= Math.PI; if (ang <= -Math.PI / 2) ang += Math.PI;
+      seenSt.set(key, prev + 1);
+      out.push("R=HX_ODOI|" + P2(mid) + "|" + ang.toFixed(4) + "|" + clean(st.name));
+    }
+  }
   // το γεωτεμάχιο τελευταίο (από πάνω)
   Pm.outers.concat(Pm.holes).forEach((r) => add("HX_PST_KAEK", r, true));
   out.push("T=HX_PST_KAEK|" + P2(ip) + "|" + kaek);
