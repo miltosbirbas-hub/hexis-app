@@ -84,6 +84,7 @@ self.addEventListener('fetch', (e) => {
     url.pathname.endsWith('/') ||
     url.pathname.endsWith('.html') ||
     url.pathname.endsWith('sw.js') ||
+    url.pathname.endsWith('.zip') ||          // πρόσθετο Κτηματολογίου: πάντα η τελευταία έκδοση
     url.pathname.endsWith('hexis-catalog.js');
 
   if (isAppShell) {
