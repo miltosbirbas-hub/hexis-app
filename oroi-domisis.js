@@ -231,7 +231,7 @@ function renderResults(){
   let h = "";
 
   /* 1. Γεωτεμάχιο */
-  h += `<div class="od-card"><div class="od-h">📐 Γεωτεμάχιο</div>`;
+  h += `<div class="od-card"><div class="od-h">Γεωτεμάχιο</div>`;
   h += cardRow("ΚΑΕΚ", `<b>${esc(P.kaek||"—")}</b>`, esc(P.src||""));
   h += cardRow("Εμβαδόν", `<b>${fmt(E)} τ.μ.</b>`, "από το πολύγωνο του Κτηματολογίου (ΕΓΣΑ΄87)");
   h += cardRow("Πρόσωπο σε κοινόχρηστο",
@@ -242,7 +242,7 @@ function renderResults(){
   const hTop = h; h = "";
   /* 2. Καθεστώς */
   const oik = first(L,"oikismos"), ot = first(L,"ot"), sx = L.sxedio || [];
-  h += `<div class="od-card"><div class="od-h">🧭 Πολεοδομικό καθεστώς</div>`;
+  h += `<div class="od-card"><div class="od-h">Πολεοδομικό καθεστώς</div>`;
   h += cardRow("Κατάταξη", `<b>${esc(STATUS_LABEL[st]||st)}</b>`,
     `<select id="od-manual" class="od-sel"><option value="auto"${S.manual==="auto"?" selected":""}>Αυτόματα (από τον Ενιαίο Ψηφιακό Χάρτη)</option><option value="sxedio"${S.manual==="sxedio"?" selected":""}>Εντός σχεδίου</option><option value="oikismos"${S.manual==="oikismos"?" selected":""}>Οικισμός &lt;2.000 κατ.</option><option value="ektos"${S.manual==="ektos"?" selected":""}>Εκτός σχεδίου</option></select>`);
   if(oik) h += cardRow("Οικισμός", `${esc(oik.NAME||"—")}${oik.KALL_DHM_NAME?` · Δ. ${esc(oik.KALL_DHM_NAME)}`:""}`, esc(oik.TITLE||"") + fekLink(oik));
@@ -262,7 +262,7 @@ function renderResults(){
 
   /* 3. Όροι δόμησης */
   const sd = L.sd || [], kal = first(L,"kalypsi"), yp = first(L,"ypsos"), ar = L.artiotita || [], sy = first(L,"systima");
-  h += `<div class="od-card"><div class="od-h">🏗 Όροι δόμησης</div>`;
+  h += `<div class="od-card"><div class="od-h">Όροι δόμησης</div>`;
   let anyOroi = false;
   sd.slice(0,3).forEach(a=>{ anyOroi=true; h += cardRow("Συντελεστής δόμησης", `<b>${a.SD_TIMH!=null?esc(fmt(a.SD_TIMH,2)):"—"}</b>${a.SD_KLIMAKOTOS==="ΝΑΙ"?" (κλιμακωτός)":""}${a.SD_TOMEAS?` · ${esc(a.SD_TOMEAS)}`:""}`, fekLink(a) + textBlock(a.SD_COMMENT)); });
   if(kal){ anyOroi=true; h += cardRow("Κάλυψη", `<b>${kal.SYNT_KALYPSIS!=null?esc(fmt(kal.SYNT_KALYPSIS,0))+"%":"—"}</b>`, fekLink(kal) + textBlock(kal.REMARKS || kal.SYNTHIKI_TXT)); }
@@ -277,7 +277,7 @@ function renderResults(){
 
   const hMid = h; h = "";
   /* 4. Υπολογισμοί */
-  h += `<div class="od-card od-calc"><div class="od-h">🧮 Υπολογισμός για αυτό το γεωτεμάχιο</div>`;
+  h += `<div class="od-card od-calc"><div class="od-h">Υπολογισμός για αυτό το γεωτεμάχιο</div>`;
   const C = computeCalc(st, E, L);
   if(st==="oikismos"){
     h += cardRow("Μέγιστη δόμηση", `<b class="od-big">${fmt(C.max)} τ.μ.</b>`, esc(C.rule));
@@ -304,9 +304,9 @@ function renderResults(){
   h = hTop + h + hMid;
   /* 5. Ενέργειες */
   h += `<div class="od-actions">
-    <a class="od-btn" href="${SDM_PUBLIC}" target="_blank" rel="noopener">🗺 Ενιαίος Ψηφιακός Χάρτης</a>
-    <button type="button" class="od-btn od-primary" id="od-extract">📐 Απόσπασμα σχεδίου (PDF / AutoCAD)</button>
-    <button type="button" class="od-btn" id="od-print">🖨 PDF όρων</button>
+    <a class="od-btn" href="${SDM_PUBLIC}" target="_blank" rel="noopener">Ενιαίος Ψηφιακός Χάρτης</a>
+    <button type="button" class="od-btn od-primary" id="od-extract">Απόσπασμα σχεδίου (PDF / AutoCAD)</button>
+    <button type="button" class="od-btn" id="od-print">PDF όρων</button>
   </div>
   <div class="od-note">ℹ️ Ενημερωτικά στοιχεία από τον <b>Ενιαίο Ψηφιακό Χάρτη</b> (ΤΕΕ/ΥΠΕΝ) και το Κτηματολόγιο. Δεν υποκαθιστούν τη βεβαίωση όρων δόμησης της ΥΔΟΜ ούτε τον έλεγχο του μηχανικού στα ΦΕΚ.${S.plan&&S.plan.t?` Ερώτημα: ${esc(new Date(S.plan.t).toLocaleString("el-GR"))}.`:""}</div>`;
   box.innerHTML = h;
@@ -351,7 +351,7 @@ async function openExtract(){
     }
     await window.HXOroiExport.open();
   }catch(e){ alert(e.message || e); }
-  finally{ if(b){ b.disabled = false; b.textContent = "📐 Απόσπασμα σχεδίου (PDF / AutoCAD)"; } }
+  finally{ if(b){ b.disabled = false; b.textContent = "Απόσπασμα σχεδίου (PDF / AutoCAD)"; } }
 }
 function summary(){
   const L = (S.plan && S.plan.layers) || {}, st = statusOf(L, S.manual);

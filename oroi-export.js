@@ -330,8 +330,8 @@ function modalHtml(st, diags){
     <label class="ox-c"><input type="checkbox" id="ox-epsx" checked> Ψηφιοποιημένες γραμμές ΕΨΧ πάνω στο υπόβαθρο</label>
     <div class="ox-info" id="ox-info"></div>
     <div class="ox-btns">
-      <button type="button" class="od-btn od-primary" id="ox-pdf">📄 PDF απόσπασμα + όροι</button>
-      <button type="button" class="od-btn od-primary" id="ox-zip">📦 Για AutoCAD (DXF + TIFF)</button>
+      <button type="button" class="od-btn od-primary" id="ox-pdf">PDF απόσπασμα + όροι</button>
+      <button type="button" class="od-btn od-primary" id="ox-zip">Για AutoCAD (DXF + TIFF)</button>
       <button type="button" class="od-btn" id="ox-close">Κλείσιμο</button>
     </div>
     <div class="ox-status" id="ox-status"></div>
