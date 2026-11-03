@@ -79,14 +79,21 @@
   /* ---------- άνοιγμα PDF σε νέο παράθυρο: πιάνουμε το URL και το κατεβάζουμε με όνομα ---------- */
   let pendingName = null;
   const b64 = (buf) => { let s = "", a = new Uint8Array(buf); for (let i = 0; i < a.length; i += 0x8000) s += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000)); return btoa(s); };
+  const isPdf = (buf) => { if (!buf || buf.byteLength < 200) return false; const h = new Uint8Array(buf, 0, Math.min(1024, buf.byteLength)); for (let i = 0; i < h.length - 4; i++) if (h[i] === 0x25 && h[i + 1] === 0x50 && h[i + 2] === 0x44 && h[i + 3] === 0x46) return true; return false; };
+  // λήψη που ξεκίνησε το ίδιο το site: το background ζητά να διαβαστεί και να σταλεί και στη σελίδα του Φακέλου
+  chrome.runtime.onMessage.addListener((m, s, reply) => {
+    if (!m || m.type !== "refetch") return;
+    (async () => { try { const r = await fetch(m.url, { credentials: "include" }); const buf = r.ok ? await r.arrayBuffer() : null;
+      if (isPdf(buf)) { await send({ type: "file", name: m.name, b64: b64(buf), noFallback: true }); reply({ ok: true }); } else reply({ ok: false }); } catch (e) { reply({ ok: false }); } })();
+    return true;
+  });
   // πρώτα: διαβάζουμε το αρχείο μέσα στη συνεδρία και το στέλνουμε στη σελίδα του HEXIS-APP (σώζει όπου διάλεξες)
   async function deliver(url, name) {
     try {
       const r = await fetch(url, { credentials: "include" });
-      const ct = r.headers.get("content-type") || "";
-      if (r.ok && /pdf|octet-stream/i.test(ct)) {
+      if (r.ok) {
         const buf = await r.arrayBuffer();
-        if (buf.byteLength > 200) { await send({ type: "file", name: name.split("/").pop(), b64: b64(buf) }); return true; }
+        if (isPdf(buf)) { await send({ type: "file", name: name.split("/").pop(), b64: b64(buf) }); return true; }
       }
     } catch (e) { /* συνεχίζουμε με λήψη */ }
     await send({ type: "download", url, name });

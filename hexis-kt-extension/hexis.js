@@ -8,6 +8,7 @@
   });
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg && msg.type === "file") window.postMessage({ src: "hexis-kt-ext", type: "file", name: msg.name, b64: msg.b64 }, location.origin);
+    if (msg && msg.type === "downloaded") window.postMessage({ src: "hexis-kt-ext", type: "downloaded", name: msg.name, path: msg.path }, location.origin);
     if (msg && msg.type === "status") window.postMessage({ src: "hexis-kt-ext", type: "status", text: msg.text }, location.origin);
   });
 })();

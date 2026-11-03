@@ -186,6 +186,7 @@ $("kaekIn").addEventListener("keydown", e=>{ if(e.key==="Enter") $("kaekGo").cli
 
 /* ---------- 2. πρόσθετο ---------- */
 let EXT = null;   // έκδοση πρόσθετου όταν απαντήσει
+const EXT_LATEST = "0.1.1";
 window.addEventListener("message", e=>{
   if(e.source!==window || !e.data || e.data.src!=="hexis-kt-ext") return;
   if(e.data.type==="pong"){ EXT = e.data.version; extUI(); }
@@ -194,6 +195,7 @@ window.addEventListener("message", e=>{
     addFile(new File([u8], e.data.name, {type:"application/pdf"}), true);
   }
   if(e.data.type==="status"){ extStatus = e.data.text; extUI(); }
+  if(e.data.type==="downloaded"){ DL.push({name:e.data.name, path:e.data.path||""}); renderFiles(); }
 });
 let extStatus = "";
 function ping(){ window.postMessage({src:"hexis-app", type:"ping"}, location.origin); }
@@ -201,10 +203,11 @@ function extUI(){
   const n = ROWS.filter(r=>r.sel).length;
   $("startExt").disabled = !EXT || !n;
   $("extState").innerHTML = EXT
-    ? `<div class="okbox">Το πρόσθετο HEXIS-APP είναι εγκατεστημένο (v${esc(EXT)}). ${extStatus?esc(extStatus):"Πάτα «Έναρξη»: ανοίγει το Κτηματολόγιο, συνδέεσαι με τους κωδικούς ΤΕΕ και το πρόσθετο κατεβάζει τα αποσπάσματα και τα έγγραφα των επιλεγμένων ΚΑΕΚ."}</div>`
+    ? (EXT_LATEST.localeCompare(EXT, undefined, {numeric:true})>0 ? `<div class="warn" style="margin-bottom:8px">Υπάρχει νέα έκδοση του πρόσθετου (v${EXT_LATEST}). Κατέβασε ξανά το <a href="hexis-kt-extension.zip" download>hexis-kt-extension.zip</a>, κάνε «Εξαγωγή όλων» <b>στον ίδιο φάκελο</b> (αντικατάσταση αρχείων) και πάτα το ↻ στην κάρτα του πρόσθετου στο chrome://extensions.</div>` : "")
+    + `<div class="okbox">Το πρόσθετο HEXIS-APP είναι εγκατεστημένο (v${esc(EXT)}). ${extStatus?esc(extStatus):"Πάτα «Έναρξη»: ανοίγει το Κτηματολόγιο, συνδέεσαι με τους κωδικούς ΤΕΕ και το πρόσθετο κατεβάζει τα αποσπάσματα και τα έγγραφα των επιλεγμένων ΚΑΕΚ."}</div>`
     : `<div class="warn">Για αυτόματο κατέβασμα χρειάζεται το <b>πρόσθετο HEXIS-APP</b> για Chrome ή Edge (σε υπολογιστή).</div>
        <ol class="steps note"><li>Κατέβασε το <a href="hexis-kt-extension.zip" download>hexis-kt-extension.zip</a> και αποσυμπίεσέ το σε μόνιμο φάκελο.</li>
-       <li>Άνοιξε <b>chrome://extensions</b> (ή <b>edge://extensions</b>), ενεργοποίησε τη «Λειτουργία προγραμματιστή» και πάτα «Φόρτωση μη πακεταρισμένης» → διάλεξε τον φάκελο.</li>
+       <li>Άνοιξε <b>chrome://extensions</b> (ή <b>edge://extensions</b>), ενεργοποίησε τη «Λειτουργία προγραμματιστή» και πάτα «Φόρτωση αναπτυγμένης επέκτασης» → διάλεξε τον φάκελο που περιέχει το manifest.json (δεξί κλικ στο ZIP → «Εξαγωγή όλων», όχι διπλό κλικ).</li>
        <li>Ανανέωσε αυτή τη σελίδα.</li></ol>
        <p class="note">Χωρίς πρόσθετο: άνοιξε την Έρευνα Μηχανικών, ψάξε ένα-ένα τα ΚΑΕΚ της λίστας και ρίξε τα PDF στο βήμα 3.</p>`;
 }
@@ -217,6 +220,7 @@ $("startExt").onclick = ()=>{
 
 /* ---------- 3. αρχεία ---------- */
 const FILES = [];  // {file, kaek, type, name}
+const DL = [];     // αρχεία που το Κτηματολόγιο έστειλε μόνο στις Λήψεις του browser
 const TYPES = {perigrafiko:"Απόσπασμα περιγραφικής βάσης", xoriko:"Απόσπασμα χωρικής βάσης", symvolaio:"Συμβόλαιο", topografiko:"Τοπογραφικό", synyp:"Συνυποβαλλόμενο", titlos:"Τίτλος αρχικής εγγραφής", allo:"Έγγραφο"};
 function fileStatus(kaek){
   const fs = FILES.filter(f=>f.kaek===kaek);
@@ -277,8 +281,10 @@ async function addFile(file){
 }
 function renderFiles(){
   $("zipBtn").disabled = !FILES.length;
-  if(!FILES.length){ $("files").innerHTML = ""; return; }
-  $("files").innerHTML = `<div class="grid">${FILES.map((f,i)=>`<div class="chip"><b>${esc(f.kaek||"ΚΑΕΚ;")}</b>${esc(TYPES[f.type])}<div class="muted" style="font-size:11.5px;word-break:break-all">${esc(f.saved ? "✓ " + f.saved : f.file.name)}</div></div>`).join("")}</div>`;
+  const pend = DL.filter(d=> !FILES.some(f=> f.file.name===d.name));
+  const dlHtml = pend.length ? `<div class="warn" style="margin-bottom:10px"><b>${pend.length} αρχεία σώθηκαν στις Λήψεις του browser</b> (το Κτηματολόγιο δεν επέτρεψε να έρθουν απευθείας εδώ). Σύρε τα στο πλαίσιο παραπάνω για να μπουν στον φάκελο:<div style="font-size:12px;margin-top:4px;word-break:break-all">${pend.map(d=>esc(d.path||d.name)).join("<br>")}</div></div>` : "";
+  if(!FILES.length){ $("files").innerHTML = dlHtml; return; }
+  $("files").innerHTML = dlHtml + `<div class="grid">${FILES.map((f,i)=>`<div class="chip"><b>${esc(f.kaek||"ΚΑΕΚ;")}</b>${esc(TYPES[f.type])}<div class="muted" style="font-size:11.5px;word-break:break-all">${esc(f.saved ? "✓ " + f.saved : f.file.name)}</div></div>`).join("")}</div>`;
   $("zipNote").textContent = FILES.length + " αρχεία";
 }
 const drop = $("drop");
