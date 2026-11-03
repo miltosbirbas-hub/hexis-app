@@ -137,14 +137,23 @@ public class HexisGnssPlugin extends Plugin {
             reader.start();
         }
 
-        long lastGgaEmit = 0;
+        long lastGgaEmit = 0, lastAttEmit = 0, lastHashEmit = 0;
         void emitLine(String s) {
             if ("gnss".equals(channel) && s.startsWith("$") && s.length() > 6) {
                 String t = s.substring(3, 6);
                 if (t.equals("GGA")) { lastGga = s; long now = System.currentTimeMillis(); if (now - lastGgaEmit < 95) return; lastGgaEmit = now; }
                 // προς την οθόνη μόνο ό,τι χρειάζεται — προστασία από «πλημμύρα» δεδομένων στα 10–20 Hz
                 else if (t.equals("GSV")) { String[] f = s.split(",", 4); if (f.length < 3 || !"1".equals(f[2])) return; }
+                else if (s.startsWith("$P") || t.equals("HPD") || t.equals("HPR")) {
+                    // στάση/κλίση από IMU δέκτη (PASHR, PSAT HPR, PTNL AVR, HPD): έως 5 Hz
+                    long now = System.currentTimeMillis(); if (now - lastAttEmit < 190) return; lastAttEmit = now;
+                }
                 else if (!(t.equals("GST") || t.equals("GSA") || t.equals("RMC") || t.equals("VTG") || t.equals("HDT") || t.equals("TIT"))) return;
+            }
+            if ("gnss".equals(channel) && s.startsWith("#")) {
+                // μηνύματα κατάστασης κλίσης τύπου Unicore (#SLANT…): έως 2 Hz, τα υπόλοιπα όχι
+                if (!s.startsWith("#SLANT")) return;
+                long now = System.currentTimeMillis(); if (now - lastHashEmit < 450) return; lastHashEmit = now;
             }
             JSObject o = new JSObject();
             o.put("channel", channel);

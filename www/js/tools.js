@@ -811,7 +811,7 @@
   // ---------- Μενού ----------
   document.querySelectorAll('[data-menu]').forEach(b => b.onclick = () => ({
     connect: A.connectSheet, base: A.baseSheet, ntrip: A.ntripSheet, laser: A.laserSheet, project: A.projectSheet, import: A.importSheet,
-    export: A.exportSheet, crs: A.crsSheet, settings: A.settingsSheet, help: A.helpSheet,
+    export: A.exportSheet, crs: A.crsSheet, settings: A.settingsSheet, help: A.helpSheet, imu: () => A.imuSheet(),
   })[b.dataset.menu]());
   $('st-ntrip').onclick = e => { e.stopPropagation(); A.ntripSheet(); };
 

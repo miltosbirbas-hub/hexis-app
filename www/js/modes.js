@@ -60,7 +60,8 @@
     C.f = p => {
       if (!C.on) return;
       let why = '';
-      if (S.onlyFix && p.fix !== 'fix') why = t('αναμονή FIX');
+      if (p.tiltBad) why = p.tiltBad;
+      else if (S.onlyFix && p.fix !== 'fix') why = t('αναμονή FIX');
       else if (S.maxH && p.sh != null && p.sh > S.maxH) why = 'σH ' + p.sh.toFixed(3) + ' > ' + S.maxH;
       if (why) { C.skip = why; upd(); return; }
       C.skip = '';

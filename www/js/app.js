@@ -8,7 +8,7 @@
 
   const DEF = {
     crs: 'EGSA87_HEPOS', crsCustom: '', theme: 'light', antH: 1.8, onlyFix: true, epochs: 5, qcClass: 'RT3',
-    tolH: 0.02, tolV: 0.02, beep: true, heightMode: 'msl', base: 'none', uiv: 4, voiceSay: true, overlays: { esri_labels: false, kt_wms: false, hexis_kaek: false },
+    tolH: 0.02, tolV: 0.02, beep: true, heightMode: 'msl', base: 'none', uiv: 5, voiceSay: true, overlays: { esri_labels: false, kt_wms: false, hexis_kaek: false },
     googleKey: '', soRef: 'move', ntrip: { host: '', port: 2101, mount: '', user: '', pass: '', gga: true, auto: false }, gnss: { type: 'bt', address: '', name: '', host: '', port: 0, init: '' },
     laser: { address: '', name: '' }, decl: 4.5, fixWait: 10, soundPoint: true, soundFix: true, volume: 0.25, lastProject: null, textH: 0.25,
   };
@@ -126,7 +126,7 @@
     const H = S.heightMode === 'ell' ? ellH : n.alt;
     const fix = n.fix().key;
     const p = {
-      E: grid.E, N: grid.N, Z: H != null ? H - (parseFloat($('sv-ant').value) || 0) + HGEO.heightShift() : null,
+      E: grid.E, N: grid.N, Z: H != null ? H - (A.tiltTip && A.tiltTip() ? 0 : (parseFloat($('sv-ant').value) || 0)) + HGEO.heightShift() : null,
       lat: n.lat, lon: n.lon, ellH, msl: n.alt, fix, sh: n.hrms(), sv: n.sAlt, pdop: n.pdop != null ? n.pdop : (n.hdop != null ? n.hdop * 1.4 : null),
       hdop: n.hdop, sats: n.sats, age: n.age, t: Date.now(), antH: parseFloat($('sv-ant').value) || 0,
     };
@@ -136,6 +136,7 @@
     if (md > 0.35) { A.moveHeading = HGEO.azimuth(headingAnchor, p); headingAnchor = { E: p.E, N: p.N }; }
     if (n.speed != null && n.speed > 0.6 && n.course != null) A.moveHeading = n.course + HGEO.convergence(n.lat, n.lon) * -1;
     p.heading = A.moveHeading != null ? A.moveHeading : null;
+    if (A.tiltCheck) { try { A.tiltCheck(p); } catch (e) { } }
     A.pos = p;
     if (A._lastFix !== fix) {
       const prev = A._lastFix; A._lastFix = fix;
@@ -217,6 +218,7 @@
       const jumps0 = A.qc.jumps;
       const t0 = Date.now();
       const f = p => {
+        if (p.tiltBad) { skipped++; onProgress && onProgress(eps.length, epochs, p.tiltBad); if (Date.now() - t0 > Math.max(60000, epochs * 3000, dur * 2)) { done(); reject(new Error(p.tiltBad + ' — η μέτρηση ακυρώθηκε')); } return; }
         if (onlyFix && p.fix !== 'fix') { skipped++; onProgress && onProgress(eps.length, epochs, 'Αναμονή FIX…'); if (Date.now() - t0 > Math.max(30000, epochs * 3000, dur * 2)) { done(); reject(new Error('Δεν υπήρξε FIX — η μέτρηση ακυρώθηκε')); } return; }
         eps.push(p);
         if (secMode) {
@@ -278,6 +280,7 @@
       time: Date.now(), epochs: r.eps.length, qc: { level: ev.level, cls: ev.cls, stdH: ev.stdH, stdV: ev.stdV, maxH: ev.maxH, maxV: ev.maxV }, photos: [],
       crs: HGEO.crsName(), baseSession: A.proj.activeBase || null, baseId: A.nmea.baseId || null,
     };
+    if (A.tiltInfo) { const ti = A.tiltInfo(r.eps); if (ti) pt.tilt = ti; }
     return { pt, ev };
   };
   A.storeSurvey = (pt, ev, opt) => storeSurvey(pt, ev, opt || {});
@@ -1005,7 +1008,8 @@
     if (st && !st.uiv) { A.settings.base = 'none'; A.settings.theme = 'light'; }
     if (st && (st.uiv || 0) < 3 && /^EGSA87/.test(A.settings.crs)) A.settings.crs = 'EGSA87_HEPOS';
     if (st && (st.uiv || 0) < 4 && Array.isArray(A.settings.toolbar) && A.settings.toolbar.length && !A.settings.toolbar.includes('voice')) A.settings.toolbar = A.settings.toolbar.concat(['|', 'cont', 'static', 'voice', 'dellast']);
-    A.settings.uiv = 4;
+    if (st && (st.uiv || 0) < 5 && Array.isArray(A.settings.toolbar) && A.settings.toolbar.length && !A.settings.toolbar.includes('tilt')) A.settings.toolbar = A.settings.toolbar.concat(['tilt']);
+    A.settings.uiv = 5;
     await HHEPOS.load();
     A.map = new HMAP.MapView($('map'));
     A.map.toLL = (E, N) => { try { return HGEO.toLL(E, N); } catch (e) { return null; } };

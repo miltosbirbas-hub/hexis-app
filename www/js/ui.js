@@ -20,6 +20,7 @@
     voice: { i: '🎙︎', l: 'Φωνή', f: () => A.voice.toggle(), on: () => A.voice && A.voice.on },
     cont: { i: '⟳', l: 'Συνεχής', f: () => A.contSheet(), on: () => A.cont && A.cont.on },
     static: { i: '◷', l: 'Static', f: () => A.staticSheet(), on: () => A.static && A.static.on },
+    tilt: { i: '∠', l: 'IMU κλίση', f: () => A.imuSheet(), on: () => A.settings.imu && A.settings.imu.on },
     dellast: { i: '⌫', l: 'Σβήσε τελευταίο', f: () => A.deleteLast() },
     measure: { i: '⟷', l: 'Μέτρηση', f: () => A.mapAction('measure'), on: () => !!A._measureMode },
     import: { i: '⤓', l: 'Εισαγωγή', f: () => A.importSheet() },
@@ -48,7 +49,7 @@
     settings: { i: '⚙', l: 'Ρυθμίσεις', f: () => A.settingsSheet() },
     help: { i: '?', l: 'Οδηγίες', f: () => A.helpSheet() },
   };
-  const DEFAULT = ['home', 'survey', 'stake', 'points', '|', 'extents', 'zoomin', 'zoomout', 'follow', '|', 'kt', 'sat', 'layers', 'measure', '|', 'cont', 'static', 'voice', 'dellast', '|', 'import', 'export'];
+  const DEFAULT = ['home', 'survey', 'stake', 'points', '|', 'extents', 'zoomin', 'zoomout', 'follow', '|', 'kt', 'sat', 'layers', 'measure', '|', 'cont', 'static', 'tilt', 'voice', 'dellast', '|', 'import', 'export'];
 
   function toggleKt() {
     const on = !(ov('kt_wms') || ov('hexis_kaek'));

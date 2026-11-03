@@ -127,5 +127,5 @@
     return '$' + body + '*' + x.toString(16).toUpperCase().padStart(2, '0');
   }
 
-  g.HCONN = { on, connect, disconnect, write, listPaired, hasNative, ntripStart, ntripStop, ntripSetGGA, ntripTable, state, Sim };
+  g.HCONN = { _emit: emit, on, connect, disconnect, write, listPaired, hasNative, ntripStart, ntripStop, ntripSetGGA, ntripTable, state, Sim };
 })(window);

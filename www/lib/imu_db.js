@@ -1,0 +1,4 @@
+window.HIMU_DB = [
+  { id: 'emlid-rs3', brand: 'emlid', name: 'Reach RS3', year: 2023, imu: true, max: 60, acc: '2 mm + 0.3 mm/° (≈2 cm στις 60°)', init: 'Περπάτα ~20 m ή κούνησε το κοντάρι 10–20 s', rx: 'reach.?rs3' },
+  { id: 'chc-i73', brand: 'chc', name: 'i73', year: 2020, imu: true, max: 45, acc: '< 10 mm + 0.7 mm/°', init: 'Κούνησε το κοντάρι μερικά δευτερόλεπτα', rx: '\\bi73' },
+];
