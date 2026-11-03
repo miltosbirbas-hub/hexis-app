@@ -93,12 +93,13 @@
     const clean = (s) => String(s || "").replace(/\s+/g, " ").trim();
     const ok = (s) => s && s.length >= 3 && s.length <= 80 && /[Α-ΩA-Zα-ωa-z]/.test(s) && !/\d{5,}/.test(s);
     for (const t of document.querySelectorAll("table")) {
-      const hr = t.querySelector("thead tr") || t.querySelector("tr"); if (!hr) continue;
+      const hr = [...t.querySelectorAll("tr")].find((r) => [...r.children].some((c) => /^(ΕΠΩΝΥΜΟ|ΟΝΟΜΑΤΕΠΩΝΥΜΟ|ΕΠΩΝΥΜΙΑ|ΕΠΩΝΥΜΟ\s*\/\s*ΕΠΩΝΥΜΙΑ)$/.test(norm(c.innerText))));
+      if (!hr) continue;
       const ths = [...hr.children].map((th) => norm(th.innerText));
       const iFull = ths.findIndex((h) => /ΟΝΟΜΑΤΕΠΩΝΥΜΟ|ΔΙΚΑΙΟΥΧ|ΙΔΙΟΚΤΗΤ|ΕΠΩΝΥΜΟ\s*\/\s*ΕΠΩΝΥΜΙΑ|^ΕΠΩΝΥΜΙΑ$/.test(h));
       const iSur = ths.findIndex((h) => /^ΕΠΩΝΥΜΟ$/.test(h)), iName = ths.findIndex((h) => /^ΟΝΟΜΑ$/.test(h));
       if (iFull < 0 && iSur < 0) continue;
-      const rows = [...t.querySelectorAll("tr")].filter((r) => r !== hr && r.querySelector("td"));
+      const all = [...t.querySelectorAll("tr")], rows = all.slice(all.indexOf(hr) + 1).filter((r) => r.querySelector("td") && r.children.length >= ths.length - 1);
       const names = rows.map((r) => { const c = [...r.children].map((x) => clean(x.innerText)); return iFull >= 0 ? c[iFull] : [c[iSur], iName >= 0 ? c[iName] : ""].filter(Boolean).join(" "); }).filter(ok);
       if (names.length) return names[0] + (names.length > 1 ? " κ.α." : "");
     }
@@ -152,6 +153,33 @@
     return meta.got;
   }
 
+  // σελίδα (π.χ. showScans) που περιέχει τα έγγραφα: PDF κατευθείαν, ή σύνδεσμοι/πλαίσια προς PDF
+  async function grabPage(url, meta, seen) {
+    if (seen.has(url)) return 0; seen.add(url);
+    let r, buf, ct = "";
+    try { r = await fetch(url, { credentials: "include" }); if (!r.ok) return 0; ct = r.headers.get("content-type") || ""; buf = await r.arrayBuffer(); } catch (e) { return 0; }
+    if (isPdf(buf)) return (await keep(buf, meta)) ? 1 : 0;
+    if (!/html/i.test(ct)) return 0;
+    const html = new TextDecoder("utf-8").decode(buf), doc = new DOMParser().parseFromString(html, "text/html");
+    const base = r.url || url, cand = [];
+    doc.querySelectorAll("a[href],iframe[src],embed[src],object[data]").forEach((e) => {
+      const h = e.getAttribute("href") || e.getAttribute("src") || e.getAttribute("data") || "";
+      if (!h || /^javascript:|^#|^mailto:|^tel:/i.test(h)) return;
+      let u; try { u = new URL(h, base); } catch (x) { return; } if (u.host !== location.host) return;
+      const txt = norm(e.textContent || "");
+      if (e.tagName !== "A" || /pdf|scan|download|getfile|file|document|view|show|image/i.test(u.pathname + u.search) || /ΠΡΟΒΟΛΗ|ΛΗΨΗ|ΑΝΟΙΓΜΑ|ΕΜΦΑΝΙΣΗ|ΚΑΤΕΒΑΣΜΑ|ΕΓΓΡΑΦΟ|ΣΑΡΩΣ/.test(txt)) cand.push({ u: u.href, row: norm((e.closest("tr,li") || e).textContent || "") });
+    });
+    send({ type: "diag", kaek: "page " + new URL(base).pathname + " · " + meta.kaek, d: { path: new URL(base).pathname, links: [...doc.querySelectorAll("a[href]")].slice(0, 120).map((a) => ({ t: norm(a.textContent).slice(0, 40), h: (a.getAttribute("href") || "").replace(/[?#].*/, "").slice(0, 90), c: (a.className || "").slice(0, 40), o: (a.getAttribute("onclick") || "").slice(0, 60) })), forms: [...doc.querySelectorAll("form")].slice(0, 10).map((f) => ({ a: (f.getAttribute("action") || "").replace(/[?#].*/, ""), m: f.method, inputs: [...f.querySelectorAll("input,button,select")].slice(0, 20).map((i) => i.tagName + ":" + (i.type || "") + ":" + (i.name || "")) })), frames: [...doc.querySelectorAll("iframe,embed,object")].map((f) => (f.getAttribute("src") || f.getAttribute("data") || "").replace(/[?#].*/, "")), th: [...doc.querySelectorAll("th")].slice(0, 30).map((t) => norm(t.textContent).slice(0, 30)) } });
+    let got = 0, i = 0;
+    const KR = [["ΣΥΜΒΟΛΑΙ", "symvolaio"], ["ΤΟΠΟΓΡΑΦ", "topografiko"], ["ΣΥΝΥΠΟΒΑΛΛ", "synyp"], ["ΤΙΤΛ", "titlos"], ["ΠΡΑΞ", "praxi"], ["ΔΙΑΘΗΚ", "titlos"], ["ΑΠΟΦΑΣ", "titlos"]];
+    for (const c of cand.slice(0, 30)) {
+      if (seen.has(c.u)) continue; seen.add(c.u);
+      const kind = (KR.find(([rx]) => c.row.includes(rx)) || [0, meta.kind])[1];
+      const b = await fetchPdf(c.u); if (b && await keep(b, { kaek: meta.kaek, kind, n: meta.n * 100 + (++i) })) got++;
+    }
+    return got;
+  }
+
   /* ---------- βήματα ---------- */
   // όλοι οι σύνδεσμοι της σελίδας (και όσοι είναι μέσα σε κλειστά μενού)
   const allLinks = () => [...document.querySelectorAll("a[href]")].filter((a) => safeEl(a) && !/^javascript:|^#|^mailto:|^tel:/i.test(a.getAttribute("href") || "") && !/LOGOUT|LOGOFF|SIGNOUT|ΑΠΟΣΥΝΔΕΣ|ΕΞΟΔΟΣ/i.test(norm(a.textContent) + " " + a.href.toUpperCase()));
@@ -163,7 +191,17 @@
         || L.find((a) => /^(ΕΡΕΥΝΑ|ΗΛΕΚΤΡΟΝΙΚΗ ΕΡΕΥΝΑ)$/.test(norm(a.textContent)))
         || L.find((a) => /\/(Search|Erevna|Ereuna|Research)(\/|$|\?)/i.test(a.href));
   }
+  const KT_SEARCH = "/Professionals/Inquiry/Main/SearchByEstate";
+  const KT_VIEW = (k) => "/Professionals/Inquiry/Main/viewResults/" + encodeURIComponent(k) + "-0-0";
   async function stepSearch(k) {
+    // 1) κατευθείαν στην οθόνη του ακινήτου (όπως την ανοίγει το site μετά την αναζήτηση)
+    if (decodeURIComponent(location.pathname).indexOf("/viewResults/" + k.kaek) >= 0) {
+      for (let t = 0; t < 10 && !findClickable(/ΑΠΟΣΠΑΣΜΑ ΠΕΡΙΓΡΑΦΙΚΗΣ/); t++) await sleep(500);
+      if (findClickable(/ΑΠΟΣΠΑΣΜΑ ΠΕΡΙΓΡΑΦΙΚΗΣ/)) { JOB.step = "property"; await save(); return { next: true }; }
+    }
+    JOB.direct = JOB.direct || {};
+    if (!JOB.direct[k.kaek]) { JOB.direct[k.kaek] = 1; await save(); location.assign(KT_VIEW(k.kaek)); await sleep(6000); return { next: true }; }
+    if (!JOB.searchUrl) JOB.searchUrl = location.origin + KT_SEARCH;
     let inp = findKaekInput();
     if (!inp) {
       JOB.nav = (JOB.nav || 0) + 1; await save();
@@ -219,7 +257,8 @@
       const icon = !norm(el.innerText) && el.querySelector("i,svg,img,span[class*=icon],span[class*=fa]");
       const rowTxt = norm((el.closest("tr,li,.row,.card") || el).innerText || "");
       const secTxt = norm((el.closest("table,section,fieldset,.panel,.card,.tab-pane") || document.body).innerText || "").slice(0, 400);
-      if (/\.pdf(\?|$)/i.test(href) || DOC_TXT.test(t) || /fa-file-pdf|fa-download|pdf|download/i.test(el.className || "") ||
+      if (/^ΕΠΙΛΕΞΤΕ$/.test(t) || /IconMore/.test(el.className || "") || /showScans|ShowDocs|GetScan|Download/i.test(href) ||
+          /\.pdf(\?|$)/i.test(href) || DOC_TXT.test(t) || /fa-file-pdf|fa-download|pdf|download/i.test(el.className || "") ||
           (icon && /ΣΥΜΒΟΛ|ΤΙΤΛ|ΕΓΓΡΑΦ|ΤΟΠΟΓΡΑΦ|ΣΥΝΥΠΟΒ|ΠΡΑΞ/.test(secTxt + " " + rowTxt))) out.add(el);
     }
     return [...out];
@@ -262,13 +301,25 @@
     if (x) { say("ΚΔ (χωρική βάση)…"); if (await grab(x, { kaek: k.kaek, kind: "kd" })) got.push("ΚΔ"); }
     await openDocTabs();
     send({ type: "diag", kaek: k.kaek, d: structure() });
-    const CATS = [["ΣΥΜΒΟΛΑΙ", "symvolaio"], ["ΤΟΠΟΓΡΑΦΙΚ", "topografiko"], ["ΣΥΝΥΠΟΒΑΛΛ", "synyp"], ["ΤΙΤΛ", "titlos"], ["ΠΡΑΞ", "praxi"]];
-    let n = 0, ok = 0;
+    const CATS = [["ΑΡΧΙΚΩΝ", "titlos"], ["ΜΕΤΑΓΕΝΕΣΤ", "symvolaio"], ["ΣΥΜΒΟΛΑΙ", "symvolaio"], ["ΤΟΠΟΓΡΑΦΙΚ", "topografiko"], ["ΣΥΝΥΠΟΒΑΛΛ", "synyp"], ["ΤΙΤΛ", "titlos"], ["ΠΡΑΞ", "praxi"]];
+    // επικεφαλίδα της στήλης του κελιού (π.χ. «Τίτλοι και έγγραφα αρχικών εγγραφών» / «… μεταγενέστερων»)
+    const colHead = (el) => { const td = el.closest("td,th"), tr = td && td.parentElement, t = tr && tr.closest("table"); if (!t) return "";
+      const i = [...tr.children].indexOf(td), heads = [...t.querySelectorAll("tr")].filter((r) => r.querySelector("th") && r.children.length === tr.children.length);
+      const h = heads.length ? heads[heads.length - 1].children[i] : null; return h ? norm(h.innerText) : ""; };
+    let n = 0, ok = 0; const seen = new Set();
     for (const el of docTargets().slice(0, 40)) {
+      const head = colHead(el);
       const ctx = norm((el.closest("tr,li,.row,.card") || el).innerText || "");
       const sec = norm((el.closest("table,section,fieldset,.panel,.card,.tab-pane") || document.body).innerText || "").slice(0, 200);
-      const kind = (CATS.find(([rx]) => ctx.includes(rx)) || CATS.find(([rx]) => sec.includes(rx)) || [0, "eggrafo"])[1];
+      const kind = (CATS.find(([rx]) => head.includes(rx)) || CATS.find(([rx]) => ctx.includes(rx)) || CATS.find(([rx]) => sec.includes(rx)) || [0, "eggrafo"])[1];
       n++; say(`Έγγραφο ${n}…`);
+      const href = el.getAttribute("href") || "";
+      if (href && !/^javascript:|^#/i.test(href)) {
+        // σελίδα με λίστα σαρώσεων (showScans): τη διαβάζουμε και παίρνουμε κάθε PDF της
+        // ΠΟΤΕ κλικ σε κανονικό σύνδεσμο εδώ: θα έφευγε η σελίδα του ακινήτου στη μέση της δουλειάς
+        ok += await grabPage(new URL(href, location.href).href, { kaek: k.kaek, kind, n }, seen);
+        continue;
+      }
       if (await grab(el, { kaek: k.kaek, kind, n })) ok++;
     }
     if (ok) got.push(ok + " έγγρ.");
@@ -276,7 +327,6 @@
     JOB.i++; JOB.step = "search"; JOB.handoff = 0; await save();
     // καρτέλα που άνοιξε το site για το ακίνητο: κλείνει και η εργασία συνεχίζει στην αρχική καρτέλα
     if (window.opener || HANDOFF_TAB) { await send({ type: "resume" }); await sleep(400); try { window.close(); } catch (e) {} return { next: false, closed: true }; }
-    if (JOB.i < JOB.kaeks.length) { const back = findClickable(/^ΕΠΙΣΤΡΟΦΗ$/) || findClickable(/^ΕΡΕΥΝΑ$/); if (back) { back.click(); await sleep(2500); } }
     return { next: true, doneOne: true };
   }
 
