@@ -748,8 +748,14 @@
       <label class="fld"><span>Ύψος κειμένου στο DXF (m)</span><input id="tx" type="number" step="0.01" value="${S.textH}"></label>
       <h4>Υπόβαθρα</h4>
       <label class="fld"><span>Google Map Tiles API key (για Google δορυφορική/οδικό)</span><input id="gk" value="${esc(S.googleKey || '')}" autocomplete="off" placeholder="AIza…"></label>
+      <h4>Εφαρμογή</h4>
+      <div class="row"><button class="btn grow" id="upd">⤓ Έλεγχος για ενημέρωση</button><button class="btn grow" id="elog">Αρχείο σφαλμάτων</button></div>
+      <p class="muted" id="ver"></p>
       <button class="btn primary" id="ok">Αποθήκευση</button>`, b => {
       let theme = S.theme;
+      b.querySelector('#upd').onclick = () => A.checkUpdate(true);
+      b.querySelector('#elog').onclick = () => { const l = A.errorLog(); A.sheet('Αρχείο σφαλμάτων', `<p class="muted">${l.length ? 'Τελευταία σφάλματα (για υποστήριξη):' : 'Κανένα σφάλμα.'}</p><div class="raw nt">${l.map(e => A.esc(e.t + '  ' + e.m)).join('\n')}</div>${l.length ? '<button class="btn" id="el-sh">↗ Αποστολή</button>' : ''}`, bb => { const x = bb.querySelector('#el-sh'); if (x) x.onclick = () => HIO.share([{ name: 'hexis_pad_errors.txt', data: l.map(e => e.t + '  ' + e.m).join('\r\n') }], { subject: 'HEXIS PAD errors' }); }); };
+      (async () => { try { const i = await Capacitor.Plugins.App.getInfo(); b.querySelector('#ver').textContent = 'HEXIS PAD ' + i.version + ' (build ' + i.build + ')'; } catch (e) { b.querySelector('#ver').textContent = 'HEXIS PAD (web)'; } })();
       b.querySelectorAll('#tm button').forEach(x => x.onclick = () => { theme = x.dataset.v; b.querySelectorAll('#tm button').forEach(y => y.classList.toggle('on', y === x)); });
       b.querySelector('#vt').onclick = () => { const v = A.settings.volume; A.settings.volume = parseFloat(b.querySelector('#vol').value); A.sound('point'); setTimeout(() => A.sound('fix'), 600); setTimeout(() => A.sound('lost'), 1300); setTimeout(() => { A.settings.volume = v; }, 2600); };
       b.querySelector('#qce').onclick = () => { const c = HQC.CLASSES[b.querySelector('#qc').value]; const opts = [...$('sv-epochs').options].map(o => +o.value).filter(v => v > 0); const e = opts.reduce((a, v) => Math.abs(v - c.epochs) < Math.abs(a - c.epochs) ? v : a, opts[0]); S.epochs = c.epochs > 60 ? c.epochs : e; if (c.epochs > 60 && ![...$('sv-epochs').options].some(o => +o.value === c.epochs)) $('sv-epochs').add(new Option(String(c.epochs), String(c.epochs))); A.toast('Εποχές: ' + S.epochs); };

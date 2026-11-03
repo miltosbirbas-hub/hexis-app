@@ -8,6 +8,11 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
+import androidx.core.content.FileProvider;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.OpenableColumns;
@@ -116,8 +121,15 @@ public class HexisGnssPlugin extends Plugin {
             reader.start();
         }
 
+        long lastGgaEmit = 0;
         void emitLine(String s) {
-            if ("gnss".equals(channel) && s.startsWith("$") && s.length() > 6 && s.substring(3, 6).equals("GGA")) lastGga = s;
+            if ("gnss".equals(channel) && s.startsWith("$") && s.length() > 6) {
+                String t = s.substring(3, 6);
+                if (t.equals("GGA")) { lastGga = s; long now = System.currentTimeMillis(); if (now - lastGgaEmit < 95) return; lastGgaEmit = now; }
+                // προς την οθόνη μόνο ό,τι χρειάζεται — προστασία από «πλημμύρα» δεδομένων στα 10–20 Hz
+                else if (t.equals("GSV")) { String[] f = s.split(",", 4); if (f.length < 3 || !"1".equals(f[2])) return; }
+                else if (!(t.equals("GST") || t.equals("GSA") || t.equals("RMC") || t.equals("VTG") || t.equals("HDT") || t.equals("TIT"))) return;
+            }
             JSObject o = new JSObject();
             o.put("channel", channel);
             o.put("line", s);
@@ -499,6 +511,43 @@ public class HexisGnssPlugin extends Plugin {
     private void deliver(JSObject f) {
         pendingFile = f;
         if (hasListeners("fileOpen")) { notifyListeners("fileOpen", f); pendingFile = null; }
+    }
+
+    // ---------- Ενημέρωση εφαρμογής: λήψη νέου APK και άνοιγμα εγκατάστασης ----------
+    @PluginMethod
+    public void installUpdate(final PluginCall call) {
+        final String url = call.getString("url", "");
+        if (url.isEmpty()) { call.reject("Χωρίς διεύθυνση"); return; }
+        new Thread(() -> {
+            try {
+                String u = url; HttpURLConnection c = null;
+                for (int i = 0; i < 6; i++) {
+                    c = (HttpURLConnection) new URL(u).openConnection();
+                    c.setInstanceFollowRedirects(false); c.setConnectTimeout(15000); c.setReadTimeout(30000);
+                    int code = c.getResponseCode();
+                    if (code >= 300 && code < 400) { u = c.getHeaderField("Location"); c.disconnect(); continue; }
+                    if (code != 200) throw new IOException("HTTP " + code);
+                    break;
+                }
+                File dir = new File(getContext().getCacheDir(), "update"); dir.mkdirs();
+                File f = new File(dir, "HEXIS_PAD.apk");
+                long total = c.getContentLengthLong(), done = 0, lastEv = 0;
+                try (InputStream in = c.getInputStream(); FileOutputStream out = new FileOutputStream(f)) {
+                    byte[] buf = new byte[65536]; int n;
+                    while ((n = in.read(buf)) > 0) {
+                        out.write(buf, 0, n); done += n;
+                        long now = System.currentTimeMillis();
+                        if (now - lastEv > 500) { lastEv = now; JSObject o = new JSObject(); o.put("done", done); o.put("total", total); notifyListeners("updateProgress", o); }
+                    }
+                }
+                Uri uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", f);
+                Intent it = new Intent(Intent.ACTION_VIEW);
+                it.setDataAndType(uri, "application/vnd.android.package-archive");
+                it.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(it);
+                call.resolve();
+            } catch (Exception e) { call.reject("Ενημέρωση: " + e.getMessage()); }
+        }, "hexis-update").start();
     }
 
     @PluginMethod

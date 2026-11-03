@@ -25,16 +25,16 @@
     if (lang !== 'en' || !RX || !root) return;
     if (root.nodeType === 3) { fixText(root); return; }
     if (root.nodeType !== 1 || (root.classList && root.classList.contains('nt'))) return;
-    if (SKIP.has(root.nodeName)) { for (const a of ['placeholder', 'title']) { const v = root.getAttribute(a); if (v && GREEK.test(v)) root.setAttribute(a, t(v)); } return; }
+    if (SKIP.has(root.nodeName)) { for (const a of ['placeholder', 'title']) { const v = root.getAttribute(a); if (v && GREEK.test(v)) { const r = t(v); if (r !== v) root.setAttribute(a, r); } } return; }
     for (const a of ['placeholder', 'title', 'aria-label', 'label']) {
       const v = root.getAttribute && root.getAttribute(a);
-      if (v && GREEK.test(v)) root.setAttribute(a, t(v));
+      if (v && GREEK.test(v)) { const r = t(v); if (r !== v) root.setAttribute(a, r); }
     }
-    if (root.nodeName === 'OPTION' && root.label && GREEK.test(root.label)) root.label = t(root.label);
+    if (root.nodeName === 'OPTION' && root.label && GREEK.test(root.label)) { const r = t(root.label); if (r !== root.label) root.label = r; }
     const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, {
       acceptNode: n => {
         if (n.nodeType === 1 && (SKIP.has(n.nodeName) || n.classList.contains('nt'))) {
-          if (!n.classList.contains('nt')) for (const a of ['placeholder', 'title', 'aria-label']) { const v = n.getAttribute(a); if (v && GREEK.test(v)) n.setAttribute(a, t(v)); }
+          if (!n.classList.contains('nt')) for (const a of ['placeholder', 'title', 'aria-label']) { const v = n.getAttribute(a); if (v && GREEK.test(v)) { const r = t(v); if (r !== v) n.setAttribute(a, r); } }
           return NodeFilter.FILTER_REJECT;
         }
         return NodeFilter.FILTER_ACCEPT;
@@ -42,7 +42,7 @@
     });
     let n; while ((n = tw.nextNode())) {
       if (n.nodeType === 3) fixText(n);
-      else for (const a of ['placeholder', 'title', 'aria-label', 'label']) { const v = n.getAttribute(a); if (v && GREEK.test(v)) n.setAttribute(a, t(v)); }
+      else for (const a of ['placeholder', 'title', 'aria-label', 'label']) { const v = n.getAttribute(a); if (v && GREEK.test(v)) { const r = t(v); if (r !== v) n.setAttribute(a, r); } }
     }
   }
   function fixText(n) {
@@ -56,13 +56,21 @@
     document.documentElement.lang = lang;
     if (lang !== 'en') return;
     walk(document.body);
+    const OPTS = { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['placeholder', 'title', 'label'] };
+    // Οι δικές μας αλλαγές δεν ξαναπυροδοτούν τον παρατηρητή (καμία πιθανότητα βρόχου/παγώματος)
     const mo = new MutationObserver(ms => {
-      for (const m of ms) {
-        if (m.type === 'characterData') fixText(m.target);
-        else { m.addedNodes.forEach(walk); if (m.type === 'attributes') walk(m.target); }
-      }
+      mo.disconnect();
+      try {
+        for (const m of ms) {
+          if (m.type === 'characterData') fixText(m.target);
+          else if (m.type === 'attributes') walk(m.target);
+          else m.addedNodes.forEach(walk);
+        }
+      } catch (e) { console.error(e); }
+      mo.takeRecords();
+      mo.observe(document.body, OPTS);
     });
-    mo.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['placeholder', 'title', 'label'] });
+    mo.observe(document.body, OPTS);
     // μεταφράζει και τα ειδοποιητικά παράθυρα
     const al = g.alert; g.alert = s => al(t(s));
   }

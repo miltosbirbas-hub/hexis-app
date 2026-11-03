@@ -95,7 +95,7 @@
     this._bind();
     this._resize();
     window.addEventListener('resize', () => this._resize());
-    const loop = () => { if (this._dirty) { this._dirty = false; this._draw(); } requestAnimationFrame(loop); };
+    const loop = () => { if (this._dirty && !this._paused) { this._dirty = false; try { this._draw(); } catch (e) { console.error(e); } } requestAnimationFrame(loop); };
     requestAnimationFrame(loop);
   }
 
@@ -409,34 +409,39 @@
 
   MapView.prototype._drawPoints = function (onImg) {
     const x = this.x;
-    const showLbl = this.view.s > 4;
+    // πολλά σημεία στην οθόνη: χωρίς ετικέτες για να μένει γρήγορος ο χάρτης
+    let vis = 0; const a0 = this.s2w(0, this.h), b0 = this.s2w(this.w, 0);
+    for (const p of this.layers.points) { if (p.E >= a0.E && p.E <= b0.E && p.N >= a0.N && p.N <= b0.N && ++vis > 700) break; }
+    const showLbl = this.view.s > 4 && vis <= 700;
     const fg = onImg ? '#ffffff' : (this.dark ? '#e8eef5' : '#14202c');
     const halo = onImg ? 'rgba(0,0,0,0.75)' : (this.dark ? 'rgba(10,16,24,0.85)' : 'rgba(255,255,255,0.9)');
     x.font = `600 ${Math.round(15 * (this.fontScale || 1))}px Manrope,system-ui,sans-serif`;
+    // Σχεδίαση σε ομάδες (μία διαδρομή ανά τύπο) — γρήγορο και με χιλιάδες σημεία
+    const P = { survey: new Path2D(), stake: new Path2D(), done: new Path2D(), staked: new Path2D(), calc: new Path2D(), control: new Path2D(), photo: new Path2D() };
+    const lbl = [];
     for (const p of this.layers.points) {
       if (p.E == null) continue;
       const [sx, sy] = this.w2s(p.E, p.N);
       if (sx < -20 || sy < -20 || sx > this.w + 20 || sy > this.h + 20) continue;
-      x.lineWidth = 2;
-      if (p.type === 'stake') { // στόχος χάραξης: σταυρός μέσα σε κύκλο
-        x.strokeStyle = p.done ? '#14a44d' : '#e8305a';
-        x.beginPath(); x.arc(sx, sy, 6, 0, 7); x.moveTo(sx - 9, sy); x.lineTo(sx + 9, sy); x.moveTo(sx, sy - 9); x.lineTo(sx, sy + 9); x.stroke();
-      } else if (p.type === 'staked') {
-        x.fillStyle = '#14a44d'; x.beginPath(); x.moveTo(sx, sy - 7); x.lineTo(sx + 6, sy + 5); x.lineTo(sx - 6, sy + 5); x.closePath(); x.fill();
-        x.strokeStyle = halo; x.lineWidth = 1; x.stroke();
-      } else if (p.type === 'calc') {
-        x.strokeStyle = '#8a3ffc'; x.lineWidth = 2; x.strokeRect(sx - 5, sy - 5, 10, 10);
-      } else if (p.type === 'control') {
-        x.strokeStyle = '#d97706'; x.lineWidth = 2; x.beginPath(); x.moveTo(sx, sy - 8); x.lineTo(sx + 7, sy + 5); x.lineTo(sx - 7, sy + 5); x.closePath(); x.stroke();
-      } else {
-        x.fillStyle = '#1e6fd9'; x.beginPath(); x.arc(sx, sy, 5, 0, 7); x.fill();
-        x.strokeStyle = halo; x.lineWidth = 1.5; x.stroke();
-      }
-      if (p.photos && p.photos.length) { x.fillStyle = '#f59e0b'; x.beginPath(); x.arc(sx + 7, sy - 7, 3, 0, 7); x.fill(); }
-      if (showLbl) {
-        const t = p.name + (this.view.s > 15 && p.Z != null ? '  ' + p.Z.toFixed(2) : '');
-        x.lineWidth = 3; x.strokeStyle = halo; x.strokeText(t, sx + 10, sy - 7); x.fillStyle = fg; x.fillText(t, sx + 10, sy - 7);
-      }
+      if (p.type === 'stake') { const g = p.done ? P.done : P.stake; g.moveTo(sx + 6, sy); g.arc(sx, sy, 6, 0, 6.2832); g.moveTo(sx - 9, sy); g.lineTo(sx + 9, sy); g.moveTo(sx, sy - 9); g.lineTo(sx, sy + 9); }
+      else if (p.type === 'staked') { P.staked.moveTo(sx, sy - 7); P.staked.lineTo(sx + 6, sy + 5); P.staked.lineTo(sx - 6, sy + 5); P.staked.closePath(); }
+      else if (p.type === 'calc') P.calc.rect(sx - 5, sy - 5, 10, 10);
+      else if (p.type === 'control') { P.control.moveTo(sx, sy - 8); P.control.lineTo(sx + 7, sy + 5); P.control.lineTo(sx - 7, sy + 5); P.control.closePath(); }
+      else { P.survey.moveTo(sx + 5, sy); P.survey.arc(sx, sy, 5, 0, 6.2832); }
+      if (p.photos && p.photos.length) { P.photo.moveTo(sx + 10, sy - 7); P.photo.arc(sx + 7, sy - 7, 3, 0, 6.2832); }
+      if (showLbl) lbl.push([p, sx, sy]);
+    }
+    x.lineWidth = 2;
+    x.strokeStyle = '#e8305a'; x.stroke(P.stake);
+    x.strokeStyle = '#14a44d'; x.stroke(P.done);
+    x.fillStyle = '#14a44d'; x.fill(P.staked);
+    x.strokeStyle = '#8a3ffc'; x.stroke(P.calc);
+    x.strokeStyle = '#d97706'; x.stroke(P.control);
+    x.fillStyle = '#1e6fd9'; x.fill(P.survey); x.strokeStyle = halo; x.lineWidth = 1.5; x.stroke(P.survey);
+    x.fillStyle = '#f59e0b'; x.fill(P.photo);
+    for (const [p, sx, sy] of lbl) {
+      const t = p.name + (this.view.s > 15 && p.Z != null ? '  ' + p.Z.toFixed(2) : '');
+      x.lineWidth = 3; x.strokeStyle = halo; x.strokeText(t, sx + 10, sy - 7); x.fillStyle = fg; x.fillText(t, sx + 10, sy - 7);
     }
   };
 

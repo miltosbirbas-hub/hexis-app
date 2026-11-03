@@ -32,6 +32,8 @@ jobs:
         run: |
           gh release view pad-apk >/dev/null 2>&1 || gh release create pad-apk --target hexis-pad --title "HEXIS PAD · Android" --notes "HEXIS PAD — αποτύπωση, χάραξη, RTK για Android."
           gh release upload pad-apk "$RUNNER_TEMP/HEXIS_PAD.apk" --clobber
+          echo "{\"build\": ${{ github.run_number }}, \"version\": \"1.0.${{ github.run_number }}\", \"url\": \"https://github.com/${{ github.repository }}/releases/download/pad-apk/HEXIS_PAD.apk\"}" > "$RUNNER_TEMP/version.json"
+          gh release upload pad-apk "$RUNNER_TEMP/version.json" --clobber
           echo "build ${{ github.run_number }} ok $(date -u)" > "$RUNNER_TEMP/status.txt"
           gh release upload pad-apk "$RUNNER_TEMP/status.txt" --clobber
       - name: Καταγραφή σφάλματος

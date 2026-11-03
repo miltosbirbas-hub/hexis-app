@@ -151,7 +151,8 @@
     A.liveQC = A.qc.epoch(p);
     A.epochListeners.slice().forEach(f => f(p));
     if (A.settings.ntrip.gga && HCONN.hasNative()) { const now = Date.now(); if (!A._lastGgaSent || now - A._lastGgaSent > 9000) { A._lastGgaSent = now; HCONN.ntripSetGGA(n.lastGGA); } }
-    A.updateStatus(); A.updatePos(); A.updateGuidance();
+    // ενημέρωση οθόνης το πολύ μία φορά ανά καρέ (ομαλή λειτουργία και σε δέκτες 10–20 Hz)
+    if (!A._uiPend) { A._uiPend = true; requestAnimationFrame(() => { A._uiPend = false; try { A.updateStatus(); A.updatePos(); A.updateGuidance(); } catch (e) { console.error(e); } }); }
   }
 
   A.updateStatus = function () {
