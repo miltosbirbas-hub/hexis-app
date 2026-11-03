@@ -13,8 +13,22 @@ def getj(url, t=60):
     except Exception as e: return 0, {"_err":repr(e)}
 P="https://sdigmap.tee.gov.gr/portal/sharing/rest/content/items/"
 rep={}
-st,wm=getj(P+"908c40e730a14af49a67f5ee642516a7/data?f=json"); rep["item_data_status"]=st
-st,it=getj(P+"908c40e730a14af49a67f5ee642516a7?f=json"); rep["item"]={k:it.get(k) for k in ("title","type","access","snippet")} if isinstance(it,dict) else it
+st,cfg=getj("https://sdigmap.tee.gov.gr/sdmquery/public/config.json")
+cfgtxt=json.dumps(cfg,ensure_ascii=False)
+open(OUT+"/config.json","w").write(cfgtxt)
+ids=[]
+mp=(cfg.get("map") or {}) if isinstance(cfg,dict) else {}
+if mp.get("itemId"): ids.append(mp["itemId"])
+ids+= [i for i in re.findall(r'"itemId"\s*:\s*"([0-9a-f]{32})"',cfgtxt) if i not in ids]
+rep["ids"]=ids; rep["mapcfg"]=json.dumps(mp,ensure_ascii=False)[:3000]
+wm={}
+for iid in ids[:6]:
+    st,it=getj(P+iid+"?f=json")
+    rep.setdefault("items",[]).append({"id":iid,"st":st,"title":it.get("title") if isinstance(it,dict) else None,"type":it.get("type") if isinstance(it,dict) else None,"access":it.get("access") if isinstance(it,dict) else None})
+    if isinstance(it,dict) and it.get("type")=="Web Map" and not wm:
+        st,wm=getj(P+iid+"/data?f=json")
+# επίσης url υπηρεσιών που αναφέρονται κατευθείαν στο config
+rep["cfg_urls"]=sorted(set(re.findall(r'https?://[^"\s]+(?:MapServer|FeatureServer)[^"\s]*',cfgtxt)))[:80]
 layers=[]
 def walk(L, pre=""):
     for l in L or []:
