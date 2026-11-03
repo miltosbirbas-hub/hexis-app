@@ -1,10 +1,11 @@
 ;;; ================================================================
-;;; HEXISNET.LSP v1.1 - HEXIS-APP / BRB DEVELOPMENT MON. I.K.E.
+;;; HEXISNET.LSP v1.2 - HEXIS-APP / BRB DEVELOPMENT MON. I.K.E.
 ;;; Σύνδεση AutoCAD / progeCAD με τον λογαριασμό HEXIS-APP:
 ;;; όροι δόμησης από ΚΑΕΚ (Ενιαίος Ψηφιακός Χάρτης + Κτηματολόγιο).
 ;;; Εντολές:  HEXISLOGIN   σύνδεση με email / κωδικό HEXIS-APP
 ;;;           HEXISLOGOUT  αποσύνδεση
 ;;;           OROIKAEK     όροι δόμησης από ΚΑΕΚ (γραμμή εντολών)
+;;;           HEXISAPOSPASMA απόσπασμα ρυμοτομικού (γραμμές ΕΨΧ + ΚΑΕΚ) στο σχέδιο
 ;;;           HEXISFAKELOS Φάκελος Κτηματολογίου (απόσπασμα, φύλλο, τίτλοι
 ;;;                        κύριου + όμορων) — ανοίγει τη σελίδα στο hexis-app.gr
 ;;; Χρησιμοποιείται και από τα OROIDOM (επιλογή 5) και DILOSI.
@@ -128,9 +129,25 @@
     (setq out (cons (vl-string-trim "\r" (substr s 1 p)) out) s (substr s (+ p 2))))
   (if (/= s "") (setq out (cons (vl-string-trim "\r" s) out)))
   (reverse out))
+(defun hx:lines (s / i p n out)
+  (setq i 0 n (strlen s) out nil)
+  (while (< i n)
+    (setq p (vl-string-search "\n" s i))
+    (if (null p) (setq p n))
+    (setq out (cons (vl-string-trim "\r" (substr s (1+ i) (- p i))) out))
+    (setq i (1+ p)))
+  (reverse out))
+(defun hx:fields (s sep / i p n out)
+  (setq i 0 n (strlen s) out nil)
+  (while (<= i n)
+    (setq p (vl-string-search sep s i))
+    (if (null p) (setq p n))
+    (setq out (cons (substr s (1+ i) (- p i)) out))
+    (setq i (+ p (strlen sep))))
+  (reverse out))
 (defun hx:parse (txt / d rows p k v q)
   (setq d nil rows nil)
-  (foreach ln (hx:split txt)
+  (foreach ln (hx:lines txt)
     (if (setq p (vl-string-search "=" ln))
       (progn
         (setq k (substr ln 1 p) v (substr ln (+ p 2)))
@@ -178,6 +195,101 @@
       (princ (strcat "\n" "Για πίνακα στο σχέδιο: OROIDOM -> 5 (από ΚΑΕΚ)."))))
   (princ))
 
+;; ---------------- απόσπασμα ρυμοτομικού στο σχέδιο ----------------
+;; Ψηφιοποιημένες γραμμές του Ενιαίου Ψηφιακού Χάρτη + γεωτεμάχια Κτηματολογίου, σε πλαίσιο
+;; πλάτους W (μονάδες σχεδίου) κάτω από τον πίνακα όρων. Γραφική κλίμακα — κλιμακώνεται με το h.
+(defun hx:post (body / tk res n out)
+  (setq n 0 out nil)
+  (while (and (< n 2) (null out) (setq tk (hx:token)))
+    (setq res (hx:http "POST" *HX-FN*
+                (list (cons "Content-Type" "application/json") (cons "apikey" *HX-ANON*) (cons "Authorization" (strcat "Bearer " tk)))
+                body))
+    (cond
+      ((= (car res) 401) (setq *HX-AT* nil *HX-EXP* 0.0 n (1+ n)))
+      ((= (car res) 200) (setq out (cadr res)))
+      (T (princ (strcat "\n" "HEXIS-APP: σφάλμα " (itoa (car res)) " " (if (= (car res) 0) (cadr res) ""))) (setq n 2))))
+  out)
+(defun hx:lay (name col)
+  (if (null (tblsearch "LAYER" name))
+    (entmake (list (cons 0 "LAYER") (cons 100 "AcDbSymbolTableRecord") (cons 100 "AcDbLayerTableRecord")
+                   (cons 2 name) (cons 70 0) (cons 62 col) (cons 6 "Continuous")))))
+(defun hx:pl (lay pts closed w)
+  (if (>= (length pts) 2)
+    (entmake (append (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 lay) (cons 100 "AcDbPolyline")
+                           (cons 90 (length pts)) (cons 70 (if closed 1 0)) (cons 43 w))
+                     (mapcar (function (lambda (p) (cons 10 p))) pts)))))
+(defun hx:tx (lay p th str cen)
+  (entmake (append (list (cons 0 "TEXT") (cons 100 "AcDbEntity") (cons 8 lay) (cons 10 (list (car p) (cadr p) 0.0)) (cons 40 th) (cons 1 str))
+                   (if cen (list (cons 72 1) (cons 73 2) (cons 11 (list (car p) (cadr p) 0.0))) (list (cons 72 0))))))
+(defun hx:apospasma (kaek x0 ytop W h / txt lns bb ew eh f wd hd fy xy lay pts p q L y ot feks)
+  (setq kaek (strcase (vl-string-trim " " kaek)))
+  (princ (strcat "\n" "HEXIS-APP: απόσπασμα ρυμοτομικού για ΚΑΕΚ " kaek "..."))
+  (setq txt (hx:post (strcat "{\"action\":\"lisp_extract\",\"kaek\":\"" (hx:jesc kaek) "\"}")))
+  (if (null txt) (progn (princ "\nHEXIS-APP: δεν ήρθε απόσπασμα.") nil)
+   (progn
+    (setq lns (hx:lines txt) bb nil ot "" feks "")
+    (foreach ln lns
+      (cond ((= (substr ln 1 5) "BBOX=") (setq bb (mapcar (function atof) (hx:fields (substr ln 6) "|"))))
+            ((= (substr ln 1 3) "OT=") (setq ot (substr ln 4)))
+            ((= (substr ln 1 5) "FEKS=") (setq feks (substr ln 6)))
+            ((= (substr ln 1 4) "MSG=") (princ (strcat "\nHEXIS-APP: " (substr ln 5))))))
+    (if (null bb) nil
+     (progn
+      (setq ew (- (nth 2 bb) (nth 0 bb)) eh (- (nth 3 bb) (nth 1 bb)))
+      (setq f (/ W ew))
+      (if (> (* eh f) (* 0.85 W)) (setq f (/ (* 0.85 W) eh)))
+      (setq wd (* ew f) hd (* eh f))
+      (foreach c (list (list "HX_APOSPASMA" 7) (list "HX_KT_GEOTEMAXIA" 8) (list "HX_ORIO_OIKISMOU" 3) (list "HX_KOINOXRISTA" 94)
+                       (list "HX_OT" 4) (list "HX_POL_GRAMMES" 6) (list "HX_OIKODOMIKI" 5) (list "HX_RYMOTOMIKI" 1)
+                       (list "HX_PST_KAEK" 30) (list "HX_OT_ARITHMOS" 7))
+        (hx:lay (car c) (cadr c)))
+      ;; τίτλος
+      (hx:tx "HX_APOSPASMA" (list x0 (- ytop (* h 1.2))) (* h 1.2)
+             (strcat "ΑΠΟΣΠΑΣΜΑ ΡΥΜΟΤΟΜΙΚΟΥ — ΚΑΕΚ " kaek (if (/= ot "") (strcat " (Ο.Τ. " ot ")") "")) nil)
+      (if (/= feks "") (hx:tx "HX_APOSPASMA" (list x0 (- ytop (* h 2.5))) (* h 0.75) (strcat "ΦΕΚ: " feks) nil))
+      (setq fy (- ytop (* h 3.3)))
+      (defun xy (s / c) (setq c (vl-string-search "," s))
+        (list (+ x0 (* f (atof (substr s 1 c)))) (+ (- fy hd) (* f (atof (substr s (+ c 2)))))))
+      ;; γραμμές και κείμενα
+      (foreach ln lns
+        (cond
+          ((= (substr ln 1 2) "G=")
+            (setq p (vl-string-search "|" ln) lay (substr ln 3 (- p 2)))
+            (setq pts (mapcar (function xy) (hx:fields (substr ln (+ p 2)) ";")))
+            (hx:pl lay pts nil (if (= lay "HX_PST_KAEK") (* h 0.14) 0.0)))
+          ((= (substr ln 1 2) "T=")
+            (setq q (hx:fields (substr ln 3) "|") lay (car q))
+            (hx:tx lay (xy (cadr q)) (if (= lay "HX_PST_KAEK") (* h 0.6) (* h 0.9)) (caddr q) T))))
+      ;; πλαίσιο
+      (hx:pl "HX_APOSPASMA" (list (list x0 fy) (list (+ x0 wd) fy) (list (+ x0 wd) (- fy hd)) (list x0 (- fy hd))) T 0.0)
+      ;; βορράς
+      (setq p (list (- (+ x0 wd) (* h 2.5)) (- fy (* h 5.0))))
+      (hx:pl "HX_APOSPASMA" (list (list (- (car p) (* h 0.8)) (cadr p)) (list (car p) (+ (cadr p) (* h 2.6))) (list (+ (car p) (* h 0.8)) (cadr p)) (list (car p) (+ (cadr p) (* h 0.7)))) T 0.0)
+      (hx:tx "HX_APOSPASMA" (list (car p) (+ (cadr p) (* h 3.4))) h "Β" T)
+      ;; γραφική κλίμακα
+      (setq L nil)
+      (foreach L0 (list 1 2 5 10 20 25 50 100 200 250 500) (if (<= (* L0 f) (* 0.3 wd)) (setq L L0)))
+      (if (null L) (setq L 1))
+      (setq y (- fy hd (* h 1.6)))
+      (hx:pl "HX_APOSPASMA" (list (list x0 y) (list (+ x0 (* L f)) y)) nil (* h 0.25))
+      (hx:pl "HX_APOSPASMA" (list (list x0 (+ y (* h 0.5))) (list x0 (- y (* h 0.5)))) nil 0.0)
+      (hx:pl "HX_APOSPASMA" (list (list (+ x0 (* L f)) (+ y (* h 0.5))) (list (+ x0 (* L f)) (- y (* h 0.5)))) nil 0.0)
+      (hx:tx "HX_APOSPASMA" (list (+ x0 (* L f) (* h 0.8)) (- y (* h 0.35))) (* h 0.7) (strcat (itoa L) " μ.") nil)
+      (hx:tx "HX_APOSPASMA" (list x0 (- y (* h 1.8))) (* h 0.6)
+             "Ψηφιοποιημένες γραμμές Ενιαίου Ψηφιακού Χάρτη (ΤΕΕ/ΥΠΕΝ) · γεωτεμάχια Κτηματολογίου · ενημερωτικό, γραφική κλίμακα · HEXIS-APP" nil)
+      (princ (strcat "\n" "HEXIS-APP: το απόσπασμα μπήκε (layers HX_*)."))
+      (- y (* h 2.2)))))))
+(defun c:HEXISAPOSPASMA ( / k d pt h)
+  (setq d (if *HX-LAST* (hx:v *HX-LAST* "KAEK") ""))
+  (setq k (getstring (strcat "\n" "ΚΑΕΚ" (if (/= d "") (strcat " <" d ">") "") ": ")))
+  (if (and (= k "") (/= d "")) (setq k d))
+  (if (and (/= k "") (setq pt (getpoint (strcat "\n" "Σημείο εισαγωγής (πάνω-αριστερή γωνία): "))))
+    (progn
+      (setq h (getdist pt (strcat "\n" "Ύψος γραμματοσειράς <2.5>: ")))
+      (if (null h) (setq h 2.5))
+      (hx:apospasma k (car pt) (cadr pt) (* h 60.0) h)))
+  (princ))
+
 ;; Φάκελος Κτηματολογίου: ανοίγει τον browser. Οι κωδικοί ΤΕΕ μπαίνουν ΜΟΝΟ στο site του Κτηματολογίου.
 (defun hx:open-url (url / sh r)
   (setq sh (vl-catch-all-apply (function vlax-create-object) (list "Shell.Application")))
@@ -199,5 +311,5 @@
     (princ (strcat "\n" "HEXIS-APP: δώσε ΚΑΕΚ 12 ψηφίων.")))
   (princ))
 
-(princ "\nHEXISNET v1.1 φορτώθηκε. Εντολές: OROIKAEK, HEXISFAKELOS, HEXISLOGIN, HEXISLOGOUT")
+(princ "\nHEXISNET v1.2 φορτώθηκε. Εντολές: OROIKAEK, HEXISAPOSPASMA, HEXISFAKELOS, HEXISLOGIN, HEXISLOGOUT")
 (princ)

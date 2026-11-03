@@ -131,3 +131,26 @@ patch_oroidom(R + "/OROIDOM.lsp", True)
 patch_oroidom(R + "/OROIDOM_ProgeCAD.lsp", False)
 patch_dilosi(R + "/DILOSI.lsp", True)
 patch_dilosi(R + "/DILOSI_ProgeCAD.lsp", False)
+
+# ---------- OROIDOM v3.3: απόσπασμα ρυμοτομικού κάτω από τον πίνακα (επιλογή 5) ----------
+def patch_oroidom_apo(path, esc):
+    s, crlf = rd(path); s = s.replace("\r\n", "\n")
+    if "hx:apospasma" in s: print("OROIDOM απόσπασμα ήδη:", path); return
+    T = (lambda t: U(t)) if esc else (lambda t: t)
+    a = '(defun C:OROIDOM ( / *error* od-txt od-hline od-len kaekd'
+    assert s.count(a) == 1; s = s.replace(a, a + ' apo')
+    anchor = T('  (princ (strcat "\\n" "OROIDOM v3.2 — Ο πίνακας εισήχθη (layer OD-PIN, λευκά)."))')
+    assert s.count(anchor) == 1, (path, "anchor")
+    blk = T('''  (if (and (= mode "5") hx:apospasma)
+    (progn
+      (initget "Nai Oxi")
+      (setq apo (getkword (strcat "\\n" "Απόσπασμα ρυμοτομικού κάτω από τον πίνακα; [Nai/Oxi] <Nai>: ")))
+      (if (/= apo "Oxi")
+        (hx:apospasma (hx:v kaekd "KAEK") (car pt) (- y (* h 2.5)) (max (* h 45.0) (min totw (* h 70.0))) h))))
+
+''')
+    s = s.replace(anchor, blk + anchor)
+    s = s.replace("OROIDOM v3.2", "OROIDOM v3.3").replace(T("OROIDOM.LSP  v3.2"), T("OROIDOM.LSP  v3.3"))
+    wr(path, s, crlf); print("OROIDOM απόσπασμα ok:", path)
+patch_oroidom_apo(R + "/OROIDOM.lsp", True)
+patch_oroidom_apo(R + "/OROIDOM_ProgeCAD.lsp", False)

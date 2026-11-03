@@ -1,9 +1,9 @@
-;;; OROIDOM.LSP  v3.2 — Πίνακας Όρων Δόμησης
+;;; OROIDOM.LSP  v3.3 — Πίνακας Όρων Δόμησης
 ;;; ν.5306/2026 (Ταγαράς) · ΠΔ 24.4/1985 · ΦΕΚ 289/ΑΑΠ/2011
 ;;; Εντολή: OROIDOM  |  HEXIS Platform — BRB DEVELOPMENT
 ;;; Έκδοση για ProgeCAD / IntelliCAD — κωδικοποίηση ANSI Windows-1253 (Ελληνικά)
 
-(defun C:OROIDOM ( / *error* od-txt od-hline od-len kaekd
+(defun C:OROIDOM ( / *error* od-txt od-hline od-len kaekd apo
                      mode fek onom subt rows
                      pt h y lblw valw totw rowh lineh row2 lbl vals v maxl )
 
@@ -169,8 +169,15 @@
       (od-txt (car pt) y (* h 0.75)
         "Το ΠΔ 24.4/1985 ισχύει μεταβατικά (ν.5306/2026 άρ.247§3) έως την οριοθέτηση του οικισμού με νέο ΠΔ.")))
 
-  (princ (strcat "\n" "OROIDOM v3.2 — Ο πίνακας εισήχθη (layer OD-PIN, λευκά)."))
+  (if (and (= mode "5") hx:apospasma)
+    (progn
+      (initget "Nai Oxi")
+      (setq apo (getkword (strcat "\n" "Απόσπασμα ρυμοτομικού κάτω από τον πίνακα; [Nai/Oxi] <Nai>: ")))
+      (if (/= apo "Oxi")
+        (hx:apospasma (hx:v kaekd "KAEK") (car pt) (- y (* h 2.5)) (max (* h 45.0) (min totw (* h 70.0))) h))))
+
+  (princ (strcat "\n" "OROIDOM v3.3 — Ο πίνακας εισήχθη (layer OD-PIN, λευκά)."))
   (princ))
 
-(princ (strcat "\n" "OROIDOM v3.2 φορτώθηκε. Εντολή: OROIDOM"))
+(princ (strcat "\n" "OROIDOM v3.3 φορτώθηκε. Εντολή: OROIDOM"))
 (princ)

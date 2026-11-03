@@ -1,10 +1,11 @@
 ;;; ================================================================
-;;; HEXISNET.LSP v1.1 - HEXIS-APP / BRB DEVELOPMENT MON. I.K.E.
+;;; HEXISNET.LSP v1.2 - HEXIS-APP / BRB DEVELOPMENT MON. I.K.E.
 ;;; Σύνδεση AutoCAD / progeCAD με τον λογαριασμό HEXIS-APP:
 ;;; όροι δόμησης από ΚΑΕΚ (Ενιαίος Ψηφιακός Χάρτης + Κτηματολόγιο).
 ;;; Εντολές:  HEXISLOGIN   σύνδεση με email / κωδικό HEXIS-APP
 ;;;           HEXISLOGOUT  αποσύνδεση
 ;;;           OROIKAEK     όροι δόμησης από ΚΑΕΚ (γραμμή εντολών)
+;;;           HEXISAPOSPASMA απόσπασμα ρυμοτομικού (γραμμές ΕΨΧ + ΚΑΕΚ) στο σχέδιο
 ;;;           HEXISFAKELOS Φάκελος Κτηματολογίου (απόσπασμα, φύλλο, τίτλοι
 ;;;                        κύριου + όμορων) — ανοίγει τη σελίδα στο hexis-app.gr
 ;;; Χρησιμοποιείται και από τα OROIDOM (επιλογή 5) και DILOSI.
@@ -128,9 +129,25 @@
     (setq out (cons (vl-string-trim "\r" (substr s 1 p)) out) s (substr s (+ p 2))))
   (if (/= s "") (setq out (cons (vl-string-trim "\r" s) out)))
   (reverse out))
+(defun hx:lines (s / i p n out)
+  (setq i 0 n (strlen s) out nil)
+  (while (< i n)
+    (setq p (vl-string-search "\n" s i))
+    (if (null p) (setq p n))
+    (setq out (cons (vl-string-trim "\r" (substr s (1+ i) (- p i))) out))
+    (setq i (1+ p)))
+  (reverse out))
+(defun hx:fields (s sep / i p n out)
+  (setq i 0 n (strlen s) out nil)
+  (while (<= i n)
+    (setq p (vl-string-search sep s i))
+    (if (null p) (setq p n))
+    (setq out (cons (substr s (1+ i) (- p i)) out))
+    (setq i (+ p (strlen sep))))
+  (reverse out))
 (defun hx:parse (txt / d rows p k v q)
   (setq d nil rows nil)
-  (foreach ln (hx:split txt)
+  (foreach ln (hx:lines txt)
     (if (setq p (vl-string-search "=" ln))
       (progn
         (setq k (substr ln 1 p) v (substr ln (+ p 2)))
@@ -178,6 +195,101 @@
       (princ (strcat "\n" "\U+0393\U+03B9\U+03B1 \U+03C0\U+03AF\U+03BD\U+03B1\U+03BA\U+03B1 \U+03C3\U+03C4\U+03BF \U+03C3\U+03C7\U+03AD\U+03B4\U+03B9\U+03BF: OROIDOM -> 5 (\U+03B1\U+03C0\U+03CC \U+039A\U+0391\U+0395\U+039A)."))))
   (princ))
 
+;; ---------------- \U+03B1\U+03C0\U+03CC\U+03C3\U+03C0\U+03B1\U+03C3\U+03BC\U+03B1 \U+03C1\U+03C5\U+03BC\U+03BF\U+03C4\U+03BF\U+03BC\U+03B9\U+03BA\U+03BF\U+03CD \U+03C3\U+03C4\U+03BF \U+03C3\U+03C7\U+03AD\U+03B4\U+03B9\U+03BF ----------------
+;; \U+03A8\U+03B7\U+03C6\U+03B9\U+03BF\U+03C0\U+03BF\U+03B9\U+03B7\U+03BC\U+03AD\U+03BD\U+03B5\U+03C2 \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03AD\U+03C2 \U+03C4\U+03BF\U+03C5 \U+0395\U+03BD\U+03B9\U+03B1\U+03AF\U+03BF\U+03C5 \U+03A8\U+03B7\U+03C6\U+03B9\U+03B1\U+03BA\U+03BF\U+03CD \U+03A7\U+03AC\U+03C1\U+03C4\U+03B7 + \U+03B3\U+03B5\U+03C9\U+03C4\U+03B5\U+03BC\U+03AC\U+03C7\U+03B9\U+03B1 \U+039A\U+03C4\U+03B7\U+03BC\U+03B1\U+03C4\U+03BF\U+03BB\U+03BF\U+03B3\U+03AF\U+03BF\U+03C5, \U+03C3\U+03B5 \U+03C0\U+03BB\U+03B1\U+03AF\U+03C3\U+03B9\U+03BF
+;; \U+03C0\U+03BB\U+03AC\U+03C4\U+03BF\U+03C5\U+03C2 W (\U+03BC\U+03BF\U+03BD\U+03AC\U+03B4\U+03B5\U+03C2 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5) \U+03BA\U+03AC\U+03C4\U+03C9 \U+03B1\U+03C0\U+03CC \U+03C4\U+03BF\U+03BD \U+03C0\U+03AF\U+03BD\U+03B1\U+03BA\U+03B1 \U+03CC\U+03C1\U+03C9\U+03BD. \U+0393\U+03C1\U+03B1\U+03C6\U+03B9\U+03BA\U+03AE \U+03BA\U+03BB\U+03AF\U+03BC\U+03B1\U+03BA\U+03B1 \U+2014 \U+03BA\U+03BB\U+03B9\U+03BC\U+03B1\U+03BA\U+03CE\U+03BD\U+03B5\U+03C4\U+03B1\U+03B9 \U+03BC\U+03B5 \U+03C4\U+03BF h.
+(defun hx:post (body / tk res n out)
+  (setq n 0 out nil)
+  (while (and (< n 2) (null out) (setq tk (hx:token)))
+    (setq res (hx:http "POST" *HX-FN*
+                (list (cons "Content-Type" "application/json") (cons "apikey" *HX-ANON*) (cons "Authorization" (strcat "Bearer " tk)))
+                body))
+    (cond
+      ((= (car res) 401) (setq *HX-AT* nil *HX-EXP* 0.0 n (1+ n)))
+      ((= (car res) 200) (setq out (cadr res)))
+      (T (princ (strcat "\n" "HEXIS-APP: \U+03C3\U+03C6\U+03AC\U+03BB\U+03BC\U+03B1 " (itoa (car res)) " " (if (= (car res) 0) (cadr res) ""))) (setq n 2))))
+  out)
+(defun hx:lay (name col)
+  (if (null (tblsearch "LAYER" name))
+    (entmake (list (cons 0 "LAYER") (cons 100 "AcDbSymbolTableRecord") (cons 100 "AcDbLayerTableRecord")
+                   (cons 2 name) (cons 70 0) (cons 62 col) (cons 6 "Continuous")))))
+(defun hx:pl (lay pts closed w)
+  (if (>= (length pts) 2)
+    (entmake (append (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 lay) (cons 100 "AcDbPolyline")
+                           (cons 90 (length pts)) (cons 70 (if closed 1 0)) (cons 43 w))
+                     (mapcar (function (lambda (p) (cons 10 p))) pts)))))
+(defun hx:tx (lay p th str cen)
+  (entmake (append (list (cons 0 "TEXT") (cons 100 "AcDbEntity") (cons 8 lay) (cons 10 (list (car p) (cadr p) 0.0)) (cons 40 th) (cons 1 str))
+                   (if cen (list (cons 72 1) (cons 73 2) (cons 11 (list (car p) (cadr p) 0.0))) (list (cons 72 0))))))
+(defun hx:apospasma (kaek x0 ytop W h / txt lns bb ew eh f wd hd fy xy lay pts p q L y ot feks)
+  (setq kaek (strcase (vl-string-trim " " kaek)))
+  (princ (strcat "\n" "HEXIS-APP: \U+03B1\U+03C0\U+03CC\U+03C3\U+03C0\U+03B1\U+03C3\U+03BC\U+03B1 \U+03C1\U+03C5\U+03BC\U+03BF\U+03C4\U+03BF\U+03BC\U+03B9\U+03BA\U+03BF\U+03CD \U+03B3\U+03B9\U+03B1 \U+039A\U+0391\U+0395\U+039A " kaek "..."))
+  (setq txt (hx:post (strcat "{\"action\":\"lisp_extract\",\"kaek\":\"" (hx:jesc kaek) "\"}")))
+  (if (null txt) (progn (princ "\nHEXIS-APP: \U+03B4\U+03B5\U+03BD \U+03AE\U+03C1\U+03B8\U+03B5 \U+03B1\U+03C0\U+03CC\U+03C3\U+03C0\U+03B1\U+03C3\U+03BC\U+03B1.") nil)
+   (progn
+    (setq lns (hx:lines txt) bb nil ot "" feks "")
+    (foreach ln lns
+      (cond ((= (substr ln 1 5) "BBOX=") (setq bb (mapcar (function atof) (hx:fields (substr ln 6) "|"))))
+            ((= (substr ln 1 3) "OT=") (setq ot (substr ln 4)))
+            ((= (substr ln 1 5) "FEKS=") (setq feks (substr ln 6)))
+            ((= (substr ln 1 4) "MSG=") (princ (strcat "\nHEXIS-APP: " (substr ln 5))))))
+    (if (null bb) nil
+     (progn
+      (setq ew (- (nth 2 bb) (nth 0 bb)) eh (- (nth 3 bb) (nth 1 bb)))
+      (setq f (/ W ew))
+      (if (> (* eh f) (* 0.85 W)) (setq f (/ (* 0.85 W) eh)))
+      (setq wd (* ew f) hd (* eh f))
+      (foreach c (list (list "HX_APOSPASMA" 7) (list "HX_KT_GEOTEMAXIA" 8) (list "HX_ORIO_OIKISMOU" 3) (list "HX_KOINOXRISTA" 94)
+                       (list "HX_OT" 4) (list "HX_POL_GRAMMES" 6) (list "HX_OIKODOMIKI" 5) (list "HX_RYMOTOMIKI" 1)
+                       (list "HX_PST_KAEK" 30) (list "HX_OT_ARITHMOS" 7))
+        (hx:lay (car c) (cadr c)))
+      ;; \U+03C4\U+03AF\U+03C4\U+03BB\U+03BF\U+03C2
+      (hx:tx "HX_APOSPASMA" (list x0 (- ytop (* h 1.2))) (* h 1.2)
+             (strcat "\U+0391\U+03A0\U+039F\U+03A3\U+03A0\U+0391\U+03A3\U+039C\U+0391 \U+03A1\U+03A5\U+039C\U+039F\U+03A4\U+039F\U+039C\U+0399\U+039A\U+039F\U+03A5 \U+2014 \U+039A\U+0391\U+0395\U+039A " kaek (if (/= ot "") (strcat " (\U+039F.\U+03A4. " ot ")") "")) nil)
+      (if (/= feks "") (hx:tx "HX_APOSPASMA" (list x0 (- ytop (* h 2.5))) (* h 0.75) (strcat "\U+03A6\U+0395\U+039A: " feks) nil))
+      (setq fy (- ytop (* h 3.3)))
+      (defun xy (s / c) (setq c (vl-string-search "," s))
+        (list (+ x0 (* f (atof (substr s 1 c)))) (+ (- fy hd) (* f (atof (substr s (+ c 2)))))))
+      ;; \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03AD\U+03C2 \U+03BA\U+03B1\U+03B9 \U+03BA\U+03B5\U+03AF\U+03BC\U+03B5\U+03BD\U+03B1
+      (foreach ln lns
+        (cond
+          ((= (substr ln 1 2) "G=")
+            (setq p (vl-string-search "|" ln) lay (substr ln 3 (- p 2)))
+            (setq pts (mapcar (function xy) (hx:fields (substr ln (+ p 2)) ";")))
+            (hx:pl lay pts nil (if (= lay "HX_PST_KAEK") (* h 0.14) 0.0)))
+          ((= (substr ln 1 2) "T=")
+            (setq q (hx:fields (substr ln 3) "|") lay (car q))
+            (hx:tx lay (xy (cadr q)) (if (= lay "HX_PST_KAEK") (* h 0.6) (* h 0.9)) (caddr q) T))))
+      ;; \U+03C0\U+03BB\U+03B1\U+03AF\U+03C3\U+03B9\U+03BF
+      (hx:pl "HX_APOSPASMA" (list (list x0 fy) (list (+ x0 wd) fy) (list (+ x0 wd) (- fy hd)) (list x0 (- fy hd))) T 0.0)
+      ;; \U+03B2\U+03BF\U+03C1\U+03C1\U+03AC\U+03C2
+      (setq p (list (- (+ x0 wd) (* h 2.5)) (- fy (* h 5.0))))
+      (hx:pl "HX_APOSPASMA" (list (list (- (car p) (* h 0.8)) (cadr p)) (list (car p) (+ (cadr p) (* h 2.6))) (list (+ (car p) (* h 0.8)) (cadr p)) (list (car p) (+ (cadr p) (* h 0.7)))) T 0.0)
+      (hx:tx "HX_APOSPASMA" (list (car p) (+ (cadr p) (* h 3.4))) h "\U+0392" T)
+      ;; \U+03B3\U+03C1\U+03B1\U+03C6\U+03B9\U+03BA\U+03AE \U+03BA\U+03BB\U+03AF\U+03BC\U+03B1\U+03BA\U+03B1
+      (setq L nil)
+      (foreach L0 (list 1 2 5 10 20 25 50 100 200 250 500) (if (<= (* L0 f) (* 0.3 wd)) (setq L L0)))
+      (if (null L) (setq L 1))
+      (setq y (- fy hd (* h 1.6)))
+      (hx:pl "HX_APOSPASMA" (list (list x0 y) (list (+ x0 (* L f)) y)) nil (* h 0.25))
+      (hx:pl "HX_APOSPASMA" (list (list x0 (+ y (* h 0.5))) (list x0 (- y (* h 0.5)))) nil 0.0)
+      (hx:pl "HX_APOSPASMA" (list (list (+ x0 (* L f)) (+ y (* h 0.5))) (list (+ x0 (* L f)) (- y (* h 0.5)))) nil 0.0)
+      (hx:tx "HX_APOSPASMA" (list (+ x0 (* L f) (* h 0.8)) (- y (* h 0.35))) (* h 0.7) (strcat (itoa L) " \U+03BC.") nil)
+      (hx:tx "HX_APOSPASMA" (list x0 (- y (* h 1.8))) (* h 0.6)
+             "\U+03A8\U+03B7\U+03C6\U+03B9\U+03BF\U+03C0\U+03BF\U+03B9\U+03B7\U+03BC\U+03AD\U+03BD\U+03B5\U+03C2 \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03AD\U+03C2 \U+0395\U+03BD\U+03B9\U+03B1\U+03AF\U+03BF\U+03C5 \U+03A8\U+03B7\U+03C6\U+03B9\U+03B1\U+03BA\U+03BF\U+03CD \U+03A7\U+03AC\U+03C1\U+03C4\U+03B7 (\U+03A4\U+0395\U+0395/\U+03A5\U+03A0\U+0395\U+039D) \U+00B7 \U+03B3\U+03B5\U+03C9\U+03C4\U+03B5\U+03BC\U+03AC\U+03C7\U+03B9\U+03B1 \U+039A\U+03C4\U+03B7\U+03BC\U+03B1\U+03C4\U+03BF\U+03BB\U+03BF\U+03B3\U+03AF\U+03BF\U+03C5 \U+00B7 \U+03B5\U+03BD\U+03B7\U+03BC\U+03B5\U+03C1\U+03C9\U+03C4\U+03B9\U+03BA\U+03CC, \U+03B3\U+03C1\U+03B1\U+03C6\U+03B9\U+03BA\U+03AE \U+03BA\U+03BB\U+03AF\U+03BC\U+03B1\U+03BA\U+03B1 \U+00B7 HEXIS-APP" nil)
+      (princ (strcat "\n" "HEXIS-APP: \U+03C4\U+03BF \U+03B1\U+03C0\U+03CC\U+03C3\U+03C0\U+03B1\U+03C3\U+03BC\U+03B1 \U+03BC\U+03C0\U+03AE\U+03BA\U+03B5 (layers HX_*)."))
+      (- y (* h 2.2)))))))
+(defun c:HEXISAPOSPASMA ( / k d pt h)
+  (setq d (if *HX-LAST* (hx:v *HX-LAST* "KAEK") ""))
+  (setq k (getstring (strcat "\n" "\U+039A\U+0391\U+0395\U+039A" (if (/= d "") (strcat " <" d ">") "") ": ")))
+  (if (and (= k "") (/= d "")) (setq k d))
+  (if (and (/= k "") (setq pt (getpoint (strcat "\n" "\U+03A3\U+03B7\U+03BC\U+03B5\U+03AF\U+03BF \U+03B5\U+03B9\U+03C3\U+03B1\U+03B3\U+03C9\U+03B3\U+03AE\U+03C2 (\U+03C0\U+03AC\U+03BD\U+03C9-\U+03B1\U+03C1\U+03B9\U+03C3\U+03C4\U+03B5\U+03C1\U+03AE \U+03B3\U+03C9\U+03BD\U+03AF\U+03B1): "))))
+    (progn
+      (setq h (getdist pt (strcat "\n" "\U+038E\U+03C8\U+03BF\U+03C2 \U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03B1\U+03C4\U+03BF\U+03C3\U+03B5\U+03B9\U+03C1\U+03AC\U+03C2 <2.5>: ")))
+      (if (null h) (setq h 2.5))
+      (hx:apospasma k (car pt) (cadr pt) (* h 60.0) h)))
+  (princ))
+
 ;; \U+03A6\U+03AC\U+03BA\U+03B5\U+03BB\U+03BF\U+03C2 \U+039A\U+03C4\U+03B7\U+03BC\U+03B1\U+03C4\U+03BF\U+03BB\U+03BF\U+03B3\U+03AF\U+03BF\U+03C5: \U+03B1\U+03BD\U+03BF\U+03AF\U+03B3\U+03B5\U+03B9 \U+03C4\U+03BF\U+03BD browser. \U+039F\U+03B9 \U+03BA\U+03C9\U+03B4\U+03B9\U+03BA\U+03BF\U+03AF \U+03A4\U+0395\U+0395 \U+03BC\U+03C0\U+03B1\U+03AF\U+03BD\U+03BF\U+03C5\U+03BD \U+039C\U+039F\U+039D\U+039F \U+03C3\U+03C4\U+03BF site \U+03C4\U+03BF\U+03C5 \U+039A\U+03C4\U+03B7\U+03BC\U+03B1\U+03C4\U+03BF\U+03BB\U+03BF\U+03B3\U+03AF\U+03BF\U+03C5.
 (defun hx:open-url (url / sh r)
   (setq sh (vl-catch-all-apply (function vlax-create-object) (list "Shell.Application")))
@@ -199,5 +311,5 @@
     (princ (strcat "\n" "HEXIS-APP: \U+03B4\U+03CE\U+03C3\U+03B5 \U+039A\U+0391\U+0395\U+039A 12 \U+03C8\U+03B7\U+03C6\U+03AF\U+03C9\U+03BD.")))
   (princ))
 
-(princ "\nHEXISNET v1.1 \U+03C6\U+03BF\U+03C1\U+03C4\U+03CE\U+03B8\U+03B7\U+03BA\U+03B5. \U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AD\U+03C2: OROIKAEK, HEXISFAKELOS, HEXISLOGIN, HEXISLOGOUT")
+(princ "\nHEXISNET v1.2 \U+03C6\U+03BF\U+03C1\U+03C4\U+03CE\U+03B8\U+03B7\U+03BA\U+03B5. \U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AD\U+03C2: OROIKAEK, HEXISAPOSPASMA, HEXISFAKELOS, HEXISLOGIN, HEXISLOGOUT")
 (princ)

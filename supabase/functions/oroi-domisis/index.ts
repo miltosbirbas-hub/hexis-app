@@ -282,6 +282,105 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
   return text(out);
 }
 
+
+/* =====================================================================
+   Απόσπασμα ρυμοτομικού για AutoCAD / progeCAD (Lisp): { action:"lisp_extract", kaek }
+   Επιστρέφει γραμμές κειμένου με τις ψηφιοποιημένες γραμμές του ΕΨΧ, το γεωτεμάχιο,
+   τα γεωτεμάχια της περιοχής και τους αριθμούς Ο.Τ., ψαλιδισμένα στην περιοχή του αποσπάσματος
+   (ολόκληρο το Ο.Τ. του γεωτεμαχίου + περιθώριο). Συντεταγμένες σχετικές με τη γωνία (xmin,ymin).
+===================================================================== */
+type Pt = number[];
+function clipSeg(a: Pt, b: Pt, bb: number[]): [Pt, Pt] | null {
+  let t0 = 0, t1 = 1; const dx = b[0] - a[0], dy = b[1] - a[1];
+  const pq: [number, number][] = [[-dx, a[0] - bb[0]], [dx, bb[2] - a[0]], [-dy, a[1] - bb[1]], [dy, bb[3] - a[1]]];
+  for (const [p, q] of pq) {
+    if (p === 0) { if (q < 0) return null; continue; }
+    const r = q / p;
+    if (p < 0) { if (r > t1) return null; if (r > t0) t0 = r; } else { if (r < t0) return null; if (r < t1) t1 = r; }
+  }
+  return [[a[0] + t0 * dx, a[1] + t0 * dy], [a[0] + t1 * dx, a[1] + t1 * dy]];
+}
+function clipPath(pts: Pt[], bb: number[]): Pt[][] {
+  const out: Pt[][] = []; let cur: Pt[] | null = null;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const c = clipSeg(pts[i], pts[i + 1], bb);
+    if (!c) { if (cur) { out.push(cur); cur = null; } continue; }
+    if (cur && Math.hypot(cur[cur.length - 1][0] - c[0][0], cur[cur.length - 1][1] - c[0][1]) < 1e-6) cur.push(c[1]);
+    else { if (cur) out.push(cur); cur = [c[0], c[1]]; }
+    if (c[1][0] !== pts[i + 1][0] || c[1][1] !== pts[i + 1][1]) { out.push(cur); cur = null; }
+  }
+  if (cur) out.push(cur);
+  return out.filter((p) => p.length >= 2);
+}
+async function geoQ(layer: number, geom: string, gtype: string, fields: string): Promise<{ a: HxAttr; g: { rings?: number[][][]; paths?: number[][][] } }[]> {
+  const body = new URLSearchParams({ geometry: geom, geometryType: gtype, inSR: "2100", outSR: "2100", spatialRel: "esriSpatialRelIntersects", outFields: fields, returnGeometry: "true", maxAllowableOffset: "0.03", resultRecordCount: "1500", f: "json" });
+  const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 20000);
+  try {
+    const r = await fetch(BASE + P + layer + "/query", { method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "HEXIS-APP/1.0 (hexis-app.gr)", "Referer": "https://sdigmap.tee.gov.gr/sdmquery/public/" }, body: body.toString() });
+    if (!r.ok) return [];
+    const j = await r.json(); if (j.error) return [];
+    return (j.features || []).map((f: { attributes?: HxAttr; geometry?: { rings?: number[][][]; paths?: number[][][] } }) => ({ a: f.attributes || {}, g: f.geometry || {} }));
+  } catch (_e) { return []; } finally { clearTimeout(to); }
+}
+async function lispExtract(req: Request, b: HxAttr, C: Record<string, string>) {
+  const text = (lines: string[]) => new Response(lines.join("\r\n") + "\r\n", { status: 200, headers: { ...C, "Content-Type": "text/plain; charset=utf-8" } });
+  const st = Deno.env.get("SELFTEST_KEY");
+  const selftest = !!st && req.headers.get("x-hx-selftest") === st;
+  if (!selftest && !(await entitled(req.headers.get("authorization") || ""))) return text(["ERR=no_access", "MSG=Ο λογαριασμός δεν έχει ενεργή συνδρομή στη Νομοθεσία ή στη LISP Βιβλιοθήκη του HEXIS-APP."]);
+  const kaek = String(b.kaek || "").replace(/\s+/g, "").toUpperCase();
+  if (!/^[0-9Α-ΩA-Z]{10,14}$/.test(kaek)) return text(["ERR=bad_kaek", "MSG=Μη έγκυρο ΚΑΕΚ: " + kaek]);
+  let hits: Parcel[];
+  try { hits = await ktQuery({ where: "KAEK='" + kaek.replace(/'/g, "''") + "'", resultRecordCount: "5" }); }
+  catch (e) { return text(["ERR=kt", "MSG=Το Κτηματολόγιο δεν απάντησε (" + clean(String(e)) + ")."]); }
+  if (!hits.length) return text(["ERR=not_found", "MSG=Δεν βρέθηκε το ΚΑΕΚ " + kaek + " στο Κτηματολόγιο."]);
+  const Pm = hits[0], outer = mainOuter(Pm), ip = interiorPoint(outer, Pm.holes);
+  const bb = [Infinity, Infinity, -Infinity, -Infinity];
+  const grow = (r: Ring) => r.forEach(([x, y]) => { bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], y); bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], y); });
+  Pm.outers.forEach(grow);
+  // ολόκληρο το Ο.Τ. του γεωτεμαχίου
+  const ots = await geoQ(6, JSON.stringify({ x: ip[0], y: ip[1], spatialReference: { wkid: 2100 } }), "esriGeometryPoint", "OT_NUM,FEK");
+  let otNum = "";
+  const otF = ots.find((f) => f.g.rings && f.g.rings.length);
+  if (otF) { otNum = String(otF.a.OT_NUM || ""); const w0 = bb[2] - bb[0], h0 = bb[3] - bb[1]; const ob = [Infinity, Infinity, -Infinity, -Infinity];
+    otF.g.rings!.forEach((r) => r.forEach(([x, y]) => { ob[0] = Math.min(ob[0], x); ob[1] = Math.min(ob[1], y); ob[2] = Math.max(ob[2], x); ob[3] = Math.max(ob[3], y); }));
+    // όχι τέρας: αν το Ο.Τ. είναι τεράστιο (π.χ. εκτός σχεδίου) κρατάμε έως 6× το γεωτεμάχιο
+    if ((ob[2] - ob[0]) < Math.max(400, 6 * w0) && (ob[3] - ob[1]) < Math.max(400, 6 * h0)) { bb[0] = Math.min(bb[0], ob[0]); bb[1] = Math.min(bb[1], ob[1]); bb[2] = Math.max(bb[2], ob[2]); bb[3] = Math.max(bb[3], ob[3]); } }
+  let w = bb[2] - bb[0], h = bb[3] - bb[1];
+  const m = Math.max(12, 0.15 * Math.max(w, h));
+  bb[0] -= m; bb[1] -= m; bb[2] += m; bb[3] += m; w = bb[2] - bb[0]; h = bb[3] - bb[1];
+  // αναλογία πλαισίου 4:3 έως 3:4
+  if (w / h > 1.4) { const d = (w / 1.4 - h) / 2; bb[1] -= d; bb[3] += d; } else if (h / w > 1.2) { const d = (h / 1.2 - w) / 2; bb[0] -= d; bb[2] += d; }
+  const env = [bb[0], bb[1], bb[2], bb[3]].map((v) => v.toFixed(2)).join(",");
+  const out: string[] = ["OK=1", "KAEK=" + kaek, "BBOX=" + bb.map((v) => v.toFixed(2)).join("|"), "OT=" + otNum];
+  const P2 = (p: Pt) => (p[0] - bb[0]).toFixed(2) + "," + (p[1] - bb[1]).toFixed(2);
+  const add = (layer: string, pts: Pt[], closed: boolean) => {
+    const paths = closed ? clipPath(pts.concat([pts[0]]), bb) : clipPath(pts, bb);
+    for (const pa of paths) out.push("G=" + layer + "|" + pa.map(P2).join(";"));
+  };
+  // γεωτεμάχια περιοχής (Κτηματολόγιο)
+  try {
+    const all = await ktQuery({ where: "1=1", geometry: env, geometryType: "esriGeometryEnvelope", resultRecordCount: "800" });
+    for (const pc of all) { if (pc.kaek === kaek) continue; pc.outers.concat(pc.holes).forEach((r) => add("HX_KT_GEOTEMAXIA", r, true)); }
+  } catch (_e) { /* χωρίς γειτονικά */ }
+  const fekSet = new Set<string>();
+  const defs: [number, string][] = [[3, "HX_ORIO_OIKISMOU"], [22, "HX_KOINOXRISTA"], [6, "HX_OT"], [13, "HX_POL_GRAMMES"], [12, "HX_OIKODOMIKI"], [11, "HX_RYMOTOMIKI"]];
+  const res = await Promise.all(defs.map(([id]) => geoQ(id, env, "esriGeometryEnvelope", id === 6 ? "OT_NUM,FEK" : "FEK")));
+  defs.forEach(([id, layer], i) => res[i].forEach((f) => {
+    if (f.a.FEK && id !== 3) fekSet.add(String(f.a.FEK));
+    (f.g.rings || []).forEach((r) => add(layer, openRing(r), true));
+    (f.g.paths || []).forEach((pa) => add(layer, pa, false));
+    if (id === 6 && f.a.OT_NUM && f.g.rings && f.g.rings.length) {
+      const r = openRing(f.g.rings[0]), c = interiorPoint(r, []);
+      if (c[0] > bb[0] && c[0] < bb[2] && c[1] > bb[1] && c[1] < bb[3]) out.push("T=HX_OT_ARITHMOS|" + P2(c) + "|" + clean(String(f.a.OT_NUM)));
+    }
+  }));
+  // το γεωτεμάχιο τελευταίο (από πάνω)
+  Pm.outers.concat(Pm.holes).forEach((r) => add("HX_PST_KAEK", r, true));
+  out.push("T=HX_PST_KAEK|" + P2(ip) + "|" + kaek);
+  out.push("FEKS=" + [...fekSet].slice(0, 8).join(", "));
+  return text(out);
+}
+
 Deno.serve(async (req) => {
   const C = cors(req.headers.get("origin"));
   const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...C, "Content-Type": "application/json" } });
@@ -304,6 +403,7 @@ Deno.serve(async (req) => {
     if (!(await userOk(req))) return json({ error: "login" }, 401);
     const b = await req.json().catch(() => ({}));
     if (b.action === "lisp") return await lispAnswer(req, b, C);
+    if (b.action === "lisp_extract") return await lispExtract(req, b, C);
     const x = Number(b.x), y = Number(b.y);
     // Ελλάδα σε ΕΓΣΑ'87: περίπου x 50.000–1.050.000, y 3.850.000–4.650.000
     if (!(x > 50000 && x < 1050000 && y > 3800000 && y < 4700000)) return json({ error: "bad_coords" }, 400);
