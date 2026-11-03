@@ -1,0 +1,23 @@
+name: Probe e-Πολεοδομίας
+# Διερευνά τις δημόσιες υπηρεσίες χαρτών της e-Πολεοδομίας (ΥΠΕΝ) και γράφει τα αποτελέσματα στον κλάδο probe-out.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["tools-probe/**", ".github/workflows/probe-poleodomia.yml"]
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -q pyproj
+      - run: python tools-probe/poleodomia_probe.py out
+      - name: Δημοσίευση στο probe-out
+        run: |
+          cd out && git init -q && git checkout -q -b probe-out
+          git -c user.name=probe -c user.email=probe@hexis add -A && git -c user.name=probe -c user.email=probe@hexis commit -qm "probe $(date -u +%FT%TZ)"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" probe-out
