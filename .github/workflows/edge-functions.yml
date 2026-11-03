@@ -41,3 +41,5 @@ jobs:
             n=$(basename "$d"); echo "== $n"
             supabase functions deploy "$n" --no-verify-jwt --project-ref "$REF" --yes
           done
+      - name: Secrets (μόνο ονόματα, για έλεγχο)
+        run: supabase secrets list --project-ref "$REF" | awk -F'|' 'NR>2{gsub(/ /,"",$1);print $1}'

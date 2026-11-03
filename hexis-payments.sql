@@ -50,6 +50,8 @@ create table if not exists public.hx_orders (
 );
 alter table public.hx_orders add column if not exists demo_days integer;
 alter table public.hx_orders add column if not exists source text not null default 'stripe';  -- stripe | free | demo
+alter table public.hx_orders add column if not exists billing jsonb;          -- στοιχεία τιμολόγησης τη στιγμή της πληρωμής
+alter table public.hx_orders add column if not exists notified_at timestamptz;    -- email στον διαχειριστή
 create index if not exists hx_orders_user on public.hx_orders(user_id, created_at desc);
 create index if not exists hx_orders_inv on public.hx_orders(invoice_status, created_at);
 
@@ -173,12 +175,14 @@ revoke execute on function public.hx_fulfill(uuid) from public, anon, authentica
 drop function if exists public.admin_hx_orders(boolean);
 create or replace function public.admin_hx_orders(p_all boolean default false)
 returns table(id uuid, created_at timestamptz, sku text, item text, email text, customer_name text, tax_id text, doc_type text,
-  net numeric, vat numeric, gross numeric, status text, fulfill_note text, invoice_status text, invoice_ref text, renewal boolean, source text, demo_days int)
+  net numeric, vat numeric, gross numeric, status text, fulfill_note text, invoice_status text, invoice_ref text, renewal boolean, source text, demo_days int,
+  billing jsonb, ref text, stripe_id text, notified_at timestamptz)
 language plpgsql stable security definer set search_path = public, auth as $$
 begin
   if not public.is_admin() then raise exception 'forbidden'; end if;
   return query select o.id, o.created_at, o.sku, p.name_el, coalesce(o.customer_email, u.email::text), o.customer_name, o.tax_id, o.doc_type,
-      round(o.net_cents/100.0,2), round(o.vat_cents/100.0,2), round(o.amount_cents/100.0,2), o.status, o.fulfill_note, o.invoice_status, o.invoice_ref, o.stripe_invoice is not null, o.source, o.demo_days
+      round(o.net_cents/100.0,2), round(o.vat_cents/100.0,2), round(o.amount_cents/100.0,2), o.status, o.fulfill_note, o.invoice_status, o.invoice_ref, o.stripe_invoice is not null, o.source, o.demo_days,
+      coalesce(o.billing, u.raw_user_meta_data->'billing'), o.ref, coalesce(o.stripe_session, o.stripe_invoice), o.notified_at
     from hx_orders o join hx_products p on p.sku = o.sku left join auth.users u on u.id = o.user_id
     where p_all or o.invoice_status <> 'issued' or o.created_at > now() - interval '30 days'
     order by o.created_at desc limit 500;
