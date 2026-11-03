@@ -64,7 +64,31 @@ async function sendMail(subject: string, html: string): Promise<boolean> {
   return !!r && r.ok;
 }
 
+const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
+
+// Δοκιμαστικό email από το admin (μόνο διαχειριστής): ίδια μορφή με το πραγματικό, με παράδειγμα πελάτη
+async function testMail(req: Request): Promise<Response> {
+  const J = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...CORS, "Content-Type": "application/json" } });
+  const tok = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  const anon = Deno.env.get("SUPABASE_ANON_KEY") || "";
+  if (!tok) return J({ error: "Χρειάζεται σύνδεση διαχειριστή." }, 401);
+  const adm = await fetch(SB + "/rest/v1/rpc/is_admin", { method: "POST", headers: { apikey: anon, Authorization: "Bearer " + tok, "Content-Type": "application/json" }, body: "{}" })
+    .then((r) => (r.ok ? r.json() : false)).catch(() => false);
+  if (adm !== true) return J({ error: "Μόνο για τον διαχειριστή." }, 403);
+  if (!Deno.env.get("RESEND_API_KEY")) return J({ error: "Λείπει το RESEND_API_KEY στα Secrets." }, 500);
+  const b: Billing = { name: "Δοκιμαστικός Πελάτης", company: null, profession: "Πολιτικός Μηχανικός", afm: "000000000", doy: "Λευκάδας",
+    address: "Οδός Παραδείγματος 1", zip: "31100", city: "Λευκάδα", country: "GR", phone: "6900000000", email: ADMIN_EMAIL };
+  const ok = await sendMail("ΔΟΚΙΜΗ · Πληρωμή ολοκληρώθηκε · HEXIS MAPPING · 12,40 €",
+    mailHtml({ item: "HEXIS MAPPING · επεξεργασία πτήσης (ΔΟΚΙΜΗ)", sku: "MAP-JOB", amount: 1240, net: 1000, vat: 240, doc: "ΑΠΥ",
+      when: new Date().toLocaleString("el-GR", { timeZone: "Europe/Athens" }), stripeId: "cs_test_δοκιμή", ref: null, renewal: false }, b));
+  return ok ? J({ ok: true, to: ADMIN_EMAIL }) : J({ error: "Το Resend δεν δέχτηκε το email· έλεγξε το κλειδί και ότι ο λογαριασμός είναι με το " + ADMIN_EMAIL + "." }, 502);
+}
+
 export async function handle(req: Request): Promise<Response> {
+  if (new URL(req.url).searchParams.get("test") === "mail") {
+    if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+    return await testMail(req);
+  }
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   const sk = Deno.env.get("STRIPE_SECRET_KEY"), whs = Deno.env.get("STRIPE_WEBHOOK_SECRET"), service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!sk || !whs || !service) return json({ error: "not_configured" }, 500);

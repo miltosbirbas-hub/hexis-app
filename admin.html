@@ -716,6 +716,12 @@ async function hxLoad(){const {data,error}=await sb.rpc('admin_hx_orders',{p_all
   L.querySelectorAll('[data-inv]').forEach(b=>b.onclick=async()=>{const ref=prompt('Αριθμός παραστατικού (προαιρετικό):','');if(ref===null)return;const {error}=await sb.rpc('admin_hx_invoiced',{p_id:b.dataset.inv,p_ref:ref});toast(error?error.message:'Σημειώθηκε');hxLoad()});
   L.querySelectorAll('[data-rf]').forEach(b=>b.onclick=async()=>{const {data,error}=await sb.rpc('admin_hx_refulfill',{p_id:b.dataset.rf});toast(error?error.message:(data&&data.msg)||'OK');hxLoad();ixLoad()})}
 document.getElementById('hxAll').onchange=hxLoad;
+(function(){const L=document.getElementById('hxList');if(!L||document.getElementById('hxMailTest'))return;
+  const b=document.createElement('button');b.id='hxMailTest';b.className='btn';b.style.cssText='margin:0 0 8px';b.textContent='✉ Δοκιμαστικό email πληρωμής';
+  L.parentElement.insertBefore(b,L);
+  b.onclick=async()=>{b.disabled=true;try{const {data:{session}}=await sb.auth.getSession();
+    const r=await fetch('https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/hx-stripe-webhook?test=mail',{method:'POST',headers:{Authorization:'Bearer '+(session&&session.access_token||'')}});
+    const d=await r.json().catch(()=>({}));toast(r.ok?'Στάλθηκε δοκιμαστικό email στο '+d.to:(d.error||'Σφάλμα '+r.status))}catch(e){toast(e.message)}b.disabled=false}})();
 setInterval(()=>{const c=document.querySelector('.card[data-sec="payments"]');if(c&&c.classList.contains('show')&&!document.hidden)hxLoad()},60000);
 // στοιχεία τιμολόγησης μιας πληρωμής: όλα τα πεδία και αντιγραφή για την έκδοση του παραστατικού
 function hxBill(o){if(!o)return;const b=o.billing||{},f=v=>(+v).toFixed(2).replace('.',',');
