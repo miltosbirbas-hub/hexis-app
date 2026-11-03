@@ -1,0 +1,40 @@
+name: Όροι Δόμησης · έλεγχος
+# Καλεί τη function oroi-domisis σε δείγματα σημείων με προσωρινό κλειδί αυτοελέγχου και γράφει τα αποτελέσματα στον κλάδο probe-out.
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Deploy Supabase (functions + SQL)"]
+    types: [completed]
+permissions:
+  contents: write
+concurrency: { group: oroi-selftest, cancel-in-progress: false }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: oucqqudfdimccgowvpqp
+    steps:
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - name: Προσωρινό κλειδί
+        run: |
+          KEY=$(openssl rand -hex 32); echo "::add-mask::$KEY"; echo "KEY=$KEY" >> $GITHUB_ENV
+          supabase secrets set SELFTEST_KEY=$KEY --project-ref $REF >/dev/null
+          sleep 25
+      - name: Κλήσεις
+        run: |
+          mkdir -p out
+          call(){ curl -s -m 60 -o "out/$1.json" -w "$1 %{http_code} %{time_total}s\n" -X POST "https://$REF.supabase.co/functions/v1/oroi-domisis" \
+            -H "Content-Type: application/json" -H "x-hx-selftest: $KEY" --data "$2" | tee -a out/summary.txt; }
+          call karya_lef '{"x":209179.9,"y":4296394.6,"ring":[[209170,4296385],[209190,4296385],[209190,4296405],[209170,4296405]]}'
+          call agrinio '{"x":274177.6,"y":4277664.2}'
+          call nydri '{"x":213637.6,"y":4289207.9}'
+          call ektos_lef '{"x":210410.3,"y":4292903.8}'
+          call lefkada_poli '{"x":213986.5,"y":4303000.3}'
+          curl -s -o out/noauth.json -w "noauth %{http_code}\n" -X POST "https://$REF.supabase.co/functions/v1/oroi-domisis" -H "Content-Type: application/json" --data '{"x":1,"y":2}' | tee -a out/summary.txt
+      - name: Δημοσίευση στο probe-out
+        run: |
+          cd out && git init -q && git checkout -q -b probe-out
+          git -c user.name=probe -c user.email=probe@hexis add -A && git -c user.name=probe -c user.email=probe@hexis commit -qm "oroi selftest $(date -u +%FT%TZ)"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" probe-out
