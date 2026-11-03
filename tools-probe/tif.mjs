@@ -7,7 +7,7 @@ const r = g.features[0].geometry.rings[0]; const x = r.reduce((a, p) => a + p[0]
 const D = "https://sdigmap.tee.gov.gr/mapping/rest/services/UDM/UDM_SERVICE_SXEDIA_DOCS/MapServer/0/query";
 const d = await (await fetch(D + `?f=json&geometry=${x},${y}&geometryType=esriGeometryPoint&inSR=2100&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=false`)).json();
 const out = { x, y, docs: [] };
-for (const f of d.features.slice(0, 6)) {
+for (const f of d.features.filter(f=>/^53Δ\/1963/.test(f.attributes.FEK||'')).concat(d.features.slice(0,1))) {
   const a = f.attributes, u = a.GEOREF_DIAGRAM_URL; if (!u) continue;
   try {
     const t = await fromUrl(u, { allowFullFile: false }); const im = await t.getImage(); const fd = im.fileDirectory;
