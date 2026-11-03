@@ -113,6 +113,8 @@
   }
   setInterval(updateHome, 1000);
   $('home-map').onclick = () => $('home').classList.add('hidden');
+  $('home-lang').textContent = HI18N.lang() === 'en' ? 'ΕΛ' : 'EN';
+  $('home-lang').onclick = () => HI18N.setLang(HI18N.lang() === 'en' ? 'el' : 'en');
   $('home-proj').onclick = () => A.projectSheet();
   $('home-gnss').onclick = () => (A.pos ? A.gnssSheet() : A.connectSheet());
   document.querySelectorAll('[data-home]').forEach(b => b.onclick = () => {

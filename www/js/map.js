@@ -489,7 +489,7 @@
     x.fillText(m >= 1000 ? (m / 1000) + ' km' : (m >= 1 ? m + ' m' : (m * 100).toFixed(0) + ' cm'), X + px + 6, Y - 2);
     const L = BASEMAPS[this.base];
     if (L && L.attr) { x.font = '10px Manrope,system-ui,sans-serif'; const t = '© ' + L.attr; const w = x.measureText(t).width; x.fillStyle = 'rgba(255,255,255,0.75)'; x.fillRect(this.w - w - 10, this.h - 16, w + 8, 14); x.fillStyle = '#333'; x.fillText(t, this.w - w - 6, this.h - 5); }
-    if (this.kaekMsg && this.overlays.hexis_kaek) { x.font = '700 14px Manrope,system-ui'; x.fillStyle = '#7a5600'; x.fillText(this.kaekMsg, X, Y - 28); }
+    if (this.kaekMsg && this.overlays.hexis_kaek) { x.font = '700 14px Manrope,system-ui'; x.fillStyle = '#7a5600'; x.fillText(HI18N.t(this.kaekMsg), X, Y - 28); }
   };
 
   function niceStep(v) { const p = Math.pow(10, Math.floor(Math.log10(v))); const n = v / p; return (n < 1.5 ? 1 : n < 3.5 ? 2 : n < 7.5 ? 5 : 10) * p; }

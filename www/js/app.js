@@ -57,7 +57,8 @@
     HGEO.setCalib(A.proj && A.proj.calib ? A.proj.calib : null);
     $('cur-crs').textContent = (HGEO.isHepos() ? 'ΕΓΣΑ87 · HEPOS' : HGEO.crsName().split('·').pop().trim().split(' (')[0].split(' — ')[0]) + (A.proj && A.proj.calib ? ' + CAL' : '');
     A.qc.cls = S.qcClass;
-    $('sv-ant').value = S.antH; $('sv-onlyfix').checked = S.onlyFix; $('sv-epochs').value = String(S.epochs);
+    $('sv-ant').value = S.antH; $('sv-onlyfix').checked = S.onlyFix;
+    { const sel = $('sv-epochs'), v = String(S.epochs); if (![...sel.options].some(o => o.value === v)) sel.insertBefore(new Option(/^t/.test(v) ? v.slice(1) + ' s' : v + ' εποχές', v), sel.querySelector('option[value=custom]')); sel.value = v; }
     $('so-ref').value = S.soRef;
     if (A.map) {
       A.map.dark = S.theme === 'dark'; A.map.base = S.base; A.map.overlays = Object.assign({}, S.overlays);
@@ -563,7 +564,24 @@
   $('btn-measure-pt').onclick = () => A.measure();
   $('sv-ant').onchange = () => { A.settings.antH = parseFloat($('sv-ant').value) || 0; A.saveSettings(); };
   $('sv-onlyfix').onchange = () => { A.settings.onlyFix = $('sv-onlyfix').checked; A.saveSettings(); };
-  $('sv-epochs').onchange = () => { A.settings.epochs = $('sv-epochs').value; A.saveSettings(); };
+  $('sv-epochs').onchange = () => {
+    const sel = $('sv-epochs');
+    if (sel.value === 'custom') {
+      A.sheet('Διάρκεια μέτρησης', `<p class="muted"><b>Εποχή</b> = μία λύση θέσης από τον δέκτη. Με δέκτη στο 1 Hz, 1 εποχή ≈ 1 δευτερόλεπτο· στα 5 Hz, 5 εποχές ≈ 1 δευτερόλεπτο. Αν θέλεις σταθερό χρόνο, διάλεξε δευτερόλεπτα.</p>
+        <div class="row"><label class="fld grow"><span>Τιμή</span><input id="cu-v" type="number" min="1" step="1" inputmode="numeric" value="3"></label><label class="fld grow"><span>Μονάδα</span><select id="cu-u"><option value="t">δευτερόλεπτα</option><option value="e">εποχές</option></select></label></div>
+        <button class="btn primary" id="cu-ok">OK</button>`, b => {
+        b.querySelector('#cu-ok').onclick = () => {
+          const v = Math.max(1, parseInt(b.querySelector('#cu-v').value, 10) || 1), u = b.querySelector('#cu-u').value;
+          const val = (u === 't' ? 't' : '') + v;
+          if (![...sel.options].some(o => o.value === val)) { const o = new Option(u === 't' ? v + ' s' : v + ' εποχές', val); sel.insertBefore(o, sel.querySelector('option[value=custom]')); }
+          sel.value = val; A.settings.epochs = val; A.saveSettings(); A.closeSheet();
+        };
+      });
+      sel.value = String(A.settings.epochs || '5');
+      return;
+    }
+    A.settings.epochs = sel.value; A.saveSettings();
+  };
   $('sv-code').oninput = () => A.renderCodes();
   $('sv-name').onchange = () => { A.proj.nextName = $('sv-name').value.trim(); A.saveProject(); };
   $('status').onclick = () => A.gnssSheet && A.gnssSheet();
@@ -773,7 +791,7 @@
     const cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - 6;
     x.lineWidth = 2; x.strokeStyle = C('--line'); x.fillStyle = C('--panel');
     x.beginPath(); x.arc(cx, cy, R, 0, 7); x.fill(); x.stroke();
-    if (!G) { x.fillStyle = C('--muted'); x.font = '700 16px Manrope,system-ui'; x.textAlign = 'center'; x.fillText(A.pos ? 'Επίλεξε στόχο' : 'Χωρίς θέση', cx, cy + 5); x.textAlign = 'left'; return; }
+    if (!G) { x.fillStyle = C('--muted'); x.font = '700 16px Manrope,system-ui'; x.textAlign = 'center'; x.fillText(HI18N.t(A.pos ? 'Επίλεξε στόχο' : 'Χωρίς θέση'), cx, cy + 5); x.textAlign = 'left'; return; }
     if (G.live || G.surfZ != null) {
       // οριζόντια «αεροστάθμη»
       const v = G.live ? G.live.offset : G.dZ, tol = G.live ? A.settings.tolH : A.settings.tolV;
@@ -812,7 +830,7 @@
     x.beginPath(); x.arc(cx + Math.max(-R, Math.min(R, px)), cy + Math.max(-R, Math.min(R, py)), 9, 0, 7); x.fill();
     x.strokeStyle = '#fff'; x.lineWidth = 2; x.stroke();
     x.fillStyle = C('--muted'); x.font = (W < 130 ? '700 11.5px' : '700 14px') + ' Manrope,system-ui';
-    x.fillText((W < 130 ? '○ ' : 'κύκλος: ') + (scaleM * 0.25 >= 0.1 ? (scaleM * 0.25).toFixed(2) + ' m' : (scaleM * 25).toFixed(1) + ' cm'), 4, H - 4);
+    x.fillText((W < 130 ? '○ ' : HI18N.t('κύκλος') + ': ') + (scaleM * 0.25 >= 0.1 ? (scaleM * 0.25).toFixed(2) + ' m' : (scaleM * 25).toFixed(1) + ' cm'), 4, H - 4);
   }
 
   // Καταγραφή χαραγμένου

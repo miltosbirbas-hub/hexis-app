@@ -743,6 +743,7 @@
       <label class="chk"><input type="checkbox" id="an" ${S.autoNext !== false ? 'checked' : ''}> Αυτόματα στο επόμενο σημείο μετά την καταγραφή</label>
       <h4>Εμφάνιση</h4>
       <div class="seg" id="tm"><button data-v="light" class="${S.theme === 'light' ? 'on' : ''}">☀ Ήλιος (πεδίο)</button><button data-v="dark" class="${S.theme === 'dark' ? 'on' : ''}">NEO σκούρο</button></div>
+      <label class="fld"><span>Γλώσσα / Language</span><select id="lng" class="nt"><option value="el" ${HI18N.lang() === 'el' ? 'selected' : ''}>Ελληνικά</option><option value="en" ${HI18N.lang() === 'en' ? 'selected' : ''}>English</option></select></label>
       <label class="fld"><span>Μέγεθος γραμμάτων</span><select id="tsz"><option value="large" ${S.textSize !== 'xl' ? 'selected' : ''}>Μεγάλα</option><option value="xl" ${S.textSize === 'xl' ? 'selected' : ''}>Πολύ μεγάλα</option></select></label>
       <label class="fld"><span>Ύψος κειμένου στο DXF (m)</span><input id="tx" type="number" step="0.01" value="${S.textH}"></label>
       <h4>Υπόβαθρα</h4>
@@ -751,10 +752,12 @@
       let theme = S.theme;
       b.querySelectorAll('#tm button').forEach(x => x.onclick = () => { theme = x.dataset.v; b.querySelectorAll('#tm button').forEach(y => y.classList.toggle('on', y === x)); });
       b.querySelector('#vt').onclick = () => { const v = A.settings.volume; A.settings.volume = parseFloat(b.querySelector('#vol').value); A.sound('point'); setTimeout(() => A.sound('fix'), 600); setTimeout(() => A.sound('lost'), 1300); setTimeout(() => { A.settings.volume = v; }, 2600); };
-      b.querySelector('#qce').onclick = () => { const c = HQC.CLASSES[b.querySelector('#qc').value]; const opts = [...$('sv-epochs').options].map(o => +o.value); const e = opts.reduce((a, v) => Math.abs(v - c.epochs) < Math.abs(a - c.epochs) ? v : a, opts[0]); S.epochs = c.epochs > 60 ? c.epochs : e; if (c.epochs > 60 && ![...$('sv-epochs').options].some(o => +o.value === c.epochs)) $('sv-epochs').add(new Option(String(c.epochs), String(c.epochs))); A.toast('Εποχές: ' + S.epochs); };
+      b.querySelector('#qce').onclick = () => { const c = HQC.CLASSES[b.querySelector('#qc').value]; const opts = [...$('sv-epochs').options].map(o => +o.value).filter(v => v > 0); const e = opts.reduce((a, v) => Math.abs(v - c.epochs) < Math.abs(a - c.epochs) ? v : a, opts[0]); S.epochs = c.epochs > 60 ? c.epochs : e; if (c.epochs > 60 && ![...$('sv-epochs').options].some(o => +o.value === c.epochs)) $('sv-epochs').add(new Option(String(c.epochs), String(c.epochs))); A.toast('Εποχές: ' + S.epochs); };
       b.querySelector('#ok').onclick = () => {
+        const nl = b.querySelector('#lng').value;
         Object.assign(S, { qcClass: b.querySelector('#qc').value, tolH: num(b.querySelector('#th').value) || 0.02, tolV: num(b.querySelector('#tv').value) || 0.02, beep: b.querySelector('#bp').checked, autoNext: b.querySelector('#an').checked, theme, textSize: b.querySelector('#tsz').value, fixWait: Math.max(0, parseInt(b.querySelector('#fw').value, 10) || 0), soundPoint: b.querySelector('#sp').checked, soundFix: b.querySelector('#sf').checked, volume: parseFloat(b.querySelector('#vol').value), textH: num(b.querySelector('#tx').value) || 0.25, googleKey: b.querySelector('#gk').value.trim() });
         A.saveSettings(); A.applySettings(); A.updateStakeTarget(); A.closeSheet(); A.toast('✓ Αποθηκεύτηκε', 'ok');
+        if (nl !== HI18N.lang()) setTimeout(() => HI18N.setLang(nl), 400);
       };
     });
   };
