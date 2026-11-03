@@ -37,7 +37,9 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     } else if (msg.type === "clearJob") {
       await chrome.storage.local.remove("job"); reply({ ok: true });
     } else if (msg.type === "expect") {
-      expect = { name: msg.name, until: Date.now() + 30000, tab: sender.tab && sender.tab.id }; reply({ ok: true });
+      expect = { name: msg.name, until: Date.now() + 60000, tab: sender.tab && sender.tab.id };
+      try { await chrome.storage.session.set({ expect }); } catch (e) {}
+      reply({ ok: true });
     } else if (msg.type === "file") {
       // αρχείο που διάβασε το πρόσθετο από το Κτηματολόγιο → στη σελίδα «Φάκελος Ακινήτου» (αποθηκεύει όπου διάλεξε ο χρήστης)
       const job = (await chrome.storage.local.get("job")).job;
@@ -55,13 +57,38 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   return true;
 });
 
+// Ονομασία ΚΑΘΕ λήψης από το Κτηματολόγιο όσο τρέχει εργασία: φάκελος «ΚΑΕΚ - Ιδιοκτήτης - ΟΤΑ» του κύριου,
+// υποφάκελος για κάθε όμορο. Πιάνει και λήψεις που δεν ξεκίνησε το πρόσθετο (π.χ. κλικ του χρήστη).
+const SAFE = (s) => String(s || "").replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim().replace(/[. ]+$/, "").slice(0, 70);
+function folderFor(job, kaek) {
+  const nm = (k) => { const it = (job.kaeks || []).find((x) => x.kaek === k) || {}; return SAFE([k, (job.owner || {})[k], it.ota].filter(Boolean).join(" - ")); };
+  const main = ((job.kaeks || []).find((x) => x.role === "main") || {}).kaek || job.main;
+  return kaek === main ? nm(main) : nm(main) + "/" + nm(kaek);
+}
 chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
-  const fromKt = /ktimatologio\.gov\.gr/.test(item.url || "") || /ktimatologio\.gov\.gr/.test(item.referrer || "") || (item.url || "").startsWith("blob:https://ktimatologio.gov.gr");
-  if (expect && Date.now() < expect.until && fromKt) {
-    const name = expect.name, tab = expect.tab; expect = null;
-    tracked.set(item.id, { name, tab, url: item.finalUrl || item.url });
-    suggest({ filename: name, conflictAction: "uniquify" });
-  } else suggest();
+  (async () => {
+    const u = [item.url, item.finalUrl, item.referrer].join(" ");
+    const fromKt = /ktimatologio\.(gov\.)?gr/i.test(u) || /^(blob|data):/i.test(item.url || "");
+    let ex = expect;
+    if (!ex) { try { ex = (await chrome.storage.session.get("expect")).expect || null; } catch (e) { ex = null; } }
+    if (ex && Date.now() < ex.until && fromKt) {
+      expect = null; try { await chrome.storage.session.remove("expect"); } catch (e) {}
+      tracked.set(item.id, { name: ex.name, tab: ex.tab, url: item.finalUrl || item.url });
+      return suggest({ filename: ex.name, conflictAction: "uniquify" });
+    }
+    if (fromKt && !/^HEXIS-APP\//.test(item.filename || "")) {
+      const job = (await chrome.storage.local.get("job")).job;
+      if (job && job.kaeks && job.kaeks.length) {
+        const k = (job.kaeks[Math.min(job.i || 0, job.kaeks.length - 1)] || job.kaeks[0]).kaek;
+        const orig = SAFE((item.filename || "").split(/[\\/]/).pop()) || "eggrafo.pdf";
+        const name = "HEXIS-APP/" + folderFor(job, k) + "/" + k + "_" + orig;
+        tracked.set(item.id, { name, tab: null, url: item.finalUrl || item.url });
+        return suggest({ filename: name, conflictAction: "uniquify" });
+      }
+    }
+    suggest();
+  })();
+  return true;
 });
 
 // όταν τελειώσει λήψη του Κτηματολογίου: (α) δοκιμάζουμε να τη στείλουμε και στη σελίδα του Φακέλου,
