@@ -228,7 +228,7 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
   const bb = [Infinity, Infinity, -Infinity, -Infinity]; outer.forEach(([x, y]) => { bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], y); bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], y); });
   let nb: Parcel[] = [];
   try { nb = (await ktQuery({ where: "1=1", geometry: [bb[0] - 30, bb[1] - 30, bb[2] + 30, bb[3] + 30].map((v) => v.toFixed(2)).join(","), geometryType: "esriGeometryEnvelope", resultRecordCount: "600" })).filter((n) => n.kaek !== kaek); } catch (_e) { /* χωρίς όμορα */ }
-  const front = frontage(outer, nb);
+  const fr0 = frontage(outer, nb); const front = fr0 != null && fr0 >= 0.5 ? fr0 : null;
   const ip = interiorPoint(outer, P.holes);
   const plan = await planning(ip[0], ip[1], outer.length <= 1500 ? outer : null);
   const L = plan.layers, stt = statusOf(L);
@@ -243,9 +243,11 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
   let artMin = num(art && art.ELAX_EMBADO_M2), artPros = num(art && art.ELAX_PROSOP_M);
   if (stt === "oikismos") { const m = oikismosMax(E); max = m.max; rule = m.rule; kalPct = E < 200 ? Math.max(kalPct || 60, 70) : (kalPct || 60); }
   else if (stt === "sxedio") {
-    if (sd0) { const v = num(sd0.SD_TIMH)!; max = v * E; rule = "ΣΔ " + gr(v) + " × " + gr(E) + " τ.μ.";
-      if (smallSettlementRegime(L)) { const m = oikismosMax(E); if (m.max < max) { max = m.max; rule = m.rule + " (όριο οικισμού <2.000 κατ.)"; } }
-      if (/Μέσος/i.test(String(sd0.SD_COMMENT || ""))) rule += " — Προσοχή: Μέσος ΣΔ τομέα (ΓΠΣ)"; }
+    if (sd0 && /Μέσος/i.test(String(sd0.SD_COMMENT || ""))) {
+      // Μέσος ΣΔ τομέα ΓΠΣ: δεν είναι ΣΔ οικοπέδου — δεν βγάζουμε μέγιστη δόμηση
+      rule = "Μέσος ΣΔ τομέα ΓΠΣ " + gr(num(sd0.SD_TIMH)) + " — ο ΣΔ του οικοπέδου προκύπτει από το ΦΕΚ του σχεδίου";
+    } else if (sd0) { const v = num(sd0.SD_TIMH)!; max = v * E; rule = "ΣΔ " + gr(v) + " × " + gr(E) + " τ.μ.";
+      if (smallSettlementRegime(L)) { const m = oikismosMax(E); if (m.max < max) { max = m.max; rule = m.rule + " (όριο οικισμού <2.000 κατ.)"; } } }
   } else { kalPct = 10; artMin = 4000; artPros = 25; const k = ektosKatoikia(E); if (k) { max = k.max; rule = k.rule; } else rule = "γήπεδο < 4.000 τ.μ.: μη άρτιο κατά κανόνα (έλεγχος παρεκκλίσεων άρ.273)"; }
   const artio = artMin == null ? "?" : (E >= artMin && (artPros == null || (front != null && front >= artPros))) ? "1" : (E < artMin ? "0" : "?");
   const out: string[] = ["OK=1", "KAEK=" + kaek, "EMBADON=" + f2(E), "PROSOPO=" + f2(front), "KATASTASI=" + stt, "KATASTASI_TXT=" + STATUS_TXT[stt],
@@ -256,7 +258,7 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
     "APALLOTRIOSI=" + (L.apallotr ? "1" : "0"), "KOINOXRISTO=" + (L.koinox ? "1" : "0"),
     "SD=" + f2(sd0 ? num(sd0.SD_TIMH) : null), "KALYPSI=" + f2(kalPct, 0), "YPSOS=" + f2(num(yp && yp.MAX_HEIGHT_M)), "OROFOI=" + clean(yp && yp.MAX_OROFOI),
     "ART_EMB=" + f2(artMin, 0), "ART_PROS=" + f2(artPros, 1), "ARTIO=" + artio, "SYSTIMA=" + clean(sy && sy.OIK_SYSTHMA),
-    "MAX_DOMISI=" + f2(max), "SAO=" + f2(max != null && E ? max / E : null, 3), "KANONAS=" + clean(rule), "MAX_KALYPSI=" + f2(kalPct != null ? kalPct * E / 100 : null)];
+    "EK=" + (isEK(kaek) ? "1" : "0"), "MAX_DOMISI=" + f2(max), "SAO=" + f2(max != null && E ? max / E : null, 3), "KANONAS=" + clean(rule), "MAX_KALYPSI=" + f2(kalPct != null ? kalPct * E / 100 : null)];
   // πίνακας για OROIDOM
   const row = (l: string, v: string) => { if (v) out.push("ROW=" + l + "|" + clean(v)); };
   row("ΚΑΕΚ", kaek + " · Ε = " + gr(E) + " τ.μ." + (front != null ? " · πρόσωπο ≈ " + gr(front) + " μ." : ""));
@@ -270,6 +272,7 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
   row("ΟΙΚΟΔ. ΣΥΣΤΗΜΑ", clean(sy && sy.OIK_SYSTHMA));
   row("ΧΡΗΣΗ ΓΗΣ", clean(gps && (gps.GEN_XRHSH_GPS || gps.GEN_XRHSH)) + (gps && gps.FEK ? " — ΦΕΚ " + clean(gps.FEK) : ""));
   row("ΖΟΕ", zoe ? "Ναι" + (zoe.FEK ? " — ΦΕΚ " + clean(zoe.FEK) : "") : "");
+  if (isEK(kaek)) row("ΠΡΟΣΟΧΗ", "Το ΚΑΕΚ είναι ειδικό/κοινόχρηστο (ΕΚ) — π.χ. δρόμος, ρέμα, πλατεία");
   if (L.archaiol) row("ΠΡΟΣΟΧΗ", "Αρχαιολογική ζώνη");
   if (L.apallotr) row("ΠΡΟΣΟΧΗ", "Ζώνη απαλλοτρίωσης");
   if (L.koinox) row("ΠΡΟΣΟΧΗ", "Κοινόχρηστος / κοινωφελής χώρος");

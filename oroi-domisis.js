@@ -204,6 +204,8 @@ function computeCalc(st, E, L){
     const s0 = sd.find(a=> num(a.SD_TIMH)!=null);
     const kv = num(kal && kal.SYNT_KALYPSIS);
     if(!s0) return {kind:"sxedio", max:null, kalPct:kv, kalM2: kv!=null ? kv*E/100 : null};
+    // Μέσος ΣΔ τομέα ΓΠΣ: δεν είναι ΣΔ οικοπέδου — δεν βγάζουμε μέγιστη δόμηση
+    if(/Μέσος/i.test(s0.SD_COMMENT||"")) return {kind:"sxedio", max:null, msd:num(s0.SD_TIMH), kalPct:kv, kalM2: kv!=null ? kv*E/100 : null};
     const v = num(s0.SD_TIMH); let mx = v*E, rule = `ΣΔ ${fmt(v,2)} × ${fmt(E)} τ.μ.`;
     // ασφάλεια: ΣΔ με όρια οικισμού <2.000 κατ. → εφαρμόζονται τα όρια 200/240/400 τ.μ.
     if(smallSettlementRegime(L)){ const m = oikismosMax(E); if(m && m.max < mx){ mx = m.max; rule = m.rule + " (όριο οικισμού <2.000 κατ.)"; } }
@@ -297,7 +299,8 @@ function renderResults(){
       const s0 = C.sd;
       h += cardRow("Μέγιστη δόμηση", `<b class="od-big">${fmt(C.max)} τ.μ.</b>`, esc(C.rule) + (s0.SD_KLIMAKOTOS==="ΝΑΙ" ? " — ο ΣΔ είναι κλιμακωτός: δες το σχόλιο" : "") + (/Μέσος/i.test(s0.SD_COMMENT||"") ? " — ⚠ πρόκειται για Μέσο ΣΔ τομέα (ΓΠΣ), όχι για ΣΔ οικοπέδου" : ""));
       h += cardRow("Σ.Α.Ο.", `<b class="od-big">${fmt(C.sao,3)}</b>`, `${fmt(C.max)} ÷ ${fmt(E)} τ.μ. — μέγιστη δόμηση ÷ εμβαδόν γηπέδου`);
-    } else h += `<div class="od-warn">Δεν υπάρχει αριθμητικός ΣΔ στον Ενιαίο Ψηφιακό Χάρτη για αυτό το σημείο — δες το ΦΕΚ του σχεδίου.</div>`;
+    } else if(C.msd!=null) h += `<div class="od-warn">Ο Ενιαίος Ψηφιακός Χάρτης δίνει μόνο <b>Μέσο ΣΔ τομέα ΓΠΣ ${fmt(C.msd,2)}</b> — δεν είναι ΣΔ οικοπέδου. Ο ΣΔ του οικοπέδου προκύπτει από το ΦΕΚ του σχεδίου, γι' αυτό δεν υπολογίζεται μέγιστη δόμηση.</div>`;
+    else h += `<div class="od-warn">Δεν υπάρχει αριθμητικός ΣΔ στον Ενιαίο Ψηφιακό Χάρτη για αυτό το σημείο — δες το ΦΕΚ του σχεδίου.</div>`;
     if(C.kalPct!=null) h += cardRow("Μέγιστη κάλυψη", `<b>${fmt(C.kalM2)} τ.μ.</b> (${fmt0(C.kalPct)}%)`, "");
     const a0 = ar.find(a=>/ΚΑΝΟΝΑ/i.test(a.OROS_TYPE||"")) || ar[0];
     if(a0 && a0.ELAX_EMBADO_M2) h += cardRow("Έλεγχος αρτιότητας (κατά κανόνα)", artiCheck(E, front, a0.ELAX_EMBADO_M2, a0.ELAX_PROSOP_M), "για παρεκκλίσεις δες τους όρους πιο πάνω");
