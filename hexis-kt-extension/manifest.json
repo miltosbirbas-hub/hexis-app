@@ -1,0 +1,63 @@
+{
+  "manifest_version": 3,
+  "name": "HEXIS-APP · Φάκελος Κτηματολογίου",
+  "version": "0.1.0",
+  "description": "Κατεβάζει αποσπάσματα και έγγραφα από την Ηλεκτρονική Έρευνα Μηχανικών του Κτηματολογίου, για τα ΚΑΕΚ που επιλέγεις στο HEXIS-APP. Οι κωδικοί ΤΕΕ γράφονται μόνο στη σελίδα του Κτηματολογίου.",
+  "icons": {
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  },
+  "permissions": [
+    "storage",
+    "downloads"
+  ],
+  "host_permissions": [
+    "https://ktimatologio.gov.gr/*",
+    "https://hexis-app.gr/*",
+    "https://www.hexis-app.gr/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://hexis-app.gr/*",
+        "https://www.hexis-app.gr/*",
+        "https://miltosbirbas-hub.github.io/*",
+        "http://localhost/*"
+      ],
+      "js": [
+        "hexis.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://ktimatologio.gov.gr/Professionals/*"
+      ],
+      "js": [
+        "kt-main.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://ktimatologio.gov.gr/Professionals/*"
+      ],
+      "js": [
+        "kt.js"
+      ],
+      "css": [
+        "kt.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_title": "HEXIS-APP · Φάκελος Κτηματολογίου",
+    "default_popup": "popup.html"
+  }
+}

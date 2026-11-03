@@ -1,15 +1,18 @@
 ;;; ================================================================
-;;; HEXISNET.LSP v1.0 - HEXIS-APP / BRB DEVELOPMENT MON. I.K.E.
+;;; HEXISNET.LSP v1.1 - HEXIS-APP / BRB DEVELOPMENT MON. I.K.E.
 ;;; Σύνδεση AutoCAD / progeCAD με τον λογαριασμό HEXIS-APP:
 ;;; όροι δόμησης από ΚΑΕΚ (Ενιαίος Ψηφιακός Χάρτης + Κτηματολόγιο).
 ;;; Εντολές:  HEXISLOGIN   σύνδεση με email / κωδικό HEXIS-APP
 ;;;           HEXISLOGOUT  αποσύνδεση
 ;;;           OROIKAEK     όροι δόμησης από ΚΑΕΚ (γραμμή εντολών)
+;;;           HEXISFAKELOS Φάκελος Κτηματολογίου (απόσπασμα, φύλλο, τίτλοι
+;;;                        κύριου + όμορων) — ανοίγει τη σελίδα στο hexis-app.gr
 ;;; Χρησιμοποιείται και από τα OROIDOM (επιλογή 5) και DILOSI.
 ;;; Ο κωδικός ΔΕΝ αποθηκεύεται. Κρατιέται μόνο το κλειδί συνεδρίας
 ;;; του λογαριασμού (μεταβλητή HEXIS_RT), που ανανεώνεται μόνο του.
 ;;; ================================================================
 (vl-load-com)
+(setq *HX-WEB* "https://hexis-app.gr")
 
 (setq *HX-SB*   "https://oucqqudfdimccgowvpqp.supabase.co")
 (setq *HX-ANON* "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8")
@@ -175,5 +178,26 @@
       (princ (strcat "\n" "\U+0393\U+03B9\U+03B1 \U+03C0\U+03AF\U+03BD\U+03B1\U+03BA\U+03B1 \U+03C3\U+03C4\U+03BF \U+03C3\U+03C7\U+03AD\U+03B4\U+03B9\U+03BF: OROIDOM -> 5 (\U+03B1\U+03C0\U+03CC \U+039A\U+0391\U+0395\U+039A)."))))
   (princ))
 
-(princ "\nHEXISNET v1.0 \U+03C6\U+03BF\U+03C1\U+03C4\U+03CE\U+03B8\U+03B7\U+03BA\U+03B5. \U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AD\U+03C2: OROIKAEK, HEXISLOGIN, HEXISLOGOUT")
+;; \U+03A6\U+03AC\U+03BA\U+03B5\U+03BB\U+03BF\U+03C2 \U+039A\U+03C4\U+03B7\U+03BC\U+03B1\U+03C4\U+03BF\U+03BB\U+03BF\U+03B3\U+03AF\U+03BF\U+03C5: \U+03B1\U+03BD\U+03BF\U+03AF\U+03B3\U+03B5\U+03B9 \U+03C4\U+03BF\U+03BD browser. \U+039F\U+03B9 \U+03BA\U+03C9\U+03B4\U+03B9\U+03BA\U+03BF\U+03AF \U+03A4\U+0395\U+0395 \U+03BC\U+03C0\U+03B1\U+03AF\U+03BD\U+03BF\U+03C5\U+03BD \U+039C\U+039F\U+039D\U+039F \U+03C3\U+03C4\U+03BF site \U+03C4\U+03BF\U+03C5 \U+039A\U+03C4\U+03B7\U+03BC\U+03B1\U+03C4\U+03BF\U+03BB\U+03BF\U+03B3\U+03AF\U+03BF\U+03C5.
+(defun hx:open-url (url / sh r)
+  (setq sh (vl-catch-all-apply (function vlax-create-object) (list "Shell.Application")))
+  (if (and sh (not (vl-catch-all-error-p sh)))
+    (progn
+      (setq r (vl-catch-all-apply (function vlax-invoke-method) (list sh "ShellExecute" url)))
+      (vl-catch-all-apply (function vlax-release-object) (list sh))
+      (not (vl-catch-all-error-p r)))
+    (not (vl-catch-all-error-p (vl-catch-all-apply (function startapp) (list "explorer" url))))))
+(defun c:HEXISFAKELOS ( / k d)
+  (setq d (if *HX-LAST* (hx:v *HX-LAST* "KAEK") ""))
+  (setq k (getstring (strcat "\n" "\U+039A\U+0391\U+0395\U+039A" (if (/= d "") (strcat " <" d ">") "") ": ")))
+  (if (and (= k "") (/= d "")) (setq k d))
+  (setq k (strcase (vl-string-trim " " k)))
+  (if (and (= (strlen k) 12) (wcmatch k "############"))
+    (progn
+      (hx:open-url (strcat *HX-WEB* "/fakelos.html?kaek=" k "&src=lisp"))
+      (princ (strcat "\n" "HEXIS-APP: \U+03AC\U+03BD\U+03BF\U+03B9\U+03BE\U+03B5 \U+03BF \U+03A6\U+03AC\U+03BA\U+03B5\U+03BB\U+03BF\U+03C2 \U+039A\U+03C4\U+03B7\U+03BC\U+03B1\U+03C4\U+03BF\U+03BB\U+03BF\U+03B3\U+03AF\U+03BF\U+03C5 \U+03B3\U+03B9\U+03B1 \U+039A\U+0391\U+0395\U+039A " k " \U+03C3\U+03C4\U+03BF\U+03BD browser.")))
+    (princ (strcat "\n" "HEXIS-APP: \U+03B4\U+03CE\U+03C3\U+03B5 \U+039A\U+0391\U+0395\U+039A 12 \U+03C8\U+03B7\U+03C6\U+03AF\U+03C9\U+03BD.")))
+  (princ))
+
+(princ "\nHEXISNET v1.1 \U+03C6\U+03BF\U+03C1\U+03C4\U+03CE\U+03B8\U+03B7\U+03BA\U+03B5. \U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AD\U+03C2: OROIKAEK, HEXISFAKELOS, HEXISLOGIN, HEXISLOGOUT")
 (princ)

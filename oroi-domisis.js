@@ -321,6 +321,7 @@ function renderResults(){
     <a class="od-btn" href="${SDM_PUBLIC}" target="_blank" rel="noopener">Ενιαίος Ψηφιακός Χάρτης</a>
     <button type="button" class="od-btn od-primary" id="od-extract">Απόσπασμα σχεδίου (PDF / AutoCAD)</button>
     <button type="button" class="od-btn" id="od-print">PDF όρων</button>
+    ${P.kaek && /^\d{12}$/.test(String(P.kaek)) ? `<a class="od-btn" href="fakelos.html?kaek=${encodeURIComponent(P.kaek)}&src=nomothesia" target="_blank" rel="noopener" title="Απόσπασμα, φύλλο, τίτλοι του ΚΑΕΚ και των όμορων από το Κτηματολόγιο — με τους κωδικούς σου ΤΕΕ, στο επίσημο site">Φάκελος Κτηματολογίου</a>` : ""}
   </div>
   <div class="od-note">ℹ️ Ενημερωτικά στοιχεία από τον <b>Ενιαίο Ψηφιακό Χάρτη</b> (ΤΕΕ/ΥΠΕΝ) και το Κτηματολόγιο. Δεν υποκαθιστούν τη βεβαίωση όρων δόμησης της ΥΔΟΜ ούτε τον έλεγχο του μηχανικού στα ΦΕΚ.${S.plan&&S.plan.t?` Ερώτημα: ${esc(new Date(S.plan.t).toLocaleString("el-GR"))}.`:""}</div>`;
   box.innerHTML = h;

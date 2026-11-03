@@ -39,15 +39,16 @@ function token(){ try{ const s=JSON.parse(localStorage.getItem("sb-oucqqudfdimcc
 const H = () => window.HXOroi;              // βοηθητικά από το oroi-domisis.js
 function bboxOf(rings){ const b=[Infinity,Infinity,-Infinity,-Infinity]; rings.forEach(r=>r.forEach(([x,y])=>{ b[0]=Math.min(b[0],x); b[1]=Math.min(b[1],y); b[2]=Math.max(b[2],x); b[3]=Math.max(b[3],y); })); return b; }
 function frameMm(paper){ const P=PAPER[paper]; return {w:P.w-2*MARGIN, h:P.h-2*MARGIN-TITLE_H}; }
-function extentFor(parcel, scale, paper){
-  const rings = H().polysOf(parcel.geometry_egsa).flat().map(H().openRing);
+/* Το απόσπασμα περιλαμβάνει ολόκληρο το Ο.Τ. του γεωτεμαχίου (όταν υπάρχει) */
+function extentFor(parcel, scale, paper, ot){
+  const rings = H().polysOf(parcel.geometry_egsa).flat().map(H().openRing).concat(ot && ot.rings ? ot.rings : []);
   const b = bboxOf(rings), cx=(b[0]+b[2])/2, cy=(b[1]+b[3])/2;
   const f = frameMm(paper), W = f.w*scale/1000, Hh = f.h*scale/1000;
   const fits = (b[2]-b[0]) <= W*0.92 && (b[3]-b[1]) <= Hh*0.92;
   return {bbox:[cx-W/2, cy-Hh/2, cx+W/2, cy+Hh/2], W, H:Hh, fits, pb:b};
 }
-function suggestScale(parcel, paper){
-  for(const s of SCALES){ const e=extentFor(parcel,s,paper); const pw=e.pb[2]-e.pb[0], ph=e.pb[3]-e.pb[1]; if(pw<=e.W*0.7 && ph<=e.H*0.7) return s; }
+function suggestScale(parcel, paper, ot){
+  for(const s of SCALES){ const e=extentFor(parcel,s,paper,ot); const pw=e.pb[2]-e.pb[0], ph=e.pb[3]-e.pb[1]; if(pw<=e.W*0.7 && ph<=e.H*0.7) return s; }
   return SCALES[SCALES.length-1];
 }
 
@@ -67,6 +68,12 @@ async function listDiagrams(x, y){
   const dnum = d=> { const m=String(d||"").match(/(\d{4})/); return m?+m[1]:0; };
   out.sort((a,b)=> (a.scale||1e9)-(b.scale||1e9) || dnum(b.date)-dnum(a.date));
   return out;
+}
+/* το Ο.Τ. που περιέχει το γεωτεμάχιο (γεωμετρία ΕΓΣΑ'87) */
+async function otOf(x, y){
+  const fs = await arcQuery(PLIR+"6/query", {geometry:x+","+y, geometryType:"esriGeometryPoint", returnGeometry:"true", resultRecordCount:"3"});
+  const f = fs.find(f=> f.geometry && f.geometry.rings && f.geometry.rings.length); if(!f) return null;
+  return {num:(f.attributes||{}).OT_NUM||"", rings:f.geometry.rings.map(H().openRing)};
 }
 async function vectors(bb){
   const env = JSON.stringify({xmin:bb[0], ymin:bb[1], xmax:bb[2], ymax:bb[3], spatialReference:{wkid:2100}});
@@ -98,10 +105,21 @@ async function drawDiagram(ctx, d, bb, pw, ph){
   const tx = Math.round((cx0-wx0)*sx), ty = Math.round((cy0-wy0)*sy);
   const tw = Math.max(1, Math.round((cx1-cx0)*sx)), th = Math.max(1, Math.round((cy1-cy0)*sy));
   const rgb = await img.readRGB({window:[cx0,cy0,cx1,cy1], width:tw, height:th, interleave:true, resampleMethod:"bilinear"});
-  const id = ctx.createImageData(tw, th);
-  for(let i=0,j=0;i<tw*th;i++,j+=3){ id.data[i*4]=rgb[j]; id.data[i*4+1]=rgb[j+1]; id.data[i*4+2]=rgb[j+2]; id.data[i*4+3]=255; }
+  const spp = rgb.length / (tw*th) >= 4 ? 4 : 3;              // μερικά διαγράμματα έχουν και 4ο κανάλι
+  // το μαύρο περιθώριο γύρω από το στραμμένο σαρωμένο φύλλο (τιμή 0) είναι «χωρίς δεδομένα» → λευκό
+  const id = ctx.createImageData(tw, th); let nod = 0;
+  for(let i=0,j=0;i<tw*th;i++,j+=spp){
+    const r=rgb[j], g=rgb[j+1], b=rgb[j+2], empty = (r+g+b) < 9 || (spp===4 && rgb[j+3]===0);
+    if(empty) nod++;
+    id.data[i*4]=empty?255:r; id.data[i*4+1]=empty?255:g; id.data[i*4+2]=empty?255:b; id.data[i*4+3]=255;
+  }
+  // μετρά μόνο το κομμάτι γύρω από το κέντρο (εκεί είναι το γεωτεμάχιο)
+  const cxp = Math.round(pw/2 - tx), cyp = Math.round(ph/2 - ty); let cn = 0, ce = 0;
+  for(let yy=Math.max(0,cyp-40); yy<Math.min(th,cyp+40); yy+=4) for(let xx=Math.max(0,cxp-40); xx<Math.min(tw,cxp+40); xx+=4){ ce++; const q=(yy*tw+xx)*4; if(id.data[q]===255&&id.data[q+1]===255&&id.data[q+2]===255 && (rgb[(yy*tw+xx)*spp]+rgb[(yy*tw+xx)*spp+1]+rgb[(yy*tw+xx)*spp+2])<9) cn++; }
+  const centreEmpty = ce ? cn/ce : 1;
+  if(centreEmpty > 0.6) return {ok:false, why:"empty"};       // το φύλλο δεν καλύπτει το γεωτεμάχιο
   ctx.putImageData(id, tx, ty);
-  return true;
+  return {ok:true, nodata: nod/(tw*th)};
 }
 async function drawEpsx(ctx, bb, pw, ph){
   const q = new URLSearchParams({bbox:bb.join(","), bboxSR:"2100", imageSR:"2100", size:pw+","+ph, format:"png32", transparent:"true",
@@ -116,8 +134,21 @@ async function baseCanvas(opt){
   const c = document.createElement("canvas"); c.width=pw; c.height=ph;
   const ctx = c.getContext("2d"); ctx.fillStyle="#fff"; ctx.fillRect(0,0,pw,ph);
   const notes = [];
-  if(opt.diagram){ try{ const ok = await drawDiagram(ctx, opt.diagram, opt.bbox, pw, ph); if(!ok) notes.push("Το διάγραμμα δεν καλύπτει την περιοχή του αποσπάσματος."); }
-    catch(e){ console.warn(e); notes.push("Το σαρωμένο διάγραμμα δεν φορτώθηκε ("+(e.message||e)+")."); } }
+  if(opt.diagram){
+    // αν το επιλεγμένο διάγραμμα δεν καλύπτει το σημείο, δοκιμάζουμε τα επόμενα (λεπτομερέστερα πρώτα)
+    const cands = [opt.diagram].concat((opt.diags||[]).filter(d=> d!==opt.diagram && d.scale && d.scale<=10000));
+    let used = null;
+    for(const d of cands.slice(0,4)){
+      try{
+        const r = await drawDiagram(ctx, d, opt.bbox, pw, ph);
+        if(r && r.ok){ used = d; break; }
+        if(d===opt.diagram) notes.push(`Το διάγραμμα ΦΕΚ ${d.fek||""} δεν καλύπτει στην πράξη το γεωτεμάχιο (το σαρωμένο φύλλο σταματά πριν).`);
+      }catch(e){ console.warn(e); if(d===opt.diagram) notes.push("Το σαρωμένο διάγραμμα δεν φορτώθηκε ("+(e.message||e)+")."); }
+    }
+    if(used && used!==opt.diagram) notes.push(`Χρησιμοποιήθηκε το διάγραμμα ΦΕΚ ${used.fek||""} (1:${used.scale||"—"}).`);
+    if(!used) notes.push("Κανένα σαρωμένο διάγραμμα δεν καλύπτει το γεωτεμάχιο — το απόσπασμα έχει μόνο τις ψηφιοποιημένες γραμμές.");
+    opt.diagramUsed = used;
+  }
   if(opt.epsx){ try{ await drawEpsx(ctx, opt.bbox, pw, ph); }catch(e){ console.warn(e); notes.push("Οι ψηφιοποιημένες γραμμές του ΕΨΧ δεν φορτώθηκαν."); } }
   return {canvas:c, pw, ph, notes};
 }
@@ -130,6 +161,7 @@ function decorate(base, opt){
   const ring = (r)=>{ ctx.beginPath(); r.forEach((p,i)=>{ const [u,v]=P(p); i?ctx.lineTo(u,v):ctx.moveTo(u,v); }); ctx.closePath(); };
   const mm = v => v/25.4*DPI;
   (opt.parcel.neighbors||[]).forEach(n=>{ H().polysOf(n.geometry_egsa).forEach(p=>{ ring(H().openRing(p[0])); ctx.strokeStyle="rgba(90,90,90,.75)"; ctx.lineWidth=mm(0.18); ctx.setLineDash([mm(1.2),mm(0.8)]); ctx.stroke(); ctx.setLineDash([]); }); });
+  if(opt.ot) opt.ot.rings.forEach(r=>{ ring(r); ctx.strokeStyle="rgba(31,78,156,.95)"; ctx.lineWidth=mm(0.45); ctx.setLineDash([mm(2.5),mm(1)]); ctx.stroke(); ctx.setLineDash([]); });
   H().polysOf(opt.parcel.geometry_egsa).forEach(p=> p.forEach(r=>{ ring(H().openRing(r)); ctx.strokeStyle="#D7001C"; ctx.lineWidth=mm(0.6); ctx.stroke(); }));
   // ΚΑΕΚ στο εσωτερικό σημείο
   const ip = H().interiorPoint(H().mainOuter(opt.parcel.geometry_egsa)), [u,v] = P(ip);
@@ -187,12 +219,12 @@ async function makePdf(opt, mapCanvas, summary){
   const P = PAPER[opt.paper], f = frameMm(opt.paper), pt = 72/25.4;
   const img = mapCanvas.toDataURL("image/jpeg", 0.9);
   const today = new Date().toLocaleDateString("el-GR");
-  const d = opt.diagram;
+  const d = opt.diagramUsed !== undefined ? opt.diagramUsed : opt.diagram;
   const content = [
     {image:img, width:f.w*pt, height:f.h*pt},
     {margin:[0,4,0,0], table:{widths:["*", 150, 120], body:[[
       {stack:[{text:opt.kind, style:"tt"},
-              {text:`ΚΑΕΚ ${opt.parcel.kaek} · εμβαδόν ${fmt(opt.parcel.area_m2)} τ.μ. · ${summary.status||""}`, style:"t2"},
+              {text:`ΚΑΕΚ ${opt.parcel.kaek} · εμβαδόν ${fmt(opt.parcel.area_m2)} τ.μ.${opt.ot&&opt.ot.num?" · Ο.Τ. "+opt.ot.num:""} · ${summary.status||""}`, style:"t2"},
               {text: d ? `Υπόβαθρο: διάγραμμα ΦΕΚ ${d.fek||""} (αρχική κλίμακα 1:${d.scale||"—"}, RMS γεωαναφοράς ${d.rms!=null?fmt(d.rms,2)+" μ.":"—"})` : "Υπόβαθρο: ψηφιοποιημένα στοιχεία Ενιαίου Ψηφιακού Χάρτη", style:"t3"},
               {text:"Πηγές: Ενιαίος Ψηφιακός Χάρτης (ΤΕΕ/ΥΠΕΝ) · Ελληνικό Κτηματολόγιο · Σύστημα ΕΓΣΑ΄87", style:"t3"}]},
       {stack:[{text:"ΚΛΙΜΑΚΑ", style:"t3"}, {text:"1:"+opt.scale, style:"sc"}, {text:"Εκτύπωση σε 100% (χωρίς «προσαρμογή»)", style:"t3"}]},
@@ -317,7 +349,7 @@ function makeDxf(opt, vecs, img, tifName){
 /* ---------- διάλογος ---------- */
 let busy = false;
 function modalHtml(st, diags){
-  const sug = suggestScale(st.parcel, "A4");
+  const sug = suggestScale(st.parcel, "A4", st.ot);
   const dOpts = diags.map((d,i)=>`<option value="${i}">ΦΕΚ ${esc(d.fek||"")} · 1:${d.scale||"—"}${d.rms!=null?` · RMS ${fmt(d.rms,2)} μ.`:""} — ${esc((d.title||"").slice(0,70))}</option>`).join("");
   return `<div class="ox-back" id="ox-back"><div class="ox-card" role="dialog" aria-modal="true" aria-label="Απόσπασμα σχεδίου">
     <div class="ox-h">Απόσπασμα σχεδίου · ΚΑΕΚ ${esc(st.parcel.kaek)}</div>
@@ -340,14 +372,15 @@ function modalHtml(st, diags){
 function readOpts(st, diags){
   const scale = +document.getElementById("ox-scale").value, paper = document.getElementById("ox-paper").value;
   const di = +document.getElementById("ox-diag").value, epsx = document.getElementById("ox-epsx").checked;
-  const ext = extentFor(st.parcel, scale, paper);
-  return {scale, paper, diagram: di>=0 ? diags[di] : null, epsx, bbox:ext.bbox, fits:ext.fits, W:ext.W, H:ext.H, parcel:st.parcel, plan:st.plan,
+  const ext = extentFor(st.parcel, scale, paper, st.ot);
+  return {scale, paper, diagram: di>=0 ? diags[di] : null, diags, epsx, ot: st.ot, bbox:ext.bbox, fits:ext.fits, W:ext.W, H:ext.H, parcel:st.parcel, plan:st.plan,
     kind: st.status==="oikismos" ? "ΑΠΟΣΠΑΣΜΑ ΟΡΙΩΝ ΟΙΚΙΣΜΟΥ" : st.status==="sxedio" ? "ΑΠΟΣΠΑΣΜΑ ΡΥΜΟΤΟΜΙΚΟΥ ΣΧΕΔΙΟΥ" : "ΑΠΟΣΠΑΣΜΑ ΠΟΛΕΟΔΟΜΙΚΩΝ ΣΤΟΙΧΕΙΩΝ"};
 }
 function info(st, diags){
   const o = readOpts(st, diags), el = document.getElementById("ox-info");
   let t = `Περιοχή αποσπάσματος: ${fmt(o.W,1)} × ${fmt(o.H,1)} μ. (ΕΓΣΑ΄87). Στο DXF τα κείμενα είναι 2,5 χλστ. στην 1:${o.scale}.`;
-  if(!o.fits) t = `⚠ Το γεωτεμάχιο δεν χωράει ολόκληρο στην 1:${o.scale} σε ${PAPER[o.paper].label} — διάλεξε μεγαλύτερη κλίμακα (π.χ. 1:${SCALES.find(s=>extentFor(st.parcel,s,o.paper).fits)||1000}) ή Α3.<br>` + t;
+  if(st.ot) t = `Το απόσπασμα περιλαμβάνει ολόκληρο το <b>Ο.Τ. ${esc(st.ot.num||"")}</b> του γεωτεμαχίου. ` + t;
+  if(!o.fits) t = `⚠ ${st.ot ? "Το Ο.Τ." : "Το γεωτεμάχιο"} δεν χωράει ολόκληρο στην 1:${o.scale} σε ${PAPER[o.paper].label} — διάλεξε μεγαλύτερη κλίμακα (π.χ. 1:${SCALES.find(s=>extentFor(st.parcel,s,o.paper,st.ot).fits)||1000}) ή Α3.<br>` + t;
   if(o.diagram && o.diagram.scale && o.scale < o.diagram.scale/2) t += `<br>ℹ️ Το διάγραμμα είναι σε 1:${o.diagram.scale} — σε 1:${o.scale} θα φαίνεται μεγεθυμένο (ακρίβεια RMS ${o.diagram.rms!=null?fmt(o.diagram.rms,2)+" μ.":"—"}).`;
   el.innerHTML = t;
 }
@@ -362,7 +395,7 @@ async function runPdf(st, diags){
   setStatus("Δημιουργία PDF…");
   const pdf = await makePdf(o, decorate(base, o), Object.assign({}, st.summary, {notes:base.notes}));
   download(pdf, fname(o,"pdf"));
-  setStatus("✅ Έτοιμο το PDF" + (base.notes.length ? " — " + esc(base.notes.join(" ")) : "") + ".");
+  setStatus("✅ Έτοιμο το PDF" + (base.notes.length ? " — " + esc(base.notes.join(" ")) : "."));
   return {o, base, pdf};
 }
 async function runZip(st, diags){
@@ -396,12 +429,12 @@ async function runZip(st, diags){
     "   Μέγεθος pixel: " + gt.res.toFixed(4) + " μ.",
     "5. Για εκτύπωση σε κλίμακα 1:" + o.scale + ": στο Layout βάλε viewport με κλίμακα 1:" + o.scale + " (1 μ. = " + (1000/o.scale) + " χλστ.).",
     "",
-    "Υπόβαθρο: " + (o.diagram ? "διάγραμμα ΦΕΚ " + (o.diagram.fek||"") + " (αρχική κλίμακα 1:" + (o.diagram.scale||"—") + ", RMS " + (o.diagram.rms!=null?o.diagram.rms:"—") + " μ.)" : "ψηφιοποιημένα στοιχεία ΕΨΧ"),
+    "Υπόβαθρο: " + (o.diagramUsed ? "διάγραμμα ΦΕΚ " + (o.diagramUsed.fek||"") + " (αρχική κλίμακα 1:" + (o.diagramUsed.scale||"—") + ", RMS " + (o.diagramUsed.rms!=null?o.diagramUsed.rms:"—") + " μ.)" : "ψηφιοποιημένα στοιχεία ΕΨΧ"),
     "Πηγές: Ενιαίος Ψηφιακός Χάρτης (ΤΕΕ/ΥΠΕΝ), Ελληνικό Κτηματολόγιο. Ενημερωτικό — δεν υποκαθιστά βεβαίωση ΥΔΟΜ."
   ].join("\r\n"));
   const blob = await zip.generateAsync({type:"blob", compression:"DEFLATE"});
   download(blob, fname(o,"zip"));
-  setStatus("✅ Έτοιμο το ZIP (DXF + TIFF + TFW" + (pdf?" + PDF":"") + ")" + (base.notes.length ? " — " + esc(base.notes.join(" ")) : "") + ".");
+  setStatus("✅ Έτοιμο το ZIP (DXF + TIFF + TFW" + (pdf?" + PDF":"") + ")" + (base.notes.length ? " — " + esc(base.notes.join(" ")) : "."));
   return {o, base, dxf, gt, vecs, zip:blob};
 }
 
@@ -412,6 +445,7 @@ window.HXOroiExport = {
     const ip = H().interiorPoint(H().mainOuter(st.parcel.geometry_egsa));
     let diags = [];
     try{ diags = await listDiagrams(ip[0], ip[1]); }catch(e){ console.warn(e); }
+    st.ot = await otOf(ip[0], ip[1]).catch(()=>null);
     const wrap = document.createElement("div"); wrap.innerHTML = modalHtml(st, diags); document.body.appendChild(wrap.firstChild);
     const close = ()=>{ const b=document.getElementById("ox-back"); if(b) b.remove(); };
     document.getElementById("ox-close").addEventListener("click", close);

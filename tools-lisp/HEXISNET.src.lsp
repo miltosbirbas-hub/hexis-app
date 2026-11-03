@@ -1,15 +1,18 @@
 ;;; ================================================================
-;;; HEXISNET.LSP v1.0 - HEXIS-APP / BRB DEVELOPMENT MON. I.K.E.
+;;; HEXISNET.LSP v1.1 - HEXIS-APP / BRB DEVELOPMENT MON. I.K.E.
 ;;; Σύνδεση AutoCAD / progeCAD με τον λογαριασμό HEXIS-APP:
 ;;; όροι δόμησης από ΚΑΕΚ (Ενιαίος Ψηφιακός Χάρτης + Κτηματολόγιο).
 ;;; Εντολές:  HEXISLOGIN   σύνδεση με email / κωδικό HEXIS-APP
 ;;;           HEXISLOGOUT  αποσύνδεση
 ;;;           OROIKAEK     όροι δόμησης από ΚΑΕΚ (γραμμή εντολών)
+;;;           HEXISFAKELOS Φάκελος Κτηματολογίου (απόσπασμα, φύλλο, τίτλοι
+;;;                        κύριου + όμορων) — ανοίγει τη σελίδα στο hexis-app.gr
 ;;; Χρησιμοποιείται και από τα OROIDOM (επιλογή 5) και DILOSI.
 ;;; Ο κωδικός ΔΕΝ αποθηκεύεται. Κρατιέται μόνο το κλειδί συνεδρίας
 ;;; του λογαριασμού (μεταβλητή HEXIS_RT), που ανανεώνεται μόνο του.
 ;;; ================================================================
 (vl-load-com)
+(setq *HX-WEB* "https://hexis-app.gr")
 
 (setq *HX-SB*   "https://oucqqudfdimccgowvpqp.supabase.co")
 (setq *HX-ANON* "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8")
@@ -175,5 +178,26 @@
       (princ (strcat "\n" "Για πίνακα στο σχέδιο: OROIDOM -> 5 (από ΚΑΕΚ)."))))
   (princ))
 
-(princ "\nHEXISNET v1.0 φορτώθηκε. Εντολές: OROIKAEK, HEXISLOGIN, HEXISLOGOUT")
+;; Φάκελος Κτηματολογίου: ανοίγει τον browser. Οι κωδικοί ΤΕΕ μπαίνουν ΜΟΝΟ στο site του Κτηματολογίου.
+(defun hx:open-url (url / sh r)
+  (setq sh (vl-catch-all-apply (function vlax-create-object) (list "Shell.Application")))
+  (if (and sh (not (vl-catch-all-error-p sh)))
+    (progn
+      (setq r (vl-catch-all-apply (function vlax-invoke-method) (list sh "ShellExecute" url)))
+      (vl-catch-all-apply (function vlax-release-object) (list sh))
+      (not (vl-catch-all-error-p r)))
+    (not (vl-catch-all-error-p (vl-catch-all-apply (function startapp) (list "explorer" url))))))
+(defun c:HEXISFAKELOS ( / k d)
+  (setq d (if *HX-LAST* (hx:v *HX-LAST* "KAEK") ""))
+  (setq k (getstring (strcat "\n" "ΚΑΕΚ" (if (/= d "") (strcat " <" d ">") "") ": ")))
+  (if (and (= k "") (/= d "")) (setq k d))
+  (setq k (strcase (vl-string-trim " " k)))
+  (if (and (= (strlen k) 12) (wcmatch k "############"))
+    (progn
+      (hx:open-url (strcat *HX-WEB* "/fakelos.html?kaek=" k "&src=lisp"))
+      (princ (strcat "\n" "HEXIS-APP: άνοιξε ο Φάκελος Κτηματολογίου για ΚΑΕΚ " k " στον browser.")))
+    (princ (strcat "\n" "HEXIS-APP: δώσε ΚΑΕΚ 12 ψηφίων.")))
+  (princ))
+
+(princ "\nHEXISNET v1.1 φορτώθηκε. Εντολές: OROIKAEK, HEXISFAKELOS, HEXISLOGIN, HEXISLOGOUT")
 (princ)

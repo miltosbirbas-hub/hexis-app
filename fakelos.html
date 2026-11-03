@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Φάκελος Ακινήτου · HEXIS-APP</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="oroi-icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--blue:#1F4E9C;--navy:#14213D;--paper:#F5F7FB;--card:#FFFFFF;--soft:#EAF1FB;--line:#D5DEEC;--muted:#5B6B85;--ok:#1F6B33;--warn:#8A4B00;--err:#B42318;--sans:'Inter',-apple-system,'Segoe UI',Roboto,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--navy);font-family:var(--sans);font-size:14px;line-height:1.5}
+header{background:var(--navy);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header img{width:28px;height:28px;border-radius:6px}
+header h1{font-size:17px;margin:0;letter-spacing:.3px}
+header h1 span{color:#8FB4EE}
+header .sub{font-size:12px;color:#AFC3E2}
+header a.back{margin-left:auto;color:#cfe0ff;font-size:13px;text-decoration:none;border:1px solid #3a4d74;border-radius:8px;padding:5px 10px}
+main{max-width:1040px;margin:0 auto;padding:14px 16px 40px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0 0 12px}
+.card h2{font-size:15px;margin:0 0 8px;color:var(--navy)}
+.muted{color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{appearance:none;display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--blue);background:#fff;color:var(--blue);font-family:var(--sans);font-size:13.5px;font-weight:700;border-radius:9px;padding:8px 13px;cursor:pointer;text-decoration:none}
+.btn:hover{background:var(--soft)}
+.btn.primary{background:var(--blue);color:#fff}.btn.primary:hover{background:#173d7c}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.sm{font-size:12.5px;padding:5px 9px}
+input[type=text]{font-family:var(--sans);font-size:14px;border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;min-width:0;flex:1 1 220px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:7px 8px;border-top:1px solid #EEF2F8;vertical-align:middle}
+th{color:var(--muted);font-weight:600;font-size:12.5px;border-top:none}
+td.k{font-family:ui-monospace,Consolas,monospace;font-size:13px;white-space:nowrap}
+.tag{display:inline-block;font-size:11.5px;border-radius:6px;padding:1px 7px;background:var(--soft);color:var(--blue);font-weight:700}
+.tag.ek{background:#F1F1F1;color:#555}
+.tag.main{background:#FFE9EC;color:#A3001A}
+.st{font-size:12.5px;white-space:nowrap}
+.st.ok{color:var(--ok);font-weight:700}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:22px;text-align:center;color:var(--muted);background:#FAFBFE;cursor:pointer}
+.drop.over{border-color:var(--blue);background:var(--soft)}
+.note{font-size:12.5px;color:var(--muted);line-height:1.5}
+.warn{background:#FFF8EC;border-left:4px solid #C77700;border-radius:8px;padding:8px 10px;font-size:13px;color:#6B3E00;margin:8px 0}
+.okbox{background:#EEF8F0;border-left:4px solid #2E8B4A;border-radius:8px;padding:8px 10px;font-size:13px;color:#1F4D2B;margin:8px 0}
+ol.steps{margin:6px 0 0 18px;padding:0}
+ol.steps li{margin:4px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-top:8px}
+.chip{border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:12.5px;background:#fff}
+.chip b{display:block;font-family:ui-monospace,Consolas,monospace;font-size:12.5px}
+@media (max-width:640px){ th.hide,td.hide{display:none} }
+</style>
+</head>
+<body>
+<script>
+/* ===== HEXIS HUB GATE — πρόσβαση για Νομοθεσία, LISP/Check My DXF, GEOmetry ή Κτηματολόγιο ===== */
+(function(){
+  var MODS = ['nomothesia','dxf','syntetagmenes','ktima'];
+  var SB = 'https://oucqqudfdimccgowvpqp.supabase.co';
+  var KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
+  var CK = 'hx_gate_fakelos', TTL = 7 * 864e5;
+  document.documentElement.style.visibility = 'hidden';
+  function allow(){ document.documentElement.style.visibility = ''; try{ localStorage.setItem(CK, String(Date.now())); }catch(e){} }
+  function cachedOk(){ try{ var t = +localStorage.getItem(CK); return t && (Date.now() - t) < TTL; }catch(e){ return false; } }
+  var raw = null; try{ raw = localStorage.getItem('sb-oucqqudfdimccgowvpqp-auth-token'); }catch(e){}
+  var tok = ''; if (raw) { try{ var s = JSON.parse(raw); tok = s.access_token || (s.currentSession && s.currentSession.access_token) || ''; }catch(e){} }
+  if (!tok) { location.replace('login.html'); return; }
+  fetch(SB + '/rest/v1/entitlements?select=module,active,expires_at&module=in.(' + MODS.join(',') + ')', { headers: { apikey: KEY, Authorization: 'Bearer ' + tok } })
+    .then(function(r){ if (r.status === 401 || r.status === 403) { if (cachedOk()) allow(); else location.replace('hub.html'); return null; } return r.json(); })
+    .then(function(rows){ if (rows === null) return; var ok = (rows||[]).some(function(e){ return e.active && (!e.expires_at || new Date(e.expires_at) > new Date()); }); if (ok) allow(); else location.replace('hub.html'); })
+    .catch(function(){ if (cachedOk()) allow(); else allow(); });
+})();
+</script>
+
+<header>
+  <img src="oroi-icon.png" alt="">
+  <div><h1>HEXIS-APP <span>ΦΑΚΕΛΟΣ ΑΚΙΝΗΤΟΥ</span></h1><div class="sub">Αποσπάσματα και έγγραφα από την Ηλεκτρονική Έρευνα Μηχανικών του Κτηματολογίου</div></div>
+  <a class="back" id="back" href="hub.html">← Επιστροφή</a>
+</header>
+
+<main>
+  <section class="card" id="c-kaek">
+    <h2>1. Γεωτεμάχια</h2>
+    <div class="row">
+      <input type="text" id="kaekIn" placeholder="ΚΑΕΚ (ένα ή περισσότερα, με κόμμα)" autocomplete="off">
+      <button class="btn" id="kaekGo">Εύρεση και όμορα</button>
+    </div>
+    <div id="list" class="note" style="margin-top:8px">Γράψε ΚΑΕΚ ή άνοιξε τη σελίδα από τα εργαλεία του HEXIS-APP.</div>
+  </section>
+
+  <section class="card" id="c-get">
+    <h2>2. Κατέβασμα από το Κτηματολόγιο</h2>
+    <div id="extState"></div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn primary" id="startExt" disabled>Έναρξη με το πρόσθετο HEXIS-APP</button>
+      <a class="btn" id="openKt" href="https://ktimatologio.gov.gr/Professionals/Account/LoginEngineer" target="_blank" rel="noopener">Άνοιγμα Έρευνας Μηχανικών</a>
+    </div>
+    <p class="note">Οι κωδικοί ΤΕΕ γράφονται <b>μόνο</b> στη σελίδα του Κτηματολογίου. Το HEXIS-APP δεν τους βλέπει και δεν τους αποθηκεύει. Η έρευνα γίνεται στο όνομά σου και με ευθύνη σου, όπως όταν μπαίνεις χειροκίνητα.</p>
+  </section>
+
+  <section class="card" id="c-files">
+    <h2>3. Αρχεία φακέλου</h2>
+    <div class="row" style="margin-bottom:8px"><span>Αποθήκευση σε:</span> <b id="dirName">—</b>
+      <button class="btn sm" id="dirPick">Επιλογή φακέλου…</button>
+      <span class="note" id="dirNote">Αν δεν διαλέξεις φάκελο, τα αρχεία μαζεύονται εδώ και τα κατεβάζεις ως ZIP όπου θέλεις.</span></div>
+    <div class="drop" id="drop">Ρίξε εδώ τα PDF που κατέβηκαν (φάκελος <b>Λήψεις › HEXIS-APP › ΚΑΕΚ</b>) ή πάτα για επιλογή</div>
+    <input type="file" id="pick" accept="application/pdf,.pdf" multiple hidden>
+    <div id="files"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn primary" id="zipBtn" disabled>Λήψη φακέλου (ZIP)</button>
+      <span class="note" id="zipNote"></span>
+    </div>
+    <p class="note">Τα αρχεία επεξεργάζονται μόνο στον browser σου — δεν ανεβαίνουν πουθενά.</p>
+  </section>
+</main>
+
+<script>
+(function(){
+"use strict";
+const KT_LIVE = "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/GEOTEMAXIA_LEITOURGOUN_ON_gdb/FeatureServer/0/query";
+const KT_LOGIN = "https://ktimatologio.gov.gr/Professionals/Account/LoginEngineer";
+const LIBS = { jszip:"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
+  pdfjs:"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js", pdfw:"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js" };
+const $ = id => document.getElementById(id);
+const esc = s => (s==null?"":String(s)).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = (n,d=2)=> (n==null||!isFinite(n)) ? "—" : Number(n).toLocaleString("el-GR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const isEK = k => /[ΕΚEK]/.test(String(k).slice(4,8)) && /[^0-9]/.test(String(k));
+const KAEK_RX = /\b(\d{5}(?:[ΕΚEK]{2}|\d{2})\d{5})(?:\/\d+){0,3}\b/;
+function load(src){ return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>rej(new Error("Δεν φορτώθηκε: "+src)); document.head.appendChild(s); }); }
+
+/* ---------- 1. γεωτεμάχια ---------- */
+const P = new URLSearchParams(location.search);
+const SRC = {nomothesia:"nomothesia.html", geometry:"syntetagmenes.html", checkmydxf:"checkmydxf.html", ktima:"ktimatologio.html"}[P.get("src")];
+if(SRC) $("back").href = SRC;
+let ROWS = [];   // {kaek, role:'main'|'omoro'|'ek', area, sel}
+const sarea = r => { let a=0; for(let i=0;i<r.length;i++){ const p=r[i], q=r[(i+1)%r.length]; a+=p[0]*q[1]-q[0]*p[1]; } return a/2; };
+function areaOf(rings){ let a=0; rings.forEach(r=>{ a += -sarea(r); }); return Math.abs(a); }
+async function kt(params){
+  const qs = Object.entries(Object.assign({f:"json", inSR:"2100", outSR:"2100", outFields:"KAEK", returnGeometry:"true", spatialRel:"esriSpatialRelIntersects"}, params)).map(([k,v])=>k+"="+encodeURIComponent(v)).join("&");
+  const r = await fetch(KT_LIVE+"?"+qs); if(!r.ok) throw new Error("Κτηματολόγιο HTTP "+r.status);
+  const j = await r.json(); if(j.error) throw new Error(j.error.message||"Κτηματολόγιο");
+  return (j.features||[]).map(f=>({kaek:String((f.attributes||{}).KAEK||""), rings:(f.geometry&&f.geometry.rings)||[]})).filter(f=>f.kaek && f.rings.length);
+}
+async function findAll(kaeks){
+  $("list").innerHTML = "Αναζήτηση στο Κτηματολόγιο…";
+  const mains = [], seen = new Set();
+  for(const k of kaeks){
+    const fs = await kt({where:"KAEK='"+k.replace(/'/g,"''")+"'", resultRecordCount:"5"});
+    if(!fs.length){ mains.push({kaek:k, rings:[], missing:true}); continue; }
+    mains.push(fs[0]);
+  }
+  ROWS = [];
+  mains.forEach(m=>{ seen.add(m.kaek); ROWS.push({kaek:m.kaek, role:"main", area: m.rings.length ? areaOf(m.rings) : null, sel:true, missing:!!m.missing}); });
+  for(const m of mains){
+    if(!m.rings.length) continue;
+    let b=[Infinity,Infinity,-Infinity,-Infinity]; m.rings.forEach(r=>r.forEach(([x,y])=>{ b[0]=Math.min(b[0],x); b[1]=Math.min(b[1],y); b[2]=Math.max(b[2],x); b[3]=Math.max(b[3],y); }));
+    // όμορα = εφαπτόμενα (περίγραμμα του κύριου με ανοχή 0,5 μ.)
+    const geom = JSON.stringify({rings:m.rings, spatialReference:{wkid:2100}});
+    let nb = [];
+    try{ nb = await kt({where:"1=1", geometry:geom, geometryType:"esriGeometryPolygon", distance:"0.5", units:"esriSRUnit_Meter", resultRecordCount:"200"}); }
+    catch(e){ nb = await kt({where:"1=1", geometry:[b[0]-1,b[1]-1,b[2]+1,b[3]+1].join(","), geometryType:"esriGeometryEnvelope", resultRecordCount:"200"}); }
+    nb.forEach(n=>{ if(seen.has(n.kaek)) return; seen.add(n.kaek); ROWS.push({kaek:n.kaek, role: isEK(n.kaek) ? "ek" : "omoro", area:areaOf(n.rings), sel: !isEK(n.kaek)}); });
+  }
+  renderList(); renderFiles();
+}
+function renderList(){
+  if(!ROWS.length){ $("list").innerHTML = "Δεν βρέθηκαν γεωτεμάχια."; return; }
+  const roleTxt = {main:'<span class="tag main">κύριο</span>', omoro:'<span class="tag">όμορο</span>', ek:'<span class="tag ek">κοινόχρηστο (ΕΚ)</span>'};
+  let h = `<table><thead><tr><th></th><th>ΚΑΕΚ</th><th>Ρόλος</th><th class="hide">Εμβαδόν</th><th>Αρχεία</th></tr></thead><tbody>`;
+  ROWS.forEach((r,i)=>{
+    const st = fileStatus(r.kaek);
+    h += `<tr><td><input type="checkbox" data-i="${i}" ${r.sel?"checked":""} aria-label="Επιλογή ${esc(r.kaek)}"></td><td class="k">${esc(r.kaek)}</td><td>${roleTxt[r.role]}${r.missing?' <span class="tag ek">δεν βρέθηκε</span>':''}</td>
+      <td class="hide">${r.area!=null?fmt(r.area)+" τ.μ.":"—"}</td><td class="st ${st.full?"ok":""}">${esc(st.txt)}</td></tr>`;
+  });
+  h += `</tbody></table><div class="row" style="margin-top:6px"><button class="btn sm" id="selAll">Όλα</button><button class="btn sm" id="selNoEk">Χωρίς ΕΚ</button><button class="btn sm" id="selMain">Μόνο κύρια</button><span class="note" id="selN"></span></div>`;
+  $("list").innerHTML = h;
+  $("list").querySelectorAll("input[type=checkbox]").forEach(c=> c.addEventListener("change", ()=>{ ROWS[+c.dataset.i].sel = c.checked; updSel(); }));
+  $("selAll").onclick = ()=>{ ROWS.forEach(r=>r.sel=true); renderList(); };
+  $("selNoEk").onclick = ()=>{ ROWS.forEach(r=>r.sel=r.role!=="ek"); renderList(); };
+  $("selMain").onclick = ()=>{ ROWS.forEach(r=>r.sel=r.role==="main"); renderList(); };
+  updSel();
+}
+function updSel(){ const n = ROWS.filter(r=>r.sel).length; const el=$("selN"); if(el) el.textContent = n + " επιλεγμένα"; extUI(); }
+function parseKaeks(s){ return [...new Set(String(s||"").toUpperCase().replace(/[^0-9ΕΚEK,;\s\/]/g," ").split(/[,;\s]+/).map(x=>x.split("/")[0]).filter(x=>/^\d{5}(?:[ΕΚEK]{2}|\d{2})\d{5}$/.test(x)).map(x=>x.replace(/E/g,"Ε").replace(/K/g,"Κ")))]; }
+$("kaekGo").onclick = ()=>{ const ks = parseKaeks($("kaekIn").value); if(!ks.length){ $("list").textContent="Μη έγκυρο ΚΑΕΚ (12 ψηφία ή ΕΚ)."; return; } findAll(ks).catch(e=>{ $("list").textContent = "Σφάλμα: " + e.message; }); };
+$("kaekIn").addEventListener("keydown", e=>{ if(e.key==="Enter") $("kaekGo").click(); });
+
+/* ---------- 2. πρόσθετο ---------- */
+let EXT = null;   // έκδοση πρόσθετου όταν απαντήσει
+window.addEventListener("message", e=>{
+  if(e.source!==window || !e.data || e.data.src!=="hexis-kt-ext") return;
+  if(e.data.type==="pong"){ EXT = e.data.version; extUI(); }
+  if(e.data.type==="file"){
+    const bin = atob(e.data.b64), u8 = new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
+    addFile(new File([u8], e.data.name, {type:"application/pdf"}), true);
+  }
+  if(e.data.type==="status"){ extStatus = e.data.text; extUI(); }
+});
+let extStatus = "";
+function ping(){ window.postMessage({src:"hexis-app", type:"ping"}, location.origin); }
+function extUI(){
+  const n = ROWS.filter(r=>r.sel).length;
+  $("startExt").disabled = !EXT || !n;
+  $("extState").innerHTML = EXT
+    ? `<div class="okbox">Το πρόσθετο HEXIS-APP είναι εγκατεστημένο (v${esc(EXT)}). ${extStatus?esc(extStatus):"Πάτα «Έναρξη»: ανοίγει το Κτηματολόγιο, συνδέεσαι με τους κωδικούς ΤΕΕ και το πρόσθετο κατεβάζει τα αποσπάσματα και τα έγγραφα των επιλεγμένων ΚΑΕΚ."}</div>`
+    : `<div class="warn">Για αυτόματο κατέβασμα χρειάζεται το <b>πρόσθετο HEXIS-APP</b> για Chrome ή Edge (σε υπολογιστή).</div>
+       <ol class="steps note"><li>Κατέβασε το <a href="hexis-kt-extension.zip" download>hexis-kt-extension.zip</a> και αποσυμπίεσέ το σε μόνιμο φάκελο.</li>
+       <li>Άνοιξε <b>chrome://extensions</b> (ή <b>edge://extensions</b>), ενεργοποίησε τη «Λειτουργία προγραμματιστή» και πάτα «Φόρτωση μη πακεταρισμένης» → διάλεξε τον φάκελο.</li>
+       <li>Ανανέωσε αυτή τη σελίδα.</li></ol>
+       <p class="note">Χωρίς πρόσθετο: άνοιξε την Έρευνα Μηχανικών, ψάξε ένα-ένα τα ΚΑΕΚ της λίστας και ρίξε τα PDF στο βήμα 3.</p>`;
+}
+$("startExt").onclick = ()=>{
+  const sel = ROWS.filter(r=>r.sel).map(r=>({kaek:r.kaek, role:r.role}));
+  const main = (ROWS.find(r=>r.role==="main")||{}).kaek || sel[0].kaek;
+  window.postMessage({src:"hexis-app", type:"job", job:{main, kaeks:sel, origin:location.origin, t:Date.now()}}, location.origin);
+  extStatus = "Ξεκίνησε — συνέχισε στην καρτέλα του Κτηματολογίου."; extUI();
+};
+
+/* ---------- 3. αρχεία ---------- */
+const FILES = [];  // {file, kaek, type, name}
+const TYPES = {perigrafiko:"Απόσπασμα περιγραφικής βάσης", xoriko:"Απόσπασμα χωρικής βάσης", symvolaio:"Συμβόλαιο", topografiko:"Τοπογραφικό", synyp:"Συνυποβαλλόμενο", titlos:"Τίτλος αρχικής εγγραφής", allo:"Έγγραφο"};
+function fileStatus(kaek){
+  const fs = FILES.filter(f=>f.kaek===kaek);
+  if(!fs.length) return {txt:"—", full:false};
+  const p = fs.some(f=>f.type==="perigrafiko"), x = fs.some(f=>f.type==="xoriko");
+  return {txt:(p?"περιγρ. ✓ ":"")+(x?"χωρικό ✓ ":"")+(fs.length-(p?1:0)-(x?1:0) ? `+${fs.length-(p?1:0)-(x?1:0)} έγγρ.` : ""), full:p&&x};
+}
+async function classify(file){
+  // 1) από όνομα αρχείου του πρόσθετου: <ΚΑΕΚ>__<τύπος>__...pdf
+  const m = file.name.match(/^(\d{5}(?:ΕΚ|\d{2})\d{5})__([a-z]+)/);
+  if(m) return {kaek:m[1], type:TYPES[m[2]] ? m[2] : "allo"};
+  // 2) από το κείμενο του PDF
+  let text = "";
+  try{
+    if(typeof pdfjsLib==="undefined"){ await load(LIBS.pdfjs); pdfjsLib.GlobalWorkerOptions.workerSrc = LIBS.pdfw; }
+    const pdf = await pdfjsLib.getDocument({data: new Uint8Array(await file.arrayBuffer())}).promise;
+    for(let i=1;i<=Math.min(2,pdf.numPages);i++){ const tc = await (await pdf.getPage(i)).getTextContent(); text += " " + tc.items.map(t=>t.str).join(" "); }
+  }catch(e){ console.warn(e); }
+  const up = text.toUpperCase();
+  const km = up.replace(/\s+/g,"").match(/(\d{5}(?:ΕΚ|EK|\d{2})\d{5})/) || file.name.toUpperCase().match(/(\d{5}(?:ΕΚ|EK|\d{2})\d{5})/);
+  const kaek = km ? km[1].replace("EK","ΕΚ") : "";
+  const type = /ΠΕΡΙΓΡΑΦΙΚ/.test(up) ? "perigrafiko" : /ΧΩΡΙΚ|ΔΙΑΓΡΑΜΜΑΤΟΣ/.test(up) ? "xoriko" : /ΤΟΠΟΓΡΑΦΙΚ/.test(up) ? "topografiko" : /ΣΥΜΒΟΛΑΙ/.test(up) ? "symvolaio" : "allo";
+  return {kaek, type};
+}
+/* φάκελος αποθήκευσης που διαλέγει ο χρήστης (Chrome/Edge σε υπολογιστή) */
+let DIR = null;
+const canDir = typeof window.showDirectoryPicker === "function";
+if(!canDir){ $("dirPick").style.display="none"; $("dirName").textContent = "Λήψεις του browser / ZIP"; }
+$("dirPick").onclick = async ()=>{
+  try{ DIR = await window.showDirectoryPicker({id:"hexis-fakelos", mode:"readwrite", startIn:"documents"}); $("dirName").textContent = DIR.name; $("dirNote").textContent = "Κάθε αρχείο που φτάνει σώζεται εδώ, σε υποφακέλους ανά ΚΑΕΚ.";
+    for(const f of FILES) await writeOut(f); }
+  catch(e){ if(e.name!=="AbortError") $("dirNote").textContent = "Δεν δόθηκε πρόσβαση στον φάκελο: " + e.message; }
+};
+const RL = {main:"01_KYRIO", omoro:"02_OMORA", ek:"03_KOINOXRISTA", allo:"04_ALLA"};
+const BASE = {perigrafiko:"Perigrafiki_vasi", xoriko:"Xoriki_vasi", symvolaio:"Symvolaio", topografiko:"Topografiko", synyp:"Synypovallomeno", titlos:"Titlos", allo:"Eggrafo"};
+function outPath(f){
+  const k = f.kaek || "XORIS_KAEK", role = (ROWS.find(r=>r.kaek===f.kaek)||{}).role || "allo";
+  const same = FILES.filter(g=> g.kaek===f.kaek && g.type===f.type); const n = same.indexOf(f)+1;
+  return [RL[role], k, k + "_" + BASE[f.type] + (n>1?"_"+n:"") + ".pdf"];
+}
+async function writeOut(f){
+  if(!DIR || f.saved) return;
+  try{
+    const [d1,d2,name] = outPath(f);
+    const h1 = await DIR.getDirectoryHandle(d1,{create:true}), h2 = await h1.getDirectoryHandle(d2,{create:true});
+    const fh = await h2.getFileHandle(name,{create:true}), w = await fh.createWritable(); await w.write(f.file); await w.close();
+    f.saved = d1+"/"+d2+"/"+name;
+  }catch(e){ console.warn(e); $("dirNote").textContent = "Σφάλμα αποθήκευσης: " + e.message; }
+}
+async function addFile(file){
+  if(FILES.some(f=>f.file.name===file.name && f.file.size===file.size)) return;
+  const c = await classify(file);
+  const rec = {file, kaek:c.kaek, type:c.type};
+  FILES.push(rec);
+  await writeOut(rec);
+  if(c.kaek && !ROWS.some(r=>r.kaek===c.kaek)) ROWS.push({kaek:c.kaek, role: ROWS.length ? (isEK(c.kaek)?"ek":"omoro") : "main", area:null, sel:true});
+  renderFiles(); renderList();
+}
+function renderFiles(){
+  $("zipBtn").disabled = !FILES.length;
+  if(!FILES.length){ $("files").innerHTML = ""; return; }
+  $("files").innerHTML = `<div class="grid">${FILES.map((f,i)=>`<div class="chip"><b>${esc(f.kaek||"ΚΑΕΚ;")}</b>${esc(TYPES[f.type])}<div class="muted" style="font-size:11.5px;word-break:break-all">${esc(f.saved ? "✓ " + f.saved : f.file.name)}</div></div>`).join("")}</div>`;
+  $("zipNote").textContent = FILES.length + " αρχεία";
+}
+const drop = $("drop");
+drop.onclick = ()=> $("pick").click();
+$("pick").onchange = e=> [...e.target.files].forEach(addFile);
+drop.addEventListener("dragover", e=>{ e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", ()=> drop.classList.remove("over"));
+drop.addEventListener("drop", e=>{ e.preventDefault(); drop.classList.remove("over"); [...e.dataTransfer.files].filter(f=>/pdf$/i.test(f.name)||f.type==="application/pdf").forEach(addFile); });
+$("zipBtn").onclick = async ()=>{
+  if(typeof JSZip==="undefined") await load(LIBS.jszip);
+  const zip = new JSZip(), main = (ROWS.find(r=>r.role==="main")||{}).kaek || "akinito";
+  FILES.forEach(f=> zip.file(outPath(f).join("/"), f.file));
+  const lines = ["ΚΑΕΚ;Ρόλος;Εμβαδόν (τ.μ.);Περιγραφική;Χωρική;Λοιπά έγγραφα"];
+  ROWS.forEach(r=>{ const fs=FILES.filter(f=>f.kaek===r.kaek); lines.push([r.kaek, {main:"κύριο",omoro:"όμορο",ek:"κοινόχρηστο"}[r.role]||"", r.area!=null?r.area.toFixed(2).replace(".",","):"", fs.some(f=>f.type==="perigrafiko")?"ΝΑΙ":"", fs.some(f=>f.type==="xoriko")?"ΝΑΙ":"", fs.filter(f=>!["perigrafiko","xoriko"].includes(f.type)).length].join(";")); });
+  zip.file("00_EYRETIRIO.csv", "﻿" + lines.join("\r\n"));
+  const blob = await zip.generateAsync({type:"blob", compression:"DEFLATE"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "Fakelos_" + main + ".zip"; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+};
+
+/* ---------- εκκίνηση ---------- */
+const initK = parseKaeks(P.getAll("kaek").join(","));
+if(initK.length){ $("kaekIn").value = initK.join(", "); findAll(initK).catch(e=>{ $("list").textContent = "Σφάλμα: " + e.message; }); }
+extUI(); ping(); setTimeout(ping, 600); setTimeout(ping, 1800);
+})();
+</script>
+</body>
+</html>
