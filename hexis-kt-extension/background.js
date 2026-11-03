@@ -6,8 +6,8 @@ let expect = null;   // { name, until, tab } — όνομα για την επό
 const tracked = new Map();   // downloadId → { name, tab, sent }
 async function toOrigin(msg) {
   const job = (await chrome.storage.local.get("job")).job;
-  if (!job || job.originTab == null) return false;
-  try { await chrome.tabs.sendMessage(job.originTab, msg); return true; } catch (e) { return false; }
+  if (!job || job.originTab == null) return null;
+  try { return (await chrome.tabs.sendMessage(job.originTab, msg)) || { saved: false }; } catch (e) { return null; }
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
@@ -41,9 +41,11 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     } else if (msg.type === "file") {
       // αρχείο που διάβασε το πρόσθετο από το Κτηματολόγιο → στη σελίδα «Φάκελος Ακινήτου» (αποθηκεύει όπου διάλεξε ο χρήστης)
       const job = (await chrome.storage.local.get("job")).job;
-      const ok = await toOrigin({ type: "file", name: msg.name, b64: msg.b64 });
-      if (!ok && !msg.noFallback) await chrome.downloads.download({ url: "data:application/pdf;base64," + msg.b64, filename: "HEXIS-APP/" + (job ? job.main : "fakelos") + "/" + msg.name, conflictAction: "uniquify" });
-      reply({ ok: true, delivered: ok });
+      // η σελίδα του Φακέλου το σώζει στον φάκελο που διάλεξε ο χρήστης· αν δεν έχει διαλέξει → Λήψεις/HEXIS-APP/...
+      const r = await toOrigin({ type: "file", name: msg.name, rel: msg.rel, b64: msg.b64 });
+      const saved = !!(r && r.saved);
+      if (!saved && !msg.noFallback) await chrome.downloads.download({ url: "data:application/pdf;base64," + msg.b64, filename: "HEXIS-APP/" + (msg.rel || ((job ? job.main : "fakelos") + "/" + msg.name)), conflictAction: "uniquify" });
+      reply({ ok: true, saved });
     } else if (msg.type === "download") {
       const id = await chrome.downloads.download({ url: msg.url, filename: msg.name, conflictAction: "uniquify", saveAs: false });
       if (id != null) tracked.set(id, { name: msg.name, tab: sender.tab && sender.tab.id });
@@ -72,7 +74,9 @@ chrome.downloads.onChanged.addListener(async (d) => {
   let sent = false;
   const url = (item && (item.finalUrl || item.url)) || t.url;
   if (t.tab != null && url && /^https:\/\/ktimatologio\.gov\.gr\//.test(url)) {
-    try { const r = await chrome.tabs.sendMessage(t.tab, { type: "refetch", url, name: short }); sent = !!(r && r.ok); } catch (e) { sent = false; }
+    try { const r = await chrome.tabs.sendMessage(t.tab, { type: "refetch", url, name: t.name }); sent = !!(r && r.ok); } catch (e) { sent = false; }
   }
-  if (!sent) await toOrigin({ type: "downloaded", name: short, path: item ? item.filename : t.name });
+  // σώθηκε ήδη στον φάκελο του χρήστη → σβήνουμε το διπλό από τις Λήψεις
+  if (sent) { try { await chrome.downloads.removeFile(d.id); await chrome.downloads.erase({ id: d.id }); } catch (e) {} }
+  else await toOrigin({ type: "downloaded", name: short, path: item ? item.filename : t.name });
 });

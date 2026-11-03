@@ -74,7 +74,31 @@
       const up = () => { removeEventListener("mousemove", mv); removeEventListener("mouseup", up); }; addEventListener("mousemove", mv); addEventListener("mouseup", up); }); })();
 
   const save = () => send({ type: "setJob", job: JOB });
-  const fname = (kaek, type, n) => `HEXIS-APP/${JOB.main}/${kaek}__${type}${n ? "__" + n : ""}.pdf`;
+  // Φάκελοι: Λήψεις/HEXIS-APP/<ΚΑΕΚ - ΙΔΙΟΚΤΗΤΗΣ - ΟΤΑ κύριου>/ και μέσα υποφάκελος για κάθε όμορο
+  const BASE = { perigrafiko: "Perigrafiki_vasi", xoriko: "Xoriki_vasi", symvolaio: "Symvolaio", topografiko: "Topografiko", synyp: "Synypovallomeno", titlos: "Titlos", eggrafo: "Eggrafo" };
+  const safe = (s) => String(s || "").replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim().replace(/[. ]+$/, "").slice(0, 70);
+  const folderName = (kaek) => { const it = (JOB.kaeks || []).find((x) => x.kaek === kaek) || {}; return safe([kaek, (JOB.owner || {})[kaek], it.ota].filter(Boolean).join(" - ")); };
+  const mainKaek = () => ((JOB.kaeks || []).find((x) => x.role === "main") || {}).kaek || JOB.main;
+  const folderOf = (kaek) => kaek === mainKaek() ? folderName(kaek) : folderName(mainKaek()) + "/" + folderName(kaek);
+  const fname = (kaek, type, n) => `HEXIS-APP/${folderOf(kaek)}/${kaek}_${BASE[type] || BASE.eggrafo}${n ? "_" + n : ""}.pdf`;
+  // όνομα ιδιοκτήτη από την οθόνη ακινήτου (μόνο για να ονομαστεί ο φάκελος στον υπολογιστή σου — δεν στέλνεται πουθενά)
+  function readOwner() {
+    const clean = (s) => String(s || "").replace(/\s+/g, " ").trim();
+    const ok = (s) => s && s.length >= 3 && s.length <= 80 && /[Α-ΩA-Zα-ωa-z]/.test(s) && !/\d{5,}/.test(s);
+    for (const t of document.querySelectorAll("table")) {
+      const hr = t.querySelector("thead tr") || t.querySelector("tr"); if (!hr) continue;
+      const ths = [...hr.children].map((th) => norm(th.innerText));
+      const iFull = ths.findIndex((h) => /ΟΝΟΜΑΤΕΠΩΝΥΜΟ|ΔΙΚΑΙΟΥΧ|ΙΔΙΟΚΤΗΤ|ΕΠΩΝΥΜΟ\s*\/\s*ΕΠΩΝΥΜΙΑ|^ΕΠΩΝΥΜΙΑ$/.test(h));
+      const iSur = ths.findIndex((h) => /^ΕΠΩΝΥΜΟ$/.test(h)), iName = ths.findIndex((h) => /^ΟΝΟΜΑ$/.test(h));
+      if (iFull < 0 && iSur < 0) continue;
+      const rows = [...t.querySelectorAll("tr")].filter((r) => r !== hr && r.querySelector("td"));
+      const names = rows.map((r) => { const c = [...r.children].map((x) => clean(x.innerText)); return iFull >= 0 ? c[iFull] : [c[iSur], iName >= 0 ? c[iName] : ""].filter(Boolean).join(" "); }).filter(ok);
+      if (names.length) return names[0] + (names.length > 1 ? " κ.α." : "");
+    }
+    const labs = [...document.querySelectorAll("label,dt,th,td,span,div,strong,b")].filter((el) => el.children.length <= 1 && /^(ΔΙΚΑΙΟΥΧΟΣ|ΔΙΚΑΙΟΥΧΟΙ|ΟΝΟΜΑΤΕΠΩΝΥΜΟ|ΕΠΩΝΥΜΙΑ|ΙΔΙΟΚΤΗΤΗΣ|ΙΔΙΟΚΤΗΤΕΣ)\s*:?$/.test(norm(el.innerText)));
+    for (const l of labs) { const v = l.nextElementSibling; if (v && ok(clean(v.innerText))) return clean(v.innerText); }
+    return "";
+  }
 
   /* ---------- άνοιγμα PDF σε νέο παράθυρο: πιάνουμε το URL και το κατεβάζουμε με όνομα ---------- */
   let pendingName = null;
@@ -84,7 +108,7 @@
   chrome.runtime.onMessage.addListener((m, s, reply) => {
     if (!m || m.type !== "refetch") return;
     (async () => { try { const r = await fetch(m.url, { credentials: "include" }); const buf = r.ok ? await r.arrayBuffer() : null;
-      if (isPdf(buf)) { await send({ type: "file", name: m.name, b64: b64(buf), noFallback: true }); reply({ ok: true }); } else reply({ ok: false }); } catch (e) { reply({ ok: false }); } })();
+      if (isPdf(buf)) { const r2 = await send({ type: "file", name: m.name.split("/").pop(), rel: m.name.replace(/^HEXIS-APP\//, ""), b64: b64(buf), noFallback: true }); reply({ ok: !!(r2 && r2.saved) }); } else reply({ ok: false }); } catch (e) { reply({ ok: false }); } })();
     return true;
   });
   // πρώτα: διαβάζουμε το αρχείο μέσα στη συνεδρία και το στέλνουμε στη σελίδα του HEXIS-APP (σώζει όπου διάλεξες)
@@ -93,7 +117,7 @@
       const r = await fetch(url, { credentials: "include" });
       if (r.ok) {
         const buf = await r.arrayBuffer();
-        if (isPdf(buf)) { await send({ type: "file", name: name.split("/").pop(), b64: b64(buf) }); return true; }
+        if (isPdf(buf)) { await send({ type: "file", name: name.split("/").pop(), rel: name.replace(/^HEXIS-APP\//, ""), b64: b64(buf) }); return true; }
       }
     } catch (e) { /* συνεχίζουμε με λήψη */ }
     await send({ type: "download", url, name });
@@ -150,6 +174,8 @@
   }
   async function stepProperty(k) {
     let got = [];
+    JOB.owner = JOB.owner || {};
+    if (!JOB.owner[k.kaek]) { const o = readOwner(); if (o) { JOB.owner[k.kaek] = o; await save(); } }
     const p = findClickable(/ΑΠΟΣΠΑΣΜΑ ΠΕΡΙΓΡΑΦΙΚΗΣ/);
     if (!p) return { wait: "Δεν βρίσκω το «ΑΠΟΣΠΑΣΜΑ ΠΕΡΙΓΡΑΦΙΚΗΣ ΒΑΣΗΣ» στην οθόνη ακινήτου." };
     say("Απόσπασμα περιγραφικής βάσης…"); await clickAndCapture(p, fname(k.kaek, "perigrafiko")); got.push("περιγρ.");
@@ -175,7 +201,7 @@
 
   async function loop() {
     while (RUN && JOB) {
-      if (JOB.i >= JOB.kaeks.length) { RUN = false; render("✓ Τελείωσε. Τα αρχεία στάλθηκαν στη σελίδα «Φάκελος Ακινήτου» του HEXIS-APP (αν την είχες κλείσει, είναι στις Λήψεις › HEXIS-APP › " + JOB.main + ")."); return; }
+      if (JOB.i >= JOB.kaeks.length) { RUN = false; render("✓ Τελείωσε. Φάκελος: «" + folderName(mainKaek()) + "» (με υποφάκελο για κάθε όμορο) — στον φάκελο που διάλεξες στη σελίδα του Φακέλου, αλλιώς στις Λήψεις › HEXIS-APP."); return; }
       if (isLogin()) { render("Συνδέσου με τους κωδικούς ΤΕΕ σε αυτή τη σελίδα. Μετά τη σύνδεση η εργασία συνεχίζει μόνη της.", true); RUN = false; return; }
       const k = JOB.kaeks[JOB.i];
       render(`ΚΑΕΚ ${k.kaek}: ${JOB.step === "search" ? "αναζήτηση" : JOB.step === "result" ? "επιλογή αποτελέσματος" : "λήψη αρχείων"}…`);

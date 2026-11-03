@@ -101,7 +101,7 @@ ol.steps li{margin:4px 0}
     <h2>3. Αρχεία φακέλου</h2>
     <div class="row" style="margin-bottom:8px"><span>Αποθήκευση σε:</span> <b id="dirName">—</b>
       <button class="btn sm" id="dirPick">Επιλογή φακέλου…</button>
-      <span class="note" id="dirNote">Αν δεν διαλέξεις φάκελο, τα αρχεία μαζεύονται εδώ και τα κατεβάζεις ως ZIP όπου θέλεις.</span></div>
+      <span class="note" id="dirNote">Αν δεν διαλέξεις φάκελο, το πρόσθετο τα σώζει μόνο του στις Λήψεις › HEXIS-APP. Σε κάθε περίπτωση: φάκελος «ΚΑΕΚ - Ιδιοκτήτης - ΟΤΑ» του κύριου, με υποφάκελο για κάθε όμορο.</span></div>
     <div class="drop" id="drop">Ρίξε εδώ τα PDF που κατέβηκαν (φάκελος <b>Λήψεις › HEXIS-APP › ΚΑΕΚ</b>) ή πάτα για επιλογή</div>
     <input type="file" id="pick" accept="application/pdf,.pdf" multiple hidden>
     <div id="files"></div>
@@ -161,6 +161,23 @@ async function findAll(kaeks){
     nb.forEach(n=>{ if(seen.has(n.kaek)) return; seen.add(n.kaek); ROWS.push({kaek:n.kaek, role: isEK(n.kaek) ? "ek" : "omoro", area:areaOf(n.rings), sel: !isEK(n.kaek)}); });
   }
   renderList(); renderFiles();
+  addOta(mains).catch(e=>console.warn(e));
+}
+async function addOta(mains){
+  const groups = new Map();
+  ROWS.forEach(r=>{ const p = r.kaek.slice(0,5); if(!groups.has(p)) groups.set(p, []); groups.get(p).push(r); });
+  const ptOf = rings=>{ let sx=0, sy=0, n=0; (rings[0]||[]).forEach(([x,y])=>{ sx+=x; sy+=y; n++; }); return n ? [sx/n, sy/n] : null; };
+  const m0 = mains.find(m=>m.rings.length); if(!m0) return;
+  for(const [p, rows] of groups){
+    const m = mains.find(x=>x.kaek.slice(0,5)===p && x.rings.length) || m0, pt = ptOf(m.rings); if(!pt) continue;
+    try{
+      const u = "https://sdigmap.tee.gov.gr/mapping/rest/services/UDM/UDM_SERVICE_ELSTAT/MapServer/5/query?f=json&geometry="+pt.join(",")+"&geometryType=esriGeometryPoint&inSR=2100&spatialRel=esriSpatialRelIntersects&outFields=NAME_GR&returnGeometry=false";
+      const j = await (await fetch(u)).json();
+      const nm = String((((j.features||[])[0]||{}).attributes||{}).NAME_GR||"").replace(/^ΔΗΜΟΤΙΚΗ ΕΝΟΤΗΤΑ\s+/i,"").trim();
+      if(nm) rows.forEach(r=> r.ota = nm);
+    }catch(e){ console.warn(e); }
+  }
+  renderList();
 }
 function renderList(){
   if(!ROWS.length){ $("list").innerHTML = "Δεν βρέθηκαν γεωτεμάχια."; return; }
@@ -186,13 +203,16 @@ $("kaekIn").addEventListener("keydown", e=>{ if(e.key==="Enter") $("kaekGo").cli
 
 /* ---------- 2. πρόσθετο ---------- */
 let EXT = null;   // έκδοση πρόσθετου όταν απαντήσει
-const EXT_LATEST = "0.1.2";
+const EXT_LATEST = "0.1.3";
 window.addEventListener("message", e=>{
   if(e.source!==window || !e.data || e.data.src!=="hexis-kt-ext") return;
   if(e.data.type==="pong"){ EXT = e.data.version; extUI(); }
   if(e.data.type==="file"){
     const bin = atob(e.data.b64), u8 = new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
-    addFile(new File([u8], e.data.name, {type:"application/pdf"}), true);
+    const id = e.data.id;
+    addFile(new File([u8], e.data.name, {type:"application/pdf"}), e.data.rel||"").then(rec=>{
+      window.postMessage({src:"hexis-app", type:"fileAck", id, saved: !!(rec && rec.saved)}, location.origin);
+    });
   }
   if(e.data.type==="status"){ extStatus = e.data.text; extUI(); }
   if(e.data.type==="downloaded"){ DL.push({name:e.data.name, path:e.data.path||""}); renderFiles(); }
@@ -212,7 +232,7 @@ function extUI(){
        <p class="note">Χωρίς πρόσθετο: άνοιξε την Έρευνα Μηχανικών, ψάξε ένα-ένα τα ΚΑΕΚ της λίστας και ρίξε τα PDF στο βήμα 3.</p>`;
 }
 $("startExt").onclick = ()=>{
-  const sel = ROWS.filter(r=>r.sel).map(r=>({kaek:r.kaek, role:r.role}));
+  const sel = ROWS.filter(r=>r.sel).map(r=>({kaek:r.kaek, role:r.role, ota:r.ota||""}));
   const main = (ROWS.find(r=>r.role==="main")||{}).kaek || sel[0].kaek;
   window.postMessage({src:"hexis-app", type:"job", job:{main, kaeks:sel, origin:location.origin, t:Date.now()}}, location.origin);
   extStatus = "Ξεκίνησε — συνέχισε στην καρτέλα του Κτηματολογίου."; extUI();
@@ -232,6 +252,8 @@ async function classify(file){
   // 1) από όνομα αρχείου του πρόσθετου: <ΚΑΕΚ>__<τύπος>__...pdf
   const m = file.name.match(/^(\d{5}(?:ΕΚ|\d{2})\d{5})__([a-z]+)/);
   if(m) return {kaek:m[1], type:TYPES[m[2]] ? m[2] : "allo"};
+  const m2 = file.name.match(/^(\d{5}(?:ΕΚ|\d{2})\d{5})_([A-Za-z]+_?[A-Za-z]*)/);
+  if(m2){ const t = Object.keys(BASE).find(k=> m2[2].startsWith(BASE[k])); if(t) return {kaek:m2[1], type:t}; }
   // 2) από το κείμενο του PDF
   let text = "";
   try{
@@ -249,35 +271,44 @@ async function classify(file){
 let DIR = null;
 const canDir = typeof window.showDirectoryPicker === "function";
 if(!canDir){ $("dirPick").style.display="none"; $("dirName").textContent = "Λήψεις του browser / ZIP"; }
+window.HXFakelos = { setDir(h){ DIR = h; } };   // για αυτόματους ελέγχους
 $("dirPick").onclick = async ()=>{
-  try{ DIR = await window.showDirectoryPicker({id:"hexis-fakelos", mode:"readwrite", startIn:"documents"}); $("dirName").textContent = DIR.name; $("dirNote").textContent = "Κάθε αρχείο που φτάνει σώζεται εδώ, σε υποφακέλους ανά ΚΑΕΚ.";
+  try{ DIR = await window.showDirectoryPicker({id:"hexis-fakelos", mode:"readwrite", startIn:"documents"}); $("dirName").textContent = DIR.name; $("dirNote").textContent = "Κάθε αρχείο που φτάνει σώζεται εδώ: φάκελος «ΚΑΕΚ - Ιδιοκτήτης - ΟΤΑ» του κύριου, με υποφάκελο για κάθε όμορο.";
     for(const f of FILES) await writeOut(f); }
   catch(e){ if(e.name!=="AbortError") $("dirNote").textContent = "Δεν δόθηκε πρόσβαση στον φάκελο: " + e.message; }
 };
 const RL = {main:"01_KYRIO", omoro:"02_OMORA", ek:"03_KOINOXRISTA", allo:"04_ALLA"};
 const BASE = {perigrafiko:"Perigrafiki_vasi", xoriko:"Xoriki_vasi", symvolaio:"Symvolaio", topografiko:"Topografiko", synyp:"Synypovallomeno", titlos:"Titlos", allo:"Eggrafo"};
+const OWNER = {};   // ΚΑΕΚ → ιδιοκτήτης (όπως τον έδωσε το πρόσθετο στο όνομα φακέλου)
+const safeName = s => String(s||"").replace(/[\\/:*?"<>|\u0000-\u001f]+/g," ").replace(/\s+/g," ").trim().replace(/[. ]+$/,"").slice(0,70);
+function folderName(k){ const r = ROWS.find(x=>x.kaek===k) || {}; return safeName([k, OWNER[k], r.ota].filter(Boolean).join(" - ")) || "XORIS_KAEK"; }
+function mainK(){ return (ROWS.find(r=>r.role==="main")||{}).kaek || ""; }
 function outPath(f){
-  const k = f.kaek || "XORIS_KAEK", role = (ROWS.find(r=>r.kaek===f.kaek)||{}).role || "allo";
-  const same = FILES.filter(g=> g.kaek===f.kaek && g.type===f.type); const n = same.indexOf(f)+1;
-  return [RL[role], k, k + "_" + BASE[f.type] + (n>1?"_"+n:"") + ".pdf"];
+  if(f.rel) return f.rel.split("/").filter(Boolean);
+  const k = f.kaek, mk = mainK();
+  const dirs = !k ? [folderName(mk), "ALLA"] : (k===mk || !mk) ? [folderName(k)] : [folderName(mk), folderName(k)];
+  const same = FILES.filter(g=> g.kaek===f.kaek && g.type===f.type && !g.rel); const n = same.indexOf(f)+1;
+  return dirs.concat([(k||"eggrafo") + "_" + BASE[f.type] + (n>1?"_"+n:"") + ".pdf"]);
 }
 async function writeOut(f){
   if(!DIR || f.saved) return;
   try{
-    const [d1,d2,name] = outPath(f);
-    const h1 = await DIR.getDirectoryHandle(d1,{create:true}), h2 = await h1.getDirectoryHandle(d2,{create:true});
-    const fh = await h2.getFileHandle(name,{create:true}), w = await fh.createWritable(); await w.write(f.file); await w.close();
-    f.saved = d1+"/"+d2+"/"+name;
+    const parts = outPath(f), name = parts.pop();
+    let h = DIR; for(const d of parts) h = await h.getDirectoryHandle(d,{create:true});
+    const fh = await h.getFileHandle(name,{create:true}), w = await fh.createWritable(); await w.write(f.file); await w.close();
+    f.saved = parts.concat([name]).join("/");
   }catch(e){ console.warn(e); $("dirNote").textContent = "Σφάλμα αποθήκευσης: " + e.message; }
 }
-async function addFile(file){
-  if(FILES.some(f=>f.file.name===file.name && f.file.size===file.size)) return;
+async function addFile(file, rel){
+  const dup = FILES.find(f=>f.file.name===file.name && f.file.size===file.size); if(dup) return dup;
   const c = await classify(file);
-  const rec = {file, kaek:c.kaek, type:c.type};
+  if(rel){ const segs = rel.split("/"); segs.slice(0,-1).forEach(sg=>{ const m = sg.split(" - "); if(m.length>=2 && m[0]===c.kaek && !ROWS.find(r=>r.kaek===c.kaek && r.ota===m[1])) OWNER[c.kaek] = m[1]; }); }
+  const rec = {file, kaek:c.kaek, type:c.type, rel: rel||""};
   FILES.push(rec);
   await writeOut(rec);
   if(c.kaek && !ROWS.some(r=>r.kaek===c.kaek)) ROWS.push({kaek:c.kaek, role: ROWS.length ? (isEK(c.kaek)?"ek":"omoro") : "main", area:null, sel:true});
   renderFiles(); renderList();
+  return rec;
 }
 function renderFiles(){
   $("zipBtn").disabled = !FILES.length;
@@ -289,10 +320,10 @@ function renderFiles(){
 }
 const drop = $("drop");
 drop.onclick = ()=> $("pick").click();
-$("pick").onchange = e=> [...e.target.files].forEach(addFile);
+$("pick").onchange = e=> [...e.target.files].forEach(f=>addFile(f));
 drop.addEventListener("dragover", e=>{ e.preventDefault(); drop.classList.add("over"); });
 drop.addEventListener("dragleave", ()=> drop.classList.remove("over"));
-drop.addEventListener("drop", e=>{ e.preventDefault(); drop.classList.remove("over"); [...e.dataTransfer.files].filter(f=>/pdf$/i.test(f.name)||f.type==="application/pdf").forEach(addFile); });
+drop.addEventListener("drop", e=>{ e.preventDefault(); drop.classList.remove("over"); [...e.dataTransfer.files].filter(f=>/pdf$/i.test(f.name)||f.type==="application/pdf").forEach(f=>addFile(f)); });
 $("zipBtn").onclick = async ()=>{
   if(typeof JSZip==="undefined") await load(LIBS.jszip);
   const zip = new JSZip(), main = (ROWS.find(r=>r.role==="main")||{}).kaek || "akinito";
