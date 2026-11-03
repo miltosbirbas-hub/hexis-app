@@ -20,7 +20,6 @@ const LAYERS: Record<string, string> = {
   ot:        P + "6",                                       // Οικοδομικά τετράγωνα
   ektos:     P + "9",                                       // Περιοχή εκτός σχεδίου
   enotita:   P + "14",                                      // Πολεοδομική ενότητα / τομέας
-  oroi:      P + "15",                                      // Πολύγωνα όρων δόμησης
   ypsos:     P + "16",                                      // Αριθμός ορόφων – ύψος
   artiotita: P + "17",                                      // Αρτιότητα
   kalypsi:   P + "18",                                      // Κάλυψη
@@ -30,7 +29,6 @@ const LAYERS: Record<string, string> = {
   koinox:    P + "22",                                      // Κοινόχρηστοι – κοινωφελείς χώροι
   archaiol:  P + "23",                                      // Ζώνη αρχαιολογική
   apallotr:  P + "24",                                      // Ζώνη απαλλοτρίωσης
-  xriseis:   P + "25",                                      // Χρήσεις γης
   xriseis_gps: P + "26",                                    // Χρήσεις γης ΓΠΣ
   zoe:       "UDM_SERVICE_RYTHMISEIS_EXOASTIKOU_CHOROU/MapServer/0",  // ΖΟΕ
   pd_prost:  "UDM_SERVICE_RYTHMISEIS_EXOASTIKOU_CHOROU/MapServer/2",  // Ζώνες ΠΔ προστασίας
