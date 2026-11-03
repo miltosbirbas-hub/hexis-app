@@ -22,8 +22,12 @@
   const textOf = (el) => norm(el.innerText || el.value || el.getAttribute("title") || el.getAttribute("aria-label") || "");
   const CLICKABLE = "a,button,input[type=submit],input[type=button],[role=button],[role=tab],[onclick],span.btn,div.btn,li";
 
+  // ΠΟΤΕ σε σύνδεσμο άλλου site (social media, gov.gr κ.λπ.) ή στο υποσέλιδο
+  const external = (el) => { try { const a = el.closest && el.closest("a[href]"); if (!a) return false; const u = new URL(a.getAttribute("href"), location.href); return u.host !== location.host || u.protocol !== location.protocol; } catch (e) { return false; } };
+  const inFooter = (el) => !!(el.closest && el.closest("footer,.footer,#footer,[class*=footer],[id*=footer]"));
+  const safeEl = (el) => !external(el) && !inFooter(el) && !(typeof panel !== "undefined" && panel.contains(el));
   function findClickable(rx, root = document) {
-    const all = [...root.querySelectorAll(CLICKABLE)].filter(vis);
+    const all = [...root.querySelectorAll(CLICKABLE)].filter((el) => vis(el) && safeEl(el));
     const hits = all.filter((el) => rx.test(textOf(el)));
     // ίδιο κείμενο: προτιμάμε a/button από περιέκτες (li, div) — αλλιώς το κλικ «πέφτει» στο κενό
     const rank = (el) => (/^(A|BUTTON|INPUT)$/.test(el.tagName) ? 0 : el.getAttribute("role") === "button" || el.hasAttribute("onclick") ? 1 : 2);
@@ -150,7 +154,7 @@
 
   /* ---------- βήματα ---------- */
   // όλοι οι σύνδεσμοι της σελίδας (και όσοι είναι μέσα σε κλειστά μενού)
-  const allLinks = () => [...document.querySelectorAll("a[href]")].filter((a) => !panel.contains(a) && !/^javascript:|^#|^mailto:|^tel:/i.test(a.getAttribute("href") || "") && !/LOGOUT|LOGOFF|SIGNOUT|ΑΠΟΣΥΝΔΕΣ|ΕΞΟΔΟΣ/i.test(norm(a.textContent) + " " + a.href.toUpperCase()));
+  const allLinks = () => [...document.querySelectorAll("a[href]")].filter((a) => safeEl(a) && !/^javascript:|^#|^mailto:|^tel:/i.test(a.getAttribute("href") || "") && !/LOGOUT|LOGOFF|SIGNOUT|ΑΠΟΣΥΝΔΕΣ|ΕΞΟΔΟΣ/i.test(norm(a.textContent) + " " + a.href.toUpperCase()));
   function searchLink() {
     const L = allLinks();
     return L.find((a) => /^(ΑΚΙΝΗΤΟ|ΑΚΙΝΗΤΑ|ΕΡΕΥΝΑ ΑΚΙΝΗΤΟΥ|ΑΝΑΖΗΤΗΣΗ ΑΚΙΝΗΤΟΥ|ΕΡΕΥΝΑ ΒΑΣΕΙ ΑΚΙΝΗΤΟΥ)$/.test(norm(a.textContent)))
@@ -174,8 +178,10 @@
         const l = searchLink();
         if (l) { location.assign(l.href); await sleep(5000); return { next: true }; }
         // 4) άνοιγμα μενού (⋮ / ☰) και ξανά
-        const menus = [...document.querySelectorAll("button,a,[role=button]")].filter((el) => vis(el) && !panel.contains(el) && (/menu|toggle|dropdown|navbar|kebab|more/i.test((el.className && el.className.baseVal != null ? el.className.baseVal : el.className) + " " + (el.getAttribute("aria-label") || "") + " " + (el.id || "")) || /^(⋮|☰|…|ΜΕΝΟΥ)$/.test(textOf(el))));
-        for (const mb of menus.slice(0, 3)) { try { mb.click(); await sleep(800); } catch (e) {} const m3 = findClickable(/^(ΑΚΙΝΗΤΟ|ΕΡΕΥΝΑ)$/); if (m3) { m3.click(); await sleep(2500); break; } }
+        // μόνο κουμπιά μενού στην κεφαλίδα (πάνω μέρος της σελίδας), όχι σύνδεσμοι προς άλλες σελίδες
+        const menus = [...document.querySelectorAll("button,[role=button],a[href='#'],a:not([href]),[data-toggle],[data-bs-toggle]")]
+          .filter((el) => vis(el) && safeEl(el) && el.getBoundingClientRect().top < 220 && (/menu|toggle|dropdown|navbar|kebab|more/i.test((el.className && el.className.baseVal != null ? el.className.baseVal : el.className) + " " + (el.getAttribute("aria-label") || "") + " " + (el.id || "")) || /^(⋮|☰|…|ΜΕΝΟΥ)$/.test(textOf(el)) || el.hasAttribute("data-toggle") || el.hasAttribute("data-bs-toggle")));
+        for (const mb of menus.slice(0, 2)) { try { mb.click(); await sleep(800); } catch (e) {} const m3 = findClickable(/^(ΑΚΙΝΗΤΟ|ΕΡΕΥΝΑ)$/); if (m3) { m3.click(); await sleep(2500); break; } }
       }
       inp = findKaekInput();
     }
@@ -206,7 +212,7 @@
   const DOC_TXT = /^(ΠΡΟΒΟΛΗ|ΛΗΨΗ|ΑΝΟΙΓΜΑ|ΚΑΤΕΒΑΣΜΑ|ΕΜΦΑΝΙΣΗ|ΑΡΧΕΙΟ|PDF|DOWNLOAD|VIEW|ΠΡΟΒΟΛΗ ΕΓΓΡΑΦΟΥ|ΛΗΨΗ ΕΓΓΡΑΦΟΥ|ΠΡΟΒΟΛΗ ΑΡΧΕΙΟΥ)$/;
   function docTargets() {
     const out = new Set();
-    const els = [...document.querySelectorAll("a,button,[role=button],input[type=button],input[type=submit]")].filter((el) => vis(el) && !panel.contains(el));
+    const els = [...document.querySelectorAll("a,button,[role=button],input[type=button],input[type=submit]")].filter((el) => vis(el) && safeEl(el));
     for (const el of els) {
       const t = textOf(el), href = el.getAttribute("href") || "";
       if (/ΑΠΟΣΠΑΣΜΑ (ΠΕΡΙΓΡΑΦΙΚΗΣ|ΧΩΡΙΚΗΣ)|ΑΝΑΖΗΤΗΣΗ|ΕΠΙΣΤΡΟΦΗ|ΕΡΕΥΝΑ|ΑΠΟΣΥΝΔΕΣΗ|ΕΞΟΔΟΣ/.test(t)) continue;
@@ -221,7 +227,7 @@
   async function openDocTabs() {
     // καρτέλες/κουμπιά «Έγγραφα», «Λίστα εγγράφων», «Τίτλοι» που κρύβουν τη λίστα
     const tabs = [...document.querySelectorAll("[role=tab],.nav a,.nav-tabs a,.tabs a,a[data-toggle],a[data-bs-toggle],button,a,summary")]
-      .filter((el) => vis(el) && !panel.contains(el) && /^(ΕΓΓΡΑΦΑ|ΛΙΣΤΑ ΕΓΓΡΑΦΩΝ|ΤΙΤΛΟΙ|ΣΧΕΤΙΚΑ ΕΓΓΡΑΦΑ|ΣΥΝΗΜΜΕΝΑ|ΕΓΓΡΑΦΑ ΑΚΙΝΗΤΟΥ)/.test(textOf(el)) && !/\.pdf/i.test(el.getAttribute("href") || ""));
+      .filter((el) => vis(el) && safeEl(el) && /^(ΕΓΓΡΑΦΑ|ΛΙΣΤΑ ΕΓΓΡΑΦΩΝ|ΤΙΤΛΟΙ|ΣΧΕΤΙΚΑ ΕΓΓΡΑΦΑ|ΣΥΝΗΜΜΕΝΑ|ΕΓΓΡΑΦΑ ΑΚΙΝΗΤΟΥ)/.test(textOf(el)) && !/\.pdf/i.test(el.getAttribute("href") || ""));
     for (const t of tabs.slice(0, 4)) { try { t.click(); await sleep(1500); } catch (e) {} }
   }
   function structure() {
