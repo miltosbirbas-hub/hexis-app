@@ -203,7 +203,7 @@ $("kaekIn").addEventListener("keydown", e=>{ if(e.key==="Enter") $("kaekGo").cli
 
 /* ---------- 2. πρόσθετο ---------- */
 let EXT = null;   // έκδοση πρόσθετου όταν απαντήσει
-const EXT_LATEST = "0.3.0";
+const EXT_LATEST = "0.3.1";
 const EXT_ASSETS = "4.198";
 window.addEventListener("message", e=>{
   if(e.source!==window || !e.data || e.data.src!=="hexis-kt-ext") return;
@@ -265,24 +265,47 @@ function fileStatus(kaek){
   const p = fs.some(f=>f.type==="perigrafiko"), x = fs.some(f=>f.type==="xoriko");
   return {txt:(p?"περιγρ. ✓ ":"")+(x?"χωρικό ✓ ":"")+(fs.length-(p?1:0)-(x?1:0) ? `+${fs.length-(p?1:0)-(x?1:0)} έγγρ.` : ""), full:p&&x};
 }
+function infoLines(lines){
+  const U=s=>String(s).toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/\s+/g," ").trim();
+  const L=lines.map(U), all=L.join(" \n ");
+  const kind=/ΑΠΟΣΠΑΣΜΑ ΠΕΡΙΓΡΑΦΙΚΗΣ ΒΑΣΗΣ/.test(all)?"kf":/ΦΥΛΛΟ ΧΑΡΤΙΟΥ|ΑΠΟΣΠΑΣΜΑ ΧΩΡΙΚΗΣ|ΚΤΗΜΑΤΟΛΟΓΙΚΟΥ ΔΙΑΓΡΑΜΜΑΤΟΣ|ΚΩΔΙΚΟΣ ΑΡΙΘΜΟΣ ΕΘΝΙΚΟΥ ΚΤΗΜΑΤΟΛΟΓΙΟΥ/.test(all)?"kd":"";
+  const own=[];
+  for(const l of L){
+    const m=l.match(/ΟΝΟΜΑΤΕΠΩΝΥΜΟ ΦΥΣΙΚΟΥ ΠΡΟΣΩΠΟΥ ?: ?([Α-ΩA-Z][Α-ΩA-Z.'\- ]{2,60})$/) || l.match(/^ΕΠΩΝΥΜΙΑ(?: ΝΟΜΙΚΟΥ ΠΡΟΣΩΠΟΥ)? ?: ?([Α-ΩA-Z0-9][Α-ΩA-Z0-9.&'\- ]{2,80})$/);
+    if(m) own.push(m[1].trim());
+  }
+  const uniq=[...new Set(own)];
+  let ota=""; for(const l of L){ const m=l.match(/(?:^| )(?:OTA|ΟΤΑ) ?: ?([Α-ΩA-Z][Α-ΩA-Z.'\-]*(?: [Α-ΩA-Z.'\-]+)*?)(?= ΦΥΛΛΟ| ΚΩΔΙΚΟΣ| ΝΟΜΟΣ| \(|$)/); if(m){ ota=m[1].trim(); break; } }
+  const km=all.replace(/[\s\/]+/g,"").match(/(\d{5}(?:ΕΚ|EK|\d{2})\d{5})/);
+  return {kind, owner: uniq.length? uniq[0]+(uniq.length>1?" κ.α.":""):"", ota, kaek: km?km[1].replace("EK","ΕΚ"):""};
+}
+async function pdfLines(data){
+  const pdf = await pdfjsLib.getDocument({ data, isEvalSupported:false }).promise, items=[];
+  for(let p=1;p<=Math.min(2,pdf.numPages);p++){ const tc=await (await pdf.getPage(p)).getTextContent(); tc.items.forEach(it=>{ if(it.str&&it.str.trim()) items.push({s:it.str, x:it.transform[4], y:it.transform[5]-p*10000}); }); }
+  items.sort((a,b)=>b.y-a.y||a.x-b.x); const lines=[];
+  items.forEach(it=>{ const L=lines.find(l=>Math.abs(l.y-it.y)<3); if(L) L.items.push(it); else lines.push({y:it.y, items:[it]}); });
+  return lines.map(l=>l.items.sort((a,b)=>a.x-b.x).map(i=>i.s).join(" "));
+}
 async function classify(file){
   // 1) από όνομα αρχείου του πρόσθετου: <ΚΑΕΚ>__<τύπος>__...pdf
-  const m = file.name.match(/^(\d{5}(?:ΕΚ|\d{2})\d{5})__([a-z]+)/);
-  if(m) return {kaek:m[1], type:TYPES[m[2]] ? m[2] : "allo"};
-  const m2 = file.name.match(/^(\d{5}(?:ΕΚ|\d{2})\d{5})_([A-Za-z]+_?[A-Za-z]*)/);
-  if(m2){ const t = Object.keys(BASE).find(k=> m2[2].startsWith(BASE[k])); if(t) return {kaek:m2[1], type:t}; }
+  // πρώτα το περιεχόμενο (ΚΦ/ΚΔ αναγνωρίζονται με σιγουριά), μετά το όνομα αρχείου
   // 2) από το κείμενο του PDF
-  let text = "";
+  let lines = [];
   try{
     if(typeof pdfjsLib==="undefined"){ await load(LIBS.pdfjs); pdfjsLib.GlobalWorkerOptions.workerSrc = LIBS.pdfw; }
-    const pdf = await pdfjsLib.getDocument({data: new Uint8Array(await file.arrayBuffer())}).promise;
-    for(let i=1;i<=Math.min(2,pdf.numPages);i++){ const tc = await (await pdf.getPage(i)).getTextContent(); text += " " + tc.items.map(t=>t.str).join(" "); }
+    lines = await pdfLines(new Uint8Array(await file.arrayBuffer()));
   }catch(e){ console.warn(e); }
-  const up = text.toUpperCase();
-  const km = up.replace(/\s+/g,"").match(/(\d{5}(?:ΕΚ|EK|\d{2})\d{5})/) || file.name.toUpperCase().match(/(\d{5}(?:ΕΚ|EK|\d{2})\d{5})/);
-  const kaek = km ? km[1].replace("EK","ΕΚ") : "";
-  const type = /ΠΕΡΙΓΡΑΦΙΚ/.test(up) ? "perigrafiko" : /ΧΩΡΙΚ|ΔΙΑΓΡΑΜΜΑΤΟΣ/.test(up) ? "xoriko" : /ΤΟΠΟΓΡΑΦΙΚ/.test(up) ? "topografiko" : /ΣΥΜΒΟΛΑΙ/.test(up) ? "symvolaio" : "allo";
-  return {kaek, type};
+  const inf = infoLines(lines), up = lines.join(" ").toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  const fk = file.name.toUpperCase().match(/(\d{5}(?:ΕΚ|EK|\d{2})\d{5})/);
+  const kaek = inf.kaek || (fk ? fk[1].replace("EK","ΕΚ") : "");
+  if(!inf.kind){
+    const m = file.name.match(/^(\d{5}(?:ΕΚ|\d{2})\d{5})__([a-z]+)/);
+    if(m) return {kaek:m[1], type:TYPES[m[2]] ? m[2] : "allo"};
+    const m2 = file.name.match(/^(\d{5}(?:ΕΚ|\d{2})\d{5})_([A-Za-z]+_?[A-Za-z]*)/);
+    if(m2){ const t = Object.keys(BASE).find(k=> m2[2].startsWith(BASE[k])); if(t && t!=="perigrafiko" && t!=="xoriko") return {kaek:m2[1], type:t}; }
+  }
+  const type = inf.kind==="kf" ? "perigrafiko" : inf.kind==="kd" ? "xoriko" : /ΤΟΠΟΓΡΑΦΙΚ/.test(up) ? "topografiko" : /ΣΥΜΒΟΛΑΙ/.test(up) ? "symvolaio" : /ΤΙΤΛ/.test(up) ? "titlos" : "allo";
+  return {kaek, type, owner: inf.owner, ota: inf.ota};
 }
 /* φάκελος αποθήκευσης που διαλέγει ο χρήστης (Chrome/Edge σε υπολογιστή) */
 let DIR = null;
@@ -320,6 +343,8 @@ async function addFile(file, rel){
   const dup = FILES.find(f=>f.file.name===file.name && f.file.size===file.size); if(dup) return dup;
   const c = await classify(file);
   if(rel){ const segs = rel.split("/"); segs.slice(0,-1).forEach(sg=>{ const m = sg.split(" - "); if(m.length>=2 && m[0]===c.kaek && !ROWS.find(r=>r.kaek===c.kaek && r.ota===m[1])) OWNER[c.kaek] = m[1]; }); }
+  if(c.kaek && c.owner && !OWNER[c.kaek]) OWNER[c.kaek] = c.owner;
+  if(c.kaek && c.ota){ const rw = ROWS.find(r=>r.kaek===c.kaek); if(rw) rw.ota = c.ota; }
   const rec = {file, kaek:c.kaek, type:c.type, rel: rel||""};
   FILES.push(rec);
   await writeOut(rec);

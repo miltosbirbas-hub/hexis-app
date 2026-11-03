@@ -48,6 +48,29 @@ async function ownerFromKF(buf) {
   } catch (e) { console.warn(e); return ""; }
 }
 
+/* ΚΦ/ΚΔ: ιδιοκτήτης («Ονοματεπώνυμο Φυσικού Προσώπου»), ΟΤΑ («OTA:» του ΚΔ) */
+function infoLines(lines){
+  const U=s=>String(s).toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/\s+/g," ").trim();
+  const L=lines.map(U), all=L.join(" \n ");
+  const kind=/ΑΠΟΣΠΑΣΜΑ ΠΕΡΙΓΡΑΦΙΚΗΣ ΒΑΣΗΣ/.test(all)?"kf":/ΦΥΛΛΟ ΧΑΡΤΙΟΥ|ΑΠΟΣΠΑΣΜΑ ΧΩΡΙΚΗΣ|ΚΤΗΜΑΤΟΛΟΓΙΚΟΥ ΔΙΑΓΡΑΜΜΑΤΟΣ|ΚΩΔΙΚΟΣ ΑΡΙΘΜΟΣ ΕΘΝΙΚΟΥ ΚΤΗΜΑΤΟΛΟΓΙΟΥ/.test(all)?"kd":"";
+  const own=[];
+  for(const l of L){
+    const m=l.match(/ΟΝΟΜΑΤΕΠΩΝΥΜΟ ΦΥΣΙΚΟΥ ΠΡΟΣΩΠΟΥ ?: ?([Α-ΩA-Z][Α-ΩA-Z.'\- ]{2,60})$/) || l.match(/^ΕΠΩΝΥΜΙΑ(?: ΝΟΜΙΚΟΥ ΠΡΟΣΩΠΟΥ)? ?: ?([Α-ΩA-Z0-9][Α-ΩA-Z0-9.&'\- ]{2,80})$/);
+    if(m) own.push(m[1].trim());
+  }
+  const uniq=[...new Set(own)];
+  let ota=""; for(const l of L){ const m=l.match(/(?:^| )(?:OTA|ΟΤΑ) ?: ?([Α-ΩA-Z][Α-ΩA-Z.'\-]*(?: [Α-ΩA-Z.'\-]+)*?)(?= ΦΥΛΛΟ| ΚΩΔΙΚΟΣ| ΝΟΜΟΣ| \(|$)/); if(m){ ota=m[1].trim(); break; } }
+  const km=all.replace(/[\s\/]+/g,"").match(/(\d{5}(?:ΕΚ|EK|\d{2})\d{5})/);
+  return {kind, owner: uniq.length? uniq[0]+(uniq.length>1?" κ.α.":""):"", ota, kaek: km?km[1].replace("EK","ΕΚ"):""};
+}
+async function pdfLines(data){
+  const pdf = await pdfjsLib.getDocument({ data, isEvalSupported:false }).promise, items=[];
+  for(let p=1;p<=Math.min(2,pdf.numPages);p++){ const tc=await (await pdf.getPage(p)).getTextContent(); tc.items.forEach(it=>{ if(it.str&&it.str.trim()) items.push({s:it.str, x:it.transform[4], y:it.transform[5]-p*10000}); }); }
+  items.sort((a,b)=>b.y-a.y||a.x-b.x); const lines=[];
+  items.forEach(it=>{ const L=lines.find(l=>Math.abs(l.y-it.y)<3); if(L) L.items.push(it); else lines.push({y:it.y, items:[it]}); });
+  return lines.map(l=>l.items.sort((a,b)=>a.x-b.x).map(i=>i.s).join(" "));
+}
+
 /* ---------- κατάσταση ---------- */
 let JOB = null, FILES = [], DIAG = [], ROWS = [];
 function folderOf(r) { return SAFE([r.kaek, r.owner, r.ota].filter(Boolean).join(" - ")) || r.kaek; }
@@ -139,11 +162,16 @@ $("clear").onclick = async () => {
   const kaeks = JOB ? JOB.kaeks : [...new Set(FILES.map((f) => f.kaek))].map((k, i) => ({ kaek: k, role: i ? "omoro" : "main" }));
   ROWS = kaeks.map((k) => ({ kaek: k.kaek, role: k.role, ota: k.ota || "", owner: (JOB && JOB.owner && JOB.owner[k.kaek]) || "" }));
   render();
-  // ιδιοκτήτης από το ΚΦ όπου δεν βρέθηκε στην οθόνη
+  // ιδιοκτήτης από το ΚΦ (όπου δεν βρέθηκε στην οθόνη) και ΟΤΑ του Κτηματολογίου από το ΚΔ
   for (const r of ROWS) {
-    if (r.owner) continue;
-    const kf = FILES.find((f) => f.kaek === r.kaek && f.kind === "kf"); if (!kf) continue;
-    const o = await ownerFromKF(kf.data); if (o && !r.owner) { r.owner = o; render(); }
+    try {
+      const kd = FILES.find((f) => f.kaek === r.kaek && f.kind === "kd");
+      if (kd) { const i = infoLines(await pdfLines(new Uint8Array(kd.data.slice(0)))); if (i.ota) { r.ota = i.ota; render(); } }
+      if (r.owner) continue;
+      const kf = FILES.find((f) => f.kaek === r.kaek && f.kind === "kf"); if (!kf) continue;
+      const i = infoLines(await pdfLines(new Uint8Array(kf.data.slice(0))));
+      const o = i.owner || await ownerFromKF(kf.data); if (o && !r.owner) { r.owner = o; render(); }
+    } catch (e) { console.warn(e); }
   }
   window.HXDone.ready = true;
 })();
