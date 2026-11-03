@@ -81,6 +81,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 
 .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10.5px;font-weight:700;text-transform:uppercase}
 .pill.free{background:#EEF1F5;color:var(--muted)}
+.pill.demo{background:#FFF3D6;color:#8A5A00;border:1px solid #E8C67A}
 .pill.pro{background:#FFF3E8;color:#E05A12}
 .pill.studio{background:#E9F0FF;color:#2F6BDB}
 .pill.on{background:rgba(31,160,92,.12);color:var(--green)}
@@ -409,7 +410,8 @@ function renderDetail(uid){
 }
 
 async function loadUsers(){
-  const [au, ls, st, ex] = await Promise.all([ sb.rpc('admin_all_users'), sb.rpc('admin_list_subs'), sb.rpc('admin_auth_status'), sb.rpc('admin_user_expiry') ]);
+  const [au, ls, st, ex, dm] = await Promise.all([ sb.rpc('admin_all_users'), sb.rpc('admin_list_subs'), sb.rpc('admin_auth_status'), sb.rpc('admin_user_expiry'), sb.rpc('admin_demo_accounts') ]);
+  DEMO = {};((dm && dm.data) || []).forEach(x => { DEMO[x.uid] = x; });
   UEXP = {};((ex && ex.data) || []).forEach(x => { UEXP[x.uid] = x; });
   AUTH = {};
   ((st && st.data) || []).forEach(x => { AUTH[x.uid] = x; });
@@ -428,9 +430,9 @@ async function loadUsers(){
   renderUsers();
 }
 
-let USTAB='active',UEXP={};
+let USTAB='active',UEXP={},DEMO={};
 // πραγματική λήξη: η τελευταία ενεργή άδεια εφαρμογής ή η δοκιμή · null = χωρίς λήξη
-function effExp(u){const x=UEXP[u.uid]||{},now=Date.now();const le=x.last_exp?new Date(x.last_exp).getTime():null,tr=u.trial_ends_at?new Date(u.trial_ends_at).getTime():null;
+function effExp(u){const dm=DEMO[u.uid];if(dm)return{t:dm.expires_at?new Date(dm.expires_at).getTime():null};const x=UEXP[u.uid]||{},now=Date.now();const le=x.last_exp?new Date(x.last_exp).getTime():null,tr=u.trial_ends_at?new Date(u.trial_ends_at).getTime():null;
   if(x.perm_mods>0)return{perm:true};const c=[le,tr].filter(v=>v);if(!c.length)return String(u.tier||'free').toLowerCase()!=='free'?{perm:true}:{t:null};return{t:Math.max(...c)}}
 function rowCls(u){if(userState(u)==='blocked')return'';const e=effExp(u);if(e.perm)return' st-ok';if(!e.t)return' st-exp';const d=(e.t-Date.now())/864e5;return d<0?' st-exp':d<=30?' st-soon':' st-ok'}
 function userState(u){const au=AUTH[u.uid]||{};if(au.banned||u.sub_active===false)return'blocked';
@@ -442,7 +444,7 @@ function renderUsers(){
   const cnt={active:0,trial:0,expired:0,blocked:0,all:USERS.length};USERS.forEach(u=>cnt[userState(u)]++);
   document.querySelectorAll('#uTabs [data-st]').forEach(b=>{b.querySelector('b').textContent=cnt[b.dataset.st];b.classList.toggle('on',b.dataset.st===USTAB)});
   const ts=u=>u.last_seen?new Date(u.last_seen).getTime():0;
-  const list = USERS.filter(u => f ? (u.email||'').toLowerCase().includes(f) : (USTAB==='all'||userState(u)===USTAB))
+  const list = USERS.filter(u => f ? ((u.email||'')+' '+((DEMO[u.uid]||{}).tester_email||'')+' '+((DEMO[u.uid]||{}).tester_name||'')).toLowerCase().includes(f) : (USTAB==='all'||userState(u)===USTAB))
     .sort((a,b)=>USTAB==='trial'?(new Date(a.trial_ends_at)-new Date(b.trial_ends_at)):(ts(b)-ts(a)));
   document.getElementById('u-count').textContent = cnt.active;
   if(!list.length){document.getElementById('users').innerHTML='<div class="empty">'+(f?'Κανένας χρήστης με αυτό το email.':'Κανένας χρήστης σε αυτή την κατηγορία.')+'</div>';return}
@@ -458,11 +460,11 @@ function renderUsers(){
     const ee = effExp(u);
     return '<div class="urow'+rowCls(u)+(open?' open':'')+(au.banned?' banned':'')+'">'
       + '<button class="uhead" onclick="toggleUser(\''+u.uid+'\')">'
-      + '<span class="uemail">'+u.email+'</span>'
+      + (DEMO[u.uid] ? '<span class="uemail" title="Λογαριασμός κωδικού demo '+(DEMO[u.uid].lic_key||'')+' · μόνο HEXIS MAPPING">'+(DEMO[u.uid].tester_name?DEMO[u.uid].tester_name+' · ':'')+(DEMO[u.uid].tester_email||u.email)+'</span><span class="pill demo">DEMO MAPPING</span>' : '<span class="uemail">'+u.email+'</span>')
       + (au.banned ? '<span class="pill ban">Μπλοκ</span>' : '')
       + (au.email_confirmed === false ? '<span class="pill off" title="Δεν έχει επιβεβαιώσει το email">ανεπιβ.</span>' : '')
-      + '<span class="pill '+tier+'">'+tier+'</span>'
-      + '<span class="pill '+(u.sub_active===false?'off':'on')+'">'+(u.sub_active===false?'Όχι':'Ναι')+'</span>'
+      + (DEMO[u.uid] ? '' : '<span class="pill '+tier+'">'+tier+'</span>'
+      + '<span class="pill '+(u.sub_active===false?'off':'on')+'">'+(u.sub_active===false?'Όχι':'Ναι')+'</span>')
       + '<span class="modcount '+(ee.perm?'':expCls)+'" title="'+(ee.perm?'Έχει άδεια χωρίς ημερομηνία λήξης':'Λήξη της τελευταίας ενεργής άδειας')+'">'+(ee.perm?'χωρίς λήξη':ee.t?fmtDate(new Date(ee.t).toISOString()):'—')+'</span>'
       + '<span class="modcount" title="Τελευταία χρήση">⏱ '+fmtAgo(u.last_seen)+'</span>'
       + '<span class="modcount">'+mods.length+' / '+Object.keys(MODULES).length+'</span>'
