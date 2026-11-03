@@ -248,12 +248,14 @@
       A.epochListeners.push(f);
     });
   };
+  // Μετά την αποθήκευση: το κουμπί γίνεται πράσινο για λίγο και επανέρχεται
   A.markDone = function (btn, name) {
     if (!btn) return;
     if (!btn.dataset.label) btn.dataset.label = btn.innerHTML;
     btn.classList.remove('busy'); btn.classList.add('done');
     btn.innerHTML = '✓ ' + esc(name);
-    btn.title = 'Αποθηκεύτηκε ' + name + ' — πάτα για νέα μέτρηση';
+    clearTimeout(btn._doneT);
+    btn._doneT = setTimeout(() => { if (btn.classList.contains('done')) { btn.classList.remove('done'); btn.innerHTML = btn.dataset.label; } }, 2200);
   };
   A.measureSpec = function () {
     const v = $('sv-epochs').value;
