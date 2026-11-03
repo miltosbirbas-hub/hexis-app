@@ -20,6 +20,7 @@ const LIBS = {
   jszip:   "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
 };
 const SCALES = [100, 200, 500, 1000];
+const PRJ = 'PROJCS["GGRS_1987_Greek_Grid",GEOGCS["GCS_GGRS_1987",DATUM["D_GGRS_1987",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",24.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]';
 const PAPER = { A4:{w:297, h:210, label:"A4 οριζόντιο"}, A3:{w:420, h:297, label:"A3 οριζόντιο"} };
 const MARGIN = 10, TITLE_H = 34, DPI = 200;
 const esc = s => (s==null?"":String(s)).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -87,6 +88,95 @@ async function vectors(bb){
     if(d.id===6 && a.OT_NUM && g.rings && g.rings.length){ const po={outer:H().openRing(g.rings[0]), holes:[]}; out.push({layer:"OT_ARITHMOS", text:"Ο.Τ. "+a.OT_NUM, at:H().interiorPoint(po)}); }
   }));
   return out;
+}
+
+/* ---------- πράξεις (ΦΕΚ) που εμφανίζονται στην περιοχή του αποσπάσματος ---------- */
+const ACT_LAYERS = [[11,"ρυμοτομική"],[12,"οικοδομική"],[6,"Ο.Τ."],[13,"λοιπές γραμμές"],[22,"κοινόχρηστα"],[3,"όριο οικισμού"]];
+async function actsIn(bb){
+  const env = JSON.stringify({xmin:bb[0], ymin:bb[1], xmax:bb[2], ymax:bb[3], spatialReference:{wkid:2100}});
+  const p = {geometry:env, geometryType:"esriGeometryEnvelope", returnGeometry:"false", resultRecordCount:"500",
+    outFields:"FEK,FEK_FILE_URL,TITLE,PUBL_DATE,APOF_EIDOS,GEOREF_DIAGRAM_URL,INITIAL_DIAGRAM_URL"};
+  const res = await Promise.all(ACT_LAYERS.map(([id])=> arcQuery(PLIR+id+"/query", p).catch(()=>[])));
+  const docs = await arcQuery(DOCS, Object.assign({}, p, {outFields:"*"})).catch(()=>[]);
+  const by = new Map();
+  const add = (a, what)=>{
+    const k = a.FEK || a.FEK_FILE_URL; if(!k) return;
+    const r = by.get(k) || {fek:a.FEK||"", title:a.TITLE||"", date:a.PUBL_DATE||"", eidos:a.APOF_EIDOS||"", fekUrl:a.FEK_FILE_URL||"", diags:new Map(), what:new Set()};
+    if(what) r.what.add(what);
+    if(a.GEOREF_DIAGRAM_URL && !r.diags.has(a.GEOREF_DIAGRAM_URL)) r.diags.set(a.GEOREF_DIAGRAM_URL, {url:a.GEOREF_DIAGRAM_URL, raw:a.INITIAL_DIAGRAM_URL||"", scale:+a.INIT_DIAGR_SCALE_DENOMINATOR||0, rms:a.GGRS87_DIAGR_GEOREF_RMS, n:a.COMP_DIAGR_LEGEND_NUMBER||""});
+    else if(a.GEOREF_DIAGRAM_URL){ const d=r.diags.get(a.GEOREF_DIAGRAM_URL); if(!d.scale && a.INIT_DIAGR_SCALE_DENOMINATOR){ d.scale=+a.INIT_DIAGR_SCALE_DENOMINATOR; d.rms=a.GGRS87_DIAGR_GEOREF_RMS; } }
+    by.set(k, r);
+  };
+  ACT_LAYERS.forEach(([,w],i)=> res[i].forEach(f=> add(f.attributes||{}, w)));
+  docs.forEach(f=> add(f.attributes||{}, null));
+  const yr = d=> { const m=String(d||"").match(/(\d{4})/); return m?+m[1]:0; };
+  return [...by.values()].map(r=> Object.assign(r, {diags:[...r.diags.values()], what:[...r.what]}))
+    .sort((a,b)=> (b.what.length?1:0)-(a.what.length?1:0) || yr(a.date)-yr(b.date));
+}
+/* ολόκληρο το γεωαναφερμένο διάγραμμα μιας πράξης → ZIP για AutoCAD/GIS */
+async function runActDiagram(st, d, act){
+  await need(["geotiff","zip"]);
+  const base = d.url.split("/").pop().replace(/\.tif$/i,"");
+  const tok = token();
+  setStatus(`Διάγραμμα ΦΕΚ ${esc(act.fek)}: ανάγνωση…`);
+  const tiff = await GeoTIFF.fromUrl(FN_URL + "?tif=" + encodeURIComponent(d.url), {headers: tok?{Authorization:"Bearer "+tok}:{}, allowFullFile:false, blockSize:262144});
+  const img = await tiff.getImage();
+  const [ox, oy] = img.getOrigin(), [rx, ry] = img.getResolution(), ary = Math.abs(ry);
+  const iw = img.getWidth(), ih = img.getHeight();
+  // για απλό AutoCAD: JPG + JGW (το πρωτότυπο TIFF του ΤΕΕ είναι JPEG-in-TIFF, που δεν το ανοίγουν όλα τα CAD)
+  const f = Math.min(1, 8000/Math.max(iw, ih), Math.sqrt(36e6/(iw*ih)));
+  const W = Math.max(1, Math.round(iw*f)), Hh = Math.max(1, Math.round(ih*f));
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = Hh;
+  const ctx = cv.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, Hh);
+  const STRIP = Math.max(64, Math.floor(4e6 / W));
+  for(let y0 = 0; y0 < Hh; y0 += STRIP){
+    const y1 = Math.min(Hh, y0 + STRIP), sy0 = Math.floor(y0/f), sy1 = Math.min(ih, Math.ceil(y1/f));
+    setStatus(`Διάγραμμα ΦΕΚ ${esc(act.fek)}: ${Math.round(100*y0/Hh)}%…`);
+    const rgb = await img.readRGB({window:[0, sy0, iw, sy1], width:W, height:y1-y0, interleave:true, resampleMethod:"bilinear"});
+    const spp = rgb.length / (W*(y1-y0)) >= 4 ? 4 : 3, id = ctx.createImageData(W, y1-y0);
+    for(let i=0,j=0;i<W*(y1-y0);i++,j+=spp){ const r=rgb[j], g=rgb[j+1], b=rgb[j+2], e=(r+g+b)<9; id.data[i*4]=e?255:r; id.data[i*4+1]=e?255:g; id.data[i*4+2]=e?255:b; id.data[i*4+3]=255; }
+    ctx.putImageData(id, 0, y0);
+  }
+  const jpg = await new Promise((res, rej)=> cv.toBlob(b=> b ? res(b) : rej(new Error("Το διάγραμμα είναι πολύ μεγάλο για αυτή τη συσκευή — δοκίμασε σε υπολογιστή.")), "image/jpeg", 0.9));
+  cv.width = cv.height = 1;
+  const pxX = rx/f, pxY = ary/f;
+  const world = (sx, sy)=> [sx, 0, 0, -sy, ox + sx/2, oy - sy/2].map(v=> v.toFixed(6)).join("\r\n") + "\r\n";
+  const bb = [ox, oy - Hh*pxY, ox + W*pxX, oy];
+  const o = {parcel: st.parcel, scale: 1000, bbox: bb};
+  const dxf = makeDxf(o, [{layer:"FEK_KEIMENO", text:"ΦΕΚ " + (act.fek||""), at:[bb[0] + 0.02*(bb[2]-bb[0]), bb[3] - 0.02*(bb[3]-bb[1])]}], {res:pxX, resY:pxY, w:W, h:Hh}, base + ".jpg")
+    .replace(/\r\n  8\r\nYPOVATHRO_EPSX\r\n/, "\r\n  8\r\nYPOVATHRO_FEK\r\n");
+  const zip = new JSZip();
+  zip.file(base + ".jpg", jpg); zip.file(base + ".jgw", world(pxX, pxY));
+  zip.file(base + ".dxf", dxf);
+  zip.file(base + ".tfw", world(rx, ary));          // για το πρωτότυπο TIFF του ΤΕΕ (σύνδεσμος στις οδηγίες)
+  zip.file(base + ".prj", PRJ);
+  zip.file("ODIGIES.txt", [
+    "HEXIS-APP · Διάγραμμα ΦΕΚ " + (act.fek||"") + " — γεωαναφερμένο (ΕΓΣΑ'87, μέτρα)",
+    act.title || "", "",
+    "1. Αποσυμπίεσε ΟΛΑ τα αρχεία στον ίδιο φάκελο.",
+    "2. AutoCAD: άνοιξε το " + base + ".dxf (ή INSERT στο σχέδιό σου, σημείο 0,0, κλίμακα 1).",
+    "   Το διάγραμμα (" + base + ".jpg) μπαίνει μόνο του στη σωστή θέση, μαζί με το PST_KAEK του γεωτεμαχίου " + st.parcel.kaek + ".",
+    "3. GIS / Civil 3D / Map: το " + base + ".jpg με το " + base + ".jgw είναι γεωαναφερμένο.",
+    "   Μέγεθος pixel: " + pxX.toFixed(4) + " μ." + (f < 1 ? " (σμίκρυνση " + Math.round(f*100) + "% του πρωτοτύπου, για να ανοίγει άνετα)" : ""),
+    "4. Πρωτότυπο GeoTIFF του ΤΕΕ σε πλήρη ανάλυση: " + d.url,
+    "   Κατέβασέ το στον ίδιο φάκελο — το " + base + ".tfw που υπάρχει εδώ το τοποθετεί σε GIS / Map 3D.",
+    d.raw ? "   Αρχική σάρωση (χωρίς γεωαναφορά): " + d.raw : "",
+    act.fekUrl ? "5. Κείμενο ΦΕΚ: " + act.fekUrl : "",
+    "", "Ακρίβεια γεωαναφοράς (RMS): " + (d.rms!=null ? d.rms + " μ." : "—") + (d.scale ? " · αρχική κλίμακα 1:" + d.scale : ""),
+    "Πηγή: Ενιαίος Ψηφιακός Χάρτης (ΤΕΕ/ΥΠΕΝ). Ενημερωτικό — δεν υποκαθιστά επικυρωμένο απόσπασμα της ΥΔΟΜ."
+  ].filter(x=> x!=="").join("\r\n"));
+  const blob = await zip.generateAsync({type:"blob", compression:"DEFLATE"});
+  download(blob, "diagramma_FEK_" + String(act.fek||base).replace(/[^0-9A-Za-zΑ-Ωα-ω]+/g, "_") + ".zip");
+  setStatus(`✅ Έτοιμο: διάγραμμα ΦΕΚ ${esc(act.fek)} γεωαναφερμένο (JPG + JGW + DXF για AutoCAD).`);
+  return {zip:blob, dxf, f, W, H:Hh};
+}
+function actsHtml(acts){
+  if(!acts) return `<div class="ox-acts-h">Πράξεις (ΦΕΚ) στην περιοχή</div><div class="ox-acts-e">Φόρτωση…</div>`;
+  if(!acts.length) return `<div class="ox-acts-h">Πράξεις (ΦΕΚ) στην περιοχή</div><div class="ox-acts-e">Δεν βρέθηκαν πράξεις στον Ενιαίο Ψηφιακό Χάρτη για αυτή την περιοχή.</div>`;
+  return `<div class="ox-acts-h">Πράξεις (ΦΕΚ) στην περιοχή του αποσπάσματος (${acts.length})</div>` + acts.map((a,i)=>`<div class="ox-act">
+    <div><b>ΦΕΚ ${esc(a.fek)}</b>${a.date?` · ${esc(a.date)}`:""}${a.what.length?` · <span class="ox-what">${esc(a.what.join(", "))}</span>`:""}<div class="ox-at">${esc((a.title||"").slice(0,140))}</div></div>
+    <div class="ox-ab">${a.fekUrl?`<a class="ox-sb" href="${esc(a.fekUrl)}" target="_blank" rel="noopener">ΦΕΚ (PDF)</a>`:""}${a.diags.map((d,j)=>`<button type="button" class="ox-sb ox-dg" data-a="${i}" data-d="${j}" title="Ολόκληρο το σαρωμένο διάγραμμα, γεωαναφερμένο σε ΕΓΣΑ΄87 — JPG + JGW + DXF για AutoCAD">Διάγραμμα${a.diags.length>1?" "+(j+1):""} γεωαναφ.${d.scale?" 1:"+d.scale:""}</button>`).join("")}</div>
+  </div>`).join("") + `<div class="ox-acts-n">Οι Τεχνικές Εκθέσεις και τα Διαγράμματα Εφαρμογής της ΥΔΟΜ δεν δημοσιεύονται στον Ενιαίο Ψηφιακό Χάρτη — εδώ εμφανίζονται οι πράξεις (ΦΕΚ) που έχουν ψηφιοποιηθεί.</div>`;
 }
 
 /* ---------- εικόνα υποβάθρου (καμβάς στο πλαίσιο, ΕΓΣΑ'87) ---------- */
@@ -332,7 +422,7 @@ function makeDxf(opt, vecs, img, tifName){
   const th = 2.5*opt.scale/1000;                      // 2,5 χλστ. στο χαρτί
   // υπόβαθρο (IMAGE) — πρώτο, για να είναι από κάτω
   const bb = opt.bbox;
-  const imgEnt = DXF_TPL.img.replace("%%X%%", num(bb[0])).replace("%%Y%%", num(bb[1])).replace("%%PX%%", img.res.toFixed(8)).replace("%%PY%%", img.res.toFixed(8))
+  const imgEnt = DXF_TPL.img.replace("%%X%%", num(bb[0])).replace("%%Y%%", num(bb[1])).replace("%%PX%%", img.res.toFixed(8)).replace("%%PY%%", (img.resY||img.res).toFixed(8))
     .replace("%%W%%", img.w.toFixed(1)).replace("%%H%%", img.h.toFixed(1))
     .replace("%%CLIP0%%", " 14\n-0.5\n 24\n-0.5\n").replace("%%CLIP1%%", " 14\n"+(img.w-0.5).toFixed(1)+"\n 24\n"+(img.h-0.5).toFixed(1)+"\n");
   E.push(imgEnt);
@@ -367,6 +457,7 @@ function modalHtml(st, diags){
       <button type="button" class="od-btn" id="ox-close">Κλείσιμο</button>
     </div>
     <div class="ox-status" id="ox-status"></div>
+    <div class="ox-acts" id="ox-acts">${actsHtml(null)}</div>
   </div></div>`;
 }
 function readOpts(st, diags){
@@ -415,7 +506,7 @@ async function runZip(st, diags){
   zip.file(fname(o,"dxf"), dxf);
   zip.file(tifName, gt.tif);
   zip.file(fname(o,"tfw"), gt.tfw);
-  zip.file(fname(o,"prj"), 'PROJCS["GGRS_1987_Greek_Grid",GEOGCS["GCS_GGRS_1987",DATUM["D_GGRS_1987",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",24.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]');
+  zip.file(fname(o,"prj"), PRJ);
   if(pdf) zip.file(fname(o,"pdf"), pdf);
   zip.file("ODIGIES.txt", [
     "HEXIS-APP · Απόσπασμα σχεδίου — ΚΑΕΚ " + o.parcel.kaek + " · κλίμακα 1:" + o.scale,
@@ -450,17 +541,30 @@ window.HXOroiExport = {
     const close = ()=>{ const b=document.getElementById("ox-back"); if(b) b.remove(); };
     document.getElementById("ox-close").addEventListener("click", close);
     document.getElementById("ox-back").addEventListener("click", e=>{ if(e.target.id==="ox-back" && !busy) close(); });
+    let acts = null, actsSeq = 0;
+    const loadActs = async ()=>{
+      const seq = ++actsSeq, o = readOpts(st, diags), box = document.getElementById("ox-acts"); if(!box) return;
+      box.innerHTML = actsHtml(null);
+      try{ const a = await actsIn(o.bbox); if(seq!==actsSeq) return; acts = a; box.innerHTML = actsHtml(a); }
+      catch(e){ if(seq===actsSeq) box.innerHTML = `<div class="ox-acts-e">Οι πράξεις δεν φορτώθηκαν: ${esc(e.message||e)}</div>`; }
+    };
     ["ox-scale","ox-paper","ox-diag","ox-epsx"].forEach(id=> document.getElementById(id).addEventListener("change", ()=>info(st, diags)));
-    info(st, diags);
+    ["ox-scale","ox-paper"].forEach(id=> document.getElementById(id).addEventListener("change", loadActs));
+    info(st, diags); loadActs();
     const guard = fn => async ()=>{
-      if(busy) return; busy = true; document.querySelectorAll(".ox-btns button").forEach(b=>b.disabled=true);
+      if(busy) return; busy = true; document.querySelectorAll(".ox-btns button,.ox-dg").forEach(b=>b.disabled=true);
       try{ await fn(st, diags); }catch(e){ console.error(e); setStatus("❌ " + esc(e.message||String(e)), true); }
-      finally{ busy=false; document.querySelectorAll(".ox-btns button").forEach(b=>b.disabled=false); }
+      finally{ busy=false; document.querySelectorAll(".ox-btns button,.ox-dg").forEach(b=>b.disabled=false); }
     };
     document.getElementById("ox-pdf").addEventListener("click", guard(runPdf));
     document.getElementById("ox-zip").addEventListener("click", guard(runZip));
+    document.getElementById("ox-acts").addEventListener("click", e=>{
+      const b = e.target.closest(".ox-dg"); if(!b || !acts) return;
+      const a = acts[+b.dataset.a], d = a && a.diags[+b.dataset.d]; if(!d) return;
+      guard(()=> runActDiagram(st, d, a))();
+    });
   },
-  _test: { geoTiff, makeDxf, packbits, extentFor, suggestScale, listDiagrams, vectors, runPdf, runZip }
+  _test: { geoTiff, makeDxf, packbits, extentFor, suggestScale, listDiagrams, vectors, runPdf, runZip, actsIn, runActDiagram }
 };
 
 const css = document.createElement("style");
@@ -476,6 +580,18 @@ css.textContent = `
 .ox-btns button:disabled{opacity:.55;cursor:wait}
 .ox-status{font-size:13px;color:#25314D;margin-top:10px;min-height:18px}
 .ox-status.ox-err{color:#7A1A12}
+.ox-acts{border-top:1px solid var(--line);margin-top:12px;padding-top:10px}
+.ox-acts-h{font-weight:800;font-size:13.5px;color:var(--navy);margin-bottom:6px}
+.ox-acts-e,.ox-acts-n{font-size:12.5px;color:var(--muted);line-height:1.45}
+.ox-acts-n{margin-top:8px}
+.ox-act{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 10px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13px;color:#25314D}
+.ox-act>div:first-child{flex:1 1 240px;min-width:0}
+.ox-at{font-size:12px;color:var(--muted);margin-top:2px}
+.ox-what{color:#1D4E89}
+.ox-ab{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}
+.ox-sb{appearance:none;border:1.5px solid var(--blue);background:#fff;color:var(--blue);font-family:var(--sans);font-size:12.5px;font-weight:700;border-radius:8px;padding:5px 9px;cursor:pointer;text-decoration:none;white-space:nowrap}
+.ox-sb:hover{background:var(--soft)}
+.ox-sb:disabled{opacity:.55;cursor:wait}
 `;
 document.head.appendChild(css);
 })();
