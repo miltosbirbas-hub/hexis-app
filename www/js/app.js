@@ -145,7 +145,7 @@
   A.updateStatus = function () {
     const n = A.nmea, P = A.pos;
     const fx = P ? n.fix() : HNMEA.FIX[0];
-    const el = $('st-fix'); el.textContent = HCONN.state.source === 'sim' && P ? fx.label + '·SIM' : fx.label; el.className = 'fix ' + fx.key;
+    const el = $('st-fix'); el.textContent = HCONN.state.source === 'sim' && P && window.innerWidth > 480 ? fx.label + '·SIM' : fx.label; el.className = 'fix ' + fx.key;
     const sf = $('sf-fix'); sf.textContent = el.textContent; sf.className = el.className;
     $('st-h').textContent = P && P.sh != null ? P.sh.toFixed(3) : '—';
     $('st-v').textContent = P && P.sv != null ? P.sv.toFixed(3) : '—';
@@ -731,8 +731,8 @@
     x.fillStyle = inT ? C('--ok') : C('--accent');
     x.beginPath(); x.arc(cx + Math.max(-R, Math.min(R, px)), cy + Math.max(-R, Math.min(R, py)), 9, 0, 7); x.fill();
     x.strokeStyle = '#fff'; x.lineWidth = 2; x.stroke();
-    x.fillStyle = C('--muted'); x.font = '700 14px Manrope,system-ui';
-    x.fillText('κύκλος: ' + (scaleM * 0.25 >= 0.1 ? (scaleM * 0.25).toFixed(2) + ' m' : (scaleM * 25).toFixed(1) + ' cm'), 6, H - 6);
+    x.fillStyle = C('--muted'); x.font = (W < 130 ? '700 11.5px' : '700 14px') + ' Manrope,system-ui';
+    x.fillText((W < 130 ? '○ ' : 'κύκλος: ') + (scaleM * 0.25 >= 0.1 ? (scaleM * 0.25).toFixed(2) + ' m' : (scaleM * 25).toFixed(1) + ' cm'), 4, H - 4);
   }
 
   // Καταγραφή χαραγμένου
