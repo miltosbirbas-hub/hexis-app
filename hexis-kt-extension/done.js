@@ -122,6 +122,11 @@ $("save").onclick = async () => {
   } catch (e) { $("st").textContent = "Σφάλμα: " + e.message; }
   $("save").disabled = false;
 };
+$("diag").onclick = async () => {
+  const txt = JSON.stringify({ v: chrome.runtime.getManifest().version, job: JOB ? { i: JOB.i, step: JOB.step, n: JOB.kaeks.length, done: JOB.done } : null, pages: DIAG.map((d) => ({ at: d.kaek, d: d.d })) });
+  try { await navigator.clipboard.writeText(txt); $("st").textContent = "✓ Αντιγράφηκε (" + DIAG.length + " σελίδες). Κάνε επικόλληση (Ctrl+V) στη συνομιλία με το Claude."; }
+  catch (e) { $("tree").textContent = txt; $("st").textContent = "Αντίγραψε το κείμενο από το πλαίσιο."; }
+};
 $("clear").onclick = async () => {
   if (!confirm("Να σβηστούν τα αρχεία που μάζεψε το πρόσθετο για αυτή την εργασία;")) return;
   await clearStore("files"); await clearStore("diag"); await chrome.storage.local.remove("job");

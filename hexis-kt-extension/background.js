@@ -82,6 +82,11 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       reply({ ok: true });
     } else if (msg.type === "diag") {
       await tx("diag", "readwrite", (s) => s.put({ kaek: msg.kaek, d: msg.d })); reply({ ok: true });
+    } else if (msg.type === "resume") {
+      // η καρτέλα του ακινήτου τελείωσε: συνέχεια στην αρχική καρτέλα του Κτηματολογίου
+      const kt = (await chrome.storage.local.get("ktTab")).ktTab;
+      if (kt != null && (!sender.tab || sender.tab.id !== kt)) { try { await chrome.tabs.update(kt, { active: true }); await chrome.tabs.sendMessage(kt, { type: "resume" }); } catch (e) {} }
+      reply({ ok: true });
     } else if (msg.type === "finish") {
       await openDone(); reply({ ok: true });
     } else reply({ ok: false });
