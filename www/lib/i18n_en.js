@@ -64,3 +64,20 @@ Object.assign(window.HEXIS_EN, {
   "Εμφάνιση ψηφιακής φούσκας πάνω στον χάρτη (όταν ο δέκτης στέλνει κλίση)": "Show the digital bubble on the map (when the receiver sends tilt)",
   "Ανοχή κέντρωσης / κατακορύφου (°)": "Levelling / plumb tolerance (°)", "Χωρίς IMU: να μην παίρνει σημείο εκτός ανοχής κέντρωσης": "Without IMU: do not store a point outside the levelling tolerance"
 });
+Object.assign(window.HEXIS_EN, {
+  "Πλωτό κουμπί μέτρησης": "Floating measure button", "Πλωτό κουμπί ● πάνω στον χάρτη (σύρε το όπου βολεύει)": "Floating ● button on the map (drag it where it suits you)",
+  "✋ Αριστερόχειρας": "✋ Left-handed", "Δεξιόχειρας ✋": "Right-handed ✋", "Μεγάλο κουμπί (γάντια)": "Large button (gloves)",
+  "Το κουμπί πήγε αριστερά": "Button moved left", "Το κουμπί πήγε δεξιά ✋": "Button moved right ✋", "ΜΕΤΡΗΣΗ": "MEASURE", "ΚΑΤΑΓΡΑΦΗ": "RECORD",
+  "Κάνναβος": "Grid", "Κάνναβος από πλευρά (φύτευση, πάσσαλοι)": "Grid from a side (planting, stakes)", "Κάνναβος — πολύγωνο": "Grid — polygon", "Κάνναβος — κορυφές": "Grid — vertices",
+  "Από ποιο πολύγωνο; (π.χ. το όριο του χωραφιού)": "Which polygon? (e.g. the field boundary)", "Μετρημένες γραμμές": "Measured lines", "κορυφές": "vertices",
+  "⌖ Κλειστή πολυγραμμή από το σχέδιο (DXF/DWG)": "⌖ Closed polyline from the drawing (DXF/DWG)", "☰ Κορυφές από σημεία (με τη σειρά)": "☰ Vertices from points (in order)",
+  "Πάτα πάνω στο όριο (πολυγραμμή του σχεδίου)": "Tap on the boundary (drawing polyline)", "Δεν βρέθηκε πολυγραμμή — πάτα πάνω της": "No polyline found — tap on it",
+  "Πρόσθεσε τις κορυφές του πολυγώνου με τη σειρά.": "Add the polygon vertices in order.", "＋ Κορυφή": "＋ Vertex", "Κορυφή": "Vertex", "Συνέχεια ▸": "Continue ▸",
+  "Χρειάζονται τουλάχιστον 3 κορυφές": "At least 3 vertices are needed", "Εμβαδόν": "Area", "στρ.": "stremma",
+  "Πλευρά βάσης (οι σειρές γίνονται παράλληλες σε αυτήν)": "Base side (rows run parallel to it)", "Απόσταση στη σειρά (m)": "Spacing in row (m)", "Απόσταση σειρών (m)": "Row spacing (m)",
+  "Offset 1ης σειράς (m)": "1st row offset (m)", "Από όλα τα όρια (m)": "From all boundaries (m)", "▦ Τετράγωνο": "▦ Square", "⁘ Ρομβοειδές (κλιμακωτό)": "⁘ Staggered",
+  "Κεντράρισμα κάθε σειράς (ίσα περιθώρια δεξιά-αριστερά)": "Centre each row (equal margins left-right)", "Πρόθεμα ονόματος": "Name prefix",
+  "◂ Άλλο πολύγωνο": "◂ Other polygon", "✓ Δημιουργία σημείων χάραξης": "✓ Create stakeout points", "σειρές": "rows", "σειρά": "row",
+  "Πολλά σημεία — μεγάλωσε τις αποστάσεις": "Too many points — increase the spacing", "Κανένα σημείο — έλεγξε αποστάσεις και όρια": "No points — check spacing and margins",
+  "Πάνω από 5000 σημεία — μεγάλωσε τις αποστάσεις": "More than 5000 points — increase the spacing", "σημεία χάραξης": "stakeout points", "Σχέδιο": "Drawing", "Γραμμή": "Line"
+});

@@ -84,7 +84,7 @@
     this.c = canvas;
     this.x = canvas.getContext('2d');
     this.view = { cx: 0, cy: 0, s: 2 }; // s: pixel ανά μέτρο
-    this.layers = { design: null, points: [], lines: [], target: null, targetLine: null, pos: null, track: [], measure: [], kaek: [] };
+    this.layers = { design: null, points: [], lines: [], target: null, targetLine: null, pos: null, track: [], measure: [], kaek: [], preview: null };
     this.base = 'esri_sat'; this.overlays = { esri_labels: false, kt_wms: false, hexis_kaek: false };
     this.designLayers = {};
     this.dark = false;
@@ -133,6 +133,16 @@
     this.view.s = Math.min(this.w / w, this.h / h) * 0.85;
     this.follow = false; this.redraw(); this._changed();
     return true;
+  };
+
+  MapView.prototype.fitTo = function (pts) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    pts.forEach(p => { x0 = Math.min(x0, p.E); x1 = Math.max(x1, p.E); y0 = Math.min(y0, p.N); y1 = Math.max(y1, p.N); });
+    if (!isFinite(x0)) return;
+    const w = Math.max(x1 - x0, 5), h = Math.max(y1 - y0, 5);
+    this.view.cx = (x0 + x1) / 2; this.view.cy = (y0 + y1) / 2;
+    this.view.s = Math.min(this.w / w, this.h / h) * 0.8;
+    this.follow = false; this.redraw(); this._changed();
   };
 
   // ---------- Χειρονομίες ----------
@@ -285,6 +295,7 @@
     this._drawLines();
     this._drawPoints(onImg);
     this._drawMeasure();
+    this._drawPreview();
     this._drawTarget();
     this._drawPos();
     this._drawScale(onImg);
@@ -451,6 +462,25 @@
     x.strokeStyle = '#ff7a00'; x.lineWidth = 2.5; x.setLineDash([8, 5]);
     x.beginPath(); m.forEach((p, i) => { const s = this.w2s(p.E, p.N); if (i) x.lineTo(s[0], s[1]); else x.moveTo(s[0], s[1]); }); x.stroke(); x.setLineDash([]);
     m.forEach(p => { const s = this.w2s(p.E, p.N); x.fillStyle = '#ff7a00'; x.beginPath(); x.arc(s[0], s[1], 4, 0, 7); x.fill(); });
+  };
+
+  // προεπισκόπηση (κάνναβος κ.λπ.): περίγραμμα + σημεία
+  MapView.prototype._drawPreview = function () {
+    const P = this.layers.preview; if (!P) return;
+    const x = this.x;
+    if (P.poly && P.poly.length > 1) {
+      x.strokeStyle = '#ff7a00'; x.lineWidth = 2.5; x.setLineDash([8, 5]); x.beginPath();
+      P.poly.forEach((p, i) => { const s = this.w2s(p.E, p.N); if (i) x.lineTo(s[0], s[1]); else x.moveTo(s[0], s[1]); });
+      x.closePath(); x.stroke(); x.setLineDash([]);
+    }
+    if (P.base) { x.strokeStyle = '#c4142e'; x.lineWidth = 5; x.beginPath(); const a = this.w2s(P.base[0].E, P.base[0].N), b = this.w2s(P.base[1].E, P.base[1].N); x.moveTo(a[0], a[1]); x.lineTo(b[0], b[1]); x.stroke(); }
+    if (P.pts && P.pts.length) {
+      x.fillStyle = '#0b8a45'; x.strokeStyle = '#fff'; x.lineWidth = 1.5;
+      const r = P.pts.length > 800 ? 2.5 : 4.5;
+      const path = new Path2D();
+      for (const p of P.pts) { const s = this.w2s(p.E, p.N); path.moveTo(s[0] + r, s[1]); path.arc(s[0], s[1], r, 0, 7); }
+      x.fill(path); if (r > 3) x.stroke(path);
+    }
   };
 
   MapView.prototype._drawTarget = function () {

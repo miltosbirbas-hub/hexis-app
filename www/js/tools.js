@@ -43,7 +43,8 @@
   // ==================== COGO ====================
   const tools = {};
   A.runTool = name => tools[name] && tools[name]({});
-  A.COGO_LIST = [['inverse', '↔', 'Απόσταση / Αζιμούθιο'], ['slope', '⟋', 'Μέτρηση κλίσης'], ['extend', '→|', 'Επέκταση ευθείας'], ['densify', '┄', 'Πύκνωση ευθυγραμμίας'], ['hidden', '⌖', 'Δυσπρόσιτο σημείο'], ['floor', '▱', 'Κλίση δαπέδου / επιφάνεια'], ['square', '⊾', 'Γωνίασμα κατασκευής'], ['intersect', '✕', 'Τομή ευθειών'], ['area', '⬠', 'Εμβαδόν / περίμετρος'], ['calib', '⚙', 'Τοπική προσαρμογή']];
+  tools.grid = () => A.gridTool();
+  A.COGO_LIST = [['inverse', '↔', 'Απόσταση / Αζιμούθιο'], ['slope', '⟋', 'Μέτρηση κλίσης'], ['extend', '→|', 'Επέκταση ευθείας'], ['densify', '┄', 'Πύκνωση ευθυγραμμίας'], ['hidden', '⌖', 'Δυσπρόσιτο σημείο'], ['floor', '▱', 'Κλίση δαπέδου / επιφάνεια'], ['square', '⊾', 'Γωνίασμα κατασκευής'], ['intersect', '✕', 'Τομή ευθειών'], ['area', '⬠', 'Εμβαδόν / περίμετρος'], ['grid', '⁘', 'Κάνναβος από πλευρά (φύτευση, πάσσαλοι)'], ['calib', '⚙', 'Τοπική προσαρμογή']];
   A.cogoSheet = function () {
     A.sheet('COGO', `<div class="tool-grid">${A.COGO_LIST.map(([k, i, l]) => `<button data-tool="${k}"><i>${i}</i>${l}</button>`).join('')}</div>`, b => {
       b.querySelectorAll('[data-tool]').forEach(x => x.onclick = () => A.runTool(x.dataset.tool));
@@ -770,6 +771,10 @@
       <div class="row"><label class="fld grow"><span>Ανοχή οριζ. (m)</span><input id="th" type="number" step="0.001" value="${S.tolH}"></label><label class="fld grow"><span>Ανοχή κατακ. (m)</span><input id="tv" type="number" step="0.001" value="${S.tolV}"></label></div>
       <label class="chk"><input type="checkbox" id="bp" ${S.beep ? 'checked' : ''}> Ήχοι καθοδήγησης</label>
       <label class="chk"><input type="checkbox" id="an" ${S.autoNext !== false ? 'checked' : ''}> Αυτόματα στο επόμενο σημείο μετά την καταγραφή</label>
+      <h4>Πλωτό κουμπί μέτρησης</h4>
+      <label class="chk"><input type="checkbox" id="fb-on" ${!A.settings.fab || A.settings.fab.on !== false ? 'checked' : ''}> Πλωτό κουμπί ● πάνω στον χάρτη (σύρε το όπου βολεύει)</label>
+      <div class="row"><button class="btn grow" id="fb-l">✋ Αριστερόχειρας</button><button class="btn grow" id="fb-r">Δεξιόχειρας ✋</button></div>
+      <label class="chk"><input type="checkbox" id="fb-big" ${A.settings.fab && A.settings.fab.big ? 'checked' : ''}> Μεγάλο κουμπί (γάντια)</label>
       <h4>Εμφάνιση</h4>
       <div class="seg" id="tm"><button data-v="light" class="${S.theme === 'light' ? 'on' : ''}">☀ Ήλιος (πεδίο)</button><button data-v="dark" class="${S.theme === 'dark' ? 'on' : ''}">NEO σκούρο</button></div>
       <label class="fld"><span>Γλώσσα / Language</span><select id="lng" class="nt"><option value="el" ${HI18N.lang() === 'el' ? 'selected' : ''}>Ελληνικά</option><option value="en" ${HI18N.lang() === 'en' ? 'selected' : ''}>English</option></select></label>
@@ -786,10 +791,13 @@
       b.querySelector('#elog').onclick = () => { const l = A.errorLog(); A.sheet('Αρχείο σφαλμάτων', `<p class="muted">${l.length ? 'Τελευταία σφάλματα (για υποστήριξη):' : 'Κανένα σφάλμα.'}</p><div class="raw nt">${l.map(e => A.esc(e.t + '  ' + e.m)).join('\n')}</div>${l.length ? '<button class="btn" id="el-sh">↗ Αποστολή</button>' : ''}`, bb => { const x = bb.querySelector('#el-sh'); if (x) x.onclick = () => HIO.share([{ name: 'hexis_pad_errors.txt', data: l.map(e => e.t + '  ' + e.m).join('\r\n') }], { subject: 'HEXIS PAD errors' }); }); };
       (async () => { try { const i = await Capacitor.Plugins.App.getInfo(); b.querySelector('#ver').textContent = 'HEXIS PAD ' + i.version + ' (build ' + i.build + ')'; } catch (e) { b.querySelector('#ver').textContent = 'HEXIS PAD (web)'; } })();
       b.querySelectorAll('#tm button').forEach(x => x.onclick = () => { theme = x.dataset.v; b.querySelectorAll('#tm button').forEach(y => y.classList.toggle('on', y === x)); });
+      b.querySelector('#fb-l').onclick = () => { if (A.fab) { A.settings.fab = Object.assign(A.settings.fab || {}, { on: true }); b.querySelector('#fb-on').checked = true; A.fab.preset('left'); A.fab.apply(); A.toast('✋ ' + 'Το κουμπί πήγε αριστερά', 'ok'); } };
+      b.querySelector('#fb-r').onclick = () => { if (A.fab) { A.settings.fab = Object.assign(A.settings.fab || {}, { on: true }); b.querySelector('#fb-on').checked = true; A.fab.preset('right'); A.fab.apply(); A.toast('Το κουμπί πήγε δεξιά ✋', 'ok'); } };
       b.querySelector('#vt').onclick = () => { const v = A.settings.volume; A.settings.volume = parseFloat(b.querySelector('#vol').value); A.sound('point'); setTimeout(() => A.sound('fix'), 600); setTimeout(() => A.sound('lost'), 1300); setTimeout(() => { A.settings.volume = v; }, 2600); };
       b.querySelector('#qce').onclick = () => { const c = HQC.CLASSES[b.querySelector('#qc').value]; const opts = [...$('sv-epochs').options].map(o => +o.value).filter(v => v > 0); const e = opts.reduce((a, v) => Math.abs(v - c.epochs) < Math.abs(a - c.epochs) ? v : a, opts[0]); S.epochs = c.epochs > 60 ? c.epochs : e; if (c.epochs > 60 && ![...$('sv-epochs').options].some(o => +o.value === c.epochs)) $('sv-epochs').add(new Option(String(c.epochs), String(c.epochs))); A.toast('Εποχές: ' + S.epochs); };
       b.querySelector('#ok').onclick = () => {
         const nl = b.querySelector('#lng').value;
+        A.settings.fab = Object.assign(A.settings.fab || {}, { on: b.querySelector('#fb-on').checked, big: b.querySelector('#fb-big').checked }); if (A.fab) A.fab.apply();
         const wantV = b.querySelector('#vc').checked;
         Object.assign(S, { qcClass: b.querySelector('#qc').value, tolH: num(b.querySelector('#th').value) || 0.02, tolV: num(b.querySelector('#tv').value) || 0.02, beep: b.querySelector('#bp').checked, autoNext: b.querySelector('#an').checked, theme, textSize: b.querySelector('#tsz').value, fixWait: Math.max(0, parseInt(b.querySelector('#fw').value, 10) || 0), soundPoint: b.querySelector('#sp').checked, soundFix: b.querySelector('#sf').checked, volume: parseFloat(b.querySelector('#vol').value), textH: num(b.querySelector('#tx').value) || 0.25, googleKey: b.querySelector('#gk').value.trim(), voiceSay: b.querySelector('#vs').checked, voice: wantV });
         if (A.voice && wantV !== A.voice.on) (wantV ? A.voice.start() : A.voice.stop());
