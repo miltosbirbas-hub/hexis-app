@@ -259,7 +259,9 @@
             (hx:pl lay pts nil (if (= lay "HX_PST_KAEK") (* h 0.14) 0.0)))
           ((= (substr ln 1 2) "T=")
             (setq q (hx:fields (substr ln 3) "|") lay (car q))
-            (hx:tx lay (xy (cadr q)) (if (= lay "HX_PST_KAEK") (* h 0.6) (* h 0.9)) (caddr q) T))))
+            (setq p (xy (cadr q)))
+            (if (= lay "HX_PST_KAEK") (setq p (list (car p) (- (cadr p) (* h 1.1)))))   ; \U+03BD\U+03B1 \U+03BC\U+03B7 \U+03C0\U+03AD\U+03C6\U+03C4\U+03B5\U+03B9 \U+03C0\U+03AC\U+03BD\U+03C9 \U+03C3\U+03C4\U+03BF\U+03BD \U+03B1\U+03C1\U+03B9\U+03B8\U+03BC\U+03CC \U+039F.\U+03A4.
+            (hx:tx lay p (if (= lay "HX_PST_KAEK") (* h 0.6) (* h 0.9)) (caddr q) T))))
       ;; \U+03C0\U+03BB\U+03B1\U+03AF\U+03C3\U+03B9\U+03BF
       (hx:pl "HX_APOSPASMA" (list (list x0 fy) (list (+ x0 wd) fy) (list (+ x0 wd) (- fy hd)) (list x0 (- fy hd))) T 0.0)
       ;; \U+03B2\U+03BF\U+03C1\U+03C1\U+03AC\U+03C2

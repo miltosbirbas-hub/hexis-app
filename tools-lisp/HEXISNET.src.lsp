@@ -259,7 +259,9 @@
             (hx:pl lay pts nil (if (= lay "HX_PST_KAEK") (* h 0.14) 0.0)))
           ((= (substr ln 1 2) "T=")
             (setq q (hx:fields (substr ln 3) "|") lay (car q))
-            (hx:tx lay (xy (cadr q)) (if (= lay "HX_PST_KAEK") (* h 0.6) (* h 0.9)) (caddr q) T))))
+            (setq p (xy (cadr q)))
+            (if (= lay "HX_PST_KAEK") (setq p (list (car p) (- (cadr p) (* h 1.1)))))   ; να μη πέφτει πάνω στον αριθμό Ο.Τ.
+            (hx:tx lay p (if (= lay "HX_PST_KAEK") (* h 0.6) (* h 0.9)) (caddr q) T))))
       ;; πλαίσιο
       (hx:pl "HX_APOSPASMA" (list (list x0 fy) (list (+ x0 wd) fy) (list (+ x0 wd) (- fy hd)) (list x0 (- fy hd))) T 0.0)
       ;; βορράς
