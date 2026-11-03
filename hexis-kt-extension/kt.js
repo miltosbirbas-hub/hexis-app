@@ -139,18 +139,40 @@
   }
 
   /* ---------- βήματα ---------- */
+  // όλοι οι σύνδεσμοι της σελίδας (και όσοι είναι μέσα σε κλειστά μενού)
+  const allLinks = () => [...document.querySelectorAll("a[href]")].filter((a) => !panel.contains(a) && !/^javascript:|^#|^mailto:|^tel:/i.test(a.getAttribute("href") || "") && !/LOGOUT|LOGOFF|SIGNOUT|ΑΠΟΣΥΝΔΕΣ|ΕΞΟΔΟΣ/i.test(norm(a.textContent) + " " + a.href.toUpperCase()));
+  function searchLink() {
+    const L = allLinks();
+    return L.find((a) => /^(ΑΚΙΝΗΤΟ|ΑΚΙΝΗΤΑ|ΕΡΕΥΝΑ ΑΚΙΝΗΤΟΥ|ΑΝΑΖΗΤΗΣΗ ΑΚΙΝΗΤΟΥ|ΕΡΕΥΝΑ ΒΑΣΕΙ ΑΚΙΝΗΤΟΥ)$/.test(norm(a.textContent)))
+        || L.find((a) => /ΑΚΙΝΗΤ/.test(norm(a.textContent)) && /ΕΡΕΥΝ|ΑΝΑΖΗΤ/.test(norm(a.textContent)))
+        || L.find((a) => /\/(Search|Erevna|Ereuna|Research)[^?#]*(Property|Akinito|Akinita|Kaek)/i.test(a.href))
+        || L.find((a) => /^(ΕΡΕΥΝΑ|ΗΛΕΚΤΡΟΝΙΚΗ ΕΡΕΥΝΑ)$/.test(norm(a.textContent)))
+        || L.find((a) => /\/(Search|Erevna|Ereuna|Research)(\/|$|\?)/i.test(a.href));
+  }
   async function stepSearch(k) {
     let inp = findKaekInput();
     if (!inp) {
       JOB.nav = (JOB.nav || 0) + 1; await save();
-      if (JOB.nav > 4) { JOB.nav = 0; await save(); return { wait: "Άνοιξε την οθόνη «ΕΡΕΥΝΑ › ΑΚΙΝΗΤΟ» — δεν βρίσκω το πεδίο ΚΑΕΚ (πάτα «Διάγνωση σελίδας» αν επιμένει)." }; }
+      if (JOB.nav > 5) { JOB.nav = 0; await save(); return { wait: "Πήγαινε ΜΙΑ φορά μόνος σου στην οθόνη αναζήτησης ακινήτου (εκεί που γράφεις ΚΑΕΚ) και πάτα «▶ Αυτόματα όλα». Από εκεί και πέρα το πρόσθετο τη θυμάται." }; }
+      // 1) η οθόνη αναζήτησης που βρήκαμε την προηγούμενη φορά
+      if (JOB.searchUrl && location.href.split("#")[0] !== JOB.searchUrl) { location.assign(JOB.searchUrl); await sleep(5000); return { next: true }; }
+      // 2) ορατά «ΑΚΙΝΗΤΟ» / «ΕΡΕΥΝΑ»
       const m2 = findClickable(/^ΑΚΙΝΗΤΟ$/);
       if (m2) { m2.click(); await sleep(2500); }
-      else { const m1 = findClickable(/^ΕΡΕΥΝΑ$/); if (m1) { m1.click(); await sleep(1200); const m3 = findClickable(/^ΑΚΙΝΗΤΟ$/); if (m3) { m3.click(); await sleep(2500); } } }
+      else {
+        // 3) σύνδεσμος (και μέσα σε κλειστό μενού) προς την έρευνα ακινήτου
+        const l = searchLink();
+        if (l) { location.assign(l.href); await sleep(5000); return { next: true }; }
+        // 4) άνοιγμα μενού (⋮ / ☰) και ξανά
+        const menus = [...document.querySelectorAll("button,a,[role=button]")].filter((el) => vis(el) && !panel.contains(el) && (/menu|toggle|dropdown|navbar|kebab|more/i.test((el.className && el.className.baseVal != null ? el.className.baseVal : el.className) + " " + (el.getAttribute("aria-label") || "") + " " + (el.id || "")) || /^(⋮|☰|…|ΜΕΝΟΥ)$/.test(textOf(el))));
+        for (const mb of menus.slice(0, 3)) { try { mb.click(); await sleep(800); } catch (e) {} const m3 = findClickable(/^(ΑΚΙΝΗΤΟ|ΕΡΕΥΝΑ)$/); if (m3) { m3.click(); await sleep(2500); break; } }
+      }
       inp = findKaekInput();
     }
-    if (!inp) return { wait: "Άνοιξε την οθόνη «ΕΡΕΥΝΑ › ΑΚΙΝΗΤΟ» — δεν βρίσκω το πεδίο ΚΑΕΚ (πάτα «Διάγνωση σελίδας» αν επιμένει)." };
+    if (!inp) return { next: true };
     JOB.nav = 0;
+    const here = location.href.split("#")[0];
+    if (JOB.searchUrl !== here && !/\?.*KAEK=/i.test(here)) { JOB.searchUrl = here; send({ type: "pref", ktSearchUrl: here }); }
     setValue(inp, k.kaek);
     const b = findClickable(/^ΑΝΑΖΗΤΗΣΗ$/) || findClickable(/ΑΝΑΖΗΤΗΣΗ/);
     if (!b) return { wait: "Δεν βρίσκω το κουμπί «ΑΝΑΖΗΤΗΣΗ»." };
@@ -200,6 +222,7 @@
       clickables: [...document.querySelectorAll("a,button,input[type=submit],input[type=button],[role=button],[role=tab]")].filter((el) => vis(el) && !panel.contains(el)).slice(0, 160).map((el) => ({ tag: el.tagName, text: cut(el.innerText || el.value, 40), title: cut(el.getAttribute("title") || el.getAttribute("aria-label"), 40), href: cut((el.getAttribute("href") || "").replace(/[?#].*/, ""), 80), cls: cut(el.className && el.className.baseVal != null ? el.className.baseVal : el.className, 50), onclick: cut(el.getAttribute("onclick"), 60), target: el.getAttribute("target") || "", icon: !!el.querySelector("i,svg,img") })),
       tables: [...document.querySelectorAll("table")].filter(vis).slice(0, 12).map((t) => ({ th: [...t.querySelectorAll("th")].map((th) => cut(th.innerText, 30)), rows: t.querySelectorAll("tr").length })),
       headings: [...document.querySelectorAll("h1,h2,h3,h4,legend,.panel-title,.card-header")].filter(vis).slice(0, 30).map((h) => cut(h.innerText, 50)),
+      links: allLinks().slice(0, 200).map((a) => ({ text: cut(a.textContent, 40), href: cut(a.getAttribute("href").replace(/[?#].*/, ""), 90), vis: vis(a) })),
       forms: [...document.querySelectorAll("form")].slice(0, 10).map((f) => ({ action: cut((f.getAttribute("action") || "").replace(/[?#].*/, ""), 80), method: f.method, target: f.target })),
       frames: [...document.querySelectorAll("iframe")].map((f) => cut(f.src.replace(/[?#].*/, ""), 80))
     };

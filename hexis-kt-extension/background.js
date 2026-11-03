@@ -45,8 +45,11 @@ async function openDone() {
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   (async () => {
-    if (msg.type === "job") {
-      const job = Object.assign({}, msg.job, { i: 0, step: "search", done: {}, owner: {}, originTab: sender.tab && sender.tab.id, finished: false });
+    if (msg.type === "pref") {
+      if (msg.ktSearchUrl) await chrome.storage.local.set({ ktSearchUrl: msg.ktSearchUrl });
+      reply({ ok: true });
+    } else if (msg.type === "job") {
+      const job = Object.assign({}, msg.job, { searchUrl: (await chrome.storage.local.get("ktSearchUrl")).ktSearchUrl || "", i: 0, step: "search", done: {}, owner: {}, originTab: sender.tab && sender.tab.id, finished: false });
       await tx("files", "readwrite", (s) => s.clear()); await tx("diag", "readwrite", (s) => s.clear()); caught.clear();
       // ΜΙΑ καρτέλα Κτηματολογίου: δεύτερη καρτέλα σύνδεσης ακυρώνει τη σύνδεση ΤΕΕ της πρώτης («Invalid state»)
       const prev = (await chrome.storage.local.get("ktTab")).ktTab;
