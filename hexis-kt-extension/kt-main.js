@@ -31,22 +31,27 @@
   const fsubmit = HTMLFormElement.prototype.submit;
   async function viaFetch(f, submitter) {
     const fd = new FormData(f); if (submitter && submitter.name) fd.append(submitter.name, submitter.value || "");
-    const method = (f.getAttribute("method") || "GET").toUpperCase();
-    let url = f.action || location.href; const opt = { method, credentials: "include" };
+    // το κουμπί μπορεί να έχει δικό του formaction / formmethod (π.χ. ΚΦ και ΚΔ στην ίδια φόρμα)
+    const sb = submitter && submitter.hasAttribute ? submitter : null;
+    const method = ((sb && sb.getAttribute("formmethod")) || f.getAttribute("method") || "GET").toUpperCase();
+    let url = (sb && sb.hasAttribute("formaction") && sb.formAction) || f.action || location.href; const opt = { method, credentials: "include", redirect: "follow" };
+    const enc = (sb && sb.getAttribute("formenctype")) || f.enctype || "";
     if (method === "GET") { const u = new URL(url, location.href); for (const [k, v] of fd) u.searchParams.append(k, v); url = u.href; }
-    else opt.body = /multipart/i.test(f.enctype) ? fd : new URLSearchParams([...fd]);
+    else opt.body = /multipart/i.test(enc) ? fd : new URLSearchParams([...fd]);
     const r = await fetch(url, opt); const buf = await r.arrayBuffer();
     return isPdf(buf) ? buf : null;
   }
+  let lastBtn = null;
+  document.addEventListener("click", (e) => { const b = e.target && e.target.closest && e.target.closest("button,input[type=submit]"); if (b) lastBtn = b; }, true);
   document.addEventListener("submit", (e) => {
     if (!on() || e.defaultPrevented) return;
     const f = e.target; if (!(f instanceof HTMLFormElement)) return;
     e.preventDefault();
-    viaFetch(f, e.submitter).then((buf) => { if (buf) post({ type: "blob", buf }, [buf]); else fsubmit.call(f); }).catch(() => fsubmit.call(f));
+    viaFetch(f, e.submitter || lastBtn).then((buf) => { if (buf) post({ type: "blob", buf }, [buf]); else fsubmit.call(f); }).catch(() => fsubmit.call(f));
   }, true);
   HTMLFormElement.prototype.submit = function () {
     if (!on()) return fsubmit.call(this);
     const f = this;
-    viaFetch(f, null).then((buf) => { if (buf) post({ type: "blob", buf }, [buf]); else fsubmit.call(f); }).catch(() => fsubmit.call(f));
+    viaFetch(f, lastBtn && f.contains(lastBtn) ? lastBtn : null).then((buf) => { if (buf) post({ type: "blob", buf }, [buf]); else fsubmit.call(f); }).catch(() => fsubmit.call(f));
   };
 })();
