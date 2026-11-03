@@ -163,14 +163,21 @@ function fekLink(a){
   return a.FEK_FILE_URL && /^https:\/\/sdigmap\.tee\.gov\.gr\//.test(a.FEK_FILE_URL)
     ? ` <a class="od-fek" href="${esc(a.FEK_FILE_URL)}" target="_blank" rel="noopener">📄 ${t}</a>` : ` <span class="od-fek">${t}</span>`;
 }
+/* Ο ΣΔ/οι όροι προέρχονται από το καθεστώς οικισμών <2.000 κατ. (π.δ. 24.4.1985 κ.ε.); */
+function smallSettlementRegime(L){
+  const recs = [].concat(L.sd||[], L.kalypsi||[], L.ypsos||[], L.artiotita||[]);
+  return recs.some(a=> /μέχρι\s*2[.\s]?000\s*κατ/i.test(a.TITLE||"") ||
+                      (/240\s*τ\.?μ/i.test(a.SD_COMMENT||"") && /400\s*τ\.?μ/i.test(a.SD_COMMENT||"")));
+}
+/* Κατάταξη. Προτεραιότητα: Ο.Τ. εγκεκριμένου σχεδίου → όριο οικισμού / καθεστώς οικισμών → άλλη πράξη σχεδίου → εκτός.
+   Μια «πράξη σχεδίου» χωρίς Ο.Τ. ΔΕΝ αρκεί για «εντός σχεδίου» όταν υπάρχει όριο οικισμού. */
 function statusOf(L, manual){
   if(manual && manual!=="auto") return manual;
+  if(L.ot) return "sxedio";
+  if(L.oikismos || smallSettlementRegime(L)) return "oikismos";
   const sx = L.sxedio || [];
-  const rym = sx.some(a=> !/ΟΡΙΩΝ ΟΙΚΙΣΜ/i.test(a.APOF_THEME||"") && !/ΓΠΣ|ΣΧΟΟΑΠ/i.test(a.APOF_THEME||""));
-  if(L.ot || rym) return "sxedio";
-  if(L.oikismos) return "oikismos";
-  const sdc = (first(L,"sd")||{}).SD_COMMENT || "";
-  if(/240/.test(sdc) && /400/.test(sdc)) return "oikismos";
+  const rym = sx.some(a=> !/ΟΡΙΩΝ ΟΙΚΙΣΜ|ΟΡΙΟΘΕΤΗΣ|ΓΠΣ|ΣΧΟΟΑΠ|ΖΟΕ|ΖΩΝΗΣ ΟΙΚΙΣΤΙΚΟΥ/i.test(a.APOF_THEME||"") && /ΡΥΜΟΤΟΜ|ΠΟΛΕΟΔΟΜΙΚ|ΣΧΕΔΙΟΥ ΠΟΛΕ|ΕΠΕΚΤΑΣ/i.test((a.APOF_THEME||"")+" "+(a.TITLE||"")));
+  if(rym) return "sxedio";
   if(L.ektos) return "ektos";
   return "ektos?";
 }
@@ -181,9 +188,28 @@ const STATUS_LABEL = {
 /* Σ.Α.Ο. οικισμών <2.000 κατ.: έως 200 τ.μ. ΣΔ 1 · <700 τ.μ. μέγιστο 240 τ.μ. · ≥700 τ.μ. μέγιστο 400 τ.μ. */
 function oikismosMax(E){
   if(!(E>0)) return null;
-  if(E <= 200) return {max:E, rule:"γήπεδο ≤ 200 τ.μ. → ΣΔ 1"};
-  if(E < 700)  return {max:240, rule:"γήπεδο < 700 τ.μ. → μέγιστο 240 τ.μ."};
-  return {max:400, rule:"γήπεδο ≥ 700 τ.μ. → μέγιστο 400 τ.μ."};
+  if(E <= 200) return {max:E,   rule:"γήπεδο έως 200 τ.μ. → ΣΔ 1 (δόμηση = εμβαδόν)"};
+  if(E < 700)  return {max:240, rule:"γήπεδο έως 699,99 τ.μ. → μέγιστη δόμηση 240 τ.μ."};
+  return {max:400, rule:"γήπεδο από 700 τ.μ. → μέγιστη δόμηση 400 τ.μ."};
+}
+/* Ενιαίος υπολογισμός (καθαρή συνάρτηση — ελέγχεται με τεστ) */
+function computeCalc(st, E, L){
+  const kal = first(L,"kalypsi"), sd = L.sd || [];
+  if(st==="oikismos"){
+    const m = oikismosMax(E); if(!m) return null;
+    const kP = num(kal && kal.SYNT_KALYPSIS) || 60, k = E < 200 ? Math.max(kP, 70) : kP;
+    return {kind:"oikismos", max:m.max, sao:m.max/E, rule:m.rule, kalPct:k, kalM2:k*E/100};
+  }
+  if(st==="sxedio"){
+    const s0 = sd.find(a=> num(a.SD_TIMH)!=null);
+    const kv = num(kal && kal.SYNT_KALYPSIS);
+    if(!s0) return {kind:"sxedio", max:null, kalPct:kv, kalM2: kv!=null ? kv*E/100 : null};
+    const v = num(s0.SD_TIMH); let mx = v*E, rule = `ΣΔ ${fmt(v,2)} × ${fmt(E)} τ.μ.`;
+    // ασφάλεια: ΣΔ με όρια οικισμού <2.000 κατ. → εφαρμόζονται τα όρια 200/240/400 τ.μ.
+    if(smallSettlementRegime(L)){ const m = oikismosMax(E); if(m && m.max < mx){ mx = m.max; rule = m.rule + " (όριο οικισμού <2.000 κατ.)"; } }
+    return {kind:"sxedio", max:mx, sao:mx/E, rule, sd:s0, kalPct:kv, kalM2: kv!=null ? kv*E/100 : null};
+  }
+  return {kind:"ektos", kalPct:10, kalM2:0.10*E};
 }
 function num(v){ const n = typeof v==="number" ? v : parseFloat(String(v||"").replace(",",".")); return isFinite(n) ? n : null; }
 
@@ -252,23 +278,20 @@ function renderResults(){
   const hMid = h; h = "";
   /* 4. Υπολογισμοί */
   h += `<div class="od-card od-calc"><div class="od-h">🧮 Υπολογισμός για αυτό το γεωτεμάχιο</div>`;
+  const C = computeCalc(st, E, L);
   if(st==="oikismos"){
-    const m = oikismosMax(E);
-    const kP = num(kal && kal.SYNT_KALYPSIS) || 60;
-    const k = E < 200 ? Math.max(kP, 70) : kP;
-    h += cardRow("Μέγιστη δόμηση", `<b class="od-big">${fmt(m.max)} τ.μ.</b>`, esc(m.rule));
-    h += cardRow("Σ.Α.Ο.", `<b class="od-big">${fmt(m.max/E, 3)}</b>`, "Συντελεστής Αξιοποίησης Οικοπέδου = μέγιστη δόμηση ÷ εμβαδόν γηπέδου");
-    h += cardRow("Μέγιστη κάλυψη", `<b>${fmt(k*E/100)} τ.μ.</b> (${fmt0(k)}%)`, E<200 ? "γήπεδο < 200 τ.μ.: κάλυψη έως 70% για δόμηση έως 200 τ.μ." : "");
+    h += cardRow("Μέγιστη δόμηση", `<b class="od-big">${fmt(C.max)} τ.μ.</b>`, esc(C.rule));
+    h += cardRow("Σ.Α.Ο.", `<b class="od-big">${fmt(C.sao, 3)}</b>`, `${fmt(C.max)} ÷ ${fmt(E)} τ.μ. — Συντελεστής Αξιοποίησης Οικοπέδου = μέγιστη δόμηση ÷ εμβαδόν γηπέδου`);
+    h += cardRow("Μέγιστη κάλυψη", `<b>${fmt(C.kalM2)} τ.μ.</b> (${fmt0(C.kalPct)}%)`, E<200 ? "γήπεδο < 200 τ.μ.: κάλυψη έως 70% για δόμηση έως 200 τ.μ." : "");
     const a0 = ar.find(a=>/ΚΑΝΟΝΑ/i.test(a.OROS_TYPE||"")) || ar[0];
     if(a0 && a0.ELAX_EMBADO_M2) h += cardRow("Έλεγχος αρτιότητας (κατά κανόνα)", artiCheck(E, front, a0.ELAX_EMBADO_M2, a0.ELAX_PROSOP_M), "οι παρεκκλίσεις (π.χ. γήπεδα της 3.5.1985) φαίνονται στους όρους πιο πάνω");
   } else if(st==="sxedio"){
-    const s0 = sd.find(a=> num(a.SD_TIMH)!=null);
-    if(s0){
-      const v = num(s0.SD_TIMH), mx = v*E;
-      h += cardRow("Μέγιστη δόμηση", `<b class="od-big">${fmt(mx)} τ.μ.</b>`, `ΣΔ ${fmt(v,2)} × ${fmt(E)} τ.μ.` + (s0.SD_KLIMAKOTOS==="ΝΑΙ" ? " — ο ΣΔ είναι κλιμακωτός: δες το σχόλιο" : "") + (/Μέσος/i.test(s0.SD_COMMENT||"") ? " — ⚠ πρόκειται για Μέσο ΣΔ τομέα (ΓΠΣ), όχι για ΣΔ οικοπέδου" : ""));
-      h += cardRow("Σ.Α.Ο.", `<b class="od-big">${fmt(mx/E,3)}</b>`, "μέγιστη δόμηση ÷ εμβαδόν γηπέδου");
+    if(C.max!=null){
+      const s0 = C.sd;
+      h += cardRow("Μέγιστη δόμηση", `<b class="od-big">${fmt(C.max)} τ.μ.</b>`, esc(C.rule) + (s0.SD_KLIMAKOTOS==="ΝΑΙ" ? " — ο ΣΔ είναι κλιμακωτός: δες το σχόλιο" : "") + (/Μέσος/i.test(s0.SD_COMMENT||"") ? " — ⚠ πρόκειται για Μέσο ΣΔ τομέα (ΓΠΣ), όχι για ΣΔ οικοπέδου" : ""));
+      h += cardRow("Σ.Α.Ο.", `<b class="od-big">${fmt(C.sao,3)}</b>`, `${fmt(C.max)} ÷ ${fmt(E)} τ.μ. — μέγιστη δόμηση ÷ εμβαδόν γηπέδου`);
     } else h += `<div class="od-warn">Δεν υπάρχει αριθμητικός ΣΔ στον Ενιαίο Ψηφιακό Χάρτη για αυτό το σημείο — δες το ΦΕΚ του σχεδίου.</div>`;
-    const kv = num(kal && kal.SYNT_KALYPSIS); if(kv!=null) h += cardRow("Μέγιστη κάλυψη", `<b>${fmt(kv*E/100)} τ.μ.</b> (${fmt0(kv)}%)`, "");
+    if(C.kalPct!=null) h += cardRow("Μέγιστη κάλυψη", `<b>${fmt(C.kalM2)} τ.μ.</b> (${fmt0(C.kalPct)}%)`, "");
     const a0 = ar.find(a=>/ΚΑΝΟΝΑ/i.test(a.OROS_TYPE||"")) || ar[0];
     if(a0 && a0.ELAX_EMBADO_M2) h += cardRow("Έλεγχος αρτιότητας (κατά κανόνα)", artiCheck(E, front, a0.ELAX_EMBADO_M2, a0.ELAX_PROSOP_M), "για παρεκκλίσεις δες τους όρους πιο πάνω");
   } else {
@@ -282,7 +305,8 @@ function renderResults(){
   /* 5. Ενέργειες */
   h += `<div class="od-actions">
     <a class="od-btn" href="${SDM_PUBLIC}" target="_blank" rel="noopener">🗺 Ενιαίος Ψηφιακός Χάρτης</a>
-    <button type="button" class="od-btn" id="od-print">🖨 PDF</button>
+    <button type="button" class="od-btn od-primary" id="od-extract">📐 Απόσπασμα σχεδίου (PDF / AutoCAD)</button>
+    <button type="button" class="od-btn" id="od-print">🖨 PDF όρων</button>
   </div>
   <div class="od-note">ℹ️ Ενημερωτικά στοιχεία από τον <b>Ενιαίο Ψηφιακό Χάρτη</b> (ΤΕΕ/ΥΠΕΝ) και το Κτηματολόγιο. Δεν υποκαθιστούν τη βεβαίωση όρων δόμησης της ΥΔΟΜ ούτε τον έλεγχο του μηχανικού στα ΦΕΚ.${S.plan&&S.plan.t?` Ερώτημα: ${esc(new Date(S.plan.t).toLocaleString("el-GR"))}.`:""}</div>`;
   box.innerHTML = h;
@@ -292,6 +316,7 @@ function renderResults(){
   const ms = document.getElementById("od-manual");
   if(ms) ms.addEventListener("change", ()=>{ S.manual = ms.value; renderResults(); });
   const pb = document.getElementById("od-print"); if(pb) pb.addEventListener("click", printReport);
+  const xb = document.getElementById("od-extract"); if(xb) xb.addEventListener("click", openExtract);
 }
 function artiCheck(E, front, minA, minF){
   const okA = E >= minA, okF = minF==null || (front!=null && front >= minF);
@@ -314,6 +339,28 @@ function printReport(){
   <h1>HEXIS-APP · Όροι δόμησης</h1><div style="color:#5B6B85">ΚΑΕΚ ${esc(S.parcel&&S.parcel.kaek||"")} · ${esc(new Date().toLocaleDateString("el-GR"))}</div>${clone.innerHTML}</body></html>`);
   w.document.close(); setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} }, 400);
 }
+
+/* ---------- απόσπασμα σχεδίου (φορτώνεται όταν ζητηθεί) ---------- */
+let exportP = null;
+async function openExtract(){
+  const b = document.getElementById("od-extract"); if(b){ b.disabled = true; b.textContent = "Φόρτωση…"; }
+  try{
+    if(!window.HXOroiExport){
+      exportP = exportP || new Promise((res,rej)=>{ const s=document.createElement("script"); s.src="oroi-export.js?v="+(typeof NOMO_VERSION!=="undefined"?NOMO_VERSION:""); s.onload=res; s.onerror=()=>{ exportP=null; rej(new Error("Δεν φορτώθηκε η εξαγωγή")); }; document.head.appendChild(s); });
+      await exportP;
+    }
+    await window.HXOroiExport.open();
+  }catch(e){ alert(e.message || e); }
+  finally{ if(b){ b.disabled = false; b.textContent = "📐 Απόσπασμα σχεδίου (PDF / AutoCAD)"; } }
+}
+function summary(){
+  const L = (S.plan && S.plan.layers) || {}, st = statusOf(L, S.manual);
+  const calc = [...document.querySelectorAll("#od-res .od-calc .od-row")].map(r=>[
+    (r.querySelector(".od-l")||{}).textContent || "", ((r.querySelector(".od-v")||{}).innerText || "").replace(/\s*\n\s*/g," · ")]);
+  return {status: STATUS_LABEL[st]||st, front: S.frontManual!=null ? S.frontManual : S.parcel && S.parcel.front, calc};
+}
+window.HXOroi = { polysOf, openRing, mainOuter, interiorPoint, _t:{ statusOf, oikismosMax, computeCalc, smallSettlementRegime },
+  state: ()=> S.parcel ? { parcel:S.parcel, plan:S.plan, status: statusOf((S.plan&&S.plan.layers)||{}, S.manual), summary: summary() } : null };
 
 /* ---------- ροή ---------- */
 async function lookup(q){

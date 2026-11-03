@@ -41,7 +41,25 @@ const DROP = /^(SHAPE|Shape)|STArea|STLength|^GlobalID$|^KEY_FLAG$/;
 
 function cors(origin: string | null) {
   const o = origin && ORIGINS.includes(origin) ? origin : ORIGINS[0];
-  return { "Access-Control-Allow-Origin": o, "Vary": "Origin", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-hx-selftest", "Access-Control-Allow-Methods": "POST, OPTIONS" };
+  return { "Access-Control-Allow-Origin": o, "Vary": "Origin", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-hx-selftest, range",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Expose-Headers": "Content-Range, Content-Length, Accept-Ranges" };
+}
+// Σαρωμένα γεωαναφερμένα διαγράμματα (GeoTIFF ΕΓΣΑ'87) — μόνο αυτή η διαδρομή του ΕΨΧ
+const TIF_PREFIX = "https://sdigmap.tee.gov.gr/_Digitize_LOW/2_GEOREF_EGSA_LOW/";
+// έγκυρα tokens σε μνήμη (για να μην ελέγχεται ο χρήστης σε κάθε κομμάτι του TIFF)
+const okTokens = new Map<string, number>();
+async function userOk(req: Request): Promise<boolean> {
+  const st = Deno.env.get("SELFTEST_KEY");
+  if (st && req.headers.get("x-hx-selftest") === st) return true;
+  const auth = req.headers.get("authorization") || "";
+  if (!auth.startsWith("Bearer ")) return false;
+  const now = Date.now(), t = okTokens.get(auth);
+  if (t && t > now) return true;
+  const u = await fetch(SB + "/auth/v1/user", { headers: { apikey: Deno.env.get("SUPABASE_ANON_KEY") || ANON, Authorization: auth } });
+  if (!u.ok) return false;
+  if (okTokens.size > 500) okTokens.clear();
+  okTokens.set(auth, now + 10 * 60 * 1000);
+  return true;
 }
 
 async function q(path: string, geom: string, gtype: string, timeoutMs = 20000): Promise<Record<string, unknown>[] | { error: string }> {
@@ -80,17 +98,22 @@ Deno.serve(async (req) => {
   const C = cors(req.headers.get("origin"));
   const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...C, "Content-Type": "application/json" } });
   if (req.method === "OPTIONS") return new Response("ok", { headers: C });
+  // GET ?tif=<url>: τμήματα (Range) σαρωμένου διαγράμματος, για ανάγνωση με geotiff.js στον browser
+  if (req.method === "GET") {
+    const tif = new URL(req.url).searchParams.get("tif") || "";
+    if (!tif.startsWith(TIF_PREFIX) || !/^[A-Za-z0-9_\-]+E\.tif$/.test(tif.slice(TIF_PREFIX.length))) return json({ error: "bad_tif" }, 400);
+    if (!(await userOk(req))) return json({ error: "login" }, 401);
+    const h: Record<string, string> = { "User-Agent": "HEXIS-APP/1.0 (hexis-app.gr)" };
+    const range = req.headers.get("range"); if (range) h["Range"] = range;
+    const up = await fetch(tif, { headers: h });
+    const oh: Record<string, string> = { ...C, "Content-Type": up.headers.get("content-type") || "image/tiff", "Cache-Control": "private, max-age=3600" };
+    for (const k of ["content-range", "content-length", "accept-ranges"]) { const v = up.headers.get(k); if (v) oh[k] = v; }
+    return new Response(up.body, { status: up.status, headers: oh });
+  }
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   try {
     // πρόσβαση: συνδεδεμένος χρήστης HEXIS (ή κλειδί αυτοελέγχου του CI)
-    const st = Deno.env.get("SELFTEST_KEY");
-    const selftest = !!st && req.headers.get("x-hx-selftest") === st;
-    if (!selftest) {
-      const auth = req.headers.get("authorization") || "";
-      if (!auth.startsWith("Bearer ")) return json({ error: "login" }, 401);
-      const u = await fetch(SB + "/auth/v1/user", { headers: { apikey: Deno.env.get("SUPABASE_ANON_KEY") || ANON, Authorization: auth } });
-      if (!u.ok) return json({ error: "login" }, 401);
-    }
+    if (!(await userOk(req))) return json({ error: "login" }, 401);
     const b = await req.json().catch(() => ({}));
     const x = Number(b.x), y = Number(b.y);
     // Ελλάδα σε ΕΓΣΑ'87: περίπου x 50.000–1.050.000, y 3.850.000–4.650.000
