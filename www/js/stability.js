@@ -68,6 +68,8 @@
   const WAKE = [
     // Unicore (UM980/UM982, πολλοί κινέζικοι δέκτες): έξοδος στη θύρα από την οποία ήρθε η εντολή
     'GPGGA 1', 'GPGST 1', 'GPGSA 1', 'GPRMC 1',
+    // ίδιες εντολές σε κάθε θύρα: σε πολλούς δέκτες το Bluetooth είναι εσωτερικά COM1/COM2/COM3
+    'GPGGA COM1 1', 'GPGGA COM2 1', 'GPGGA COM3 1', 'GPGST COM1 1', 'GPGST COM2 1', 'GPGST COM3 1', 'GPGSA COM1 1', 'GPGSA COM2 1', 'GPGSA COM3 1',
     // NovAtel / ComNav
     'LOG GPGGA ONTIME 1', 'LOG GPGST ONTIME 1', 'LOG GPGSA ONTIME 1',
   ];
@@ -79,7 +81,7 @@
     wakeT = setTimeout(async () => {
       if (lastGga > t0 || HCONN.state.gnss !== 'on') return;
       A.toast(t('Ο δέκτης δεν στέλνει θέση (NMEA) — στέλνω εντολές ενεργοποίησης…'), '', 3500);
-      for (const c of WAKE) { try { await HCONN.write('gnss', c + '\r\n'); } catch (e) { } await new Promise(r => setTimeout(r, 180)); }
+      for (const c of WAKE) { try { await HCONN.write('gnss', c + '\r\n'); } catch (e) { } await new Promise(r => setTimeout(r, 120)); }
       wakeT = setTimeout(async () => {
         if (lastGga > t0 || HCONN.state.gnss !== 'on') { if (lastGga > t0) A.toast('✓ ' + t('Ο δέκτης στέλνει πλέον θέση'), 'ok'); return; }
         const s = await stats();
