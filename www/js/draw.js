@@ -97,7 +97,7 @@
   // κουμπί στο dock του Survey
   function init() {
     const row = document.querySelector('.sv-act'); if (!row || $('btn-draw')) return;
-    const b = document.createElement('button'); b.className = 'btn big icon'; b.id = 'btn-draw'; b.title = t('Σχεδίαση γραμμής'); b.innerHTML = '✎<small>' + t('Σχέδιο') + '</small>';
+    const b = document.createElement('button'); b.className = 'btn big icon'; b.id = 'btn-draw'; b.title = t('Σχεδίαση γραμμής'); b.innerHTML = (g.HICONS ? HICONS.svg('draw') : '✎') + '<small>' + t('Σχέδιο') + '</small>';
     const ph = $('btn-photo'); row.insertBefore(b, ph || null);
     b.onclick = () => A.drawSheet();
     bar();

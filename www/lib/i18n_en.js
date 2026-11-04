@@ -263,5 +263,6 @@ Object.assign(window.HEXIS_EN, {
   "Offset κεραίας δέκτη (m) — ARP → κέντρο φάσης· προστίθεται στο ύψος κονταριού": "Receiver antenna offset (m) — ARP → phase centre; added to pole height",
   "Κοντάρι": "Pole",
   "Ύψος κεραίας": "Antenna height",
-  "κοντάρι": "pole"
+  "κοντάρι": "pole",
+  "Μόνο σημεία": "Points only"
 });

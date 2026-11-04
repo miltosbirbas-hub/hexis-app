@@ -796,7 +796,7 @@
     const base = P.name.replace(A.RX_NOTNAME, '_').replace(/\s+/g, '_');
     A.sheet('Εξαγωγή / Αποστολή', `<label class="fld"><span>Σημεία</span><select id="fl"><option value="all">Όλα (${P.points.length})</option><option value="survey">Μετρημένα</option><option value="staked">Χαραγμένα (με αποκλίσεις)</option><option value="calc">Υπολογισμένα</option><option value="stake">Προς χάραξη</option></select></label>
       <h4>Μορφές</h4>
-      <div class="row"><button class="btn grow" id="pre-pts">● Μόνο σημεία (TXT)</button><button class="btn grow" id="pre-dxf">⌒ DXF (σημεία + γραμμές)</button><button class="btn grow" id="pre-all">Όλα</button></div>
+      <div class="row"><button class="btn grow" id="pre-pts">☰ Μόνο σημεία</button><button class="btn grow" id="pre-dxf">✎ DXF</button><button class="btn grow" id="pre-all">Όλα</button></div>
       <label class="chk"><input type="checkbox" value="txt" checked> TXT (Όνομα,X,Y,Z,Κωδικός)</label>
       <label class="chk"><input type="checkbox" value="csv" checked> CSV πλήρες (ακρίβειες, QC, χάραξη, φωτο)</label>
       <label class="chk"><input type="checkbox" value="dxf" checked> DXF (σημεία, ονόματα, υψόμετρα, γραμμές)</label>

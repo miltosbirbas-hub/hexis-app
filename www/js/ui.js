@@ -69,12 +69,13 @@
     A.map.base = A.settings.base; A.saveSettings(); A.map.redraw();
   }
 
+  const ico = k => (g.HICONS ? HICONS.svg(HICONS.has(k) ? k : (HICONS.MAP[T[k].i] || 'info'), 'ic ic-tool') : '<i>' + T[k].i + '</i>');
   function list() { return Array.isArray(A.settings.toolbar) && A.settings.toolbar.length ? A.settings.toolbar : DEFAULT.slice(); }
 
   function render() {
     const box = $('lefttools');
-    box.innerHTML = list().map(k => k === '|' ? '<div class="sep"></div>' : (T[k] ? `<button data-t="${k}" title="${esc(T[k].l)}"><i>${T[k].i}</i>${esc(T[k].l)}</button>` : '')).join('') +
-      '<div class="sep"></div><button class="edit" data-t="__edit" title="Προσθήκη / αφαίρεση εργαλείων"><i>✎</i>Εργαλεία</button>';
+    box.innerHTML = list().map(k => k === '|' ? '<div class="sep"></div>' : (T[k] ? `<button data-t="${k}" title="${esc(T[k].l)}">${ico(k)}${esc(T[k].l)}</button>` : '')).join('') +
+      '<div class="sep"></div><button class="edit" data-t="__edit" title="Προσθήκη / αφαίρεση εργαλείων">' + (g.HICONS ? HICONS.svg('edit', 'ic ic-tool') : '<i>✎</i>') + 'Εργαλεία</button>';
     box.querySelectorAll('button').forEach(b => b.onclick = () => { const k = b.dataset.t; if (k === '__edit') return customize(); T[k].f(); refreshToolState(); });
     refreshToolState();
   }
@@ -88,9 +89,9 @@
       const cur = list();
       const avail = Object.keys(T).filter(k => !cur.includes(k));
       A.sheet('Εργαλεία αριστερής στήλης', `<p class="muted">Πρόσθεσε ή αφαίρεσε εργαλεία και άλλαξε τη σειρά τους. Η «—» είναι διαχωριστική γραμμή.</p>
-        <h4>Στη στήλη</h4><div class="list">${cur.map((k, i) => `<div class="tb-row"><i>${k === '|' ? '—' : T[k].i}</i><span>${k === '|' ? 'Διαχωριστικό' : esc(T[k].l)}</span><button class="btn" data-up="${i}">▲</button><button class="btn" data-dn="${i}">▼</button><button class="btn" data-rm="${i}">✕</button></div>`).join('')}</div>
+        <h4>Στη στήλη</h4><div class="list">${cur.map((k, i) => `<div class="tb-row">${k === '|' ? '<i>—</i>' : ico(k)}<span>${k === '|' ? 'Διαχωριστικό' : esc(T[k].l)}</span><button class="btn" data-up="${i}">▲</button><button class="btn" data-dn="${i}">▼</button><button class="btn" data-rm="${i}">✕</button></div>`).join('')}</div>
         <button class="btn" id="tb-sep">＋ Διαχωριστικό</button>
-        <h4>Διαθέσιμα</h4><div class="list">${avail.map(k => `<div class="tb-row"><i>${T[k].i}</i><span>${esc(T[k].l)}</span><button class="btn primary" data-add="${k}">＋</button></div>`).join('') || '<p class="muted">Όλα τα εργαλεία είναι ήδη στη στήλη.</p>'}</div>
+        <h4>Διαθέσιμα</h4><div class="list">${avail.map(k => `<div class="tb-row">${ico(k)}<span>${esc(T[k].l)}</span><button class="btn primary" data-add="${k}">＋</button></div>`).join('') || '<p class="muted">Όλα τα εργαλεία είναι ήδη στη στήλη.</p>'}</div>
         <button class="btn" id="tb-reset">Επαναφορά προεπιλογής</button>`, b => {
         const save = l => { A.settings.toolbar = l; A.saveSettings(); render(); draw(); };
         b.querySelectorAll('[data-up]').forEach(x => x.onclick = () => { const l = list().slice(), i = +x.dataset.up; if (i > 0) { [l[i - 1], l[i]] = [l[i], l[i - 1]]; save(l); } });
