@@ -91,3 +91,7 @@ Object.assign(window.HEXIS_EN, {
   "Αυτόματα — από τα δεδομένα του δέκτη": "Automatic — from the receiver data", "Όριο κλίσης (°) — κενό = του κατασκευαστή (γνωστό μοντέλο) ή 30°": "Tilt limit (°) — empty = manufacturer's (known model) or 30°",
   "Ο δέκτης αναγνωρίζεται από τα δεδομένα που στέλνει. Όριο κλίσης": "The receiver is recognised from the data it sends. Tilt limit", "γράψε παρακάτω το όριο από το φυλλάδιο του δέκτη σου": "enter the limit from your receiver's datasheet below"
 });
+Object.assign(window.HEXIS_EN, {
+  "Σωστό ύψος κονταριού, σταθερό FIX, κούνησε το κοντάρι με τη μύτη στο ίδιο σημείο": "Correct pole height, stable FIX, rock the pole with the tip on the same point",
+  "Η αντιστάθμιση ενεργοποιείται από την εφαρμογή του κατασκευαστή· η μέτρηση με το ενσωματωμένο laser δεν υποστηρίζεται.": "Compensation is enabled from the manufacturer's app; measuring with the built-in laser is not supported."
+});
