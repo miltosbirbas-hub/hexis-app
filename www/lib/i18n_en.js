@@ -165,3 +165,18 @@ Object.assign(window.HEXIS_EN, {
   "Αν ο δέκτης έχει NFC, ακούμπησε το κινητό πάνω του — η σύζευξη γίνεται αυτόματα.": "If the receiver has NFC, touch the phone to it — pairing happens automatically.",
   "⚙ Σύζευξη δέκτη (Bluetooth)": "⚙ Pair receiver (Bluetooth)", "Αργότερα": "Later", "Σύνδεση με": "Connecting to", "Συνδέθηκε ο δέκτης": "Receiver connected"
 });
+Object.assign(window.HEXIS_EN, {
+  "Relocalize — μετάθεση σημείων": "Relocalize — shift points", "Relocalize (μετάθεση σημείων)": "Relocalize (shift points)", "Μετάθεση σημείων σε γνωστά σημεία": "Shift points onto known points",
+  "Όταν ένα σετ σημείων μετρήθηκε με ψευδές FIX ή λάθος βάση: δώσε γνωστά σημεία που μέτρησες και τις σωστές τους συντεταγμένες — όλα τα σημεία μετακινούνται στη σωστή θέση.": "When a set of points was measured with a false FIX or a wrong base: give known points you measured and their correct coordinates — all points move to the correct position.",
+  "1. Ποια σημεία μετακινούνται": "1. Which points move", "Όλα": "All", "Ημέρα": "Day", "Από – έως": "From – to", "Ημέρα μέτρησης": "Survey day", "Από σημείο": "From point", "Έως σημείο": "To point",
+  "σημεία θα μετακινηθούν": "points will move", "μετρημένα / χαραγμένα / υπολογισμένα — τα γνωστά σημεία δεν αλλάζουν": "measured / staked / calculated — known points do not change",
+  "2. Γνωστά σημεία (μετρημένο → σωστό)": "2. Known points (measured → correct)", "Κανένα ζεύγος ακόμη.": "No pairs yet.", "＋ Ζεύγος: μετρημένο σημείο → σωστές συντεταγμένες": "＋ Pair: measured point → correct coordinates",
+  "Και στροφή (με 2+ γνωστά σημεία)": "Also rotation (with 2+ known points)", "Και κλίμακα (με 3+ γνωστά σημεία)": "Also scale (with 3+ known points)", "Διόρθωση και υψομέτρου (Z)": "Also correct elevation (Z)",
+  "Στροφή": "Rotation", "Κλίμακα": "Scale", "Με 1 γνωστό σημείο γίνεται μόνο μετάθεση. Πρόσθεσε 2ο για έλεγχο και στροφή.": "With 1 known point only a shift is applied. Add a 2nd for a check and rotation.",
+  "Μεγάλο υπόλοιπο — έλεγξε τα ζεύγη": "Large residual — check the pairs", "Αναίρεση τελευταίου relocalize": "Undo last relocalize", "Μετρημένο σημείο (λάθος θέση)": "Measured point (wrong position)",
+  "Σωστές συντεταγμένες για": "Correct coordinates for", "Από γνωστό σημείο της λίστας": "From a known point in the list", "ή γράψε τις σωστές συντεταγμένες:": "or type the correct coordinates:",
+  "προαιρετικό": "optional", "Προσθήκη ζεύγους": "Add pair", "Γνωστό σημείο (σωστή θέση)": "Known point (correct position)", "Γράψε X και Y": "Enter X and Y", "Μετακίνηση": "Move",
+  "σημείων": "points", "στροφή": "rotation", "Μπορείς να το αναιρέσεις.": "You can undo it.", "Εφαρμογή": "Apply", "σημεία μετακινήθηκαν στη σωστή θέση": "points moved to the correct position",
+  "Επαναφορά": "Restore", "σημείων στις αρχικές τους θέσεις;": "points to their original positions?", "σημεία επανήλθαν": "points restored"
+});
+Object.assign(window.HEXIS_EN, { "＋ Προσθήκη γνωστού σημείου": "＋ Add known point", "Με 2 γνωστά σημεία και στροφή τα υπόλοιπα είναι πάντα μηδέν — πρόσθεσε 3ο για πραγματικό έλεγχο.": "With 2 known points and rotation the residuals are always zero — add a 3rd for a real check." });

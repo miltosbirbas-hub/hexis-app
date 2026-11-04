@@ -24,6 +24,7 @@
     hiddenpt: { i: '✕', l: 'Δυσπρόσιτο', f: () => { A.setTab('survey'); A.hiddenFromSurvey(); } },
     grid: { i: '⁘', l: 'Κάνναβος', f: () => A.gridTool() },
     laserpt: { i: '⟟', l: 'Laser σημείο', f: () => { A.setTab('survey'); A.laserPoint(); } },
+    reloc: { i: '⇄', l: 'Relocalize', f: () => A.relocSheet() },
     dellast: { i: '⌫', l: 'Σβήσε τελευταίο', f: () => A.deleteLast() },
     measure: { i: '⟷', l: 'Μέτρηση', f: () => A.mapAction('measure'), on: () => !!A._measureMode },
     import: { i: '⤓', l: 'Εισαγωγή', f: () => A.importSheet() },
@@ -150,6 +151,7 @@
     if (k === 'stakeline') { close(); A.setTab('stake'); A.setStakeMode('line'); if (!A.stake.line) A.pickLineSheet(); }
     if (k.startsWith('tool:')) { close(); A.runTool(k.slice(5)); }
     if (k === 'hiddenpt') { close(); A.setTab('survey'); A.hiddenFromSurvey(); }
+    if (k === 'reloc') { close(); A.relocSheet(); }
     if (k === 'grid') { close(); A.gridTool(); }
     if (k === 'laserpt') { close(); A.setTab('survey'); A.laserPoint(); }
     if (k === 'cont') { close(); A.setTab('survey'); A.contSheet(); }

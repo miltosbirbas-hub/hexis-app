@@ -45,7 +45,8 @@
   A.runTool = name => tools[name] && tools[name]({});
   tools.grid = () => A.gridTool();
   tools.laserpt = () => A.laserPoint();
-  A.COGO_LIST = [['inverse', '↔', 'Απόσταση / Αζιμούθιο'], ['slope', '⟋', 'Μέτρηση κλίσης'], ['extend', '→|', 'Επέκταση ευθείας'], ['densify', '┄', 'Πύκνωση ευθυγραμμίας'], ['hidden', '⌖', 'Δυσπρόσιτο σημείο'], ['floor', '▱', 'Κλίση δαπέδου / επιφάνεια'], ['square', '⊾', 'Γωνίασμα κατασκευής'], ['intersect', '✕', 'Τομή ευθειών'], ['area', '⬠', 'Εμβαδόν / περίμετρος'], ['grid', '⁘', 'Κάνναβος από πλευρά (φύτευση, πάσσαλοι)'], ['laserpt', '⟟', 'Σημείο με laser (2–3 θέσεις)'], ['calib', '⚙', 'Τοπική προσαρμογή']];
+  tools.reloc = () => A.relocSheet();
+  A.COGO_LIST = [['inverse', '↔', 'Απόσταση / Αζιμούθιο'], ['slope', '⟋', 'Μέτρηση κλίσης'], ['extend', '→|', 'Επέκταση ευθείας'], ['densify', '┄', 'Πύκνωση ευθυγραμμίας'], ['hidden', '⌖', 'Δυσπρόσιτο σημείο'], ['floor', '▱', 'Κλίση δαπέδου / επιφάνεια'], ['square', '⊾', 'Γωνίασμα κατασκευής'], ['intersect', '✕', 'Τομή ευθειών'], ['area', '⬠', 'Εμβαδόν / περίμετρος'], ['grid', '⁘', 'Κάνναβος από πλευρά (φύτευση, πάσσαλοι)'], ['laserpt', '⟟', 'Σημείο με laser (2–3 θέσεις)'], ['reloc', '⇄', 'Relocalize (μετάθεση σημείων)'], ['calib', '⚙', 'Τοπική προσαρμογή']];
   A.cogoSheet = function () {
     A.sheet('COGO', `<div class="tool-grid">${A.COGO_LIST.map(([k, i, l]) => `<button data-tool="${k}"><i>${i}</i>${l}</button>`).join('')}</div>`, b => {
       b.querySelectorAll('[data-tool]').forEach(x => x.onclick = () => A.runTool(x.dataset.tool));
