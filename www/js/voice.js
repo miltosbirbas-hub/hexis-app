@@ -14,6 +14,8 @@
     { a: 'del', w: ['σβησε', 'σβησ το', 'σβηστο', 'σβησε το', 'διαγραφη', 'διεγραψε', 'διαγραψε', 'delete', 'delete last', 'erase'] },
     { a: 'next', w: ['επομενο', 'επομενος', 'επομενη', 'next'] },
     { a: 'prev', w: ['προηγουμενο', 'προηγουμενος', 'προηγουμενη', 'previous', 'back'] },
+    { a: 'plumb', w: ['κεντρωση', 'κεντραρισμα', 'κατακορυφο', 'plumb', 'level'] },
+    { a: 'tilt', w: ['κλιση', 'με κλιση', 'tilt'] },
     { a: 'cancel', w: ['ακυρο', 'ακυρωση', 'ακυρωσε', 'σταματα', 'στοπ', 'stop', 'cancel'] },
   ];
   const norm = s => String(s || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/ς/g, 'σ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
@@ -33,6 +35,8 @@
   function say(el, en) {
     if (A.settings.voiceSay === false) return;
     const text = isEn() ? en : el;
+    // όσο μιλάει η εφαρμογή (και λίγο μετά) το μικρόφωνο αγνοείται — να μην «ακούει» τον εαυτό της
+    V.muteUntil = Date.now() + 1500 + text.length * 85;
     try {
       if (native()) P().speak({ text, lang: isEn() ? 'en-US' : 'el-GR' });
       else if (g.speechSynthesis) { const u = new SpeechSynthesisUtterance(text); u.lang = isEn() ? 'en-US' : 'el-GR'; speechSynthesis.cancel(); speechSynthesis.speak(u); }
@@ -56,6 +60,8 @@
         if (A._cancelCollect) { A._cancelCollect(); say('Ακύρωση', 'Cancelled'); }
         break;
       case 'del': A.deleteLast(); break;
+      case 'plumb': if (A.tiltMode && A.settings.imu && A.settings.imu.on && A.settings.imu.mode !== 'plumb') A.tiltMode('plumb'); break;
+      case 'tilt': if (A.tiltMode && A.settings.imu && A.settings.imu.on && A.settings.imu.mode === 'plumb') A.tiltMode('tilt'); break;
       case 'undo': A.undoDelete(); break;
       case 'next': if (stakeMode()) { $('so-next').click(); say('Επόμενο ' + ((A.stake.target && A.stake.target.name) || ''), 'Next ' + ((A.stake.target && A.stake.target.name) || '')); } break;
       case 'prev': if (stakeMode()) { $('so-prev').click(); say('Προηγούμενο ' + ((A.stake.target && A.stake.target.name) || ''), 'Previous ' + ((A.stake.target && A.stake.target.name) || '')); } break;
@@ -68,6 +74,7 @@
       if (d && d.type === 'error') { A.toast(t(d.text), 'bad', 3500); stop(true); }
       return;
     }
+    if (V.muteUntil && Date.now() < V.muteUntil) return;
     if (d.seq === handledSeq) return; // μία εντολή ανά φράση (μερικό + τελικό αποτέλεσμα)
     const a = match(d.text);
     if (!a) return;

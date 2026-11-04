@@ -12,7 +12,7 @@
   const DB = () => g.HIMU_DB || [];
   const BR = { chc: 'CHC Navigation', stonex: 'Stonex', hitarget: 'Hi-Target', south: 'South', comnav: 'ComNav', singular: 'Singular XYZ', kolida: 'Kolida', ruide: 'Ruide', tersus: 'Tersus', satlab: 'SatLab', foif: 'FOIF', emlid: 'Emlid', leica: 'Leica', geomax: 'GeoMax', trimble: 'Trimble', spectra: 'Spectra Geospatial', topcon: 'Topcon', sokkia: 'Sokkia', unicore: 'Δέκτης με Unicore (UM981/UM982)', other: 'Άλλος' };
 
-  const S = () => { const c = A.settings.imu || (A.settings.imu = {}); const d = { on: false, id: '', max: 0, tip: true, auto: true, bubble: true, tol: 0.5, plumbGate: false, asked: false }; for (const k in d) if (c[k] === undefined) c[k] = d[k]; return c; };
+  const S = () => { const c = A.settings.imu || (A.settings.imu = {}); const d = { on: false, id: '', max: 0, tip: true, auto: true, bubble: true, tol: 0.5, plumbGate: false, asked: false, mode: 'tilt' }; for (const k in d) if (c[k] === undefined) c[k] = d[k]; return c; };
   const T = A.tilt = { deg: null, pitch: null, roll: null, t: 0, src: '', status: '', statusT: 0 };
   const model = () => DB().find(m => m.id === S().id) || null;
   // γνωστό μοντέλο: όριο κατασκευαστή· άγνωστο: 30° (ασφαλές) ή ό,τι ορίσει ο χρήστης από το φυλλάδιο του δέκτη
@@ -112,6 +112,11 @@
     const now = Date.now();
     const fresh = T.deg != null && now - T.t < 2500;
     if (fresh) p.tilt = Math.round(T.deg * 10) / 10;
+    if (s.mode === 'plumb') {
+      // απόλυτη κέντρωση: σημείο μόνο με κατακόρυφο κοντάρι (μέσα στην ανοχή), ακόμη κι αν ο δέκτης έχει IMU
+      if (fresh && T.deg > s.tol) p.tiltBad = t('Εκτός κέντρωσης') + ' ' + T.deg.toFixed(1) + '° > ' + s.tol + '°';
+      return;
+    }
     if (T.status && now - T.statusT < 5000 && ST_TXT[T.status] && ST_TXT[T.status][1] === 'init') { p.tiltBad = t('IMU') + ': ' + t(ST_TXT[T.status][0]); return; }
     if (fresh && T.deg > maxDeg()) {
       p.tiltBad = t('Κλίση') + ' ' + T.deg.toFixed(0) + '° > ' + maxDeg() + '°';
@@ -124,13 +129,13 @@
     if (!s.on) { const v = (eps || []).map(e => e.tilt).filter(x => x != null); return v.length ? { plumb: true, deg: Math.max(...v), tol: s.tol } : null; }
     const vals = (eps || []).map(e => e.tilt).filter(v => v != null);
     const m = model();
-    return { model: m ? BR[m.brand] + ' ' + m.name : 'IMU', max: maxDeg(), deg: vals.length ? Math.max(...vals) : null, tip: !!s.tip };
+    return { model: m ? BR[m.brand] + ' ' + m.name : 'IMU', max: maxDeg(), deg: vals.length ? Math.max(...vals) : null, tip: !!s.tip, mode: s.mode === 'plumb' ? 'κέντρωση' : 'κλίση', tol: s.mode === 'plumb' ? s.tol : undefined };
   };
 
   // ---------- Ένδειξη στη γραμμή κατάστασης ----------
   function chip() {
     let c = $('st-tilt');
-    if (!c) { c = document.createElement('div'); c.id = 'st-tilt'; c.className = 'st-tilt hidden nt'; c.title = 'IMU'; c.onclick = e => { e.stopPropagation(); A.imuSheet(); }; $('st-qc').after(c); }
+    if (!c) { c = document.createElement('div'); c.id = 'st-tilt'; c.className = 'st-tilt hidden nt'; c.title = 'IMU'; c.onclick = e => { e.stopPropagation(); A.tiltMode(); }; $('st-qc').after(c); }
     return c;
   }
   let chipT = 0;
@@ -141,7 +146,8 @@
     const now = Date.now(), fresh = T.deg != null && now - T.t < 2500;
     const init = T.status && now - T.statusT < 5000 && ST_TXT[T.status] && ST_TXT[T.status][1] === 'init';
     let txt, cls;
-    if (init) { txt = '∠ INIT'; cls = 'warn'; }
+    if (s.mode === 'plumb') { txt = '⊙ ' + (fresh ? T.deg.toFixed(1) + '°/' + s.tol + '°' : t('ΚΕΝΤΡΩΣΗ')); cls = fresh && T.deg > s.tol ? 'fail' : 'ok'; }
+    else if (init) { txt = '∠ INIT'; cls = 'warn'; }
     else if (fresh) { txt = '∠ ' + T.deg.toFixed(0) + '°/' + maxDeg() + '°'; cls = T.deg > maxDeg() ? 'fail' : 'ok'; }
     else { txt = '∠ IMU'; cls = 'ok'; }
     if (c.textContent !== txt) c.textContent = txt;
@@ -172,7 +178,7 @@
     if (c.width !== css * dpr) { c.width = c.height = css * dpr; c.style.width = c.style.height = css + 'px'; }
     const x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, css, css);
     const cx = css / 2, cy = css / 2 - 8, R = css / 2 - 18;
-    const imu = s.on, lim = imu ? maxDeg() : null, tol = s.tol || 0.5;
+    const imu = s.on && s.mode !== 'plumb', lim = imu ? maxDeg() : null, tol = s.tol || 0.5;
     // κλίμακα: με IMU όλο το εύρος έως λίγο πέρα από το όριο, χωρίς IMU μερικές φορές η ανοχή
     const scale = imu ? lim * 1.15 : Math.max(tol * 4, 2);
     const rr = d => Math.min(R, d / scale * R);
@@ -284,4 +290,23 @@
     });
   };
   A.imuMax = maxDeg;
+
+  // ---------- Εναλλαγή κλίση ↔ απόλυτη κέντρωση (ένα πάτημα, ή φωνή «Κέντρωση» / «Κλίση») ----------
+  A.tiltMode = function (m) {
+    const s = S();
+    if (!s.on) { A.imuSheet(); return; }
+    s.mode = m || (s.mode === 'plumb' ? 'tilt' : 'plumb'); A.saveSettings();
+    if (s.mode === 'plumb') { A.toast('⊙ ' + t('Απόλυτη κέντρωση') + ' — ' + t('σημείο μόνο με κατακόρυφο κοντάρι') + ' (±' + s.tol + '°)', 'ok', 3000); say('Κέντρωση', 'Plumb mode'); }
+    else { A.toast('∠ ' + t('Μέτρηση με κλίση') + ' — ' + t('μέχρι') + ' ' + maxDeg() + '°', 'ok', 3000); say('Κλίση μέχρι ' + maxDeg() + ' μοίρες', 'Tilt up to ' + maxDeg() + ' degrees'); }
+    syncBtn(); drawBubble(true);
+  };
+  function syncBtn() {
+    const s = S(), b = $('sv-tiltmode'); if (!b) return;
+    b.classList.toggle('hidden', !s.on);
+    const html = s.mode === 'plumb' ? '⊙ ' + t('Κέντρωση') : '∠ ' + t('Κλίση') + ' ' + maxDeg() + '°';
+    if (b.dataset.h !== html) { b.dataset.h = html; b.innerHTML = html; }
+    b.classList.toggle('plumb', s.mode === 'plumb');
+  }
+  setInterval(syncBtn, 1000);
+  setTimeout(() => { const b = $('sv-tiltmode'); if (b) b.onclick = () => A.tiltMode(); syncBtn(); }, 0);
 })(window);

@@ -99,3 +99,21 @@ Object.assign(window.HEXIS_EN, {
   "Αρχικοποίηση ~5 s: κούνησε το κοντάρι με τη μύτη στο ίδιο σημείο — μία φορά για όλη τη δουλειά": "Initialisation ~5 s: rock the pole with the tip on the same point — once for the whole job",
   "Η αντιστάθμιση ενεργοποιείται από την εφαρμογή του κατασκευαστή.": "Compensation is enabled from the manufacturer's app."
 });
+Object.assign(window.HEXIS_EN, {
+  "ΚΕΝΤΡΩΣΗ": "PLUMB", "Κέντρωση": "Plumb", "Απόλυτη κέντρωση": "Strict plumb", "σημείο μόνο με κατακόρυφο κοντάρι": "point only with a vertical pole",
+  "Μέτρηση με κλίση": "Tilt measurement", "Κλίση / κέντρωση": "Tilt / plumb"
+});
+Object.assign(window.HEXIS_EN, {
+  "Laser από 2–3 θέσεις κονταριού (DISTO κ.λπ.)": "Laser from 2–3 pole positions (DISTO etc.)", "Σημείο με laser (2–3 θέσεις)": "Point by laser (2–3 positions)", "Laser σημείο": "Laser point",
+  "σημείο": "point", "ακούμπα το laser στον στυλεό, σημάδεψε, μέτρα": "rest the laser on the pole, aim, measure", "Θέση": "Position", "έλεγχος": "check", "δεν μετρήθηκε": "not measured",
+  "Απόσταση laser (m)": "Laser distance (m)", "μέτρηση GNSS": "GNSS measurement", "3η θέση για έλεγχο (προαιρετικά)": "3rd position for a check (optional)",
+  "Τώρα σημάδεψε το σημείο με το laser και πάτα μέτρηση — η απόσταση γράφεται μόνη της (λειτουργία πληκτρολογίου), ή γράψ’ την.": "Now aim at the point with the laser and press measure — the distance is filled in automatically (keyboard mode), or type it.",
+  "Διόρθωση απόστασης (m)": "Distance correction (m)", "Υψόμετρο σημείου": "Point elevation", "Χωρίς Z": "No Z", "Μέσο Z θέσεων + ΔΗ": "Mean Z of positions + ΔH",
+  "Αριστερά": "Left", "Δεξιά": "Right", "Πλευρά του σημείου, κοιτάζοντας από τη θέση 1 προς τη θέση 2 (ή πρόσθεσε 3η θέση και διαλέγει μόνο του).": "Side of the point, looking from position 1 towards position 2 (or add a 3rd position and it is chosen automatically).",
+  "Η πλευρά βρέθηκε από την 3η απόσταση.": "The side was found from the 3rd distance.", "Γωνία τομής": "Intersection angle", "Υπόλοιπο (RMS)": "Residual (RMS)", "Από την αρχή": "Start over",
+  "Αποθήκευση στην αποτύπωση": "Save to survey", "Οι θέσεις 1 και 2 συμπίπτουν — μετακινήσου τουλάχιστον 2–3 m": "Positions 1 and 2 coincide — move at least 2–3 m",
+  "Οι αποστάσεις δεν «κλείνουν» με τις θέσεις": "The distances do not close with the positions", "έλεγξε τις μετρήσεις": "check the measurements", "Αδύναμη γεωμετρία": "Weak geometry",
+  "οι θέσεις να σχηματίζουν γωνία 60°–120° με το σημείο": "the positions should form a 60°–120° angle at the point", "Μεγάλο υπόλοιπο": "Large residual", "έλεγξε τις αποστάσεις": "check the distances",
+  "θέσεις": "positions", "γωνία": "angle", "Απόσταση": "Distance", "Δεν υπάρχει θέση GNSS": "No GNSS position"
+});
+Object.assign(window.HEXIS_EN, { "Σημείο με laser": "Point by laser" });

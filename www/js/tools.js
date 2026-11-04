@@ -44,7 +44,8 @@
   const tools = {};
   A.runTool = name => tools[name] && tools[name]({});
   tools.grid = () => A.gridTool();
-  A.COGO_LIST = [['inverse', '↔', 'Απόσταση / Αζιμούθιο'], ['slope', '⟋', 'Μέτρηση κλίσης'], ['extend', '→|', 'Επέκταση ευθείας'], ['densify', '┄', 'Πύκνωση ευθυγραμμίας'], ['hidden', '⌖', 'Δυσπρόσιτο σημείο'], ['floor', '▱', 'Κλίση δαπέδου / επιφάνεια'], ['square', '⊾', 'Γωνίασμα κατασκευής'], ['intersect', '✕', 'Τομή ευθειών'], ['area', '⬠', 'Εμβαδόν / περίμετρος'], ['grid', '⁘', 'Κάνναβος από πλευρά (φύτευση, πάσσαλοι)'], ['calib', '⚙', 'Τοπική προσαρμογή']];
+  tools.laserpt = () => A.laserPoint();
+  A.COGO_LIST = [['inverse', '↔', 'Απόσταση / Αζιμούθιο'], ['slope', '⟋', 'Μέτρηση κλίσης'], ['extend', '→|', 'Επέκταση ευθείας'], ['densify', '┄', 'Πύκνωση ευθυγραμμίας'], ['hidden', '⌖', 'Δυσπρόσιτο σημείο'], ['floor', '▱', 'Κλίση δαπέδου / επιφάνεια'], ['square', '⊾', 'Γωνίασμα κατασκευής'], ['intersect', '✕', 'Τομή ευθειών'], ['area', '⬠', 'Εμβαδόν / περίμετρος'], ['grid', '⁘', 'Κάνναβος από πλευρά (φύτευση, πάσσαλοι)'], ['laserpt', '⟟', 'Σημείο με laser (2–3 θέσεις)'], ['calib', '⚙', 'Τοπική προσαρμογή']];
   A.cogoSheet = function () {
     A.sheet('COGO', `<div class="tool-grid">${A.COGO_LIST.map(([k, i, l]) => `<button data-tool="${k}"><i>${i}</i>${l}</button>`).join('')}</div>`, b => {
       b.querySelectorAll('[data-tool]').forEach(x => x.onclick = () => A.runTool(x.dataset.tool));
@@ -130,9 +131,9 @@
   // Δυσπρόσιτο σημείο
   tools.hidden = function (sel) {
     sel.m = sel.m || 'll';
-    const modes = { ll: 'Δύο σημεία πριν + δύο μετά (τομή ευθειών)', polar: 'Απόσταση + αζιμούθιο (laser)', dd: 'Τομή δύο αποστάσεων', line: 'Στην προέκταση ευθείας' };
+    const modes = { ll: 'Δύο σημεία πριν + δύο μετά (τομή ευθειών)', polar: 'Απόσταση + αζιμούθιο (laser)', dd: 'Τομή δύο αποστάσεων', line: 'Στην προέκταση ευθείας', laser: 'Laser από 2–3 θέσεις κονταριού (DISTO κ.λπ.)' };
     const open = () => A.sheet('Δυσπρόσιτο σημείο', `<select id="hm">${Object.entries(modes).map(([k, v]) => `<option value="${k}" ${k === sel.m ? 'selected' : ''}>${v}</option>`).join('')}</select><div id="hb"></div><div id="r"></div>${sel.survey ? surveyActions() : resultActions(null, 'ΔΣ1')}`, b => {
-      b.querySelector('#hm').onchange = e => { sel.m = e.target.value; open(); };
+      b.querySelector('#hm').onchange = e => { if (e.target.value === 'laser') { A.laserPoint(); return; } sel.m = e.target.value; open(); };
       const hb = b.querySelector('#hb');
       let calc = () => null;
       if (sel.m === 'polar') {
@@ -391,6 +392,7 @@
 
   // ==================== Offset / laser από τη Survey ====================
   $('btn-hidden').onclick = () => A.hiddenFromSurvey();
+  $('btn-laserpt').onclick = () => A.laserPoint();
   $('btn-offset').onclick = () => {
     const sel = {};
     if (A.pos) sel.a = { name: 'Τρέχουσα θέση', E: A.pos.E, N: A.pos.N, Z: A.pos.Z, _tmp: true };

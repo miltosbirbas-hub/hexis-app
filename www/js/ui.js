@@ -23,6 +23,7 @@
     tilt: { i: '∠', l: 'IMU κλίση', f: () => A.imuSheet(), on: () => A.settings.imu && A.settings.imu.on },
     hiddenpt: { i: '✕', l: 'Δυσπρόσιτο', f: () => { A.setTab('survey'); A.hiddenFromSurvey(); } },
     grid: { i: '⁘', l: 'Κάνναβος', f: () => A.gridTool() },
+    laserpt: { i: '⟟', l: 'Laser σημείο', f: () => { A.setTab('survey'); A.laserPoint(); } },
     dellast: { i: '⌫', l: 'Σβήσε τελευταίο', f: () => A.deleteLast() },
     measure: { i: '⟷', l: 'Μέτρηση', f: () => A.mapAction('measure'), on: () => !!A._measureMode },
     import: { i: '⤓', l: 'Εισαγωγή', f: () => A.importSheet() },
