@@ -20,6 +20,20 @@
     { id: 'other', name: 'Άλλος', prefix: [], pass: '12345678', url: '', login: '', hint: 'Βρες την έξοδο δεδομένων (Data Output / I/O / NMEA) → Bluetooth → GGA, GST, GSA 1 Hz → Save.' },
   ];
 
+  // Αναγνώριση μοντέλου δέκτη από όνομα Wi-Fi / Bluetooth (π.χ. X1Lite-2124A0176) → offset κεραίας, όρια IMU
+  A.detectModelFromName = function (name) {
+    try {
+      const db = g.HIMU_DB || []; const m = db.find(x => x.rx && new RegExp(x.rx, 'i').test(name || ''));
+      if (!m) return null;
+      A.settings.imu = A.settings.imu || {};
+      if (!A.settings.imu.id) { A.settings.imu.id = m.id; A.saveSettings(); }
+      if (A.antLabel) A.antLabel();
+      return m;
+    } catch (e) { return null; }
+  };
+  setTimeout(() => { const G = A.settings.gnss || {}, W = A.settings.wifiRx || {}; const m = A.detectModelFromName(G.wifiSsid || W.ssid || G.name || ''); if (m && m.antOff && !A._antOffToast) { A._antOffToast = true; A.toast('📡 ' + m.name + ' — ' + t('offset κεραίας') + ' +' + m.antOff.toFixed(3) + ' m ' + t('προστίθεται στο κοντάρι'), 'ok', 4000); } }, 1500);
+  HCONN.on('status', d => { if (d.state === 'connected' && d.name) A.detectModelFromName(d.name); });
+
   A.wifiSetup = function () {
     if (!native()) return A.toast(t('Διαθέσιμο στην εφαρμογή Android'), 'bad');
     const W = A.settings.wifiRx = A.settings.wifiRx || { brand: 'singular', pass: '12345678', ssid: '' };

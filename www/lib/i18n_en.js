@@ -265,5 +265,7 @@ Object.assign(window.HEXIS_EN, {
   "Ύψος κεραίας": "Antenna height",
   "κοντάρι": "pole",
   "Μόνο σημεία": "Points only",
-  "Δεκαδικά συντεταγμένων στην εξαγωγή (TXT/CSV/DXF)": "Coordinate decimals in exports (TXT/CSV/DXF)"
+  "Δεκαδικά συντεταγμένων στην εξαγωγή (TXT/CSV/DXF)": "Coordinate decimals in exports (TXT/CSV/DXF)",
+  "offset κεραίας": "antenna offset",
+  "προστίθεται στο κοντάρι": "is added to the pole height"
 });
