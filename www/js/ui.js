@@ -152,6 +152,7 @@
     if (k.startsWith('tool:')) { close(); A.runTool(k.slice(5)); }
     if (k === 'hiddenpt') { close(); A.setTab('survey'); A.hiddenFromSurvey(); }
     if (k === 'reloc') { close(); A.relocSheet(); }
+    if (k === 'wifirx') { A.wifiSetup(); }
     if (k === 'grid') { close(); A.gridTool(); }
     if (k === 'laserpt') { close(); A.setTab('survey'); A.laserPoint(); }
     if (k === 'cont') { close(); A.setTab('survey'); A.contSheet(); }

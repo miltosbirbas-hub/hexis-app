@@ -187,3 +187,16 @@ Object.assign(window.HEXIS_EN, {
   "Ο δέκτης συνδέεται μέσω Bluetooth — το Wi-Fi του δεν χρειάζεται. Οι διορθώσεις NTRIP θέλουν internet από το κινητό (4G/5G).": "The receiver connects over Bluetooth — its Wi-Fi is not needed. NTRIP corrections need internet from the phone (4G/5G)."
 });
 Object.assign(window.HEXIS_EN, { "Δεν έρχονται δεδομένα — δοκιμή σύνδεσης BLE…": "No data arriving — trying a BLE connection…", "Συνδέθηκε μέσω BLE": "Connected over BLE" });
+Object.assign(window.HEXIS_EN, {
+  "Σύνδεση μέσω Wi-Fi δέκτη": "Connect via receiver Wi-Fi", "Όταν το Bluetooth δεν στέλνει θέση": "When Bluetooth sends no position", "Διαθέσιμο στην εφαρμογή Android": "Available in the Android app",
+  "Για δέκτες που δεν στέλνουν θέση από το Bluetooth. Η εφαρμογή συνδέεται στο Wi-Fi του δέκτη": "For receivers that send no position over Bluetooth. The app connects to the receiver's Wi-Fi",
+  "χωρίς να κόψει τα δεδομένα κινητής": "without cutting mobile data", "— το NTRIP συνεχίζει κανονικά.": "— NTRIP keeps working.", "Όνομα Wi-Fi δέκτη (κενό = διαλέγεις από λίστα)": "Receiver Wi-Fi name (empty = pick from a list)",
+  "Κωδικός Wi-Fi": "Wi-Fi password", "Τι θα γίνει": "What happens", "Το Android θα σου δείξει τα Wi-Fi γύρω σου — διάλεξε τον δέκτη (το όνομα έχει τον σειριακό του).": "Android shows the Wi-Fi networks around you — pick the receiver (its name contains the serial number).",
+  "Η εφαρμογή ψάχνει μόνη της θέση από το Wi-Fi του δέκτη.": "The app looks for a position stream on the receiver's Wi-Fi by itself.", "Αν δεν βρει, ανοίγει τη σελίδα του δέκτη για να ενεργοποιήσεις μία φορά το NMEA στο Bluetooth.": "If none is found, it opens the receiver's page so you enable NMEA on Bluetooth once.",
+  "Σύνδεση στο Wi-Fi του δέκτη": "Connect to the receiver Wi-Fi", "Άνοιγμα σελίδας δέκτη": "Open receiver page", "Χρήση αυτής της σύνδεσης": "Use this connection",
+  "Σύνδεση στο Wi-Fi… διάλεξε τον δέκτη στο παράθυρο του Android": "Connecting to Wi-Fi… pick the receiver in the Android dialog", "Συνδέθηκε στο": "Connected to", "δέκτης": "receiver",
+  "Δεν βρέθηκε διεύθυνση δέκτη": "Receiver address not found", "Αναζήτηση ροής θέσης στις θύρες του δέκτη…": "Searching the receiver ports for a position stream…", "Βρέθηκε θέση στη θύρα": "Position found on port",
+  "Συνδέθηκε ο δέκτης μέσω Wi-Fi": "Receiver connected via Wi-Fi", "Ανοιχτές θύρες χωρίς θέση": "Open ports without position", "Ανοίγω τη σελίδα του δέκτη — ενεργοποίησε το NMEA στο Bluetooth μία φορά.": "Opening the receiver page — enable NMEA on Bluetooth once.",
+  "Χάθηκε το Wi-Fi του δέκτη — επανασύνδεση…": "Receiver Wi-Fi lost — reconnecting…", "Σύνδεση": "Login",
+  "Σύνδεση: admin / admin. Μενού I/O ή Data Output → Bluetooth → NMEA GGA, GST, GSA, RMC → 1 Hz → Save.": "Login: admin / admin. I/O or Data Output menu → Bluetooth → NMEA GGA, GST, GSA, RMC → 1 Hz → Save."
+});

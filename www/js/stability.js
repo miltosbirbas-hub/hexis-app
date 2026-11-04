@@ -105,9 +105,10 @@
         const msg = s && s.bytes > 0
           ? t('Ο δέκτης στέλνει δεδομένα αλλά όχι θέση NMEA (GGA)') + ' (' + s.bytes + ' bytes). ' + t('Ενεργοποίησε την έξοδο NMEA GGA στο Bluetooth από την εφαρμογή του κατασκευαστή.')
           : t('Δεν έρχεται τίποτα από τον δέκτη. Μήπως είναι συνδεδεμένος σε άλλη συσκευή (χειριστήριο / εφαρμογή κατασκευαστή); Κλείσε την άλλη σύνδεση ή σβήσε-άναψε τον δέκτη.');
-        A.sheet(t('Ο δέκτης δεν στέλνει θέση'), '<div class="result warn">' + A.esc(msg) + '</div><p class="muted">' + t('Η εφαρμογή χρειάζεται από τον δέκτη μηνύματα NMEA: GGA (θέση, απαραίτητο), GST (ακρίβεια), GSA (PDOP), 1 φορά το δευτερόλεπτο.') + '</p>' + (s && s.bytes > 0 ? '<button class="btn" id="nw-diag">🔎 ' + t('Δείγμα δεδομένων δέκτη') + '</button>' : '') + '<button class="btn primary" id="nw-ok">OK</button>', b => {
+        A.sheet(t('Ο δέκτης δεν στέλνει θέση'), '<div class="result warn">' + A.esc(msg) + '</div><p class="muted">' + t('Η εφαρμογή χρειάζεται από τον δέκτη μηνύματα NMEA: GGA (θέση, απαραίτητο), GST (ακρίβεια), GSA (PDOP), 1 φορά το δευτερόλεπτο.') + '</p>' + '<button class="btn primary" id="nw-wifi">📶 ' + t('Σύνδεση μέσω Wi-Fi δέκτη') + '</button>' + (s && s.bytes > 0 ? '<button class="btn" id="nw-diag">🔎 ' + t('Δείγμα δεδομένων δέκτη') + '</button>' : '') + '<button class="btn primary" id="nw-ok">OK</button>', b => {
           b.querySelector('#nw-ok').onclick = () => A.closeSheet();
           const dg = b.querySelector('#nw-diag'); if (dg) dg.onclick = () => A.receiverDiag();
+          const wf = b.querySelector('#nw-wifi'); if (wf) wf.onclick = () => A.wifiSetup();
         });
       }, 6000);
     }, 6000);

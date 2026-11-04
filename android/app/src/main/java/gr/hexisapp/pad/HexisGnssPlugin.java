@@ -962,6 +962,7 @@ public class HexisGnssPlugin extends Plugin {
     }
     private Socket localSocket() {
         try {
+            if (wifiNet != null) return wifiNet.getSocketFactory().createSocket();
             if (Build.VERSION.SDK_INT >= 23) {
                 android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
                 if (cm != null) for (android.net.Network n : cm.getAllNetworks()) {
@@ -971,6 +972,111 @@ public class HexisGnssPlugin extends Plugin {
             }
         } catch (Exception ignored) { }
         return new Socket();
+    }
+
+
+    // ---------- Wi-Fi δέκτη: σύνδεση μόνο για την εφαρμογή (τα δεδομένα κινητής μένουν) ----------
+    private android.net.ConnectivityManager.NetworkCallback wifiCb = null;
+    private volatile android.net.Network wifiNet = null;
+
+    @PluginMethod
+    public void wifiConnect(final PluginCall call) {
+        if (Build.VERSION.SDK_INT < 29) { call.reject("Χρειάζεται Android 10 ή νεότερο — σύνδεσε το κινητό στο Wi-Fi του δέκτη από τις Ρυθμίσεις"); return; }
+        final String ssid = call.getString("ssid", "");
+        final String prefix = call.getString("prefix", "");
+        final String pass = call.getString("pass", "12345678");
+        try {
+            final android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+            wifiRelease();
+            android.net.wifi.WifiNetworkSpecifier.Builder sb = new android.net.wifi.WifiNetworkSpecifier.Builder();
+            if (!ssid.isEmpty()) sb.setSsid(ssid);
+            else sb.setSsidPattern(new android.os.PatternMatcher(prefix, prefix.isEmpty() ? android.os.PatternMatcher.PATTERN_PREFIX : android.os.PatternMatcher.PATTERN_PREFIX));
+            if (pass != null && !pass.isEmpty()) sb.setWpa2Passphrase(pass);
+            android.net.NetworkRequest req = new android.net.NetworkRequest.Builder()
+                .addTransportType(android.net.NetworkCapabilities.TRANSPORT_WIFI)
+                .removeCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .setNetworkSpecifier(sb.build()).build();
+            final boolean[] done = { false };
+            wifiCb = new android.net.ConnectivityManager.NetworkCallback() {
+                @Override public void onAvailable(android.net.Network n) {
+                    wifiNet = n; ReceiverWebActivity.boundNet = n;
+                    if (done[0]) return; done[0] = true;
+                    JSObject o = new JSObject();
+                    String gw = null;
+                    try {
+                        android.net.LinkProperties lp = cm.getLinkProperties(n);
+                        if (lp != null) for (android.net.RouteInfo r : lp.getRoutes()) { if (r.isDefaultRoute() && r.getGateway() != null && r.getGateway() instanceof java.net.Inet4Address) gw = r.getGateway().getHostAddress(); }
+                        if (gw == null && lp != null) for (android.net.LinkAddress la : lp.getLinkAddresses()) { if (la.getAddress() instanceof java.net.Inet4Address) { String ip = la.getAddress().getHostAddress(); o.put("ip", ip); } }
+                    } catch (Exception ignored) { }
+                    try {
+                        android.net.wifi.WifiManager wm = (android.net.wifi.WifiManager) getContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                        if (gw == null && wm != null) { int g = wm.getDhcpInfo().gateway; if (g != 0) gw = (g & 0xFF) + "." + ((g >> 8) & 0xFF) + "." + ((g >> 16) & 0xFF) + "." + ((g >> 24) & 0xFF); }
+                        if (wm != null && wm.getConnectionInfo() != null) o.put("ssid", String.valueOf(wm.getConnectionInfo().getSSID()).replace("\"", ""));
+                    } catch (Exception ignored) { }
+                    o.put("gateway", gw == null ? "" : gw);
+                    call.resolve(o);
+                }
+                @Override public void onUnavailable() { if (!done[0]) { done[0] = true; call.reject("Δεν έγινε σύνδεση στο Wi-Fi του δέκτη (ακυρώθηκε ή λάθος κωδικός)"); } }
+                @Override public void onLost(android.net.Network n) { if (wifiNet == n) { wifiNet = null; ReceiverWebActivity.boundNet = null; JSObject o = new JSObject(); o.put("channel", "wifi"); o.put("state", "lost"); notifyListeners("status", o); } }
+            };
+            cm.requestNetwork(req, wifiCb, 45000);
+        } catch (Exception e) { call.reject("Wi-Fi: " + e.getMessage()); }
+    }
+
+    private void wifiRelease() {
+        try {
+            android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm != null && wifiCb != null) cm.unregisterNetworkCallback(wifiCb);
+        } catch (Exception ignored) { }
+        wifiCb = null; wifiNet = null; ReceiverWebActivity.boundNet = null;
+    }
+
+    @PluginMethod
+    public void wifiDisconnect(PluginCall call) { wifiRelease(); call.resolve(); }
+
+    /** Δοκιμή θυρών TCP στον δέκτη για ροή θέσης (NMEA ή γνωστό πρωτόκολλο). */
+    @PluginMethod
+    public void wifiProbe(final PluginCall call) {
+        final String host = call.getString("host", "");
+        final JSArray portsIn = call.getArray("ports");
+        new Thread(() -> {
+            int[] ports;
+            try { if (portsIn != null && portsIn.length() > 0) { ports = new int[portsIn.length()]; for (int i = 0; i < ports.length; i++) ports[i] = portsIn.getInt(i); } else ports = new int[] { 9902, 9901, 9903, 6060, 8000, 2000, 10000, 5000, 4000, 1234, 23, 5555, 9000, 2101 }; }
+            catch (Exception e) { ports = new int[] { 9902, 9901, 6060, 8000, 2000, 10000 }; }
+            JSObject out = new JSObject(); JSArray found = new JSArray();
+            for (int port : ports) {
+                Socket s = null;
+                try {
+                    s = wifiNet != null ? wifiNet.getSocketFactory().createSocket() : localSocket();
+                    s.connect(new InetSocketAddress(host, port), 1500);
+                    s.setSoTimeout(2500);
+                    InputStream in = s.getInputStream();
+                    byte[] b = new byte[2048]; int tot = 0; long t0 = System.currentTimeMillis();
+                    ByteArrayOutputStream acc = new ByteArrayOutputStream();
+                    while (System.currentTimeMillis() - t0 < 2500 && tot < 1500) { int n; try { n = in.read(b); } catch (java.net.SocketTimeoutException te) { break; } if (n < 0) break; acc.write(b, 0, n); tot += n; }
+                    byte[] d = acc.toByteArray();
+                    String asc = new String(d, StandardCharsets.ISO_8859_1);
+                    String kind = asc.contains("$G") && asc.contains("GGA") ? "nmea" : asc.contains("$G") ? "nmea-nogga" : (d.length > 2 && (d[0] & 0xFF) == 0xAA && (d[1] & 0xFF) == 0x44) || asc.contains("#BEST") ? "binary" : d.length > 0 ? "data" : "open";
+                    JSObject f = new JSObject(); f.put("port", port); f.put("bytes", d.length); f.put("kind", kind); found.put(f);
+                    if (kind.equals("nmea") || kind.equals("binary")) { out.put("best", port); out.put("kind", kind); break; }
+                } catch (Exception ignored) { }
+                finally { try { if (s != null) s.close(); } catch (Exception ignored) { } }
+            }
+            out.put("found", found);
+            call.resolve(out);
+        }, "hexis-probe").start();
+    }
+
+    @PluginMethod
+    public void openReceiverPage(PluginCall call) {
+        try {
+            Intent it = new Intent(getContext(), ReceiverWebActivity.class);
+            it.putExtra("url", call.getString("url", "http://192.168.10.12/"));
+            it.putExtra("hint", call.getString("hint", ""));
+            it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(it);
+            call.resolve();
+        } catch (Exception e) { call.reject(e.getMessage()); }
     }
 
     @PluginMethod
