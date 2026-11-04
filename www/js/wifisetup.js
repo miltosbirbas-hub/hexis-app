@@ -103,17 +103,25 @@
   HCONN.on('status', async d => {
     if (d.channel !== 'wifi' || d.state !== 'lost') return;
     const G = A.settings.gnss || {}; if (G.type !== 'tcp' || !G.wifiSsid) return;
-    A.toast(t('Χάθηκε το Wi-Fi του δέκτη — επανασύνδεση…'), 'bad', 3000);
-    try { await P().wifiConnect({ ssid: G.wifiSsid, pass: (A.settings.wifiRx || {}).pass || '12345678' }); await HCONN.connect({ type: 'tcp', host: G.host, port: G.port, channel: 'gnss' }); A.toast('✓ ' + t('Επανασυνδέθηκε'), 'ok'); } catch (e) { }
+    A.toast(t('Χάθηκε το Wi-Fi του δέκτη — θα ξανασυνδεθεί μόλις ανάψει'), '', 3000);
+    A._wifiNext = 0; // η αυτόματη σύνδεση αναλαμβάνει, αθόρυβα
+    if (false) try { await P().wifiConnect({ ssid: G.wifiSsid, pass: (A.settings.wifiRx || {}).pass || '12345678' }); await HCONN.connect({ type: 'tcp', host: G.host, port: G.port, channel: 'gnss' }); A.toast('✓ ' + t('Επανασυνδέθηκε'), 'ok'); } catch (e) { }
   });
   // αυτόματη σύνδεση στην εκκίνηση όταν ο δέκτης δουλεύει μέσω Wi-Fi/TCP
   const ac0 = A.autoConnect;
   A.autoConnect = async function () {
     const G = A.settings.gnss || {};
     if (native() && G.type === 'tcp' && G.wifiSsid && HCONN.state.gnss !== 'on' && !A._userDisconnected && !A._wifiBusy) {
+      if (document.visibilityState !== 'visible') return;
+      if (A._wifiNext && Date.now() < A._wifiNext) return; // αναμονή μετά από αποτυχία
       A._wifiBusy = true;
-      try { await P().wifiConnect({ ssid: G.wifiSsid, pass: (A.settings.wifiRx || {}).pass || '12345678' }); await HCONN.connect({ type: 'tcp', host: G.host, port: G.port, channel: 'gnss' }); A.toast('✓ ' + t('Συνδέθηκε ο δέκτης μέσω Wi-Fi'), 'ok'); if (A.settings.ntrip.auto && A.settings.ntrip.host) A.startNtrip(); }
-      catch (e) { } finally { A._wifiBusy = false; }
+      // 1) αθόρυβα: είναι το Wi-Fi του δέκτη γύρω μας; αν όχι, καμία ενόχληση — ξαναελέγχει σε λίγο
+      let vis = null; try { vis = await P().wifiScan({ ssid: G.wifiSsid }); } catch (e) { }
+      if (vis && !vis.found && !vis.error) { A._wifiBusy = false; A._wifiNext = Date.now() + 12000; return; }
+      // 2) αν το κινητό είναι ήδη στο Wi-Fi του δέκτη (από τις Ρυθμίσεις) → κατευθείαν TCP, χωρίς παράθυρο
+      if (vis && vis.connected) { try { await HCONN.connect({ type: 'tcp', host: G.host, port: G.port, channel: 'gnss' }); A.toast('✓ ' + t('Συνδέθηκε ο δέκτης μέσω Wi-Fi'), 'ok', 3000); if (A.settings.ntrip.auto && A.settings.ntrip.host) A.startNtrip(); A._wifiBusy = false; return; } catch (e) { } }
+      try { await P().wifiConnect({ ssid: G.wifiSsid, pass: (A.settings.wifiRx || {}).pass || '12345678' }); await HCONN.connect({ type: 'tcp', host: G.host, port: G.port, channel: 'gnss' }); A._wifiNext = 0; A._wifiFails = 0; A.toast('✓ ' + t('Συνδέθηκε ο δέκτης μέσω Wi-Fi'), 'ok'); if (A.settings.ntrip.auto && A.settings.ntrip.host) A.startNtrip(); }
+      catch (e) { A._wifiFails = (A._wifiFails || 0) + 1; A._wifiNext = Date.now() + Math.min(120000, 20000 * A._wifiFails); } finally { A._wifiBusy = false; }
       return;
     }
     return ac0 ? ac0.apply(this, arguments) : undefined;

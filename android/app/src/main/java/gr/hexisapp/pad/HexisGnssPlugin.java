@@ -1181,6 +1181,31 @@ public class HexisGnssPlugin extends Plugin {
         call.resolve(o);
     }
 
+    // Αθόρυβος έλεγχος: υπάρχει γύρω το Wi-Fi του δέκτη; (χωρίς παράθυρα του Android)
+    private long lastScanReq = 0;
+    @PluginMethod
+    public void wifiScan(final PluginCall call) {
+        final String ssid = call.getString("ssid", "");
+        final String prefix = call.getString("prefix", "");
+        new Thread(() -> {
+            JSObject o = new JSObject(); boolean found = false; JSArray names = new JSArray();
+            try {
+                android.net.wifi.WifiManager wm = (android.net.wifi.WifiManager) getContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                if (wm == null || !wm.isWifiEnabled()) { o.put("found", false); o.put("wifiOff", wm == null || !wm.isWifiEnabled()); call.resolve(o); return; }
+                // ήδη συνδεδεμένο σε αυτό;
+                try { android.net.wifi.WifiInfo wi = wm.getConnectionInfo(); String cur = wi != null && wi.getSSID() != null ? wi.getSSID().replace("\"", "") : ""; if (!cur.isEmpty() && (cur.equals(ssid) || (!prefix.isEmpty() && cur.startsWith(prefix)))) { o.put("found", true); o.put("connected", true); o.put("ssid", cur); call.resolve(o); return; } } catch (Exception ignored) { }
+                long now = System.currentTimeMillis();
+                if (now - lastScanReq > 25000) { lastScanReq = now; try { wm.startScan(); } catch (Exception ignored) { } try { Thread.sleep(2500); } catch (InterruptedException ignored) { } }
+                java.util.List<android.net.wifi.ScanResult> rs = wm.getScanResults();
+                if (rs != null) for (android.net.wifi.ScanResult r : rs) {
+                    String s = r.SSID == null ? "" : r.SSID; if (s.isEmpty()) continue;
+                    if (s.equals(ssid) || (!prefix.isEmpty() && s.toLowerCase(java.util.Locale.US).startsWith(prefix.toLowerCase(java.util.Locale.US)))) { found = true; names.put(s); }
+                }
+            } catch (Exception e) { o.put("error", e.getMessage()); }
+            o.put("found", found); o.put("names", names); call.resolve(o);
+        }, "hexis-wifiscan").start();
+    }
+
     @PluginMethod
     public void netState(PluginCall call) {
         JSObject o = new JSObject();

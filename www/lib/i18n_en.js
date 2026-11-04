@@ -267,5 +267,6 @@ Object.assign(window.HEXIS_EN, {
   "Μόνο σημεία": "Points only",
   "Δεκαδικά συντεταγμένων στην εξαγωγή (TXT/CSV/DXF)": "Coordinate decimals in exports (TXT/CSV/DXF)",
   "offset κεραίας": "antenna offset",
-  "προστίθεται στο κοντάρι": "is added to the pole height"
+  "προστίθεται στο κοντάρι": "is added to the pole height",
+  "Χάθηκε το Wi-Fi του δέκτη — θα ξανασυνδεθεί μόλις ανάψει": "Receiver Wi-Fi lost — it will reconnect as soon as it is back"
 });
