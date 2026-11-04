@@ -991,7 +991,8 @@ public class HexisGnssPlugin extends Plugin {
             wifiRelease();
             android.net.wifi.WifiNetworkSpecifier.Builder sb = new android.net.wifi.WifiNetworkSpecifier.Builder();
             if (!ssid.isEmpty()) sb.setSsid(ssid);
-            else sb.setSsidPattern(new android.os.PatternMatcher(prefix, prefix.isEmpty() ? android.os.PatternMatcher.PATTERN_PREFIX : android.os.PatternMatcher.PATTERN_PREFIX));
+            else if (!prefix.isEmpty()) sb.setSsidPattern(new android.os.PatternMatcher(prefix, android.os.PatternMatcher.PATTERN_PREFIX));
+            else { call.reject("Γράψε το όνομα του Wi-Fi του δέκτη (ή διάλεξε κατασκευαστή)"); return; }
             if (pass != null && !pass.isEmpty()) sb.setWpa2Passphrase(pass);
             android.net.NetworkRequest req = new android.net.NetworkRequest.Builder()
                 .addTransportType(android.net.NetworkCapabilities.TRANSPORT_WIFI)

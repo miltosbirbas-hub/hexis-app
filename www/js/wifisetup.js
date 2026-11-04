@@ -27,6 +27,7 @@
     A.sheet('Σύνδεση μέσω Wi-Fi δέκτη', `
       <p class="muted">${t('Για δέκτες που δεν στέλνουν θέση από το Bluetooth. Η εφαρμογή συνδέεται στο Wi-Fi του δέκτη')} <b>${t('χωρίς να κόψει τα δεδομένα κινητής')}</b> ${t('— το NTRIP συνεχίζει κανονικά.')}</p>
       <label class="fld"><span>${t('Κατασκευαστής')}</span><select id="ws-br">${BRANDS.map(b => `<option value="${b.id}" ${b.id === br.id ? 'selected' : ''}>${esc(b.name)}</option>`).join('')}</select></label>
+      ${br.prefix.length > 1 ? `<label class="fld"><span>${t('Σειρά δέκτη (το όνομα Wi-Fi αρχίζει με…)')}</span><select id="ws-pf">${br.prefix.map(p => `<option value="${esc(p)}" ${p === (W.pf || br.prefix[0]) ? 'selected' : ''}>${esc(p)}…</option>`).join('')}</select></label>` : ''}
       <div class="row"><label class="fld grow"><span>${t('Όνομα Wi-Fi δέκτη (κενό = διαλέγεις από λίστα)')}</span><input id="ws-ssid" value="${esc(W.ssid || '')}" placeholder="${esc((br.prefix[0] || 'X1Lite') + '-…')}"></label><label class="fld" style="width:40%"><span>${t('Κωδικός Wi-Fi')}</span><input id="ws-pass" value="${esc(W.pass || br.pass)}"></label></div>
       <div class="result">${t('Τι θα γίνει')}: <b>1.</b> ${t('Το Android θα σου δείξει τα Wi-Fi γύρω σου — διάλεξε τον δέκτη (το όνομα έχει τον σειριακό του).')} <b>2.</b> ${t('Η εφαρμογή ψάχνει μόνη της θέση από το Wi-Fi του δέκτη.')} <b>3.</b> ${t('Αν δεν βρει, ανοίγει τη σελίδα του δέκτη για να ενεργοποιήσεις μία φορά την έξοδο NMEA (TCP) — μετά συνδέεται μόνη της για πάντα.')}</div>
       <button class="btn primary big" id="ws-go">📶 ${t('Σύνδεση στο Wi-Fi του δέκτη')}</button>
@@ -36,11 +37,13 @@
       const log = m => { const el = b.querySelector('#ws-log'); if (el) el.innerHTML += '<div>' + m + '</div>'; };
       b.querySelector('#ws-br').onchange = e => { W.brand = e.target.value; const nb = BRANDS.find(x => x.id === W.brand); W.pass = nb.pass; A.saveSettings(); A.wifiSetup(); };
       b.querySelector('#ws-go').onclick = async () => {
-        W.ssid = b.querySelector('#ws-ssid').value.trim(); W.pass = b.querySelector('#ws-pass').value; A.saveSettings();
+        W.ssid = b.querySelector('#ws-ssid').value.trim(); W.pass = b.querySelector('#ws-pass').value; if (b.querySelector('#ws-pf')) W.pf = b.querySelector('#ws-pf').value; A.saveSettings();
         const nb = BRANDS.find(x => x.id === W.brand) || BRANDS[0];
         b.querySelector('#ws-go').disabled = true; log('⏳ ' + t('Σύνδεση στο Wi-Fi… διάλεξε τον δέκτη στο παράθυρο του Android'));
         let r;
-        try { r = await P().wifiConnect({ ssid: W.ssid, prefix: W.ssid ? '' : '', pass: W.pass }); }
+        // χωρίς όνομα: το Android δείχνει μόνο τα δίκτυα που αρχίζουν με το πρόθεμα του κατασκευαστή (π.χ. X1Lite-…)
+        const pf = b.querySelector('#ws-pf') ? b.querySelector('#ws-pf').value : '';
+        try { r = await P().wifiConnect({ ssid: W.ssid, prefix: W.ssid ? '' : (pf || (nb.prefix[0] || '')), pass: W.pass }); }
         catch (e) { log('✕ ' + esc(e.message || String(e))); b.querySelector('#ws-go').disabled = false; return; }
         const gw = r.gateway || (nb.url ? nb.url.replace(/^https?:\/\//, '').replace(/\/.*$/, '') : '');
         if (r.ssid) { W.ssid = r.ssid; A.saveSettings(); }
