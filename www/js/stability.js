@@ -88,10 +88,35 @@
         const msg = s && s.bytes > 0
           ? t('Ο δέκτης στέλνει δεδομένα αλλά όχι θέση NMEA (GGA)') + ' (' + s.bytes + ' bytes). ' + t('Ενεργοποίησε την έξοδο NMEA GGA στο Bluetooth από την εφαρμογή του κατασκευαστή.')
           : t('Δεν έρχεται τίποτα από τον δέκτη. Μήπως είναι συνδεδεμένος σε άλλη συσκευή (χειριστήριο / εφαρμογή κατασκευαστή); Κλείσε την άλλη σύνδεση ή σβήσε-άναψε τον δέκτη.');
-        A.sheet(t('Ο δέκτης δεν στέλνει θέση'), '<div class="result warn">' + A.esc(msg) + '</div><p class="muted">' + t('Η εφαρμογή χρειάζεται από τον δέκτη μηνύματα NMEA: GGA (θέση, απαραίτητο), GST (ακρίβεια), GSA (PDOP), 1 φορά το δευτερόλεπτο.') + '</p><button class="btn primary" id="nw-ok">OK</button>', b => { b.querySelector('#nw-ok').onclick = () => A.closeSheet(); });
+        A.sheet(t('Ο δέκτης δεν στέλνει θέση'), '<div class="result warn">' + A.esc(msg) + '</div><p class="muted">' + t('Η εφαρμογή χρειάζεται από τον δέκτη μηνύματα NMEA: GGA (θέση, απαραίτητο), GST (ακρίβεια), GSA (PDOP), 1 φορά το δευτερόλεπτο.') + '</p>' + (s && s.bytes > 0 ? '<button class="btn" id="nw-diag">🔎 ' + t('Δείγμα δεδομένων δέκτη') + '</button>' : '') + '<button class="btn primary" id="nw-ok">OK</button>', b => {
+          b.querySelector('#nw-ok').onclick = () => A.closeSheet();
+          const dg = b.querySelector('#nw-diag'); if (dg) dg.onclick = () => A.receiverDiag();
+        });
       }, 6000);
     }, 6000);
   });
+
+  // Διαγνωστικό: τι ακριβώς στέλνει ο δέκτης (κείμενο + hex) — για αναγνώριση πρωτοκόλλου
+  A.receiverDiag = async function () {
+    if (!HIO.isNative() || HCONN.state.gnss !== 'on') return A.toast(t('Σύνδεσε πρώτα τον δέκτη'), 'bad');
+    A.sheet(t('Δείγμα δεδομένων δέκτη'), '<p>⏳ ' + t('Καταγραφή 4 δευτερολέπτων…') + '</p>');
+    let r; try { r = await g.Capacitor.Plugins.HexisGnss.sniff({ ms: 4000 }); } catch (e) { return A.toast(e.message || String(e), 'bad'); }
+    const sync = r.hex.slice(0, 8).replace(/\s/g, '');
+    let guess = '';
+    if (/\$[A-Z]{2}[A-Z]{3},/.test(r.ascii)) guess = t('Υπάρχουν μηνύματα NMEA — αλλά όχι GGA.');
+    else if (/^AA44(12|B5)/i.test(sync) || /AA 44 (12|B5)/i.test(r.hex)) guess = t('Δυαδικό πρωτόκολλο τύπου Unicore/NovAtel.');
+    else if (/^B562/i.test(sync) || /B5 62/i.test(r.hex)) guess = t('Δυαδικό πρωτόκολλο u-blox (UBX).');
+    else if (/D3 0[0-3]/i.test(r.hex)) guess = t('Διορθώσεις RTCM3 (όχι θέση).');
+    else if (/#[A-Z]+A,/.test(r.ascii)) guess = t('Μηνύματα κειμένου Unicore (#…A).');
+    A.sheet(t('Δείγμα δεδομένων δέκτη'), '<div class="result">' + r.n + ' bytes / 4 s' + (guess ? '<br><b>' + A.esc(guess) + '</b>' : '') + '</div>'
+      + '<h4>' + t('Κείμενο') + '</h4><pre class="raw" style="white-space:pre-wrap;max-height:30vh;overflow:auto;font-size:12px">' + A.esc(r.ascii.slice(0, 1500)) + '</pre>'
+      + '<h4>Hex</h4><pre class="raw" style="white-space:pre;max-height:24vh;overflow:auto;font-size:12px">' + A.esc(r.hex) + '</pre>'
+      + '<p class="muted">' + t('Στείλε φωτογραφία αυτής της οθόνης για να προστεθεί υποστήριξη του δέκτη σου.') + '</p>'
+      + '<div class="row"><button class="btn grow" id="dg-cp">📋 ' + t('Αντιγραφή') + '</button><button class="btn primary grow" id="dg-ok">OK</button></div>', b => {
+      b.querySelector('#dg-ok').onclick = () => A.closeSheet();
+      b.querySelector('#dg-cp').onclick = async () => { try { await navigator.clipboard.writeText('HEXIS PAD diag ' + r.n + ' bytes\n' + r.hex + '\n---\n' + r.ascii.slice(0, 1500)); A.toast('✓ ' + t('Αντιγράφηκε'), 'ok'); } catch (e) { A.toast(t('Δεν επιτράπηκε η αντιγραφή'), 'bad'); } };
+    });
+  };
 
   // ---------- Ελαφριά ενημέρωση οθόνης: ο χάρτης σχεδιάζει μόνο όταν φαίνεται ----------
   document.addEventListener('visibilitychange', () => {

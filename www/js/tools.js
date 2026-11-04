@@ -420,7 +420,9 @@
       <label class="fld"><span>Εντολές προς τον δέκτη κατά τη σύνδεση (προαιρετικό· πολλές με «;», π.χ. GPGGA 1; GPGST 1)</span><input id="init" value="${esc(G.init || '')}" placeholder="π.χ. LOG GPGGA ONTIME 1"></label>
       <div class="row"><button class="btn grow" id="dis">Αποσύνδεση</button><button class="btn primary grow" id="con">Σύνδεση</button></div>
       <p class="muted">Υποστηρίζεται κάθε δέκτης που στέλνει NMEA 0183 (GGA απαραίτητο· GST για ακρίβειες σH/σV, GSA για PDOP). ${native ? '' : '<b>Bluetooth/TCP και NTRIP λειτουργούν στην εφαρμογή Android.</b>'}</p>
-      <h4>Ροή δεδομένων</h4><div class="raw" id="raw"></div>`, b => {
+      <h4>Ροή δεδομένων</h4><div class="raw" id="raw"></div>
+      ${native ? '<button class="btn" id="diag">🔎 Δείγμα δεδομένων δέκτη (διάγνωση)</button>' : ''}`, b => {
+      const dgb = b.querySelector('#diag'); if (dgb) dgb.onclick = () => A.receiverDiag();
       const cb = b.querySelector('#cb');
       const draw = () => {
         if (G.type === 'bt') {

@@ -151,3 +151,10 @@ Object.assign(window.HEXIS_EN, {
   "Η εφαρμογή χρειάζεται από τον δέκτη μηνύματα NMEA: GGA (θέση, απαραίτητο), GST (ακρίβεια), GSA (PDOP), 1 φορά το δευτερόλεπτο.": "The app needs NMEA messages from the receiver: GGA (position, required), GST (accuracy), GSA (PDOP), once per second.",
   "Εντολές προς τον δέκτη κατά τη σύνδεση (προαιρετικό· πολλές με «;», π.χ. GPGGA 1; GPGST 1)": "Commands to the receiver on connect (optional; several with “;”, e.g. GPGGA 1; GPGST 1)"
 });
+Object.assign(window.HEXIS_EN, {
+  "Δείγμα δεδομένων δέκτη": "Receiver data sample", "Σύνδεσε πρώτα τον δέκτη": "Connect the receiver first", "Καταγραφή 4 δευτερολέπτων…": "Recording 4 seconds…",
+  "Υπάρχουν μηνύματα NMEA — αλλά όχι GGA.": "There are NMEA messages — but no GGA.", "Δυαδικό πρωτόκολλο τύπου Unicore/NovAtel.": "Binary protocol of Unicore/NovAtel type.",
+  "Δυαδικό πρωτόκολλο u-blox (UBX).": "u-blox binary protocol (UBX).", "Διορθώσεις RTCM3 (όχι θέση).": "RTCM3 corrections (not position).", "Μηνύματα κειμένου Unicore (#…A).": "Unicore text messages (#…A).",
+  "Κείμενο": "Text", "Στείλε φωτογραφία αυτής της οθόνης για να προστεθεί υποστήριξη του δέκτη σου.": "Send a photo of this screen so support for your receiver can be added.",
+  "Αντιγραφή": "Copy", "Αντιγράφηκε": "Copied", "Δεν επιτράπηκε η αντιγραφή": "Copy not allowed", "🔎 Δείγμα δεδομένων δέκτη (διάγνωση)": "🔎 Receiver data sample (diagnostics)"
+});

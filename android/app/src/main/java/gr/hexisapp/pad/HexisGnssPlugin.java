@@ -107,6 +107,8 @@ public class HexisGnssPlugin extends Plugin {
                         int n = in.read(buf);
                         if (n < 0) break;
                         bytesIn += n;
+                        ByteArrayOutputStream sn = sniff;
+                        if (sn != null && "gnss".equals(channel) && sn.size() < 4096) { synchronized (sn) { sn.write(buf, 0, Math.min(n, 4096 - sn.size())); } }
                         if ("gnss".equals(channel) && rawOut != null) {
                             try { rawOut.write(buf, 0, n); rawBytes += n; } catch (Exception ignored) { }
                         }
@@ -142,6 +144,7 @@ public class HexisGnssPlugin extends Plugin {
 
         long lastGgaEmit = 0, lastAttEmit = 0, lastHashEmit = 0;
         void emitLine(String s) {
+            if ("gnss".equals(channel) && diagAll) { JSObject o = new JSObject(); o.put("channel", channel); o.put("line", s); notifyListeners("nmea", o); return; }
             if ("gnss".equals(channel) && s.startsWith("$") && s.length() > 6) {
                 String t = s.substring(3, 6);
                 if (t.equals("GGA")) { lastGga = s; long now = System.currentTimeMillis(); if (now - lastGgaEmit < 95) return; lastGgaEmit = now; }
@@ -708,6 +711,32 @@ public class HexisGnssPlugin extends Plugin {
 
     // ---------- Static: καταγραφή όλων των δεδομένων του δέκτη (για μεταγενέστερη επεξεργασία) ----------
     private volatile OutputStream rawOut = null;
+
+    // ---------- Διάγνωση: δείγμα των ακατέργαστων δεδομένων του δέκτη ----------
+    private volatile ByteArrayOutputStream sniff = null;
+    private volatile boolean diagAll = false;
+
+    @PluginMethod
+    public void sniff(final PluginCall call) {
+        final int ms = Math.max(500, Math.min(10000, call.getInt("ms", 3000)));
+        new Thread(() -> {
+            ByteArrayOutputStream b = new ByteArrayOutputStream();
+            sniff = b; diagAll = true;
+            try { Thread.sleep(ms); } catch (InterruptedException ignored) { }
+            sniff = null; diagAll = false;
+            byte[] d; synchronized (b) { d = b.toByteArray(); }
+            StringBuilder hex = new StringBuilder(), asc = new StringBuilder();
+            for (int i = 0; i < d.length; i++) {
+                int v = d[i] & 0xFF;
+                if (i < 512) { hex.append(String.format("%02X", v)); hex.append(i % 16 == 15 ? '\n' : ' '); }
+                if (v == 10 || v == 13) asc.append('\n'); else asc.append(v >= 32 && v < 127 ? (char) v : '·');
+            }
+            JSObject o = new JSObject();
+            o.put("n", d.length); o.put("hex", hex.toString()); o.put("ascii", asc.length() > 3000 ? asc.substring(0, 3000) : asc.toString());
+            o.put("b64", Base64.encodeToString(d, Base64.NO_WRAP));
+            call.resolve(o);
+        }, "hexis-sniff").start();
+    }
     private volatile long rawBytes = 0;
     private File rawFile = null;
     private String rawName = null;
