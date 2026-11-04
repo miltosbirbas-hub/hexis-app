@@ -441,6 +441,16 @@
         else if (G.type === 'tcp') {
           cb.innerHTML = `<div class="row"><label class="fld grow"><span>IP / host δέκτη</span><input id="th" value="${esc(G.host || '192.168.1.1')}"></label><label class="fld" style="width:110px"><span>Port</span><input id="tp" type="number" value="${G.port || 9000}"></label></div>
             ${native ? '<button class="btn" id="tcp-scan">🔎 Εύρεση θύρας (σάρωση δέκτη)</button><div id="tcp-scan-out" class="muted"></div>' : ''}`;
+          // η διεύθυνση του δέκτη συμπληρώνεται μόνη της από το Wi-Fi (πύλη δικτύου) — να μη γράφεται με το χέρι
+          if (native) (async () => {
+            try {
+              const n = await g.Capacitor.Plugins.HexisGnss.netState();
+              const th = cb.querySelector('#th'); if (!th || !n.gateway) return;
+              const cur = th.value.trim();
+              if (!cur || cur === '192.168.1.1' || cur === n.ip || (n.ssid && /X1|E1|L1|Lite|GNSS|CHC|South|Stonex|Reach/i.test(n.ssid) && cur !== n.gateway)) { th.value = n.gateway; }
+              const hint = cb.querySelector('#tcp-scan-out'); if (hint && n.ssid) hint.textContent = 'Wi-Fi: ' + n.ssid + ' · δέκτης ' + n.gateway + (n.ip ? ' · κινητό ' + n.ip : '');
+            } catch (e) { }
+          })();
           const sb = cb.querySelector('#tcp-scan'); if (sb) sb.onclick = async () => {
             const host = cb.querySelector('#th').value.trim(); const out = cb.querySelector('#tcp-scan-out');
             sb.disabled = true; out.textContent = '⏳ Σάρωση ' + host + ' (έως 40 δευτ.)…';

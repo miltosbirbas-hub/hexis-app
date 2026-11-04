@@ -1194,6 +1194,17 @@ public class HexisGnssPlugin extends Plugin {
                 if (v) inet = true;
             }
             o.put("internet", inet); o.put("wifi", wifi); o.put("wifiInternet", wifiInet); o.put("cellular", cell);
+            // Wi-Fi: όνομα δικτύου, πύλη (= συνήθως ο δέκτης) και διεύθυνση κινητού
+            try {
+                android.net.wifi.WifiManager wm = (android.net.wifi.WifiManager) getContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                if (wm != null) {
+                    android.net.DhcpInfo d = wm.getDhcpInfo();
+                    if (d != null && d.gateway != 0) o.put("gateway", (d.gateway & 0xFF) + "." + ((d.gateway >> 8) & 0xFF) + "." + ((d.gateway >> 16) & 0xFF) + "." + ((d.gateway >> 24) & 0xFF));
+                    if (d != null && d.ipAddress != 0) o.put("ip", (d.ipAddress & 0xFF) + "." + ((d.ipAddress >> 8) & 0xFF) + "." + ((d.ipAddress >> 16) & 0xFF) + "." + ((d.ipAddress >> 24) & 0xFF));
+                    android.net.wifi.WifiInfo wi = wm.getConnectionInfo();
+                    if (wi != null && wi.getSSID() != null) o.put("ssid", wi.getSSID().replace("\"", ""));
+                }
+            } catch (Exception ignored) { }
         } catch (Exception e) { o.put("internet", true); }
         call.resolve(o);
     }
