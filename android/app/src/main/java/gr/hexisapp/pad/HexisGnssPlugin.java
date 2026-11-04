@@ -1171,6 +1171,16 @@ public class HexisGnssPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void appInfo(PluginCall call) {
+        JSObject o = new JSObject();
+        try {
+            android.content.pm.PackageInfo pi = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0);
+            o.put("build", Build.VERSION.SDK_INT >= 28 ? (int) pi.getLongVersionCode() : pi.versionCode); o.put("version", pi.versionName); o.put("sdk", Build.VERSION.SDK_INT);
+        } catch (Exception e) { o.put("build", 0); }
+        call.resolve(o);
+    }
+
+    @PluginMethod
     public void netState(PluginCall call) {
         JSObject o = new JSObject();
         try {

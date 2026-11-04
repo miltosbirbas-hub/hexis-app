@@ -215,5 +215,13 @@ Object.assign(window.HEXIS_EN, {
   "Βρέθηκε": "Found",
   "Αρχείο συστήματος": "System file",
   "Βεβαιώσου ότι η «Καταγραφή Bluetooth HCI» είναι ενεργή στις Επιλογές για προγραμματιστές και ότι έκλεισες-άνοιξες το Bluetooth πριν τη σύνδεση.": "Make sure \"Bluetooth HCI snoop log\" is enabled in Developer options and that you toggled Bluetooth off/on before connecting.",
-  "Δεν βρέθηκε αρχείο btsnoop_hci.log στη μνήμη της συσκευής": "No btsnoop_hci.log file found in device storage"
+  "Δεν βρέθηκε αρχείο btsnoop_hci.log στη μνήμη της συσκευής": "No btsnoop_hci.log file found in device storage",
+  "Δοκιμή εντολών ενεργοποίησης NMEA": "Try NMEA enable commands",
+  "Δοκιμή εντολών": "Try commands",
+  "Δοκιμή εντολών δέκτη": "Receiver command test",
+  "Στέλνω εντολές…": "Sending commands…",
+  "πριν": "before",
+  "Ήρθε GGA — αυτή η εντολή δουλεύει": "GGA received — this command works",
+  "Στείλε φωτογραφία ή αντιγραφή αυτής της οθόνης για να προστεθεί υποστήριξη του δέκτη σου.": "Send a photo or a copy of this screen so support for your receiver can be added.",
+  "Δεν βρέθηκε η έκδοση της εφαρμογής — κατέβασε το APK από τον σύνδεσμο αν χρειάζεται": "App version not found — download the APK from the link if needed"
 });

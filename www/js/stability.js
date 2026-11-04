@@ -105,14 +105,38 @@
         const msg = s && s.bytes > 0
           ? t('Ο δέκτης στέλνει δεδομένα αλλά όχι θέση NMEA (GGA)') + ' (' + s.bytes + ' bytes). ' + t('Ενεργοποίησε την έξοδο NMEA GGA στο Bluetooth από την εφαρμογή του κατασκευαστή.')
           : t('Δεν έρχεται τίποτα από τον δέκτη. Μήπως είναι συνδεδεμένος σε άλλη συσκευή (χειριστήριο / εφαρμογή κατασκευαστή); Κλείσε την άλλη σύνδεση ή σβήσε-άναψε τον δέκτη.');
-        A.sheet(t('Ο δέκτης δεν στέλνει θέση'), '<div class="result warn">' + A.esc(msg) + '</div><p class="muted">' + t('Η εφαρμογή χρειάζεται από τον δέκτη μηνύματα NMEA: GGA (θέση, απαραίτητο), GST (ακρίβεια), GSA (PDOP), 1 φορά το δευτερόλεπτο.') + '</p>' + '<button class="btn primary" id="nw-wifi">📶 ' + t('Σύνδεση μέσω Wi-Fi δέκτη') + '</button>' + (s && s.bytes > 0 ? '<button class="btn" id="nw-diag">🔎 ' + t('Δείγμα δεδομένων δέκτη') + '</button>' : '') + '<button class="btn primary" id="nw-ok">OK</button>', b => {
+        A.sheet(t('Ο δέκτης δεν στέλνει θέση'), '<div class="result warn">' + A.esc(msg) + '</div><p class="muted">' + t('Η εφαρμογή χρειάζεται από τον δέκτη μηνύματα NMEA: GGA (θέση, απαραίτητο), GST (ακρίβεια), GSA (PDOP), 1 φορά το δευτερόλεπτο.') + '</p>' + '<button class="btn primary" id="nw-wifi">📶 ' + t('Σύνδεση μέσω Wi-Fi δέκτη') + '</button>' + (s && s.bytes > 0 ? '<button class="btn" id="nw-diag">🔎 ' + t('Δείγμα δεδομένων δέκτη') + '</button><button class="btn" id="nw-probe">🧪 ' + t('Δοκιμή εντολών') + '</button>' : '') + '<button class="btn primary" id="nw-ok">OK</button>', b => {
           b.querySelector('#nw-ok').onclick = () => A.closeSheet();
           const dg = b.querySelector('#nw-diag'); if (dg) dg.onclick = () => A.receiverDiag();
+          const pb = b.querySelector('#nw-probe'); if (pb) pb.onclick = () => A.cmdProbe();
           const wf = b.querySelector('#nw-wifi'); if (wf) wf.onclick = () => A.wifiSetup();
         });
       }, 6000);
     }, 6000);
   });
+
+  // Δοκιμή εντολών: στέλνει μία-μία εντολές ενεργοποίησης και δείχνει τι απαντά ο δέκτης σε καθεμία
+  A.cmdProbe = async function () {
+    if (!HIO.isNative() || HCONN.state.gnss !== 'on') return A.toast(t('Σύνδεσε πρώτα τον δέκτη'), 'bad');
+    const P = g.Capacitor.Plugins.HexisGnss;
+    const CMDS = ['VERSIONA', 'CONFIG', 'GPGGA 1', 'GPGST 1', 'GPGSA 1', 'GNGGA 1', 'LOG GPGGA ONTIME 1', 'GPGGA COM2 1', 'GPGGA COM3 1', 'BESTNAVA 1', 'LOG BESTPOSA ONTIME 1', 'LOG VERSIONA', 'UNLOG BASEINFOA'];
+    const out = []; let log = '';
+    const show = (done) => A.sheet(t('Δοκιμή εντολών δέκτη'), (done ? '' : '<p>⏳ ' + t('Στέλνω εντολές…') + ' ' + out.length + '/' + CMDS.length + '</p>')
+      + '<pre style="white-space:pre-wrap;word-break:break-all;font-size:12px;max-height:50vh;overflow:auto">' + A.esc(log) + '</pre>'
+      + (done ? '<p class="muted">' + t('Στείλε φωτογραφία ή αντιγραφή αυτής της οθόνης για να προστεθεί υποστήριξη του δέκτη σου.') + '</p><div class="row"><button class="btn grow" id="cp-cp">📋 ' + t('Αντιγραφή') + '</button><button class="btn primary grow" id="cp-ok">OK</button></div>' : ''), b => {
+        const ok = b.querySelector('#cp-ok'); if (ok) ok.onclick = () => A.closeSheet();
+        const cp = b.querySelector('#cp-cp'); if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText('HEXIS PAD cmd probe\n' + log); A.toast('✓ ' + t('Αντιγράφηκε'), 'ok'); } catch (e) { A.toast(t('Δεν επιτράπηκε η αντιγραφή'), 'bad'); } };
+      });
+    show(false);
+    try { const r0 = await P.sniff({ ms: 1500 }); log += '[' + t('πριν') + '] ' + r0.n + ' B: ' + (r0.ascii || '').trim().slice(0, 300) + '\n\n'; } catch (e) { }
+    for (const c of CMDS) {
+      let txt = '';
+      try { const pr = P.sniff({ ms: 1800 }); await new Promise(r => setTimeout(r, 50)); await HCONN.write('gnss', c + '\r\n'); const r = await pr; txt = r.n + ' B: ' + (r.ascii || '').trim().slice(0, 400); } catch (e) { txt = 'ERR ' + (e.message || e); }
+      out.push(c); log += '> ' + c + '\n' + txt + '\n\n'; show(false);
+      if (/\$G[NP]GGA/.test(txt)) { log += '✓ ' + t('Ήρθε GGA — αυτή η εντολή δουλεύει') + '\n'; break; }
+    }
+    show(true);
+  };
 
   // Διαγνωστικό: τι ακριβώς στέλνει ο δέκτης (κείμενο + hex) — για αναγνώριση πρωτοκόλλου
   A.receiverDiag = async function () {
@@ -130,7 +154,8 @@
       + '<h4>' + t('Κείμενο') + '</h4><pre class="raw" style="white-space:pre-wrap;max-height:30vh;overflow:auto;font-size:12px">' + A.esc(r.ascii.slice(0, 1500)) + '</pre>'
       + '<h4>Hex</h4><pre class="raw" style="white-space:pre;max-height:24vh;overflow:auto;font-size:12px">' + A.esc(r.hex) + '</pre>'
       + '<p class="muted">' + t('Στείλε φωτογραφία αυτής της οθόνης για να προστεθεί υποστήριξη του δέκτη σου.') + '</p>'
-      + '<div class="row"><button class="btn grow" id="dg-cp">📋 ' + t('Αντιγραφή') + '</button><button class="btn primary grow" id="dg-ok">OK</button></div>', b => {
+      + '<div class="row"><button class="btn grow" id="dg-cp">📋 ' + t('Αντιγραφή') + '</button><button class="btn grow" id="dg-probe">🧪 ' + t('Δοκιμή εντολών') + '</button><button class="btn primary grow" id="dg-ok">OK</button></div>', b => {
+      const pb = b.querySelector('#dg-probe'); if (pb) pb.onclick = () => A.cmdProbe();
       b.querySelector('#dg-ok').onclick = () => A.closeSheet();
       b.querySelector('#dg-cp').onclick = async () => { try { await navigator.clipboard.writeText('HEXIS PAD diag ' + r.n + ' bytes\n' + r.hex + '\n---\n' + r.ascii.slice(0, 1500)); A.toast('✓ ' + t('Αντιγράφηκε'), 'ok'); } catch (e) { A.toast(t('Δεν επιτράπηκε η αντιγραφή'), 'bad'); } };
     });
@@ -184,7 +209,8 @@
   // ---------- Ενημερώσεις εφαρμογής ----------
   const VERSION_URL = 'https://github.com/miltosbirbas-hub/hexis-app/releases/download/pad-apk/version.json';
   async function currentBuild() {
-    try { const i = await g.Capacitor.Plugins.App.getInfo(); return parseInt(i.build, 10) || 0; } catch (e) { return 0; }
+    try { const i = await g.Capacitor.Plugins.App.getInfo(); const n = parseInt(i.build, 10); if (n > 0) return n; } catch (e) { }
+    try { const i = await g.Capacitor.Plugins.HexisGnss.appInfo(); return parseInt(i.build, 10) || 0; } catch (e) { return 0; }
   }
   A.checkUpdate = async function (manual) {
     if (!HIO.isNative()) { if (manual) A.toast(t('Οι ενημερώσεις γίνονται από την εφαρμογή Android')); return; }
@@ -192,7 +218,8 @@
       const r = await fetch(VERSION_URL + '?t=' + Date.now(), { cache: 'no-store' });
       const v = await r.json();
       const cur = await currentBuild();
-      if (v && v.build > cur) offer(v, cur);
+      if (v && cur > 0 && v.build > cur) offer(v, cur);
+      else if (v && cur === 0) { if (manual) A.toast(t('Δεν βρέθηκε η έκδοση της εφαρμογής — κατέβασε το APK από τον σύνδεσμο αν χρειάζεται'), 'bad'); }
       else if (manual) A.toast('✓ ' + t('Έχεις την τελευταία έκδοση') + ' (1.0.' + cur + ')', 'ok');
     } catch (e) { if (manual) A.toast(t('Δεν ήταν δυνατός ο έλεγχος — χρειάζεται σύνδεση στο διαδίκτυο'), 'bad'); }
   };
