@@ -68,7 +68,8 @@ import java.util.concurrent.ConcurrentHashMap;
     name = "HexisGnss",
     permissions = {
         @Permission(strings = { Manifest.permission.BLUETOOTH_CONNECT }, alias = "bt31"),
-        @Permission(strings = { Manifest.permission.RECORD_AUDIO }, alias = "mic")
+        @Permission(strings = { Manifest.permission.RECORD_AUDIO }, alias = "mic"),
+        @Permission(strings = { Manifest.permission.READ_EXTERNAL_STORAGE }, alias = "storage")
     }
 )
 public class HexisGnssPlugin extends Plugin {
@@ -1122,6 +1123,51 @@ public class HexisGnssPlugin extends Plugin {
     public void hciCaptureStop(PluginCall call) {
         hciCaptureStopInternal();
         JSObject o = new JSObject(); o.put("bytes", hciBytes); o.put("file", hciFile != null ? hciFile.getAbsolutePath() : ""); call.resolve(o);
+    }
+
+    // ---------- Εύρεση του αρχείου καταγραφής Bluetooth του συστήματος (btsnoop_hci.log) ----------
+    @PluginMethod
+    public void hciFindLog(PluginCall call) {
+        if (Build.VERSION.SDK_INT < 33 && getPermissionState("storage") != PermissionState.GRANTED) { requestPermissionForAlias("storage", call, "hciFindPermCb"); return; }
+        hciFindLogRun(call);
+    }
+    @PermissionCallback
+    private void hciFindPermCb(PluginCall call) { hciFindLogRun(call); }
+    private void hciFindLogRun(PluginCall call) {
+        java.util.List<File> cands = new java.util.ArrayList<>();
+        try {
+            File ext = android.os.Environment.getExternalStorageDirectory();
+            String[] names = { "btsnoop_hci.log", "btsnoop_hci.cfa", "btsnoop_hci.log.last", "btsnooz_hci.log" };
+            File[] dirs = { ext, new File(ext, "Android/data/com.android.bluetooth/files"), new File(ext, "Download"), new File(ext, "Documents"),
+                new File("/data/misc/bluetooth/logs"), new File("/data/misc/bluetooth"), new File("/data/log/bt"), new File("/sdcard"), new File("/storage/emulated/0"),
+                new File(ext, "log"), new File(ext, "logs"), new File(ext, "MIUI/debug_log"), new File(ext, "bluetooth") };
+            for (File d : dirs) { if (d == null) continue; for (String n : names) { File f = new File(d, n); if (f.isFile() && f.length() > 0 && !cands.contains(f)) cands.add(f); } }
+            // αναζήτηση 2 επιπέδων στη ρίζα της εσωτερικής μνήμης για *snoop*
+            scanSnoop(ext, 0, cands);
+            for (File d : new File[] { new File(ext, "Android/data"), new File(ext, "Android/data/com.android.bluetooth") }) scanSnoop(d, 1, cands);
+        } catch (Exception ignored) { }
+        if (cands.isEmpty()) { call.reject("Δεν βρέθηκε αρχείο btsnoop_hci.log στη μνήμη της συσκευής"); return; }
+        File best = cands.get(0); for (File f : cands) if (f.lastModified() > best.lastModified()) best = f;
+        try {
+            File dir = new File(getContext().getFilesDir(), "btcap"); dir.mkdirs();
+            File out = new File(dir, "system_" + new java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(new java.util.Date()) + "_" + best.getName());
+            try (java.io.InputStream in = new java.io.FileInputStream(best); java.io.OutputStream os = new java.io.FileOutputStream(out)) {
+                byte[] buf = new byte[65536]; int n; while ((n = in.read(buf)) > 0) os.write(buf, 0, n);
+            }
+            JSObject o = new JSObject(); o.put("file", out.getAbsolutePath()); o.put("source", best.getAbsolutePath()); o.put("bytes", out.length()); o.put("modified", best.lastModified());
+            JSArray all = new JSArray(); for (File f : cands) all.put(f.getAbsolutePath() + " (" + f.length() + " B)"); o.put("found", all);
+            call.resolve(o);
+        } catch (Exception e) { call.reject("Αντιγραφή: " + e.getMessage() + " — " + best.getAbsolutePath()); }
+    }
+    private void scanSnoop(File d, int depth, java.util.List<File> out) {
+        try {
+            File[] ls = d.listFiles(); if (ls == null) return;
+            for (File f : ls) {
+                String n = f.getName().toLowerCase(java.util.Locale.US);
+                if (f.isFile() && n.contains("snoop") && f.length() > 0 && !out.contains(f)) out.add(f);
+                else if (f.isDirectory() && depth > 0 && !n.startsWith(".")) scanSnoop(f, depth - 1, out);
+            }
+        } catch (Exception ignored) { }
     }
 
     @PluginMethod

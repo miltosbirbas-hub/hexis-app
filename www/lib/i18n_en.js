@@ -207,5 +207,13 @@ Object.assign(window.HEXIS_EN, {
   "Πάτα «Έναρξη» εδώ.": "Tap “Start” here.", "Άνοιξε το λογισμικό του κατασκευαστή, σύνδεσε τον δέκτη, πάρε 1–2 σημεία, αποσύνδεσε.": "Open the manufacturer's software, connect the receiver, take 1–2 points, disconnect.",
   "Γύρνα εδώ → «Διακοπή & αποστολή».": "Come back here → “Stop & send”.", "Καταγραφή σε εξέλιξη": "Capturing", "Ανενεργή": "Inactive", "Διακοπή & αποστολή": "Stop & send", "Έναρξη": "Start", "Αποστολή αρχείου": "Send file",
   "Όσο γίνεται η καταγραφή, η εφαρμογή δεν συνδέεται μόνη της στον δέκτη, για να μην ενοχλεί το άλλο λογισμικό.": "While capturing, the app does not connect to the receiver by itself, so it does not disturb the other software.",
-  "Καταγραφή ξεκίνησε — άνοιξε τώρα το λογισμικό του κατασκευαστή": "Capture started — now open the manufacturer's software"
+  "Καταγραφή ξεκίνησε — άνοιξε τώρα το λογισμικό του κατασκευαστή": "Capture started — now open the manufacturer's software",
+  "Εναλλακτικά": "Alternatively",
+  "αν ο μετρητής μένει στο 0 kB, το Android κρατά την καταγραφή σε δικό του αρχείο (btsnoop_hci.log). Αφού κάνεις το βήμα 3, πάτα το κουμπί — η εφαρμογή το βρίσκει και το στέλνει.": "if the counter stays at 0 kB, Android keeps the capture in its own file (btsnoop_hci.log). After step 3, tap the button — the app finds and sends it.",
+  "Εύρεση & αποστολή αρχείου συστήματος": "Find & send system file",
+  "Αναζήτηση…": "Searching…",
+  "Βρέθηκε": "Found",
+  "Αρχείο συστήματος": "System file",
+  "Βεβαιώσου ότι η «Καταγραφή Bluetooth HCI» είναι ενεργή στις Επιλογές για προγραμματιστές και ότι έκλεισες-άνοιξες το Bluetooth πριν τη σύνδεση.": "Make sure \"Bluetooth HCI snoop log\" is enabled in Developer options and that you toggled Bluetooth off/on before connecting.",
+  "Δεν βρέθηκε αρχείο btsnoop_hci.log στη μνήμη της συσκευής": "No btsnoop_hci.log file found in device storage"
 });

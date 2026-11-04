@@ -148,7 +148,15 @@
       <b>4.</b> ${t('Γύρνα εδώ → «Διακοπή & αποστολή».')}</div>
       <div id="bc-st" class="result ${st.on ? 'ok' : ''}">${st.on ? '⏺ ' + t('Καταγραφή σε εξέλιξη') + ' · ' + ((st.bytes || 0) / 1024).toFixed(1) + ' kB' : t('Ανενεργή')}</div>
       <div class="row">${st.on ? `<button class="btn primary grow" id="bc-stop">■ ${t('Διακοπή & αποστολή')}</button>` : `<button class="btn primary grow" id="bc-start">⏺ ${t('Έναρξη')}</button>`}${st.file && !st.on ? `<button class="btn grow" id="bc-share">⇪ ${t('Αποστολή αρχείου')}</button>` : ''}</div>
-      <p class="muted">${t('Όσο γίνεται η καταγραφή, η εφαρμογή δεν συνδέεται μόνη της στον δέκτη, για να μην ενοχλεί το άλλο λογισμικό.')}</p>`, b => {
+      <p class="muted">${t('Όσο γίνεται η καταγραφή, η εφαρμογή δεν συνδέεται μόνη της στον δέκτη, για να μην ενοχλεί το άλλο λογισμικό.')}</p>
+      <div class="result"><b>${t('Εναλλακτικά')}:</b> ${t('αν ο μετρητής μένει στο 0 kB, το Android κρατά την καταγραφή σε δικό του αρχείο (btsnoop_hci.log). Αφού κάνεις το βήμα 3, πάτα το κουμπί — η εφαρμογή το βρίσκει και το στέλνει.')}</div>
+      <button class="btn grow" id="bc-find">🔍 ${t('Εύρεση & αποστολή αρχείου συστήματος')}</button>`, b => {
+      const fb = b.querySelector('#bc-find'); if (fb) fb.onclick = async () => {
+        fb.disabled = true; fb.textContent = '⏳ ' + t('Αναζήτηση…');
+        try { const r = await P.hciFindLog(); A.toast('✓ ' + t('Βρέθηκε') + ': ' + (r.source || '').split('/').pop() + ' · ' + ((r.bytes || 0) / 1024).toFixed(0) + ' kB', 'ok', 4000); await P.shareFile({ file: r.file }); }
+        catch (e) { A.sheet(t('Αρχείο συστήματος'), '<div class="result warn">' + A.esc(e.message || String(e)) + '</div><p class="muted">' + t('Βεβαιώσου ότι η «Καταγραφή Bluetooth HCI» είναι ενεργή στις Επιλογές για προγραμματιστές και ότι έκλεισες-άνοιξες το Bluetooth πριν τη σύνδεση.') + '</p><button class="btn primary" id="bc-ok">OK</button>', bb => bb.querySelector('#bc-ok').onclick = () => A.closeSheet()); }
+        fb.disabled = false; fb.textContent = '🔍 ' + t('Εύρεση & αποστολή αρχείου συστήματος');
+      };
       const sb = b.querySelector('#bc-start'); if (sb) sb.onclick = async () => {
         try { A._userDisconnected = true; await HCONN.disconnect('gnss'); await P.hciCaptureStart(); A.toast('⏺ ' + t('Καταγραφή ξεκίνησε — άνοιξε τώρα το λογισμικό του κατασκευαστή'), 'ok', 4000); st = await P.hciCaptureStatus(); render(); }
         catch (e) { A.sheet(t('Καταγραφή Bluetooth'), '<div class="result warn">' + A.esc(e.message || String(e)) + '</div><button class="btn primary" id="bc-ok">OK</button>', bb => bb.querySelector('#bc-ok').onclick = () => A.closeSheet()); }
