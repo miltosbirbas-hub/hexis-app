@@ -36,6 +36,23 @@ jobs:
           done
       - uses: supabase/setup-cli@v1
         with: { version: latest }
+      - name: Κλειδί υπογραφής άδειας HEXIS PAD (φτιάχνεται μία φορά)
+        # Το ιδιωτικό κλειδί πάει μόνο στο secret PAD_SIGN_SK του Supabase — δεν τυπώνεται, δεν αποθηκεύεται αλλού.
+        # Το δημόσιο κλειδί γράφεται στον πίνακα pad_config (το χρειάζεται η εφαρμογή για τον έλεγχο).
+        run: |
+          set -e
+          q() { jq -n --arg q "$1" '{query:$q}' > /tmp/q.json; curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data @/tmp/q.json; }
+          PK=$(q "select v from public.pad_config where k='sign_pk'" | jq -r '.[0].v // empty')
+          if [ -z "$PK" ]; then
+            mkdir -p "$RUNNER_TEMP/kg" && cd "$RUNNER_TEMP/kg" && npm i -s tweetnacl@1.0.3 >/dev/null 2>&1
+            node -e "const n=require('tweetnacl'),fs=require('fs');const k=n.sign.keyPair();fs.writeFileSync('sk',Buffer.from(k.secretKey).toString('base64'));fs.writeFileSync('pk',Buffer.from(k.publicKey).toString('base64'))"
+            SK=$(cat sk); echo "::add-mask::$SK"; rm -f sk
+            supabase secrets set --project-ref "$REF" "PAD_SIGN_SK=$SK" >/dev/null
+            PK=$(cat pk)
+            q "insert into public.pad_config(k,v) values ('sign_pk','$PK') on conflict (k) do update set v=excluded.v, updated_at=now()" >/dev/null
+            echo "Νέο κλειδί υπογραφής δημιουργήθηκε"
+          fi
+          echo "PAD_SIGN_PK=$PK"
       - name: Deploy functions
         run: |
           for d in supabase/functions/*/; do

@@ -68,6 +68,10 @@ begin
   if not found then return json_build_object('ok',false,'code','invalid','msg','Ο κωδικός δεν είναι έγκυρος'); end if;
   if l.revoked then return json_build_object('ok',false,'code','revoked','msg','Ο κωδικός ανακλήθηκε'); end if;
   if l.kind = 'owner' then
+    -- κωδικός λογαριασμού ιδιοκτήτη: μόνο συσκευές που μπήκαν με είσοδο λογαριασμού (όχι νέες με τον κωδικό)
+    if l.owner_uid is not null and not exists (select 1 from pad_devices d where d.key = k and d.device_id = p_device) then
+      return json_build_object('ok',false,'code','device','msg','Νέα συσκευή ιδιοκτήτη: είσοδος με λογαριασμό HEXIS-APP');
+    end if;
     insert into pad_devices(key, device_id, model) values (k, p_device, left(p_model, 80))
       on conflict (key, device_id) do update set last_at = now(), model = coalesce(excluded.model, pad_devices.model);
     update pad_licenses set activated_at = coalesce(activated_at, now()), last_seen = now() where key = k;
@@ -286,3 +290,7 @@ begin
 end $$;
 revoke all on function public.pad_owner_login(text,text) from public, anon;
 grant execute on function public.pad_owner_login(text,text) to authenticated;
+
+-- Ρυθμίσεις (δημόσιο κλειδί υπογραφής άδειας)· καμία πρόσβαση από την εφαρμογή
+create table if not exists public.pad_config (k text primary key, v text not null, updated_at timestamptz not null default now());
+alter table public.pad_config enable row level security;
