@@ -58,8 +58,8 @@
     const c = [
       chk('Λύση', e.fix === 'fix' ? 'FIX' : (e.fix || '—').toUpperCase(), 'FIX', e.fix === 'fix'),
       chk('Χρόνος σε FIX', fixAge.toFixed(0) + ' s', '≥ ' + L.fixTime + ' s', fixAge >= L.fixTime, true),
-      chk('σH (1σ)', f(e.sh), '≤ ' + L.rms.toFixed(3), e.sh == null ? null : e.sh <= L.rms),
-      chk('σV (1σ)', f(e.sv), '≤ ' + (L.rms * 2).toFixed(3), e.sv == null ? null : e.sv <= L.rms * 2),
+      chk('σH (1σ)' + (e.sEst ? ' εκτ.' : ''), (e.sEst ? '~' : '') + f(e.sh), '≤ ' + L.rms.toFixed(3), e.sh == null ? null : e.sh <= L.rms, !!e.sEst),
+      chk('σV (1σ)' + (e.sEst ? ' εκτ.' : ''), (e.sEst ? '~' : '') + f(e.sv), '≤ ' + (L.rms * 2).toFixed(3), e.sv == null ? null : e.sv <= L.rms * 2, !!e.sEst),
       chk('PDOP', e.pdop != null ? e.pdop.toFixed(1) : '—', '≤ ' + L.pdop.toFixed(1), e.pdop == null ? null : e.pdop <= L.pdop),
       chk('Δορυφόροι', e.sats != null ? e.sats : '—', '≥ ' + L.sats, e.sats >= L.sats),
       chk('Ηλικία διορθώσεων', e.age != null ? e.age.toFixed(1) + ' s' : '—', '≤ ' + L.age + ' s', e.age == null ? null : e.age <= L.age),

@@ -24,6 +24,7 @@
     hiddenpt: { i: '✕', l: 'Δυσπρόσιτο', f: () => { A.setTab('survey'); A.hiddenFromSurvey(); } },
     grid: { i: '⁘', l: 'Κάνναβος', f: () => A.gridTool() },
     laserpt: { i: '⟟', l: 'Laser σημείο', f: () => { A.setTab('survey'); A.laserPoint(); } },
+    draw: { i: '✎', l: 'Σχεδίαση γραμμής', f: () => A.drawSheet() },
     reloc: { i: '⇄', l: 'Relocalize', f: () => A.relocSheet() },
     dellast: { i: '⌫', l: 'Σβήσε τελευταίο', f: () => A.deleteLast() },
     measure: { i: '⟷', l: 'Μέτρηση', f: () => A.mapAction('measure'), on: () => !!A._measureMode },
@@ -155,6 +156,7 @@
     if (k === 'wifirx') { A.wifiSetup(); }
     if (k === 'grid') { close(); A.gridTool(); }
     if (k === 'laserpt') { close(); A.setTab('survey'); A.laserPoint(); }
+    if (k === 'draw') { close(); A.setTab('survey'); A.drawSheet(); }
     if (k === 'cont') { close(); A.setTab('survey'); A.contSheet(); }
     if (k === 'static') { close(); A.setTab('survey'); A.staticSheet(); }
     if (k === 'voice') { close(); A.voice.toggle(); }

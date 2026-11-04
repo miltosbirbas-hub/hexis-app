@@ -134,7 +134,7 @@
     const fix = n.fix().key;
     const p = {
       E: grid.E, N: grid.N, Z: H != null ? H - (A.tiltTip && A.tiltTip() ? 0 : (parseFloat($('sv-ant').value) || 0)) + HGEO.heightShift() : null,
-      lat: n.lat, lon: n.lon, ellH, msl: n.alt, fix, sh: n.hrms(), sv: n.sAlt, pdop: n.pdop != null ? n.pdop : (n.hdop != null ? n.hdop * 1.4 : null),
+      lat: n.lat, lon: n.lon, ellH, msl: n.alt, fix, sh: n.hrms() != null ? n.hrms() : n.hrmsEst(), sv: n.sAlt != null ? n.sAlt : n.vrmsEst(), sEst: n.hrms() == null, pdop: n.pdop != null ? n.pdop : (n.hdop != null ? n.hdop * 1.4 : null),
       hdop: n.hdop, sats: n.sats, age: n.age, t: Date.now(), antH: parseFloat($('sv-ant').value) || 0,
     };
     // κατεύθυνση κίνησης
@@ -168,8 +168,9 @@
     const fx = P ? n.fix() : HNMEA.FIX[0];
     const el = $('st-fix'); el.textContent = HCONN.state.source === 'sim' && P && window.innerWidth > 480 ? fx.label + '·SIM' : fx.label; el.className = 'fix ' + fx.key;
     const sf = $('sf-fix'); sf.textContent = el.textContent; sf.className = el.className;
-    $('st-h').textContent = P && P.sh != null ? P.sh.toFixed(3) : '—';
-    $('st-v').textContent = P && P.sv != null ? P.sv.toFixed(3) : '—';
+    // «~» = εκτίμηση από HDOP (ο δέκτης δεν στέλνει GST)
+    $('st-h').textContent = P && P.sh != null ? (P.sEst ? '~' : '') + P.sh.toFixed(3) : '—';
+    $('st-v').textContent = P && P.sv != null ? (P.sEst ? '~' : '') + P.sv.toFixed(3) : '—';
     $('st-sv').textContent = P ? (n.sats + (n.satsView ? '/' + n.satsView : '')) : '—';
     $('st-pdop').textContent = P && P.pdop != null ? P.pdop.toFixed(1) : '—';
     $('st-age').textContent = P && n.age != null ? n.age.toFixed(1) : '—';
@@ -348,7 +349,8 @@
       });
       return;
     }
-    if ($('sv-line').checked && !opt.type) {
+    if (A.drawAttach && A.drawAttach(pt)) { /* ανοιχτή γραμμή σχεδίασης */ }
+    else if ($('sv-line').checked && !opt.type) {
       const prev = [...P.points].reverse().find(p => p.type === 'survey');
       pt.lineId = (prev && prev.lineId && prev.code === pt.code) ? prev.lineId : uid();
     }
@@ -386,7 +388,8 @@
     m.layers.points = P.points.map(p => Object.assign(p, { done: !!p.done }));
     const lines = {};
     P.points.forEach(p => { if (p.lineId) (lines[p.lineId] = lines[p.lineId] || []).push(p); });
-    m.layers.lines = Object.values(lines).filter(l => l.length > 1).map(l => ({ pts: l }));
+    const M = P.lines || {};
+    m.layers.lines = Object.entries(lines).filter(([id, l]) => l.length > 1).map(([id, l]) => { const mt = M[id] || {}; return { pts: l, kind: mt.kind || 'poly', closed: !!mt.closed, code: mt.code || '' }; });
     m.redraw();
   };
 

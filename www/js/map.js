@@ -409,8 +409,9 @@
     x.lineWidth = 2; x.strokeStyle = '#1e6fd9';
     this.layers.lines.forEach(l => {
       if (l.pts.length < 2) return;
-      x.beginPath(); l.pts.forEach((p, i) => { const s = this.w2s(p.E, p.N); if (i) x.lineTo(s[0], s[1]); else x.moveTo(s[0], s[1]); });
-      if (l.closed) x.closePath(); x.stroke();
+      const pts = l.kind === 'spline' && window.APP && APP.splinePts ? APP.splinePts(l.pts, l.closed) : l.pts;
+      x.beginPath(); pts.forEach((p, i) => { const s = this.w2s(p.E, p.N); if (i) x.lineTo(s[0], s[1]); else x.moveTo(s[0], s[1]); });
+      if (l.closed && l.kind !== 'spline') x.closePath(); x.stroke();
     });
     if (this.layers.targetLine) {
       x.lineWidth = 4; x.strokeStyle = 'rgba(232,48,90,0.85)';

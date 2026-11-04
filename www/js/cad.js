@@ -307,6 +307,12 @@
     });
     (lines || []).forEach(ln => {
       if (ln.pts.length < 2) return;
+      if (ln.kind === 'line') { // ανεξάρτητα ευθύγραμμα τμήματα
+        const ps = ln.closed ? ln.pts.concat([ln.pts[0]]) : ln.pts;
+        for (let i = 0; i < ps.length - 1; i++) { p(0, 'LINE'); p(8, ln.layer || 'HP_LINES'); p(10, f(ps[i].E)); p(20, f(ps[i].N)); p(30, f(ps[i].Z)); p(11, f(ps[i + 1].E)); p(21, f(ps[i + 1].N)); p(31, f(ps[i + 1].Z)); }
+        return;
+      }
+      if (ln.kind === 'spline' && window.APP && APP.splinePts) { ln = Object.assign({}, ln, { pts: APP.splinePts(ln.pts, ln.closed), closed: false }); }
       p(0, 'POLYLINE'); p(8, ln.layer || 'HP_LINES'); p(66, 1); p(70, (ln.closed ? 1 : 0) | 8); p(10, 0); p(20, 0); p(30, 0);
       ln.pts.forEach(v => { p(0, 'VERTEX'); p(8, ln.layer || 'HP_LINES'); p(10, f(v.E)); p(20, f(v.N)); p(30, f(v.Z)); p(70, 32); });
       p(0, 'SEQEND'); p(8, ln.layer || 'HP_LINES');

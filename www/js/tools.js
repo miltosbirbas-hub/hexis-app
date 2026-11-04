@@ -796,6 +796,7 @@
     const base = P.name.replace(A.RX_NOTNAME, '_').replace(/\s+/g, '_');
     A.sheet('Εξαγωγή / Αποστολή', `<label class="fld"><span>Σημεία</span><select id="fl"><option value="all">Όλα (${P.points.length})</option><option value="survey">Μετρημένα</option><option value="staked">Χαραγμένα (με αποκλίσεις)</option><option value="calc">Υπολογισμένα</option><option value="stake">Προς χάραξη</option></select></label>
       <h4>Μορφές</h4>
+      <div class="row"><button class="btn grow" id="pre-pts">● Μόνο σημεία (TXT)</button><button class="btn grow" id="pre-dxf">⌒ DXF (σημεία + γραμμές)</button><button class="btn grow" id="pre-all">Όλα</button></div>
       <label class="chk"><input type="checkbox" value="txt" checked> TXT (Όνομα,X,Y,Z,Κωδικός)</label>
       <label class="chk"><input type="checkbox" value="csv" checked> CSV πλήρες (ακρίβειες, QC, χάραξη, φωτο)</label>
       <label class="chk"><input type="checkbox" value="dxf" checked> DXF (σημεία, ονόματα, υψόμετρα, γραμμές)</label>
@@ -805,6 +806,10 @@
       <label class="chk"><input type="checkbox" id="zip" checked> Όλα σε ένα αρχείο ZIP</label>
       <div class="row"><button class="btn grow" id="sv">💾 Αποθήκευση</button><button class="btn grow" id="sh">↗ Κοινή χρήση</button><button class="btn primary grow" id="em">✉ Email</button></div>
       <p class="muted">Το «Email» ανοίγει την εφαρμογή αλληλογραφίας (π.χ. Gmail) με τα αρχεία συνημμένα.</p>`, b => {
+      const preset = set => { b.querySelectorAll('input[type=checkbox][value]').forEach(x => x.checked = set.includes(x.value)); b.querySelector('#zip').checked = set.length > 1 || set.includes('photos'); };
+      b.querySelector('#pre-pts').onclick = () => preset(['txt']);
+      b.querySelector('#pre-dxf').onclick = () => preset(['dxf']);
+      b.querySelector('#pre-all').onclick = () => preset(['txt', 'csv', 'dxf', 'photos']);
       const build = async () => {
         const fl = b.querySelector('#fl').value;
         const pts = P.points.filter(p => fl === 'all' || p.type === fl);
@@ -812,7 +817,7 @@
         const files = [];
         if (fm.includes('txt')) files.push({ name: base + '.txt', data: HIO.toTXT(pts) });
         if (fm.includes('csv')) files.push({ name: base + '.csv', data: HIO.toCSV(pts), mime: 'text/csv' });
-        if (fm.includes('dxf')) files.push({ name: base + '.dxf', data: HCAD.writeDXF(pts, A.map.layers.lines.map(l => ({ pts: l.pts, layer: 'HP_' + (l.pts[0].code || 'LINES').replace(/[^\w]/g, '_').toUpperCase() })), { textHeight: A.settings.textH }), mime: 'application/dxf' });
+        if (fm.includes('dxf')) files.push({ name: base + '.dxf', data: HCAD.writeDXF(pts, A.map.layers.lines.map(l => ({ pts: l.pts, kind: l.kind, closed: l.closed, layer: 'HP_' + (l.code || l.pts[0].code || 'LINES').replace(/[^\w]/g, '_').toUpperCase() })), { textHeight: A.settings.textH }), mime: 'application/dxf' });
         if (fm.includes('kml')) files.push({ name: base + '.kml', data: HIO.toKML(pts, P.name), mime: 'application/vnd.google-earth.kml+xml' });
         if (fm.includes('geojson')) files.push({ name: base + '.geojson', data: HIO.toGeoJSON(pts), mime: 'application/geo+json' });
         if (fm.includes('photos')) for (const p of pts) for (let i = 0; i < (p.photos || []).length; i++) { const bl = await HIO.photoGet(p.photos[i].id); if (bl) files.push({ name: 'photos/' + HIO.photoName(p, i), data: bl, mime: 'image/jpeg' }); }

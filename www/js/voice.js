@@ -148,7 +148,7 @@
     // ο επόμενος αριθμός ξαναπαίρνει το όνομα που σβήστηκε (π.χ. ξανά P12)
     if (p.type === 'survey' && A.nextName(p.name) === P2.nextName) { P2.nextName = p.name; $('sv-name').value = p.name; $('sv-mini').textContent = p.name; }
     if (A.stake.target === p) A.setTarget(null);
-    A.saveProject(); A.renderPoints(); A.updateMapLayers();
+    A.saveProject(); A.renderPoints(); A.updateMapLayers(); if (A.drawRefresh) A.drawRefresh();
     undo = { p, idx, prevNext, timer: setTimeout(finalizeUndo, 15000) };
     undoBar(true, p.name);
     say('Διαγράφηκε ' + p.name, 'Deleted ' + p.name);

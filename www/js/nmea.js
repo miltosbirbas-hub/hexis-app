@@ -117,6 +117,17 @@
     if (this.sLat !== null && this.sLon !== null) return Math.sqrt(this.sLat * this.sLat + this.sLon * this.sLon);
     return null;
   };
+  // Εκτίμηση σ όταν ο δέκτης δεν στέλνει GST: HDOP × τυπικό σφάλμα ανά τύπο λύσης (1σ, m)
+  const UERE = { 4: 0.012, 5: 0.25, 2: 0.6, 1: 1.8, 9: 0.6 };
+  NmeaState.prototype.hrmsEst = function () {
+    if (this.hdop == null || this.lat == null) return null;
+    return this.hdop * (UERE[this.quality] || 2.5);
+  };
+  NmeaState.prototype.vrmsEst = function () {
+    const h = this.hrmsEst(); if (h == null) return null;
+    const vd = this.vdop != null ? this.vdop : this.hdop * 1.5;
+    return vd * (UERE[this.quality] || 2.5);
+  };
 
   // TruPulse / laser: $PLTIT,HV,HD,F|M,AZ,D,INC,D,SD,F|M*cs
   function parseTruPulse(f) {
