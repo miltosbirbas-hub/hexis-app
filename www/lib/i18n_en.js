@@ -227,5 +227,7 @@ Object.assign(window.HEXIS_EN, {
   "Σύνδεση μέσω Wi-Fi δέκτη (Singular, CHC, South, Stonex…)": "Connect via receiver Wi-Fi (Singular, CHC, South, Stonex…)",
   "Αν δεν βρει, ανοίγει τη σελίδα του δέκτη για να ενεργοποιήσεις μία φορά την έξοδο NMEA (TCP) — μετά συνδέεται μόνη της για πάντα.": "If none is found, it opens the receiver page so you enable the NMEA (TCP) output once — after that it connects by itself for good.",
   "Σύνδεση: admin / admin. Device Configuration → Data Transmission → TCP (NMEA-0183): θύρα 9000, ενεργό, GGA+GST+GSA 1 Hz → Save. Το Bluetooth του X1/L1 δέχεται μόνο το SingularPad — μην το αλλάξεις.": "Login: admin / admin. Device Configuration → Data Transmission → TCP (NMEA-0183): port 9000, enabled, GGA+GST+GSA 1 Hz → Save. The X1/L1 Bluetooth only accepts SingularPad — leave it as is.",
-  "Σειρά δέκτη (το όνομα Wi-Fi αρχίζει με…)": "Receiver series (Wi-Fi name starts with…)"
+  "Σειρά δέκτη (το όνομα Wi-Fi αρχίζει με…)": "Receiver series (Wi-Fi name starts with…)",
+  "ρυθμίσεις NMEA / IMU": "NMEA / IMU settings",
+  "Σύνδεση: admin / admin. Device Configuration → Data Transmission → TCP (NMEA-0183): Startup ✓, θύρα 9000, GPGGA 1s, GPRMC 1s· για IMU/κλίση: PTNLAVR 1s, HEADING 1s, GPYBM 1s → OK. Το Bluetooth του X1/L1 δέχεται μόνο το SingularPad — μην το αλλάξεις.": "Login: admin / admin. Device Configuration → Data Transmission → TCP (NMEA-0183): Startup ✓, port 9000, GPGGA 1s, GPRMC 1s; for IMU/tilt: PTNLAVR 1s, HEADING 1s, GPYBM 1s → OK. The X1/L1 Bluetooth only accepts SingularPad — leave it as is."
 });

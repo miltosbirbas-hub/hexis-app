@@ -11,7 +11,7 @@
 
   // γνωστά στοιχεία ανά κατασκευαστή (δημοσιευμένα από τους ίδιους)
   const BRANDS = [
-    { id: 'singular', name: 'Singular XYZ', prefix: ['X1', 'E1', 'Y1', 'Z1', 'L1', 'Orion'], pass: '12345678', url: 'http://192.168.10.12/', login: 'admin / admin', hint: 'Σύνδεση: admin / admin. Device Configuration → Data Transmission → TCP (NMEA-0183): θύρα 9000, ενεργό, GGA+GST+GSA 1 Hz → Save. Το Bluetooth του X1/L1 δέχεται μόνο το SingularPad — μην το αλλάξεις.' },
+    { id: 'singular', name: 'Singular XYZ', prefix: ['X1', 'E1', 'Y1', 'Z1', 'L1', 'Orion'], pass: '12345678', url: 'http://192.168.10.12/', login: 'admin / admin', hint: 'Σύνδεση: admin / admin. Device Configuration → Data Transmission → TCP (NMEA-0183): Startup ✓, θύρα 9000, GPGGA 1s, GPRMC 1s· για IMU/κλίση: PTNLAVR 1s, HEADING 1s, GPYBM 1s → OK. Το Bluetooth του X1/L1 δέχεται μόνο το SingularPad — μην το αλλάξεις.' },
     { id: 'chc', name: 'CHC / iGage', prefix: ['GNSS-', 'CHC', 'i7', 'i8', 'i9', 'X'], pass: '12345678', url: 'http://192.168.1.1/', login: 'admin / password', hint: 'Σύνδεση: admin / password. I/O Settings → Bluetooth → NMEA → GGA, GST, GSA 1 Hz → Save.' },
     { id: 'south', name: 'South', prefix: ['S', 'G'], pass: '12345678', url: 'http://10.1.1.1/', login: 'admin / admin', hint: 'Σύνδεση: admin / admin. Data Record / Output → Bluetooth → NMEA GGA, GST, GSA 1 Hz.' },
     { id: 'stonex', name: 'Stonex', prefix: ['S9', 'S7', 'S5', 'S8'], pass: '12345678', url: 'http://192.168.10.1/', login: 'admin / password', hint: 'Σύνδεση: admin / password. I/O → Bluetooth → NMEA GGA, GST, GSA 1 Hz → Save.' },
@@ -32,9 +32,13 @@
       <div class="result">${t('Τι θα γίνει')}: <b>1.</b> ${t('Το Android θα σου δείξει τα Wi-Fi γύρω σου — διάλεξε τον δέκτη (το όνομα έχει τον σειριακό του).')} <b>2.</b> ${t('Η εφαρμογή ψάχνει μόνη της θέση από το Wi-Fi του δέκτη.')} <b>3.</b> ${t('Αν δεν βρει, ανοίγει τη σελίδα του δέκτη για να ενεργοποιήσεις μία φορά την έξοδο NMEA (TCP) — μετά συνδέεται μόνη της για πάντα.')}</div>
       <button class="btn primary big" id="ws-go">📶 ${t('Σύνδεση στο Wi-Fi του δέκτη')}</button>
       <div id="ws-log" class="muted"></div>
-      <button class="btn hidden" id="ws-page">🌐 ${t('Άνοιγμα σελίδας δέκτη')}</button>
+      <button class="btn" id="ws-page">🌐 ${t('Άνοιγμα σελίδας δέκτη')} (${t('ρυθμίσεις NMEA / IMU')})</button>
       <button class="btn hidden" id="ws-tcp">✓ ${t('Χρήση αυτής της σύνδεσης')}</button>`, b => {
       const log = m => { const el = b.querySelector('#ws-log'); if (el) el.innerHTML += '<div>' + m + '</div>'; };
+      b.querySelector('#ws-page').onclick = () => {
+        const G = A.settings.gnss || {}; const url = G.type === 'tcp' && G.host ? 'http://' + G.host + '/' : (br.url || 'http://192.168.10.12/');
+        P().openReceiverPage({ url, hint: (br.login ? t('Σύνδεση') + ': ' + br.login + ' · ' : '') + t(br.hint) }).catch(e => A.toast(e.message || String(e), 'bad'));
+      };
       b.querySelector('#ws-br').onchange = e => { W.brand = e.target.value; const nb = BRANDS.find(x => x.id === W.brand); W.pass = nb.pass; A.saveSettings(); A.wifiSetup(); };
       b.querySelector('#ws-go').onclick = async () => {
         W.ssid = b.querySelector('#ws-ssid').value.trim(); W.pass = b.querySelector('#ws-pass').value; if (b.querySelector('#ws-pf')) W.pf = b.querySelector('#ws-pf').value; A.saveSettings();
@@ -64,7 +68,7 @@
         const open = pr && pr.found ? pr.found.filter(f => f.kind === 'open' || f.kind === 'data').map(f => f.port) : [];
         log((open.length ? t('Ανοιχτές θύρες χωρίς θέση') + ': ' + open.join(', ') + '. ' : '') + t('Ανοίγω τη σελίδα του δέκτη — ενεργοποίησε το NMEA στο Bluetooth μία φορά.'));
         const url = 'http://' + gw + '/';
-        const pg = b.querySelector('#ws-page'); pg.classList.remove('hidden');
+        const pg = b.querySelector('#ws-page');
         const openPage = () => P().openReceiverPage({ url, hint: (nb.login ? t('Σύνδεση') + ': ' + nb.login + ' · ' : '') + t(nb.hint) }).catch(e => A.toast(e.message || String(e), 'bad'));
         pg.onclick = openPage; openPage();
         b.querySelector('#ws-go').disabled = false;
