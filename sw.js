@@ -72,6 +72,9 @@ self.addEventListener('fetch', (e) => {
   // POST/PUT κλπ. δεν μπαίνουν ποτέ σε cache
   if (e.request.method !== 'GET') return;
 
+  // Αρχεία λήψης (HEXIS PAD .apk): πάντα κατευθείαν από το δίκτυο, ποτέ cache
+  if (url.pathname.startsWith('/dl/') || url.pathname.endsWith('.apk')) return;
+
   // ΔΙΟΡΘΩΣΗ v3.83: ΟΛΑ τα .html (app.html, login.html, index.html)
   // + navigations + sw.js -> ΠΑΝΤΑ network-first, ώστε κάθε νέα έκδοση
   // να φορτώνει αμέσως. Πριν, το app.html ήταν cache-first και το PWA
