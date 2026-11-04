@@ -158,6 +158,9 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 .kpis{margin-top:4px}.kpi{padding:10px 14px}.kpi b{font-size:20px}
 .tlinks{display:flex;gap:8px;align-items:center}
 .tlinks a.ext{font-size:12.5px;color:var(--muted);text-decoration:none;padding:8px 6px}.tlinks a.ext:hover{color:var(--orange)}
+#padCard input:not([type=checkbox]){font-family:var(--font-b);font-size:15px;padding:9px 11px;border:1px solid var(--border-strong);border-radius:9px;outline:none;width:100%}#padCard .ixgrid label{font-size:13px}
+#padCard .ixtw table{font-size:14px}#padCard .ixtw td{vertical-align:top;padding:7px 6px}#padCard .ixtw td.wr{white-space:normal;min-width:150px}#padCard .ixtag{font-size:12.5px;padding:2px 8px}
+#padCard .ixtag.pok{background:#E8F6EE;color:#1F7A4A}#padCard .pact{display:flex;gap:5px}#padCard .pact .btn{padding:4px 9px;font-size:13px}
 #mpCard input,#mpCard select{font-family:var(--font-b);font-size:13.5px;padding:8px 10px;border:1px solid var(--border-strong);border-radius:9px;outline:none;width:100%}
 .mtag{font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:#EFF3F8;color:var(--muted)}.mtag.ok{background:#E8F6EE;color:#1F7A4A}.mtag.bad{background:#FDE7E7;color:var(--red)}.mtag.run{background:#FFF3E8;color:#E05A12}
 .mbtn{font-family:var(--font-d);font-weight:600;font-size:12px;padding:4px 9px;border-radius:7px;border:1px solid var(--border-strong);background:#fff;color:var(--muted);cursor:pointer}.mbtn:hover{color:var(--text)}
@@ -188,10 +191,26 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
     <button data-go="users"><span>Χρήστες HEXIS</span><b id="nUsr"></b></button>
     <button data-go="interior"><span>Interior · κλειδιά</span><b id="nIx"></b></button>
     <button data-go="mapping"><span>Mapping · κλειδιά</span><b id="nMap"></b></button>
+    <button data-go="pad"><span>PAD · κλειδιά</span><b id="nPad"></b></button>
     <button data-go="payments"><span>Πληρωμές</span><b id="nPay"></b></button>
     <button data-go="requests"><span>Αιτήματα</span><b id="nReq"></b></button>
     <button data-go="sos" class="sosnav" data-app="interior" title="Αναφορές προβλημάτων από το HEXIS INTERIOR"><span>🆘 SOS Interior</span><b id="nSos"></b></button><button data-go="sosmap" class="sosnav" data-app="mapping" title="Αναφορές προβλημάτων από το HEXIS MAPPING"><span>🆘 SOS Mapping</span><b id="nSosMap"></b></button>
   </nav>
+
+  <div class="card" id="padCard" data-sec="pad">
+    <h2>HEXIS PAD · άδειες & χρήση <span class="count" id="padCnt">0</span><span style="flex:1"></span><span class="hint" id="padNow" style="margin:0;font-size:13px"></span><button class="btn" id="padRef" type="button" style="margin-left:8px">↻</button></h2>
+    <div class="ixgrid">
+      <div><label>Όνομα δοκιμαστή</label><input id="padName" placeholder="π.χ. Γιώργος Παπαδόπουλος"></div>
+      <div><label>Email</label><input id="padEmail" type="email" placeholder="προαιρετικό"></div>
+      <div><label>Διάρκεια</label><div style="display:flex;gap:6px;align-items:center"><input id="padDays" type="number" min="1" max="3650" value="7" style="width:90px!important"><span>ημέρες</span>
+        <label style="display:flex;gap:4px;align-items:center;font-size:12.5px;margin:0;white-space:nowrap"><input type="checkbox" id="padFull" style="width:auto!important"> μόνιμη</label></div></div>
+      <div><label>Σημείωση</label><input id="padNote" placeholder="προαιρετικό"></div>
+    </div>
+    <div class="ixrow"><span class="hint" style="margin:0;flex:1">Ο κωδικός κλειδώνει στην πρώτη συσκευή που τον βάζει. Η διάρκεια μετράει από την ενεργοποίηση. Γράφεται παραστατικό 0 € στις Πληρωμές.</span><button class="btn btn-orange" id="padNew">Νέος κωδικός</button></div>
+    <div id="padOut"></div>
+    <div class="ixsub">Ποιος δουλεύει και πόση ώρα <span class="hint" style="margin:0">· 🟢 = δουλεύει τώρα (ανανέωση κάθε 30″) · ο χρόνος χωρίς ίντερνετ έρχεται μόλις βρει σύνδεση</span></div>
+    <div class="ixtw scrl" id="padList" style="max-height:calc(100vh - 470px)"><div class="empty">Φόρτωση...</div></div>
+  </div>
 
   <div class="card" data-sec="requests">
     <h2>Αιτήματα ενεργοποίησης <span class="count" id="req-count">0</span></h2>
@@ -747,15 +766,64 @@ document.getElementById('hxGGo').onclick=async()=>{const em=document.getElementB
 document.getElementById('hxCsv').onclick=()=>{const m0=new Date();m0.setDate(1);m0.setHours(0,0,0,0);const R=HXO.filter(o=>new Date(o.created_at)>=m0);
   const rows=[['Ημερομηνία','Κωδικός είδους','Είδος','Email','Ονοματεπώνυμο','Επωνυμία','Επάγγελμα','ΑΦΜ','ΔΟΥ','Διεύθυνση','Τ.Κ.','Πόλη','Τηλέφωνο','Παραστατικό','Καθαρό','ΦΠΑ','Σύνολο','Αρ. παραστατικού']].concat(R.map(o=>{const B=o.billing||{};return [new Date(o.created_at).toLocaleString('el-GR'),o.sku,o.item,o.email||'',B.name||'',B.company||o.customer_name||'',B.profession||'',B.afm||o.tax_id||'',B.doy||'',B.address||'',B.zip||'',B.city||'',B.phone||'',o.doc_type,(+o.net).toFixed(2).replace('.',','),(+o.vat).toFixed(2).replace('.',','),(+o.gross).toFixed(2).replace('.',','),o.invoice_ref||'']}));
   const csv='\ufeff'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(';')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='hexis-pliromes-'+m0.toISOString().slice(0,7)+'.csv';a.click()};
+// ===== HEXIS PAD: κωδικοί δοκιμής, συσκευές, χρόνος χρήσης =====
+const padH=m=>{m=+m||0;if(m<1)return m>0?'<1′':'—';const h=Math.floor(m/60),r=Math.round(m%60);return h?h+'ω '+String(r).padStart(2,'0')+'′':r+'′'};
+const padAgo=v=>{if(!v)return '—';const s=(Date.now()-Date.parse(v))/1000;if(s<90)return 'τώρα';if(s<3600)return Math.round(s/60)+'′ πριν';if(s<86400)return Math.round(s/3600)+' ώρες πριν';return new Date(v).toLocaleString('el-GR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})};
+const padLeft=r=>{if(r.revoked)return '<span class="ixtag" style="background:#FDECEC;color:#B42318">ανακλήθηκε</span>';if(r.kind==='full')return '<span class="ixtag pok">μόνιμη</span>';
+  if(!r.activated_at)return '<span class="ixtag">δεν ενεργοποιήθηκε · '+r.days+' ημ.</span>';const d=(Date.parse(r.expires_at)-Date.now())/86400e3;
+  return d<=0?'<span class="ixtag" style="background:#FDECEC;color:#B42318">έληξε '+ixd(r.expires_at)+'</span>':'<span class="ixtag '+(d<2?'pro':'pok')+'">'+(d<1?Math.max(1,Math.round(d*24))+' ώρες':Math.ceil(d)+' ημέρες')+'</span> <small>έως '+ixd(r.expires_at)+'</small>'};
+let padTimer=null;
+async function padLoad(){clearTimeout(padTimer);const L=document.getElementById('padList');if(!L)return;
+  const {data,error}=await sb.rpc('admin_pad_overview');
+  if(error){L.innerHTML='<div class="empty">'+ixe(error.message)+' · τρέχει αυτόματα το pad-licenses.sql — περίμενε λίγα λεπτά</div>';return}
+  const R=data||[];window.PADR=R;const on=R.filter(r=>r.online).length;
+  document.getElementById('padCnt').textContent=R.length;document.getElementById('nPad').textContent=on?'🟢 '+on:'';
+  document.getElementById('padNow').textContent=on?('🟢 '+on+(on===1?' δουλεύει τώρα':' δουλεύουν τώρα')):'κανείς δεν δουλεύει τώρα';
+  L.innerHTML=R.length?`<table><tr><th></th><th>Δοκιμαστής · συσκευή</th><th>Κωδικός</th><th>Άδεια</th><th>Τελευταία χρήση</th><th>Δέκτης · λύση</th><th>Σήμερα</th><th>7 ημ.</th><th>Σύνολο</th><th></th></tr>`+
+    R.map(r=>`<tr style="${r.revoked?'opacity:.5':''}"><td title="${r.online?'δουλεύει τώρα':''}">${r.online?'🟢':'⚪'}</td>
+      <td class="wr"><b>${ixe(r.name||'—')}</b>${r.email?'<br><small>'+ixe(r.email)+'</small>':''}${r.device_model?'<br><small>📱 '+ixe(r.device_model)+'</small>':''}${r.note?'<br><small class="muted">'+ixe(r.note)+'</small>':''}</td>
+      <td class="k">${ixe(r.key)} <button class="btn" data-pcp="${ixe(r.key)}" title="Αντιγραφή κωδικού" style="padding:2px 7px">⧉</button></td>
+      <td class="wr">${padLeft(r)}</td><td>${padAgo(r.last_at||r.last_seen)}</td>
+      <td>${ixe(r.receiver||'—')}${r.fix?'<br><b style="color:'+(r.fix==='FIX'?'#1F7A4A':r.fix==='FLOAT'?'#B26A00':'#667085')+'">'+ixe(r.fix)+'</b>':''}</td>
+      <td>${padH(r.today_min)}</td><td>${padH(r.week_min)}</td><td><b>${padH(r.total_min)}</b>${r.n_sessions?`<br><button class="btn" data-pss="${ixe(r.key)}" style="padding:2px 8px;font-size:12.5px;margin-top:3px" title="Αναλυτικά οι συνεδρίες">${r.n_sessions} συνεδρ. ▸</button>`:''}</td>
+      <td><div class="pact">${r.kind==='demo'&&!r.revoked?`<button class="btn btn-ok" data-pex="${ixe(r.key)}" title="Παράταση της δοκιμής">+ ημέρες</button>`:''}${r.activated_at&&!r.revoked?`<button class="btn" data-pdv="${ixe(r.key)}" title="Να μπορεί να μπει από άλλη συσκευή (π.χ. άλλαξε κινητό)">⇄ συσκευή</button>`:''}<button class="btn btn-no" data-prv="${ixe(r.key)}" data-on="${r.revoked?0:1}" title="${r.revoked?'Επαναφορά του κωδικού':'Ανάκληση: η εφαρμογή κλειδώνει μόλις βρει ίντερνετ'}">${r.revoked?'Επαναφορά':'Ανάκληση'}</button></div></td></tr>`).join('')+'</table>':'<div class="empty">Δεν έχει βγει κανένας κωδικός ακόμα.</div>';
+  L.querySelectorAll('[data-pcp]').forEach(b=>b.onclick=()=>{navigator.clipboard.writeText(b.dataset.pcp);toast('Αντιγράφηκε')});
+  L.querySelectorAll('[data-pex]').forEach(b=>b.onclick=async()=>{const d=prompt('Πόσες ημέρες να προστεθούν;','7');if(!d||!(+d>0))return;const {error}=await sb.rpc('admin_pad_extend',{p_key:b.dataset.pex,p_days:Math.round(+d)});toast(error?error.message:'Προστέθηκαν '+Math.round(+d)+' ημέρες');padLoad()});
+  L.querySelectorAll('[data-pdv]').forEach(b=>b.onclick=async()=>{if(!confirm('Αποδέσμευση συσκευής για '+b.dataset.pdv+';\nΘα μπορεί να μπει από νέα συσκευή· η λήξη μένει ίδια.'))return;const {error}=await sb.rpc('admin_pad_reset_device',{p_key:b.dataset.pdv});toast(error?error.message:'Έγινε');padLoad()});
+  L.querySelectorAll('[data-prv]').forEach(b=>b.onclick=async()=>{const on=b.dataset.on==='1';if(on&&!confirm('Ανάκληση του '+b.dataset.prv+';\nΗ εφαρμογή κλειδώνει μόλις βρει ίντερνετ.'))return;const {error}=await sb.rpc('admin_pad_revoke',{p_key:b.dataset.prv,p_on:on});toast(error?error.message:(on?'Ανακλήθηκε':'Επανήλθε'));padLoad()});
+  L.querySelectorAll('[data-pss]').forEach(b=>b.onclick=()=>padSess(b.dataset.pss));
+  const card=document.getElementById('padCard');if(card&&card.classList.contains('show'))padTimer=setTimeout(padLoad,30000)}
+async function padSess(k){const r=(window.PADR||[]).find(x=>x.key===k)||{};const {data,error}=await sb.rpc('admin_pad_sessions',{p_key:k,p_limit:200});if(error){toast(error.message);return}
+  const f=v=>new Date(v).toLocaleString('el-GR',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});const ft=v=>new Date(v).toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'});
+  let d=document.getElementById('padDlg');if(d)d.remove();d=document.createElement('dialog');d.id='padDlg';d.style.cssText='max-width:820px;width:94vw;max-height:86vh;margin:auto;inset:0;position:fixed;border:0;border-radius:14px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.25)';
+  d.innerHTML=`<h3 style="margin:0 0 4px">${ixe(r.name||k)} · συνεδρίες</h3><div class="hint" style="margin:0 0 10px">${ixe(k)} · σύνολο <b>${padH(r.total_min)}</b></div>
+   <div class="ixtw scrl" style="max-height:60vh">${(data||[]).length?`<table><tr><th>Ημέρα · έναρξη</th><th>Λήξη</th><th>Ενεργός χρόνος</th><th>Δέκτης</th><th>Λύση</th><th>Σημεία</th><th>Έκδοση</th></tr>`+data.map(s=>`<tr><td>${f(s.started_at)}</td><td>${ft(s.last_at)}</td><td><b>${padH(s.minutes)}</b></td><td>${ixe(s.receiver||'—')}</td><td>${ixe(s.fix||'—')}</td><td>${s.points==null?'—':s.points}</td><td>${ixe(s.app_ver||'')}</td></tr>`).join('')+'</table>':'<div class="empty">Καμία συνεδρία.</div>'}</div>
+   <div style="text-align:right;margin-top:12px"><button class="btn" id="padDlgX">Κλείσιμο</button></div>`;
+  document.body.appendChild(d);d.querySelector('#padDlgX').onclick=()=>d.close();d.showModal()}
+document.getElementById('padFull').onchange=e=>{document.getElementById('padDays').disabled=e.target.checked};
+document.getElementById('padRef').onclick=()=>padLoad();
+document.getElementById('padNew').onclick=async()=>{const full=document.getElementById('padFull').checked,days=Math.round(+document.getElementById('padDays').value);
+  if(!full&&!(days>0)){toast('Βάλε διάρκεια σε ημέρες');return}
+  const name=document.getElementById('padName').value.trim();
+  const {data,error}=await sb.rpc('admin_pad_issue',{p_days:full?null:days,p_name:name,p_email:document.getElementById('padEmail').value,p_note:document.getElementById('padNote').value,p_kind:full?'full':'demo'});
+  if(error||!data||!data.ok){toast(error?error.message:(data&&data.msg)||'Σφάλμα');return}
+  const msg=`Καλησπέρα${name?' '+name.split(' ')[0]:''},\n\nσου στέλνω πρόσβαση ${full?'':'δοκιμής '+days+' ημερών '}στο HEXIS PAD.\n\n1. Κατέβασε την εφαρμογή: https://github.com/miltosbirbas-hub/hexis-app/releases/download/pad-apk/HEXIS_PAD.apk\n2. Άνοιξέ τη και βάλε τον κωδικό: ${data.key}\n\nΟ κωδικός κλειδώνει στη συσκευή όπου θα τον βάλεις πρώτη φορά${full?'':' και η δοκιμή μετράει από εκείνη τη στιγμή'}.\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.`;
+  const o=document.getElementById('padOut');o.innerHTML=`<div style="margin:10px 0;padding:12px 14px;border:2px solid #F7941D;border-radius:12px;background:#FFF8F0"><div style="font-size:13px;color:#667085">Νέος κωδικός ${full?'(μόνιμος)':'· '+days+' ημέρες από την ενεργοποίηση'}</div>
+    <div style="font:700 26px var(--font-m);letter-spacing:1px;margin:4px 0 8px">${ixe(data.key)}</div>
+    <textarea id="padMsg" style="width:100%;height:150px;font-size:13px">${ixe(msg)}</textarea>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn btn-orange" id="padCpK">Αντιγραφή κωδικού</button><button class="btn" id="padCpM">Αντιγραφή μηνύματος</button>${document.getElementById('padEmail').value?`<a class="btn" style="text-decoration:none" href="mailto:${encodeURIComponent(document.getElementById('padEmail').value)}?subject=${encodeURIComponent('HEXIS PAD · κωδικός πρόσβασης')}&body=${encodeURIComponent(msg)}">✉ Email</a>`:''}<a class="btn" style="text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">WhatsApp</a></div></div>`;
+  o.querySelector('#padCpK').onclick=()=>{navigator.clipboard.writeText(data.key);toast('Αντιγράφηκε')};o.querySelector('#padCpM').onclick=()=>{navigator.clipboard.writeText(document.getElementById('padMsg').value);toast('Αντιγράφηκε')};
+  ['padName','padEmail','padNote'].forEach(i=>document.getElementById(i).value='');padLoad()};
+(function padWait(){const m=document.getElementById('main');if(m&&m.style.display!=='none'){padLoad();return}setTimeout(padWait,400)})();
 (function hxWait(){const m=document.getElementById('main');if(m&&m.style.display!=='none'){hxLoad();return}setTimeout(hxWait,400)})();
 
 document.querySelectorAll('#uTabs [data-st]').forEach(b=>b.onclick=()=>{USTAB=b.dataset.st;renderUsers()});
 // ===== Καρτέλες: μία ενότητα τη φορά, χωρίς κύλιση όλης της σελίδας =====
-(function(){const C=document.querySelector('.adc'),T=['users','interior','mapping','payments','requests'];
+(function(){const C=document.querySelector('.adc'),T=['users','interior','mapping','pad','payments','requests'];
   function go(g){if(g==='sosmap'){window.REPAPP='mapping';g='sos'}else if(g==='sos'){window.REPAPP='interior'}if(g==='sos'){g='interior';try{ixRepLoad()}catch(e){}setTimeout(()=>{const b=document.querySelector('[data-grp="ix"] [data-sub="rep"]');if(b)b.click()},50)}if(!T.includes(g))g='users';document.querySelectorAll('#adNav [data-go]').forEach(x=>x.classList.toggle('on',x.dataset.go===g));
     C.querySelectorAll('.card[data-sec]').forEach(c=>c.classList.toggle('show',c.dataset.sec===g));
     try{localStorage.setItem('hxAdmTab',g)}catch(e){}if(location.hash!=='#'+g)history.replaceState(null,'','#'+g);
-    if(g==='mapping')setTimeout(()=>{if(typeof mpOpen==='function')mpOpen()},0);window.scrollTo({top:0})}
+    if(g==='mapping')setTimeout(()=>{if(typeof mpOpen==='function')mpOpen()},0);if(g==='pad')setTimeout(()=>{if(typeof padLoad==='function')padLoad()},0);window.scrollTo({top:0})}
   document.querySelectorAll('#adNav [data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
   document.querySelectorAll('.subtabs').forEach(bar=>bar.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{
     bar.querySelectorAll('[data-sub]').forEach(x=>x.classList.toggle('on',x===b));
