@@ -58,7 +58,7 @@
   /* ---------- πάνελ ---------- */
   let JOB = null, RUN = false, AUTO = true, HANDOFF_TAB = false;
   const panel = document.createElement("div"); panel.id = "hx-panel";
-  panel.innerHTML = `<div class="hd"><span>HEXIS-APP · Φάκελος</span><button data-a="min" title="Ελαχιστοποίηση">–</button></div><div class="bd"></div>`;
+  panel.innerHTML = `<div class="hd"><span>HEXIS-APP · Φάκελος</span><button data-a="min" title="Ελαχιστοποίηση">–</button><button data-a="hide" title="Κλείσιμο πάνελ (η εργασία σταματά)">×</button></div><div class="bd"></div>`;
   const bd = panel.querySelector(".bd");
   function say(t, warn) { const m = panel.querySelector(".msg"); if (m) { m.textContent = t; m.classList.toggle("warn", !!warn); } }
   function render(msg, warn) {
@@ -74,6 +74,7 @@
     const a = e.target.closest("[data-a]"); if (!a) return;
     const act = a.dataset.a;
     if (act === "min") panel.classList.toggle("min");
+    if (act === "hide") { RUN = false; JOB.hidden = true; JOB.running = false; await save(); JOB = null; panel.remove(); return; }
     if (act === "run") { RUN = !RUN; AUTO = true; render(RUN ? "Εκτέλεση…" : "Σε παύση."); if (RUN) loop(); }
     if (act === "one") { RUN = true; AUTO = false; render("Εκτέλεση για το τρέχον ΚΑΕΚ…"); loop(); }
     if (act === "skip") { JOB.i++; JOB.step = "search"; await save(); render("Παραλείφθηκε."); }
@@ -364,6 +365,10 @@
   (async () => {
     JOB = await send({ type: "getJob" });
     if (!JOB) return;
+    // το πάνελ εμφανίζεται ΜΟΝΟ όσο τρέχει εργασία που ξεκίνησες από το HEXIS-APP
+    const last = Math.max(JOB.t || 0, JOB.lastRun || 0);
+    if (!last || Date.now() - last > 3 * 3600 * 1000) { await send({ type: "clearJob" }); JOB = null; return; }   // ξεχασμένη εργασία
+    if (JOB.finished || JOB.hidden) { JOB = null; return; }
     if (isLogin()) { render("Συνδέσου με τους κωδικούς ΤΕΕ σε αυτή τη σελίδα. Μετά τη σύνδεση πάτα «▶ Αυτόματα όλα». (Αν το ΤΕΕ βγάλει «Invalid state»: κλείσε τις άλλες καρτέλες Κτηματολογίου/ΤΕΕ και ξεκίνα πάλι — μην πατάς «Πίσω» ή ανανέωση στη σελίδα του ΤΕΕ.)", true); return; }
     render("Έτοιμο. Πάτα «▶ Αυτόματα όλα» για όλα τα ΚΑΕΚ ή «Μόνο το τρέχον».");
     RUN = !!JOB.running; AUTO = JOB.auto !== false;
