@@ -47,7 +47,7 @@ jobs:
             mkdir -p "$RUNNER_TEMP/kg" && cd "$RUNNER_TEMP/kg" && npm i -s tweetnacl@1.0.3 >/dev/null 2>&1
             node -e "const n=require('tweetnacl'),fs=require('fs');const k=n.sign.keyPair();fs.writeFileSync('sk',Buffer.from(k.secretKey).toString('base64'));fs.writeFileSync('pk',Buffer.from(k.publicKey).toString('base64'))"
             SK=$(cat sk); echo "::add-mask::$SK"; rm -f sk
-            supabase secrets set --project-ref "$REF" "PAD_SIGN_SK=$SK" >/dev/null
+            supabase secrets set --project-ref "$REF" --yes "PAD_SIGN_SK=$SK" >/dev/null
             PK=$(cat pk)
             q "insert into public.pad_config(k,v) values ('sign_pk','$PK') on conflict (k) do update set v=excluded.v, updated_at=now()" >/dev/null
             echo "Νέο κλειδί υπογραφής δημιουργήθηκε"
