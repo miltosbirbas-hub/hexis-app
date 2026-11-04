@@ -400,6 +400,16 @@
   };
 
   // ==================== Σύνδεση δέκτη ====================
+  // πιθανοί δέκτες GNSS πρώτοι (σειριακοί αριθμοί, γνωστά μοντέλα), ηχεία / αυτοκίνητα / ακουστικά τελευταία
+  function rankDevs(devs) {
+    const gnss = /(^|[^a-z])(x1|e1|y1|p1|i5[0-9]|i7[0-9]|i8[0-9]|i9[0-9]|reach|rs[234]|gs1[0-9]|gs0[0-9]|r1[0-2]|r[28]s?|sp[0-9]{2}|hiper|stonex|s[5-9][0-9]{2}|chc|hi-?target|v[1-5]00|galaxy|insight|singular|unicore|um98|t30|n3|geomax|zenith|tersus|oscar|satlab|freyja|foif|kolida|ruide|emlid|gnss|rtk|rover|base)([^a-z]|$)/i;
+    const serial = /^[0-9]{3,}[a-z]?[0-9]{3,}|^[a-z]{0,3}[0-9]{6,}$|^[0-9]{4}[a-z][0-9]{3,}/i;
+    const noise = /audio|car|speaker|sound|buds|pods|headset|headphone|jbl|sony|bose|beats|marshall|ultimate|soundcore|watch|band|tv|suzuki|toyota|ford|kia|hyundai|bmw|audi|vw|seat|skoda|nissan|mazda|honda|peugeot|renault|fiat|opel|mercedes|dji|\brc\b|mouse|keyboard|printer|glow|spark|mi |redmi|galaxy buds|disto/i;
+    return devs.map(d => { const n = (d.name || '').trim(); const likely = !noise.test(n) && (gnss.test(n) || serial.test(n)); return Object.assign({}, d, { likely, score: likely ? 0 : noise.test(n) ? 2 : 1 }); })
+      .sort((a, b) => a.score - b.score);
+  }
+  A._rankDevs = rankDevs;
+
   A.connectSheet = async function () {
     const G = A.settings.gnss;
     let devs = [];
@@ -413,12 +423,24 @@
       <h4>Ροή δεδομένων</h4><div class="raw" id="raw"></div>`, b => {
       const cb = b.querySelector('#cb');
       const draw = () => {
-        if (G.type === 'bt') cb.innerHTML = devs.length ? `<label class="fld"><span>Συζευγμένες συσκευές (κάνε πρώτα σύζευξη από τις ρυθμίσεις Bluetooth του Android)</span><select id="dev">${devs.map(d => `<option value="${esc(d.address)}" ${d.address === G.address ? 'selected' : ''}>${esc(d.name || d.address)} — ${esc(d.address)}</option>`).join('')}</select></label>` : `<p class="muted">${native ? 'Δεν βρέθηκαν συζευγμένες συσκευές. Κάνε σύζευξη του δέκτη από τις ρυθμίσεις Bluetooth του Android και ξανάνοιξε.' : 'Το Bluetooth διατίθεται στην εφαρμογή Android.'}</p>`;
+        if (G.type === 'bt') {
+          const sorted = rankDevs(devs);
+          const sel = G.address && devs.some(d => d.address === G.address) ? G.address : (sorted[0] && sorted[0].likely ? sorted[0].address : '');
+          cb.innerHTML = (devs.length ? `<label class="fld"><span>Συζευγμένες συσκευές — ★ = πιθανός δέκτης GNSS</span><select id="dev">${sorted.map(d => `<option value="${esc(d.address)}" ${d.address === sel ? 'selected' : ''}>${d.likely ? '★ ' : ''}${esc(d.name || d.address)} — ${esc(d.address)}</option>`).join('')}</select></label>` : `<p class="muted">${native ? 'Δεν βρέθηκαν συζευγμένες συσκευές.' : 'Το Bluetooth διατίθεται στην εφαρμογή Android.'}</p>`)
+            + (native ? `<div class="row"><button class="btn grow" id="bt-ref">↻ Ανανέωση λίστας</button><button class="btn grow" id="bt-set">⚙ Ρυθμίσεις Bluetooth</button></div>
+              <p class="muted">Δεν βλέπεις τον δέκτη; Πάτα «Ρυθμίσεις Bluetooth» → Σύζευξη νέας συσκευής → διάλεξε τον δέκτη (συνήθως το όνομα είναι ο σειριακός αριθμός του, S/N στο ταμπελάκι). Γύρνα πίσω — η λίστα ανανεώνεται μόνη της.</p>` : '');
+          const rf = cb.querySelector('#bt-ref'); if (rf) rf.onclick = refresh;
+          const bs = cb.querySelector('#bt-set'); if (bs) bs.onclick = () => { try { g.Capacitor.Plugins.HexisGnss.openBtSettings(); } catch (e) { A.toast('Άνοιξε Ρυθμίσεις → Bluetooth', 'bad'); } };
+        }
         else if (G.type === 'tcp') cb.innerHTML = `<div class="row"><label class="fld grow"><span>IP / host δέκτη</span><input id="th" value="${esc(G.host || '192.168.1.1')}"></label><label class="fld" style="width:110px"><span>Port</span><input id="tp" type="number" value="${G.port || 9000}"></label></div>`;
         else if (G.type === 'phone') cb.innerHTML = `<p class="muted">Χρήση του GPS της συσκευής — ακρίβεια μέτρων, μόνο για προσανατολισμό/δοκιμή.</p>`;
         else cb.innerHTML = `<p class="muted">Προσομοιωμένος δέκτης RTK για εκπαίδευση/δοκιμή. Παρατεταμένο πάτημα στον χάρτη = «περπάτα εκεί».</p><button class="btn" id="simc">Τοποθέτηση στο κέντρο του χάρτη</button>`;
         const sc = cb.querySelector('#simc'); if (sc) sc.onclick = () => { HCONN.Sim.jumpTo({ E: A.map.view.cx, N: A.map.view.cy }); A.toast('Ο προσομοιωτής μετακινήθηκε'); };
       };
+      const refresh = async () => { try { devs = await HCONN.listPaired(); } catch (e) { } if (document.body.contains(cb)) { draw(); A.toast('↻ ' + devs.length + ' συσκευές'); } };
+      // επιστροφή από τις ρυθμίσεις Bluetooth του Android → η λίστα ανανεώνεται μόνη της
+      const onVis = () => { if (!document.body.contains(cb)) { document.removeEventListener('visibilitychange', onVis); return; } if (document.visibilityState === 'visible' && G.type === 'bt') refresh(); };
+      document.addEventListener('visibilitychange', onVis);
       draw();
       b.querySelectorAll('#ct button').forEach(x => x.onclick = () => { G.type = x.dataset.v; b.querySelectorAll('#ct button').forEach(y => y.classList.toggle('on', y === x)); draw(); });
       b.querySelector('#dis').onclick = async () => { await HCONN.disconnect('gnss'); A.toast('Αποσυνδέθηκε'); };

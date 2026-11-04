@@ -829,6 +829,16 @@ public class HexisGnssPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void openBtSettings(PluginCall call) {
+        try {
+            Intent it = new Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS);
+            it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(it);
+            call.resolve();
+        } catch (Exception e) { call.reject("Ρυθμίσεις Bluetooth: " + e.getMessage()); }
+    }
+
+    @PluginMethod
     public void getPendingFile(PluginCall call) {
         JSObject r = pendingFile != null ? pendingFile : new JSObject();
         pendingFile = null;

@@ -137,3 +137,8 @@ Object.assign(window.HEXIS_EN, {
   "Εμβαδόν / περίμετρος": "Area / perimeter", "Πολύγωνο από σημεία": "Polygon from points", "Τομή ευθειών": "Line intersection", "Γωνία κτιρίου, συνάντηση αξόνων": "Building corner, axis crossing",
   "Μέτρηση κλίσης": "Slope measurement", "Κλίση ανάμεσα σε σημεία": "Slope between points", "Πίσω": "Back"
 });
+Object.assign(window.HEXIS_EN, {
+  "Συζευγμένες συσκευές — ★ = πιθανός δέκτης GNSS": "Paired devices — ★ = likely GNSS receiver", "↻ Ανανέωση λίστας": "↻ Refresh list", "⚙ Ρυθμίσεις Bluetooth": "⚙ Bluetooth settings",
+  "Δεν βλέπεις τον δέκτη; Πάτα «Ρυθμίσεις Bluetooth» → Σύζευξη νέας συσκευής → διάλεξε τον δέκτη (συνήθως το όνομα είναι ο σειριακός αριθμός του, S/N στο ταμπελάκι). Γύρνα πίσω — η λίστα ανανεώνεται μόνη της.": "Can't see the receiver? Tap “Bluetooth settings” → Pair new device → choose the receiver (its name is usually the serial number, S/N on the label). Come back — the list refreshes by itself.",
+  "Δεν βρέθηκαν συζευγμένες συσκευές.": "No paired devices found.", "συσκευές": "devices", "Άνοιξε Ρυθμίσεις → Bluetooth": "Open Settings → Bluetooth"
+});
