@@ -95,3 +95,7 @@ Object.assign(window.HEXIS_EN, {
   "Σωστό ύψος κονταριού, σταθερό FIX, κούνησε το κοντάρι με τη μύτη στο ίδιο σημείο": "Correct pole height, stable FIX, rock the pole with the tip on the same point",
   "Η αντιστάθμιση ενεργοποιείται από την εφαρμογή του κατασκευαστή· η μέτρηση με το ενσωματωμένο laser δεν υποστηρίζεται.": "Compensation is enabled from the manufacturer's app; measuring with the built-in laser is not supported."
 });
+Object.assign(window.HEXIS_EN, {
+  "Αρχικοποίηση ~5 s: κούνησε το κοντάρι με τη μύτη στο ίδιο σημείο — μία φορά για όλη τη δουλειά": "Initialisation ~5 s: rock the pole with the tip on the same point — once for the whole job",
+  "Η αντιστάθμιση ενεργοποιείται από την εφαρμογή του κατασκευαστή.": "Compensation is enabled from the manufacturer's app."
+});
