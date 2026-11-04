@@ -105,8 +105,24 @@
   }
 
   // ---------- Αρχική οθόνη ----------
+  // Αρχική: μόνο κατηγορίες· πάτημα → οι επιλογές της κατηγορίας (χωρίς τα υπόλοιπα), «Πίσω» → κατηγορίες
+  function homeCats() {
+    document.querySelectorAll('#home .panel').forEach(p => p.classList.add('hidden'));
+    $('home-cats').classList.remove('hidden'); document.querySelector('#home .home-cards').classList.remove('hidden'); $('home').scrollTop = 0;
+  }
+  function homeOpen(k) {
+    const p = document.querySelector(`#home .panel[data-panel="${k}"]`); if (!p) return;
+    $('home-cats').classList.add('hidden'); document.querySelector('#home .home-cards').classList.add('hidden');
+    document.querySelectorAll('#home .panel').forEach(x => x.classList.toggle('hidden', x !== p));
+    $('home').scrollTop = 0;
+  }
+  document.querySelectorAll('#home .cat').forEach(c => c.onclick = () => homeOpen(c.dataset.cat));
+  document.querySelectorAll('#home .pn-back').forEach(b => b.onclick = homeCats);
+  A.homePanelOpen = () => !$('home').classList.contains('hidden') && $('home-cats').classList.contains('hidden');
+  A.homeBack = homeCats;
   A.showHome = function () {
     $('home').classList.remove('hidden');
+    homeCats();
     updateHome();
   };
   function updateHome() {
@@ -116,6 +132,7 @@
     $('home-proj-n').textContent = n + ' σημεία' + (A.design ? ' · σχέδιο ' + A.design.name : '');
     const P = A.pos, fx = P ? A.nmea.fix() : null;
     $('home-gnss-st').textContent = P ? fx.label + (P.sh != null ? ' · σH ' + P.sh.toFixed(3) : '') : (HCONN.state.gnss === 'on' ? 'Συνδεδεμένος — αναμονή θέσης' : 'Χωρίς σύνδεση');
+    { const d = $('home-gnss-dot'); if (d) d.className = 'hc-dot' + (P ? (fx.key === 'fix' ? ' fix' : fx.key === 'float' ? ' float' : ' bad') : ''); }
     $('home-gnss-st').style.color = P ? getComputedStyle(document.documentElement).getPropertyValue('--' + (fx.key === 'fix' ? 'ok' : fx.key === 'float' ? 'warn' : 'bad')) : '';
     $('home-gnss-sub').textContent = P ? `${A.nmea.sats} δορυφόροι · ${HGEO.crsName().split(' (')[0]}` : 'Πάτα για σύνδεση δέκτη';
   }
@@ -131,6 +148,8 @@
     if (k === 'survey') { close(); A.setTab('survey'); }
     if (k === 'stake') { close(); A.setTab('stake'); A.setStakeMode('point'); if (!A.stake.target) { const l = A.stakeList(); if (l.length) A.setTarget(l.find(p => !p.done) || l[0]); else A.toast('Εισήγαγε σημεία χάραξης (Εισαγωγή αρχείου) ή πάτα ⌖ στον χάρτη'); } }
     if (k === 'stakeline') { close(); A.setTab('stake'); A.setStakeMode('line'); if (!A.stake.line) A.pickLineSheet(); }
+    if (k.startsWith('tool:')) { close(); A.runTool(k.slice(5)); }
+    if (k === 'hiddenpt') { close(); A.setTab('survey'); A.hiddenFromSurvey(); }
     if (k === 'grid') { close(); A.gridTool(); }
     if (k === 'laserpt') { close(); A.setTab('survey'); A.laserPoint(); }
     if (k === 'cont') { close(); A.setTab('survey'); A.contSheet(); }

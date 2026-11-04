@@ -1034,6 +1034,6 @@
     setTimeout(() => $('splash').classList.add('out'), 700); setTimeout(() => $('splash').remove(), 1300);
     if (A.autoConnect) A.autoConnect();
     // Native: κουμπί «πίσω» Android κλείνει φύλλα
-    try { g.Capacitor && g.Capacitor.Plugins.App && g.Capacitor.Plugins.App.addListener('backButton', () => { if (!$('sheet').classList.contains('hidden')) A.closeSheet(); else if (!$('so-fullscreen').classList.contains('hidden')) $('sf-close').click(); else if (A._pick) $('pick-cancel').click(); else g.Capacitor.Plugins.App.minimizeApp(); }); } catch (e) { }
+    try { g.Capacitor && g.Capacitor.Plugins.App && g.Capacitor.Plugins.App.addListener('backButton', () => { if (!$('sheet').classList.contains('hidden')) A.closeSheet(); else if (A.homePanelOpen && A.homePanelOpen()) A.homeBack(); else if (!$('so-fullscreen').classList.contains('hidden')) $('sf-close').click(); else if (A._pick) $('pick-cancel').click(); else g.Capacitor.Plugins.App.minimizeApp(); }); } catch (e) { }
   };
 })(window);

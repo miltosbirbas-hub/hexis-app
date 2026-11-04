@@ -128,3 +128,12 @@ Object.assign(window.HEXIS_EN, {
   "ΕΓΣΑ87 · HEPOS · άλλα": "GGRS87 · HEPOS · others", "Ήχοι, εμφάνιση, μέτρηση": "Sounds, display, measurement", "Πρόσθεσε / αφαίρεσε εργαλεία": "Add / remove tools",
   "Βήμα-βήμα με εικόνες": "Step by step with pictures", "Χάραξη": "Stakeout", "Σημείο με laser": "Point by laser", "Κάνναβος": "Grid"
 });
+Object.assign(window.HEXIS_EN, {
+  "Σημεία, γραμμές, επιφάνειες": "Points, lines, surfaces", "Υπολογισμοί": "Calculations", "COGO, εμβαδά, προσαρμογή": "COGO, areas, calibration", "Αρχεία & έργα": "Files & projects",
+  "Εισαγωγή, σημεία, εξαγωγή": "Import, points, export", "Δέκτης & RTK": "Receiver & RTK", "Σύνδεση, δίκτυα, IMU": "Connection, networks, IMU", "Εμφάνιση, ήχοι, οδηγίες": "Display, sounds, guide",
+  "Έναρξη αποτύπωσης": "Start survey", "Δυσπρόσιτο σημείο": "Inaccessible point", "2 σημεία πριν + 2 μετά": "2 points before + 2 after", "«Πάρε» · «Σβήσε» · «Αναίρεση»": "“Take” · “Delete” · “Undo”",
+  "Χάραξη σημείων": "Stake points", "Από αρχείο, σχέδιο ή λίστα": "From file, drawing or list", "Χάραξη επιφάνειας με ΔZ": "Surface stakeout with ΔZ", "Φύτευση δέντρων, πάσσαλοι": "Tree planting, stakes",
+  "Όλα τα εργαλεία COGO": "All COGO tools", "Τομές, επεκτάσεις, πυκνώσεις": "Intersections, extensions, densification", "Απόσταση / αζιμούθιο": "Distance / azimuth", "Ανάμεσα σε δύο σημεία": "Between two points",
+  "Εμβαδόν / περίμετρος": "Area / perimeter", "Πολύγωνο από σημεία": "Polygon from points", "Τομή ευθειών": "Line intersection", "Γωνία κτιρίου, συνάντηση αξόνων": "Building corner, axis crossing",
+  "Μέτρηση κλίσης": "Slope measurement", "Κλίση ανάμεσα σε σημεία": "Slope between points", "Πίσω": "Back"
+});
