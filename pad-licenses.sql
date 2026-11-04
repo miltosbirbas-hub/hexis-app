@@ -22,7 +22,17 @@ alter table public.pad_licenses enable row level security;   -- καμία πρ�
 -- ώρες χρήσης: λήγει όταν εξαντληθούν οι ώρες (και, αν οριστεί, το αργότερο σε days ημέρες)
 alter table public.pad_licenses add column if not exists hours numeric(7,2);
 alter table public.pad_licenses drop constraint if exists pad_licenses_kind_check;
-alter table public.pad_licenses add constraint pad_licenses_kind_check check (kind in ('demo','hours','full'));
+alter table public.pad_licenses add constraint pad_licenses_kind_check check (kind in ('demo','hours','full','owner'));
+-- κωδικός ιδιοκτήτη: χωρίς λήξη, σε όσες συσκευές θέλει (κινητό, tablet…)
+create table if not exists public.pad_devices (
+  key        text not null references public.pad_licenses(key) on delete cascade,
+  device_id  text not null,
+  model      text,
+  first_at   timestamptz not null default now(),
+  last_at    timestamptz not null default now(),
+  primary key (key, device_id)
+);
+alter table public.pad_devices enable row level security;
 
 -- είδος για το παραστατικό μηδενικής αξίας (δεν εμφανίζεται σε καταλόγους)
 do $$ begin
@@ -57,6 +67,12 @@ begin
   select * into l from pad_licenses where key = k for update;
   if not found then return json_build_object('ok',false,'code','invalid','msg','Ο κωδικός δεν είναι έγκυρος'); end if;
   if l.revoked then return json_build_object('ok',false,'code','revoked','msg','Ο κωδικός ανακλήθηκε'); end if;
+  if l.kind = 'owner' then
+    insert into pad_devices(key, device_id, model) values (k, p_device, left(p_model, 80))
+      on conflict (key, device_id) do update set last_at = now(), model = coalesce(excluded.model, pad_devices.model);
+    update pad_licenses set activated_at = coalesce(activated_at, now()), last_seen = now() where key = k;
+    return json_build_object('ok',true,'key',l.key,'kind','owner','name',l.name,'expires_at',null,'server_time',now());
+  end if;
   if l.device_id is null then
     update pad_licenses set device_id = p_device, device_model = left(p_model, 80),
       activated_at = coalesce(activated_at, now()),
@@ -88,13 +104,14 @@ returns json language plpgsql security definer set search_path = public as $$
 declare k text := public.pad_new_key(); oid uuid;
 begin
   if not public.is_admin() then raise exception 'forbidden'; end if;
-  if p_kind not in ('demo','hours','full') then raise exception 'kind'; end if;
+  if p_kind not in ('demo','hours','full','owner') then raise exception 'kind'; end if;
   if p_kind = 'demo' and (p_days is null or p_days < 1 or p_days > 3650) then return json_build_object('ok',false,'msg','Βάλε διάρκεια σε ημέρες (1–3650)'); end if;
   if p_kind = 'hours' and (p_hours is null or p_hours <= 0 or p_hours > 10000) then return json_build_object('ok',false,'msg','Βάλε ώρες χρήσης'); end if;
   if p_kind = 'hours' and p_days is not null and (p_days < 1 or p_days > 3650) then return json_build_object('ok',false,'msg','Λάθος ημέρες ισχύος'); end if;
   insert into pad_licenses(key, kind, days, hours, name, email, note)
-    values (k, p_kind, case when p_kind <> 'full' then p_days end, case when p_kind = 'hours' then p_hours end,
+    values (k, p_kind, case when p_kind in ('demo','hours') then p_days end, case when p_kind = 'hours' then p_hours end,
             nullif(trim(p_name),''), nullif(lower(trim(p_email)),''), nullif(trim(p_note),''));
+  if p_kind = 'owner' then return json_build_object('ok',true,'key',k); end if;   -- δικές σου συσκευές: χωρίς παραστατικό
   -- παραστατικό μηδενικής αξίας (Πληρωμές)
   begin
     insert into hx_orders(user_id, sku, amount_cents, net_cents, vat_cents, customer_email, customer_name, doc_type, source, demo_days, status, fulfill_note, ref, fulfilled_at)
@@ -148,6 +165,7 @@ create or replace function public.admin_pad_reset_device(p_key text)
 returns void language plpgsql security definer set search_path = public as $$
 begin
   if not public.is_admin() then raise exception 'forbidden'; end if;
+  delete from pad_devices where key = p_key;
   update pad_licenses set device_id = null, device_model = null,
     activated_at = activated_at
   where key = p_key;
@@ -182,6 +200,10 @@ returns json language plpgsql security definer set search_path = public as $$
 declare l public.pad_licenses; s jsonb; n int := 0; used numeric; k text := upper(regexp_replace(coalesce(p_key,''), '\s', '', 'g'));
 begin
   select * into l from pad_licenses where key = k;
+  if found and not l.revoked and l.kind = 'owner' and exists (select 1 from pad_devices d where d.key = k and d.device_id = p_device) then
+    update pad_devices set last_at = now() where key = k and device_id = p_device;
+    l.device_id := p_device;
+  end if;
   if not found or l.revoked or l.device_id is distinct from p_device then
     return json_build_object('ok',false,'code', case when not found then 'invalid' when l.revoked then 'revoked' else 'device' end);
   end if;
@@ -217,9 +239,10 @@ language plpgsql security definer set search_path = public as $$
 begin
   if not public.is_admin() then raise exception 'forbidden'; end if;
   return query
-  select l.key, l.kind, l.days, l.hours, l.name, l.email, l.note, l.device_model, l.created_at, l.activated_at, l.expires_at, l.last_seen, l.revoked,
+  select l.key, l.kind, l.days, l.hours, l.name, l.email, l.note,
+    case when l.kind = 'owner' then (select string_agg(coalesce(d.model,'συσκευή'), ' · ' order by d.first_at) from pad_devices d where d.key = l.key) else l.device_model end, l.created_at, l.activated_at, l.expires_at, l.last_seen, l.revoked,
     coalesce(x.last_at > now() - interval '5 minutes' and x.synced_at > now() - interval '5 minutes', false),
-    x.last_at, x.receiver, x.fix,
+    coalesce(x.last_at, (select max(d.last_at) from pad_devices d where d.key = l.key)), x.receiver, x.fix,
     coalesce(a.tot,0), coalesce(a.today,0), coalesce(a.week,0), coalesce(a.n,0)::int
   from pad_licenses l
   left join lateral (select s.last_at, s.synced_at, s.receiver, s.fix from pad_sessions s where s.key = l.key order by s.last_at desc limit 1) x on true
@@ -238,3 +261,28 @@ begin
 end $$;
 revoke all on function public.admin_pad_overview(), public.admin_pad_sessions(text,int) from public, anon;
 grant execute on function public.admin_pad_overview(), public.admin_pad_sessions(text,int) to authenticated;
+
+-- ── Είσοδος ιδιοκτήτη με λογαριασμό HEXIS-APP (διαχειριστής) ─────────────────
+-- Στην οθόνη κωδικού: email + συνθηματικό του hexis-app.gr. Αν ο λογαριασμός είναι διαχειριστή,
+-- η συσκευή γράφεται στον κωδικό ιδιοκτήτη του (φτιάχνεται μόνος του την πρώτη φορά) — χωρίς λήξη.
+alter table public.pad_licenses add column if not exists owner_uid uuid;
+create or replace function public.pad_owner_login(p_device text, p_model text default null)
+returns json language plpgsql security definer set search_path = public, auth as $$
+declare u uuid := auth.uid(); em text; k text;
+begin
+  if u is null then return json_build_object('ok',false,'code','auth','msg','Δεν έγινε είσοδος'); end if;
+  if not public.is_admin() then return json_build_object('ok',false,'code','not_admin','msg','Ο λογαριασμός δεν είναι διαχειριστή'); end if;
+  if length(coalesce(p_device,'')) < 6 then return json_build_object('ok',false,'code','device','msg','Δεν αναγνωρίστηκε η συσκευή'); end if;
+  select email into em from auth.users where id = u;
+  select key into k from pad_licenses where kind = 'owner' and owner_uid = u and not revoked order by created_at limit 1;
+  if k is null then
+    k := public.pad_new_key();
+    insert into pad_licenses(key, kind, name, email, note, owner_uid, activated_at) values (k, 'owner', 'Ιδιοκτήτης', em, 'είσοδος με λογαριασμό HEXIS-APP', u, now());
+  end if;
+  insert into pad_devices(key, device_id, model) values (k, p_device, left(p_model, 80))
+    on conflict (key, device_id) do update set last_at = now(), model = coalesce(excluded.model, pad_devices.model);
+  update pad_licenses set last_seen = now() where key = k;
+  return json_build_object('ok',true,'key',k,'kind','owner','name',coalesce(em,'Ιδιοκτήτης'),'expires_at',null,'server_time',now());
+end $$;
+revoke all on function public.pad_owner_login(text,text) from public, anon;
+grant execute on function public.pad_owner_login(text,text) to authenticated;
