@@ -62,6 +62,35 @@
     retry[ch] = setTimeout(tryOnce, 1500);
   });
 
+  // ---------- Δέκτης συνδεδεμένος αλλά χωρίς NMEA: αυτόματη ενεργοποίηση εξόδου ----------
+  let lastGga = 0, wakeT = null;
+  HCONN.on('nmea', d => { if (d.channel === 'gnss' && /^\$..GGA/.test(d.line || '')) lastGga = Date.now(); });
+  const WAKE = [
+    // Unicore (UM980/UM982, πολλοί κινέζικοι δέκτες): έξοδος στη θύρα από την οποία ήρθε η εντολή
+    'GPGGA 1', 'GPGST 1', 'GPGSA 1', 'GPRMC 1',
+    // NovAtel / ComNav
+    'LOG GPGGA ONTIME 1', 'LOG GPGST ONTIME 1', 'LOG GPGSA ONTIME 1',
+  ];
+  async function stats() { try { return await g.Capacitor.Plugins.HexisGnss.connStats({ channel: 'gnss' }); } catch (e) { return null; } }
+  HCONN.on('status', d => {
+    if (d.channel !== 'gnss' || d.state !== 'connected' || !HIO.isNative()) return;
+    const G = A.settings.gnss || {}; if (G.type !== 'bt' && G.type !== 'tcp') return;
+    const t0 = Date.now(); clearTimeout(wakeT);
+    wakeT = setTimeout(async () => {
+      if (lastGga > t0 || HCONN.state.gnss !== 'on') return;
+      A.toast(t('Ο δέκτης δεν στέλνει θέση (NMEA) — στέλνω εντολές ενεργοποίησης…'), '', 3500);
+      for (const c of WAKE) { try { await HCONN.write('gnss', c + '\r\n'); } catch (e) { } await new Promise(r => setTimeout(r, 180)); }
+      wakeT = setTimeout(async () => {
+        if (lastGga > t0 || HCONN.state.gnss !== 'on') { if (lastGga > t0) A.toast('✓ ' + t('Ο δέκτης στέλνει πλέον θέση'), 'ok'); return; }
+        const s = await stats();
+        const msg = s && s.bytes > 0
+          ? t('Ο δέκτης στέλνει δεδομένα αλλά όχι θέση NMEA (GGA)') + ' (' + s.bytes + ' bytes). ' + t('Ενεργοποίησε την έξοδο NMEA GGA στο Bluetooth από την εφαρμογή του κατασκευαστή.')
+          : t('Δεν έρχεται τίποτα από τον δέκτη. Μήπως είναι συνδεδεμένος σε άλλη συσκευή (χειριστήριο / εφαρμογή κατασκευαστή); Κλείσε την άλλη σύνδεση ή σβήσε-άναψε τον δέκτη.');
+        A.sheet(t('Ο δέκτης δεν στέλνει θέση'), '<div class="result warn">' + A.esc(msg) + '</div><p class="muted">' + t('Η εφαρμογή χρειάζεται από τον δέκτη μηνύματα NMEA: GGA (θέση, απαραίτητο), GST (ακρίβεια), GSA (PDOP), 1 φορά το δευτερόλεπτο.') + '</p><button class="btn primary" id="nw-ok">OK</button>', b => { b.querySelector('#nw-ok').onclick = () => A.closeSheet(); });
+      }, 6000);
+    }, 6000);
+  });
+
   // ---------- Ελαφριά ενημέρωση οθόνης: ο χάρτης σχεδιάζει μόνο όταν φαίνεται ----------
   document.addEventListener('visibilitychange', () => {
     if (A.map) A.map._paused = document.visibilityState === 'hidden';

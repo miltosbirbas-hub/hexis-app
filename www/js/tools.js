@@ -417,7 +417,7 @@
     const native = HCONN.hasNative();
     A.sheet('Σύνδεση δέκτη GNSS', `<div class="seg" id="ct">${[['bt', 'Bluetooth'], ['tcp', 'Wi-Fi / TCP'], ['phone', 'GPS κινητού'], ['sim', 'Προσομοιωτής']].map(([k, v]) => `<button data-v="${k}" class="${G.type === k ? 'on' : ''}">${v}</button>`).join('')}</div>
       <div id="cb"></div>
-      <label class="fld"><span>Εντολή αρχικοποίησης προς τον δέκτη (προαιρετικό, π.χ. ενεργοποίηση GGA/GST 1 Hz)</span><input id="init" value="${esc(G.init || '')}" placeholder="π.χ. LOG GPGGA ONTIME 1"></label>
+      <label class="fld"><span>Εντολές προς τον δέκτη κατά τη σύνδεση (προαιρετικό· πολλές με «;», π.χ. GPGGA 1; GPGST 1)</span><input id="init" value="${esc(G.init || '')}" placeholder="π.χ. LOG GPGGA ONTIME 1"></label>
       <div class="row"><button class="btn grow" id="dis">Αποσύνδεση</button><button class="btn primary grow" id="con">Σύνδεση</button></div>
       <p class="muted">Υποστηρίζεται κάθε δέκτης που στέλνει NMEA 0183 (GGA απαραίτητο· GST για ακρίβειες σH/σV, GSA για PDOP). ${native ? '' : '<b>Bluetooth/TCP και NTRIP λειτουργούν στην εφαρμογή Android.</b>'}</p>
       <h4>Ροή δεδομένων</h4><div class="raw" id="raw"></div>`, b => {
@@ -453,7 +453,7 @@
         A.saveSettings();
         try {
           await HCONN.connect(cfg); A.toast('✓ Συνδέθηκε', 'ok');
-          if (G.init && (G.type === 'bt' || G.type === 'tcp')) await HCONN.write('gnss', G.init.replace(/\\r\\n|$/g, '\r\n'));
+          if (G.init && (G.type === 'bt' || G.type === 'tcp')) { for (const c of G.init.split(/;|\\r\\n|\n/).map(x => x.trim()).filter(Boolean)) { await HCONN.write('gnss', c + '\r\n'); await new Promise(r => setTimeout(r, 150)); } }
           if (A.settings.ntrip.auto && A.settings.ntrip.host && HCONN.hasNative()) A.startNtrip();
         } catch (e) { A.toast(e.message || String(e), 'bad', 4000); }
       };

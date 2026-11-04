@@ -142,3 +142,12 @@ Object.assign(window.HEXIS_EN, {
   "Δεν βλέπεις τον δέκτη; Πάτα «Ρυθμίσεις Bluetooth» → Σύζευξη νέας συσκευής → διάλεξε τον δέκτη (συνήθως το όνομα είναι ο σειριακός αριθμός του, S/N στο ταμπελάκι). Γύρνα πίσω — η λίστα ανανεώνεται μόνη της.": "Can't see the receiver? Tap “Bluetooth settings” → Pair new device → choose the receiver (its name is usually the serial number, S/N on the label). Come back — the list refreshes by itself.",
   "Δεν βρέθηκαν συζευγμένες συσκευές.": "No paired devices found.", "συσκευές": "devices", "Άνοιξε Ρυθμίσεις → Bluetooth": "Open Settings → Bluetooth"
 });
+Object.assign(window.HEXIS_EN, {
+  "Ο δέκτης δεν στέλνει θέση (NMEA) — στέλνω εντολές ενεργοποίησης…": "The receiver sends no position (NMEA) — sending enable commands…", "Ο δέκτης στέλνει πλέον θέση": "The receiver now sends position",
+  "Ο δέκτης στέλνει δεδομένα αλλά όχι θέση NMEA (GGA)": "The receiver sends data but no NMEA position (GGA)",
+  "Ενεργοποίησε την έξοδο NMEA GGA στο Bluetooth από την εφαρμογή του κατασκευαστή.": "Enable NMEA GGA output on Bluetooth from the manufacturer's app.",
+  "Δεν έρχεται τίποτα από τον δέκτη. Μήπως είναι συνδεδεμένος σε άλλη συσκευή (χειριστήριο / εφαρμογή κατασκευαστή); Κλείσε την άλλη σύνδεση ή σβήσε-άναψε τον δέκτη.": "Nothing arrives from the receiver. Is it connected to another device (controller / manufacturer app)? Close the other connection or power-cycle the receiver.",
+  "Ο δέκτης δεν στέλνει θέση": "The receiver sends no position",
+  "Η εφαρμογή χρειάζεται από τον δέκτη μηνύματα NMEA: GGA (θέση, απαραίτητο), GST (ακρίβεια), GSA (PDOP), 1 φορά το δευτερόλεπτο.": "The app needs NMEA messages from the receiver: GGA (position, required), GST (accuracy), GSA (PDOP), once per second.",
+  "Εντολές προς τον δέκτη κατά τη σύνδεση (προαιρετικό· πολλές με «;», π.χ. GPGGA 1; GPGST 1)": "Commands to the receiver on connect (optional; several with “;”, e.g. GPGGA 1; GPGST 1)"
+});

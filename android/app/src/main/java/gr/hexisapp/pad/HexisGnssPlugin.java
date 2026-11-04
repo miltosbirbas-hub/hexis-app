@@ -82,6 +82,7 @@ public class HexisGnssPlugin extends Plugin {
         OutputStream out;
         Thread reader;
         String name = "";
+        volatile long bytesIn = 0, linesIn = 0;
 
         Conn(String channel) { this.channel = channel; }
 
@@ -105,13 +106,14 @@ public class HexisGnssPlugin extends Plugin {
                     while (running) {
                         int n = in.read(buf);
                         if (n < 0) break;
+                        bytesIn += n;
                         if ("gnss".equals(channel) && rawOut != null) {
                             try { rawOut.write(buf, 0, n); rawBytes += n; } catch (Exception ignored) { }
                         }
                         for (int i = 0; i < n; i++) {
                             int b = buf[i] & 0xFF;
                             if (b == '\n' || b == '\r') {
-                                if (line.length() > 0) { emitLine(line.toString()); line.setLength(0); }
+                                if (line.length() > 0) { linesIn++; emitLine(line.toString()); line.setLength(0); }
                             } else if (b >= 32 && b < 127) {
                                 if (line.length() < 400) line.append((char) b);
                             } else if (b == '$') {
@@ -826,6 +828,14 @@ public class HexisGnssPlugin extends Plugin {
                 call.resolve();
             } catch (Exception e) { call.reject("Ενημέρωση: " + e.getMessage()); }
         }, "hexis-update").start();
+    }
+
+    @PluginMethod
+    public void connStats(PluginCall call) {
+        Conn c = conns.get(call.getString("channel", "gnss"));
+        JSObject o = new JSObject();
+        o.put("connected", c != null); o.put("bytes", c != null ? c.bytesIn : 0); o.put("lines", c != null ? c.linesIn : 0);
+        call.resolve(o);
     }
 
     @PluginMethod
