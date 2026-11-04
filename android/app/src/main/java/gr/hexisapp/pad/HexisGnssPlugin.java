@@ -669,7 +669,10 @@ public class HexisGnssPlugin extends Plugin {
     private void say(String text, String lang) {
         try {
             android.media.AudioManager am = (android.media.AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
-            if (am != null && (am.getMode() == android.media.AudioManager.MODE_IN_CALL || am.getMode() == android.media.AudioManager.MODE_IN_COMMUNICATION || am.getMode() == android.media.AudioManager.MODE_RINGTONE)) return; // όχι φωνή μέσα σε κλήση tts.setLanguage(Locale.forLanguageTag(lang)); tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "hexis"); } catch (Exception ignored) { }
+            if (am != null && (am.getMode() == android.media.AudioManager.MODE_IN_CALL || am.getMode() == android.media.AudioManager.MODE_IN_COMMUNICATION || am.getMode() == android.media.AudioManager.MODE_RINGTONE)) return; // όχι φωνή μέσα σε κλήση
+            tts.setLanguage(Locale.forLanguageTag(lang));
+            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "hexis");
+        } catch (Exception ignored) { }
     }
 
 
