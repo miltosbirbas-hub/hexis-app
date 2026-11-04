@@ -51,6 +51,8 @@
         catch (e) { log('✕ ' + esc(e.message || String(e))); b.querySelector('#ws-go').disabled = false; return; }
         const gw = r.gateway || (nb.url ? nb.url.replace(/^https?:\/\//, '').replace(/\/.*$/, '') : '');
         if (r.ssid) { W.ssid = r.ssid; A.saveSettings(); }
+        // αναγνώριση μοντέλου από το όνομα Wi-Fi (π.χ. X1Lite-2124A0176) → offset κεραίας, όρια IMU
+        try { const db = g.HIMU_DB || []; const m = db.find(x => x.rx && new RegExp(x.rx, 'i').test(r.ssid || W.ssid || '')); if (m) { A.settings.imu = A.settings.imu || {}; if (!A.settings.imu.id) { A.settings.imu.id = m.id; A.saveSettings(); } if (A.antLabel) A.antLabel(); log('✓ ' + t('Δέκτης') + ': ' + m.name + (m.antOff ? ' · offset κεραίας ' + m.antOff.toFixed(3) + ' m' : '')); } } catch (e) { }
         log('✓ ' + t('Συνδέθηκε στο') + ' ' + esc(r.ssid || W.ssid || 'Wi-Fi') + (gw ? ' · ' + t('δέκτης') + ' ' + esc(gw) : ''));
         if (!gw) { log(t('Δεν βρέθηκε διεύθυνση δέκτη')); b.querySelector('#ws-go').disabled = false; return; }
         log('⏳ ' + t('Αναζήτηση ροής θέσης στις θύρες του δέκτη…'));

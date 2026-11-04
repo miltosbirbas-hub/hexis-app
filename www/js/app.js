@@ -7,7 +7,7 @@
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
   const DEF = {
-    crs: 'EGSA87_HEPOS', crsCustom: '', theme: 'light', antH: 1.8, onlyFix: true, epochs: 5, qcClass: 'RT3',
+    crs: 'EGSA87_HEPOS', crsCustom: '', theme: 'light', antH: 1.8, antOff: 0, antOffSrc: '', onlyFix: true, epochs: 5, qcClass: 'RT3',
     tolH: 0.02, tolV: 0.02, beep: true, heightMode: 'msl', base: 'none', uiv: 5, voiceSay: true, overlays: { esri_labels: false, kt_wms: false, hexis_kaek: false },
     googleKey: '', soRef: 'move', ntrip: { host: '', port: 2101, mount: '', user: '', pass: '', gga: true, auto: false }, gnss: { type: 'bt', address: '', name: '', host: '', port: 0, init: '' },
     laser: { address: '', name: '' }, decl: 4.5, fixWait: 10, soundPoint: true, soundFix: true, volume: 0.25, lastProject: null, textH: 0.25,
@@ -64,7 +64,7 @@
     HGEO.setCalib(A.proj && A.proj.calib ? A.proj.calib : null);
     $('cur-crs').textContent = (HGEO.isHepos() ? 'ΕΓΣΑ87 · HEPOS' : HGEO.crsName().split('·').pop().trim().split(' (')[0].split(' — ')[0]) + (A.proj && A.proj.calib ? ' + CAL' : '');
     A.qc.cls = S.qcClass;
-    $('sv-ant').value = S.antH; $('sv-onlyfix').checked = S.onlyFix;
+    $('sv-ant').value = S.antH; $('sv-onlyfix').checked = S.onlyFix; if (A.antLabel) A.antLabel();
     { const sel = $('sv-epochs'), v = String(S.epochs); if (![...sel.options].some(o => o.value === v)) sel.insertBefore(new Option(/^t/.test(v) ? v.slice(1) + ' s' : v + ' εποχές', v), sel.querySelector('option[value=custom]')); sel.value = v; }
     $('so-ref').value = S.soRef;
     if (A.map) {
@@ -133,9 +133,9 @@
     const H = S.heightMode === 'ell' ? ellH : n.alt;
     const fix = n.fix().key;
     const p = {
-      E: grid.E, N: grid.N, Z: H != null ? H - (A.tiltTip && A.tiltTip() ? 0 : (parseFloat($('sv-ant').value) || 0)) + HGEO.heightShift() : null,
+      E: grid.E, N: grid.N, Z: H != null ? H - (A.tiltTip && A.tiltTip() ? 0 : A.antTotal()) + HGEO.heightShift() : null,
       lat: n.lat, lon: n.lon, ellH, msl: n.alt, fix, sh: n.hrms() != null ? n.hrms() : n.hrmsEst(), sv: n.sAlt != null ? n.sAlt : n.vrmsEst(), sEst: n.hrms() == null, pdop: n.pdop != null ? n.pdop : (n.hdop != null ? n.hdop * 1.4 : null),
-      hdop: n.hdop, sats: n.sats, age: n.age, t: Date.now(), antH: parseFloat($('sv-ant').value) || 0,
+      hdop: n.hdop, sats: n.sats, age: n.age, t: Date.now(), antH: A.antTotal(), pole: parseFloat($('sv-ant').value) || 0, antOff: A.antOff(),
     };
     // κατεύθυνση κίνησης
     if (!headingAnchor) headingAnchor = { E: p.E, N: p.N };
@@ -284,7 +284,7 @@
     const pt = {
       id: uid(), name: opt.name || $('sv-name').value.trim() || '1', code: opt.code != null ? opt.code : $('sv-code').value.trim(), type: opt.type || 'survey',
       E: m.E, N: m.N, Z: m.Z, lat: ll.lat, lon: ll.lon, ellH: last.ellH != null ? last.ellH + (m.Z - last.Z) : null,
-      fix: last.fix.toUpperCase(), hrms: ev.hrms, vrms: ev.vrms, pdop: last.pdop, sats: last.sats, age: last.age, antH: last.antH,
+      fix: last.fix.toUpperCase(), hrms: ev.hrms, vrms: ev.vrms, pdop: last.pdop, sats: last.sats, age: last.age, antH: last.antH, pole: last.pole, antOff: last.antOff,
       time: Date.now(), epochs: r.eps.length, qc: { level: ev.level, cls: ev.cls, stdH: ev.stdH, stdV: ev.stdV, maxH: ev.maxH, maxV: ev.maxV }, photos: [],
       crs: HGEO.crsName(), baseSession: A.proj.activeBase || null, baseId: A.nmea.baseId || null,
     };
@@ -410,7 +410,7 @@
     if (!p) return;
     const d = p.time ? new Date(p.time) : null;
     const rows = [['X (E)', F(p.E)], ['Y (N)', F(p.N)], ['Z', F(p.Z)], ['Κωδικός', esc(p.code || '—')], ['Τύπος', p.type]];
-    if (p.fix) rows.push(['Λύση', p.fix], ['σH / σV', F(p.hrms) + ' / ' + F(p.vrms)], ['PDOP · SV', (p.pdop != null ? p.pdop.toFixed(1) : '—') + ' · ' + (p.sats || '—')], ['Εποχές', p.epochs || 1], ['Ύψος κεραίας', F(p.antH)]);
+    if (p.fix) rows.push(['Λύση', p.fix], ['σH / σV', F(p.hrms) + ' / ' + F(p.vrms)], ['PDOP · SV', (p.pdop != null ? p.pdop.toFixed(1) : '—') + ' · ' + (p.sats || '—')], ['Εποχές', p.epochs || 1], ['Ύψος κεραίας', F(p.antH) + (p.antOff ? ' (κοντάρι ' + F(p.pole) + ' + ' + F(p.antOff) + ')' : '')]);
     if (p.qc) rows.push(['QC', `<span class="qc-${p.qc.level}">${A.levelText(p.qc.level)}</span> (${p.qc.cls})`]);
     if (p.lat != null) rows.push(['φ, λ (WGS84)', p.lat.toFixed(8) + ', ' + p.lon.toFixed(8)]);
     if (p.stake) rows.push(['Στόχος', esc(p.stake.target)], ['ΔX / ΔY / ΔZ', F(p.stake.dE) + ' / ' + F(p.stake.dN) + ' / ' + F(p.stake.dZ)]);
@@ -584,7 +584,12 @@
 
   // ---------- Survey κουμπιά ----------
   $('btn-measure-pt').onclick = () => A.measure();
-  $('sv-ant').onchange = () => { A.settings.antH = parseFloat($('sv-ant').value) || 0; A.saveSettings(); };
+  $('sv-ant').onchange = () => { A.settings.antH = parseFloat($('sv-ant').value) || 0; A.saveSettings(); A.antLabel(); };
+  // Ύψος κεραίας = ύψος κονταριού + offset κεραίας (ARP → κέντρο φάσης) του δέκτη
+  A.antOff = function () { const S = A.settings; if (S.antOff > 0) return S.antOff; const m = (A.imuModel && A.imuModel()) || null; return m && m.antOff ? m.antOff : 0; };
+  A.antTotal = function () { return (parseFloat($('sv-ant').value) || 0) + A.antOff(); };
+  A.antLabel = function () { const l = document.querySelector('.w-ant > span'); if (!l) return; const o = A.antOff(); l.textContent = o ? 'Κοντάρι (+' + o.toFixed(3) + ')' : 'Ύψος κεραίας'; l.title = o ? 'Ύψος κεραίας = κοντάρι + ' + o.toFixed(3) + ' m = ' + A.antTotal().toFixed(3) + ' m' : ''; };
+  setTimeout(() => A.antLabel(), 500);
   $('sv-onlyfix').onchange = () => { A.settings.onlyFix = $('sv-onlyfix').checked; A.saveSettings(); };
   $('sv-epochs').onchange = () => {
     const sel = $('sv-epochs');

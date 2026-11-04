@@ -15,6 +15,7 @@
   const S = () => { const c = A.settings.imu || (A.settings.imu = {}); const d = { on: false, id: '', max: 0, tip: true, auto: true, bubble: true, tol: 0.5, plumbGate: false, asked: false, mode: 'tilt' }; for (const k in d) if (c[k] === undefined) c[k] = d[k]; return c; };
   const T = A.tilt = { deg: null, pitch: null, roll: null, t: 0, src: '', status: '', statusT: 0 };
   const model = () => DB().find(m => m.id === S().id) || null;
+  A.imuModel = model;
   // γνωστό μοντέλο: όριο κατασκευαστή· άγνωστο: 30° (ασφαλές) ή ό,τι ορίσει ο χρήστης από το φυλλάδιο του δέκτη
   const DEF_MAX = 30;
   const maxDeg = () => { const s = S(), m = model(); if (m && m.max) return s.max > 0 ? Math.min(s.max, m.max) : m.max; return s.max > 0 ? s.max : DEF_MAX; };
@@ -275,7 +276,7 @@
       b.querySelector('#im-b').onchange = () => { b.querySelector('#im-m').innerHTML = opts(b.querySelector('#im-b').value); spec(); };
       b.querySelector('#im-m').onchange = spec; spec();
       b.querySelector('#im-send').onclick = async () => {
-        const h = parseFloat($('sv-ant').value) || 0;
+        const h = A.antTotal ? A.antTotal() : (parseFloat($('sv-ant').value) || 0);
         try { for (const c of ['CONFIG INS SLANTMEAS', 'CONFIG ANTENNADELTAHEN ' + h.toFixed(3), 'SLANTSTATUSA 1']) { await HCONN.write('gnss', c + '\r\n'); await new Promise(r => setTimeout(r, 250)); } A.toast('✓ ' + t('Εστάλη στον δέκτη'), 'ok'); }
         catch (e) { A.toast(e.message || String(e), 'bad'); }
       };

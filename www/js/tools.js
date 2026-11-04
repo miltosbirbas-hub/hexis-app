@@ -869,6 +869,7 @@
   A.settingsSheet = function () {
     const S = A.settings;
     A.sheet('Ρυθμίσεις', `<h4>Ποιοτικός έλεγχος RTK</h4>
+      <label class="fld"><span>Offset κεραίας δέκτη (m) — ARP → κέντρο φάσης· προστίθεται στο ύψος κονταριού</span><input id="aoff" type="number" step="0.001" inputmode="decimal" value="${S.antOff || ''}" placeholder="${(A.imuModel && A.imuModel() && A.imuModel().antOff) ? 'αυτόματα: ' + A.imuModel().antOff.toFixed(3) + ' (' + A.imuModel().name + ')' : 'π.χ. 0.068 για Singular X1 Lite'}"></label>
       <label class="fld"><span>Κλάση ακρίβειας (NGS RT1–RT4)</span><select id="qc">${Object.entries(HQC.CLASSES).map(([k, v]) => `<option value="${k}" ${k === S.qcClass ? 'selected' : ''}>${esc(v.name)} — ${(v.h95 * 100).toFixed(0)}/${(v.v95 * 100).toFixed(0)} cm · PDOP≤${v.pdop} · SV≥${v.sats} · ${v.epochs} εποχές</option>`).join('')}</select></label>
       <div class="row"><button class="btn grow" id="qce">Εφαρμογή εποχών της κλάσης</button></div>
       <h4>Μέτρηση σημείου</h4>
@@ -914,9 +915,9 @@
         const nl = b.querySelector('#lng').value;
         A.settings.fab = Object.assign(A.settings.fab || {}, { on: b.querySelector('#fb-on').checked, big: b.querySelector('#fb-big').checked }); if (A.fab) A.fab.apply();
         const wantV = b.querySelector('#vc').checked;
-        Object.assign(S, { qcClass: b.querySelector('#qc').value, tolH: num(b.querySelector('#th').value) || 0.02, tolV: num(b.querySelector('#tv').value) || 0.02, beep: b.querySelector('#bp').checked, autoNext: b.querySelector('#an').checked, theme, textSize: b.querySelector('#tsz').value, fixWait: Math.max(0, parseInt(b.querySelector('#fw').value, 10) || 0), soundPoint: b.querySelector('#sp').checked, soundFix: b.querySelector('#sf').checked, volume: parseFloat(b.querySelector('#vol').value), textH: num(b.querySelector('#tx').value) || 0.25, googleKey: b.querySelector('#gk').value.trim(), voiceSay: b.querySelector('#vs').checked, voice: wantV });
+        Object.assign(S, { antOff: Math.max(0, num(b.querySelector('#aoff').value) || 0), qcClass: b.querySelector('#qc').value, tolH: num(b.querySelector('#th').value) || 0.02, tolV: num(b.querySelector('#tv').value) || 0.02, beep: b.querySelector('#bp').checked, autoNext: b.querySelector('#an').checked, theme, textSize: b.querySelector('#tsz').value, fixWait: Math.max(0, parseInt(b.querySelector('#fw').value, 10) || 0), soundPoint: b.querySelector('#sp').checked, soundFix: b.querySelector('#sf').checked, volume: parseFloat(b.querySelector('#vol').value), textH: num(b.querySelector('#tx').value) || 0.25, googleKey: b.querySelector('#gk').value.trim(), voiceSay: b.querySelector('#vs').checked, voice: wantV });
         if (A.voice && wantV !== A.voice.on) (wantV ? A.voice.start() : A.voice.stop());
-        A.saveSettings(); A.applySettings(); A.updateStakeTarget(); A.closeSheet(); A.toast('✓ Αποθηκεύτηκε', 'ok');
+        A.saveSettings(); A.applySettings(); A.updateStakeTarget(); if (A.antLabel) A.antLabel(); A.closeSheet(); A.toast('✓ Αποθηκεύτηκε', 'ok');
         if (nl !== HI18N.lang()) setTimeout(() => HI18N.setLang(nl), 400);
       };
     });
