@@ -12,10 +12,12 @@
   const DB = () => g.HIMU_DB || [];
   const BR = { chc: 'CHC Navigation', stonex: 'Stonex', hitarget: 'Hi-Target', south: 'South', comnav: 'ComNav', singular: 'Singular XYZ', kolida: 'Kolida', ruide: 'Ruide', tersus: 'Tersus', satlab: 'SatLab', foif: 'FOIF', emlid: 'Emlid', leica: 'Leica', geomax: 'GeoMax', trimble: 'Trimble', spectra: 'Spectra Geospatial', topcon: 'Topcon', sokkia: 'Sokkia', unicore: 'Δέκτης με Unicore (UM981/UM982)', other: 'Άλλος' };
 
-  const S = () => (A.settings.imu = Object.assign({ on: false, id: '', max: 0, tip: true, auto: true, bubble: true, tol: 0.5, plumbGate: false }, A.settings.imu || {}));
+  const S = () => { const c = A.settings.imu || (A.settings.imu = {}); const d = { on: false, id: '', max: 0, tip: true, auto: true, bubble: true, tol: 0.5, plumbGate: false, asked: false }; for (const k in d) if (c[k] === undefined) c[k] = d[k]; return c; };
   const T = A.tilt = { deg: null, pitch: null, roll: null, t: 0, src: '', status: '', statusT: 0 };
   const model = () => DB().find(m => m.id === S().id) || null;
-  const maxDeg = () => { const s = S(), m = model(); const lim = m && m.max ? m.max : 60; return s.max > 0 ? Math.min(s.max, lim) : lim; };
+  // γνωστό μοντέλο: όριο κατασκευαστή· άγνωστο: 30° (ασφαλές) ή ό,τι ορίσει ο χρήστης από το φυλλάδιο του δέκτη
+  const DEF_MAX = 30;
+  const maxDeg = () => { const s = S(), m = model(); if (m && m.max) return s.max > 0 ? Math.min(s.max, m.max) : m.max; return s.max > 0 ? s.max : DEF_MAX; };
 
   // ---------- Ανάγνωση κλίσης από τα μηνύματα του δέκτη ----------
   const n = v => { const x = parseFloat(v); return isFinite(x) ? x : null; };
@@ -25,6 +27,7 @@
     else if (p != null && r != null) { T.deg = tiltOf(p, r); T.pitch = p; T.roll = r; }
     else return;
     T.t = Date.now(); T.src = src;
+    autoDetect(false);
   }
   function parse(line) {
     if (!line) return;
@@ -50,7 +53,40 @@
     RTKNOFIX: ['Αναμονή για FIX', 'init'], MOVING: ['Κούνησε το κοντάρι (μύτη στο έδαφος) μπρος-πίσω, δεξιά-αριστερά', 'init'],
     INSBIGERR: ['Χαμηλή ακρίβεια IMU — κούνησε το κοντάρι', 'init'], CONVERGENCE: ['IMU έτοιμο', 'ok'],
   };
+  // ---------- Αυτόματη αναγνώριση από τα δεδομένα του δέκτη ----------
+  // · κατάσταση αντιστάθμισης (#SLANTSTATUS) ⇒ ο δέκτης σίγουρα κάνει αντιστάθμιση IMU → ενεργοποιείται μόνο του
+  // · σκέτη γωνία κλίσης (PASHR, HPR…) ⇒ μπορεί να είναι και απλή ηλεκτρονική φούσκα → ρωτά μία φορά
+  let askOpen = false;
+  function autoDetect(slant) {
+    const s = S();
+    if (s.on || !s.auto) return;
+    if (slant) {
+      s.on = true; s.tip = true; s.asked = true; A.saveSettings();
+      A.toast('∠ ' + t('Ο δέκτης έχει αντιστάθμιση κλίσης (IMU)') + ' — ' + t('όριο') + ' ' + maxDeg() + '°', 'ok', 5000);
+      say('Ο δέκτης έχει IMU. Κλίση μέχρι ' + maxDeg() + ' μοίρες', 'The receiver has an IMU. Tilt up to ' + maxDeg() + ' degrees');
+      if (A.ui) A.ui.refreshToolState();
+      return;
+    }
+    if (s.asked || askOpen || !$('sheet').classList.contains('hidden') || A._cancelCollect) return;
+    askOpen = true;
+    A.sheet('Ο δέκτης στέλνει κλίση', `<p>${t('Ο δέκτης στέλνει τη γωνία κλίσης του κονταριού.')}</p>
+      <p><b>${t('Κάνει αντιστάθμιση κλίσης (IMU), δηλαδή μετράει σωστά με γερμένο κοντάρι;')}</b></p>
+      <label class="fld"><span>${t('Μέγιστη κλίση από το φυλλάδιο του δέκτη (°)')}</span><input id="aq-max" type="number" min="1" max="90" step="1" inputmode="numeric" value="${s.max > 0 ? s.max : DEF_MAX}"></label>
+      <div class="row"><button class="btn grow" id="aq-no">${t('Όχι — μόνο φούσκα κέντρωσης')}</button><button class="btn primary grow" id="aq-yes">∠ ${t('Ναι, έχει IMU')}</button></div>
+      <p class="muted">${t('Αν δεν είσαι σίγουρος, πάτα «Όχι». Μπορείς να το αλλάξεις όποτε θέλεις από Μενού → IMU / φούσκα κέντρωσης.')}</p>`, b => {
+      b.querySelector('#aq-no').onclick = () => { s.asked = true; s.on = false; A.saveSettings(); askOpen = false; A.closeSheet(); A.toast(t('Φούσκα κέντρωσης ενεργή — μέτρηση με κατακόρυφο κοντάρι'), 'ok'); };
+      b.querySelector('#aq-yes').onclick = () => {
+        const mx = parseInt(b.querySelector('#aq-max').value, 10);
+        Object.assign(s, { asked: true, on: true, tip: true, max: mx > 0 ? Math.min(90, mx) : 0 }); A.saveSettings(); askOpen = false; A.closeSheet();
+        A.toast('∠ IMU ' + t('ενεργό') + ' — ' + t('μέχρι') + ' ' + maxDeg() + '°', 'ok'); say('Κλίση μέχρι ' + maxDeg() + ' μοίρες', 'Tilt up to ' + maxDeg() + ' degrees');
+        if (A.ui) A.ui.refreshToolState();
+      };
+    });
+    const prevClose = A._onSheetClose; A._onSheetClose = () => { askOpen = false; if (prevClose) prevClose(); };
+  }
+
   function setStatus(st) {
+    autoDetect(true);
     const prev = T.status;
     T.status = st; T.statusT = Date.now();
     if (prev === st) return;
@@ -202,16 +238,16 @@
   // ---------- Ρυθμίσεις IMU ----------
   A.imuSheet = function () {
     const s = S();
-    const brands = [...new Set(DB().map(m => m.brand))];
+    const brands = ['auto'].concat([...new Set(DB().map(m => m.brand))]);
     const cur = model();
-    const curBrand = cur ? cur.brand : (brands[0] || 'other');
-    const opts = b => DB().filter(m => m.brand === b).sort((x, y) => (y.year || 0) - (x.year || 0)).map(m => `<option value="${m.id}" ${m.id === s.id ? 'selected' : ''}>${esc(m.name)}${m.year ? ' (' + m.year + ')' : ''}${m.imu ? ' — IMU ' + m.max + '°' : ' — ' + t('χωρίς IMU')}</option>`).join('');
+    const curBrand = cur ? cur.brand : 'auto';
+    const opts = b => b === 'auto' ? `<option value="">${t('Αυτόματα — από τα δεδομένα του δέκτη')}</option>` : DB().filter(m => m.brand === b).sort((x, y) => (y.year || 0) - (x.year || 0)).map(m => `<option value="${m.id}" ${m.id === s.id ? 'selected' : ''}>${esc(m.name)}${m.year ? ' (' + m.year + ')' : ''}${m.imu ? ' — IMU ' + m.max + '°' : ' — ' + t('χωρίς IMU')}</option>`).join('');
     A.sheet('IMU / φούσκα κέντρωσης', `
       <label class="chk"><input type="checkbox" id="im-on" ${s.on ? 'checked' : ''}> Μέτρηση με κεκλιμένο κοντάρι (αντιστάθμιση IMU του δέκτη)</label>
-      <div class="row"><label class="fld grow"><span>Κατασκευαστής</span><select id="im-b">${brands.map(b => `<option value="${b}" ${b === curBrand ? 'selected' : ''}>${esc(BR[b] || b)}</option>`).join('')}</select></label>
+      <div class="row"><label class="fld grow"><span>Κατασκευαστής</span><select id="im-b">${brands.map(b => `<option value="${b}" ${b === curBrand ? 'selected' : ''}>${esc(b === 'auto' ? t('Αυτόματα') : (BR[b] || b))}</option>`).join('')}</select></label>
       <label class="fld grow"><span>Μοντέλο</span><select id="im-m">${opts(curBrand)}</select></label></div>
       <div id="im-spec"></div>
-      <label class="fld"><span>Δικό μου όριο κλίσης (°) — κενό = όριο κατασκευαστή</span><input id="im-max" type="number" min="1" max="90" step="1" inputmode="numeric" value="${s.max > 0 ? s.max : ''}"></label>
+      <label class="fld"><span>Όριο κλίσης (°) — κενό = του κατασκευαστή (γνωστό μοντέλο) ή 30°</span><input id="im-max" type="number" min="1" max="90" step="1" inputmode="numeric" value="${s.max > 0 ? s.max : ''}"></label>
       <label class="chk"><input type="checkbox" id="im-tip" ${s.tip ? 'checked' : ''}> <span>Ο δέκτης δίνει τη θέση στη <b>μύτη του κονταριού</b> (το ύψος κονταριού είναι ρυθμισμένο στον δέκτη — η εφαρμογή δεν το αφαιρεί ξανά)</span></label>
       <label class="chk"><input type="checkbox" id="im-auto" ${s.auto ? 'checked' : ''}> Αυτόματη αναγνώριση μοντέλου από το όνομα Bluetooth</label>
       <h4>Φούσκα κέντρωσης</h4>
@@ -226,7 +262,7 @@
       const spec = () => {
         const m = DB().find(x => x.id === b.querySelector('#im-m').value);
         b.querySelector('#im-uc').classList.toggle('hidden', !(m && m.unicore));
-        b.querySelector('#im-spec').innerHTML = m ? `<div class="result ${m.imu ? 'ok' : 'warn'}">${m.imu
+        b.querySelector('#im-spec').innerHTML = !m ? `<div class="result">${t('Ο δέκτης αναγνωρίζεται από τα δεδομένα που στέλνει. Όριο κλίσης')}: <b>${s.max > 0 ? s.max : DEF_MAX}°</b> — ${t('γράψε παρακάτω το όριο από το φυλλάδιο του δέκτη σου')}.</div>` : m ? `<div class="result ${m.imu ? 'ok' : 'warn'}">${m.imu
           ? `<b>${t('Μέγιστη κλίση')}: ${m.max}°</b>${m.acc ? '<br>' + t('Ακρίβεια κατασκευαστή') + ': ' + esc(m.acc) : ''}${m.init ? '<br>' + t('Αρχικοποίηση') + ': ' + esc(t(m.init)) : ''}${m.note ? '<br><span class="muted">' + esc(t(m.note)) + '</span>' : ''}`
           : `<b>${t('Χωρίς IMU')}</b> — ${t('μέτρηση με κατακόρυφο κοντάρι (αλφάδι)')}${m.note ? '<br><span class="muted">' + esc(t(m.note)) + '</span>' : ''}`}</div>` : '';
       };

@@ -128,6 +128,7 @@ public class HexisGnssPlugin extends Plugin {
                 if (running) {
                     running = false;
                     conns.remove(channel);
+                    // η υπηρεσία μένει: η αυτόματη επανασύνδεση γίνεται και στο παρασκήνιο
                     JSObject o = new JSObject();
                     o.put("channel", channel); o.put("state", "disconnected"); o.put("reason", "lost");
                     notifyListeners("status", o);
@@ -249,6 +250,7 @@ public class HexisGnssPlugin extends Plugin {
                 }
                 conns.put(channel, c);
                 c.startReader();
+                updateService();
                 JSObject o = new JSObject();
                 o.put("channel", channel); o.put("state", "connected"); o.put("name", c.name);
                 notifyListeners("status", o);
@@ -294,6 +296,7 @@ public class HexisGnssPlugin extends Plugin {
         String channel = call.getString("channel", "gnss");
         Conn c = conns.remove(channel);
         if (c != null) c.close();
+        updateService();
         call.resolve();
     }
 
@@ -414,12 +417,14 @@ public class HexisGnssPlugin extends Plugin {
         if (host.isEmpty() || mount.isEmpty()) { call.reject("Λείπει host ή mountpoint"); return; }
         ntrip = new Ntrip(host, port, mount, call.getString("user", ""), call.getString("pass", ""));
         ntrip.start();
+        updateService();
         call.resolve();
     }
 
     @PluginMethod
     public void ntripStop(PluginCall call) {
         if (ntrip != null) { ntrip.halt(); ntrip = null; }
+        updateService();
         call.resolve();
     }
 
@@ -662,9 +667,39 @@ public class HexisGnssPlugin extends Plugin {
     }
 
     private void say(String text, String lang) {
-        try { tts.setLanguage(Locale.forLanguageTag(lang)); tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "hexis"); } catch (Exception ignored) { }
+        try {
+            android.media.AudioManager am = (android.media.AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+            if (am != null && (am.getMode() == android.media.AudioManager.MODE_IN_CALL || am.getMode() == android.media.AudioManager.MODE_IN_COMMUNICATION || am.getMode() == android.media.AudioManager.MODE_RINGTONE)) return; // όχι φωνή μέσα σε κλήση tts.setLanguage(Locale.forLanguageTag(lang)); tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "hexis"); } catch (Exception ignored) { }
     }
 
+
+    // ---------- Υπηρεσία προσκηνίου: λειτουργία στο παρασκήνιο (κλήση, άλλη εφαρμογή) ----------
+    private boolean svcOn = false;
+    private synchronized void updateService() {
+        boolean need = !conns.isEmpty() || ntrip != null || rawOut != null;
+        try {
+            if (need) {
+                StringBuilder t = new StringBuilder();
+                if (conns.containsKey("gnss")) t.append("Δέκτης συνδεδεμένος");
+                if (conns.containsKey("base")) t.append(t.length() > 0 ? " · " : "").append("Βάση");
+                if (conns.containsKey("laser")) t.append(t.length() > 0 ? " · " : "").append("Laser");
+                if (ntrip != null) t.append(t.length() > 0 ? " · " : "").append("NTRIP");
+                if (rawOut != null) t.append(t.length() > 0 ? " · " : "").append("Static σε εξέλιξη");
+                HexisService.start(getContext(), t.length() > 0 ? t.toString() : "Σε λειτουργία");
+                svcOn = true;
+            } else if (svcOn) { HexisService.stop(getContext()); svcOn = false; }
+        } catch (Exception ignored) { }
+    }
+
+    @PluginMethod
+    public void notifPermission(PluginCall call) {
+        // Android 13+: άδεια ειδοποιήσεων ώστε να φαίνεται η ειδοποίηση «HEXIS PAD σε λειτουργία»
+        if (Build.VERSION.SDK_INT >= 33 && getActivity() != null &&
+            androidx.core.content.ContextCompat.checkSelfPermission(getContext(), "android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            try { androidx.core.app.ActivityCompat.requestPermissions(getActivity(), new String[] { "android.permission.POST_NOTIFICATIONS" }, 7102); } catch (Exception ignored) { }
+        }
+        call.resolve();
+    }
 
     // ---------- Static: καταγραφή όλων των δεδομένων του δέκτη (για μεταγενέστερη επεξεργασία) ----------
     private volatile OutputStream rawOut = null;
@@ -681,6 +716,7 @@ public class HexisGnssPlugin extends Plugin {
             rawFile = new File(dir, rawName);
             rawBytes = 0;
             rawOut = new java.io.BufferedOutputStream(new FileOutputStream(rawFile), 65536);
+            updateService();
             call.resolve();
         } catch (Exception e) { call.reject("Καταγραφή static: " + e.getMessage()); }
     }
@@ -697,6 +733,7 @@ public class HexisGnssPlugin extends Plugin {
             try {
                 OutputStream r = rawOut; rawOut = null;
                 if (r != null) { r.flush(); r.close(); }
+                updateService();
                 o.put("bytes", rawBytes);
                 if (rawFile == null || !rawFile.exists()) { call.resolve(o); return; }
                 o.put("file", rawFile.getAbsolutePath());
@@ -800,6 +837,7 @@ public class HexisGnssPlugin extends Plugin {
         for (Conn c : conns.values()) c.close();
         conns.clear();
         if (ntrip != null) ntrip.halt();
+        try { HexisService.stop(getContext()); } catch (Exception ignored) { }
         listening = false;
         try { if (sr != null) sr.destroy(); } catch (Exception ignored) { }
         try { if (tts != null) tts.shutdown(); } catch (Exception ignored) { }

@@ -4,7 +4,7 @@
   'use strict';
   const A = g.APP, $ = A.$;
   const t = s => (g.HI18N ? HI18N.t(s) : s);
-  const S = () => (A.settings.fab = Object.assign({ on: true, x: null, y: 0.40, side: 'right', big: false }, A.settings.fab || {}));
+  const S = () => { const c = A.settings.fab || (A.settings.fab = {}); const d = { on: true, x: null, y: 0.40, side: 'right', big: false }; for (const k in d) if (c[k] === undefined) c[k] = d[k]; return c; };
 
   const wrap = $('mapwrap');
   const b = document.createElement('button');

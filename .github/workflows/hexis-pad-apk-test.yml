@@ -1,0 +1,44 @@
+# HEXIS PAD: χτίζει το Android APK και το ανεβάζει στη σταθερή διεύθυνση:
+#   https://github.com/miltosbirbas-hub/hexis-app/releases/download/pad-apk-test/HEXIS_PAD.apk
+name: HEXIS PAD apk (δοκιμαστικό)
+on:
+  push:
+    branches: [hexis-pad-imu-wip]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - name: Εξαρτήσεις & συγχρονισμός
+        run: |
+          npm ci
+          npx cap sync android
+      - name: Χτίσιμο APK
+        run: |
+          set -o pipefail
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee "$RUNNER_TEMP/build.log"
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/HEXIS_PAD.apk"
+      - name: Δημοσίευση
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh release view pad-apk-test >/dev/null 2>&1 || gh release create pad-apk-test --target hexis-pad-imu-wip --title "HEXIS PAD · Android" --notes "HEXIS PAD — αποτύπωση, χάραξη, RTK για Android."
+          gh release upload pad-apk-test "$RUNNER_TEMP/HEXIS_PAD.apk" --clobber
+          echo "build ${{ github.run_number }} ok $(date -u)" > "$RUNNER_TEMP/status.txt"
+          gh release upload pad-apk-test "$RUNNER_TEMP/status.txt" --clobber
+      - name: Καταγραφή σφάλματος
+        if: failure()
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh release view pad-apk-test >/dev/null 2>&1 || gh release create pad-apk-test --target hexis-pad-imu-wip --title "HEXIS PAD · Android" --notes "HEXIS PAD"
+          tail -c 60000 "$RUNNER_TEMP/build.log" > "$RUNNER_TEMP/build-error.txt" 2>/dev/null || echo "no log" > "$RUNNER_TEMP/build-error.txt"
+          echo "build ${{ github.run_number }} FAILED $(date -u)" > "$RUNNER_TEMP/status.txt"
+          gh release upload pad-apk-test "$RUNNER_TEMP/build-error.txt" "$RUNNER_TEMP/status.txt" --clobber

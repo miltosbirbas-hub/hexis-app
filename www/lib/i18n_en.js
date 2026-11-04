@@ -81,3 +81,13 @@ Object.assign(window.HEXIS_EN, {
   "Πολλά σημεία — μεγάλωσε τις αποστάσεις": "Too many points — increase the spacing", "Κανένα σημείο — έλεγξε αποστάσεις και όρια": "No points — check spacing and margins",
   "Πάνω από 5000 σημεία — μεγάλωσε τις αποστάσεις": "More than 5000 points — increase the spacing", "σημεία χάραξης": "stakeout points", "Σχέδιο": "Drawing", "Γραμμή": "Line"
 });
+Object.assign(window.HEXIS_EN, {
+  "Ο δέκτης έχει αντιστάθμιση κλίσης (IMU)": "The receiver has tilt compensation (IMU)", "όριο": "limit", "Ο δέκτης στέλνει κλίση": "The receiver sends tilt",
+  "Ο δέκτης στέλνει τη γωνία κλίσης του κονταριού.": "The receiver sends the pole tilt angle.",
+  "Κάνει αντιστάθμιση κλίσης (IMU), δηλαδή μετράει σωστά με γερμένο κοντάρι;": "Does it compensate tilt (IMU), i.e. measure correctly with a tilted pole?",
+  "Μέγιστη κλίση από το φυλλάδιο του δέκτη (°)": "Maximum tilt from the receiver datasheet (°)", "Όχι — μόνο φούσκα κέντρωσης": "No — levelling bubble only", "Ναι, έχει IMU": "Yes, it has an IMU",
+  "Αν δεν είσαι σίγουρος, πάτα «Όχι». Μπορείς να το αλλάξεις όποτε θέλεις από Μενού → IMU / φούσκα κέντρωσης.": "If unsure, tap “No”. You can change it any time in Menu → IMU / levelling bubble.",
+  "Φούσκα κέντρωσης ενεργή — μέτρηση με κατακόρυφο κοντάρι": "Levelling bubble on — measure with a vertical pole", "Αυτόματα": "Automatic",
+  "Αυτόματα — από τα δεδομένα του δέκτη": "Automatic — from the receiver data", "Όριο κλίσης (°) — κενό = του κατασκευαστή (γνωστό μοντέλο) ή 30°": "Tilt limit (°) — empty = manufacturer's (known model) or 30°",
+  "Ο δέκτης αναγνωρίζεται από τα δεδομένα που στέλνει. Όριο κλίσης": "The receiver is recognised from the data it sends. Tilt limit", "γράψε παρακάτω το όριο από το φυλλάδιο του δέκτη σου": "enter the limit from your receiver's datasheet below"
+});

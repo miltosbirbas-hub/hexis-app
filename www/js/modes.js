@@ -140,6 +140,8 @@
       // κρατάμε μία λύση ανά δευτερόλεπτο (σταθερή μνήμη ακόμη και για ώρες)
       if (p.t - ST.lastT < 950) return;
       ST.lastT = p.t; ST.eps.push(p);
+      // τέλος χρόνου ελέγχεται και εδώ: στο παρασκήνιο (π.χ. κλήση) οι χρονομετρητές αραιώνουν, τα δεδομένα του δέκτη όχι
+      const Sx = A.settings.stat; if (Sx.min && p.t - ST.t0 >= Sx.min * 60000) setTimeout(() => finishStatic(false), 0);
     };
     A.epochListeners.push(ST.f);
     ST.timer = setInterval(tick, 1000);

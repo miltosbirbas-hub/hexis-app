@@ -63,7 +63,17 @@
   });
 
   // ---------- Ελαφριά ενημέρωση οθόνης: ο χάρτης σχεδιάζει μόνο όταν φαίνεται ----------
-  document.addEventListener('visibilitychange', () => { if (A.map) A.map._paused = document.visibilityState === 'hidden'; });
+  document.addEventListener('visibilitychange', () => {
+    if (A.map) A.map._paused = document.visibilityState === 'hidden';
+    // επιστροφή (π.χ. μετά από κλήση): όλα συνεχίζουν — απλώς ανανεώνεται η οθόνη
+    if (document.visibilityState === 'visible') { try { A.updateStatus(); A.updatePos(); A.updateGuidance && A.updateGuidance(); A.map && A.map.redraw(); } catch (e) { } }
+  });
+  // άδεια ειδοποιήσεων (Android 13+) την πρώτη φορά που συνδέεται δέκτης — για την ειδοποίηση «HEXIS PAD σε λειτουργία»
+  HCONN.on('status', d => {
+    if (d.state !== 'connected' || !HIO.isNative()) return;
+    try { if (localStorage.getItem('hexis_pad_notif')) return; localStorage.setItem('hexis_pad_notif', '1'); } catch (e) { }
+    try { g.Capacitor.Plugins.HexisGnss.notifPermission(); } catch (e) { }
+  });
 
   // ---------- Ενημερώσεις εφαρμογής ----------
   const VERSION_URL = 'https://github.com/miltosbirbas-hub/hexis-app/releases/download/pad-apk/version.json';
