@@ -180,3 +180,9 @@ Object.assign(window.HEXIS_EN, {
   "Επαναφορά": "Restore", "σημείων στις αρχικές τους θέσεις;": "points to their original positions?", "σημεία επανήλθαν": "points restored"
 });
 Object.assign(window.HEXIS_EN, { "＋ Προσθήκη γνωστού σημείου": "＋ Add known point", "Με 2 γνωστά σημεία και στροφή τα υπόλοιπα είναι πάντα μηδέν — πρόσθεσε 3ο για πραγματικό έλεγχο.": "With 2 known points and rotation the residuals are always zero — add a 3rd for a real check." });
+Object.assign(window.HEXIS_EN, {
+  "Χωρίς internet": "No internet",
+  "Δεν υπάρχει internet για το NTRIP: το κινητό είναι σε Wi-Fi χωρίς internet (π.χ. το Wi-Fi του δέκτη) και τα δεδομένα κινητής είναι κλειστά. Άνοιξε τα δεδομένα κινητής — ή βγες από αυτό το Wi-Fi.": "No internet for NTRIP: the phone is on a Wi-Fi without internet (e.g. the receiver's Wi-Fi) and mobile data is off. Turn mobile data on — or leave that Wi-Fi.",
+  "Δεν υπάρχει internet για το NTRIP. Άνοιξε τα δεδομένα κινητής.": "No internet for NTRIP. Turn mobile data on.",
+  "Ο δέκτης συνδέεται μέσω Bluetooth — το Wi-Fi του δεν χρειάζεται. Οι διορθώσεις NTRIP θέλουν internet από το κινητό (4G/5G).": "The receiver connects over Bluetooth — its Wi-Fi is not needed. NTRIP corrections need internet from the phone (4G/5G)."
+});

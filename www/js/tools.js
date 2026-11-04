@@ -528,7 +528,19 @@
     A.ntripInfo = d;
     if (d.state === 'error') A.toast('NTRIP: ' + (d.message || 'σφάλμα'), 'bad', 4000);
     if (A._ntripView) A._ntripView();
+    // κολλημένο σε «connecting» / σφάλμα: έλεγχος αν υπάρχει καθόλου internet
+    clearTimeout(A._ntripNetT);
+    if (d.state === 'connecting' || d.state === 'error') A._ntripNetT = setTimeout(checkNet, 9000);
   };
+  async function checkNet() {
+    const st = A.ntripInfo && A.ntripInfo.state; if (st !== 'connecting' && st !== 'error') return;
+    let n = null; try { n = await g.Capacitor.Plugins.HexisGnss.netState(); } catch (e) { return; }
+    if (!n || n.internet) return;
+    const msg = n.wifi && !n.wifiInternet
+      ? 'Δεν υπάρχει internet για το NTRIP: το κινητό είναι σε Wi-Fi χωρίς internet (π.χ. το Wi-Fi του δέκτη) και τα δεδομένα κινητής είναι κλειστά. Άνοιξε τα δεδομένα κινητής — ή βγες από αυτό το Wi-Fi.'
+      : 'Δεν υπάρχει internet για το NTRIP. Άνοιξε τα δεδομένα κινητής.';
+    A.sheet('Χωρίς internet', `<div class="result warn">${esc(msg)}</div><p class="muted">Ο δέκτης συνδέεται μέσω Bluetooth — το Wi-Fi του δεν χρειάζεται. Οι διορθώσεις NTRIP θέλουν internet από το κινητό (4G/5G).</p><button class="btn primary" id="nn-ok">OK</button>`, b => { b.querySelector('#nn-ok').onclick = () => A.closeSheet(); });
+  }
   A.ntripSheet = function () {
     const N = A.settings.ntrip;
     const prof = A.settings.ntripProfiles || [];

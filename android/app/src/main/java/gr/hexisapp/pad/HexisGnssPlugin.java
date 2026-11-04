@@ -254,7 +254,7 @@ public class HexisGnssPlugin extends Plugin {
             try {
                 status(channel, "connecting", null);
                 if ("tcp".equals(type)) {
-                    Socket s = new Socket();
+                    Socket s = localSocket();
                     s.connect(new InetSocketAddress(host, port), 8000);
                     s.setTcpNoDelay(true);
                     c.tcp = s; c.in = s.getInputStream(); c.out = s.getOutputStream(); c.name = host + ":" + port;
@@ -356,7 +356,7 @@ public class HexisGnssPlugin extends Plugin {
             while (running) {
                 try {
                     ev("connecting", host + ":" + port + "/" + mount);
-                    Socket s = new Socket();
+                    Socket s = internetSocket();
                     s.connect(new InetSocketAddress(host, port), 10000);
                     s.setSoTimeout(30000);
                     sock = s;
@@ -457,7 +457,7 @@ public class HexisGnssPlugin extends Plugin {
         final String user = call.getString("user", "");
         final String pass = call.getString("pass", "");
         new Thread(() -> {
-            try (Socket s = new Socket()) {
+            try (Socket s = internetSocket()) {
                 s.connect(new InetSocketAddress(host, port), 10000);
                 s.setSoTimeout(15000);
                 String auth = Base64.encodeToString((user + ":" + pass).getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP);
@@ -827,6 +827,58 @@ public class HexisGnssPlugin extends Plugin {
         } catch (Exception e) { call.reject("Κοινή χρήση: " + e.getMessage()); }
     }
 
+
+    // ---------- Δίκτυα: internet από όπου υπάρχει (4G/5G αν το Wi-Fi δεν έχει), δέκτης μέσω Wi-Fi ----------
+    private android.net.Network internetNetwork() {
+        try {
+            if (Build.VERSION.SDK_INT < 23) return null;
+            android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm == null) return null;
+            android.net.Network act = cm.getActiveNetwork();
+            android.net.NetworkCapabilities ac = act != null ? cm.getNetworkCapabilities(act) : null;
+            if (ac != null && ac.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED)) return null; // το κανονικό δίκτυο έχει internet
+            for (android.net.Network n : cm.getAllNetworks()) {
+                android.net.NetworkCapabilities c = cm.getNetworkCapabilities(n);
+                if (c != null && c.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) && c.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED)) return n;
+            }
+        } catch (Exception ignored) { }
+        return null;
+    }
+    private Socket internetSocket() {
+        try { android.net.Network n = internetNetwork(); if (n != null) return n.getSocketFactory().createSocket(); } catch (Exception ignored) { }
+        return new Socket();
+    }
+    private Socket localSocket() {
+        try {
+            if (Build.VERSION.SDK_INT >= 23) {
+                android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+                if (cm != null) for (android.net.Network n : cm.getAllNetworks()) {
+                    android.net.NetworkCapabilities c = cm.getNetworkCapabilities(n);
+                    if (c != null && c.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) return n.getSocketFactory().createSocket();
+                }
+            }
+        } catch (Exception ignored) { }
+        return new Socket();
+    }
+
+    @PluginMethod
+    public void netState(PluginCall call) {
+        JSObject o = new JSObject();
+        try {
+            android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+            boolean inet = false, wifi = false, wifiInet = false, cell = false;
+            if (cm != null && Build.VERSION.SDK_INT >= 23) for (android.net.Network n : cm.getAllNetworks()) {
+                android.net.NetworkCapabilities c = cm.getNetworkCapabilities(n); if (c == null) continue;
+                boolean v = c.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+                if (c.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) { wifi = true; if (v) wifiInet = true; }
+                if (c.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR)) cell = true;
+                if (v) inet = true;
+            }
+            o.put("internet", inet); o.put("wifi", wifi); o.put("wifiInternet", wifiInet); o.put("cellular", cell);
+        } catch (Exception e) { o.put("internet", true); }
+        call.resolve(o);
+    }
+
     private void deliver(JSObject f) {
         pendingFile = f;
         if (hasListeners("fileOpen")) { notifyListeners("fileOpen", f); pendingFile = null; }
@@ -841,7 +893,8 @@ public class HexisGnssPlugin extends Plugin {
             try {
                 String u = url; HttpURLConnection c = null;
                 for (int i = 0; i < 6; i++) {
-                    c = (HttpURLConnection) new URL(u).openConnection();
+                    android.net.Network inet = internetNetwork();
+                    c = (HttpURLConnection) (inet != null ? inet.openConnection(new URL(u)) : new URL(u).openConnection());
                     c.setInstanceFollowRedirects(false); c.setConnectTimeout(15000); c.setReadTimeout(30000);
                     int code = c.getResponseCode();
                     if (code >= 300 && code < 400) { u = c.getHeaderField("Location"); c.disconnect(); continue; }
