@@ -28,8 +28,11 @@
   let toastT = null;
   A.toast = function (msg, kind, ms) {
     const t = $('toast'); t.textContent = msg; t.className = kind || ''; clearTimeout(toastT);
+    // τα σφάλματα μένουν περισσότερο (8 s) και καταγράφονται στο «Αρχείο σφαλμάτων» για να διαβάζονται αργότερα
+    if (kind === 'bad') { ms = Math.max(ms || 0, 8000); try { A.logError && A.logError('UI: ' + msg); } catch (e) { } }
     toastT = setTimeout(() => t.className = 'hidden', ms || 2600);
   };
+  $('toast').onclick = () => { clearTimeout(toastT); $('toast').className = 'hidden'; };
   A.sheet = function (title, html, onOpen) {
     $('sh-title').textContent = title; $('sh-body').innerHTML = html;
     $('sheet').classList.remove('hidden'); $('sheet-back').classList.remove('hidden');

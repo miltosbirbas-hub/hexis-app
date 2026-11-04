@@ -17,6 +17,7 @@
       localStorage.setItem(LOG_KEY, JSON.stringify(l.slice(0, 50)));
     } catch (e) { }
   }
+  A.logError = logErr;
   let lastShown = 0;
   function report(msg) {
     logErr(msg);

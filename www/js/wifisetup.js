@@ -54,7 +54,7 @@
           const useIt = async () => {
             const G = A.settings.gnss; G.type = 'tcp'; G.host = gw; G.port = pr.best; G.wifiSsid = W.ssid; A.saveSettings();
             try { await HCONN.connect({ type: 'tcp', host: gw, port: pr.best, channel: 'gnss' }); A.toast('✓ ' + t('Συνδέθηκε ο δέκτης μέσω Wi-Fi'), 'ok', 3000); if (A.settings.ntrip.auto && A.settings.ntrip.host) A.startNtrip(); A.closeSheet(); }
-            catch (e) { A.toast(e.message || String(e), 'bad'); }
+            catch (e) { log('✕ ' + esc(e.message || String(e))); A.toast(e.message || String(e), 'bad'); }
           };
           tcpBtn.onclick = useIt; useIt(); return;
         }
