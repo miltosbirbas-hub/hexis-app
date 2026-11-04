@@ -1042,7 +1042,7 @@ public class HexisGnssPlugin extends Plugin {
         final JSArray portsIn = call.getArray("ports");
         new Thread(() -> {
             int[] ports;
-            try { if (portsIn != null && portsIn.length() > 0) { ports = new int[portsIn.length()]; for (int i = 0; i < ports.length; i++) ports[i] = portsIn.getInt(i); } else ports = new int[] { 9902, 9901, 9903, 6060, 8000, 2000, 10000, 5000, 4000, 1234, 23, 5555, 9000, 2101 }; }
+            try { if (portsIn != null && portsIn.length() > 0) { ports = new int[portsIn.length()]; for (int i = 0; i < ports.length; i++) ports[i] = portsIn.getInt(i); } else ports = new int[] { 9000, 9902, 9901, 9903, 9001, 9100, 6060, 7801, 8000, 8001, 2000, 10000, 5000, 4000, 1234, 23, 5555, 2101, 3000, 1111 }; }
             catch (Exception e) { ports = new int[] { 9902, 9901, 6060, 8000, 2000, 10000 }; }
             JSObject out = new JSObject(); JSArray found = new JSArray();
             for (int port : ports) {

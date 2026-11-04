@@ -11,7 +11,7 @@
 
   // γνωστά στοιχεία ανά κατασκευαστή (δημοσιευμένα από τους ίδιους)
   const BRANDS = [
-    { id: 'singular', name: 'Singular XYZ', prefix: ['X1', 'E1', 'Y1', 'Z1', 'L1', 'Orion'], pass: '12345678', url: 'http://192.168.10.12/', login: 'admin / admin', hint: 'Σύνδεση: admin / admin. Μενού I/O ή Data Output → Bluetooth → NMEA GGA, GST, GSA, RMC → 1 Hz → Save.' },
+    { id: 'singular', name: 'Singular XYZ', prefix: ['X1', 'E1', 'Y1', 'Z1', 'L1', 'Orion'], pass: '12345678', url: 'http://192.168.10.12/', login: 'admin / admin', hint: 'Σύνδεση: admin / admin. Device Configuration → Data Transmission → TCP (NMEA-0183): θύρα 9000, ενεργό, GGA+GST+GSA 1 Hz → Save. Το Bluetooth του X1/L1 δέχεται μόνο το SingularPad — μην το αλλάξεις.' },
     { id: 'chc', name: 'CHC / iGage', prefix: ['GNSS-', 'CHC', 'i7', 'i8', 'i9', 'X'], pass: '12345678', url: 'http://192.168.1.1/', login: 'admin / password', hint: 'Σύνδεση: admin / password. I/O Settings → Bluetooth → NMEA → GGA, GST, GSA 1 Hz → Save.' },
     { id: 'south', name: 'South', prefix: ['S', 'G'], pass: '12345678', url: 'http://10.1.1.1/', login: 'admin / admin', hint: 'Σύνδεση: admin / admin. Data Record / Output → Bluetooth → NMEA GGA, GST, GSA 1 Hz.' },
     { id: 'stonex', name: 'Stonex', prefix: ['S9', 'S7', 'S5', 'S8'], pass: '12345678', url: 'http://192.168.10.1/', login: 'admin / password', hint: 'Σύνδεση: admin / password. I/O → Bluetooth → NMEA GGA, GST, GSA 1 Hz → Save.' },
@@ -28,7 +28,7 @@
       <p class="muted">${t('Για δέκτες που δεν στέλνουν θέση από το Bluetooth. Η εφαρμογή συνδέεται στο Wi-Fi του δέκτη')} <b>${t('χωρίς να κόψει τα δεδομένα κινητής')}</b> ${t('— το NTRIP συνεχίζει κανονικά.')}</p>
       <label class="fld"><span>${t('Κατασκευαστής')}</span><select id="ws-br">${BRANDS.map(b => `<option value="${b.id}" ${b.id === br.id ? 'selected' : ''}>${esc(b.name)}</option>`).join('')}</select></label>
       <div class="row"><label class="fld grow"><span>${t('Όνομα Wi-Fi δέκτη (κενό = διαλέγεις από λίστα)')}</span><input id="ws-ssid" value="${esc(W.ssid || '')}" placeholder="${esc((br.prefix[0] || 'X1Lite') + '-…')}"></label><label class="fld" style="width:40%"><span>${t('Κωδικός Wi-Fi')}</span><input id="ws-pass" value="${esc(W.pass || br.pass)}"></label></div>
-      <div class="result">${t('Τι θα γίνει')}: <b>1.</b> ${t('Το Android θα σου δείξει τα Wi-Fi γύρω σου — διάλεξε τον δέκτη (το όνομα έχει τον σειριακό του).')} <b>2.</b> ${t('Η εφαρμογή ψάχνει μόνη της θέση από το Wi-Fi του δέκτη.')} <b>3.</b> ${t('Αν δεν βρει, ανοίγει τη σελίδα του δέκτη για να ενεργοποιήσεις μία φορά το NMEA στο Bluetooth.')}</div>
+      <div class="result">${t('Τι θα γίνει')}: <b>1.</b> ${t('Το Android θα σου δείξει τα Wi-Fi γύρω σου — διάλεξε τον δέκτη (το όνομα έχει τον σειριακό του).')} <b>2.</b> ${t('Η εφαρμογή ψάχνει μόνη της θέση από το Wi-Fi του δέκτη.')} <b>3.</b> ${t('Αν δεν βρει, ανοίγει τη σελίδα του δέκτη για να ενεργοποιήσεις μία φορά την έξοδο NMEA (TCP) — μετά συνδέεται μόνη της για πάντα.')}</div>
       <button class="btn primary big" id="ws-go">📶 ${t('Σύνδεση στο Wi-Fi του δέκτη')}</button>
       <div id="ws-log" class="muted"></div>
       <button class="btn hidden" id="ws-page">🌐 ${t('Άνοιγμα σελίδας δέκτη')}</button>

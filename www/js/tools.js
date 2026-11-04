@@ -506,8 +506,10 @@
     A.sheet('Πρώτη σύνδεση δέκτη', `<div class="result"><b>1.</b> Άναψε τον δέκτη.<br><b>2.</b> Πάτα το κουμπί και διάλεξε τον δέκτη στη λίστα του Bluetooth (το όνομα είναι συνήθως ο σειριακός αριθμός του — S/N στο ταμπελάκι). Αν ζητήσει κωδικό: 1234 ή 0000.<br><b>3.</b> Γύρνα πίσω — η εφαρμογή βρίσκει και συνδέει τον δέκτη μόνη της.</div>
       <p class="muted">Αν ο δέκτης έχει NFC, ακούμπησε το κινητό πάνω του — η σύζευξη γίνεται αυτόματα.</p>
       <button class="btn primary big" id="fp-bt">⚙ Σύζευξη δέκτη (Bluetooth)</button>
+      <button class="btn big" id="fp-wifi">📶 Σύνδεση μέσω Wi-Fi δέκτη (Singular, CHC, South, Stonex…)</button>
       <button class="btn" id="fp-later">Αργότερα</button>`, b => {
       b.querySelector('#fp-bt').onclick = () => { try { g.Capacitor.Plugins.HexisGnss.openBtSettings(); } catch (e) { } A.closeSheet(); A._acQuiet = false; };
+      b.querySelector('#fp-wifi').onclick = () => { A.closeSheet(); A.wifiSetup(); };
       b.querySelector('#fp-later').onclick = () => A.closeSheet();
     });
   }
