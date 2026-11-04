@@ -61,3 +61,9 @@ jobs:
           done
       - name: Secrets (μόνο ονόματα, για έλεγχο)
         run: supabase secrets list --project-ref "$REF" | awk -F'|' 'NR>2{gsub(/ /,"",$1);print $1}'
+      - name: Δοκιμή pad-lic
+        run: |
+          U="https://$REF.supabase.co/functions/v1/pad-lic"; K="sb_publishable_AjcKB0okxSvA9SUBazKEHQ_-HR0FMHP"
+          a=$(curl -sS -X POST "$U" -H "apikey: $K" -H "Content-Type: application/json" -d '{"op":"activate","key":"PAD-XXXX-XXXX-XXXX","device":"a-ci-test","cert":"00","sdk":34}'); echo "αλλοιωμένη: $a"
+          b=$(curl -sS -X POST "$U" -H "apikey: $K" -H "Content-Type: application/json" -d '{"op":"activate","key":"PAD-XXXX-XXXX-XXXX","device":"a-ci-test","cert":"8869136DE32B85F58B170636D1F36C51F5CE1F87B9AE220E4325004682E13236","sdk":34}'); echo "λάθος κωδικός: $b"
+          echo "$a" | grep -q '"tampered"' && echo "$b" | grep -q '"invalid"' || { echo "::error::pad-lic δεν απαντά σωστά"; exit 1; }
