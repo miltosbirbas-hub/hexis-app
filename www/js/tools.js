@@ -438,7 +438,22 @@
           const rf = cb.querySelector('#bt-ref'); if (rf) rf.onclick = refresh;
           const bs = cb.querySelector('#bt-set'); if (bs) bs.onclick = () => { try { g.Capacitor.Plugins.HexisGnss.openBtSettings(); } catch (e) { A.toast('Άνοιξε Ρυθμίσεις → Bluetooth', 'bad'); } };
         }
-        else if (G.type === 'tcp') cb.innerHTML = `<div class="row"><label class="fld grow"><span>IP / host δέκτη</span><input id="th" value="${esc(G.host || '192.168.1.1')}"></label><label class="fld" style="width:110px"><span>Port</span><input id="tp" type="number" value="${G.port || 9000}"></label></div>`;
+        else if (G.type === 'tcp') {
+          cb.innerHTML = `<div class="row"><label class="fld grow"><span>IP / host δέκτη</span><input id="th" value="${esc(G.host || '192.168.1.1')}"></label><label class="fld" style="width:110px"><span>Port</span><input id="tp" type="number" value="${G.port || 9000}"></label></div>
+            ${native ? '<button class="btn" id="tcp-scan">🔎 Εύρεση θύρας (σάρωση δέκτη)</button><div id="tcp-scan-out" class="muted"></div>' : ''}`;
+          const sb = cb.querySelector('#tcp-scan'); if (sb) sb.onclick = async () => {
+            const host = cb.querySelector('#th').value.trim(); const out = cb.querySelector('#tcp-scan-out');
+            sb.disabled = true; out.textContent = '⏳ Σάρωση ' + host + ' (έως 40 δευτ.)…';
+            try {
+              const r = await g.Capacitor.Plugins.HexisGnss.wifiProbe({ host });
+              const f = r.found || [];
+              if (r.best) { cb.querySelector('#tp').value = r.best; out.innerHTML = '✓ NMEA στη θύρα <b>' + r.best + '</b> — πάτα «Σύνδεση»'; }
+              else if (f.length) out.textContent = 'Ανοιχτές θύρες χωρίς θέση: ' + f.map(x => x.port + ' (' + x.kind + ', ' + x.bytes + ' B)').join(', ') + '. Έλεγξε στη σελίδα του δέκτη ότι η θύρα NMEA είναι ενεργή (Startup ✓) και ότι GPGGA = 1.';
+              else out.textContent = '✕ Καμία ανοιχτή θύρα στο ' + host + '. Ή το κινητό δεν είναι στο Wi-Fi του δέκτη, ή η έξοδος TCP δεν ενεργοποιήθηκε (σβήσε-άναψε τον δέκτη).';
+            } catch (e) { out.textContent = '✕ ' + (e.message || e); }
+            sb.disabled = false;
+          };
+        }
         else if (G.type === 'phone') cb.innerHTML = `<p class="muted">Χρήση του GPS της συσκευής — ακρίβεια μέτρων, μόνο για προσανατολισμό/δοκιμή.</p>`;
         else cb.innerHTML = `<p class="muted">Προσομοιωμένος δέκτης RTK για εκπαίδευση/δοκιμή. Παρατεταμένο πάτημα στον χάρτη = «περπάτα εκεί».</p><button class="btn" id="simc">Τοποθέτηση στο κέντρο του χάρτη</button>`;
         const sc = cb.querySelector('#simc'); if (sc) sc.onclick = () => { HCONN.Sim.jumpTo({ E: A.map.view.cx, N: A.map.view.cy }); A.toast('Ο προσομοιωτής μετακινήθηκε'); };
