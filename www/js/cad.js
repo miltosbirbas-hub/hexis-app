@@ -226,7 +226,8 @@
   async function parseDWG(buf) {
     if (!dwgLib) {
       const base = new URL('lib/libredwg/', document.baseURI).href;
-      const mod = await import(base + 'dist/libredwg-web.js');
+      // Δυναμικό import μέσω (0,eval) ώστε παλιά WebView να μη σκοντάφτουν στο parse όλου του αρχείου
+      const mod = await (0, eval)('(u => import(u))')(base + 'dist/libredwg-web.js');
       dwgLib = await mod.LibreDwg.create(base + 'wasm');
       dwgLib._types = mod.Dwg_File_Type;
     }

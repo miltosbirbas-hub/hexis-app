@@ -18,7 +18,8 @@
     { a: 'tilt', w: ['κλιση', 'με κλιση', 'tilt'] },
     { a: 'cancel', w: ['ακυρο', 'ακυρωση', 'ακυρωσε', 'σταματα', 'στοπ', 'stop', 'cancel'] },
   ];
-  const norm = s => String(s || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/ς/g, 'σ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  const RX_M = A.rx('\\p{M}', 'gu', /[\u0300-\u036f]/g), RX_NW = A.rx('[^\\p{L}\\p{N}]+', 'gu', /[^A-Za-z0-9\u0370-\u03FF\u1F00-\u1FFF]+/g);
+  const norm = s => String(s || '').normalize('NFD').replace(RX_M, '').toLowerCase().replace(/ς/g, 'σ').replace(RX_NW, ' ').trim();
   CMDS.forEach(c => c.n = c.w.map(w => ' ' + norm(w) + ' '));
   function match(text) {
     // πολλές εκδοχές «α | β | γ» — ελέγχεται η καθεμία

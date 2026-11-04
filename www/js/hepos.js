@@ -87,4 +87,4 @@
   function setGrid(buf) { const n = GRID.nx * GRID.ny; const all = new Int16Array(buf); dE = all.subarray(0, n); dN = all.subarray(n, 2 * n); }
 
   g.HHEPOS = { toEGSA, fromEGSA, load, setGrid, ready: () => !!dE, toXYZ, fromXYZ };
-})(typeof window !== 'undefined' ? window : globalThis);
+})(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this)));

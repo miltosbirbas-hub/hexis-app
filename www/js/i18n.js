@@ -12,17 +12,22 @@
   const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   let RX = null;
   try { RX = keys.length ? new RegExp('(?<![\\p{L}\\p{N}])(?:' + keys.map(esc).join('|') + ')(?![\\p{L}\\p{N}])', 'gu') : null; } catch (e) { RX = null; }
+  // Παλιές WebView (χωρίς lookbehind / \p{}): απλούστερη έκφραση με όριο λέξης μέσω ομάδας
+  let RX_OLD = null;
+  if (!RX && keys.length) { try { RX_OLD = new RegExp('(^|[^A-Za-z0-9\u0370-\u03FF\u1F00-\u1FFF])(' + keys.map(esc).join('|') + ')(?![A-Za-z0-9\u0370-\u03FF\u1F00-\u1FFF])', 'g'); } catch (e) { RX_OLD = null; }
+  }
   const GREEK = /[Ͱ-Ͽἀ-῿]/;
 
   function t(s) {
-    if (lang !== 'en' || !RX || s == null) return s;
+    if (lang !== 'en' || !(RX || RX_OLD) || s == null) return s;
     s = String(s);
     if (!GREEK.test(s)) return s;
-    return s.replace(RX, m => D[m] != null ? D[m] : m);
+    if (RX) return s.replace(RX, m => D[m] != null ? D[m] : m);
+    return s.replace(RX_OLD, (m, pre, w) => pre + (D[w] != null ? D[w] : w));
   }
   const SKIP = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'CODE']);
   function walk(root) {
-    if (lang !== 'en' || !RX || !root) return;
+    if (lang !== 'en' || !(RX || RX_OLD) || !root) return;
     if (root.nodeType === 3) { fixText(root); return; }
     if (root.nodeType !== 1 || (root.classList && root.classList.contains('nt'))) return;
     if (SKIP.has(root.nodeName)) { for (const a of ['placeholder', 'title']) { const v = root.getAttribute(a); if (v && GREEK.test(v)) { const r = t(v); if (r !== v) root.setAttribute(a, r); } } return; }

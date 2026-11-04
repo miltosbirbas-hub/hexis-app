@@ -765,7 +765,7 @@
   // ==================== Εξαγωγή / Email ====================
   A.exportSheet = function () {
     const P = A.proj;
-    const base = P.name.replace(/[^\p{L}\p{N}\- ]/gu, '_').replace(/\s+/g, '_');
+    const base = P.name.replace(A.RX_NOTNAME, '_').replace(/\s+/g, '_');
     A.sheet('Εξαγωγή / Αποστολή', `<label class="fld"><span>Σημεία</span><select id="fl"><option value="all">Όλα (${P.points.length})</option><option value="survey">Μετρημένα</option><option value="staked">Χαραγμένα (με αποκλίσεις)</option><option value="calc">Υπολογισμένα</option><option value="stake">Προς χάραξη</option></select></label>
       <h4>Μορφές</h4>
       <label class="chk"><input type="checkbox" value="txt" checked> TXT (Όνομα,X,Y,Z,Κωδικός)</label>

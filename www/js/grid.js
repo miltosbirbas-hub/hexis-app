@@ -134,7 +134,7 @@
       <div class="row"><button class="btn grow" id="gr-back">◂ Άλλο πολύγωνο</button><button class="btn primary grow" id="gr-ok">✓ Δημιουργία σημείων χάραξης</button></div>`, b => {
       const read = () => {
         const segv = b.querySelector('#gr-pat .on').dataset.v;
-        Object.assign(s, { dx: num(b.querySelector('#gr-dx').value) || s.dx, dy: num(b.querySelector('#gr-dy').value) || s.dy, first: Math.max(0, num(b.querySelector('#gr-f').value) ?? s.first), edge: Math.max(0, num(b.querySelector('#gr-e').value) ?? s.edge), stagger: segv === 'st', center: b.querySelector('#gr-c').checked, prefix: b.querySelector('#gr-pf').value.trim(), code: b.querySelector('#gr-cd').value.trim() });
+        Object.assign(s, { dx: num(b.querySelector('#gr-dx').value) || s.dx, dy: num(b.querySelector('#gr-dy').value) || s.dy, first: Math.max(0, num(b.querySelector('#gr-f').value) != null ? num(b.querySelector('#gr-f').value) : s.first), edge: Math.max(0, num(b.querySelector('#gr-e').value) != null ? num(b.querySelector('#gr-e').value) : s.edge), stagger: segv === 'st', center: b.querySelector('#gr-c').checked, prefix: b.querySelector('#gr-pf').value.trim(), code: b.querySelector('#gr-cd').value.trim() });
         G.side = parseInt(b.querySelector('#gr-s').value, 10) || 0;
         return { side: G.side, dx: Math.max(0.05, s.dx), dy: Math.max(0.05, s.dy), first: s.first, edge: s.edge, stagger: s.stagger, center: s.center };
       };

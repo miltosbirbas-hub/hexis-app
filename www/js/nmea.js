@@ -93,7 +93,7 @@
         return { type: 'GST' };
       }
       case 'GSA': {
-        this.pdop = num(f[15]); this.hdop = num(f[16]) ?? this.hdop; this.vdop = num(f[17]);
+        this.pdop = num(f[15]); this.hdop = num(f[16]) != null ? num(f[16]) : this.hdop; this.vdop = num(f[17]);
         return { type: 'GSA' };
       }
       case 'GSV': {

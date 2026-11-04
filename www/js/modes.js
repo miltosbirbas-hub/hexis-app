@@ -130,7 +130,7 @@
     Object.assign(ST, { on: true, name, code, t0: Date.now(), eps: [], all: 0, fixN: 0, lastT: 0, raw: null, bytes: 0 });
     if (S.raw && native()) {
       const d = new Date(), pad = x => String(x).padStart(2, '0');
-      const fn = `${(A.proj.name || 'HEXIS').replace(/[^\p{L}\p{N}_-]+/gu, '_')}_${name}_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.gnss`;
+      const fn = `${(A.proj.name || 'HEXIS').replace(A.RX_NOTNAME2, '_')}_${name}_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.gnss`;
       try { await P().rawLogStart({ name: fn }); ST.raw = fn; } catch (e) { A.toast(e.message || String(e), 'bad', 4000); }
     }
     ST.f = p => {

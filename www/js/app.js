@@ -19,6 +19,10 @@
     stake: { mode: 'point', target: null, line: null, baseline: null, surface: null, list: [] },
     epochListeners: [], laserListeners: [], tab: 'survey',
   };
+  // Κανονικές εκφράσεις με ιδιότητες Unicode (\p{L}) — με εφεδρεία για παλιά WebView
+  A.rx = function (src, flags, fallback) { try { return new RegExp(src, flags); } catch (e) { return fallback; } };
+  A.RX_NOTNAME = A.rx('[^\\p{L}\\p{N}\\- ]', 'gu', /[^A-Za-z0-9\u0370-\u03FF\u1F00-\u1FFF\- ]/g);
+  A.RX_NOTNAME2 = A.rx('[^\\p{L}\\p{N}_-]+', 'gu', /[^A-Za-z0-9\u0370-\u03FF\u1F00-\u1FFF_-]+/g);
 
   // ---------- Εργαλεία UI ----------
   let toastT = null;
@@ -891,7 +895,7 @@
       <div class="list">${st.slice().reverse().slice(0, 60).map(p => { const dh = p.stake.dE != null ? Math.hypot(p.stake.dE, p.stake.dN) : null; return `<div class="li"><span class="nm">${esc(p.name)}</span><span class="cd">→ ${esc(p.stake.target)}</span><span class="xy" style="color:${dh != null && dh > tH ? 'var(--bad)' : 'var(--ok)'}">ΔH ${F(dh)}<br>ΔZ ${F(p.stake.dZ)}</span></div>`; }).join('')}</div>
       <div class="row"><button class="btn grow" id="sr-save">💾 Αποθήκευση</button><button class="btn grow" id="sr-share">↗ Κοινή χρήση</button><button class="btn primary grow" id="sr-mail">✉ Email</button></div>
       <p class="muted">Αρχεία: CSV (για Excel) και TXT με πίνακα στόχων, χαραγμένων και αποκλίσεων.</p>`, b => {
-      const files = () => { const base = 'Χάραξη_' + A.proj.name.replace(/[^\p{L}\p{N}\- ]/gu, '_').replace(/\s+/g, '_'); return [{ name: base + '.csv', data: HIO.toStakeCSV(st, tH, tV), mime: 'text/csv' }, { name: base + '.txt', data: HIO.toStakeTXT(st, tH, tV, A.proj.name, HGEO.crsName()) }]; };
+      const files = () => { const base = 'Χάραξη_' + A.proj.name.replace(A.RX_NOTNAME, '_').replace(/\s+/g, '_'); return [{ name: base + '.csv', data: HIO.toStakeCSV(st, tH, tV), mime: 'text/csv' }, { name: base + '.txt', data: HIO.toStakeTXT(st, tH, tV, A.proj.name, HGEO.crsName()) }]; };
       b.querySelector('#sr-save').onclick = async () => { try { await HIO.saveToDevice(files()); A.toast('✓ Αποθηκεύτηκε', 'ok'); } catch (e) { A.toast(e.message, 'bad'); } };
       b.querySelector('#sr-share').onclick = () => HIO.share(files(), { subject: 'Χάραξη · ' + A.proj.name });
       b.querySelector('#sr-mail').onclick = () => HIO.share(files(), { subject: 'Επιβεβαίωση χάραξης · ' + A.proj.name, text: `${st.length} σημεία, ${ok} εντός ανοχής ${tH} m`, email: true });
