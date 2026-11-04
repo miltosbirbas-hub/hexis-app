@@ -817,7 +817,7 @@
         const files = [];
         if (fm.includes('txt')) files.push({ name: base + '.txt', data: HIO.toTXT(pts) });
         if (fm.includes('csv')) files.push({ name: base + '.csv', data: HIO.toCSV(pts), mime: 'text/csv' });
-        if (fm.includes('dxf')) files.push({ name: base + '.dxf', data: HCAD.writeDXF(pts, A.map.layers.lines.map(l => ({ pts: l.pts, kind: l.kind, closed: l.closed, layer: 'HP_' + (l.code || l.pts[0].code || 'LINES').replace(/[^\w]/g, '_').toUpperCase() })), { textHeight: A.settings.textH }), mime: 'application/dxf' });
+        if (fm.includes('dxf')) files.push({ name: base + '.dxf', data: HCAD.writeDXF(pts, A.map.layers.lines.map(l => ({ pts: l.pts, kind: l.kind, closed: l.closed, layer: 'HP_' + (l.code || l.pts[0].code || 'LINES').replace(/[^\w]/g, '_').toUpperCase() })), { textHeight: A.settings.textH, decimals: A.settings.decimals || 4 }), mime: 'application/dxf' });
         if (fm.includes('kml')) files.push({ name: base + '.kml', data: HIO.toKML(pts, P.name), mime: 'application/vnd.google-earth.kml+xml' });
         if (fm.includes('geojson')) files.push({ name: base + '.geojson', data: HIO.toGeoJSON(pts), mime: 'application/geo+json' });
         if (fm.includes('photos')) for (const p of pts) for (let i = 0; i < (p.photos || []).length; i++) { const bl = await HIO.photoGet(p.photos[i].id); if (bl) files.push({ name: 'photos/' + HIO.photoName(p, i), data: bl, mime: 'image/jpeg' }); }
@@ -896,6 +896,7 @@
       <label class="fld"><span>Γλώσσα / Language</span><select id="lng" class="nt"><option value="el" ${HI18N.lang() === 'el' ? 'selected' : ''}>Ελληνικά</option><option value="en" ${HI18N.lang() === 'en' ? 'selected' : ''}>English</option></select></label>
       <label class="fld"><span>Μέγεθος γραμμάτων</span><select id="tsz"><option value="large" ${S.textSize !== 'xl' ? 'selected' : ''}>Μεγάλα</option><option value="xl" ${S.textSize === 'xl' ? 'selected' : ''}>Πολύ μεγάλα</option></select></label>
       <label class="fld"><span>Ύψος κειμένου στο DXF (m)</span><input id="tx" type="number" step="0.01" value="${S.textH}"></label>
+      <label class="fld"><span>Δεκαδικά συντεταγμένων στην εξαγωγή (TXT/CSV/DXF)</span><select id="dec">${[3, 4, 5].map(d => `<option value="${d}" ${(S.decimals || 4) === d ? 'selected' : ''}>${d} (${d === 3 ? 'mm' : d === 4 ? '0.1 mm' : '0.01 mm'})</option>`).join('')}</select></label>
       <h4>Υπόβαθρα</h4>
       <label class="fld"><span>Google Map Tiles API key (για Google δορυφορική/οδικό)</span><input id="gk" value="${esc(S.googleKey || '')}" autocomplete="off" placeholder="AIza…"></label>
       <h4>Εφαρμογή</h4>
@@ -915,7 +916,7 @@
         const nl = b.querySelector('#lng').value;
         A.settings.fab = Object.assign(A.settings.fab || {}, { on: b.querySelector('#fb-on').checked, big: b.querySelector('#fb-big').checked }); if (A.fab) A.fab.apply();
         const wantV = b.querySelector('#vc').checked;
-        Object.assign(S, { antOff: Math.max(0, num(b.querySelector('#aoff').value) || 0), qcClass: b.querySelector('#qc').value, tolH: num(b.querySelector('#th').value) || 0.02, tolV: num(b.querySelector('#tv').value) || 0.02, beep: b.querySelector('#bp').checked, autoNext: b.querySelector('#an').checked, theme, textSize: b.querySelector('#tsz').value, fixWait: Math.max(0, parseInt(b.querySelector('#fw').value, 10) || 0), soundPoint: b.querySelector('#sp').checked, soundFix: b.querySelector('#sf').checked, volume: parseFloat(b.querySelector('#vol').value), textH: num(b.querySelector('#tx').value) || 0.25, googleKey: b.querySelector('#gk').value.trim(), voiceSay: b.querySelector('#vs').checked, voice: wantV });
+        Object.assign(S, { decimals: parseInt(b.querySelector('#dec').value, 10) || 4, antOff: Math.max(0, num(b.querySelector('#aoff').value) || 0), qcClass: b.querySelector('#qc').value, tolH: num(b.querySelector('#th').value) || 0.02, tolV: num(b.querySelector('#tv').value) || 0.02, beep: b.querySelector('#bp').checked, autoNext: b.querySelector('#an').checked, theme, textSize: b.querySelector('#tsz').value, fixWait: Math.max(0, parseInt(b.querySelector('#fw').value, 10) || 0), soundPoint: b.querySelector('#sp').checked, soundFix: b.querySelector('#sf').checked, volume: parseFloat(b.querySelector('#vol').value), textH: num(b.querySelector('#tx').value) || 0.25, googleKey: b.querySelector('#gk').value.trim(), voiceSay: b.querySelector('#vs').checked, voice: wantV });
         if (A.voice && wantV !== A.voice.on) (wantV ? A.voice.start() : A.voice.stop());
         A.saveSettings(); A.applySettings(); A.updateStakeTarget(); if (A.antLabel) A.antLabel(); A.closeSheet(); A.toast('✓ Αποθηκεύτηκε', 'ok');
         if (nl !== HI18N.lang()) setTimeout(() => HI18N.setLang(nl), 400);

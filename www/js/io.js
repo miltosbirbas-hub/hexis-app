@@ -72,17 +72,20 @@
 
   // ---------- Εξαγωγές ----------
   const f3 = v => v == null ? '' : v.toFixed(3);
+  // συντεταγμένες: δεκαδικά από τις ρυθμίσεις (προεπιλογή 4)
+  const DEC = () => { const d = g.APP && g.APP.settings && g.APP.settings.decimals; return d >= 2 && d <= 6 ? d : 4; };
+  const fc = v => v == null ? '' : v.toFixed(DEC());
   function toTXT(points, sep) {
     sep = sep || ',';
-    return points.map(p => [p.name, f3(p.E), f3(p.N), f3(p.Z), p.code || ''].join(sep)).join('\r\n') + '\r\n';
+    return points.map(p => [p.name, fc(p.E), fc(p.N), fc(p.Z), p.code || ''].join(sep)).join('\r\n') + '\r\n';
   }
   function toCSV(points) {
     const h = ['Name', 'X(E)', 'Y(N)', 'Z', 'Code', 'Type', 'Solution', 'HRMS', 'VRMS', 'PDOP', 'Sats', 'Age', 'AntennaH', 'Lat', 'Lon', 'EllH', 'Date', 'Time', 'dX', 'dY', 'dZ', 'Target', 'Photos', 'Note'];
     const q = v => { v = v == null ? '' : String(v); return /[",;\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
     const rows = points.map(p => {
       const d = p.time ? new Date(p.time) : null;
-      return [p.name, f3(p.E), f3(p.N), f3(p.Z), p.code, p.type, p.fix, f3(p.hrms), f3(p.vrms), p.pdop != null ? p.pdop.toFixed(1) : '', p.sats, p.age != null ? p.age.toFixed(1) : '', f3(p.antH),
-        p.lat != null ? p.lat.toFixed(9) : '', p.lon != null ? p.lon.toFixed(9) : '', f3(p.ellH),
+      return [p.name, fc(p.E), fc(p.N), fc(p.Z), p.code, p.type, p.fix, f3(p.hrms), f3(p.vrms), p.pdop != null ? p.pdop.toFixed(1) : '', p.sats, p.age != null ? p.age.toFixed(1) : '', f3(p.antH),
+        p.lat != null ? p.lat.toFixed(9) : '', p.lon != null ? p.lon.toFixed(9) : '', fc(p.ellH),
         d ? d.toLocaleDateString('el-GR') : '', d ? d.toLocaleTimeString('el-GR') : '',
         p.stake ? f3(p.stake.dE) : '', p.stake ? f3(p.stake.dN) : '', p.stake ? f3(p.stake.dZ) : '', p.stake ? p.stake.target : '',
         (p.photos || []).map((x, i) => photoName(p, i)).join(' '), p.note || ''].map(q).join(';');
@@ -101,7 +104,7 @@
     const q = v => { v = v == null ? '' : String(v); return /[",;\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
     return '\ufeff' + h.join(';') + '\r\n' + stakeRows(st, tH, tV).map(({ p, s, dh, okH, okV }) => {
       const d = new Date(p.time);
-      return [s.target, f3(s.tE), f3(s.tN), f3(s.tZ), p.name, f3(p.E), f3(p.N), f3(p.Z), f3(s.dE), f3(s.dN), f3(dh), f3(s.dZ), okH && okV ? 'ΝΑΙ' : 'ΟΧΙ', f3(p.hrms), f3(p.vrms), p.fix, d.toLocaleDateString('el-GR'), d.toLocaleTimeString('el-GR')].map(q).join(';');
+      return [s.target, fc(s.tE), fc(s.tN), fc(s.tZ), p.name, fc(p.E), fc(p.N), fc(p.Z), f3(s.dE), f3(s.dN), f3(dh), f3(s.dZ), okH && okV ? 'ΝΑΙ' : 'ΟΧΙ', f3(p.hrms), f3(p.vrms), p.fix, d.toLocaleDateString('el-GR'), d.toLocaleTimeString('el-GR')].map(q).join(';');
     }).join('\r\n') + '\r\n';
   }
   function toStakeTXT(st, tH, tV, proj, crs) {
@@ -109,7 +112,7 @@
     const rows = stakeRows(st, tH, tV);
     let t = `ΑΡΧΕΙΟ ΕΠΙΒΕΒΑΙΩΣΗΣ ΧΑΡΑΞΗΣ — HEXIS PAD\r\nΈργο: ${proj}\r\nΣύστημα: ${crs}\r\nΑνοχή: οριζ. ${tH.toFixed(3)} m · κατακ. ${tV.toFixed(3)} m\r\nΗμερομηνία: ${new Date().toLocaleString('el-GR')}\r\n\r\n`;
     t += pad('Στόχος', 12) + pad('Χαραγμένο', 12) + pl('X', 13) + pl('Y', 14) + pl('Z', 9) + pl('ΔX', 8) + pl('ΔY', 8) + pl('ΔΟριζ', 8) + pl('ΔZ', 8) + '  Ανοχή\r\n' + '-'.repeat(100) + '\r\n';
-    rows.forEach(({ p, s, dh, okH, okV }) => { t += pad(s.target, 12) + pad(p.name, 12) + pl(f3(p.E), 13) + pl(f3(p.N), 14) + pl(f3(p.Z), 9) + pl(f3(s.dE), 8) + pl(f3(s.dN), 8) + pl(f3(dh), 8) + pl(f3(s.dZ), 8) + '  ' + (okH && okV ? 'ΝΑΙ' : 'ΟΧΙ') + '\r\n'; });
+    rows.forEach(({ p, s, dh, okH, okV }) => { t += pad(s.target, 12) + pad(p.name, 12) + pl(fc(p.E), 14) + pl(fc(p.N), 15) + pl(fc(p.Z), 10) + pl(f3(s.dE), 8) + pl(f3(s.dN), 8) + pl(f3(dh), 8) + pl(f3(s.dZ), 8) + '  ' + (okH && okV ? 'ΝΑΙ' : 'ΟΧΙ') + '\r\n'; });
     const ok = rows.filter(r => r.okH && r.okV).length;
     t += '-'.repeat(100) + `\r\nΣύνολο: ${rows.length} σημεία · εντός ανοχής: ${ok} · εκτός: ${rows.length - ok}\r\n`;
     return t;
@@ -120,7 +123,7 @@
     const pm = points.filter(p => p.lat != null || p.E != null).map(p => {
       let lat = p.lat, lon = p.lon;
       if (lat == null) { const ll = HGEO.toLL(p.E, p.N); lat = ll.lat; lon = ll.lon; }
-      return `<Placemark><name>${esc(p.name)}</name><description>${esc(p.code)} Z=${f3(p.Z)}</description><Point><coordinates>${lon.toFixed(9)},${lat.toFixed(9)},${(p.Z || 0).toFixed(3)}</coordinates></Point></Placemark>`;
+      return `<Placemark><name>${esc(p.name)}</name><description>${esc(p.code)} Z=${f3(p.Z)}</description><Point><coordinates>${lon.toFixed(9)},${lat.toFixed(9)},${(p.Z || 0).toFixed(DEC())}</coordinates></Point></Placemark>`;
     }).join('\n');
     return `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${esc(name)}</name>\n${pm}\n</Document></kml>\n`;
   }

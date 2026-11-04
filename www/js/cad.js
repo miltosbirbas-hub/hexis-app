@@ -298,7 +298,8 @@
     layers.forEach(n => { p(0, 'LAYER'); p(2, n); p(70, 0); p(62, col[n] || 7); p(6, 'CONTINUOUS'); });
     p(0, 'ENDTAB'); p(0, 'ENDSEC');
     p(0, 'SECTION'); p(2, 'ENTITIES');
-    const f = v => (v == null ? 0 : v).toFixed(4);
+    const dec = opts.decimals >= 2 && opts.decimals <= 6 ? opts.decimals : 4;
+    const f = v => (v == null ? 0 : v).toFixed(dec);
     points.forEach(pt => {
       p(0, 'POINT'); p(8, pt.layer || 'HP_POINTS'); p(10, f(pt.E)); p(20, f(pt.N)); p(30, f(pt.Z));
       p(0, 'TEXT'); p(8, 'HP_NAMES'); p(10, f(pt.E + th * 0.6)); p(20, f(pt.N + th * 0.3)); p(30, f(pt.Z)); p(40, th); p(1, pt.name || '');

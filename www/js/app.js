@@ -7,7 +7,7 @@
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
   const DEF = {
-    crs: 'EGSA87_HEPOS', crsCustom: '', theme: 'light', antH: 1.8, antOff: 0, antOffSrc: '', onlyFix: true, epochs: 5, qcClass: 'RT3',
+    crs: 'EGSA87_HEPOS', crsCustom: '', theme: 'light', antH: 1.8, antOff: 0, antOffSrc: '', decimals: 4, onlyFix: true, epochs: 5, qcClass: 'RT3',
     tolH: 0.02, tolV: 0.02, beep: true, heightMode: 'msl', base: 'none', uiv: 5, voiceSay: true, overlays: { esri_labels: false, kt_wms: false, hexis_kaek: false },
     googleKey: '', soRef: 'move', ntrip: { host: '', port: 2101, mount: '', user: '', pass: '', gga: true, auto: false }, gnss: { type: 'bt', address: '', name: '', host: '', port: 0, init: '' },
     laser: { address: '', name: '' }, decl: 4.5, fixWait: 10, soundPoint: true, soundFix: true, volume: 0.25, lastProject: null, textH: 0.25,
