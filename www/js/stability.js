@@ -72,7 +72,15 @@
     'GPGGA COM1 1', 'GPGGA COM2 1', 'GPGGA COM3 1', 'GPGST COM1 1', 'GPGST COM2 1', 'GPGST COM3 1', 'GPGSA COM1 1', 'GPGSA COM2 1', 'GPGSA COM3 1',
     // NovAtel / ComNav
     'LOG GPGGA ONTIME 1', 'LOG GPGST ONTIME 1', 'LOG GPGSA ONTIME 1',
+    // μηνύματα θέσης που η εφαρμογή διαβάζει και χωρίς NMEA (Unicore / NovAtel)
+    'BESTNAVA 1', 'BESTPOSA 1', 'LOG BESTPOSA ONTIME 1',
   ];
+  // ενημέρωση όταν η θέση έρχεται από αποκωδικοποίηση πρωτοκόλλου (όχι NMEA)
+  let fmtShown = '';
+  setInterval(async () => {
+    if (!HIO.isNative() || HCONN.state.gnss !== 'on') { fmtShown = ''; return; }
+    const st = await stats(); if (st && st.format && st.format !== fmtShown) { fmtShown = st.format; A.toast('📡 ' + t('Αναγνωρίστηκε πρωτόκολλο δέκτη') + ': ' + st.format, 'ok', 4000); }
+  }, 5000);
   async function stats() { try { return await g.Capacitor.Plugins.HexisGnss.connStats({ channel: 'gnss' }); } catch (e) { return null; } }
   HCONN.on('status', d => {
     if (d.channel !== 'gnss' || d.state !== 'connected' || !HIO.isNative()) return;
@@ -83,8 +91,8 @@
       A.toast(t('Ο δέκτης δεν στέλνει θέση (NMEA) — στέλνω εντολές ενεργοποίησης…'), '', 3500);
       for (const c of WAKE) { try { await HCONN.write('gnss', c + '\r\n'); } catch (e) { } await new Promise(r => setTimeout(r, 120)); }
       wakeT = setTimeout(async () => {
-        if (lastGga > t0 || HCONN.state.gnss !== 'on') { if (lastGga > t0) A.toast('✓ ' + t('Ο δέκτης στέλνει πλέον θέση'), 'ok'); return; }
         const s = await stats();
+        if (lastGga > t0 || HCONN.state.gnss !== 'on') { if (lastGga > t0) A.toast('✓ ' + t('Ο δέκτης στέλνει πλέον θέση') + (s && s.format ? ' (' + s.format + ')' : ''), 'ok', 4000); return; }
         const msg = s && s.bytes > 0
           ? t('Ο δέκτης στέλνει δεδομένα αλλά όχι θέση NMEA (GGA)') + ' (' + s.bytes + ' bytes). ' + t('Ενεργοποίησε την έξοδο NMEA GGA στο Bluetooth από την εφαρμογή του κατασκευαστή.')
           : t('Δεν έρχεται τίποτα από τον δέκτη. Μήπως είναι συνδεδεμένος σε άλλη συσκευή (χειριστήριο / εφαρμογή κατασκευαστή); Κλείσε την άλλη σύνδεση ή σβήσε-άναψε τον δέκτη.');

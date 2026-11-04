@@ -158,3 +158,10 @@ Object.assign(window.HEXIS_EN, {
   "Κείμενο": "Text", "Στείλε φωτογραφία αυτής της οθόνης για να προστεθεί υποστήριξη του δέκτη σου.": "Send a photo of this screen so support for your receiver can be added.",
   "Αντιγραφή": "Copy", "Αντιγράφηκε": "Copied", "Δεν επιτράπηκε η αντιγραφή": "Copy not allowed", "🔎 Δείγμα δεδομένων δέκτη (διάγνωση)": "🔎 Receiver data sample (diagnostics)"
 });
+Object.assign(window.HEXIS_EN, {
+  "Αναγνωρίστηκε πρωτόκολλο δέκτη": "Receiver protocol recognised", "Πρώτη σύνδεση δέκτη": "First receiver connection", "Άναψε τον δέκτη.": "Switch the receiver on.",
+  "Πάτα το κουμπί και διάλεξε τον δέκτη στη λίστα του Bluetooth (το όνομα είναι συνήθως ο σειριακός αριθμός του — S/N στο ταμπελάκι). Αν ζητήσει κωδικό: 1234 ή 0000.": "Tap the button and choose the receiver in the Bluetooth list (its name is usually the serial number — S/N on the label). If asked for a code: 1234 or 0000.",
+  "Γύρνα πίσω — η εφαρμογή βρίσκει και συνδέει τον δέκτη μόνη της.": "Come back — the app finds and connects the receiver by itself.",
+  "Αν ο δέκτης έχει NFC, ακούμπησε το κινητό πάνω του — η σύζευξη γίνεται αυτόματα.": "If the receiver has NFC, touch the phone to it — pairing happens automatically.",
+  "⚙ Σύζευξη δέκτη (Bluetooth)": "⚙ Pair receiver (Bluetooth)", "Αργότερα": "Later", "Σύνδεση με": "Connecting to", "Συνδέθηκε ο δέκτης": "Receiver connected"
+});

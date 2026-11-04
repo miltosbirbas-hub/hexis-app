@@ -445,8 +445,9 @@
       document.addEventListener('visibilitychange', onVis);
       draw();
       b.querySelectorAll('#ct button').forEach(x => x.onclick = () => { G.type = x.dataset.v; b.querySelectorAll('#ct button').forEach(y => y.classList.toggle('on', y === x)); draw(); });
-      b.querySelector('#dis').onclick = async () => { await HCONN.disconnect('gnss'); A.toast('Αποσυνδέθηκε'); };
+      b.querySelector('#dis').onclick = async () => { A._userDisconnected = true; await HCONN.disconnect('gnss'); A.toast('Αποσυνδέθηκε'); };
       b.querySelector('#con').onclick = async () => {
+        A._userDisconnected = false;
         G.init = b.querySelector('#init').value;
         const cfg = { type: G.type, channel: 'gnss' };
         if (G.type === 'bt') { const s = cb.querySelector('#dev'); if (!s) return A.toast('Δεν υπάρχει συσκευή', 'bad'); G.address = s.value; G.name = s.options[s.selectedIndex].text; cfg.address = G.address; }
@@ -468,10 +469,50 @@
     if (d.state === 'error') A.toast((d.channel === 'laser' ? 'Laser: ' : 'Δέκτης: ') + (d.message || 'σφάλμα'), 'bad', 4000);
     if (d.state === 'disconnected' && d.channel === 'gnss' && d.reason) A.toast('Ο δέκτης αποσυνδέθηκε', 'bad');
   };
+  // Αυτόματη σύνδεση: μόλις ανοίξει η εφαρμογή και είναι αναμμένος ο δέκτης — χωρίς επιλογές.
+  // · αν υπάρχει γνωστός δέκτης, συνδέεται σε αυτόν· αλλιώς δοκιμάζει τους πιθανούς δέκτες (★) από τις συζευγμένες συσκευές
+  // · αν ο δέκτης είναι σβηστός, ξαναδοκιμάζει κάθε λίγα δευτερόλεπτα μέχρι να ανάψει
+  let acBusy = false, acTimer = null, acTry = 0;
   A.autoConnect = async function () {
+    clearTimeout(acTimer);
     const G = A.settings.gnss;
-    if (HCONN.hasNative() && G.type === 'bt' && G.address) { try { await HCONN.connect({ type: 'bt', address: G.address, channel: 'gnss' }); if (A.settings.ntrip.auto && A.settings.ntrip.host) A.startNtrip(); } catch (e) { } }
+    if (!HCONN.hasNative() || HCONN.state.gnss === 'on' || A._userDisconnected || acBusy) return schedule();
+    if (G.type && G.type !== 'bt') return;
+    acBusy = true;
+    try {
+      let list = [];
+      if (G.address) list.push({ address: G.address, name: G.name || '' });
+      try {
+        const devs = rankDevs(await HCONN.listPaired()).filter(d => d.likely && d.address !== G.address);
+        list = list.concat(devs);
+      } catch (e) { }
+      if (!list.length) { if (!A._acHinted && $('sheet').classList.contains('hidden')) { A._acHinted = true; firstPair(); } return; }
+      const d = list[acTry % list.length]; acTry++;
+      if (!A._acQuiet) A.toast('📡 Σύνδεση με ' + (d.name || d.address) + '…', '', 2500);
+      await HCONN.connect({ type: 'bt', address: d.address, channel: 'gnss' });
+      // βρέθηκε: αποθηκεύεται ως ο δέκτης μου
+      G.type = 'bt'; G.address = d.address; G.name = d.name || d.address; A.saveSettings();
+      A.toast('✓ Συνδέθηκε ο δέκτης ' + (d.name || ''), 'ok', 2500);
+      if (A.settings.ntrip.auto && A.settings.ntrip.host) A.startNtrip();
+      acTry = 0;
+    } catch (e) { A._acQuiet = true; } finally { acBusy = false; schedule(); }
   };
+  // Πρώτη φορά: ένα κουμπί → σύζευξη στο Android → επιστροφή → σύνδεση μόνη της
+  function firstPair() {
+    A.sheet('Πρώτη σύνδεση δέκτη', `<div class="result"><b>1.</b> Άναψε τον δέκτη.<br><b>2.</b> Πάτα το κουμπί και διάλεξε τον δέκτη στη λίστα του Bluetooth (το όνομα είναι συνήθως ο σειριακός αριθμός του — S/N στο ταμπελάκι). Αν ζητήσει κωδικό: 1234 ή 0000.<br><b>3.</b> Γύρνα πίσω — η εφαρμογή βρίσκει και συνδέει τον δέκτη μόνη της.</div>
+      <p class="muted">Αν ο δέκτης έχει NFC, ακούμπησε το κινητό πάνω του — η σύζευξη γίνεται αυτόματα.</p>
+      <button class="btn primary big" id="fp-bt">⚙ Σύζευξη δέκτη (Bluetooth)</button>
+      <button class="btn" id="fp-later">Αργότερα</button>`, b => {
+      b.querySelector('#fp-bt').onclick = () => { try { g.Capacitor.Plugins.HexisGnss.openBtSettings(); } catch (e) { } A.closeSheet(); A._acQuiet = false; };
+      b.querySelector('#fp-later').onclick = () => A.closeSheet();
+    });
+  }
+  // επιστροφή από τις ρυθμίσεις Bluetooth → αμέσως δοκιμή σύνδεσης
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && HCONN.state.gnss !== 'on' && !A._userDisconnected) setTimeout(() => A.autoConnect(), 800); });
+  function schedule() {
+    clearTimeout(acTimer);
+    acTimer = setTimeout(() => { if (document.visibilityState === 'visible' && HCONN.state.gnss !== 'on' && !A._userDisconnected) A.autoConnect(); else schedule(); }, HCONN.state.gnss === 'on' ? 20000 : 8000);
+  }
 
   // ==================== NTRIP ====================
   A.startNtrip = async function () {

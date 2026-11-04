@@ -83,6 +83,13 @@ public class HexisGnssPlugin extends Plugin {
         Thread reader;
         String name = "";
         volatile long bytesIn = 0, linesIn = 0;
+        volatile long lastRealGga = 0;
+        private boolean synth = false;
+        // θέση από δυαδικά/ειδικά πρωτόκολλα (Unicore, NovAtel, u-blox) όταν ο δέκτης δεν στέλνει NMEA
+        final GnssDecoder dec = new GnssDecoder(l -> {
+            if (System.currentTimeMillis() - lastRealGga < 3000) return; // υπάρχει κανονικό NMEA — δεν διπλασιάζουμε
+            synth = true; try { emitLine(l); } finally { synth = false; }
+        });
 
         Conn(String channel) { this.channel = channel; }
 
@@ -107,6 +114,7 @@ public class HexisGnssPlugin extends Plugin {
                         int n = in.read(buf);
                         if (n < 0) break;
                         bytesIn += n;
+                        if ("gnss".equals(channel)) { try { dec.feed(buf, n); } catch (Exception ignored) { } }
                         ByteArrayOutputStream sn = sniff;
                         if (sn != null && "gnss".equals(channel) && sn.size() < 4096) { synchronized (sn) { sn.write(buf, 0, Math.min(n, 4096 - sn.size())); } }
                         if ("gnss".equals(channel) && rawOut != null) {
@@ -145,8 +153,10 @@ public class HexisGnssPlugin extends Plugin {
         long lastGgaEmit = 0, lastAttEmit = 0, lastHashEmit = 0;
         void emitLine(String s) {
             if ("gnss".equals(channel) && diagAll) { JSObject o = new JSObject(); o.put("channel", channel); o.put("line", s); notifyListeners("nmea", o); return; }
+            if ("gnss".equals(channel) && s.startsWith("#BEST")) { if (System.currentTimeMillis() - lastRealGga >= 3000) dec.ascii(s); return; }
             if ("gnss".equals(channel) && s.startsWith("$") && s.length() > 6) {
                 String t = s.substring(3, 6);
+                if (t.equals("GGA") && !synth) lastRealGga = System.currentTimeMillis();
                 if (t.equals("GGA")) { lastGga = s; long now = System.currentTimeMillis(); if (now - lastGgaEmit < 95) return; lastGgaEmit = now; }
                 // προς την οθόνη μόνο ό,τι χρειάζεται — προστασία από «πλημμύρα» δεδομένων στα 10–20 Hz
                 else if (t.equals("GSV")) { String[] f = s.split(",", 4); if (f.length < 3 || !"1".equals(f[2])) return; }
@@ -864,6 +874,7 @@ public class HexisGnssPlugin extends Plugin {
         Conn c = conns.get(call.getString("channel", "gnss"));
         JSObject o = new JSObject();
         o.put("connected", c != null); o.put("bytes", c != null ? c.bytesIn : 0); o.put("lines", c != null ? c.linesIn : 0);
+        o.put("format", c != null ? c.dec.format : "");
         call.resolve(o);
     }
 
