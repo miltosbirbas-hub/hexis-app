@@ -131,6 +131,8 @@
     if (k === 'survey') { close(); A.setTab('survey'); }
     if (k === 'stake') { close(); A.setTab('stake'); A.setStakeMode('point'); if (!A.stake.target) { const l = A.stakeList(); if (l.length) A.setTarget(l.find(p => !p.done) || l[0]); else A.toast('Εισήγαγε σημεία χάραξης (Εισαγωγή αρχείου) ή πάτα ⌖ στον χάρτη'); } }
     if (k === 'stakeline') { close(); A.setTab('stake'); A.setStakeMode('line'); if (!A.stake.line) A.pickLineSheet(); }
+    if (k === 'grid') { close(); A.gridTool(); }
+    if (k === 'laserpt') { close(); A.setTab('survey'); A.laserPoint(); }
     if (k === 'cont') { close(); A.setTab('survey'); A.contSheet(); }
     if (k === 'static') { close(); A.setTab('survey'); A.staticSheet(); }
     if (k === 'voice') { close(); A.voice.toggle(); }

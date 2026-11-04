@@ -117,3 +117,14 @@ Object.assign(window.HEXIS_EN, {
   "θέσεις": "positions", "γωνία": "angle", "Απόσταση": "Distance", "Δεν υπάρχει θέση GNSS": "No GNSS position"
 });
 Object.assign(window.HEXIS_EN, { "Σημείο με laser": "Point by laser" });
+Object.assign(window.HEXIS_EN, {
+  "Αποτύπωση · Χάραξη · RTK": "Survey · Stakeout · RTK", "Χάρτης": "Map", "Μέτρηση σημείων με RTK": "Measure points with RTK", "Σημεία από αρχείο ή σχέδιο": "Points from file or drawing",
+  "Μέτρηση": "Measurement", "Κατασκευή & υπολογισμοί": "Construction & calculations", "Δεδομένα": "Data", "Δέκτης & σύνδεση": "Receiver & connection", "Εφαρμογή": "App",
+  "Ανά απόσταση ή χρόνο": "By distance or time", "Μακρά στάση + αρχείο δέκτη": "Long occupation + receiver file", "Άξονες, οδοί, όρια": "Axes, roads, boundaries",
+  "DISTO από 2–3 θέσεις": "DISTO from 2–3 positions", "Χάραξη επιφάνειας": "Surface stakeout", "Ορθές γωνίες κατασκευής": "Construction right angles", "Φύτευση, πάσσαλοι": "Planting, stakes",
+  "Τομές, επεκτάσεις, εμβαδά": "Intersections, extensions, areas", "Calibration σε γνωστά σημεία": "Calibration on known points", "Λίστα, επεξεργασία, χάραξη": "List, edit, stakeout",
+  "Από email ή Excel": "From email or Excel", "TXT · CSV · DXF · φωτογραφίες": "TXT · CSV · DXF · photos", "Νέο, άνοιγμα, αντίγραφα": "New, open, backups",
+  "Bluetooth · TCP": "Bluetooth · TCP", "Δική σου βάση, μετάθεση": "Your own base, shift", "Κλίση ή απόλυτη κέντρωση": "Tilt or strict plumb", "Σύνδεση αποστασιομέτρου": "Connect a rangefinder",
+  "ΕΓΣΑ87 · HEPOS · άλλα": "GGRS87 · HEPOS · others", "Ήχοι, εμφάνιση, μέτρηση": "Sounds, display, measurement", "Πρόσθεσε / αφαίρεσε εργαλεία": "Add / remove tools",
+  "Βήμα-βήμα με εικόνες": "Step by step with pictures", "Χάραξη": "Stakeout", "Σημείο με laser": "Point by laser", "Κάνναβος": "Grid"
+});
