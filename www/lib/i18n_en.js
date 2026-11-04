@@ -200,3 +200,12 @@ Object.assign(window.HEXIS_EN, {
   "Χάθηκε το Wi-Fi του δέκτη — επανασύνδεση…": "Receiver Wi-Fi lost — reconnecting…", "Σύνδεση": "Login",
   "Σύνδεση: admin / admin. Μενού I/O ή Data Output → Bluetooth → NMEA GGA, GST, GSA, RMC → 1 Hz → Save.": "Login: admin / admin. I/O or Data Output menu → Bluetooth → NMEA GGA, GST, GSA, RMC → 1 Hz → Save."
 });
+Object.assign(window.HEXIS_EN, {
+  "Καταγραφή Bluetooth": "Bluetooth capture", "🧪 Καταγραφή Bluetooth άλλης εφαρμογής": "🧪 Capture another app's Bluetooth",
+  "Καταγράφει τι στέλνει το λογισμικό του κατασκευαστή στον δέκτη, ώστε να το κάνει μόνη της η εφαρμογή. Δεν αλλάζει τίποτα στον δέκτη ή στο άλλο λογισμικό.": "Records what the manufacturer's software sends to the receiver, so the app can do it by itself. Changes nothing on the receiver or the other software.",
+  "Ρυθμίσεις Android → Επιλογές για προγραμματιστές → «Καταγραφή Bluetooth HCI» ενεργό → κλείσε-άνοιξε το Bluetooth.": "Android Settings → Developer options → “Bluetooth HCI snoop log” on → toggle Bluetooth off/on.",
+  "Πάτα «Έναρξη» εδώ.": "Tap “Start” here.", "Άνοιξε το λογισμικό του κατασκευαστή, σύνδεσε τον δέκτη, πάρε 1–2 σημεία, αποσύνδεσε.": "Open the manufacturer's software, connect the receiver, take 1–2 points, disconnect.",
+  "Γύρνα εδώ → «Διακοπή & αποστολή».": "Come back here → “Stop & send”.", "Καταγραφή σε εξέλιξη": "Capturing", "Ανενεργή": "Inactive", "Διακοπή & αποστολή": "Stop & send", "Έναρξη": "Start", "Αποστολή αρχείου": "Send file",
+  "Όσο γίνεται η καταγραφή, η εφαρμογή δεν συνδέεται μόνη της στον δέκτη, για να μην ενοχλεί το άλλο λογισμικό.": "While capturing, the app does not connect to the receiver by itself, so it does not disturb the other software.",
+  "Καταγραφή ξεκίνησε — άνοιξε τώρα το λογισμικό του κατασκευαστή": "Capture started — now open the manufacturer's software"
+});

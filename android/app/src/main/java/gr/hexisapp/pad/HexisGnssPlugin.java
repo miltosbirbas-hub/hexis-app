@@ -1079,6 +1079,51 @@ public class HexisGnssPlugin extends Plugin {
         } catch (Exception e) { call.reject(e.getMessage()); }
     }
 
+
+    // ---------- Καταγραφή Bluetooth (HCI snoop) από την υπηρεσία του Android (127.0.0.1:8872) ----------
+    // Για να δούμε τι στέλνει το λογισμικό του κατασκευαστή στον δέκτη και να το κάνει μόνη της η εφαρμογή.
+    private volatile Socket hciSock = null;
+    private volatile File hciFile = null;
+    private volatile long hciBytes = 0;
+
+    @PluginMethod
+    public void hciCaptureStart(final PluginCall call) {
+        hciCaptureStopInternal();
+        new Thread(() -> {
+            try {
+                Socket s = new Socket();
+                s.connect(new InetSocketAddress("127.0.0.1", 8872), 3000);
+                File dir = new File(getContext().getExternalFilesDir(null), "Diag"); dir.mkdirs();
+                String fn = "bt_capture_" + new java.text.SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new java.util.Date()) + ".btsnoop";
+                File f = new File(dir, fn);
+                hciSock = s; hciFile = f; hciBytes = 0;
+                JSObject ok = new JSObject(); ok.put("file", f.getAbsolutePath()); call.resolve(ok);
+                try (InputStream in = s.getInputStream(); FileOutputStream out = new FileOutputStream(f)) {
+                    byte[] b = new byte[8192]; int n;
+                    while ((n = in.read(b)) > 0) { out.write(b, 0, n); hciBytes += n; }
+                } catch (Exception ignored) { }
+            } catch (Exception e) {
+                call.reject("Η καταγραφή Bluetooth δεν είναι διαθέσιμη: ενεργοποίησε «Καταγραφή Bluetooth HCI» στις Επιλογές για προγραμματιστές και κλείσε-άνοιξε το Bluetooth (" + e.getMessage() + ")");
+            }
+        }, "hexis-hci").start();
+    }
+
+    private void hciCaptureStopInternal() {
+        try { if (hciSock != null) hciSock.close(); } catch (Exception ignored) { }
+        hciSock = null;
+    }
+
+    @PluginMethod
+    public void hciCaptureStatus(PluginCall call) {
+        JSObject o = new JSObject(); o.put("on", hciSock != null && !hciSock.isClosed()); o.put("bytes", hciBytes); o.put("file", hciFile != null ? hciFile.getAbsolutePath() : ""); call.resolve(o);
+    }
+
+    @PluginMethod
+    public void hciCaptureStop(PluginCall call) {
+        hciCaptureStopInternal();
+        JSObject o = new JSObject(); o.put("bytes", hciBytes); o.put("file", hciFile != null ? hciFile.getAbsolutePath() : ""); call.resolve(o);
+    }
+
     @PluginMethod
     public void netState(PluginCall call) {
         JSObject o = new JSObject();

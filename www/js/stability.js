@@ -136,6 +136,30 @@
     });
   };
 
+  // Καταγραφή Bluetooth άλλης εφαρμογής (π.χ. του λογισμικού του κατασκευαστή) — για προσθήκη υποστήριξης δέκτη
+  A.btCapture = async function () {
+    if (!HIO.isNative()) return A.toast(t('Διαθέσιμο στην εφαρμογή Android'), 'bad');
+    const P = g.Capacitor.Plugins.HexisGnss;
+    let st = {}; try { st = await P.hciCaptureStatus(); } catch (e) { }
+    const render = () => A.sheet('Καταγραφή Bluetooth', `
+      <p class="muted">${t('Καταγράφει τι στέλνει το λογισμικό του κατασκευαστή στον δέκτη, ώστε να το κάνει μόνη της η εφαρμογή. Δεν αλλάζει τίποτα στον δέκτη ή στο άλλο λογισμικό.')}</p>
+      <div class="result"><b>1.</b> ${t('Ρυθμίσεις Android → Επιλογές για προγραμματιστές → «Καταγραφή Bluetooth HCI» ενεργό → κλείσε-άνοιξε το Bluetooth.')}<br>
+      <b>2.</b> ${t('Πάτα «Έναρξη» εδώ.')}<br><b>3.</b> ${t('Άνοιξε το λογισμικό του κατασκευαστή, σύνδεσε τον δέκτη, πάρε 1–2 σημεία, αποσύνδεσε.')}<br>
+      <b>4.</b> ${t('Γύρνα εδώ → «Διακοπή & αποστολή».')}</div>
+      <div id="bc-st" class="result ${st.on ? 'ok' : ''}">${st.on ? '⏺ ' + t('Καταγραφή σε εξέλιξη') + ' · ' + ((st.bytes || 0) / 1024).toFixed(1) + ' kB' : t('Ανενεργή')}</div>
+      <div class="row">${st.on ? `<button class="btn primary grow" id="bc-stop">■ ${t('Διακοπή & αποστολή')}</button>` : `<button class="btn primary grow" id="bc-start">⏺ ${t('Έναρξη')}</button>`}${st.file && !st.on ? `<button class="btn grow" id="bc-share">⇪ ${t('Αποστολή αρχείου')}</button>` : ''}</div>
+      <p class="muted">${t('Όσο γίνεται η καταγραφή, η εφαρμογή δεν συνδέεται μόνη της στον δέκτη, για να μην ενοχλεί το άλλο λογισμικό.')}</p>`, b => {
+      const sb = b.querySelector('#bc-start'); if (sb) sb.onclick = async () => {
+        try { A._userDisconnected = true; await HCONN.disconnect('gnss'); await P.hciCaptureStart(); A.toast('⏺ ' + t('Καταγραφή ξεκίνησε — άνοιξε τώρα το λογισμικό του κατασκευαστή'), 'ok', 4000); st = await P.hciCaptureStatus(); render(); }
+        catch (e) { A.sheet(t('Καταγραφή Bluetooth'), '<div class="result warn">' + A.esc(e.message || String(e)) + '</div><button class="btn primary" id="bc-ok">OK</button>', bb => bb.querySelector('#bc-ok').onclick = () => A.closeSheet()); }
+      };
+      const tb = b.querySelector('#bc-stop'); if (tb) tb.onclick = async () => { const r = await P.hciCaptureStop(); A._userDisconnected = false; st = { on: false, file: r.file, bytes: r.bytes }; render(); if (r.file) P.shareFile({ file: r.file }).catch(() => { }); };
+      const sh = b.querySelector('#bc-share'); if (sh) sh.onclick = () => P.shareFile({ file: st.file }).catch(e => A.toast(e.message, 'bad'));
+      if (st.on) { const iv = setInterval(async () => { const el = b.querySelector('#bc-st'); if (!document.body.contains(el)) return clearInterval(iv); try { const x = await P.hciCaptureStatus(); el.textContent = '⏺ ' + t('Καταγραφή σε εξέλιξη') + ' · ' + ((x.bytes || 0) / 1024).toFixed(1) + ' kB'; } catch (e) { } }, 1000); }
+    });
+    render();
+  };
+
   // ---------- Ελαφριά ενημέρωση οθόνης: ο χάρτης σχεδιάζει μόνο όταν φαίνεται ----------
   document.addEventListener('visibilitychange', () => {
     if (A.map) A.map._paused = document.visibilityState === 'hidden';
