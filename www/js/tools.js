@@ -451,7 +451,7 @@
         A._userDisconnected = false;
         G.init = b.querySelector('#init').value;
         const cfg = { type: G.type, channel: 'gnss' };
-        if (G.type === 'bt') { const s = cb.querySelector('#dev'); if (!s) return A.toast('Δεν υπάρχει συσκευή', 'bad'); G.address = s.value; G.name = s.options[s.selectedIndex].text; cfg.address = G.address; }
+        if (G.type === 'bt') { const s = cb.querySelector('#dev'); if (!s) return A.toast('Δεν υπάρχει συσκευή', 'bad'); if (G.address !== s.value) G.ble = false; G.address = s.value; G.name = s.options[s.selectedIndex].text; cfg.address = G.address; if (G.ble) cfg.type = 'ble'; A._bleTried = false; }
         if (G.type === 'tcp') { G.host = cb.querySelector('#th').value; G.port = parseInt(cb.querySelector('#tp').value, 10); cfg.host = G.host; cfg.port = G.port; }
         if (G.type === 'sim') cfg.center = A.proj.points.length ? A.proj.points[A.proj.points.length - 1] : { E: A.map.view.cx, N: A.map.view.cy, Z: 10 };
         A.saveSettings();
@@ -490,7 +490,7 @@
       if (!list.length) { if (!A._acHinted && $('sheet').classList.contains('hidden')) { A._acHinted = true; firstPair(); } return; }
       const d = list[acTry % list.length]; acTry++;
       if (!A._acQuiet) A.toast('📡 Σύνδεση με ' + (d.name || d.address) + '…', '', 2500);
-      await HCONN.connect({ type: 'bt', address: d.address, channel: 'gnss' });
+      await HCONN.connect({ type: G.ble && d.address === G.address ? 'ble' : 'bt', address: d.address, channel: 'gnss' });
       // βρέθηκε: αποθηκεύεται ως ο δέκτης μου
       G.type = 'bt'; G.address = d.address; G.name = d.name || d.address; A.saveSettings();
       A.toast('✓ Συνδέθηκε ο δέκτης ' + (d.name || ''), 'ok', 2500);

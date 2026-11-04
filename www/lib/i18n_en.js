@@ -186,3 +186,4 @@ Object.assign(window.HEXIS_EN, {
   "Δεν υπάρχει internet για το NTRIP. Άνοιξε τα δεδομένα κινητής.": "No internet for NTRIP. Turn mobile data on.",
   "Ο δέκτης συνδέεται μέσω Bluetooth — το Wi-Fi του δεν χρειάζεται. Οι διορθώσεις NTRIP θέλουν internet από το κινητό (4G/5G).": "The receiver connects over Bluetooth — its Wi-Fi is not needed. NTRIP corrections need internet from the phone (4G/5G)."
 });
+Object.assign(window.HEXIS_EN, { "Δεν έρχονται δεδομένα — δοκιμή σύνδεσης BLE…": "No data arriving — trying a BLE connection…", "Συνδέθηκε μέσω BLE": "Connected over BLE" });

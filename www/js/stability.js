@@ -39,7 +39,7 @@
   HCONN.connect = async function (cfg) {
     const r = await origConnect.call(HCONN, cfg);
     const ch = cfg.channel || 'gnss';
-    if (cfg.type === 'bt' || cfg.type === 'tcp') want[ch] = Object.assign({}, cfg); else want[ch] = null;
+    if (cfg.type === 'bt' || cfg.type === 'tcp' || cfg.type === 'ble') want[ch] = Object.assign({}, cfg); else want[ch] = null;
     return r;
   };
   const origDisc = HCONN.disconnect;
@@ -88,11 +88,20 @@
     const t0 = Date.now(); clearTimeout(wakeT);
     wakeT = setTimeout(async () => {
       if (lastGga > t0 || HCONN.state.gnss !== 'on') return;
+      // κλασικό Bluetooth χωρίς κανένα byte → δοκιμή μέσω Bluetooth Low Energy (πολλοί δέκτες στέλνουν εκεί)
+      const s0 = await stats();
+      if (s0 && s0.bytes === 0 && G.type === 'bt' && G.address && !G.ble && !A._bleTried) {
+        A._bleTried = true;
+        A.toast(t('Δεν έρχονται δεδομένα — δοκιμή σύνδεσης BLE…'), '', 3500);
+        try { await HCONN.connect({ type: 'ble', address: G.address, channel: 'gnss' }); G.ble = true; A.saveSettings(); A.toast('✓ ' + t('Συνδέθηκε μέσω BLE'), 'ok'); return; }
+        catch (e) { A.toast('BLE: ' + (e.message || e), 'bad', 3500); try { await HCONN.connect({ type: 'bt', address: G.address, channel: 'gnss' }); } catch (e2) { } return; }
+      }
       A.toast(t('Ο δέκτης δεν στέλνει θέση (NMEA) — στέλνω εντολές ενεργοποίησης…'), '', 3500);
       for (const c of WAKE) { try { await HCONN.write('gnss', c + '\r\n'); } catch (e) { } await new Promise(r => setTimeout(r, 120)); }
       wakeT = setTimeout(async () => {
         const s = await stats();
         if (lastGga > t0 || HCONN.state.gnss !== 'on') { if (lastGga > t0) A.toast('✓ ' + t('Ο δέκτης στέλνει πλέον θέση') + (s && s.format ? ' (' + s.format + ')' : ''), 'ok', 4000); return; }
+        if (s && s.bytes === 0 && G.ble) { G.ble = false; A.saveSettings(); }
         const msg = s && s.bytes > 0
           ? t('Ο δέκτης στέλνει δεδομένα αλλά όχι θέση NMEA (GGA)') + ' (' + s.bytes + ' bytes). ' + t('Ενεργοποίησε την έξοδο NMEA GGA στο Bluetooth από την εφαρμογή του κατασκευαστή.')
           : t('Δεν έρχεται τίποτα από τον δέκτη. Μήπως είναι συνδεδεμένος σε άλλη συσκευή (χειριστήριο / εφαρμογή κατασκευαστή); Κλείσε την άλλη σύνδεση ή σβήσε-άναψε τον δέκτη.');

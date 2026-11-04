@@ -6,6 +6,12 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothSocket;
+import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattCallback;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
+import android.bluetooth.BluetoothGattService;
+import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.content.Intent;
 import androidx.core.content.FileProvider;
@@ -78,6 +84,10 @@ public class HexisGnssPlugin extends Plugin {
         volatile boolean running = true;
         BluetoothSocket bt;
         Socket tcp;
+        BluetoothGatt gatt;                     // σύνδεση BLE (σειριακή μεταφορά πάνω από Bluetooth Low Energy)
+        BluetoothGattCharacteristic bleRx;
+        volatile int bleMtu = 23;
+        private final StringBuilder line = new StringBuilder();
         InputStream in;
         OutputStream out;
         Thread reader;
@@ -93,7 +103,22 @@ public class HexisGnssPlugin extends Plugin {
 
         Conn(String channel) { this.channel = channel; }
 
+        @SuppressLint("MissingPermission")
         synchronized void write(byte[] data, int len) throws IOException {
+            if (gatt != null) {
+                if (bleRx == null) throw new IOException("BLE: χωρίς κανάλι εγγραφής");
+                int chunk = Math.max(20, bleMtu - 3);
+                boolean noResp = (bleRx.getProperties() & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0;
+                bleRx.setWriteType(noResp ? BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE : BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
+                for (int o = 0; o < len; o += chunk) {
+                    byte[] part = java.util.Arrays.copyOfRange(data, o, Math.min(len, o + chunk));
+                    bleRx.setValue(part);
+                    boolean ok = false;
+                    for (int k = 0; k < 20 && !ok; k++) { ok = gatt.writeCharacteristic(bleRx); if (!ok) { try { Thread.sleep(25); } catch (InterruptedException ignored) { } } }
+                    try { Thread.sleep(noResp ? 15 : 40); } catch (InterruptedException ignored) { }
+                }
+                return;
+            }
             if (out != null) { out.write(data, 0, len); out.flush(); }
         }
 
@@ -103,36 +128,42 @@ public class HexisGnssPlugin extends Plugin {
             try { if (out != null) out.close(); } catch (Exception ignored) { }
             try { if (bt != null) bt.close(); } catch (Exception ignored) { }
             try { if (tcp != null) tcp.close(); } catch (Exception ignored) { }
+            try { if (gatt != null) { gatt.disconnect(); gatt.close(); } } catch (Exception ignored) { }
+        }
+
+        // κοινή επεξεργασία εισερχόμενων bytes (κλασικό Bluetooth, TCP, BLE)
+        void onBytes(byte[] buf, int n) {
+            bytesIn += n;
+            if ("gnss".equals(channel)) { try { dec.feed(buf, n); } catch (Exception ignored) { } }
+            ByteArrayOutputStream sn = sniff;
+            if (sn != null && "gnss".equals(channel) && sn.size() < 4096) { synchronized (sn) { sn.write(buf, 0, Math.min(n, 4096 - sn.size())); } }
+            if ("gnss".equals(channel) && rawOut != null) {
+                try { rawOut.write(buf, 0, n); rawBytes += n; } catch (Exception ignored) { }
+            }
+            synchronized (line) {
+                for (int i = 0; i < n; i++) {
+                    int b = buf[i] & 0xFF;
+                    if (b == '\n' || b == '\r') {
+                        if (line.length() > 0) { linesIn++; emitLine(line.toString()); line.setLength(0); }
+                    } else if (b >= 32 && b < 127) {
+                        if (line.length() < 400) line.append((char) b);
+                    } else if (b == '$') {
+                        line.setLength(0); line.append('$');
+                    } else {
+                        if (line.length() > 0 && line.charAt(0) != '$') line.setLength(0);
+                    }
+                }
+            }
         }
 
         void startReader() {
             reader = new Thread(() -> {
                 byte[] buf = new byte[4096];
-                StringBuilder line = new StringBuilder();
                 try {
                     while (running) {
                         int n = in.read(buf);
                         if (n < 0) break;
-                        bytesIn += n;
-                        if ("gnss".equals(channel)) { try { dec.feed(buf, n); } catch (Exception ignored) { } }
-                        ByteArrayOutputStream sn = sniff;
-                        if (sn != null && "gnss".equals(channel) && sn.size() < 4096) { synchronized (sn) { sn.write(buf, 0, Math.min(n, 4096 - sn.size())); } }
-                        if ("gnss".equals(channel) && rawOut != null) {
-                            try { rawOut.write(buf, 0, n); rawBytes += n; } catch (Exception ignored) { }
-                        }
-                        for (int i = 0; i < n; i++) {
-                            int b = buf[i] & 0xFF;
-                            if (b == '\n' || b == '\r') {
-                                if (line.length() > 0) { linesIn++; emitLine(line.toString()); line.setLength(0); }
-                            } else if (b >= 32 && b < 127) {
-                                if (line.length() < 400) line.append((char) b);
-                            } else if (b == '$') {
-                                line.setLength(0); line.append('$');
-                            } else {
-                                // δυαδικά δεδομένα (π.χ. RTCM/UBX) — αγνοούνται
-                                if (line.length() > 0 && line.charAt(0) != '$') line.setLength(0);
-                            }
-                        }
+                        onBytes(buf, n);
                     }
                 } catch (IOException e) {
                     if (running) status(channel, "error", "Η σύνδεση διακόπηκε: " + e.getMessage());
@@ -231,7 +262,7 @@ public class HexisGnssPlugin extends Plugin {
     @PluginMethod
     public void connect(PluginCall call) {
         String type = call.getString("type", "bt");
-        if ("bt".equals(type) && !hasBtPermission()) { requestPermissionForAlias("bt31", call, "connectPermCb"); return; }
+        if (("bt".equals(type) || "ble".equals(type)) && !hasBtPermission()) { requestPermissionForAlias("bt31", call, "connectPermCb"); return; }
         doConnect(call);
     }
 
@@ -258,13 +289,17 @@ public class HexisGnssPlugin extends Plugin {
                     s.connect(new InetSocketAddress(host, port), 8000);
                     s.setTcpNoDelay(true);
                     c.tcp = s; c.in = s.getInputStream(); c.out = s.getOutputStream(); c.name = host + ":" + port;
+                } else if ("ble".equals(type)) {
+                    conns.put(channel, c);
+                    openBle(c, address);
+                    c.name = address + " (BLE)";
                 } else {
                     c.bt = openBt(address);
                     c.in = c.bt.getInputStream(); c.out = c.bt.getOutputStream();
                     c.name = address;
                 }
                 conns.put(channel, c);
-                c.startReader();
+                if (c.gatt == null) c.startReader();
                 updateService();
                 JSObject o = new JSObject();
                 o.put("channel", channel); o.put("state", "connected"); o.put("name", c.name);
@@ -272,6 +307,7 @@ public class HexisGnssPlugin extends Plugin {
                 call.resolve(o);
             } catch (Exception e) {
                 c.close();
+                conns.remove(channel, c);
                 status(channel, "error", e.getMessage());
                 call.reject("Αποτυχία σύνδεσης: " + e.getMessage());
             }
@@ -304,6 +340,82 @@ public class HexisGnssPlugin extends Plugin {
             }
         }
         throw last != null ? last : new IOException("Αποτυχία Bluetooth");
+    }
+
+
+    // ---------- Bluetooth Low Energy: σειριακή μεταφορά (UART) που χρησιμοποιούν πολλοί δέκτες ----------
+    private static final String[][] BLE_UART = {
+        // { service, notify (δέκτης → κινητό), write (κινητό → δέκτης) }
+        { "6e400001-b5a3-f393-e0a9-e50e24dcca9e", "6e400003-b5a3-f393-e0a9-e50e24dcca9e", "6e400002-b5a3-f393-e0a9-e50e24dcca9e" }, // Nordic UART
+        { "49535343-fe7d-4ae5-8fa9-9fafd205e455", "49535343-1e4d-4bd9-ba61-23c647249616", "49535343-8841-43f4-a8d4-ecbe34729bb3" }, // Microchip/ISSC
+        { "2456e1b9-26e2-8f83-e744-f34f01e9d701", "2456e1b9-26e2-8f83-e744-f34f01e9d703", "2456e1b9-26e2-8f83-e744-f34f01e9d703" }, // u-blox SPS
+        { "0000ffe0-0000-1000-8000-00805f9b34fb", "0000ffe1-0000-1000-8000-00805f9b34fb", "0000ffe1-0000-1000-8000-00805f9b34fb" }, // HM-10 / CC254x
+        { "0000fff0-0000-1000-8000-00805f9b34fb", "0000fff1-0000-1000-8000-00805f9b34fb", "0000fff2-0000-1000-8000-00805f9b34fb" },
+    };
+    private static final UUID CCCD = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
+
+    @SuppressLint("MissingPermission")
+    private void openBle(final Conn c, String address) throws IOException {
+        BluetoothAdapter a = adapter();
+        if (a == null) throw new IOException("Η συσκευή δεν έχει Bluetooth");
+        if (!a.isEnabled()) throw new IOException("Το Bluetooth είναι κλειστό");
+        BluetoothDevice d = a.getRemoteDevice(address);
+        final java.util.concurrent.CountDownLatch ready = new java.util.concurrent.CountDownLatch(1);
+        final String[] err = { null };
+        BluetoothGattCallback cb = new BluetoothGattCallback() {
+            @Override public void onConnectionStateChange(BluetoothGatt g, int st, int state) {
+                if (state == BluetoothProfile.STATE_CONNECTED) { g.discoverServices(); }
+                else if (state == BluetoothProfile.STATE_DISCONNECTED) {
+                    if (ready.getCount() > 0) { err[0] = "BLE: η σύνδεση απέτυχε (" + st + ")"; ready.countDown(); }
+                    else if (c.running) {
+                        c.running = false; conns.remove(c.channel);
+                        JSObject o = new JSObject(); o.put("channel", c.channel); o.put("state", "disconnected"); o.put("reason", "lost"); notifyListeners("status", o);
+                    }
+                }
+            }
+            @Override public void onServicesDiscovered(BluetoothGatt g, int st) {
+                BluetoothGattCharacteristic tx = null, rx = null;
+                for (String[] k : BLE_UART) {
+                    BluetoothGattService sv = g.getService(UUID.fromString(k[0]));
+                    if (sv != null) { tx = sv.getCharacteristic(UUID.fromString(k[1])); rx = sv.getCharacteristic(UUID.fromString(k[2])); if (tx != null) break; }
+                }
+                if (tx == null) { // γενική αναζήτηση: πρώτο κανάλι ειδοποιήσεων εκτός των τυπικών υπηρεσιών
+                    for (BluetoothGattService sv : g.getServices()) {
+                        String u = sv.getUuid().toString();
+                        if (u.startsWith("00001800") || u.startsWith("00001801") || u.startsWith("0000180a") || u.startsWith("0000180f") || u.startsWith("00001805")) continue;
+                        for (BluetoothGattCharacteristic ch : sv.getCharacteristics()) {
+                            int p = ch.getProperties();
+                            if (tx == null && (p & (BluetoothGattCharacteristic.PROPERTY_NOTIFY | BluetoothGattCharacteristic.PROPERTY_INDICATE)) != 0) tx = ch;
+                            if (rx == null && (p & (BluetoothGattCharacteristic.PROPERTY_WRITE | BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)) != 0) rx = ch;
+                        }
+                        if (tx != null) break;
+                    }
+                }
+                if (tx == null) { err[0] = "BLE: δεν βρέθηκε κανάλι δεδομένων"; ready.countDown(); return; }
+                c.bleRx = rx;
+                g.setCharacteristicNotification(tx, true);
+                BluetoothGattDescriptor ds = tx.getDescriptor(CCCD);
+                if (ds != null) {
+                    boolean ind = (tx.getProperties() & BluetoothGattCharacteristic.PROPERTY_NOTIFY) == 0;
+                    ds.setValue(ind ? BluetoothGattDescriptor.ENABLE_INDICATION_VALUE : BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                    if (!g.writeDescriptor(ds)) ready.countDown();
+                } else ready.countDown();
+            }
+            @Override public void onDescriptorWrite(BluetoothGatt g, BluetoothGattDescriptor ds, int st) {
+                ready.countDown();
+                try { g.requestMtu(247); } catch (Exception ignored) { }
+            }
+            @Override public void onMtuChanged(BluetoothGatt g, int mtu, int st) { if (st == BluetoothGatt.GATT_SUCCESS) c.bleMtu = mtu; }
+            @Override public void onCharacteristicChanged(BluetoothGatt g, BluetoothGattCharacteristic ch) {
+                byte[] v = ch.getValue(); if (v != null && v.length > 0) c.onBytes(v, v.length);
+            }
+            @Override public void onCharacteristicChanged(BluetoothGatt g, BluetoothGattCharacteristic ch, byte[] v) {
+                if (v != null && v.length > 0) c.onBytes(v, v.length);
+            }
+        };
+        c.gatt = Build.VERSION.SDK_INT >= 23 ? d.connectGatt(getContext(), false, cb, BluetoothDevice.TRANSPORT_LE) : d.connectGatt(getContext(), false, cb);
+        try { if (!ready.await(15, java.util.concurrent.TimeUnit.SECONDS)) err[0] = "BLE: δεν απάντησε ο δέκτης"; } catch (InterruptedException e) { err[0] = "BLE: διακοπή"; }
+        if (err[0] != null) { try { c.gatt.disconnect(); c.gatt.close(); } catch (Exception ignored) { } c.gatt = null; throw new IOException(err[0]); }
     }
 
     @PluginMethod
