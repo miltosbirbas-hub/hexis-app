@@ -1,0 +1,50 @@
+name: Πλέγματα γεωειδούς (HEXIS PAD)
+# Κατεβάζει τα επίσημα εθνικά μοντέλα γεωειδούς από το PROJ-data (cdn.proj.org, ανοιχτή άδεια)
+# και τα μετατρέπει σε dl/geoid/<όνομα>.bin για την εφαρμογή (εργασία στο εξωτερικό).
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/geoid/**"
+      - ".github/workflows/geoid-grids.yml"
+permissions:
+  contents: write
+jobs:
+  grids:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install numpy tifffile
+      - name: Λήψη και μετατροπή
+        run: |
+          mkdir -p dl/geoid /tmp/g
+          # όνομα στην εφαρμογή = εναλλακτικά αρχεία PROJ-data (το πρώτο που υπάρχει)
+          GRIDS="es_ign_egm08-rednap:es_ign_egm08-rednap
+          es_ign_egm08-rednap-canarias:es_ign_egm08-rednap-canarias
+          de_bkg_gcg2016:de_bkg_gcg2016
+          pl_gugik_geoid2021-PL-EVRF2007-NH:pl_gugik_geoid2021-PL-EVRF2007-NH
+          uk_os_OSGM15_GB:uk_os_OSGM15_GB
+          nl_nsgi_nlgeo2018:nl_nsgi_nlgeo2018
+          jp_gsi_gsigeo2011:jp_gsi_gsigeo2011
+          fr_ign_RAF20:fr_ign_RAF20,fr_ign_RAF18b,fr_ign_RAF18,fr_ign_RAF09"
+          fail=0
+          while IFS=: read -r name alts; do
+            got=""
+            for a in ${alts//,/ }; do
+              if curl -fsSL --retry 3 -o /tmp/g/$a.tif "https://cdn.proj.org/$a.tif"; then got=$a; break; fi
+              echo "δεν υπάρχει: $a"
+            done
+            if [ -z "$got" ]; then echo "::warning::Χωρίς πλέγμα για $name"; fail=1; continue; fi
+            python3 -I scripts/geoid/convert.py /tmp/g/$got.tif dl/geoid/$name.bin
+          done <<< "$GRIDS"
+          ls -la dl/geoid
+      - name: Commit
+        run: |
+          git config user.name "hexis-bot"; git config user.email "bot@hexis-app.gr"
+          git add dl/geoid
+          if git diff --cached --quiet; then echo "Καμία αλλαγή"; exit 0; fi
+          git commit -m "Πλέγματα γεωειδούς για HEXIS PAD"
+          for i in 1 2 3; do git pull --rebase && git push && exit 0; sleep 5; done; exit 1
