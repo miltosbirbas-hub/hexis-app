@@ -14,7 +14,7 @@ places = {"katouna_lefkadas": (20.7155, 38.7905), "katouna_xiromerou": (21.1170,
 os.makedirs("out", exist_ok=True)
 log = open("out/ot_summary.txt", "w")
 def P(*a): s = " ".join(str(x) for x in a); print(s); log.write(s + "\n")
-for name, (lon, lat) in places.items():
+for name, (lon, lat) in ({} if os.environ.get("POINT") else places).items():
     x, y = T.transform(lon, lat); d = 2500
     env = "%.1f,%.1f,%.1f,%.1f" % (x - d, y - d, x + d, y + d)
     body = urllib.parse.urlencode({"geometry": env, "geometryType": "esriGeometryEnvelope", "inSR": "2100", "outSR": "2100", "spatialRel": "esriSpatialRelIntersects", "outFields": "OT_NUM,FEK", "returnGeometry": "true", "resultRecordCount": "2000", "f": "json"}).encode()
@@ -44,4 +44,17 @@ for name, (lon, lat) in places.items():
             except Exception as e: P("  ", act, "error", e)
         found += 1
         if found >= 2: break
+pt = os.environ.get("POINT")
+if pt:
+    q = urllib.parse.urlencode({"f": "json", "where": "1=1", "geometry": pt, "geometryType": "esriGeometryPoint", "inSR": "2100", "spatialRel": "esriSpatialRelIntersects", "outFields": "KAEK", "returnGeometry": "false"})
+    k = json.loads(get(KT + "?" + q)).get("features", [])
+    K = k[0]["attributes"]["KAEK"] if k else ""
+    P("POINT", pt, "KAEK", K)
+    hh = {"Content-Type": "application/json", "x-hx-selftest": os.environ["KEY"]}
+    for act in ("lisp", "lisp_extract"):
+        try:
+            t = post(FN, json.dumps({"action": act, "kaek": K}).encode(), hh).decode()
+            open("out/point_%s.txt" % act, "w").write(t)
+            P("  ", act, len(t), "B", "HX_OT lines", t.count("G=HX_OT|"), [l for l in t.splitlines() if l.startswith(("OT=", "KATASTASI=", "ERR", "MSG"))][:3])
+        except Exception as e: P("  ", act, "error", e)
 log.close()

@@ -1,5 +1,7 @@
 name: Ο.Τ. έλεγχος (προσωρινό)
-on: { workflow_dispatch: {} }
+on:
+  workflow_dispatch:
+    inputs: { point: { required: false, default: '' } }
 permissions: { contents: write }
 jobs:
   run:
@@ -16,6 +18,7 @@ jobs:
           supabase secrets set SELFTEST_KEY=$KEY --project-ref $REF --yes >/dev/null
           sleep 25
       - run: python3 .github/probe/ot_probe.py
+        env: { POINT: "${{ inputs.point }}" }
       - name: probe-out
         run: |
           cd out && git init -q && git checkout -q -b probe-ot
