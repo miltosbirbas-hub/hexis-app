@@ -385,6 +385,27 @@ async function aigialosFek(b: HxAttr) {
   return { items, n: items.length, buffer: buf, src: "Δημόσια Περιουσία — Αιγιαλός (ΓΓΠΣ/gsis.gr)" };
 }
 
+// ΦΕΚ από το Εθνικό Τυπογραφείο (et.gr) — PDF ως base64 (για ανάγνωση πινάκων συντεταγμένων στον browser)
+async function fekPdf(b: HxAttr) {
+  const id = String(b.id || "").replace(/\D/g, "");
+  if (!/^(19|20)\d{2}0[1-9]\d{5}$/.test(id)) return { error: "bad_fek" };
+  const urls = ["https://www.et.gr/api/DownloadFeksApi/?fek_pdf=" + id, "https://et.gr/api/DownloadFeksApi/?fek_pdf=" + id];
+  const tried: string[] = [];
+  for (const u of urls) {
+    const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 40000);
+    try {
+      const r = await fetch(u, { signal: ctl.signal, redirect: "follow", headers: { "User-Agent": "Mozilla/5.0 (HEXIS-APP; hexis-app.gr)", "Accept": "application/pdf,*/*" } });
+      const ct = r.headers.get("content-type") || "", buf = new Uint8Array(await r.arrayBuffer());
+      tried.push(u + " " + r.status + " " + ct + " " + buf.length + " " + r.url);
+      if (r.ok && buf.length > 1000 && buf[0] === 0x25 && buf[1] === 0x50) {
+        let bin = ""; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+        return { ok: 1, pdf: btoa(bin), size: buf.length };
+      }
+    } catch (e) { tried.push(u + " ERR " + String(e).slice(0, 100)); } finally { clearTimeout(tm); }
+  }
+  return { error: "fek_unreachable", tried };
+}
+
 // εικόνα (διαφανές PNG) με τις γραμμές αιγιαλού / παλαιού αιγιαλού / ακτογραμμής για ένα πλαίσιο ΕΓΣΑ87 — η υπηρεσία δεν δίνει διανύσματα
 const AIGIALOS_EXPORT = "https://maps.gsis.gr/gspp/maps/rest/services/Dhpe/AIGIALOS_TILES/MapServer/export";
 async function aigialosImg(b: HxAttr) {
@@ -683,6 +704,7 @@ Deno.serve(async (req) => {
     if (b.action === "forest") return json(await forestPolys(b));
     if (b.action === "aigialos") return json(await aigialosFek(b));
     if (b.action === "aigialos_img") return json(await aigialosImg(b));
+    if (b.action === "fek_pdf") return json(await fekPdf(b));
     const x = Number(b.x), y = Number(b.y);
     // Ελλάδα σε ΕΓΣΑ'87: περίπου x 50.000–1.050.000, y 3.850.000–4.650.000
     if (!(x > 50000 && x < 1050000 && y > 3800000 && y < 4700000)) return json({ error: "bad_coords" }, 400);

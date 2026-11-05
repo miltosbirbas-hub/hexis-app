@@ -52,6 +52,8 @@ jobs:
           done
           curl -s -o out/aig_img.json -w "aigialos_img %{http_code} %{size_download}B\n" -X POST "https://$REF.supabase.co/functions/v1/oroi-domisis" -H "Content-Type: application/json" -H "x-hx-selftest: $KEY" --data '{"action":"aigialos_img","bbox":[213300,4288900,213900,4289500],"w":800,"h":800}' | tee -a out/summary.txt
           python3 -c "import json,base64;j=json.load(open('out/aig_img.json'));open('out/aig_img.png','wb').write(base64.b64decode(j.get('png','')))" || true
+          curl -s -o out/fek.json -w "fek_pdf %{http_code} %{size_download}B\n" -X POST "https://$REF.supabase.co/functions/v1/oroi-domisis" -H "Content-Type: application/json" -H "x-hx-selftest: $KEY" --data '{"action":"fek_pdf","id":"20170400281"}' | tee -a out/summary.txt
+          python3 -c "import json;j=json.load(open('out/fek.json'));print(j.get('error'),j.get('tried'),j.get('size'))" | tee -a out/summary.txt
           curl -s -o out/noauth.json -w "noauth %{http_code}\n" -X POST "https://$REF.supabase.co/functions/v1/oroi-domisis" -H "Content-Type: application/json" --data '{"x":1,"y":2}' | tee -a out/summary.txt
       - name: Δημοσίευση στο probe-out
         run: |
