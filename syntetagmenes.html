@@ -6158,6 +6158,15 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       for (var j = 0; j <= KR.length; j++) { var qk = KR[j % KR.length], pk = KR[(j - 1 + KR.length) % KR.length]; rowsK.push(['Κ' + (j % KR.length + 1), f3(qk[0]), f3(qk[1]), j === 0 ? '' : 'Κ' + ((j - 1 + KR.length) % KR.length + 1) + ' - Κ' + (j % KR.length + 1) + ': ' + f2(dist(pk, qk))]); }
       bl.push({ type: 'table', title: 'ΠΙΝΑΚΑΣ ΣΥΝΤΕΤΑΓΜΕΝΩΝ ΚΟΡΥΦΩΝ ΓΕΩΤΕΜΑΧΙΟΥ ΜΕ ΚΑΕΚ ' + data.kaek + ' (ΚΤΗΜΑΤΟΛΟΓΙΚΗ ΒΑΣΗ)', cols: C4, rows: rowsK, footer: 'Ε = ' + f3(data.kaekArea != null ? data.kaekArea : area(KR)) + ' τ.μ.' });
     }
+    // ΠΙΝΑΚΑΣ ΟΜΟΡΩΝ: ΚΑΕΚ και ιδιοκτήτης κάθε όμορου γεωτεμαχίου (με τη σειρά που συναντώνται γύρω από το όριο)
+    var NB = (data.parcels || []).filter(function (p) { return p.adjacent && p.kaek !== data.kaek; });
+    if (NB.length) {
+      var Mo = open(data.M), cM = [Mo.reduce(function (a, q) { return a + q[0]; }, 0) / Mo.length, Mo.reduce(function (a, q) { return a + q[1]; }, 0) / Mo.length];
+      var DIRS = ['Α', 'ΒΑ', 'Β', 'ΒΔ', 'Δ', 'ΝΔ', 'Ν', 'ΝΑ'];
+      var nbRows = NB.map(function (p) { var R = (p.rings || []).map(open).sort(function (a, b) { return area(b) - area(a); })[0] || [], c = R.length ? interior(R) : cM, ang = Math.atan2(c[1] - cM[1], c[0] - cM[0]); return { ang: ang, row: [p.kaek, p.owner || (p.ek ? 'ΚΟΙΝΟΧΡΗΣΤΟ / ΕΙΔΙΚΟΥ ΚΑΘΕΣΤΩΤΟΣ' : '—'), DIRS[(Math.round(ang / (Math.PI / 4)) % 8 + 8) % 8]] }; })
+        .sort(function (a, b) { return b.ang - a.ang; }).map(function (x) { return x.row; });
+      bl.push({ type: 'table', title: 'ΠΙΝΑΚΑΣ ΟΜΟΡΩΝ ΙΔΙΟΚΤΗΣΙΩΝ', cols: [['ΚΑΕΚ', 24, 'center'], ['ΙΔΙΟΚΤΗΤΗΣ / ΧΑΡΑΚΤΗΡΙΣΜΟΣ', 52, 'center'], ['ΠΛΕΥΡΑ', 12, 'center']], rows: nbRows });
+    }
     // κτίσματα (BLD): πίνακας συντεταγμένων ανά κτίσμα + συγκεντρωτικός πίνακας κάλυψης
     var BI = (data.bldInfo || []).filter(function (b) { return b.inside !== false; }); // πίνακες μόνο για κτίσματα εντός της ιδιοκτησίας
     BI.forEach(function (b) {
@@ -8067,6 +8076,9 @@ root.CmdCheck = api;
     return out;
   }
   function nzs(v) { return v != null && String(v).trim() !== ''; }
+  // ιδιοκτήτες ανά ΚΑΕΚ: θυμάται ό,τι έχεις γράψει (σε αυτόν τον browser), ώστε την επόμενη φορά να συμπληρώνονται μόνοι τους
+  function kaekOwnersStore(k, v) { var m = store('hexis_kaek_owners') || {}; if (k) { if (v) m[k] = v; else delete m[k]; store('hexis_kaek_owners', m); } return m; }
+  function ownersPrefill(list) { var m = kaekOwnersStore(); S.owners = S.owners || {}; (list || []).forEach(function (p) { if (!S.owners[p.kaek] && m[p.kaek]) S.owners[p.kaek] = m[p.kaek]; }); }
   function topoFields() {
     if (!S.topoF) { S.topoF = TopoSheet.defaults(); var e = topoEngDefaults(), rep = store('hexis_coords_report') || {}; S.topoF.mix = e.mix || rep.eng || ''; S.topoF.eid = e.eid || ''; S.topoF.tee = e.tee || ''; S.topoF.gnssNet = e.gnssNet || ''; S.topoF.gnssRx = e.gnssRx || ''; S.topoF.idio = rep.client || ''; }
     return S.topoF;
@@ -8082,6 +8094,7 @@ root.CmdCheck = api;
       if (!S.kaek || S.kaek.key !== plotKey()) { try { await findKaek(); } catch (e) { console.warn(e); } }
       // αν η αναζήτηση ΚΑΕΚ τρέχει ήδη (αυτόματη εκκίνηση), περιμένουμε να τελειώσει
       for (var w8 = 0; w8 < 300 && S.kaek && S.kaek.status === 'loading'; w8++) await new Promise(function (r) { setTimeout(r, 200); });
+      ownersPrefill(S.kaek && S.kaek.parcels);
       var tp = topoParcels(M); res.own = tp.own; res.parcels = tp.list;
       if (tp.own) {
         res.kaek = tp.own.kaek; res.kaekRing = tp.own.rings && tp.own.rings[0] ? DGM.open(tp.own.rings[0]) : null; res.kaekArea = tp.own.area || null;
@@ -8089,6 +8102,7 @@ root.CmdCheck = api;
         res.lisp = S.topoLisp;
         if (res.lisp) TopoSheet.fillFromKaek(f, res.lisp.fields);
         if (!f.kaek) f.kaek = tp.own.kaek;
+        if (!f.idio && kaekOwnersStore()[tp.own.kaek]) f.idio = kaekOwnersStore()[tp.own.kaek];
         if (!f.dimos && tp.own.info && tp.own.info.ota) f.dimos = tp.own.info.ota;
         if (!f.thesi && S.kaek && S.kaek.region) f.thesi = S.kaek.region;
       } else res.warn.push('Δεν βρέθηκε ΚΑΕΚ στη θέση του πολυγώνου — οι όροι δόμησης και τα στοιχεία των δηλώσεων συμπληρώνονται χειροκίνητα.');
@@ -8180,7 +8194,8 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     h += '</div>';
 
     var nbs = (r.parcels || []).filter(function (p) { return p.kaek !== r.kaek; }).sort(function (a, b) { return (b.adjacent ? 1 : 0) - (a.adjacent ? 1 : 0); }), nAdj = nbs.filter(function (p) { return p.adjacent; }).length;
-    if (nbs.length) h += '<details class="piece"><summary><b>Γεωτεμάχια Κτηματολογίου στο σχέδιο (' + nbs.length + ')</b><span style="color:var(--muted)">' + nAdj + ' όμορα + ' + (nbs.length - nAdj) + ' της περιοχής, μαζί με τα ειδικού καθεστώτος (ΕΚ) — layer 0 με τον αριθμό ΚΑΕΚ· ιδιοκτήτες όπως τους γράφεις εσύ</span></summary><div class="kaek-list" style="margin-top:6px">' + nbs.map(function (p) { return '<div class="kaek-row"><span class="sw"></span><div><b>ΚΑΕΚ ' + esc(p.kaek) + '</b>' + (p.ek ? '<span class="chip" style="font-size:10.5px">ΕΚ — δρόμος/ρέμα/κοινόχρηστο</span>' : '') + (p.adjacent ? '<span class="chip ok" style="font-size:10.5px">όμορο</span>' : '') + '</div><input class="owner" data-kaek="' + esc(p.kaek) + '" placeholder="' + (p.ek ? 'π.χ. ΔΗΜΟΤΙΚΗ ΟΔΟΣ (προαιρετικά)' : 'ιδιοκτήτης (προαιρετικά)') + '" value="' + esc((S.owners || {})[p.kaek] || '') + '" style="flex:1 1 200px"></div>'; }).join('') + '</div></details>';
+    var nameList = []; Object.keys(kaekOwnersStore()).forEach(function (k) { var v = kaekOwnersStore()[k]; if (v && nameList.indexOf(v) < 0) nameList.push(v); });
+    if (nbs.length) h += '<datalist id="ownerNames">' + nameList.slice(0, 300).map(function (v) { return '<option value="' + esc(v) + '">'; }).join('') + '</datalist><details class="piece" open><summary><b>Όμοροι — ιδιοκτήτες ανά ΚΑΕΚ</b><span style="color:var(--muted)">' + nAdj + ' όμορα (πίνακας ομόρων + ονόματα στο σχέδιο) · ' + (nbs.length - nAdj) + ' ακόμη στην περιοχή · τα ονόματα θυμούνται για την επόμενη φορά</span></summary><div class="kaek-list" style="margin-top:6px">' + nbs.map(function (p) { return '<div class="kaek-row"' + (p.adjacent ? '' : ' style="opacity:.75"') + '><span class="sw"></span><div><b>ΚΑΕΚ ' + esc(p.kaek) + '</b>' + (p.ek ? '<span class="chip" style="font-size:10.5px">ΕΚ — δρόμος/ρέμα/κοινόχρηστο</span>' : '') + (p.adjacent ? '<span class="chip ok" style="font-size:10.5px">όμορο</span>' : '') + '</div><input class="owner" list="ownerNames" data-kaek="' + esc(p.kaek) + '" placeholder="' + (p.ek ? 'π.χ. ΔΗΜΟΤΙΚΗ ΟΔΟΣ' : 'ΕΠΩΝΥΜΟ ΟΝΟΜΑ ιδιοκτήτη') + '" value="' + esc((S.owners || {})[p.kaek] || '') + '" style="flex:1 1 220px"></div>'; }).join('') + '</div></details>';
     // πεδία που συμπληρώνει ο μηχανικός
     function inp(key, label, ph, w) { return '<label style="' + (w ? 'flex:1 1 ' + w + 'px' : '') + '">' + label + '<input class="topoF" data-f="' + key + '" value="' + esc(f[key] || '') + '"' + (ph ? ' placeholder="' + esc(ph) + '"' : '') + '></label>'; }
     function sel(key, label, opts) { return '<label>' + label + '<select class="topoF" data-f="' + key + '">' + opts.map(function (o, i) { return '<option value="' + i + '"' + (+f[key] === i ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select></label>'; }
@@ -9226,6 +9241,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     if (ev.target.id === 'arcgisUrls') { store('hexis_arcgis_urls', ev.target.value.trim()); S.kaek = null; S.dgm = null; findKaek(); }
     if (ev.target.id === 'inspireWfs' || ev.target.id === 'inspireType') { store(ev.target.id === 'inspireWfs' ? 'hexis_inspire_wfs' : 'hexis_inspire_type', ev.target.value.trim()); S.kaek = null; S.dgm = null; findKaek(); }
     if (ev.target.id === 'kaekSource') { S.kaekSource = ev.target.value; store('hexis_kaek_source', S.kaekSource); S.kaek = null; S.dgm = null; findKaek(); }
+    if (ev.target.classList.contains('topoF') && ev.target.dataset.f === 'idio' && S.topo && S.topo.kaek) kaekOwnersStore(S.topo.kaek, ev.target.value.trim());
     if (ev.target.classList.contains('topoF')) { var fk = ev.target.dataset.f, fv = ev.target.type === 'checkbox' ? (ev.target.checked ? 1 : 0) : ev.target.tagName === 'SELECT' ? +ev.target.value : ev.target.value.trim(); topoFields()[fk] = fv; if (fk === 'artio') topoFields().artioSure = true; if (fk === 'pos') topoFields().posSure = true; topoSaveEng(); return; }
     if (ev.target.id === 'topoScale') { S.topoScale = +ev.target.value; S.topoAuto = false; topoRefresh(); return; }
     if (ev.target.id === 'topoPaper') { S.topoPaper = ev.target.value; S.topoAuto = false; topoRefresh(); return; }
@@ -9244,7 +9260,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     if (ev.target.id === 'dgmMode') { S.dgmMode = ev.target.value; renderAll(); }
     if (ev.target.id === 'dgmBound') { S.dgmBound = ev.target.value; runDgm(); }
     if (ev.target.id === 'zoneSel') { S.zone = ev.target.value; renderAll(); }
-    if (ev.target.classList && ev.target.classList.contains('owner')) { S.owners = S.owners || {}; S.owners[ev.target.dataset.kaek] = ev.target.value.trim(); if (S.dgm && S.dgm.status === 'ok') S.dgm.owners = Object.assign({}, S.owners); }
+    if (ev.target.classList && ev.target.classList.contains('owner')) { S.owners = S.owners || {}; S.owners[ev.target.dataset.kaek] = ev.target.value.trim(); kaekOwnersStore(ev.target.dataset.kaek, ev.target.value.trim()); if (S.dgm && S.dgm.status === 'ok') S.dgm.owners = Object.assign({}, S.owners); if (S.topo && S.topo.status === 'ok') { (S.topo.parcels || []).forEach(function (p) { if (p.kaek === ev.target.dataset.kaek) p.owner = ev.target.value.trim(); }); if (S.topoPreview) S.topoPreview = TopoSheet.sheetSVG(topoData(S.topo), topoLayout(S.topo), 0); } }
     if (ev.target.id === 'sheetScale') { S.sheetScale = +ev.target.value; S.sheetAuto = false; renderAll(); }
     if (ev.target.id === 'sheetPaper') { S.sheetPaper = ev.target.value; S.sheetAuto = false; renderAll(); }
     if (ev.target.id === 'dgmMin') { var v = parseFloat(String(ev.target.value).replace(',', '.')); if (!isNaN(v) && v >= 0) { S.dgmMin = v; runDgm(); } }
