@@ -242,6 +242,77 @@ async function emsyPoints(b: HxAttr) {
   return { points: pts, n: pts.length, buffer: buf, src: "Ε.Μ.Σ.Υ. — ΥΠΕΝ (lmt.ypeka.gr)" };
 }
 
+/* ---------- Ακτογραμμή (OpenStreetMap natural=coastline, μέσω Overpass) — ελάχιστη απόσταση του ορίου από τη θάλασσα ----------
+   Είσοδος { action:"coast", ring:[[x,y],...] (ΕΓΣΑ87), radius?: m (προεπιλογή 3000, έως 10000) }
+   Έξοδος { dist, pt:[x,y], segs, src } ή { dist:null } όταν δεν υπάρχει ακτογραμμή στην ακτίνα. */
+const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://lz4.overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
+// ΕΓΣΑ'87 (ΤΜ87, GRS80) ↔ WGS84 — αρκεί η ακρίβεια λίγων μέτρων για το ερώτημα και την απόσταση από την ακτή
+const TM = { a: 6378137, f: 1 / 298.257222101, k0: 0.9996, lon0: 24 * Math.PI / 180, x0: 500000 };
+function tmInverse(x: number, y: number) {
+  const a = TM.a, f = TM.f, e2 = f * (2 - f), ep2 = e2 / (1 - e2), k0 = TM.k0;
+  const M = y / k0, mu = M / (a * (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256));
+  const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
+  const phi1 = mu + (3 * e1 / 2 - 27 * e1 ** 3 / 32) * Math.sin(2 * mu) + (21 * e1 * e1 / 16 - 55 * e1 ** 4 / 32) * Math.sin(4 * mu) + (151 * e1 ** 3 / 96) * Math.sin(6 * mu);
+  const N1 = a / Math.sqrt(1 - e2 * Math.sin(phi1) ** 2), T1 = Math.tan(phi1) ** 2, C1 = ep2 * Math.cos(phi1) ** 2, R1 = a * (1 - e2) / Math.pow(1 - e2 * Math.sin(phi1) ** 2, 1.5), D = (x - TM.x0) / (N1 * k0);
+  const lat = phi1 - (N1 * Math.tan(phi1) / R1) * (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) * D ** 4 / 24 + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ep2 - 3 * C1 * C1) * D ** 6 / 720);
+  const lon = TM.lon0 + (D - (1 + 2 * T1 + C1) * D ** 3 / 6 + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ep2 + 24 * T1 * T1) * D ** 5 / 120) / Math.cos(phi1);
+  return [lon * 180 / Math.PI, lat * 180 / Math.PI];
+}
+function tmForward(lon: number, lat: number) {
+  const a = TM.a, f = TM.f, e2 = f * (2 - f), ep2 = e2 / (1 - e2), k0 = TM.k0, phi = lat * Math.PI / 180, lam = lon * Math.PI / 180 - TM.lon0;
+  const N = a / Math.sqrt(1 - e2 * Math.sin(phi) ** 2), T = Math.tan(phi) ** 2, C = ep2 * Math.cos(phi) ** 2, A = lam * Math.cos(phi);
+  const M = a * ((1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 ** 3 / 256) * phi - (3 * e2 / 8 + 3 * e2 * e2 / 32 + 45 * e2 ** 3 / 1024) * Math.sin(2 * phi) + (15 * e2 * e2 / 256 + 45 * e2 ** 3 / 1024) * Math.sin(4 * phi) - (35 * e2 ** 3 / 3072) * Math.sin(6 * phi));
+  const x = TM.x0 + k0 * N * (A + (1 - T + C) * A ** 3 / 6 + (5 - 18 * T + T * T + 72 * C - 58 * ep2) * A ** 5 / 120);
+  const y = k0 * (M + N * Math.tan(phi) * (A * A / 2 + (5 - T + 9 * C + 4 * C * C) * A ** 4 / 24 + (61 - 58 * T + T * T + 600 * C - 330 * ep2) * A ** 6 / 720));
+  return [x, y];
+}
+// WGS84 → ΓΓΣΑ87 (μετάθεση datum +towgs84 = -199.87, 74.79, 246.62 — όπως στο proj4 του HEXIS) → ΤΜ87. Το ερώτημα Overpass (ακτίνα) δεν τη χρειάζεται.
+function wgsToEgsa(lon: number, lat: number) {
+  const aw = 6378137, fw = 1 / 298.257223563, e2w = fw * (2 - fw), ph = lat * Math.PI / 180, la = lon * Math.PI / 180;
+  const Nw = aw / Math.sqrt(1 - e2w * Math.sin(ph) ** 2);
+  let X = Nw * Math.cos(ph) * Math.cos(la), Y = Nw * Math.cos(ph) * Math.sin(la), Z = Nw * (1 - e2w) * Math.sin(ph);
+  X += 199.87; Y -= 74.79; Z -= 246.62; // ΓΓΣΑ87 = WGS84 − (−199.87, 74.79, 246.62)
+  const a = TM.a, e2 = TM.f * (2 - TM.f), pr = Math.hypot(X, Y);
+  let phi = Math.atan2(Z, pr * (1 - e2));
+  for (let i = 0; i < 6; i++) { const N = a / Math.sqrt(1 - e2 * Math.sin(phi) ** 2); phi = Math.atan2(Z + e2 * N * Math.sin(phi), pr); }
+  return tmForward(Math.atan2(Y, X) * 180 / Math.PI, phi * 180 / Math.PI);
+}
+const coastCache = new Map<string, { t: number; v: HxAttr }>();
+async function coastDistance(b: HxAttr) {
+  const ring: Ring = (Array.isArray(b.ring) ? b.ring : []).map((p: unknown) => Array.isArray(p) ? [Number(p[0]), Number(p[1])] : [NaN, NaN]).filter((p: number[]) => isFinite(p[0]) && isFinite(p[1]));
+  if (ring.length < 3 || ring.length > 3000) return { error: "bad_ring" };
+  const rad = Math.min(10000, Math.max(500, Number(b.radius) || 3000));
+  const bb = [Infinity, Infinity, -Infinity, -Infinity]; ring.forEach(([x, y]) => { bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], y); bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], y); });
+  if (!(bb[0] > 50000 && bb[2] < 1050000 && bb[1] > 3800000 && bb[3] < 4700000)) return { error: "bad_coords" };
+  const key = [Math.round(bb[0] / 500), Math.round(bb[1] / 500), Math.round(bb[2] / 500), Math.round(bb[3] / 500), rad].join(",");
+  const now = Date.now(), hit = coastCache.get(key);
+  let segs: number[][][] | null = hit && hit.t > now ? (hit.v.segs as number[][][]) : null, src = "";
+  if (!segs) {
+    const sw = tmInverse(bb[0] - rad, bb[1] - rad), ne = tmInverse(bb[2] + rad, bb[3] + rad);
+    const q = '[out:json][timeout:25];way["natural"="coastline"](' + sw[1].toFixed(5) + "," + sw[0].toFixed(5) + "," + ne[1].toFixed(5) + "," + ne[0].toFixed(5) + ");out geom;";
+    let j: HxAttr | null = null, lastErr = "";
+    for (const u of OVERPASS) {
+      const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 22000);
+      try { const r = await fetch(u, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "HEXIS-APP/1.0 (hexis-app.gr)" }, signal: ctl.signal }); const txt = await r.text(); if (!r.ok) { lastErr = u + " HTTP " + r.status; continue; } j = JSON.parse(txt); src = u; break; }
+      catch (e) { lastErr = u + " " + String(e).slice(0, 80); }
+      finally { clearTimeout(tm); }
+    }
+    if (!j) return { error: "coast_unreachable", msg: lastErr };
+    segs = [];
+    for (const w of (j.elements || []) as HxAttr[]) { const g = ((w.geometry || []) as HxAttr[]).map((n) => wgsToEgsa(Number(n.lon), Number(n.lat))); for (let i = 0; i + 1 < g.length; i++) segs.push([g[i], g[i + 1]]); }
+    if (coastCache.size > 300) coastCache.clear();
+    coastCache.set(key, { t: now + 6 * 3600e3, v: { segs } });
+  }
+  if (!segs.length) return { dist: null, segs: 0, radius: rad, src: src || "cache" };
+  let best = Infinity, bp: number[] | null = null;
+  function foot(p: number[], a: number[], c: number[]) { const dx = c[0] - a[0], dy = c[1] - a[1], L2 = dx * dx + dy * dy, t = L2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)) : 0; return [a[0] + t * dx, a[1] + t * dy]; }
+  for (const [a, c] of segs) {
+    for (const v of ring) { const f = foot(v, a, c), d = Math.hypot(v[0] - f[0], v[1] - f[1]); if (d < best) { best = d; bp = f; } }
+    for (const cp of [a, c]) for (let k = 0; k < ring.length; k++) { const f = foot(cp, ring[k], ring[(k + 1) % ring.length]), d = Math.hypot(cp[0] - f[0], cp[1] - f[1]); if (d < best) { best = d; bp = cp; } }
+  }
+  return { dist: Math.round(best * 100) / 100, pt: bp ? [Math.round(bp[0] * 100) / 100, Math.round(bp[1] * 100) / 100] : null, segs: segs.length, radius: rad, src: src ? "OpenStreetMap (" + new URL(src).host + ")" : "OpenStreetMap (cache)" };
+}
+
 async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
   // χαρακτήρες που δεν υπάρχουν στο ANSI 1253 (progeCAD / παλιό AutoCAD) → απλά ισοδύναμα
   const ansi = (t: string) => t.replace(/→/g, ":").replace(/≈/g, "~").replace(/×/g, "x").replace(/÷/g, "/").replace(/−/g, "-").replace(/≥/g, ">=").replace(/≤/g, "<=");
@@ -516,6 +587,7 @@ Deno.serve(async (req) => {
     if (b.action === "lisp") return await lispAnswer(req, b, C);
     if (b.action === "lisp_extract") return await lispExtract(req, b, C);
     if (b.action === "emsy") return json(await emsyPoints(b));
+    if (b.action === "coast") return json(await coastDistance(b));
     const x = Number(b.x), y = Number(b.y);
     // Ελλάδα σε ΕΓΣΑ'87: περίπου x 50.000–1.050.000, y 3.850.000–4.650.000
     if (!(x > 50000 && x < 1050000 && y > 3800000 && y < 4700000)) return json({ error: "bad_coords" }, 400);
