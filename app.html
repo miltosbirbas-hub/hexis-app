@@ -554,8 +554,7 @@ td { font-size: 14px; padding: 11px 12px; }
   .stat-n { font-size: 26px; }
 }
 
-/* Κύρια ενέργεια: Νέα Καταγραφή στο χρώμα του Neo */
-#new-entry-btn { background: var(--neo-primary) !important; color: var(--neo-on-primary) !important; box-shadow: 0 8px 24px var(--neo-glow) !important; border-radius: 12px !important; }
+/* Νέα Καταγραφή: μένει πράσινο (επιλογή χρήστη) */
 /* Ετικέτες με κεφαλαία: Manrope (τα ελληνικά της mono δεν διαβάζονται άνετα) */
 .sidebar-group, th, .form-label, .home-group { font-family: var(--f-body); font-weight: 800; }
 /* Κινητό: καρτελάκι εργαλείων μικρότερο, κάτω δεξιά — δεν πέφτει πάνω στις κάρτες */
@@ -4566,7 +4565,7 @@ window.BRB_LOGO_DATA = 'data:image/jpeg;base64,/9j/4QC8RXhpZgAASUkqAAgAAAAGABIBA
 const RPT_CSS = '<style>'
   + '@page{size:A4;margin:11mm 10mm 13mm}'
   + '@media print{body{max-width:none!important;padding:0!important;margin:0!important}}'
-  + '.rp-entry{border:1px solid #D7E0EE;border-left:4px solid #5B3BD6;padding:8px 10px 9px;margin-bottom:10px;background:#F7F9FD;border-radius:0 10px 10px 0}'
+  + '.rp-entry{border:1px solid #D7E0EE;border-left:4px solid #1F5FBF;padding:8px 10px 9px;margin-bottom:10px;background:#F7F9FD;border-radius:0 10px 10px 0}'
   + '.rp-keep{break-inside:avoid;page-break-inside:avoid}'
   + '.rp-row{display:flex;gap:6px;margin-top:6px;break-inside:avoid;page-break-inside:avoid}'
   + '.rp-cell{position:relative;flex:1 1 0;min-width:0;aspect-ratio:4/3;overflow:hidden;border-radius:6px;background:#e9edf2}'
@@ -4579,7 +4578,7 @@ const RPT_CSS = '<style>'
   + '.rp-cap i{font-style:normal;color:#8FE9FF}'
   + '.rp-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:54px;height:54px;border-radius:50%;background:rgba(0,0,0,.62);color:#fff;font-size:22px;line-height:54px;text-align:center;padding-left:4px;box-sizing:border-box;pointer-events:none}'
   + '.rp-qr{position:absolute;right:6px;bottom:6px;width:66px;height:66px;background:#fff;padding:3px;border-radius:6px;box-sizing:border-box}'
-  + '.rp-novid{display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#EEF3FA;color:#5B3BD6;font:700 14px Arial,sans-serif;text-decoration:none}'
+  + '.rp-novid{display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#EEF3FA;color:#1F5FBF;font:700 14px Arial,sans-serif;text-decoration:none}'
   + 'h2.rp-h{break-after:avoid;page-break-after:avoid}'
   + '</style>';
 function rptPhotoCell(url, capHtml) {
@@ -4658,7 +4657,7 @@ function buildReportHTML(period, lang, trMap) {
     let h = '';
     list.forEach(e => {
       // Χτίσε επικεφαλίδα + meta + σχόλια ως ένα string
-      let head = '<div style="font-size:13px">' + (e.pin_no!=null ? '<svg width="20" height="20" viewBox="0 0 20 20" style="vertical-align:-5px;margin-right:6px" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9.5" fill="#5B3BD6"/><text x="10" y="13.8" text-anchor="middle" font-family="Arial" font-size="10" font-weight="700" fill="#fff">'+e.pin_no+'</text></svg>' : '') + '<strong>' + tl(e.type) + '</strong> — ' + T(e.desc) + '</div>'
+      let head = '<div style="font-size:13px">' + (e.pin_no!=null ? '<svg width="20" height="20" viewBox="0 0 20 20" style="vertical-align:-5px;margin-right:6px" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9.5" fill="#1F5FBF"/><text x="10" y="13.8" text-anchor="middle" font-family="Arial" font-size="10" font-weight="700" fill="#fff">'+e.pin_no+'</text></svg>' : '') + '<strong>' + tl(e.type) + '</strong> — ' + T(e.desc) + '</div>'
         + '<div style="font-size:10px;color:#777;margin-top:3px">' + sl(e.status)
         + (e.person ? ' · 👤 ' + NM(e.person) : '')
         + (e.engineer ? ' · 📝 ' + (TRANS ? NM(e.engineer) : e.engineer) : '')
@@ -4714,29 +4713,29 @@ function buildReportHTML(period, lang, trMap) {
         .sort((a,b)=>(a.pin_no||0)-(b.pin_no||0));
       // SVG πινέζες (όχι CSS background) — εκτυπώνονται σωστά σε PDF ακόμα και χωρίς background graphics
       const pins = pinned.map(e=>'<svg style="position:absolute;left:'+e.pin_x+'%;top:'+e.pin_y+'%;transform:translate(-50%,-100%)" width="28" height="36" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">'
-        + '<path d="M12 1C6 1 1.5 5.7 1.5 11.5c0 8 10.5 19.5 10.5 19.5s10.5-11.5 10.5-19.5C22.5 5.7 18 1 12 1z" fill="#5B3BD6" stroke="#fff" stroke-width="1.6"/>'
-        + '<circle cx="12" cy="11.5" r="7.5" fill="#5B3BD6"/>'
+        + '<path d="M12 1C6 1 1.5 5.7 1.5 11.5c0 8 10.5 19.5 10.5 19.5s10.5-11.5 10.5-19.5C22.5 5.7 18 1 12 1z" fill="#1F5FBF" stroke="#fff" stroke-width="1.6"/>'
+        + '<circle cx="12" cy="11.5" r="7.5" fill="#1F5FBF"/>'
         + '<text x="12" y="15.2" text-anchor="middle" font-family="Arial" font-size="10.5" font-weight="700" fill="#fff">'+(e.pin_no||'')+'</text></svg>').join('')
         // πινέζες θέσης λήψης φωτογραφιών — μπλε κύκλος με κάμερα + αριθμό
         + entryList.filter(e=>e.floorplan_id===fid && e.photo_pins && e.photo_pins.length)
           .flatMap(e=>e.photo_pins)
           .map(pp=>{ const n = pp.n || _ppNo[pp.p] || '';
             return '<svg style="position:absolute;left:'+pp.x+'%;top:'+pp.y+'%;transform:translate(-50%,-50%)" width="30" height="28" viewBox="0 0 30 28" xmlns="http://www.w3.org/2000/svg">'
-            + '<circle cx="13" cy="15" r="10.6" fill="#2F5BD3" stroke="#fff" stroke-width="1.8"/>'
+            + '<circle cx="13" cy="15" r="10.6" fill="#0E7490" stroke="#fff" stroke-width="1.8"/>'
             + '<path d="M10.4 9.8 9.5 11.2H7.4c-.8 0-1.4.6-1.4 1.4v6c0 .8.6 1.4 1.4 1.4h11.2c.8 0 1.4-.6 1.4-1.4v-6c0-.8-.6-1.4-1.4-1.4h-2.1l-.9-1.4c-.3-.4-.7-.6-1.2-.6h-2.8c-.5 0-.9.2-1.2.6z" fill="#fff"/>'
-            + '<circle cx="13" cy="15.6" r="2.4" fill="#2F5BD3"/>'
-            + '<circle cx="23" cy="6.5" r="6" fill="#fff" stroke="#2F5BD3" stroke-width="1.4"/>'
-            + '<text x="23" y="9.2" text-anchor="middle" font-family="Arial" font-size="7.5" font-weight="700" fill="#2F5BD3">'+n+'</text></svg>'; }).join('');
+            + '<circle cx="13" cy="15.6" r="2.4" fill="#0E7490"/>'
+            + '<circle cx="23" cy="6.5" r="6" fill="#fff" stroke="#0E7490" stroke-width="1.4"/>'
+            + '<text x="23" y="9.2" text-anchor="middle" font-family="Arial" font-size="7.5" font-weight="700" fill="#0E7490">'+n+'</text></svg>'; }).join('');
       const hasCamPins = entryList.some(e=>e.floorplan_id===fid && e.photo_pins && e.photo_pins.length);
       // υπόμνημα
       const legend = (hasCamPins
         ? '<div style="font-size:11px;color:#666;margin:4px 0 6px">'
-          + '<svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:-3px"><circle cx="12" cy="12" r="11" fill="#5B3BD6"/></svg> ' + L('Καταγραφή','Entry','Regjistrim')
-          + ' &nbsp;·&nbsp; <svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:-3px"><circle cx="12" cy="12" r="11" fill="#2F5BD3"/><path d="M9.4 6.8 8.5 8.2H6.4c-.8 0-1.4.6-1.4 1.4v6c0 .8.6 1.4 1.4 1.4h11.2c.8 0 1.4-.6 1.4-1.4v-6c0-.8-.6-1.4-1.4-1.4h-2.1l-.9-1.4c-.3-.4-.7-.6-1.2-.6h-2.8c-.5 0-.9.2-1.2.6z" fill="#fff"/><circle cx="12" cy="12.6" r="2.4" fill="#2F5BD3"/></svg> ' + L('Θέση λήψης φωτογραφίας','Photo location','Vendi i fotos')
+          + '<svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:-3px"><circle cx="12" cy="12" r="11" fill="#1F5FBF"/></svg> ' + L('Καταγραφή','Entry','Regjistrim')
+          + ' &nbsp;·&nbsp; <svg width="15" height="15" viewBox="0 0 24 24" style="vertical-align:-3px"><circle cx="12" cy="12" r="11" fill="#0E7490"/><path d="M9.4 6.8 8.5 8.2H6.4c-.8 0-1.4.6-1.4 1.4v6c0 .8.6 1.4 1.4 1.4h11.2c.8 0 1.4-.6 1.4-1.4v-6c0-.8-.6-1.4-1.4-1.4h-2.1l-.9-1.4c-.3-.4-.7-.6-1.2-.6h-2.8c-.5 0-.9.2-1.2.6z" fill="#fff"/><circle cx="12" cy="12.6" r="2.4" fill="#0E7490"/></svg> ' + L('Θέση λήψης φωτογραφίας','Photo location','Vendi i fotos')
           + '</div>'
         : '')
         + pinned.map(e=>'<div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;margin:3px 0">'
-        + '<svg width="20" height="20" viewBox="0 0 20 20" style="flex:0 0 auto" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9.5" fill="#5B3BD6"/><text x="10" y="13.8" text-anchor="middle" font-family="Arial" font-size="10" font-weight="700" fill="#fff">'+(e.pin_no||'')+'</text></svg>'
+        + '<svg width="20" height="20" viewBox="0 0 20 20" style="flex:0 0 auto" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9.5" fill="#1F5FBF"/><text x="10" y="13.8" text-anchor="middle" font-family="Arial" font-size="10" font-weight="700" fill="#fff">'+(e.pin_no||'')+'</text></svg>'
         + '<span>'+ tl(e.type) +' — '+ T(e.desc) +'</span></div>').join('');
       const title = (bMap[f.building]?T(bMap[f.building])+' · ':'') + (f.floor?T(f.floor)+' · ':'') + T(f.plan_type||'') + ' — ' + T(f.name);
       // overlay πινέζες (HTML, απόλυτη θέση %) — όπως φαίνονται στην οθόνη
@@ -4753,13 +4752,13 @@ function buildReportHTML(period, lang, trMap) {
           + pins + '</div>';
       }
       sections += '<div style="margin-bottom:22px;page-break-inside:avoid">'
-        + '<h3 style="font-size:14px;color:#0B1426;margin:0 0 8px;border-bottom:2px solid #2F5BD3;padding-bottom:4px"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#2F5BD3" stroke-width="1.8" style="vertical-align:-2px"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h6V3M9 9v12M14 3v6h7M14 9v12M3 15h6"/></svg> '+title+'</h3>'
+        + '<h3 style="font-size:14px;color:#0B1426;margin:0 0 8px;border-bottom:2px solid #0E7490;padding-bottom:4px"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#0E7490" stroke-width="1.8" style="vertical-align:-2px"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h6V3M9 9v12M14 3v6h7M14 9v12M3 15h6"/></svg> '+title+'</h3>'
         + '<div style="text-align:center;margin-bottom:8px">'+imgBlock+'</div>'
         + '<div style="background:#fafafa;border-radius:6px;padding:8px 12px">'+legend+'</div>'
         + '</div>';
     });
     return '<div style="page-break-before:always;margin-top:24px">'
-      + '<h2 style="background:#EEF3FA;color:#0B1426;border-left:5px solid #2F5BD3;padding:10px 14px;border-radius:8px;font-size:16px;margin-bottom:16px;display:flex;align-items:center;gap:8px"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#2F5BD3" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h6V3M9 9v12M14 3v6h7M14 9v12M3 15h6"/></svg>'
+      + '<h2 style="background:#EEF3FA;color:#0B1426;border-left:5px solid #0E7490;padding:10px 14px;border-radius:8px;font-size:16px;margin-bottom:16px;display:flex;align-items:center;gap:8px"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#0E7490" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h6V3M9 9v12M14 3v6h7M14 9v12M3 15h6"/></svg>'
       + (L('Συγκεντρωτικές Κατόψεις (Roadmap πινεζών)','Consolidated Floorplans (Pin Roadmap)','Përmbledhje Planimetrish')) + '</h2>'
       + sections + '</div>';
   }
@@ -4768,14 +4767,14 @@ function buildReportHTML(period, lang, trMap) {
   buildings.forEach(b => {
     const list = allE.filter(e => (e.building||'')===b.id);
     body += '<div style="margin-bottom:18px">'
-      + '<h2 class="rp-h" style="background:#EEF3FA;color:#0B1426;border-left:5px solid #5B3BD6;padding:10px 14px;border-radius:8px;font-size:16px;margin-bottom:12px">'
+      + '<h2 class="rp-h" style="background:#EEF3FA;color:#0B1426;border-left:5px solid #1F5FBF;padding:10px 14px;border-radius:8px;font-size:16px;margin-bottom:12px">'
       + (b.type==='villa'?'🏠':b.type==='pool'?'🏊':'🏢') + ' ' + T(b.name) + '</h2>'
       + renderEntries(list) + '</div>';
   });
   const bIds = new Set(buildings.map(b => b.id));
   const general = allE.filter(e => !e.building || !bIds.has(e.building));
   if (general.length) {
-    body += '<div style="margin-bottom:18px"><h2 class="rp-h" style="background:#E6EDFF;color:#1D3A99;border-left:5px solid #2F5BD3;padding:10px 14px;border-radius:8px;font-size:16px;margin-bottom:12px">' + (L('📋 Γενικά (όλο το οικόπεδο)','📋 General (entire site)','📋 Të përgjithshme (i gjithë kantieri)')) + '</h2>' + renderEntries(general) + '</div>';
+    body += '<div style="margin-bottom:18px"><h2 class="rp-h" style="background:#E2F4F7;color:#0B4F61;border-left:5px solid #0E7490;padding:10px 14px;border-radius:8px;font-size:16px;margin-bottom:12px">' + (L('📋 Γενικά (όλο το οικόπεδο)','📋 General (entire site)','📋 Të përgjithshme (i gjithë kantieri)')) + '</h2>' + renderEntries(general) + '</div>';
   }
   if (!buildings.length && !general.length) {
     body = '<p style="color:#999;text-align:center;padding:30px">' + (L('Καμία καταγραφή για αυτή την περίοδο.','No records for this period.','Asnjë regjistrim për këtë periudhë.')) + '</p>';
@@ -4785,13 +4784,13 @@ function buildReportHTML(period, lang, trMap) {
 
   let phaseSummary = '';
   if (phases.length) {
-    phaseSummary = '<div style="margin-bottom:20px"><h2 style="background:#ECE6FF;color:#3B1FA8;border-left:5px solid #5B3BD6;padding:10px 14px;border-radius:8px;font-size:16px;margin-bottom:10px">' + (L('📈 Πρόοδος Φάσεων','📈 Phase Progress','📈 Progresi i Fazave')) + '</h2>';
+    phaseSummary = '<div style="margin-bottom:20px"><h2 style="background:#E8F0FC;color:#123E85;border-left:5px solid #1F5FBF;padding:10px 14px;border-radius:8px;font-size:16px;margin-bottom:10px">' + (L('📈 Πρόοδος Φάσεων','📈 Phase Progress','📈 Progresi i Fazave')) + '</h2>';
     phases.forEach(p => { phaseSummary += '<div style="font-size:12px;margin-bottom:4px">' + T(p.name) + ' — <strong>' + (p.pct||0) + '%</strong></div>'; });
     phaseSummary += '</div>';
   }
 
   const engCount = [...new Set(allE.map(e=>e.engineer).filter(Boolean))].length;
-  const hexisLogo = '<svg width="48" height="50" style="vertical-align:middle" viewBox="0 0 100 104" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="hxR" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6FA8FF"/><stop offset="0.55" stop-color="#3D6BEB"/><stop offset="1" stop-color="#6A3FE0"/></linearGradient><linearGradient id="hxC" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B08CFF"/><stop offset="1" stop-color="#5A2BD0"/></linearGradient></defs><polygon points="50,12 86,33 86,75 50,96 14,75 14,33" fill="none" stroke="#1E2A86" stroke-width="7"/><polygon points="50,7 86,28 86,70 50,91 14,70 14,28" fill="none" stroke="url(#hxR)" stroke-width="6"/><polygon points="50,33 69,44 69,67 50,78 31,67 31,44" fill="#2E157F"/><polygon points="50,27 69,38 69,61 50,72 31,61 31,38" fill="url(#hxC)"/><polygon points="50,27 69,38 50,49 31,38" fill="#FFFFFF" fill-opacity="0.2"/><text x="51" y="60" font-size="24" font-weight="bold" fill="#2E157F" text-anchor="middle" font-family="Helvetica">H</text><text x="50" y="58" font-size="24" font-weight="bold" fill="#FFFFFF" text-anchor="middle" font-family="Helvetica">H</text></svg>';
+  const hexisLogo = '<svg width="48" height="50" style="vertical-align:middle" viewBox="0 0 100 104" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="hxR" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7CC4FF"/><stop offset="1" stop-color="#1E5BD8"/></linearGradient><linearGradient id="hxC" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4A9BFF"/><stop offset="1" stop-color="#1747B5"/></linearGradient></defs><polygon points="50,12 86,33 86,75 50,96 14,75 14,33" fill="none" stroke="#0E2A66" stroke-width="7"/><polygon points="50,7 86,28 86,70 50,91 14,70 14,28" fill="none" stroke="url(#hxR)" stroke-width="6"/><polygon points="50,33 69,44 69,67 50,78 31,67 31,44" fill="#0E2A66"/><polygon points="50,27 69,38 69,61 50,72 31,61 31,38" fill="url(#hxC)"/><polygon points="50,27 69,38 50,49 31,38" fill="#FFFFFF" fill-opacity="0.22"/><text x="51" y="60" font-size="24" font-weight="bold" fill="#0E2A66" text-anchor="middle" font-family="Helvetica">H</text><text x="50" y="58" font-size="24" font-weight="bold" fill="#FFFFFF" text-anchor="middle" font-family="Helvetica">H</text></svg>';
   const brbLogo = '<img src="' + window.BRB_LOGO_DATA + '" style="height:48px;border-radius:4px;vertical-align:middle">';
   const partnerLogo = window._customLogo ? '<img src="' + window._customLogo + '" style="height:48px;max-width:200px;object-fit:contain;vertical-align:middle">' : brbLogo;
   // ── Εξώφυλλο (1η σελίδα): logos + έργο + χάρτης με πινέζα ──
@@ -4821,7 +4820,7 @@ function buildReportHTML(period, lang, trMap) {
   const cover = '<div style="page-break-after:always;text-align:center;padding-top:30px">'
     + '<div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:6px">' + hexisLogo + partnerLogo + '<span style="font-size:26px;font-weight:800;color:#0B1426;letter-spacing:3px">HEXIS-APP</span></div>'
     + '<div style="font-size:11px;color:#999;margin-bottom:26px">powered by BRB Development MON IKE</div>'
-    + '<div style="font-size:14px;color:#2448B8;font-weight:800;letter-spacing:1px">' + (L('Αναφορά Προόδου Εργοταξίου','Site Progress Report','Raport Progresi i Kantierit')) + '</div>'
+    + '<div style="font-size:14px;color:#0B5E75;font-weight:800;letter-spacing:1px">' + (L('Αναφορά Προόδου Εργοταξίου','Site Progress Report','Raport Progresi i Kantierit')) + '</div>'
     + '<h1 style="font-size:30px;color:#0B1426;margin:10px 0 4px">' + T(proj.name) + '</h1>'
     + ((proj.owner || proj.client) ? '<div style="font-size:16px;color:#555">' + (L('Ιδιοκτήτης: ','Owner: ','Pronari: ')) + NM(proj.owner || proj.client) + '</div>' : '')
     + '<div style="font-size:13px;color:#777;margin-top:6px">' + periodLabel + '</div>'
@@ -4829,10 +4828,10 @@ function buildReportHTML(period, lang, trMap) {
     + mapImg
     + '<div style="font-size:10px;color:#aaa;margin-top:14px">' + (L('Έκδοση: ','Issued: ','Lëshuar: ')) + new Date().toLocaleString(LOC) + '</div>'
     + '</div>';
-  return RPT_CSS + cover + '<div style="border-bottom:3px solid #2F5BD3;padding-bottom:14px;margin-bottom:20px">'
+  return RPT_CSS + cover + '<div style="border-bottom:3px solid #0E7490;padding-bottom:14px;margin-bottom:20px">'
     + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">' + hexisLogo + partnerLogo + '<span style="font-size:20px;font-weight:800;color:#0B1426;letter-spacing:2px">HEXIS-APP</span></div>'
     + '<h1 style="font-size:22px;color:#0B1426">🏗️ ' + (L('Αναφορά ','Site Progress Report — ','Raport Progresi i Kantierit — ')) + periodLabel + '</h1>'
-    + '<div style="font-size:15px;color:#5B3BD6;font-weight:bold;margin-top:4px">' + T(proj.name) + '</div>'
+    + '<div style="font-size:15px;color:#1F5FBF;font-weight:bold;margin-top:4px">' + T(proj.name) + '</div>'
     + (proj.address ? '<div style="font-size:12px;color:#777">📌 ' + T(proj.address) + '</div>' : '')
     + '<div style="font-size:11px;color:#999;margin-top:4px">' + (L('Κτίρια: ','Buildings: ','Ndërtesa: ')) + buildings.length + (L(' · Καταγραφές: ',' · Records: ',' · Regjistrime: ')) + allE.length + (L(' · Μηχανικοί: ',' · Engineers: ',' · Inxhinierë: ')) + engCount + '</div></div>'
     + phaseSummary + body
@@ -5115,22 +5114,22 @@ async function _pdfFloorplanImage(f, fid, entries, ppNo) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   entries.filter(e => e.floorplan_id === fid && e.pin_x != null).forEach(e => {
     const x = e.pin_x / 100 * W, y = e.pin_y / 100 * H;
-    ctx.beginPath(); ctx.arc(x, y, R, 0, 7); ctx.fillStyle = '#5B3BD6'; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, R, 0, 7); ctx.fillStyle = '#1F5FBF'; ctx.fill();
     ctx.lineWidth = R / 5; ctx.strokeStyle = '#fff'; ctx.stroke();
     ctx.fillStyle = '#fff'; ctx.font = 'bold ' + R + 'px Arial';
     ctx.fillText(String(e.pin_no || ''), x, y + R * 0.06);
   });
   entries.filter(e => e.floorplan_id === fid && e.photo_pins && e.photo_pins.length).forEach(e => e.photo_pins.forEach(pp => {
     const x = pp.x / 100 * W, y = pp.y / 100 * H, r = R * 0.85;
-    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = '#2F5BD3'; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = '#0E7490'; ctx.fill();
     ctx.lineWidth = r / 5; ctx.strokeStyle = '#fff'; ctx.stroke();
     ctx.fillStyle = '#fff'; ctx.fillRect(x - r * 0.55, y - r * 0.32, r * 1.1, r * 0.72);
-    ctx.beginPath(); ctx.arc(x, y, r * 0.22, 0, 7); ctx.fillStyle = '#2F5BD3'; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, r * 0.22, 0, 7); ctx.fillStyle = '#0E7490'; ctx.fill();
     const n = pp.n || ppNo[pp.p] || '';
     if (n) {
       ctx.beginPath(); ctx.arc(x + r * 0.95, y - r * 0.95, r * 0.62, 0, 7);
-      ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = '#2F5BD3'; ctx.lineWidth = r / 6; ctx.stroke();
-      ctx.fillStyle = '#2F5BD3'; ctx.font = 'bold ' + Math.round(r * 0.72) + 'px Arial';
+      ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = '#0E7490'; ctx.lineWidth = r / 6; ctx.stroke();
+      ctx.fillStyle = '#0E7490'; ctx.font = 'bold ' + Math.round(r * 0.72) + 'px Arial';
       ctx.fillText(String(n), x + r * 0.95, y - r * 0.9);
     }
   }));
@@ -5211,7 +5210,7 @@ async function buildReportDocDef(period, lang, trMap) {
   const ppNo = photoPinNoMap(entries);
   const urlOf = p => SB_URL + '/storage/v1/object/public/hexis-photos/' + p;
   const typeLabel = t => t === 'order' ? L3('ΕΝΤΟΛΗ','TASK','DETYRË') : t === 'purchase' ? L3('ΠΑΡΑΓΓΕΛΙΑ','ORDER','POROSI') : L3('ΠΑΡΑΤΗΡΗΣΗ','SUPERVISOR COMMENT','VËREJTJE');
-  const typeColor = t => t === 'order' ? '#2448B8' : t === 'purchase' ? '#5B3BD6' : '#C2185B';
+  const typeColor = t => t === 'order' ? '#0B5E75' : t === 'purchase' ? '#1F5FBF' : '#C2410C';
   const statusColor = s => s === 'done' ? '#0D7A4A' : s === 'urgent' ? '#C2185B' : '#8F5200';
   const statusLabel = s => s === 'done' ? L3('Ολοκληρώθηκε','Completed','Përfunduar') : s === 'urgent' ? L3('ΕΠΕΙΓΟΝ','URGENT','URGJENT') : L3('Εκκρεμεί','Pending','Në pritje');
   const content = [];
@@ -5221,8 +5220,8 @@ async function buildReportDocDef(period, lang, trMap) {
   // ── Εξώφυλλο/κεφαλίδα ──
   const partner = window._customLogo || window.BRB_LOGO_DATA || null;
   const headCols = [];
-  // λογότυπο HEXIS-APP 3D σε μπλε–μωβ + λογότυπο γραφείου
-  headCols.push({ svg: '<svg width="44" height="46" viewBox="0 0 100 104" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="hxR" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6FA8FF"/><stop offset="0.55" stop-color="#3D6BEB"/><stop offset="1" stop-color="#6A3FE0"/></linearGradient><linearGradient id="hxC" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B08CFF"/><stop offset="1" stop-color="#5A2BD0"/></linearGradient></defs><polygon points="50,12 86,33 86,75 50,96 14,75 14,33" fill="none" stroke="#1E2A86" stroke-width="7"/><polygon points="50,7 86,28 86,70 50,91 14,70 14,28" fill="none" stroke="url(#hxR)" stroke-width="6"/><polygon points="50,33 69,44 69,67 50,78 31,67 31,44" fill="#2E157F"/><polygon points="50,27 69,38 69,61 50,72 31,61 31,38" fill="url(#hxC)"/><polygon points="50,27 69,38 50,49 31,38" fill="#FFFFFF" fill-opacity="0.2"/><text x="51" y="60" font-size="24" font-weight="bold" fill="#2E157F" text-anchor="middle" font-family="Helvetica">H</text><text x="50" y="58" font-size="24" font-weight="bold" fill="#FFFFFF" text-anchor="middle" font-family="Helvetica">H</text></svg>', width: 44 });
+  // λογότυπο HEXIS-APP 3D σε τόνους του μπλε + λογότυπο γραφείου
+  headCols.push({ svg: '<svg width="44" height="46" viewBox="0 0 100 104" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="hxR" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7CC4FF"/><stop offset="1" stop-color="#1E5BD8"/></linearGradient><linearGradient id="hxC" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4A9BFF"/><stop offset="1" stop-color="#1747B5"/></linearGradient></defs><polygon points="50,12 86,33 86,75 50,96 14,75 14,33" fill="none" stroke="#0E2A66" stroke-width="7"/><polygon points="50,7 86,28 86,70 50,91 14,70 14,28" fill="none" stroke="url(#hxR)" stroke-width="6"/><polygon points="50,33 69,44 69,67 50,78 31,67 31,44" fill="#0E2A66"/><polygon points="50,27 69,38 69,61 50,72 31,61 31,38" fill="url(#hxC)"/><polygon points="50,27 69,38 50,49 31,38" fill="#FFFFFF" fill-opacity="0.22"/><text x="51" y="60" font-size="24" font-weight="bold" fill="#0E2A66" text-anchor="middle" font-family="Helvetica">H</text><text x="50" y="58" font-size="24" font-weight="bold" fill="#FFFFFF" text-anchor="middle" font-family="Helvetica">H</text></svg>', width: 44 });
   if (partner) headCols.push({ image: partner, fit: [120, 40], width: 130 });
   headCols.push({ stack: [
     { text: 'HEXIS-APP — ' + L3('Αναφορά Προόδου Εργοταξίου','Site Progress Report','Raport i Progresit të Kantierit'), style: 'h1' },
@@ -5230,7 +5229,7 @@ async function buildReportDocDef(period, lang, trMap) {
     { text: (proj.client ? L3('Πελάτης: ','Client: ','Klienti: ') + NM(proj.client) + '   ·   ' : '') + L3('Έκδοση: ','Issued: ','Lëshuar: ') + new Date().toLocaleDateString(LOC3), style: 'meta' }
   ] });
   content.push({ columns: headCols, columnGap: 12 });
-  content.push({ canvas: [{ type: 'line', x1: 0, y1: 4, x2: CONTENT_W, y2: 4, lineWidth: 1.6, lineColor: '#2F5BD3' }], margin: [0, 4, 0, 8] });
+  content.push({ canvas: [{ type: 'line', x1: 0, y1: 4, x2: CONTENT_W, y2: 4, lineWidth: 1.6, lineColor: '#0E7490' }], margin: [0, 4, 0, 8] });
   // ── Ομαδοποίηση ανά κτίριο ──
   const groups = {}; const order = [];
   entries.forEach(e => { const k = e.building || ''; if (!groups[k]) { groups[k] = []; order.push(k); } groups[k].push(e); });
@@ -5239,12 +5238,12 @@ async function buildReportDocDef(period, lang, trMap) {
   for (const k of order) {
     // κτίριο: ανοιχτόχρωμη λωρίδα με μωβ γραμμή αριστερά (Neo Light)
     content.push({ table: { widths: ['*'], body: [[{ text: bName(k), style: 'h2', fillColor: '#EEF3FA', margin: [7, 4, 6, 4] }]] },
-      layout: { hLineWidth: () => 0, vLineWidth: i => i === 0 ? 3 : 0, vLineColor: () => '#5B3BD6' }, margin: [0, 12, 0, 2] });
+      layout: { hLineWidth: () => 0, vLineWidth: i => i === 0 ? 3 : 0, vLineColor: () => '#1F5FBF' }, margin: [0, 12, 0, 2] });
     for (const e of groups[k].slice().sort((a, b) => new Date(a.date) - new Date(b.date))) {
       const headTxt = { text: [
         { text: typeLabel(e.type) + '  ', color: typeColor(e.type), bold: true, fontSize: 8 },
         { text: T(e.desc || ''), bold: true },
-        e.pin_no != null ? { text: '   [ #' + e.pin_no + ' ]', color: '#5B3BD6', bold: true } : { text: '' }
+        e.pin_no != null ? { text: '   [ #' + e.pin_no + ' ]', color: '#1F5FBF', bold: true } : { text: '' }
       ], margin: [0, 9, 0, 1] };
       const metaBits = [];
       if (e.engineer) metaBits.push(NM(e.engineer));
@@ -5289,8 +5288,8 @@ async function buildReportDocDef(period, lang, trMap) {
     content.push({ text: L3('Συγκεντρωτικές Κατόψεις','Consolidated Floorplans','Planimetri të Përmbledhura'), style: 'h2', pageBreak: 'before' });
     const hasCam = entries.some(e => e.photo_pins && e.photo_pins.length);
     if (hasCam) content.push({ text: [
-      { text: '● ', color: '#5B3BD6' }, { text: L3('Καταγραφή','Entry','Regjistrim') + '      ' },
-      { text: '● ', color: '#2F5BD3' }, { text: L3('Θέση λήψης φωτογραφίας','Photo location','Vendi i fotos') }
+      { text: '● ', color: '#1F5FBF' }, { text: L3('Καταγραφή','Entry','Regjistrim') + '      ' },
+      { text: '● ', color: '#0E7490' }, { text: L3('Θέση λήψης φωτογραφίας','Photo location','Vendi i fotos') }
     ], style: 'meta', margin: [0, 2, 0, 4] });
     for (const fid of ids) {
       const f = projFiles.find(x => x.id === fid);
@@ -5313,9 +5312,9 @@ async function buildReportDocDef(period, lang, trMap) {
     content,
     styles: {
       h1: { fontSize: 15, bold: true, color: '#0B1426' },
-      h2: { fontSize: 12.5, bold: true, color: '#5B3BD6' },
+      h2: { fontSize: 12.5, bold: true, color: '#1F5FBF' },
       h2o: { fontSize: 12, bold: true, color: '#333', margin: [0, 2, 0, 0] },
-      h3: { fontSize: 10.5, bold: true, color: '#2448B8' },
+      h3: { fontSize: 10.5, bold: true, color: '#0B5E75' },
       meta: { fontSize: 8, color: '#56677F' },
       cap: { fontSize: 7.5, color: '#56677F', margin: [0, 2, 0, 0] }
     },
