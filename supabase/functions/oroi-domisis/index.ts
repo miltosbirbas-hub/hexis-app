@@ -330,6 +330,60 @@ async function coastDistance(b: HxAttr) {
   return { dist: Math.round(best * 100) / 100, pt: bp ? [Math.round(bp[0] * 100) / 100, Math.round(bp[1] * 100) / 100] : null, segs: segs.length, radius: rad, src: src ? "OpenStreetMap (" + new URL(src).host + ")" : "OpenStreetMap (cache)" };
 }
 
+/* ---------- Δασικοί χάρτες (ΕΨΧ: αναρτημένοι 2022 + μερικώς κυρωμένοι 2021, ανά Περιφέρεια) + Natura 2000 — πολύγωνα που τέμνουν το γεωτεμάχιο ----------
+   Είσοδος { action:"forest", ring:[[x,y],...] }  Έξοδος { features:[{ layerId, layerName, set:'2022'|'2021', cat, cat1, cat2, ota, nomos, rings:[[[x,y],...]] }], natura:[{...}], src } */
+const FOREST_MS = "https://sdigmap.tee.gov.gr/mapping/rest/services/UDM/UDM_SERVICE_NATURA_DASIKA/MapServer";
+const FOREST_2022 = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28], FOREST_2021 = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+function ringOf(b: HxAttr): Ring | null { const ring: Ring = (Array.isArray(b.ring) ? b.ring : []).map((p: unknown) => Array.isArray(p) ? [Number(p[0]), Number(p[1])] : [NaN, NaN]).filter((p: number[]) => isFinite(p[0]) && isFinite(p[1])); if (ring.length < 3 || ring.length > 3000) return null; const bb = bboxOf(ring); if (!(bb[0] > 50000 && bb[2] < 1050000 && bb[1] > 3800000 && bb[3] < 4700000)) return null; return ring; }
+function bboxOf(ring: Ring) { const bb = [Infinity, Infinity, -Infinity, -Infinity]; ring.forEach(([x, y]) => { bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], y); bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], y); }); return bb; }
+async function identifyMS(ms: string, ring: Ring, layers: number[], buffer: number) {
+  const bb = bboxOf(ring), ext = [bb[0] - buffer, bb[1] - buffer, bb[2] + buffer, bb[3] + buffer];
+  const geom = JSON.stringify({ rings: [ring.concat([ring[0]])], spatialReference: { wkid: 2100 } });
+  const qs = new URLSearchParams({ f: "json", geometry: geom, geometryType: "esriGeometryPolygon", sr: "2100", layers: "all:" + layers.join(","), tolerance: String(Math.round(buffer)), mapExtent: ext.map((v) => v.toFixed(2)).join(","), imageDisplay: "800,800,96", returnGeometry: "true" });
+  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 20000);
+  try { const r = await fetch(ms + "/identify?" + qs.toString(), { signal: ctl.signal, headers: { "User-Agent": "HEXIS-APP/1.0 (hexis-app.gr)" } }); if (!r.ok) throw new Error("HTTP " + r.status); const j = await r.json(); if (j.error) throw new Error(JSON.stringify(j.error)); return (j.results || []) as HxAttr[]; }
+  finally { clearTimeout(tm); }
+}
+async function forestPolys(b: HxAttr) {
+  const ring = ringOf(b); if (!ring) return { error: "bad_ring" };
+  let res: HxAttr[];
+  try { res = await identifyMS(FOREST_MS, ring, [0].concat(FOREST_2022, FOREST_2021), 0); } catch (e) { return { error: "forest_unreachable", msg: String(e).slice(0, 120) }; }
+  const feats: HxAttr[] = [], natura: HxAttr[] = [];
+  for (const r of res) {
+    const a = (r.attributes || {}) as HxAttr, g = (r.geometry || {}) as HxAttr, lid = Number(r.layerId);
+    if (lid === 0) { natura.push({ name: a["SITE_NAME"] ?? a["Όνομα"] ?? a["NAME"] ?? "", code: a["SITE_CODE"] ?? a["Κωδικός"] ?? a["CODE"] ?? "", type: a["SITE_TYPE"] ?? a["Τύπος"] ?? "", attrs: a }); continue; }
+    const rings = ((g.rings || []) as number[][][]).map((rg) => rg.map((p) => [Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100]));
+    if (!rings.length) continue;
+    feats.push({ layerId: lid, layerName: String(r.layerName || ""), set: FOREST_2022.includes(lid) ? "2022" : "2021", cat: String(a["Χαρακτηρισμός Έκτασης"] ?? a["KATHGORDX"] ?? "").trim(), cat1: String(a["Χαρακτηρισμός Έκτασης 1"] ?? a["KATHGORAL1"] ?? "").trim(), cat2: String(a["Χαρακτηρισμός Έκτασης 2"] ?? a["KATHGORAL2"] ?? "").trim(), ota: String(a["ΟΤΑ"] ?? a["OTA"] ?? ""), nomos: String(a["Νομός"] ?? a["NOMOS"] ?? ""), code: String(a["Κωδικός"] ?? a["CODE"] ?? ""), rings });
+  }
+  return { features: feats, natura, n: feats.length, src: "Ενιαίος Ψηφιακός Χάρτης (ΤΕΕ/ΥΠΕΝ) — δασικοί χάρτες" };
+}
+
+/* ---------- Αιγιαλός (Δημόσια Περιουσία, GSIS): καθορισμοί οριογραμμής αιγιαλού–παραλίας κοντά στο γεωτεμάχιο (ΥΥΝ, ΦΕΚ, τοπωνύμιο) ----------
+   Είσοδος { action:"aigialos", ring, buffer?: m (προεπιλογή 500, έως 5000) }  Έξοδος { items:[{ id, sysId, yyn, fek, fekDate, place, dist, inside }], src } */
+const AIGIALOS_Q = "https://maps.gsis.gr/gspp/maps/rest/services/Dhpe/AIGIALOS_BBOX/MapServer/0/query";
+async function aigialosFek(b: HxAttr) {
+  const ring = ringOf(b); if (!ring) return { error: "bad_ring" };
+  const buf = Math.min(5000, Math.max(0, Number(b.buffer) || 500)), bb = bboxOf(ring);
+  const geom = JSON.stringify({ xmin: bb[0] - buf, ymin: bb[1] - buf, xmax: bb[2] + buf, ymax: bb[3] + buf, spatialReference: { wkid: 2100 } });
+  const qs = new URLSearchParams({ f: "json", where: "1=1", geometry: geom, geometryType: "esriGeometryEnvelope", inSR: "2100", outSR: "2100", spatialRel: "esriSpatialRelIntersects", outFields: "GI_FORESHORE_ID,SYS_ID,YYN_NUM,FEK_NUM,FEK_DT,PLACE_NAME", returnGeometry: "true", resultRecordCount: "50", orderByFields: "BBOX_AREA ASC" });
+  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 20000);
+  let j: HxAttr;
+  try { const r = await fetch(AIGIALOS_Q + "?" + qs.toString(), { signal: ctl.signal, headers: { "User-Agent": "HEXIS-APP/1.0 (hexis-app.gr)" } }); if (!r.ok) return { error: "aigialos_http_" + r.status }; j = await r.json(); }
+  catch (e) { return { error: "aigialos_unreachable", msg: String(e).slice(0, 120) }; }
+  finally { clearTimeout(tm); }
+  if (j.error) return { error: "aigialos_error", msg: JSON.stringify(j.error).slice(0, 200) };
+  const items = ((j.features || []) as HxAttr[]).map((f) => {
+    const a = (f.attributes || {}) as HxAttr, g = (f.geometry || {}) as HxAttr, rings = (g.rings || []) as number[][][];
+    // απόσταση του ορίου από το πλαίσιο (bbox) του καθορισμού· 0 αν τέμνονται
+    let dist = Infinity, inside = false;
+    for (const rg of rings) { if (ring.some((v) => pip(v, rg)) || rg.some((v) => pip(v, ring))) { dist = 0; inside = true; break; } for (let i = 0; i + 1 < rg.length; i++) for (const v of ring) dist = Math.min(dist, d2seg(v, rg[i], rg[i + 1])); }
+    const dt = a.FEK_DT != null ? new Date(Number(a.FEK_DT)) : null;
+    return { id: a.GI_FORESHORE_ID, sysId: a.SYS_ID, yyn: String(a.YYN_NUM || ""), fek: String(a.FEK_NUM || ""), fekDate: dt && isFinite(dt.getTime()) ? dt.toISOString().slice(0, 10) : "", place: String(a.PLACE_NAME || "").trim(), dist: isFinite(dist) ? Math.round(dist * 10) / 10 : null, inside };
+  }).sort((p, q) => (p.dist ?? 1e9) - (q.dist ?? 1e9));
+  return { items, n: items.length, buffer: buf, src: "Δημόσια Περιουσία — Αιγιαλός (ΓΓΠΣ/gsis.gr)" };
+}
+
 async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
   // χαρακτήρες που δεν υπάρχουν στο ANSI 1253 (progeCAD / παλιό AutoCAD) → απλά ισοδύναμα
   const ansi = (t: string) => t.replace(/→/g, ":").replace(/≈/g, "~").replace(/×/g, "x").replace(/÷/g, "/").replace(/−/g, "-").replace(/≥/g, ">=").replace(/≤/g, "<=");
@@ -605,6 +659,8 @@ Deno.serve(async (req) => {
     if (b.action === "lisp_extract") return await lispExtract(req, b, C);
     if (b.action === "emsy") return json(await emsyPoints(b));
     if (b.action === "coast") return json(await coastDistance(b));
+    if (b.action === "forest") return json(await forestPolys(b));
+    if (b.action === "aigialos") return json(await aigialosFek(b));
     const x = Number(b.x), y = Number(b.y);
     // Ελλάδα σε ΕΓΣΑ'87: περίπου x 50.000–1.050.000, y 3.850.000–4.650.000
     if (!(x > 50000 && x < 1050000 && y > 3800000 && y < 4700000)) return json({ error: "bad_coords" }, 400);
