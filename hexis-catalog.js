@@ -36,7 +36,7 @@
    Το sw.js (importScripts) και το app.html τη διαβάζουν από εδώ.
    ΔΕΝ γράφεται πουθενά αλλού.
    ============================================================ */
-var VERSION = 'v4.210';
+var VERSION = 'v4.211';
 
 var BRB_TERRAIN_URL = 'https://miltosbirbas-hub.github.io/BRB-contour-live/';
 
@@ -192,6 +192,30 @@ var ICONS = {"interior": "<svg style=\"width:100%;height:100%;display:block\" xm
 /* ---------- ΠΑΡΑΓΩΓΑ — μην τα πειράζεις ---------- */
 
 // hub.html: λίστα tiles με τη σειρά εμφάνισης
+// English names/descriptions (used when the app language is English)
+var CATALOG_EN = {
+  app:           ['Project Management', 'Sites · daily log · photos with pins · tasks · PDF reports · collaborators'],
+  nomothesia:    ['Legislation', 'Greek building law: Tagaras Code 5306/26 · NOK · L.4495 · Building Regulation + AI search'],
+  ktima:         ["Cadastre & EGSA'87", 'Map with coordinates · measurements · cadastral boundaries'],
+  syntetagmenes: ['HEXIS GEOmetry', "EGSA'87 coordinates from PDF/DXF · cadastral parcels (KAEK) at the plot location · geometric change diagrams (boundary correction, subdivision, merger)"],
+  paper2dxf:     ['Paper → DXF', 'Old drawings (PDF, JPG, TIFF) to editable DXF · lines, polylines, arcs · Greek MTEXT · 1:1 scale · 3D wall extrude'],
+  pdfdim:        ['PDF Dim', 'Measure on PDF drawings · lengths, areas, angles, circles · automatic scale & snap to lines · EGSA87 & KAEK georeference · GPS position on the drawing · PDF with dimensions · linked to project files'],
+  dxf:           ['Check My DXF', 'Drawing check for the Cadastre electronic submission · Table I · map — CAD Tools package together with the LISP'],
+  kostos:        ['Permit Cost', 'Budget · fees · taxes · EFKA · agreements · SAY/FAY · declarations · XML'],
+  domisi:        ['Building Inspection', 'Inspector report · L.4495/2017 · JMD 299/2014 · fee'],
+  terrain:       ['HEXIS Terrain', "KMZ/KML → EGSA'87 · DEM elevations · contours · DXF export"],
+  asbuilt:       ['AS-BUILT CLOUD', 'Construction thickness & cut/fill volumes from point clouds · scaled maps · PDF technical report'],
+  plan3d:        ['3D Building', 'Floor plans & formwork drawings (PDF/DXF) to a 3D model · sections · measurements · sun & shadows'],
+  toixos:        ['Retaining Wall', 'RC cantilever wall · EN 1997-1 / EN 1998-5 / EN 1992-1-1 · plan with varying levels, formwork, drainage, reinforcement, report, DXF'],
+  mpeton:        ['Concrete & Masonry', 'Concrete mixes C12/15–C40 · bricks · lintels · mortar'],
+  stegh:         ['Roof & Quantities', 'Draw the outline on your phone · hips · valleys · levels · material quantities in PDF'],
+  pad:           ['HEXIS PAD', 'Android app for RTK survey and stakeout · Bluetooth/Wi-Fi receiver, NTRIP, TXT/DXF/DWG, COGO, EGSA87'],
+  rtk:           ['RTK Checklist', 'Base + Rover setup · known point / localization'],
+  routeprep:     ['Route Prep · Drone', 'KML/KMZ to a drone flight mission · boundary cleanup · mission guide & checklist'],
+  kenak:         ['KENAK Inspection (Beta)', 'Floor plan sketch · openings · shading · floors · TOTEE checks · TEE-KENAK XML'],
+  lisp:          ['LISP CAD Library', 'HEXISCHECK/HEXISFIX · STEGH roof & formwork · EXPTXT point export to TXT · new AutoLISP routines all the time']
+};
+CATALOG.forEach(function (t) { var e = CATALOG_EN[t.id]; if (e) { t.name_en = e[0]; t.desc_en = e[1]; } });
 g.HEXIS_TOOLS = CATALOG;
 
 // tool.html: map id -> εργαλείο (χωρίς το primary)
@@ -211,7 +235,7 @@ g.HEXIS_MODULE_INFO = {};
 CATALOG.forEach(function (t) {
   if (t.primary) return;
   var m = t.mod || t.id;
-  if (!g.HEXIS_MODULE_INFO[m]) g.HEXIS_MODULE_INFO[m] = { name: t.adminName || t.name, price: t.price || '' };
+  if (!g.HEXIS_MODULE_INFO[m]) g.HEXIS_MODULE_INFO[m] = { name: t.adminName || t.name, name_en: t.name_en || '', price: t.price || '' };
 });
 
 // sw.js: ποια .html των εργαλείων μπαίνουν στο precache
