@@ -279,17 +279,44 @@ async function coastDistance(b: HxAttr) {
   let segs: number[][][] | null = hit && hit.t > now ? (hit.v.segs as number[][][]) : null, src = "";
   if (!segs) {
     const sw = tmInverse(bb[0] - rad, bb[1] - rad), ne = tmInverse(bb[2] + rad, bb[3] + rad);
-    const q = '[out:json][timeout:25];way["natural"="coastline"](' + sw[1].toFixed(5) + "," + sw[0].toFixed(5) + "," + ne[1].toFixed(5) + "," + ne[0].toFixed(5) + ");out geom;";
-    let j: HxAttr | null = null, lastErr = "";
-    for (const u of OVERPASS) {
-      const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 22000);
-      try { const r = await fetch(u, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "HEXIS-APP/1.0 (hexis-app.gr)" }, signal: ctl.signal }); const txt = await r.text(); if (!r.ok) { lastErr = u + " HTTP " + r.status; continue; } j = JSON.parse(txt); src = u; break; }
-      catch (e) { lastErr = u + " " + String(e).slice(0, 80); }
+    const bboxS = sw[1].toFixed(5) + "," + sw[0].toFixed(5) + "," + ne[1].toFixed(5) + "," + ne[0].toFixed(5);
+    const q = '[out:json][timeout:12];way["natural"="coastline"](' + bboxS + ");out geom;";
+    const errs: string[] = [];
+    // 1) Overpass: όλοι οι servers παράλληλα, κερδίζει ο πρώτος που απαντά σωστά (12 s)
+    const one = (u: string) => (async () => {
+      const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 12000);
+      try { const r = await fetch(u, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "HEXIS-APP/1.0 (hexis-app.gr)" }, signal: ctl.signal }); const txt = await r.text(); if (!r.ok) throw new Error("HTTP " + r.status); const j = JSON.parse(txt); if (!Array.isArray(j.elements)) throw new Error("bad json"); return { j, u }; }
       finally { clearTimeout(tm); }
-    }
-    if (!j) return { error: "coast_unreachable", msg: lastErr };
+    })();
+    let got: { j: HxAttr; u: string } | null = null;
+    try { got = await Promise.any(OVERPASS.map(one)); } catch (e) { errs.push("overpass: " + String((e as AggregateError).errors?.map((x: unknown) => String(x).slice(0, 60)).join(" | ") || e)); }
     segs = [];
-    for (const w of (j.elements || []) as HxAttr[]) { const g = ((w.geometry || []) as HxAttr[]).map((n) => wgsToEgsa(Number(n.lat), Number(n.lon))); for (let i = 0; i + 1 < g.length; i++) segs.push([g[i], g[i + 1]]); }
+    if (got) {
+      for (const w of (got.j.elements || []) as HxAttr[]) { const g = ((w.geometry || []) as HxAttr[]).map((n) => wgsToEgsa(Number(n.lat), Number(n.lon))); for (let i = 0; i + 1 < g.length; i++) segs.push([g[i], g[i + 1]]); }
+      src = got.u;
+    } else {
+      // 2) Εφεδρικά: επίσημο OSM API (map call) — όλα τα δεδομένα του bbox, κρατάμε μόνο τις ακτογραμμές· μικρότερο bbox αν είναι μεγάλο
+      for (const r2 of [Math.min(rad, 2000), 1000, 500]) {
+        const s2 = tmInverse(bb[0] - r2, bb[1] - r2), n2 = tmInverse(bb[2] + r2, bb[3] + r2);
+        const u = "https://api.openstreetmap.org/api/0.6/map?bbox=" + s2[0].toFixed(5) + "," + s2[1].toFixed(5) + "," + n2[0].toFixed(5) + "," + n2[1].toFixed(5);
+        const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 25000);
+        try {
+          const r = await fetch(u, { headers: { "User-Agent": "HEXIS-APP/1.0 (hexis-app.gr)" }, signal: ctl.signal });
+          const xml = await r.text();
+          if (!r.ok) { errs.push("osm-api r" + r2 + ": HTTP " + r.status); continue; }
+          const nodes = new Map<string, number[]>();
+          for (const m of xml.matchAll(/<node id="(\d+)"[^>]*? lat="(-?[\d.]+)" lon="(-?[\d.]+)"/g)) nodes.set(m[1], wgsToEgsa(Number(m[2]), Number(m[3])));
+          for (const wm of xml.matchAll(/<way id="\d+"[^>]*>([\s\S]*?)<\/way>/g)) {
+            const body = wm[1]; if (!/<tag k="natural" v="coastline"\/>/.test(body)) continue;
+            const refs = [...body.matchAll(/<nd ref="(\d+)"\/>/g)].map((x) => nodes.get(x[1])).filter((p): p is number[] => !!p);
+            for (let i = 0; i + 1 < refs.length; i++) segs.push([refs[i], refs[i + 1]]);
+          }
+          src = "https://api.openstreetmap.org"; break;
+        } catch (e) { errs.push("osm-api r" + r2 + ": " + String(e).slice(0, 60)); }
+        finally { clearTimeout(tm); }
+      }
+      if (!src) return { error: "coast_unreachable", msg: errs.join(" · ") };
+    }
     if (coastCache.size > 300) coastCache.clear();
     coastCache.set(key, { t: now + 6 * 3600e3, v: { segs } });
   }
