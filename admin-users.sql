@@ -64,3 +64,39 @@ begin
 end $$;
 revoke all on function public.admin_demo_accounts() from public, anon;
 grant execute on function public.admin_demo_accounts() to authenticated;
+
+-- ── Admin: εφαρμογή σε χρήστη (διακόπτης «Modules») ──────────────────────────
+-- Χρήστης σε δοκιμή (free με ημερομηνία δοκιμής): η εφαρμογή λήγει ΑΚΡΙΒΩΣ μαζί
+-- με τη δοκιμή του — ούτε μέρα παραπάνω (παλιά έδινε 1 έτος).
+-- Χρήστης χωρίς δοκιμή (π.χ. συνδρομητής Site Manager): demo 14 ημερών.
+-- Δωρεάν / πλήρη πρόσβαση δίνεις από «Πληρωμές → Δωρεάν ή demo».
+-- Δεν κονταίνει ποτέ ισχύουσα μεγαλύτερη (π.χ. αγορασμένη) άδεια.
+drop function if exists public.admin_set_module(text, text, boolean);
+create function public.admin_set_module(u_email text, m text, on_off boolean)
+returns timestamptz language plpgsql security definer set search_path to 'public' as $$
+declare uid uuid; s public.subscriptions; exp timestamptz;
+begin
+  if not public.is_admin() then raise exception 'not admin'; end if;
+  select id into uid from auth.users where lower(email) = lower(trim(u_email));
+  if uid is null then raise exception 'Δεν βρέθηκε χρήστης'; end if;
+  if not on_off then
+    update public.entitlements set active = false where user_id = uid and module = m;
+    return null;
+  end if;
+  select * into s from public.subscriptions where user_id = uid;
+  if coalesce(s.tier, 'free') = 'free' and s.trial_ends_at is not null then
+    exp := s.trial_ends_at;
+  else
+    exp := now() + interval '14 days';
+  end if;
+  insert into public.entitlements (user_id, module, active, expires_at)
+  values (uid, m, true, exp)
+  on conflict (user_id, module) do update
+    set active = true,
+        expires_at = case when entitlements.active
+                           and (entitlements.expires_at is null or entitlements.expires_at > exp)
+                          then entitlements.expires_at else exp end;
+  return (select expires_at from public.entitlements where user_id = uid and module = m);
+end $$;
+revoke all on function public.admin_set_module(text, text, boolean) from public, anon;
+grant execute on function public.admin_set_module(text, text, boolean) to authenticated;
