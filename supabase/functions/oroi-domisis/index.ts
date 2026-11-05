@@ -351,7 +351,7 @@ async function forestPolys(b: HxAttr) {
   const feats: HxAttr[] = [], natura: HxAttr[] = [];
   for (const r of res) {
     const a = (r.attributes || {}) as HxAttr, g = (r.geometry || {}) as HxAttr, lid = Number(r.layerId);
-    if (lid === 0) { natura.push({ name: a["SITE_NAME"] ?? a["Όνομα"] ?? a["NAME"] ?? "", code: a["SITE_CODE"] ?? a["Κωδικός"] ?? a["CODE"] ?? "", type: a["SITE_TYPE"] ?? a["Τύπος"] ?? "", attrs: a }); continue; }
+    if (lid === 0) { natura.push({ name: String(a["Ονομασία"] ?? a["SITE_NAME"] ?? a["NAME"] ?? "").trim(), code: String(a["Κωδικός"] ?? a["SITE_CODE"] ?? a["CODE"] ?? "").trim(), type: String(a["Τύπος "] ?? a["Τύπος"] ?? a["SITE_TYPE"] ?? "").trim() }); continue; }
     const rings = ((g.rings || []) as number[][][]).map((rg) => rg.map((p) => [Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100]));
     if (!rings.length) continue;
     feats.push({ layerId: lid, layerName: String(r.layerName || ""), set: FOREST_2022.includes(lid) ? "2022" : "2021", cat: String(a["Χαρακτηρισμός Έκτασης"] ?? a["KATHGORDX"] ?? "").trim(), cat1: String(a["Χαρακτηρισμός Έκτασης 1"] ?? a["KATHGORAL1"] ?? "").trim(), cat2: String(a["Χαρακτηρισμός Έκτασης 2"] ?? a["KATHGORAL2"] ?? "").trim(), ota: String(a["ΟΤΑ"] ?? a["OTA"] ?? ""), nomos: String(a["Νομός"] ?? a["NOMOS"] ?? ""), code: String(a["Κωδικός"] ?? a["CODE"] ?? ""), rings });
@@ -366,7 +366,7 @@ async function aigialosFek(b: HxAttr) {
   const ring = ringOf(b); if (!ring) return { error: "bad_ring" };
   const buf = Math.min(5000, Math.max(0, Number(b.buffer) || 500)), bb = bboxOf(ring);
   const geom = JSON.stringify({ xmin: bb[0] - buf, ymin: bb[1] - buf, xmax: bb[2] + buf, ymax: bb[3] + buf, spatialReference: { wkid: 2100 } });
-  const qs = new URLSearchParams({ f: "json", where: "1=1", geometry: geom, geometryType: "esriGeometryEnvelope", inSR: "2100", outSR: "2100", spatialRel: "esriSpatialRelIntersects", outFields: "GI_FORESHORE_ID,SYS_ID,YYN_NUM,FEK_NUM,FEK_DT,PLACE_NAME", returnGeometry: "true", resultRecordCount: "50", orderByFields: "BBOX_AREA ASC" });
+  const qs = new URLSearchParams({ f: "json", where: "1=1", geometry: geom, geometryType: "esriGeometryEnvelope", inSR: "2100", outSR: "2100", spatialRel: "esriSpatialRelIntersects", outFields: "GI_FORESHORE_ID,SYS_ID,YYN_NUM,FEK_NUM,FEK_DT,PLACE_NAME,BBOX_AREA", returnGeometry: "true", resultRecordCount: "50", orderByFields: "BBOX_AREA ASC" });
   const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 20000);
   let j: HxAttr;
   try { const r = await fetch(AIGIALOS_Q + "?" + qs.toString(), { signal: ctl.signal, headers: { "User-Agent": "HEXIS-APP/1.0 (hexis-app.gr)" } }); if (!r.ok) return { error: "aigialos_http_" + r.status }; j = await r.json(); }
@@ -379,8 +379,9 @@ async function aigialosFek(b: HxAttr) {
     let dist = Infinity, inside = false;
     for (const rg of rings) { if (ring.some((v) => pip(v, rg)) || rg.some((v) => pip(v, ring))) { dist = 0; inside = true; break; } for (let i = 0; i + 1 < rg.length; i++) for (const v of ring) dist = Math.min(dist, d2seg(v, rg[i], rg[i + 1])); }
     const dt = a.FEK_DT != null ? new Date(Number(a.FEK_DT)) : null;
-    return { id: a.GI_FORESHORE_ID, sysId: a.SYS_ID, yyn: String(a.YYN_NUM || ""), fek: String(a.FEK_NUM || ""), fekDate: dt && isFinite(dt.getTime()) ? dt.toISOString().slice(0, 10) : "", place: String(a.PLACE_NAME || "").trim(), dist: isFinite(dist) ? Math.round(dist * 10) / 10 : null, inside };
-  }).sort((p, q) => (p.dist ?? 1e9) - (q.dist ?? 1e9));
+        const yyn = String(a.YYN_NUM || "").trim(), poa = /ΠΟΑ|ΠΑΛΑΙ/i.test(yyn); // ΠΟΑ = παλαιός αιγιαλός (επικυρωτικές/διαπιστωτικές, συνήθως με τεράστιο πλαίσιο)
+    return { id: a.GI_FORESHORE_ID, sysId: a.SYS_ID, yyn, fek: String(a.FEK_NUM || ""), fekDate: dt && isFinite(dt.getTime()) ? dt.toISOString().slice(0, 10) : "", place: String(a.PLACE_NAME || "").trim(), bboxArea: Number(a.BBOX_AREA) || null, poa, dist: isFinite(dist) ? Math.round(dist * 10) / 10 : null, inside };
+  }).sort((p, q) => (p.poa ? 1 : 0) - (q.poa ? 1 : 0) || (p.dist ?? 1e9) - (q.dist ?? 1e9) || (p.bboxArea ?? 1e18) - (q.bboxArea ?? 1e18));
   return { items, n: items.length, buffer: buf, src: "Δημόσια Περιουσία — Αιγιαλός (ΓΓΠΣ/gsis.gr)" };
 }
 
