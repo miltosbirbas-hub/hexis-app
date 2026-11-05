@@ -12,7 +12,5 @@ jobs:
     steps:
       - run: |
           q() { jq -n --arg q "$1" '{query:$q}' > /tmp/q.json; curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data @/tmp/q.json | jq -r '.[] | to_entries | map(.value|tostring) | join(" | ")'; echo; }
-          q "select p.oid::regprocedure, pg_get_functiondef(p.oid) from pg_proc p where p.pronamespace='public'::regnamespace and p.proname in ('admin_set_module','grant_trial_modules','handle_new_user_subscription','admin_activate')"
-          q "select conname, pg_get_constraintdef(oid) from pg_constraint where conrelid='public.entitlements'::regclass"
-          q "select column_name, data_type from information_schema.columns where table_schema='public' and table_name in ('entitlements','subscriptions') order by table_name, ordinal_position"
-          q "select tgname, tgrelid::regclass, tgfoid::regproc from pg_trigger where not tgisinternal and tgfoid::regproc::text in ('grant_trial_modules','handle_new_user_subscription','public.grant_trial_modules','public.handle_new_user_subscription')"
+          q "select u.email, s.tier, s.trial_ends_at::date as trial_end, e.module, e.expires_at::date as mod_exp, (select count(*) from public.hx_orders o where o.user_id=u.id) as orders from public.entitlements e join public.subscriptions s on s.user_id=e.user_id join auth.users u on u.id=e.user_id where e.active and coalesce(s.tier,'free')='free' and s.trial_ends_at is not null and (e.expires_at is null or e.expires_at > s.trial_ends_at + interval '1 hour') order by s.trial_ends_at desc, u.email, e.module"
+          q "select count(*) as trial_users_now from public.subscriptions where coalesce(tier,'free')='free' and trial_ends_at > now()"
