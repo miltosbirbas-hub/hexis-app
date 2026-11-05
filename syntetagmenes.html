@@ -497,7 +497,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       <circle cx="10" cy="28" r="2.4" fill="#22d3ee"/><circle cx="16" cy="12" r="2.4" fill="#8b5cf6"/><circle cx="27" cy="15" r="2.4" fill="#8b5cf6"/><circle cx="31" cy="26" r="2.4" fill="#fb7185"/>
     </svg>
     <div>
-      <h1>HEXIS <span>GEOmetry</span> <small id="geoBuild" style="font:600 10px var(--f-mono);color:var(--faint);letter-spacing:0">build 05.11-19h</small></h1>
+      <h1>HEXIS <span>GEOmetry</span> <small id="geoBuild" style="font:600 10px var(--f-mono);color:var(--faint);letter-spacing:0">build 05.11-21h</small></h1>
       <small>Συντεταγμένες ΕΓΣΑ87 · ΚΑΕΚ Κτηματολογίου · Διαγράμματα Γεωμετρικών Μεταβολών</small>
     </div>
   </div>
@@ -5962,7 +5962,10 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       var sx = SX + sheetIdx * (sheetW + 20 * mm), sy = SY;
       sheets.push({ idx: sheetIdx, x: sx, y: sy, w: sheetW, h: sheetH, tablesOnly: tablesOnly });
       R('PINAKIDA', sx, sy, sheetW, sheetH);
-      R('PINAKIDA', sx + MARGIN * mm, sy + MARGIN * mm, sheetW - 2 * MARGIN * mm, sheetH - 2 * MARGIN * mm);
+      R('PINAKIDA', sx + MARGIN * mm, sy + MARGIN * mm, sheetW - 2 * MARGIN * mm, sheetH - 2 * MARGIN * mm); E.polys[E.polys.length - 1].sw = 0.5; E.polys[E.polys.length - 1].lw = 50;
+      // διπλό πλαίσιο: δεύτερη λεπτή γραμμή έξω από το κύριο, σε απόσταση 1% της μικρής πλευράς του χαρτιού
+      var fg = Math.min(MARGIN - 2, Math.max(2, 0.01 * Math.min(P.w, P.h)));
+      R('PINAKIDA', sx + (MARGIN - fg) * mm, sy + (MARGIN - fg) * mm, sheetW - 2 * (MARGIN - fg) * mm, sheetH - 2 * (MARGIN - fg) * mm); E.polys[E.polys.length - 1].sw = 0.2; E.polys[E.polys.length - 1].lw = 18;
       var tbW = tbWmm * mm, tbH = tbHmm * mm, tbX = sx + sheetW - MARGIN * mm - tbW, tbY = sy + MARGIN * mm;
       tbBox = { x: tbX, y: tbY, w: tbW, h: tbH };
       if (tpl) titleTemplate(tbX, tbY, sheetIdx + 1); else titleBlock(tbX, tbY, tbW, tbH, sheetIdx + 1);
@@ -6396,7 +6399,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       if (!p.pts.every(function (q) { return inSheet(q[0], q[1]); })) return;
       var col = ACI[p.color] || C[p.layer] || '#1f2a44';
       if (p.bulges && p.pts.length === 2) { var cxp = (p.pts[0][0] + p.pts[1][0]) / 2, cyp = (p.pts[0][1] + p.pts[1][1]) / 2, rr = Math.abs(p.pts[1][0] - p.pts[0][0]) / 2; s += '<circle cx="' + X(cxp).toFixed(2) + '" cy="' + Y(cyp).toFixed(2) + '" r="' + (rr / mm).toFixed(2) + '" fill="none" stroke="' + col + '" stroke-width="0.2"/>'; return; }
-      s += '<' + (p.closed === false ? 'polyline' : 'polygon') + ' points="' + pts(p.pts) + '" fill="' + (p.fill ? col : 'none') + '" stroke="' + col + '" stroke-width="0.3"/>';
+      s += '<' + (p.closed === false ? 'polyline' : 'polygon') + ' points="' + pts(p.pts) + '" fill="' + (p.fill ? col : 'none') + '" stroke="' + col + '" stroke-width="' + (p.sw || 0.3) + '"/>';
     });
     layout.elems.lines.forEach(function (l) { if (!inSheet(l.a[0], l.a[1]) || !inSheet(l.b[0], l.b[1])) return; s += '<line x1="' + X(l.a[0]).toFixed(2) + '" y1="' + Y(l.a[1]).toFixed(2) + '" x2="' + X(l.b[0]).toFixed(2) + '" y2="' + Y(l.b[1]).toFixed(2) + '" stroke="' + (l.legendOf && C[l.legendOf] ? C[l.legendOf] : (ACI[l.color] || C[l.layer] || '#1f2a44')) + '" stroke-width="' + (l.layer === 'PINAKES' ? 0.2 : l.layer === 'KANNABOS' ? 0.18 : 0.35) + '"/>'; });
     layout.elems.texts.forEach(function (t) {
@@ -6436,7 +6439,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     (data.forest || []).forEach(function (f) { (f.outer || []).forEach(function (r) { spec.polys.push({ layer: 'DASOS', pts: open(r), closed: true, color: COL.DASOS }); }); });
     var lc = { PINAKES: 7, PINAKIDA: 7, KANNABOS: 8, PST_KAEK: 1, TOPO_PROP: 5 };
     function col(layer, c) { return SPEC_LAYERS[layer] && layer !== '0' ? undefined : (c || undefined); }
-    layout.elems.polys.forEach(function (p) { spec.polys.push({ layer: p.layer, pts: p.pts, bulges: p.bulges, closed: p.closed !== false, color: col(p.layer, p.color) }); if (p.fill) spec.hatches.push({ layer: p.layer, pts: p.pts, color: 7 }); });
+    layout.elems.polys.forEach(function (p) { spec.polys.push({ layer: p.layer, pts: p.pts, bulges: p.bulges, closed: p.closed !== false, color: col(p.layer, p.color), lw: p.lw }); if (p.fill) spec.hatches.push({ layer: p.layer, pts: p.pts, color: 7 }); });
     layout.elems.lines.forEach(function (l) { if (l.layer === 'PINAKES') return; spec.lines.push({ layer: l.layer, a: l.a, b: l.b, color: col(l.layer, l.color || lc[l.layer]) }); });
     layout.elems.texts.forEach(function (t) { if (t.layer === 'PINAKES') return; spec.texts.push({ layer: t.layer, x: t.x, y: t.y, text: t.text, h: t.h, rot: t.rot, align: t.align, color: col(t.layer, t.color) }); });
     (layout.elems.mtexts || []).forEach(function (t) { spec.mtexts.push({ layer: t.layer, x: t.x, y: t.y, text: t.text, h: t.h, width: t.width, attach: t.attach, multiline: t.multiline, color: t.color || 7, lineH: t.lineH, rot: t.rot }); });
