@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#f4f7fa">
+<title>HEXIS PAD</title>
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<!-- Οθόνη εκκίνησης -->
+<div id="splash"><div class="sp-in"><div class="sp-logo">HEXIS PAD</div><div class="sp-sub">Αποτύπωση · Χάραξη · RTK</div><div class="sp-brand">HEXIS-APP · hexis-app.gr</div></div></div>
+
+<!-- Γραμμή κατάστασης GNSS -->
+<header id="status" role="button" aria-label="Κατάσταση GNSS">
+  <div id="st-fix" class="fix none">NO FIX</div>
+  <div class="st-cell"><span class="st-k">H</span><span id="st-h">—</span></div>
+  <div class="st-cell"><span class="st-k">V</span><span id="st-v">—</span></div>
+  <div class="st-cell"><span class="st-k">SV</span><span id="st-sv">—</span></div>
+  <div class="st-cell hide-xs"><span class="st-k">PDOP</span><span id="st-pdop">—</span></div>
+  <div class="st-cell"><span class="st-k">Age</span><span id="st-age">—</span></div>
+  <div id="st-qc" class="st-qc warn" title="Ποιοτικός έλεγχος RTK">QC</div>
+  <div id="st-ntrip" class="st-ntrip off" title="NTRIP">NTRIP</div>
+  <div id="st-proj" class="st-proj"></div>
+</header>
+
+<main id="main">
+  <canvas id="map"></canvas>
+  <div id="coord-strip">
+    <div><span class="k">X</span><b id="cur-e">—</b></div>
+    <div><span class="k">Y</span><b id="cur-n">—</b></div>
+    <div><span class="k">Z</span><b id="cur-z">—</b></div>
+    <div class="crs-chip" id="cur-crs">ΕΓΣΑ87</div>
+  </div>
+  <div id="map-tools" class="toolbar-v">
+    <button data-act="zoomin" title="Zoom in">＋</button>
+    <button data-act="zoomout" title="Zoom out">－</button>
+    <button data-act="extents" title="Zoom extents">⤢</button>
+    <button data-act="follow" id="btn-follow" class="on" title="Follow">◎</button>
+    <button data-act="layers" title="Layers">≣</button>
+    <button data-act="measure" id="btn-measure" title="Measure">📏</button>
+  </div>
+  <div id="pick-banner" class="hidden"><span id="pick-text">Επίλεξε σημείο στον χάρτη</span><button id="pick-cancel">Άκυρο</button></div>
+  <div id="snap-info" class="hidden"></div>
+
+  <!-- Πάνελ λειτουργίας (αλλάζει ανά καρτέλα) -->
+  <section id="panel">
+    <!-- SURVEY -->
+    <div class="pane" data-pane="survey">
+      <div class="row">
+        <label class="fld grow"><span>Σημείο</span><input id="sv-name" autocomplete="off" inputmode="text"></label>
+        <label class="fld grow"><span>Κωδικός</span><input id="sv-code" autocomplete="off" list="code-list"></label>
+        <label class="fld w-ant"><span>Ύψος κεραίας</span><input id="sv-ant" type="number" step="0.001" inputmode="decimal"></label>
+      </div>
+      <div id="code-chips" class="chips"></div>
+      <div class="row">
+        <button class="btn big primary grow" id="btn-measure-pt">● ΜΕΤΡΗΣΗ</button>
+        <button class="btn big icon" id="btn-offset" title="Offset / Laser">⌖<small>Offset</small></button>
+        <button class="btn big icon" id="btn-photo" title="Φωτογραφία">📷<small>Φωτο</small></button>
+      </div>
+      <div class="row small-row">
+        <label class="chk"><input type="checkbox" id="sv-onlyfix"> Μόνο FIX</label>
+        <label class="fld inline"><span>Εποχές</span><select id="sv-epochs"><option>1</option><option selected>5</option><option>10</option><option>30</option><option>60</option></select></label>
+        <label class="chk"><input type="checkbox" id="sv-line"> Γραμμή με κωδικό</label>
+        <span id="sv-last" class="muted grow ta-r"></span>
+      </div>
+    </div>
+
+    <!-- STAKEOUT -->
+    <div class="pane hidden" data-pane="stake">
+      <div class="seg" id="so-mode">
+        <button data-m="point" class="on">Σημείο</button>
+        <button data-m="line">Γραμμή</button>
+        <button data-m="surface">Επιφάνεια</button>
+        <button data-m="base">Γωνίασμα</button>
+      </div>
+      <div id="so-target-row" class="row">
+        <button class="btn" id="so-prev">◀</button>
+        <button class="btn grow target-btn" id="so-pick"><span id="so-target">Επίλεξε στόχο</span></button>
+        <button class="btn" id="so-next">▶</button>
+        <button class="btn" id="so-map" title="Επιλογή στον χάρτη">⌖</button>
+      </div>
+      <div id="so-line-opts" class="row hidden">
+        <label class="fld"><span>Χ.Θ. (m)</span><input id="so-st" type="number" step="0.01" inputmode="decimal" placeholder="ζωντανά"></label>
+        <label class="fld"><span>Offset (m, +δεξιά)</span><input id="so-off" type="number" step="0.01" inputmode="decimal" value="0"></label>
+        <label class="fld"><span>Βήμα (m)</span><input id="so-step" type="number" step="0.1" inputmode="decimal" value="10"></label>
+      </div>
+      <div id="so-guide" class="so-guide">
+        <canvas id="so-eye" width="180" height="180"></canvas>
+        <div class="so-nums">
+          <div class="so-big"><span id="so-dist">—</span><small>m</small></div>
+          <div class="so-dir"><span id="so-fb">—</span></div>
+          <div class="so-dir"><span id="so-lr">—</span></div>
+          <div class="so-dir cutfill" id="so-cf">—</div>
+          <div class="so-sub" id="so-sub"></div>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn" id="so-full" title="Πλήρης οθόνη χάραξης">⛶</button>
+        <select id="so-ref" class="grow" title="Αναφορά κατεύθυνσης">
+          <option value="move">Αναφορά: κατεύθυνση κίνησης</option>
+          <option value="north">Αναφορά: Βορράς (ΔX/ΔY)</option>
+          <option value="back">Αναφορά: σημείο προσανατολισμού</option>
+        </select>
+        <button class="btn primary" id="so-store">● ΚΑΤΑΓΡΑΦΗ</button>
+        <button class="btn icon" id="so-photo">📷</button>
+      </div>
+    </div>
+
+    <!-- COGO -->
+    <div class="pane hidden" data-pane="cogo">
+      <div class="tool-grid">
+        <button data-tool="inverse"><i>↔</i>Απόσταση / Αζιμούθιο</button>
+        <button data-tool="slope"><i>⟋</i>Μέτρηση κλίσης</button>
+        <button data-tool="extend"><i>→|</i>Επέκταση ευθείας</button>
+        <button data-tool="densify"><i>┄</i>Πύκνωση ευθυγραμμίας</button>
+        <button data-tool="hidden"><i>⌖</i>Δυσπρόσιτο σημείο</button>
+        <button data-tool="floor"><i>▱</i>Κλίση δαπέδου / επιφάνεια</button>
+        <button data-tool="square"><i>⊾</i>Γωνίασμα κατασκευής</button>
+        <button data-tool="intersect"><i>✕</i>Τομή ευθειών</button>
+        <button data-tool="area"><i>⬠</i>Εμβαδόν / περίμετρος</button>
+        <button data-tool="calib"><i>⚙</i>Τοπική προσαρμογή</button>
+      </div>
+    </div>
+
+    <!-- POINTS -->
+    <div class="pane hidden" data-pane="points">
+      <div class="row">
+        <input id="pt-search" class="grow" placeholder="Αναζήτηση σημείου / κωδικού">
+        <select id="pt-filter"><option value="all">Όλα</option><option value="survey">Μετρημένα</option><option value="stake">Προς χάραξη</option><option value="staked">Χαραγμένα</option><option value="calc">Υπολογισμένα</option></select>
+        <button class="btn" id="pt-add" title="Νέο σημείο">＋</button>
+      </div>
+      <div id="pt-list" class="list"></div>
+    </div>
+
+    <!-- MENU -->
+    <div class="pane hidden" data-pane="menu">
+      <div class="menu-grid">
+        <button data-menu="connect"><i>📡</i>Σύνδεση δέκτη</button>
+        <button data-menu="ntrip"><i>🛰</i>NTRIP / RTK</button>
+        <button data-menu="base"><i>⛯</i>Base / Rover</button>
+        <button data-menu="laser"><i>🔦</i>Laser</button>
+        <button data-menu="project"><i>📁</i>Έργα</button>
+        <button data-menu="import"><i>⬇</i>Εισαγωγή TXT / DXF / DWG</button>
+        <button data-menu="export"><i>⬆</i>Εξαγωγή / Email</button>
+        <button data-menu="crs"><i>🌐</i>Σύστημα συντεταγμένων</button>
+        <button data-menu="settings"><i>⚙</i>Ρυθμίσεις</button>
+        <button data-menu="help"><i>?</i>Οδηγίες χρήσης</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav id="tabs">
+  <button data-tab="survey" class="on"><i>●</i>Survey</button>
+  <button data-tab="stake"><i>◎</i>Stakeout</button>
+  <button data-tab="cogo"><i>⊾</i>COGO</button>
+  <button data-tab="points"><i>☰</i>Σημεία</button>
+  <button data-tab="menu"><i>⋯</i>Μενού</button>
+</nav>
+
+<!-- Πλήρης οθόνη χάραξης -->
+<div id="so-fullscreen" class="hidden">
+  <div class="sf-top">
+    <button class="btn" id="sf-close">✕</button>
+    <div class="sf-target" id="sf-target">—</div>
+    <div id="sf-fix" class="fix none">NO FIX</div>
+  </div>
+  <canvas id="sf-eye"></canvas>
+  <div class="sf-grid">
+    <div class="sf-cell"><span>Απόσταση</span><b id="sf-dist">—</b></div>
+    <div class="sf-cell"><span id="sf-fb-k">Μπρος/Πίσω</span><b id="sf-fb">—</b></div>
+    <div class="sf-cell"><span id="sf-lr-k">Δεξιά/Αριστερά</span><b id="sf-lr">—</b></div>
+    <div class="sf-cell"><span id="sf-cf-k">Εκσκαφή/Επίχωση</span><b id="sf-cf">—</b></div>
+  </div>
+  <div class="sf-bot">
+    <button class="btn big" id="sf-prev">◀</button>
+    <button class="btn big primary grow" id="sf-store">● ΚΑΤΑΓΡΑΦΗ</button>
+    <button class="btn big" id="sf-photo">📷</button>
+    <button class="btn big" id="sf-next">▶</button>
+  </div>
+</div>
+
+<!-- Γενικό φύλλο διαλόγου -->
+<div id="sheet-back" class="hidden"></div>
+<div id="sheet" class="hidden" role="dialog">
+  <div class="sh-head"><b id="sh-title"></b><button class="btn" id="sh-close">✕</button></div>
+  <div id="sh-body"></div>
+</div>
+
+<div id="toast" class="hidden"></div>
+<input type="file" id="file-in" class="hidden">
+<input type="file" id="photo-in" class="hidden" accept="image/*" capture="environment">
+<datalist id="code-list"></datalist>
+
+<script src="lib/proj4.js"></script>
+<script src="js/nmea.js"></script>
+<script src="js/geo.js"></script>
+<script src="js/cogo.js"></script>
+<script src="js/qc.js"></script>
+<script src="js/receivers.js"></script>
+<script src="js/cad.js"></script>
+<script src="js/io.js"></script>
+<script src="js/conn.js"></script>
+<script src="js/map.js"></script>
+<script src="js/app.js"></script>
+<script src="js/tools.js"></script>
+</body>
+</html>

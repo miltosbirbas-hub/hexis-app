@@ -211,6 +211,37 @@ async function entitled(auth: string): Promise<boolean> {
   const rows = await r.json().catch(() => []);
   return (rows || []).some((e: HxAttr) => e.active && (!e.expires_at || new Date(String(e.expires_at)) > new Date()));
 }
+/* ---------- Ε.Μ.Σ.Υ. (Εθνικό Μητρώο Σημείων Υδροληψίας, ΥΠΕΝ — lmt.ypeka.gr): σημεία υδροληψίας γύρω/εντός γεωτεμαχίου ----------
+   Είσοδος { action:"emsy", ring:[[x,y],...] (ΕΓΣΑ87), buffer?: m (προεπιλογή 300, έως 2000) }
+   Έξοδος { points:[{ code, kwd, x, y, z, kind, status, topo, dimos, inside, dist }], n, src }
+   Η υπηρεσία είναι μόνο http (μικτό περιεχόμενο για το site) — γι' αυτό περνά από εδώ. */
+const EMSY_URL = "http://lmt.ypeka.gr/arcgis/rest/services/EMSIes/Idrolipsies_for_map_symbol_Service/FeatureServer/0/query";
+function d2seg(p: number[], a: number[], b: number[]) { const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy, t = L2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)) : 0; return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy)); }
+async function emsyPoints(b: HxAttr) {
+  const ring: Ring = (Array.isArray(b.ring) ? b.ring : []).map((p: unknown) => Array.isArray(p) ? [Number(p[0]), Number(p[1])] : [NaN, NaN]).filter((p: number[]) => isFinite(p[0]) && isFinite(p[1]));
+  if (ring.length < 3 || ring.length > 3000) return { error: "bad_ring" };
+  const buf = Math.min(2000, Math.max(0, Number(b.buffer) || 300));
+  const bb = [Infinity, Infinity, -Infinity, -Infinity]; ring.forEach(([x, y]) => { bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], y); bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], y); });
+  if (!(bb[0] > 50000 && bb[2] < 1050000 && bb[1] > 3800000 && bb[3] < 4700000)) return { error: "bad_coords" };
+  const geom = JSON.stringify({ xmin: bb[0] - buf, ymin: bb[1] - buf, xmax: bb[2] + buf, ymax: bb[3] + buf, spatialReference: { wkid: 2100 } });
+  const qs = new URLSearchParams({ f: "json", where: "1=1", geometry: geom, geometryType: "esriGeometryEnvelope", inSR: "2100", outSR: "2100", spatialRel: "esriSpatialRelIntersects", returnGeometry: "true", resultRecordCount: "500",
+    outFields: "OBJECTID,KWDIKOS_SY,KWDIKOS_EMSY,X_EGSA87,Y_EGSA87,Z,EIDOS_SY,STATUS,TOPWNYMIO,DHMOS_KALLIKRATH,IDIOKTHSIAKO_KATHESTWS,KATHESTWS_XRHSHS" });
+  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 20000);
+  let j: HxAttr;
+  try { const r = await fetch(EMSY_URL + "?" + qs.toString(), { signal: ctl.signal, headers: { "User-Agent": "HEXIS-APP/1.0 (hexis-app.gr)" } }); if (!r.ok) return { error: "emsy_http_" + r.status }; j = await r.json(); }
+  catch (e) { return { error: "emsy_unreachable", msg: String(e) }; }
+  finally { clearTimeout(tm); }
+  if (j.error) return { error: "emsy_error", msg: JSON.stringify(j.error) };
+  const pts = ((j.features || []) as HxAttr[]).map((f) => {
+    const a = (f.attributes || {}) as HxAttr, g = (f.geometry || {}) as HxAttr;
+    const x = Number(g.x ?? a.X_EGSA87), y = Number(g.y ?? a.Y_EGSA87);
+    let dist = Infinity; for (let i = 0; i < ring.length; i++) dist = Math.min(dist, d2seg([x, y], ring[i], ring[(i + 1) % ring.length]));
+    const inside = pip([x, y], ring);
+    return { code: String(a.KWDIKOS_EMSY || a.KWDIKOS_SY || a.OBJECTID || ""), kwd: a.KWDIKOS_SY ?? null, x, y, z: a.Z ?? null, kind: String(a.EIDOS_SY || ""), status: String(a.STATUS || ""), topo: String(a.TOPWNYMIO || "").trim(), dimos: String(a.DHMOS_KALLIKRATH || ""), owner: String(a.IDIOKTHSIAKO_KATHESTWS || ""), use: String(a.KATHESTWS_XRHSHS || ""), inside, dist: inside ? 0 : Math.round(dist * 100) / 100 };
+  }).filter((p) => isFinite(p.x) && isFinite(p.y)).sort((p, q) => p.dist - q.dist);
+  return { points: pts, n: pts.length, buffer: buf, src: "Ε.Μ.Σ.Υ. — ΥΠΕΝ (lmt.ypeka.gr)" };
+}
+
 async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
   // χαρακτήρες που δεν υπάρχουν στο ANSI 1253 (progeCAD / παλιό AutoCAD) → απλά ισοδύναμα
   const ansi = (t: string) => t.replace(/→/g, ":").replace(/≈/g, "~").replace(/×/g, "x").replace(/÷/g, "/").replace(/−/g, "-").replace(/≥/g, ">=").replace(/≤/g, "<=");
@@ -484,6 +515,7 @@ Deno.serve(async (req) => {
     const b = await req.json().catch(() => ({}));
     if (b.action === "lisp") return await lispAnswer(req, b, C);
     if (b.action === "lisp_extract") return await lispExtract(req, b, C);
+    if (b.action === "emsy") return json(await emsyPoints(b));
     const x = Number(b.x), y = Number(b.y);
     // Ελλάδα σε ΕΓΣΑ'87: περίπου x 50.000–1.050.000, y 3.850.000–4.650.000
     if (!(x > 50000 && x < 1050000 && y > 3800000 && y < 4700000)) return json({ error: "bad_coords" }, 400);
