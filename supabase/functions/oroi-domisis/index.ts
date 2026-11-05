@@ -266,17 +266,7 @@ function tmForward(lon: number, lat: number) {
   const y = k0 * (M + N * Math.tan(phi) * (A * A / 2 + (5 - T + 9 * C + 4 * C * C) * A ** 4 / 24 + (61 - 58 * T + T * T + 600 * C - 330 * ep2) * A ** 6 / 720));
   return [x, y];
 }
-// WGS84 → ΓΓΣΑ87 (μετάθεση datum +towgs84 = -199.87, 74.79, 246.62 — όπως στο proj4 του HEXIS) → ΤΜ87. Το ερώτημα Overpass (ακτίνα) δεν τη χρειάζεται.
-function wgsToEgsa(lon: number, lat: number) {
-  const aw = 6378137, fw = 1 / 298.257223563, e2w = fw * (2 - fw), ph = lat * Math.PI / 180, la = lon * Math.PI / 180;
-  const Nw = aw / Math.sqrt(1 - e2w * Math.sin(ph) ** 2);
-  let X = Nw * Math.cos(ph) * Math.cos(la), Y = Nw * Math.cos(ph) * Math.sin(la), Z = Nw * (1 - e2w) * Math.sin(ph);
-  X += 199.87; Y -= 74.79; Z -= 246.62; // ΓΓΣΑ87 = WGS84 − (−199.87, 74.79, 246.62)
-  const a = TM.a, e2 = TM.f * (2 - TM.f), pr = Math.hypot(X, Y);
-  let phi = Math.atan2(Z, pr * (1 - e2));
-  for (let i = 0; i < 6; i++) { const N = a / Math.sqrt(1 - e2 * Math.sin(phi) ** 2); phi = Math.atan2(Z + e2 * N * Math.sin(phi), pr); }
-  return tmForward(Math.atan2(Y, X) * 180 / Math.PI, phi * 180 / Math.PI);
-}
+// WGS84 → ΕΓΣΑ87 με μετάθεση datum: η υπάρχουσα wgsToEgsa(lat, lon) παρακάτω (ίδια παράμετροι με το proj4 του HEXIS).
 const coastCache = new Map<string, { t: number; v: HxAttr }>();
 async function coastDistance(b: HxAttr) {
   const ring: Ring = (Array.isArray(b.ring) ? b.ring : []).map((p: unknown) => Array.isArray(p) ? [Number(p[0]), Number(p[1])] : [NaN, NaN]).filter((p: number[]) => isFinite(p[0]) && isFinite(p[1]));
@@ -299,7 +289,7 @@ async function coastDistance(b: HxAttr) {
     }
     if (!j) return { error: "coast_unreachable", msg: lastErr };
     segs = [];
-    for (const w of (j.elements || []) as HxAttr[]) { const g = ((w.geometry || []) as HxAttr[]).map((n) => wgsToEgsa(Number(n.lon), Number(n.lat))); for (let i = 0; i + 1 < g.length; i++) segs.push([g[i], g[i + 1]]); }
+    for (const w of (j.elements || []) as HxAttr[]) { const g = ((w.geometry || []) as HxAttr[]).map((n) => wgsToEgsa(Number(n.lat), Number(n.lon))); for (let i = 0; i + 1 < g.length; i++) segs.push([g[i], g[i + 1]]); }
     if (coastCache.size > 300) coastCache.clear();
     coastCache.set(key, { t: now + 6 * 3600e3, v: { segs } });
   }
