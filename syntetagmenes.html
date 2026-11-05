@@ -246,6 +246,7 @@ button { cursor: pointer; }
 .cmd-row small { color: var(--muted); } .cmd-row .fix { color: var(--muted); margin-top: 3px; } .cmd-row .fix b { color: var(--text); }
 .cmd-row .det { margin: 4px 0 0; font: 11px var(--f-mono); color: var(--muted); white-space: pre-wrap; }
 .dgm-ctl label { display: grid; gap: 4px; font-size: 11.5px; color: var(--muted); font-weight: 600; }
+#topoPanel .dgm-ctl label { flex: 1 1 150px; } #topoPanel .dgm-ctl input, #topoPanel .dgm-ctl select { width: 100%; min-width: 0; box-sizing: border-box; } #topoPanel .piece > summary { cursor: pointer; } #topoPanel .piece > summary > span { margin-left: 8px; font-size: 12px; }
 .dgm-ctl select, .dgm-ctl input { height: 32px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--input-bg); padding: 0 10px; color: var(--text); font: 500 13px var(--f-mono); }
 .piece { border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
 .piece summary { cursor: pointer; padding: 8px 12px; display: flex; gap: 10px; align-items: center; font-size: 13px; }
@@ -487,7 +488,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       <circle cx="10" cy="28" r="2.4" fill="#22d3ee"/><circle cx="16" cy="12" r="2.4" fill="#8b5cf6"/><circle cx="27" cy="15" r="2.4" fill="#8b5cf6"/><circle cx="31" cy="26" r="2.4" fill="#fb7185"/>
     </svg>
     <div>
-      <h1>HEXIS <span>GEOmetry</span> <small id="geoBuild" style="font:600 10px var(--f-mono);color:var(--faint);letter-spacing:0">build 31.10-12h</small></h1>
+      <h1>HEXIS <span>GEOmetry</span> <small id="geoBuild" style="font:600 10px var(--f-mono);color:var(--faint);letter-spacing:0">build 05.11-15h</small></h1>
       <small>Συντεταγμένες ΕΓΣΑ87 · ΚΑΕΚ Κτηματολογίου · Διαγράμματα Γεωμετρικών Μεταβολών</small>
     </div>
   </div>
@@ -5538,9 +5539,10 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       var fill = ACI[t.color] || C[t.layer] || '#1f2a44', fs = t.h / mm * 1.35;
       var cpl = t.cpl || Math.max(40, Math.floor((t.width / mm) / (fs * 0.55))), lines = [];
       String(t.text).split(/\r?\n/).forEach(function (para) { var words = para.split(/\s+/), cur = ''; words.forEach(function (w) { if ((cur + ' ' + w).trim().length > cpl && cur) { lines.push(cur); cur = w; } else cur = (cur + ' ' + w).trim(); }); lines.push(cur); });
-      var x0 = X(t.x).toFixed(2), y0 = Y(t.y), lh = t.lineH ? t.lineH / mm : fs * 1.4;
+      var x0 = X(t.x).toFixed(2), y0 = Y(t.y), lh = t.lineH ? t.lineH / mm : fs * 1.4, availW = t.width ? t.width / mm : 0;
+      function lw(str) { var w = 0; for (var k = 0; k < str.length; k++) { var ch = str[k]; w += /[A-ZΑ-ΩΆ-Ώ0-9@%&]/.test(ch) ? 0.68 : /[ ,.;:'·]/.test(ch) ? 0.3 : /[ilj|!I]/.test(ch) ? 0.3 : 0.54; } return w * fs; }
       s += '<text x="' + x0 + '" y="' + (y0 + fs).toFixed(2) + '" font-size="' + fs.toFixed(2) + '" fill="' + fill + '">';
-      lines.forEach(function (ln, i) { s += '<tspan x="' + x0 + '" dy="' + (i === 0 ? 0 : lh).toFixed(2) + '">' + esc(ln) + '</tspan>'; });
+      lines.forEach(function (ln, i) { var fit = availW > 1 && lw(ln) > availW ? ' textLength="' + availW.toFixed(2) + '" lengthAdjust="spacingAndGlyphs"' : ''; s += '<tspan x="' + x0 + '" dy="' + (i === 0 ? 0 : lh).toFixed(2) + '"' + fit + '>' + esc(ln) + '</tspan>'; });
       s += '</text>';
     });
     s += '</svg>';
@@ -5595,6 +5597,693 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   var api = { PAPERS: PAPERS, SCALES: SCALES, recommend: recommend, build: build, blocks: blocks, sheetSVG: sheetSVG, lispTables: lispTables, COL: COL };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.DgmSheet = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+/* HEXIS — ΤΟΠΟΓΡΑΦΙΚΟ ΔΙΑΓΡΑΜΜΑ: αυτόματη πινακίδα από το μετρημένο κλειστό πολύγωνο (HEXIS PAD → DXF/TXT).
+ * Ανεξάρτητο από το ΔΓΜ. Παράγει στοιχεία σε συντεταγμένες μοντέλου (ΕΓΣΑ87) για DXF (Dxf2000) και SVG (PDF).
+ * Σύμβαση: 1 mm χαρτιού = S/1000 m (κλίμακα 1:S).
+ *  - Σχέδιο: όριο ιδιοκτησίας (TOPO_PROP), κορυφές με κύκλο & ονομασία, μήκη πλευρών, όμορα ΚΑΕΚ (PST_KAEK), κτίσματα,
+ *    κάνναβος ΕΓΣΑ87 ανά κλίμακα, βορράς, γραμμική κλίμακα, υπόμνημα, σημειώσεις ΕΓΣΑ87 + Κ.
+ *  - Πάνελ: ΠΙΝΑΚΑΣ ΣΥΝΤΕΤΑΓΜΕΝΩΝ ΚΟΡΥΦΩΝ, (ΚΑΕΚ κτηματολογικής βάσης), ΟΡΟΙ ΔΟΜΗΣΗΣ, ΔΗΛΩΣΗ ΜΗΧΑΝΙΚΟΥ Ν.651/77 & Ν.1337/83,
+ *    ΠΑΡΑΤΗΡΗΣΕΙΣ, ΔΗΛΩΣΗ ΙΔΙΟΚΤΗΤΗ Ν.4030/2011, ΥΠΕΥΘΥΝΗ ΔΗΛΩΣΗ ΔΑΣΙΚΗΣ ΠΛΗΡΟΦΟΡΙΑΣ (προαιρετικά).
+ *  - Πινακίδα: προεπιλεγμένη ή DXF πινακίδα του μηχανικού (σχεδιασμένη σε mm χαρτιού) με πεδία {ΕΡΓΟΔΟΤΗΣ} {ΕΡΓΟ} {ΘΕΣΗ} {ΘΕΜΑ}
+ *    {ΗΜΕΡΟΜΗΝΙΑ} {ΚΛΙΜΑΚΑ} {ΑΡ_ΣΧΕΔΙΟΥ} {ΜΕΛΕΤΗΤΗΣ} {ΚΑΕΚ} {ΓΡΑΦΕΙΟ} {ΔΗΜΟΣ} {ΕΜΒΑΔΟΝ} {ΦΥΛΛΟ}.
+ * Τα κείμενα των δηλώσεων είναι μεταφορά του DILOSI.lsp (HEXIS CAD Tools) και οι όροι δόμησης του OROIDOM.lsp (υπηρεσία oroi-domisis, action "lisp").
+ */
+(function (root) {
+  'use strict';
+  var PAPERS = [{ id: 'A4', w: 297, h: 210 }, { id: 'A3', w: 420, h: 297 }, { id: 'A2', w: 594, h: 420 }, { id: 'A1', w: 841, h: 594 }, { id: 'A0', w: 1189, h: 841 }];
+  var SCALES = [100, 200, 250, 500, 1000];
+  var RANGE = ['A3', 'A2', 'A1', 'A0'];
+  var MARGIN = 10, TITLE_W = 185, TITLE_H = 136, STAMP_H = 50; // πινακίδα με ζώνη 50 mm για σφραγίδα 9×4 cm (1:1) + ψηφιακή υπογραφή
+  var COL = { TOPO_PROP: 5, PST_KAEK: 1, KORYFES: 7, BLD: 8, TOPO_LINES: 8, DASOS: 3 };
+  var GRID = { 100: 10, 200: 20, 250: 25, 500: 50, 1000: 100 };
+
+  function bbox(pts) { var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; pts.forEach(function (p) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }); return [x0, y0, x1, y1]; }
+  function f3(v) { return (Math.round(v * 1000) / 1000).toFixed(3); }
+  function f2(v) { return (Math.round(v * 100) / 100).toFixed(2); }
+  function gr(v, d) { return v == null || isNaN(v) ? '' : Number(v).toLocaleString('el-GR', { minimumFractionDigits: d == null ? 2 : d, maximumFractionDigits: d == null ? 2 : d }); }
+  function dist(a, b) { return Math.hypot(b[0] - a[0], b[1] - a[1]); }
+  function open(r) { r = r.slice(); while (r.length > 3 && dist(r[0], r[r.length - 1]) < 1e-6) r.pop(); return r; }
+  function area(r) { var a = 0, n = r.length; for (var i = 0; i < n; i++) { var p = r[i], q = r[(i + 1) % n]; a += p[0] * q[1] - q[0] * p[1]; } return Math.abs(a) / 2; }
+  function pip(pt, ring) { var ins = false; for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) { var xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1]; if (((yi > pt[1]) !== (yj > pt[1])) && (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi)) ins = !ins; } return ins; }
+  function interior(ring) { if (root.DGM && root.DGM.interior) return root.DGM.interior(ring, []); var b = bbox(ring); return [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]; }
+  function nz(s) { return s != null && String(s).trim() !== ''; }
+  function seqText(ids) { var a = ids.slice(); a.push(a[0]); return a.length > 7 ? a[0] + ', ' + a[1] + ', ' + a[2] + ', ..., ' + a[a.length - 3] + ', ' + a[a.length - 2] + ', ' + a[a.length - 1] : a.join(', '); }
+
+  // ---------- απάντηση της υπηρεσίας oroi-domisis (action "lisp": KEY=VALUE ανά γραμμή, ROW=label|value) ----------
+  function fromLisp(text) {
+    var fields = {}, rows = [], note = '';
+    String(text || '').split(/\r?\n/).forEach(function (ln) {
+      var m = ln.match(/^([A-Z_0-9]+)=(.*)$/); if (!m) return;
+      if (m[1] === 'ROW') { var p = m[2].indexOf('|'); if (p > 0) rows.push([m[2].slice(0, p), m[2].slice(p + 1)]); }
+      else if (m[1] === 'NOTE') note = m[2];
+      else fields[m[1]] = m[2];
+    });
+    return { ok: fields.OK === '1', err: fields.ERR || '', msg: fields.MSG || '', fields: fields, rows: rows, note: note };
+  }
+
+  // ---------- πεδία δήλωσης (DILOSI.lsp: dl:init + dl:from-kaek) ----------
+  var EIDOS = ['οικόπεδο', 'αγροτεμάχιο', 'γήπεδο', 'κληροτεμάχιο', 'ακίνητο'];
+  var ODOS = ['εθνική οδό', 'επαρχιακή οδό', 'δημοτική οδό', 'αγροτική οδό', 'κοινοτική οδό', 'ιδιωτική οδό', 'κοινόχρηστο χώρο'];
+  var VASI = ['κατά κανόνα', 'κατά παρέκκλιση', 'με το άρθρο 25 του Ν.1337/83', 'ως προϋφιστάμενο του 1923', 'με θεωρητική μεσοτοιχία (Ν.Δ. 690/1948)', 'ως τυφλό - μη οικοδομήσιμο'];
+  var PRAXI = ['δεν απαιτείται', 'κυρωμένη', 'μη κυρωμένη', 'σε εξέλιξη'];
+  // χαρακτηρισμοί δασικών χαρτών (Κτηματολόγιο / ΕΨΧ)
+  var FOREST_CAT = { 'ΔΔ': 'Δάσος (δημόσιο)', 'ΔΙ': 'Δάσος (ιδιωτικό)', 'ΔΑ': 'Δάσος → άλλης μορφής', 'ΠΔ': 'Δασική έκταση (δημόσια)', 'ΠΙ': 'Δασική έκταση (ιδιωτική)', 'ΠΑ': 'Δασική έκταση → άλλης μορφής', 'ΠΧ': 'Χορτολιβαδική → δασική', 'ΧΔ': 'Χορτολιβαδική (δημόσια)', 'ΧΙ': 'Χορτολιβαδική (ιδιωτική)', 'ΧΑ': 'Χορτολιβαδική → άλλης μορφής', 'ΑΔ': 'Αναδασωτέα / άλλης μορφής → δάσος', 'ΑΑ': 'Μη δασική (άλλης μορφής)', 'ΑΧ': 'Άλλης μορφής → χορτολιβαδική', 'ΑΓ': 'Αγροτική', 'ΟΙ': 'Οικισμός', 'ΥΔ': 'Υδάτινη', 'ΑΣ': 'Αστική', 'ΤΕ': 'Τεχνητή' };
+  function forestCatLabel(c) { c = String(c || '').trim(); return c ? c + (FOREST_CAT[c] ? ' — ' + FOREST_CAT[c] : '') : ''; }
+  function defaults() {
+    return { eidos: 2, kor: '', emb: '', thesi: '', dk: '', de: '', dimos: '', pe: '', ot: '', kaek: '', pos: 3, posSure: true, gps: 0, gpsfek: '', zoe: 0, zoefek: '', parad: 0, fekrym: '', fekoron: '', oikfek: '',
+      artio: 1, artioSure: false, vasi: 0, oik: 1, artemb: '', pros: '', odos: 2, katat: 1, katdate: '', n1337: 0, eisgi: 0, eisxr: 0, praxi: 0, n2242: 0, ktim: 1, aig: 0, aigd: '', rema: 0, remad: '', dasos: 0, arxaio: 0, dei: 0, aerio: 0,
+      mix: '', eid: '', tee: '', idio: '', pat: '', afm: '', hmer: '', pointedBy: '', titles: '', gnssDate: '', gnssNet: '', gnssRx: '', forestFek: '', forestCat: '', kid: '', nomos: '' };
+  }
+  // συμπλήρωση από τα πεδία του ΚΑΕΚ (ίδια αντιστοίχιση με dl:from-kaek) — ΔΕΝ γράφει πάνω σε ό,τι έδωσε ο χρήστης
+  function fillFromKaek(f, k) {
+    function set(key, fld) { if (nz(k[key]) && !nz(f[fld])) f[fld] = k[key]; }
+    set('DIMOS', 'dimos'); set('OT', 'ot'); set('OIKISMOS', 'thesi'); set('KAEK', 'kaek');
+    var st = k.KATASTASI || '';
+    f.pos = st === 'sxedio' ? 0 : st === 'oikismos' ? 2 : 3; f.posSure = st !== 'ektos?';
+    f.eidos = st === 'sxedio' || st === 'oikismos' ? 0 : 2;
+    if (k.GPS === '1') { f.gps = 1; set('FEK_GPS', 'gpsfek'); }
+    if (k.ZOE === '1') { f.zoe = 1; set('FEK_ZOE', 'zoefek'); }
+    set('FEK_SXEDIO', 'fekrym'); set('FEK_OROI', 'fekoron'); set('FEK_OIKISMOU', 'oikfek'); set('ART_EMB', 'artemb'); set('PROSOPO', 'pros');
+    if (k.ARTIO === '1') { f.artio = 1; f.artioSure = true; } else if (k.ARTIO === '0') { f.artio = 0; f.oik = 0; f.artioSure = true; } else f.artioSure = false;
+    if (k.ARXAIO === '1') f.arxaio = 1;
+    if (k.REMA === '1') f.rema = 1;
+    if (k.EK === '1') f.ek = 1;
+    return f;
+  }
+
+  // ---------- κείμενα (DILOSI.lsp: dl:txt-651, dl:txt-desm, dl:txt-4030) ----------
+  function txtDesm(f) {
+    var a = [];
+    if (+f.aig === 1) a.push('εντός καθορισμένης ζώνης αιγιαλού/παραλίας');
+    else if (nz(f.aigd)) a.push('εκτός ζώνης αιγιαλού/παραλίας, σε απόσταση ' + f.aigd + ' μ. από την ακτογραμμή' + (nz(f.aigFek) ? ' (καθορισμός οριογραμμής αιγιαλού: ' + f.aigFek + ')' : ''));
+    if (+f.rema === 1) a.push('σε γειτνίαση με ρέμα' + (nz(f.remad) ? ' σε απόσταση ' + f.remad + ' μ.' : ''));
+    if (+f.dasos === 1) a.push('εντός έκτασης χαρακτηρισμένης ως δασικής');
+    if (+f.arxaio === 1) a.push('εντός ζώνης αρχαιολογικού ενδιαφέροντος');
+    if (+f.dei === 1) a.push('με διερχόμενη εναέρια γραμμή υψηλής τάσης της Δ.Ε.Η.');
+    if (+f.aerio === 1) a.push('με διερχόμενο αγωγό φυσικού αερίου');
+    if (!a.length) return 'Δεν εμπίπτει σε ζώνη αιγιαλού - παραλίας, δεν γειτνιάζει με ρέμα, δεν εμπίπτει σε δασική ή αρχαιολογική ζώνη και δεν διέρχονται από αυτό εναέριες γραμμές Δ.Ε.Η. ή αγωγοί φυσικού αερίου';
+    return 'Βρίσκεται ' + a.join(', ');
+  }
+  function txt651(f) {
+    var E = EIDOS[+f.eidos] || 'ακίνητο', p = [], n = 1;
+    var s = 'Ο υπογράφων ' + (f.mix || '……………') + (nz(f.eid) ? ', ' + f.eid : '') + (nz(f.tee) ? ', με Α.Μ. Τ.Ε.Ε. ' + f.tee : '')
+      + ', δηλώνω υπεύθυνα και εν γνώσει των συνεπειών του νόμου ότι το εικονιζόμενο ' + E + (nz(f.kor) ? ' με στοιχεία ' + f.kor : '') + (nz(f.emb) ? ' και εμβαδόν Ε = ' + f.emb + ' τ.μ.' : '')
+      + (nz(f.thesi) ? ', στη θέση ' + f.thesi : '') + (nz(f.dk) ? ' της Δ.Κ./Τ.Κ. ' + f.dk : '') + (nz(f.de) ? ' της Δ.Ε. ' + f.de : '') + (nz(f.dimos) ? ' του Δήμου ' + f.dimos : '') + (nz(f.pe) ? ' της Π.Ε. ' + f.pe : '') + ':';
+    p.push(s);
+    var loc = +f.pos === 0 ? 'Βρίσκεται εντός εγκεκριμένου ρυμοτομικού σχεδίου' + (nz(f.ot) ? ', στο Ο.Τ. ' + f.ot : '') + (nz(f.fekrym) ? ' (ΦΕΚ ρυμοτομικού: ' + f.fekrym + ')' : '')
+      : +f.pos === 1 ? 'Βρίσκεται εντός των ορίων οικισμού προϋφισταμένου του έτους 1923'
+      : +f.pos === 2 ? 'Βρίσκεται εντός των ορίων οικισμού με πληθυσμό κάτω των 2.000 κατοίκων, οριοθετημένου κατά τις διατάξεις του από 24.4.1985 Π.Δ.' + (nz(f.oikfek) ? ' (ΦΕΚ ορίων: ' + f.oikfek + ')' : '')
+      : 'Βρίσκεται εκτός εγκεκριμένου ρυμοτομικού σχεδίου και εκτός ορίων οικισμού';
+    p.push((n++) + '. ' + loc + '.');
+    if (+f.gps === 1) p.push((n++) + '. Εμπίπτει σε περιοχή εγκεκριμένου Γ.Π.Σ. / Σ.Χ.Ο.Ο.Α.Π. / Τ.Π.Σ.' + (nz(f.gpsfek) ? ' (' + f.gpsfek + ')' : '') + '.');
+    if (+f.zoe === 1) p.push((n++) + '. Εμπίπτει σε Ζώνη Οικιστικού Ελέγχου / ζώνη ειδικών χρήσεων και όρων δόμησης' + (nz(f.zoefek) ? ' (' + f.zoefek + ')' : '') + '.');
+    if (+f.parad === 1) p.push((n++) + '. Εμπίπτει σε χαρακτηρισμένο παραδοσιακό οικισμό / ιστορικό τόπο και ισχύουν οι ειδικοί όροι και περιορισμοί δόμησης αυτού.');
+    p.push((n++) + '. ' + (+f.artio === 1
+      ? 'Είναι άρτιο ' + (VASI[+f.vasi] || VASI[0]) + (nz(f.artemb) ? ' (ελάχιστο εμβαδόν αρτιότητας ' + f.artemb + ' τ.μ.)' : '') + (+f.oik === 1 ? ' και οικοδομήσιμο' : ', πλην όμως μη οικοδομήσιμο') + ', σύμφωνα με τις ισχύουσες πολεοδομικές διατάξεις'
+      : 'Δεν είναι άρτιο και δεν είναι οικοδομήσιμο σύμφωνα με τις ισχύουσες πολεοδομικές διατάξεις') + '.');
+    if (nz(f.pros)) p.push((n++) + '. Έχει πρόσωπο ' + f.pros + ' μ. σε ' + (ODOS[+f.odos] || ODOS[2]) + '.');
+    if (+f.katat === 1) p.push((n++) + '. Δεν προήλθε από κατάτμηση' + (nz(f.katdate) ? ' μετά την ' + f.katdate : '') + '.');
+    p.push((n++) + '. ' + (+f.n1337 === 1
+      ? 'Υπάγεται στις διατάξεις του Ν.1337/83 και ' + (+f.eisgi === 1 && +f.eisxr === 1 ? 'οφείλει εισφορά σε γη και σε χρήμα' : +f.eisgi === 1 ? 'οφείλει εισφορά σε γη' : +f.eisxr === 1 ? 'οφείλει εισφορά σε χρήμα' : 'δεν οφείλει εισφορά σε γη και σε χρήμα') + '. Η πράξη εφαρμογής είναι ' + (PRAXI[+f.praxi] || PRAXI[0])
+      : 'Δεν υπάγεται στις διατάξεις του Ν.1337/83 και δεν οφείλει εισφορά σε γη και σε χρήμα') + '.');
+    p.push((n++) + '. ' + (+f.n2242 === 1 ? 'Εμπίπτει στις διατάξεις του Ν.2242/94 (περί δηλώσεως ιδιοκτησίας στον Ο.Τ.Α.)' : 'Δεν εμπίπτει στις διατάξεις του Ν.2242/94') + '.');
+    p.push((n++) + '. ' + (+f.ktim === 1 ? 'Εμπίπτει σε περιοχή λειτουργίας Εθνικού Κτηματολογίου (Ν.2308/95)' + (nz(f.kaek) ? ' με ΚΑΕΚ ' + f.kaek : '') : 'Δεν εμπίπτει σε περιοχή λειτουργίας Εθνικού Κτηματολογίου') + '.');
+    p.push((n++) + '. ' + txtDesm(f) + '.');
+    p.push((n++) + '. Το παρόν τοπογραφικό διάγραμμα συντάχθηκε με εξάρτηση από το Κρατικό Σύστημα Συντεταγμένων Ε.Γ.Σ.Α. 1987 και οι αναγραφόμενες συντεταγμένες των κορυφών προκύπτουν από αυτό.');
+    return p;
+  }
+  function txt4030(f) {
+    var E = EIDOS[+f.eidos] || 'ακίνητο', p = [];
+    p.push('Ο/Η υπογράφων/ούσα ' + (f.idio || '……………') + (nz(f.pat) ? ' του ' + f.pat : '') + (nz(f.afm) ? ', με Α.Φ.Μ. ' + f.afm : '') + ', δηλώνω υπεύθυνα, κατά τις διατάξεις του άρθρου 25 του Ν.4030/2011 και του Ν.1599/1986, εν γνώσει των συνεπειών του νόμου περί ψευδούς δηλώσεως, ότι:');
+    p.push('1. Υπέδειξα ' + (nz(f.pointedBy) && f.pointedBy !== f.idio ? 'μέσω του/της ' + f.pointedBy : 'ο ίδιος') + ' επί τόπου στον συντάκτη μηχανικό τη θέση και τα όρια του ' + E + (nz(f.kor) ? ', όπως αυτά αποτυπώνονται στο παρόν διάγραμμα με τα στοιχεία ' + f.kor : '') + ', τα οποία είναι τα πραγματικά όρια της ιδιοκτησίας μου και δεν καταπατούν όμορες ιδιοκτησίες ή κοινόχρηστους χώρους.');
+    p.push('2. Έχω το νόμιμο δικαίωμα να αναθέσω τη σύνταξη του παρόντος τοπογραφικού διαγράμματος στον ως άνω μηχανικό.');
+    p.push('3. Τα στοιχεία και οι πληροφορίες που δήλωσα και παρέδωσα στον μηχανικό για τη σύνταξη του παρόντος είναι αληθή και ακριβή.');
+    return p;
+  }
+  // ΠΑΡΑΤΗΡΗΣΕΙΣ — κατά το υπόδειγμα τοπογραφικού· τα αυτόματα στοιχεία από το ΚΑΕΚ/τη μέτρηση
+  function txtNotes(f, x) {
+    x = x || {}; var p = [], n = 1;
+    p.push((n++) + '. Τα όρια του γεωτεμαχίου και οι όμοροι υπεδείχθησαν από τον/την ' + (f.pointedBy || f.idio || '……………') + '. Τα ονόματα των φερόμενων ομόρων ιδιοκτητών ελήφθησαν από τον ενδιαφερόμενο και τη βάση του Εθνικού Κτηματολογίου.');
+    p.push((n++) + '. Το διάγραμμα είναι ενταγμένο στο Κρατικό Σύστημα Συντεταγμένων Ε.Γ.Σ.Α. 87' + (x.K != null ? ', συντελεστής κλίμακας γραμμικής παραμόρφωσης Κ = ' + x.K : '') + '.');
+    p.push((n++) + '. Οι διαστάσεις και το εμβαδόν υπολογίσθηκαν αναλυτικά από τις συντεταγμένες των κορυφών.');
+    p.push((n++) + '. Η εξάρτηση από το Ε.Γ.Σ.Α. 87 πραγματοποιήθηκε με μετρήσεις GNSS μεθόδου RTK (οριζοντιογραφία & ορθομετρικά υψόμετρα)' + (nz(f.gnssDate) ? ' στις ' + f.gnssDate : '') + (nz(f.gnssNet) ? ', με χρήση του δικτύου ' + f.gnssNet : '') + (nz(f.gnssRx) ? '. Δέκτης GNSS: ' + f.gnssRx : '') + '.');
+    if (nz(f.aigd)) p.push((n++) + '. Το γεωτεμάχιο απέχει από την ακτογραμμή απόσταση ' + f.aigd + ' μ.' + (nz(f.aigFek) ? ' Στην περιοχή έχει καθοριστεί οριογραμμή αιγιαλού–παραλίας με ' + f.aigFek + ' (Δημόσια Περιουσία / ΓΓΠΣ).' : ''));
+    else if (nz(f.aigFek)) p.push((n++) + '. Στην περιοχή έχει καθοριστεί οριογραμμή αιγιαλού–παραλίας με ' + f.aigFek + ' (Δημόσια Περιουσία / ΓΓΠΣ).');
+    var wp = (x.water || []).filter(function (w) { return w.inside !== false; });
+    if (wp.length) p.push((n++) + '. Εντός του γεωτεμαχίου εντοπίζ' + (wp.length === 1 ? 'εται σημείο υδροληψίας' : 'ονται σημεία υδροληψίας') + ' (Ε.Μ.Σ.Υ.): ' + wp.map(function (w) { return 'κωδικός ' + w.code + ' (X = ' + f2(w.x) + ', Y = ' + f2(w.y) + ')'; }).join(', ') + '.');
+    else p.push((n++) + '. Εντός του γεωτεμαχίου δεν εντοπίζονται σημεία υδροληψίας (Ε.Μ.Σ.Υ., lmt.ypeka.gr).');
+    if (nz(f.forestFek) || nz(f.forestCat)) p.push((n++) + '. Το γεωτεμάχιο βρίσκεται σε περιοχή με κυρωμένο Δασικό Χάρτη' + (nz(f.forestFek) ? ' (ΦΕΚ ' + f.forestFek + ')' : '') + (nz(f.forestCat) ? '. Χαρακτηρισμός: ' + f.forestCat : '') + '.');
+    if (nz(f.kaek)) {
+      var s = (n++) + '. Το γεωτεμάχιο βρίσκεται σε περιοχή με Κτηματολόγιο σε λειτουργία και έχει λάβει ΚΑΕΚ ' + f.kaek;
+      if (x.verdict) {
+        s += '. Εμβαδόν κτηματολογικής βάσης ' + gr(x.verdict.E) + ' τ.μ., εμβαδόν αποτύπωσης ' + gr(x.verdict.Em) + ' τ.μ., ΔΕ = ' + gr(x.verdict.dE) + ' τ.μ. (ανοχή ' + gr(x.verdict.Alim) + ' τ.μ.)';
+        s += x.verdict.verdict === 'required' ? ' — εκτός αποδεκτής απόκλισης: απαιτείται ΔΓΜ διόρθωσης ορίων' : x.verdict.verdict === 'marginal' ? ' — οριακά εντός αποδεκτής απόκλισης' : ' — εντός αποδεκτής απόκλισης, δεν απαιτείται ΔΓΜ';
+      }
+      p.push(s + '.');
+    }
+    p.push((n++) + '. Το παρόν διάγραμμα έλαβε ΚΗΔ: ' + (nz(f.kid) ? f.kid : '……………………………'));
+    if (nz(f.titles)) p.push((n++) + '. Τίτλοι ιδιοκτησίας: ' + f.titles + '.');
+    return p;
+  }
+  function txtForest(f) {
+    var E = EIDOS[+f.eidos] || 'ακίνητο', p = [];
+    p.push('(άρθρο 8 Ν.1599/1986, βάσει άρθρου 142 παρ. 3 Ν.4483/2017)');
+    p.push('Ο κάτωθι υπογράφων το παρόν δηλώνω υπεύθυνα ότι, σύμφωνα με τον κυρωμένο Δασικό Χάρτη' + (nz(f.nomos) ? ' της Π.Ε. ' + f.nomos : '') + (nz(f.forestFek) ? ' (ΦΕΚ ' + f.forestFek + ')' : '') + ', το ' + E + (nz(f.kor) ? ' με στοιχεία ' + f.kor : '') + (nz(f.emb) ? ' και εμβαδόν Ε = ' + f.emb + ' τ.μ.' : '') + (nz(f.thesi) ? ', στη θέση ' + f.thesi : '') + (nz(f.dimos) ? ' του Δήμου ' + f.dimos : '') + ', ' + (nz(f.forestCat) ? 'φέρει χαρακτηρισμό ' + f.forestCat : 'έχει τον χαρακτηρισμό που αναγράφεται στο διάγραμμα') + '.');
+    p.push('Πηγή: https://gis.ktimanet.gr/gis/forestfinal — ακρίβεια συντεταγμένων περιγράμματος ≤ 5 mm. Η εμβαδομέτρηση των δασικών τμημάτων έγινε με τα εργαλεία του γεωχωρικού εντοπισμού.');
+    return p;
+  }
+  // ΟΡΟΙ ΔΟΜΗΣΗΣ — γραμμές από τον πίνακα ROW= της υπηρεσίας (OROIDOM)
+  function txtOroi(lisp) {
+    if (!lisp || !lisp.rows || !lisp.rows.length) return [];
+    return lisp.rows.map(function (r) { return r[0] + ': ' + r[1]; });
+  }
+
+  // ---------- πρότυπο πινακίδας μηχανικού (DXF σε mm χαρτιού) ----------
+  // Επιστρέφει { ents:[{type:'line'|'poly'|'text'|'mtext'|'circle', ...}], box:[x0,y0,x1,y1], w, h, texts:n, warn:[] }
+  function parseTemplate(text) {
+    var lines = String(text).split(/\r?\n/), n = lines.length, i = 0;
+    function at(k) { return (lines[k] || '').trim(); }
+    var blocks = {}, ents = [], warn = [];
+    // \U+XXXX (AutoCAD/progeCAD), %%d %%p %%c, κώδικες μορφοποίησης MTEXT
+    function dtext(t) { return String(t || '').replace(/\\U\+([0-9A-Fa-f]{4})/g, function (m, h) { return String.fromCharCode(parseInt(h, 16)); }).replace(/%%[dD]/g, '°').replace(/%%[pP]/g, '±').replace(/%%[cC]/g, 'Ø').replace(/\\\\/g, '\\'); }
+    function dmtext(t) { return dtext(t).replace(/\\P/g, '\n').replace(/\\[A-Za-z][^;]*;/g, '').replace(/\{(?![Α-ΩΆ-ΏA-Z_.\s]+\})|(?<![Α-ΩΆ-ΏA-Z_.\s])\}/g, ''); }
+    function readEntities(stopAt) { // διαβάζει οντότητες έως 0/stopAt — επιστρέφει λίστα
+      var out = [], cur = null, vtx = null, poly = null;
+      function flush() {
+        if (!cur) return;
+        if (cur.type === 'LINE' && cur.a && cur.b) out.push({ type: 'line', layer: cur.layer, color: cur.color, a: cur.a, b: cur.b });
+        else if (cur.type === 'LWPOLYLINE' && cur.pts.length >= 2) out.push({ type: 'poly', layer: cur.layer, color: cur.color, pts: cur.pts, closed: !!(cur.flags & 1) });
+        else if (cur.type === 'CIRCLE' && cur.c) out.push({ type: 'circle', layer: cur.layer, color: cur.color, c: cur.c, r: cur.r || 0 });
+        else if (cur.type === 'ARC' && cur.c) { var a0 = (cur.a0 || 0) * Math.PI / 180, a1 = (cur.a1 || 0) * Math.PI / 180; if (a1 <= a0) a1 += 2 * Math.PI; var k = Math.max(6, Math.ceil((a1 - a0) / (Math.PI / 12))), pts = []; for (var j = 0; j <= k; j++) { var a = a0 + (a1 - a0) * j / k; pts.push([cur.c[0] + cur.r * Math.cos(a), cur.c[1] + cur.r * Math.sin(a)]); } out.push({ type: 'poly', layer: cur.layer, color: cur.color, pts: pts, closed: false }); }
+        else if (cur.type === 'TEXT' && cur.text != null) out.push({ type: 'text', layer: cur.layer, color: cur.color, x: cur.x || 0, y: cur.y || 0, x2: cur.x2, y2: cur.y2, h: cur.h || 2.5, rot: cur.rot || 0, text: dtext(cur.text), halign: cur.h72 || 0, valign: cur.h73 || 0 });
+        else if (cur.type === 'MTEXT' && cur.text != null) out.push({ type: 'mtext', layer: cur.layer, color: cur.color, x: cur.x || 0, y: cur.y || 0, h: cur.h || 2.5, rot: cur.rot || 0, width: cur.w || 0, attach: cur.h71 || 1, text: dmtext(cur.text) });
+        else if (cur.type === 'INSERT' && cur.name) out.push({ type: 'insert', layer: cur.layer, name: cur.name, x: cur.x || 0, y: cur.y || 0, sx: cur.sx == null ? 1 : cur.sx, sy: cur.sy == null ? 1 : cur.sy, rot: cur.rot || 0 });
+        else if (cur.type && !/^(POINT|HATCH|DIMENSION|SOLID|ATTDEF|ATTRIB|SEQEND|VIEWPORT|IMAGE|WIPEOUT|SPLINE|ELLIPSE|LEADER|MLEADER|REGION|3DFACE)$/.test(cur.type) && cur.type !== 'VERTEX') warn.push(cur.type);
+        cur = null;
+      }
+      while (i < n) {
+        var code = at(i), val = at(i + 1); i += 2;
+        if (code === '0') {
+          if (val === stopAt || val === 'ENDSEC' || val === 'EOF') { flush(); if (poly && poly.pts.length >= 2) out.push({ type: 'poly', layer: poly.layer, color: poly.color, pts: poly.pts, closed: !!(poly.flags & 1) }); return { list: out, stop: val }; }
+          if (poly) { if (val === 'VERTEX') { vtx = {}; continue; } if (val === 'SEQEND') { if (poly.pts.length >= 2) out.push({ type: 'poly', layer: poly.layer, color: poly.color, pts: poly.pts, closed: !!(poly.flags & 1) }); poly = null; vtx = null; continue; } }
+          flush();
+          if (val === 'POLYLINE') { poly = { layer: '0', pts: [], flags: 0 }; vtx = null; continue; }
+          cur = { type: val, layer: '0', pts: [], flags: 0 }; continue;
+        }
+        if (poly) { if (vtx) { if (code === '10') vtx.x = parseFloat(val); else if (code === '20') { vtx.y = parseFloat(val); if (vtx.x != null) poly.pts.push([vtx.x, vtx.y]); } } else { if (code === '8') poly.layer = val; else if (code === '62') poly.color = parseInt(val, 10); else if (code === '70') poly.flags = parseInt(val, 10) || 0; } continue; }
+        if (!cur) continue;
+        if (code === '8') cur.layer = val;
+        else if (code === '62') cur.color = parseInt(val, 10);
+        else if (cur.type === 'LWPOLYLINE') { if (code === '70') cur.flags = parseInt(val, 10) || 0; else if (code === '10') cur._x = parseFloat(val); else if (code === '20') cur.pts.push([cur._x, parseFloat(val)]); }
+        else if (cur.type === 'LINE') { if (code === '10') cur._ax = parseFloat(val); else if (code === '20') cur.a = [cur._ax, parseFloat(val)]; else if (code === '11') cur._bx = parseFloat(val); else if (code === '21') cur.b = [cur._bx, parseFloat(val)]; }
+        else if (cur.type === 'CIRCLE' || cur.type === 'ARC') { if (code === '10') cur._cx = parseFloat(val); else if (code === '20') cur.c = [cur._cx, parseFloat(val)]; else if (code === '40') cur.r = parseFloat(val); else if (code === '50') cur.a0 = parseFloat(val); else if (code === '51') cur.a1 = parseFloat(val); }
+        else if (cur.type === 'TEXT' || cur.type === 'MTEXT' || cur.type === 'ATTDEF') {
+          if (code === '10') cur.x = parseFloat(val); else if (code === '20') cur.y = parseFloat(val); else if (code === '11') cur.x2 = parseFloat(val); else if (code === '21') cur.y2 = parseFloat(val);
+          else if (code === '40') cur.h = parseFloat(val); else if (code === '41') cur.w = parseFloat(val); else if (code === '50') cur.rot = parseFloat(val);
+          else if (code === '1') cur.text = (cur.text || '') + val; else if (code === '3') cur.text = (cur.text || '') + val;
+          else if (code === '71') cur.h71 = parseInt(val, 10); else if (code === '72') cur.h72 = parseInt(val, 10); else if (code === '73') cur.h73 = parseInt(val, 10);
+        }
+        else if (cur.type === 'INSERT') { if (code === '2') cur.name = val; else if (code === '10') cur.x = parseFloat(val); else if (code === '20') cur.y = parseFloat(val); else if (code === '41') cur.sx = parseFloat(val); else if (code === '42') cur.sy = parseFloat(val); else if (code === '50') cur.rot = parseFloat(val); }
+      }
+      flush(); return { list: out, stop: 'EOF' };
+    }
+    // BLOCKS
+    while (i < n) {
+      var c = at(i), v = at(i + 1); i += 2;
+      if (c === '2' && v === 'BLOCKS') {
+        while (i < n) {
+          var c2 = at(i), v2 = at(i + 1); i += 2;
+          if (c2 === '0' && v2 === 'ENDSEC') break;
+          if (c2 === '0' && v2 === 'BLOCK') {
+            var name = '', base = [0, 0];
+            while (i < n && at(i) !== '0') { if (at(i) === '2') name = at(i + 1); if (at(i) === '10') base[0] = parseFloat(at(i + 1)); if (at(i) === '20') base[1] = parseFloat(at(i + 1)); i += 2; }
+            var r = readEntities('ENDBLK'); blocks[name] = { base: base, ents: r.list };
+          }
+        }
+      }
+      if (c === '2' && v === 'ENTITIES') { var r2 = readEntities('ENDSEC'); ents = r2.list; break; }
+    }
+    // επέκταση INSERT (έως 2 επίπεδα)
+    function xf(p, ins, base) { var r = ins.rot * Math.PI / 180, x = (p[0] - base[0]) * ins.sx, y = (p[1] - base[1]) * ins.sy; return [ins.x + x * Math.cos(r) - y * Math.sin(r), ins.y + x * Math.sin(r) + y * Math.cos(r)]; }
+    function expand(list, depth) {
+      var out = [];
+      list.forEach(function (e) {
+        if (e.type !== 'insert') { out.push(e); return; }
+        var b = blocks[e.name]; if (!b || depth > 2) { if (!b) warn.push('INSERT ' + e.name); return; }
+        expand(b.ents, depth + 1).forEach(function (q) {
+          var k = Math.abs(e.sx) || 1, lay = q.layer === '0' ? e.layer : q.layer;
+          if (q.type === 'line') out.push({ type: 'line', layer: lay, color: q.color, a: xf(q.a, e, b.base), b: xf(q.b, e, b.base) });
+          else if (q.type === 'poly') out.push({ type: 'poly', layer: lay, color: q.color, pts: q.pts.map(function (p) { return xf(p, e, b.base); }), closed: q.closed });
+          else if (q.type === 'circle') out.push({ type: 'circle', layer: lay, color: q.color, c: xf(q.c, e, b.base), r: q.r * k });
+          else if (q.type === 'text') { var p0 = xf([q.x, q.y], e, b.base), p2 = q.x2 != null ? xf([q.x2, q.y2], e, b.base) : null; out.push(Object.assign({}, q, { layer: lay, x: p0[0], y: p0[1], x2: p2 ? p2[0] : undefined, y2: p2 ? p2[1] : undefined, h: q.h * k, rot: q.rot + e.rot })); }
+          else if (q.type === 'mtext') { var p1 = xf([q.x, q.y], e, b.base); out.push(Object.assign({}, q, { layer: lay, x: p1[0], y: p1[1], h: q.h * k, width: q.width * k, rot: q.rot + e.rot })); }
+        });
+      });
+      return out;
+    }
+    ents = expand(ents, 0);
+    var all = [];
+    ents.forEach(function (e) { if (e.type === 'line') all.push(e.a, e.b); else if (e.type === 'poly') all.push.apply(all, e.pts); else if (e.type === 'circle') all.push([e.c[0] - e.r, e.c[1] - e.r], [e.c[0] + e.r, e.c[1] + e.r]); else if (e.type === 'text' || e.type === 'mtext') all.push([e.x, e.y]); });
+    if (!all.length) throw new Error('Το DXF της πινακίδας δεν έχει γραμμές/κείμενα.');
+    var box = bbox(all);
+    var w = box[2] - box[0], h = box[3] - box[1];
+    // μονάδες: αν η πινακίδα είναι τεράστια (> 2 m), πιθανόν σχεδιάστηκε σε m ή σε μονάδες μοντέλου — την φέρνουμε σε mm
+    var unitWarn = '';
+    if (w > 1500 || h > 1500) { unitWarn = 'Η πινακίδα έχει διαστάσεις ' + Math.round(w) + '×' + Math.round(h) + ' μονάδες — υποθέτουμε ότι σχεδιάστηκε σε cm ή m και την προσαρμόζουμε.'; }
+    if (w < 20 && h < 20) { unitWarn = 'Η πινακίδα είναι πολύ μικρή (' + w.toFixed(1) + '×' + h.toFixed(1) + ') — υποθέτουμε ότι σχεδιάστηκε σε m και την μετατρέπουμε σε mm.'; }
+    var uniq = {}; warn.forEach(function (x) { uniq[x] = 1; });
+    return { ents: ents, box: box, w: w, h: h, texts: ents.filter(function (e) { return e.type === 'text' || e.type === 'mtext'; }).length, warn: Object.keys(uniq), unitWarn: unitWarn };
+  }
+  var PH = { 'ΕΡΓΟΔΟΤΗΣ': 'client', 'ΕΡΓΟ': 'project', 'ΘΕΣΗ': 'place', 'ΘΕΜΑ': 'subject', 'ΗΜΕΡΟΜΗΝΙΑ': 'date', 'ΚΛΙΜΑΚΑ': 'scale', 'ΑΡ_ΣΧΕΔΙΟΥ': 'drawingNo', 'ΑΡ.ΣΧΕΔΙΟΥ': 'drawingNo', 'ΑΡΙΘΜΟΣ_ΣΧΕΔΙΟΥ': 'drawingNo', 'ΜΕΛΕΤΗΤΗΣ': 'eng', 'ΟΜΑΔΑ_ΜΕΛΕΤΗΣ': 'eng', 'ΚΑΕΚ': 'kaek', 'ΓΡΑΦΕΙΟ': 'office', 'ΔΗΜΟΣ': 'dimos', 'ΕΜΒΑΔΟΝ': 'area', 'ΦΥΛΛΟ': 'sheet', 'ΙΔΙΟΚΤΗΤΗΣ': 'client', 'ΤΙΤΛΟΣ': 'title' };
+  function fillPlaceholders(text, vals) {
+    return String(text).replace(/[{<\[#]\s*([Α-ΩΆ-ΏA-Z_.\s]+?)\s*[}>\]#]/g, function (m, key) { var k = key.trim().toUpperCase().replace(/\s+/g, '_'); var f = PH[k]; return f && vals[f] != null ? String(vals[f]) : m; });
+  }
+  function templateHasFields(tpl) { var found = {}; tpl.ents.forEach(function (e) { if (e.text) String(e.text).replace(/[{<\[#]\s*([Α-ΩΆ-ΏA-Z_.\s]+?)\s*[}>\]#]/g, function (m, key) { var k = key.trim().toUpperCase().replace(/\s+/g, '_'); if (PH[k]) found[k] = 1; return m; }); }); return Object.keys(found); }
+
+  // ---------- έκταση & πρόταση χαρτιού ----------
+  function extent(data) {
+    var core = data.M.slice(); (data.bld || []).forEach(function (r) { core = core.concat(r); }); (data.lines || []).forEach(function (l) { if (l.pts.length < 400) core = core.concat(l.pts); });
+    var b = bbox(core), w = Math.max(b[2] - b[0], 5), h = Math.max(b[3] - b[1], 5), m = 0.14;
+    return { box: [b[0] - w * m, b[1] - h * m, b[2] + w * m, b[3] + h * m] };
+  }
+  function recommend(data, opts) {
+    var out = [], papers = PAPERS.filter(function (p) { return RANGE.indexOf(p.id) >= 0; });
+    papers.forEach(function (P) {
+      SCALES.forEach(function (S) {
+        var found = null;
+        [0.42, 0.5, 0.58].some(function (pf) {
+          return [1, 0.9, 0.8].some(function (ts) {
+            var lay = build(data, Object.assign({}, opts || {}, { scale: S, paper: P.id, panelFrac: pf, textScale: ts, light: true }));
+            if (lay.fits && lay.sheets.length === 1) { found = { panelFrac: pf, textScale: ts }; return true; }
+            return false;
+          });
+        });
+        out.push({ scale: S, paper: P.id, fits: !!found, single: !!found, cfg: found });
+      });
+    });
+    var ok = out.filter(function (o) { return o.single; });
+    // προτίμηση: η πιο λεπτομερής κλίμακα που χωρά σε ένα φύλλο (το Α0 μόνο αν δεν χωρά αλλού), και σε αυτήν το μικρότερο χαρτί
+    ok.sort(function (a, b) { return (a.paper === 'A0' ? 1 : 0) - (b.paper === 'A0' ? 1 : 0) || a.scale - b.scale || RANGE.indexOf(a.paper) - RANGE.indexOf(b.paper); });
+    var best = ok[0] || { scale: 1000, paper: 'A0', fits: false, single: false, cfg: { panelFrac: 0.58, textScale: 0.8 } };
+    return { best: best, options: out };
+  }
+
+  // ---------- δημιουργία φύλλων ----------
+  // data: { M:[[x,y]], labels:[], kaek:'', kaekRing:[[x,y]]|null, kaekArea, parcels:[{kaek, rings:[[..]], owner}], owner, bld:[rings], lines:[{pts,closed,layer}],
+  //         forest:[{outer:[rings], cat}], texts:{oroi:[], decl651:[], notes:[], decl4030:[], forest:[]|null, oroiTitle, oroiNote}, decl:[lines ΕΓΣΑ87], K }
+  // opts: { scale, paper, panelFrac, textScale, info:{office, client, project, place, dimos, eng, date, drawingNo, subject}, template:parseTemplate(), kaekTable:boolean, light }
+  function build(data, opts) {
+    var S = opts.scale, P = PAPERS.filter(function (p) { return p.id === opts.paper; })[0] || PAPERS[3];
+    var PF = opts.panelFrac || 0.5, TS = opts.textScale || 1, info = opts.info || {};
+    var mm = S / 1000;
+    var tpl = opts.template || null;
+    var tplScale = 1; if (tpl) { if (tpl.w > 1500 || tpl.h > 1500) tplScale = tpl.w > 15000 ? 0.001 : 0.1; else if (tpl.w < 20 && tpl.h < 20) tplScale = 1000; }
+    var tbWmm = tpl ? Math.min(tpl.w * tplScale, P.w - 2 * MARGIN - 4) : TITLE_W, tbHmm = tpl ? Math.min(tpl.h * tplScale, P.h - 2 * MARGIN - 4) : TITLE_H;
+    var ex = extent(data), box = ex.box;
+    var sheetW = P.w * mm, sheetH = P.h * mm, panelW = Math.max(P.w * PF, tbWmm + 10) * mm, drawW = sheetW - panelW - 2 * MARGIN * mm, drawH = sheetH - 2 * MARGIN * mm;
+    // ζώνη σημειώσεων ΕΓΣΑ87 κάτω από το σχέδιο
+    var declTxt = (data.decl && data.decl.length) ? data.decl.join('\n') : '';
+    var declTH = 1.6, declTitle = 'ΣΗΜΕΙΩΣΕΙΣ — ΓΕΩΔΑΙΤΙΚΟ ΣΥΣΤΗΜΑ ΑΝΑΦΟΡΑΣ', declBoxW = drawW, declLH = declTH * 1.9;
+    var declCPL = Math.max(40, Math.floor(((declBoxW - 6 * mm) / mm) / (declTH * 0.78))), declLines = 0;
+    if (declTxt) { data.decl.forEach(function (p) { declLines += Math.max(1, Math.ceil(p.length / declCPL)); }); declLines += 1; }
+    var declBand = declTxt ? ((declLines + 1.6) * declLH + 5) * mm : 0;
+    var plotH = drawH - declBand;
+    var cx = (box[0] + box[2]) / 2, cy = (box[1] + box[3]) / 2;
+    var SX = cx - MARGIN * mm - drawW / 2, SY = cy - MARGIN * mm - (drawH + declBand) / 2;
+    var sheets = [];
+    var E = { polys: [], texts: [], lines: [], hatches: [], tables: [], mtexts: [] };
+    function L(layer, a, b, color) { E.lines.push({ layer: layer, a: a, b: b, color: color }); }
+    function R(layer, x, y, w, h) { E.polys.push({ layer: layer, pts: [[x, y], [x + w, y], [x + w, y + h], [x, y + h]], closed: true }); }
+    function T(layer, x, y, text, hmm, rot, align, color) { E.texts.push({ layer: layer, x: x, y: y, text: text, h: hmm * mm, rot: rot || 0, align: align || 'left', color: color }); }
+    var CHW = 0.9, CHP = 0.78; // πλάτος χαρακτήρα × ύψος (συντηρητικό, ώστε ΚΑΝΕΝΑ κείμενο να μη βγαίνει από το πλαίσιό του): πίνακες / σώμα κειμένων
+    function estW(text, hmm, chw) { return String(text).length * (chw || CHW) * hmm * mm; }
+    function TC(layer, x0, x1, y, text, hmm, color) { var pad = 0.5 * mm, avail = x1 - x0 - 2 * pad, w = estW(text, hmm), h = w <= avail ? hmm : Math.max(1.0, hmm * avail / w); T(layer, (x0 + x1) / 2, y + (hmm - h) * mm * 0.3, text, h, 0, 'center', color); }
+    function circle(layer, c, rmm, color) { var r = rmm * mm; E.polys.push({ layer: layer, pts: [[c[0] - r, c[1]], [c[0] + r, c[1]]], bulges: [1, 1], closed: true, color: color }); }
+    function wrap(text, maxChars) { maxChars = Math.max(8, Math.floor(maxChars)); var words = String(text).split(/\s+/), lines = [], cur = ''; words.forEach(function (w) { if ((cur + ' ' + w).trim().length > maxChars && cur) { lines.push(cur); cur = w; } else cur = (cur + ' ' + w).trim(); }); if (cur) lines.push(cur); return lines; }
+    var fits = (box[2] - box[0]) <= drawW - 8 * mm && (box[3] - box[1]) <= plotH - 8 * mm;
+    var M = open(data.M), labels = (data.labels || []).map(String);
+    var Ea = area(M);
+
+    // ---- ροή πάνελ: στήλες & φύλλα ----
+    var TXT = (P.w >= 841 ? 2.0 : 1.8) * TS, ROW = TXT * 2.1, TITLE = TXT * 1.15, BT = TXT * 0.95, LH = BT * 1.55;
+    var panelMm = panelW / mm, ncol = Math.max(1, Math.round((panelMm - 8) / 112)), colW = ((panelMm - 8) - 4 * (ncol - 1)) / ncol * mm;
+    var sheetIdx = 0, panelX, panelY0, panelY1, colX, cursorY, tbBox;
+    function newSheet(tablesOnly) {
+      var sx = SX + sheetIdx * (sheetW + 20 * mm), sy = SY;
+      sheets.push({ idx: sheetIdx, x: sx, y: sy, w: sheetW, h: sheetH, tablesOnly: tablesOnly });
+      R('PINAKIDA', sx, sy, sheetW, sheetH);
+      R('PINAKIDA', sx + MARGIN * mm, sy + MARGIN * mm, sheetW - 2 * MARGIN * mm, sheetH - 2 * MARGIN * mm);
+      var tbW = tbWmm * mm, tbH = tbHmm * mm, tbX = sx + sheetW - MARGIN * mm - tbW, tbY = sy + MARGIN * mm;
+      tbBox = { x: tbX, y: tbY, w: tbW, h: tbH };
+      if (tpl) titleTemplate(tbX, tbY, sheetIdx + 1); else titleBlock(tbX, tbY, tbW, tbH, sheetIdx + 1);
+      if (!tablesOnly) { L('PINAKIDA', [sx + MARGIN * mm + drawW, sy + MARGIN * mm], [sx + MARGIN * mm + drawW, sy + sheetH - MARGIN * mm]); panelX = sx + MARGIN * mm + drawW + 4 * mm; }
+      else panelX = sx + MARGIN * mm + 4 * mm;
+      panelY1 = sy + sheetH - MARGIN * mm - 4 * mm; panelY0 = sy + MARGIN * mm + 4 * mm;
+      colX = panelX; cursorY = panelY1; sheetIdx++;
+    }
+    var tplVals = { office: info.office || '', client: info.client || '', project: info.project || 'ΤΟΠΟΓΡΑΦΙΚΟ ΔΙΑΓΡΑΜΜΑ', place: info.place || '', subject: info.subject || 'ΤΟΠΟΓΡΑΦΙΚΟ ΔΙΑΓΡΑΜΜΑ — ΑΠΟΤΥΠΩΣΗ ΙΔΙΟΚΤΗΣΙΑΣ', date: info.date || '', scale: '1:' + S, drawingNo: info.drawingNo || 'Τ1', eng: info.eng || '', kaek: data.kaek ? 'ΚΑΕΚ ' + data.kaek : '', dimos: info.dimos || '', area: 'Ε = ' + f2(Ea) + ' τ.μ.', sheet: '{N}', title: 'ΤΟΠΟΓΡΑΦΙΚΟ ΔΙΑΓΡΑΜΜΑ' };
+    function titleTemplate(x, y, n) {
+      var k = mm * tplScale, bx = tpl.box[0], by = tpl.box[1];
+      function P2(p) { return [x + (p[0] - bx) * k, y + (p[1] - by) * k]; }
+      var vals = Object.assign({}, tplVals, { sheet: String(n) + '/{N}' });
+      tpl.ents.forEach(function (e) {
+        var lay = 'PINAKIDA';
+        if (e.type === 'line') L(lay, P2(e.a), P2(e.b), e.color);
+        else if (e.type === 'poly') E.polys.push({ layer: lay, pts: e.pts.map(P2), closed: e.closed, color: e.color, tpl: true });
+        else if (e.type === 'circle') { var c = P2(e.c); E.polys.push({ layer: lay, pts: [[c[0] - e.r * k, c[1]], [c[0] + e.r * k, c[1]]], bulges: [1, 1], closed: true, color: e.color }); }
+        else if (e.type === 'text') {
+          var txt = fillPlaceholders(e.text, vals), ha = e.halign, al = ha === 1 || ha === 4 ? 'center' : ha === 2 ? 'right' : 'left';
+          var p = (ha && e.x2 != null) ? P2([e.x2, e.y2]) : P2([e.x, e.y]);
+          if (ha === 3 || ha === 5) al = 'center';
+          var hmm = e.h * tplScale, maxW = 0;
+          // αν η τιμή είναι μεγαλύτερη από το πεδίο της πινακίδας (έως το δεξί όριο), μικραίνει
+          if (txt !== e.text) { var right = tpl.box[2] - (al === 'center' ? (e.x2 != null ? e.x2 : e.x) : (e.x)); maxW = (al === 'center' ? Math.min(right, (e.x2 != null ? e.x2 : e.x) - tpl.box[0]) * 2 : right) * tplScale; var ww = estW(txt, hmm, 0.72) / mm; if (maxW > 2 && ww > maxW - 2) hmm = Math.max(1.2, hmm * (maxW - 2) / ww); }
+          T(lay, p[0], p[1], txt, hmm, e.rot, al, e.color);
+        }
+        else if (e.type === 'mtext') {
+          var txt2 = fillPlaceholders(e.text, vals), p2 = P2([e.x, e.y]);
+          E.mtexts.push({ layer: lay, x: p2[0], y: p2[1], text: txt2, h: e.h * k, width: e.width * k, attach: e.attach || 1, multiline: true, rot: e.rot, color: e.color, lineH: e.h * k * 1.6 });
+        }
+      });
+    }
+    function titleBlock(x, y, w, h, n) {
+      R('PINAKIDA', x, y, w, h);
+      // ύψη ζωνών σε mm (σταθερά)· η τελευταία ζώνη (σφραγίδα 9×4 cm + ψηφιακή υπογραφή) παίρνει ό,τι περισσεύει, τουλάχιστον STAMP_H
+      var zmm = [15, 12, 16, 12, 17, 12], restH = Math.max(STAMP_H, h / mm - zmm.reduce(function (a, v) { return a + v; }, 0));
+      var zones = [
+        { f: zmm[0] / (h / mm), label: '', lines: [[info.office || 'ΤΕΧΝΙΚΟ ΓΡΑΦΕΙΟ', 3.2, true]] },
+        { f: zmm[1] / (h / mm), label: 'Εργοδότης', lines: [[info.client || '', 2.6, true]] },
+        { f: zmm[2] / (h / mm), label: 'Έργο', lines: [['ΤΟΠΟΓΡΑΦΙΚΟ ΔΙΑΓΡΑΜΜΑ', 2.6, true], [info.project || 'ΑΠΟΤΥΠΩΣΗ ΙΔΙΟΚΤΗΣΙΑΣ', 2.4, true], [data.kaek ? 'ΚΑΕΚ ' + data.kaek : '', 2.0, false]] },
+        { f: zmm[3] / (h / mm), label: 'Θέση', lines: [[info.place || '', 2.2, false], [info.dimos ? 'ΔΗΜΟΣ ' + info.dimos : '', 2.0, false]] },
+        { f: zmm[4] / (h / mm), label: 'Θέμα Σχεδίου', lines: [[info.subject || 'ΤΟΠΟΓΡΑΦΙΚΟ ΔΙΑΓΡΑΜΜΑ — ΑΠΟΤΥΠΩΣΗ ΙΔΙΟΚΤΗΣΙΑΣ', 2.2, false]], side: [['Ημερομηνία', info.date || ''], ['Κλίμακα Σχεδίασης', '1:' + S], ['Αριθμός Σχεδίου', (info.drawingNo || 'Τ1') + (n > 1 ? ' (' + n + '/{N})' : '')]] },
+        { f: zmm[5] / (h / mm), label: 'Ομάδα Μελέτης', lines: (info.eng || '').split(/\s*[;\n]\s*/).filter(Boolean).slice(0, 3).map(function (l) { return [l, 2.0, false]; }) },
+        { f: restH / (h / mm), label: 'Σφραγίδα Μελετητή — Ψηφιακή υπογραφή', lines: [['', 2.0, false]], stamp: true }
+      ];
+      var yTop = y + h, kf = Math.min(1, (w / mm) / 70);
+      function fitLines(lines, widthMm) { var out = []; lines.forEach(function (ln) { if (!ln[0]) return; var hh = ln[1] * kf, maxC = Math.floor((widthMm - 3) / (hh * 0.78)); wrap(ln[0], maxC).forEach(function (t) { out.push([t, hh, ln[2]]); }); }); return out; }
+      zones.forEach(function (z) {
+        var zh = z.f * h, y0 = yTop - zh;
+        L('PINAKIDA', [x, y0], [x + w, y0]);
+        var innerW = z.side ? w * 0.6 : w;
+        if (z.label) T('PINAKIDA', x + 1.5 * mm, yTop - 3.2 * mm, z.label, 1.8 * kf);
+        var lines = fitLines(z.lines, innerW / mm);
+        var lh = 3.4 * mm * kf, top = yTop - (z.label ? 5 * mm : 2 * mm), avail = top - y0;
+        var startY = top - (avail - lines.length * lh) / 2 - lh * 0.75;
+        lines.forEach(function (ln, i) { var availW = innerW - 3 * mm, fw = ln[1], ww = estW(ln[0], fw); if (ww > availW) fw = Math.max(1.0, fw * availW / ww); T('PINAKIDA', x + innerW / 2, startY - i * lh, ln[0], fw, 0, 'center'); });
+        if (z.side) {
+          L('PINAKIDA', [x + innerW, y0], [x + innerW, yTop]);
+          var sh = zh / z.side.length, sw = (w - innerW) / mm;
+          z.side.forEach(function (sd, i) { var sy0 = yTop - (i + 1) * sh; if (i) L('PINAKIDA', [x + innerW, sy0 + sh], [x + w, sy0 + sh]); T('PINAKIDA', x + innerW + (w - innerW) / 2, sy0 + sh - 2.0 * mm * kf, sd[0], 1.3 * kf, 0, 'center'); var vh = Math.min(2.2 * kf, (sw - 2) / (String(sd[1]).length * 0.78), (sh / mm - 3.2) / 1.3); T('PINAKIDA', x + innerW + (w - innerW) / 2, sy0 + 0.9 * mm, sd[1], Math.max(1.2, vh), 0, 'center'); });
+        }
+        yTop = y0;
+      });
+    }
+    function floorAt(x) { return (x + colW > tbBox.x - 2 * mm) ? tbBox.y + tbBox.h + 4 * mm : panelY0; }
+    function ensure(hNeeded) {
+      if (cursorY - hNeeded >= floorAt(colX)) return;
+      var sx = sheets[sheets.length - 1].x, limitX = sx + sheetW - MARGIN * mm - colW;
+      if (colX + colW + 4 * mm <= limitX + 0.001) { colX += colW + 4 * mm; cursorY = panelY1; }
+      else newSheet(true);
+    }
+    // πίνακας (όπως στην πινακίδα ΔΓΜ)
+    function table(b) {
+      var need = b.cols.map(function (c, i) { var m = 0; b.rows.forEach(function (r) { if (r[i] != null) m = Math.max(m, String(r[i]).length); }); return Math.max(c[1], m * CHW * TXT + 1.6, 6); });
+      var totalW = need.reduce(function (a, v) { return a + v; }, 0), k = (colW / mm) / totalW;
+      b = Object.assign({}, b, { cols: b.cols.map(function (c, i) { return [c[0], need[i], c[2]]; }) });
+      var titleLines = wrap(b.title, (colW / mm - 2) / (TITLE * CHW));
+      var headLines = Math.max.apply(null, b.cols.map(function (c) { return wrap(c[0], (c[1] * k - 1.2) / (TXT * CHW)).length; }));
+      var headH = Math.max(b.headRows || 1, headLines) * ROW, titleH = titleLines.length * TITLE * 1.5 + 1.2;
+      ensure((titleH + headH + ROW * 2.5) * mm);
+      var x = colX, yTop = cursorY, y = yTop;
+      var seg = { x: x, y: yTop, colW: b.cols.map(function (c) { return c[1] * k * mm; }), rowH: ROW * mm, titleH: titleH * mm, headH: headH * mm, textH: TXT * mm, titleTextH: TITLE * mm, title: b.title, header: b.cols.map(function (c) { return c[0]; }), rows: [], footer: null };
+      E.tables.push(seg);
+      function hline(yy) { L('PINAKES', [x, yy], [x + colW, yy]); }
+      function titleRows(lines) { hline(y); lines.forEach(function (tl, i) { TC('PINAKES', x, x + colW, y - (i + 1) * TITLE * 1.5 * mm + TITLE * 0.35 * mm, tl, TITLE); }); y -= lines.length * TITLE * 1.5 * mm + 1.2 * mm; hline(y); }
+      titleRows(titleLines); var segTop = y;
+      function header() { var xx = x; b.cols.forEach(function (c) { var cw = c[1] * k * mm, lines = wrap(c[0], (cw / mm - 1.2) / (TXT * CHW)); lines.forEach(function (ln, i) { TC('PINAKES', xx, xx + cw, y - (i + 1) * (headH / lines.length) * mm + (headH / lines.length) * 0.28 * mm, ln, TXT); }); xx += cw; }); y -= headH * mm; hline(y); }
+      header();
+      function verticals(yA, yB) { var xv = x; L('PINAKES', [xv, yA], [xv, yB]); b.cols.forEach(function (c) { xv += c[1] * k * mm; L('PINAKES', [xv, yA], [xv, yB]); }); }
+      b.rows.forEach(function (r) {
+        if (y - ROW * mm < floorAt(x)) {
+          verticals(segTop, y); ensure(1e9); x = colX; y = cursorY;
+          var contLines = wrap(b.title + ' (συνέχεια)', (colW / mm - 2) / (TITLE * CHW)), contH = contLines.length * TITLE * 1.5 + 1.2;
+          seg = { x: x, y: cursorY, colW: seg.colW, rowH: seg.rowH, titleH: contH * mm, headH: seg.headH, textH: seg.textH, titleTextH: seg.titleTextH, title: b.title + ' (συνέχεια)', header: seg.header, rows: [], footer: null }; E.tables.push(seg);
+          titleRows(contLines); header(); segTop = y + headH * mm;
+        }
+        seg.rows.push(r);
+        var x3 = x; r.forEach(function (cell, i) { if (cell !== '' && cell != null) { var cw = b.cols[i][1] * k * mm; TC('PINAKES', x3, x3 + cw, y - ROW * mm * 0.68, String(cell), TXT); } x3 += b.cols[i][1] * k * mm; });
+        y -= ROW * mm; hline(y);
+      });
+      verticals(segTop, y);
+      if (b.footer) { seg.footer = b.footer; TC('PINAKES', x, x + colW, y - ROW * mm * 0.68, b.footer, TXT); y -= ROW * mm; hline(y); L('PINAKES', [x, y], [x, y + ROW * mm]); L('PINAKES', [x + colW, y], [x + colW, y + ROW * mm]); }
+      cursorY = y - 5 * mm;
+    }
+    // μπλοκ κειμένου: τίτλος + παράγραφοι (αναδίπλωση) + υπογραφή· σπάει σε στήλες/φύλλα όταν δεν χωρά
+    function textBlock(b) {
+      var cpl = Math.floor((colW / mm - 4) / (BT * CHP)), lines = [];
+      b.paras.forEach(function (p, i) { wrap(p, cpl).forEach(function (l) { lines.push(l); }); if (b.gap !== false && i < b.paras.length - 1) lines.push(''); });
+      var titleH = (TITLE * 1.5 + 1.2) * mm, signH = b.sign ? (LH * 1.6 + 48) * mm : 0, pad = 1.5 * mm; // 48 mm κενό για σφραγίδα 9×4 cm (1:1) + ψηφιακή υπογραφή
+      var first = true, idx = 0;
+      while (idx < lines.length || first) {
+        var title = b.title + (first ? '' : ' (συνέχεια)');
+        ensure(titleH + pad + LH * mm * Math.min(lines.length - idx, 4) + (idx >= lines.length - 4 ? signH : 0) + pad);
+        var x = colX, yTop = cursorY, availH = yTop - floorAt(x) - titleH - 2 * pad - signH;
+        var nfit = Math.max(1, Math.floor(availH / (LH * mm)));
+        // αν στην αρχή του μπλοκ χωρούν λίγες μόνο γραμμές (και δεν είμαστε στην κορυφή της στήλης), πάμε ολόκληρο στην επόμενη στήλη
+        if (first && nfit < Math.min(lines.length, 8) && yTop < panelY1 - 1e-6) { ensure(1e9); x = colX; yTop = cursorY; availH = yTop - floorAt(x) - titleH - 2 * pad - signH; nfit = Math.max(1, Math.floor(availH / (LH * mm))); }
+        var take = Math.min(lines.length - idx, nfit); if (take < 0) take = 0;
+        // αν η υπογραφή δεν χωρά μετά τις γραμμές, αφήνουμε γραμμές για την επόμενη στήλη
+        if (idx + take >= lines.length && b.sign && take === lines.length - idx) { var avail2 = yTop - floorAt(x) - titleH - 2 * pad; if (take * LH * mm + signH > avail2) take = Math.max(0, Math.floor((avail2 - signH) / (LH * mm))); }
+        var chunk = lines.slice(idx, idx + take), last = idx + take >= lines.length;
+        var bodyH = chunk.length * LH * mm + (last && b.sign ? signH : 0);
+        var boxH = titleH + bodyH + 2 * pad;
+        // πλαίσιο + τίτλος
+        L('KEIMENA', [x, yTop], [x + colW, yTop]); L('KEIMENA', [x, yTop - titleH], [x + colW, yTop - titleH]);
+        TC('KEIMENA', x, x + colW, yTop - TITLE * 1.5 * mm + TITLE * 0.35 * mm, title, TITLE);
+        L('KEIMENA', [x, yTop], [x, yTop - boxH]); L('KEIMENA', [x + colW, yTop], [x + colW, yTop - boxH]); L('KEIMENA', [x, yTop - boxH], [x + colW, yTop - boxH]);
+        if (chunk.length) {
+          var ty = yTop - titleH - pad - LH * mm * 0.8;
+          E.mtexts.push({ layer: 'KEIMENA', x: x + 2 * mm, y: yTop - titleH - pad, text: chunk.join('\n'), h: BT * mm, width: colW - 4 * mm, attach: 1, multiline: true, color: 7, lineH: LH * mm, cpl: cpl, lines: chunk, svg: true });
+        }
+        if (last && b.sign) {
+          var sy = yTop - titleH - pad - chunk.length * LH * mm - LH * mm * 1.2;
+          T('KEIMENA', x + colW * 0.5, sy, (b.signDate ? b.signDate + ' — ' : '') + b.sign, BT, 0, 'center');
+          // από κάτω 48 mm κενό: σφραγίδα + ψηφιακή υπογραφή
+        }
+        cursorY = yTop - boxH - 5 * mm;
+        idx += take; first = false;
+        if (take === 0 && idx < lines.length) { ensure(1e9); if (cursorY === yTop) break; }
+      }
+    }
+
+    newSheet(false);
+    var s0 = sheets[0], dx0 = s0.x + MARGIN * mm, dy0 = s0.y + MARGIN * mm, dyP = dy0 + declBand;
+    var ID = function (i) { return labels[i] || String(i + 1); };
+
+    // ---- μπλοκ πάνελ ----
+    var bl = [];
+    var C4 = [['Σημείο', 16, 'center'], ['X', 24, 'center'], ['Y', 24, 'center'], ['Αποστάσεις', 24, 'center']];
+    var rows = []; for (var i = 0; i <= M.length; i++) { var q = M[i % M.length], prev = M[(i - 1 + M.length) % M.length]; rows.push([ID(i % M.length), f3(q[0]), f3(q[1]), i === 0 ? '' : ID((i - 1 + M.length) % M.length) + ' - ' + ID(i % M.length) + ': ' + f2(dist(prev, q))]); }
+    var ids = M.map(function (q, i) { return ID(i); });
+    bl.push({ type: 'table', title: 'ΠΙΝΑΚΑΣ ΣΥΝΤΕΤΑΓΜΕΝΩΝ ΚΟΡΥΦΩΝ ΙΔΙΟΚΤΗΣΙΑΣ', cols: C4, rows: rows, footer: 'Ε (' + seqText(ids) + ') = ' + f3(Ea) + ' τ.μ.' });
+    if (opts.kaekTable !== false && data.kaekRing && data.kaekRing.length >= 3) {
+      var KR = open(data.kaekRing), rowsK = [];
+      for (var j = 0; j <= KR.length; j++) { var qk = KR[j % KR.length], pk = KR[(j - 1 + KR.length) % KR.length]; rowsK.push(['Κ' + (j % KR.length + 1), f3(qk[0]), f3(qk[1]), j === 0 ? '' : 'Κ' + ((j - 1 + KR.length) % KR.length + 1) + ' - Κ' + (j % KR.length + 1) + ': ' + f2(dist(pk, qk))]); }
+      bl.push({ type: 'table', title: 'ΠΙΝΑΚΑΣ ΣΥΝΤΕΤΑΓΜΕΝΩΝ ΚΟΡΥΦΩΝ ΓΕΩΤΕΜΑΧΙΟΥ ΜΕ ΚΑΕΚ ' + data.kaek + ' (ΚΤΗΜΑΤΟΛΟΓΙΚΗ ΒΑΣΗ)', cols: C4, rows: rowsK, footer: 'Ε = ' + f3(data.kaekArea != null ? data.kaekArea : area(KR)) + ' τ.μ.' });
+    }
+    if ((data.forest || []).length) bl.push({ type: 'table', title: 'ΠΙΝΑΚΑΣ ΔΑΣΙΚΩΝ ΠΟΛΥΓΩΝΩΝ (' + (data.forestSrc === 'zip' ? 'ΚΥΡΩΜΕΝΟΣ ΔΑΣΙΚΟΣ ΧΑΡΤΗΣ' : 'ΔΑΣΙΚΟΣ ΧΑΡΤΗΣ — ΕΝΙΑΙΟΣ ΨΗΦΙΑΚΟΣ ΧΑΡΤΗΣ') + ')', cols: [['ΠΟΛΥΓΩΝΟ', 18, 'center'], ['ΧΑΡΑΚΤΗΡΙΣΜΟΣ', 40, 'center'], ['ΕΜΒΑΔΟΝ ΕΝΤΟΣ ΙΔΙΟΚΤΗΣΙΑΣ (τ.μ.)', 30, 'center']], rows: data.forest.map(function (x, i) { return ['Δ' + (i + 1), forestCatLabel(x.cat) || '-', x.areaProp > 0.005 ? f2(x.areaProp) : '-']; }), headRows: 2 });
+    var TX = data.texts || {};
+    if ((TX.oroi || []).length) bl.push({ type: 'text', title: TX.oroiTitle || 'ΟΡΟΙ ΔΟΜΗΣΗΣ', paras: TX.oroi.concat(TX.oroiNote ? [TX.oroiNote] : []), gap: false });
+    if ((TX.decl651 || []).length) bl.push({ type: 'text', title: 'ΔΗΛΩΣΗ ΜΗΧΑΝΙΚΟΥ (Ν.651/77 & Ν.1337/83)', paras: TX.decl651, sign: 'Ο ΜΗΧΑΝΙΚΟΣ', signDate: info.date || '', gap: false });
+    if ((TX.notes || []).length) bl.push({ type: 'text', title: 'ΠΑΡΑΤΗΡΗΣΕΙΣ', paras: TX.notes, gap: false });
+    if ((TX.decl4030 || []).length) bl.push({ type: 'text', title: 'ΔΗΛΩΣΗ ΙΔΙΟΚΤΗΤΗ (Ν.4030/2011 άρθρο 25)', paras: TX.decl4030, sign: 'Ο/Η ΙΔΙΟΚΤΗΤΗΣ/ΤΡΙΑ', signDate: info.date || '', gap: false });
+    if ((TX.forest || []).length) bl.push({ type: 'text', title: 'ΥΠΕΥΘΥΝΗ ΔΗΛΩΣΗ ΔΑΣΙΚΗΣ ΠΛΗΡΟΦΟΡΙΑΣ', paras: TX.forest, sign: 'Ο ΜΗΧΑΝΙΚΟΣ', signDate: info.date || '', gap: false });
+
+    if (!opts.light) {
+      var inDraw = function (p) { return p[0] >= dx0 && p[0] <= dx0 + drawW && p[1] >= dyP && p[1] <= dy0 + drawH; };
+      var boxes = [];
+      var step = GRID[S] || Math.max(10, Math.round(S / 10)), cs = 2.5 * mm;
+      (function () { var hb = cs * 1.4, gx0 = Math.ceil((dx0 + 6 * mm) / step) * step, gx1 = dx0 + drawW - 6 * mm, gy0 = Math.ceil((dyP + 6 * mm) / step) * step, gy1 = dy0 + drawH - 6 * mm; for (var gx = gx0; gx <= gx1; gx += step) for (var gy = gy0; gy <= gy1; gy += step) boxes.push([gx - hb, gy - hb, gx + hb, gy + hb]); })();
+      function overlaps(bx) { return boxes.some(function (o) { return !(bx[2] < o[0] || bx[0] > o[2] || bx[3] < o[1] || bx[1] > o[3]); }); }
+      function labelBox(cx, cy, text, hmm, rot) { var w = estW(text, hmm), h = hmm * mm * 1.3; if (rot) { var r = rot * Math.PI / 180, W = Math.abs(w * Math.cos(r)) + Math.abs(h * Math.sin(r)), H = Math.abs(w * Math.sin(r)) + Math.abs(h * Math.cos(r)); w = W; h = H; } return [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2]; }
+      function place(cands, text, hmm, rot, force) { for (var i = 0; i < cands.length; i++) { var bx = labelBox(cands[i][0], cands[i][1], text, hmm, rot); if (!overlaps(bx)) { boxes.push(bx); return cands[i]; } } if (force) { var b0 = labelBox(cands[0][0], cands[0][1], text, hmm, rot); boxes.push(b0); return cands[0]; } return null; }
+      // το όριο ιδιοκτησίας ως εμπόδιο για ετικέτες (λωρίδα κατά μήκος κάθε πλευράς)
+      M.forEach(function (p, i) { var q = M[(i + 1) % M.length], nseg = Math.max(1, Math.ceil(dist(p, q) / (3 * mm))); for (var s = 0; s <= nseg; s++) { var t = s / nseg, x = p[0] + (q[0] - p[0]) * t, y = p[1] + (q[1] - p[1]) * t; boxes.push([x - 0.6 * mm, y - 0.6 * mm, x + 0.6 * mm, y + 0.6 * mm]); } });
+      // κορυφές: κύκλος + ονομασία προς τα έξω
+      M.forEach(function (p, i) {
+        if (!inDraw(p)) return;
+        circle('SHMEIA_TOPO_PROP', p, 0.5, COL.TOPO_PROP);
+        var a = M[(i - 1 + M.length) % M.length], b = M[(i + 1) % M.length];
+        var ua = [a[0] - p[0], a[1] - p[1]], ub = [b[0] - p[0], b[1] - p[1]], la = Math.hypot(ua[0], ua[1]) || 1, lb = Math.hypot(ub[0], ub[1]) || 1;
+        var dx = -(ua[0] / la + ub[0] / lb), dy = -(ua[1] / la + ub[1] / lb), Ln = Math.hypot(dx, dy);
+        if (Ln < 1e-6) { dx = -(ua[1] / la); dy = ua[0] / la; Ln = 1; } dx /= Ln; dy /= Ln;
+        if (pip([p[0] + dx * 0.3 * mm, p[1] + dy * 0.3 * mm], M)) { dx = -dx; dy = -dy; }
+        var lab = ID(i), off = (1.4 + 0.45 * lab.length) * mm, cands = [];
+        [0, 40, -40, 80, -80, 120, -120, 180].forEach(function (deg) { var r = deg * Math.PI / 180, ex2 = dx * Math.cos(r) - dy * Math.sin(r), ey = dx * Math.sin(r) + dy * Math.cos(r); cands.push([p[0] + ex2 * off, p[1] + ey * off]); cands.push([p[0] + ex2 * off * 1.9, p[1] + ey * off * 1.9]); });
+        var c = place(cands, lab, 1.8, 0, true);
+        T('KORYFES', c[0], c[1] - 0.6 * mm, lab, 1.8, 0, 'center');
+      });
+      // μήκη πλευρών: κατά μήκος της πλευράς, προς τα μέσα του πολυγώνου
+      M.forEach(function (p, i) {
+        var q = M[(i + 1) % M.length], d = dist(p, q), txt = f2(d), hmm = 1.6;
+        if (d < estW(txt, hmm) + 2 * mm) return;
+        var mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2, ang = Math.atan2(q[1] - p[1], q[0] - p[0]) * 180 / Math.PI;
+        if (ang > 90) ang -= 180; if (ang <= -90) ang += 180;
+        var nx = -(q[1] - p[1]) / d, ny = (q[0] - p[0]) / d; if (!pip([mx + nx * 0.5 * mm, my + ny * 0.5 * mm], M)) { nx = -nx; ny = -ny; }
+        var off = 1.5 * mm, c = place([[mx + nx * off, my + ny * off], [mx + nx * off * 1.8, my + ny * off * 1.8], [mx - nx * off * 1.4, my - ny * off * 1.4]], txt, hmm, ang, false);
+        if (c && inDraw(c)) T('APOSTASEIS', c[0], c[1], txt, hmm, ang, 'center', 7);
+      });
+      // ένδειξη ιδιοκτησίας στο εσωτερικό
+      var ci = interior(M), inner = [[data.owner ? 'ΙΔΙΟΚΤΗΣΙΑ ' + data.owner : 'ΙΔΙΟΚΤΗΣΙΑ', 2.4], ['Ε = ' + f2(Ea) + ' τ.μ.', 2.2]]; if (data.kaek && !(data.kaekRing && data.kaekRing.length >= 3)) inner.push(['ΚΑΕΚ ' + data.kaek, 2.0]);
+      var totalH = inner.reduce(function (a, l) { return a + l[1] * 1.7 * mm; }, 0), yy = ci[1] + totalH / 2;
+      inner.forEach(function (l) { yy -= l[1] * 1.7 * mm; var w = estW(l[0], l[1], 0.72); if (w < (bbox(M)[2] - bbox(M)[0]) * 0.95) { T('TOPO_PROP-labels', ci[0], yy, l[0], l[1], 0, 'center'); boxes.push(labelBox(ci[0], yy + l[1] * mm * 0.5, l[0], l[1], 0)); } });
+      // όμορα ΚΑΕΚ: ΚΑΕΚ (+ ιδιοκτήτης) στο εσωτερικό τους, όταν πέφτει μέσα στο σχέδιο
+      (data.parcels || []).forEach(function (p) {
+        if (p.kaek === data.kaek) return;
+        var big = (p.rings || []).map(open).sort(function (a, b) { return area(b) - area(a); })[0]; if (!big) return;
+        var c = interior(big); if (!inDraw(c)) return;
+        // όμορα: layer 0, χρώμα 7 (λευκό στο CAD / μαύρο στην εκτύπωση) — μόνο ο αριθμός ΚΑΕΚ· ο ιδιοκτήτης όπως τον γράφει ο μηχανικός
+        var isEK = p.ek != null ? p.ek : /[^0-9]/.test(String(p.kaek).replace(/\s/g, '').slice(5, 7));
+        T('0', c[0], c[1], 'ΚΑΕΚ ' + p.kaek, 1.8, 0, 'center', 7);
+        if (p.owner) T('IDIOKTHTES', c[0], c[1] - 2.6 * mm, (isEK ? '' : 'ΙΔΙΟΚΤΗΣΙΑ ') + p.owner, 1.6, 0, 'center', 7);
+        else if (isEK) T('IDIOKTHTES', c[0], c[1] - 2.6 * mm, 'ΕΙΔΙΚΟΥ ΚΑΘΕΣΤΩΤΟΣ (ΕΚ)', 1.5, 0, 'center', 7);
+      });
+      // σημεία υδροληψίας (Ε.Μ.Σ.Υ.): σύμβολο + κωδικός
+      (data.water || []).forEach(function (w) {
+        if (!inDraw([w.x, w.y])) return;
+        circle('YDROLHPSIA', [w.x, w.y], 1.2, 4); L('YDROLHPSIA', [w.x - 1.8 * mm, w.y], [w.x + 1.8 * mm, w.y], 4); L('YDROLHPSIA', [w.x, w.y - 1.8 * mm], [w.x, w.y + 1.8 * mm], 4);
+        var cw = place([[w.x + 3.5 * mm, w.y + 2 * mm], [w.x - 3.5 * mm, w.y + 2 * mm], [w.x, w.y - 3.5 * mm]], 'Υ ' + w.code, 1.8, 0, true);
+        T('YDROLHPSIA', cw[0], cw[1] - 0.6 * mm, 'Υ ' + w.code, 1.8, 0, 'center', 4);
+      });
+      // κάνναβος
+      var gx0 = Math.ceil((dx0 + 6 * mm) / step) * step, gx1 = dx0 + drawW - 6 * mm, gy0 = Math.ceil((dyP + 6 * mm) / step) * step, gy1 = dy0 + drawH - 6 * mm;
+      for (var gx = gx0; gx <= gx1; gx += step) {
+        for (var gy = gy0; gy <= gy1; gy += step) { L('KANNABOS', [gx - cs, gy], [gx + cs, gy]); L('KANNABOS', [gx, gy - cs], [gx, gy + cs]); }
+        T('KANNABOS', gx + 0.8 * mm, dyP + 1.5 * mm, String(Math.round(gx)), 1.8, 90); E.texts[E.texts.length - 1].gridBottom = true; T('KANNABOS', gx + 0.8 * mm, dy0 + drawH - 9 * mm, String(Math.round(gx)), 1.8, 90);
+      }
+      for (var gy2 = gy0; gy2 <= gy1; gy2 += step) { T('KANNABOS', dx0 + 1.5 * mm, gy2 + 0.8 * mm, String(Math.round(gy2)), 1.8); T('KANNABOS', dx0 + drawW - 15 * mm, gy2 + 0.8 * mm, String(Math.round(gy2)), 1.8); E.texts[E.texts.length - 1].gridRight = true; }
+      // σημειώσεις ΕΓΣΑ87
+      if (declTxt) {
+        R('PINAKIDA', dx0, dy0, declBoxW, declBand - 1.5 * mm);
+        var declTop = dy0 + declBand - 1.5 * mm;
+        T('PINAKIDA', dx0 + 2 * mm, declTop - 2.4 * mm, declTitle, 2.0, 0, 'left');
+        E.mtexts.push({ layer: 'SHMEIWSEIS', x: dx0 + 2 * mm, y: declTop - declLH * 1.4 * mm, text: declTxt, h: declTH * mm, width: declBoxW - 4 * mm, attach: 1, multiline: true, color: 7, lineH: declLH * mm, cpl: declCPL });
+      }
+    }
+    // βορράς & γραμμική κλίμακα
+    var ar = 1.8, na = [dx0 + 20 * mm, dy0 + drawH - 34 * mm];
+    E.polys.push({ layer: 'PINAKIDA', pts: [[na[0], na[1] + 8 * mm * ar], [na[0] + 2.5 * mm * ar, na[1] - 4 * mm * ar], [na[0], na[1] - 1.5 * mm * ar], [na[0] - 2.5 * mm * ar, na[1] - 4 * mm * ar]], closed: true, fill: true });
+    T('PINAKIDA', na[0], na[1] + 8 * mm * ar + 2.5 * mm, 'Β', 6, 0, 'center');
+    var sbLen = GRID[S] || Math.max(10, Math.round(S / 10));
+    var sbx = dx0 + 8 * mm, sby = dyP + 10 * mm;
+    L('PINAKIDA', [sbx, sby], [sbx + sbLen, sby]); L('PINAKIDA', [sbx, sby], [sbx, sby + 2 * mm]); L('PINAKIDA', [sbx + sbLen, sby], [sbx + sbLen, sby + 2 * mm]); L('PINAKIDA', [sbx + sbLen / 2, sby], [sbx + sbLen / 2, sby + 1.2 * mm]);
+    T('PINAKIDA', sbx, sby + 3 * mm, '0', 2); T('PINAKIDA', sbx + sbLen, sby + 3 * mm, sbLen + ' m', 2, 0, 'right'); T('PINAKIDA', sbx, sby - 4 * mm, 'ΚΛΙΜΑΚΑ 1:' + S, 3);
+    // υπόμνημα
+    var bound = opts.boundLayer || 'BOUND_IMPL';
+    var items = [[bound, 'Όρια ιδιοκτησίας ' + (bound === 'BOUND_UNIMPL' ? '(μη υλοποιημένα)' : '(υλοποιημένα)')], ['TOPO_PROP', 'Όριο ιδιοκτησίας κατά τη σύνταξη'], ['KORYFES', 'Κορυφές ιδιοκτησίας'], ['APOSTASEIS', 'Μήκη πλευρών (μ.)']];
+    if (data.kaekRing && data.kaekRing.length >= 3) items.push(['PST_KAEK', 'Όριο γεωτεμαχίου ΚΑΕΚ ' + data.kaek + ' (κτηματολογική βάση)']);
+    if ((data.parcels || []).some(function (p) { return p.kaek !== data.kaek; })) items.push(['0', 'Όμορα & λοιπά γεωτεμάχια Κτηματολογίου (ΚΑΕΚ, ΕΚ)']);
+    if ((data.bld || []).length) items.push(['BLD', 'Κτίσματα']);
+    if ((data.lines || []).length) items.push(['TOPO_LINES', 'Λοιπά στοιχεία αποτύπωσης']);
+    if ((data.forest || []).length) items.push(['DASOS', 'Δασικά πολύγωνα (κυρωμένος δασικός χάρτης)']);
+    if ((data.water || []).length) items.push(['YDROLHPSIA', 'Σημεία υδροληψίας Ε.Μ.Σ.Υ. (κωδικός)']);
+    items.push(['KANNABOS', 'Κάνναβος ΕΓΣΑ 87 ανά ' + sbLen + ' m']);
+    var lgW = 96, lgx = dx0 + drawW - lgW * mm - 4 * mm, lgy = dyP + 6 * mm;
+    R('PINAKIDA', lgx - 2 * mm, lgy - 2 * mm, lgW * mm, (items.length * 5 + 8) * mm);
+    T('PINAKIDA', lgx + lgW / 2 * mm - 2 * mm, lgy + (items.length * 5 + 2) * mm, 'ΥΠΟΜΝΗΜΑ', 3, 0, 'center');
+    items.forEach(function (it, i) { var yy = lgy + (items.length - 1 - i) * 5 * mm + 1 * mm; if (it[0] === 'KORYFES') { circle('SHMEIA_TOPO_PROP', [lgx + 3 * mm, yy + 1 * mm], 0.5, COL.TOPO_PROP); T('KORYFES', lgx + 6 * mm, yy, '1', 1.8, 0, 'left'); } else if (it[0] === 'APOSTASEIS') T('APOSTASEIS', lgx + 1 * mm, yy, '12.34', 1.6, 0, 'left', 7); else if (it[0] === 'YDROLHPSIA') { circle('YDROLHPSIA', [lgx + 3 * mm, yy + 1 * mm], 1.2, 4); T('YDROLHPSIA', lgx + 6 * mm, yy, 'Υ 1234', 1.8, 0, 'left', 4); } else if (it[0] === 'KANNABOS') { L('KANNABOS', [lgx + 5 * mm - cs, yy + 1 * mm], [lgx + 5 * mm + cs, yy + 1 * mm]); L('KANNABOS', [lgx + 5 * mm, yy + 1 * mm - cs], [lgx + 5 * mm, yy + 1 * mm + cs]); } else L(it[0], [lgx, yy + 1 * mm], [lgx + 10 * mm, yy + 1 * mm], it[0] === '0' ? 7 : COL[it[0]]); T('PINAKIDA', lgx + 12 * mm, yy, it[0], 2.0); T('PINAKIDA', lgx + 40 * mm, yy, it[1], 2.0); });
+    E.texts = E.texts.filter(function (t) { if (!t.gridBottom) return true; if (t.x >= sbx - 6 * mm && t.x <= sbx + Math.max(sbLen, 30 * mm) + 6 * mm) return false; if (t.x >= lgx - 6 * mm && t.x <= lgx + lgW * mm + 2 * mm) return false; return true; })
+      .filter(function (t) { return !(t.gridRight && t.y >= lgy - 5 * mm && t.y <= lgy + (items.length * 5 + 8) * mm); });
+    E.lines = E.lines.filter(function (l) { if (l.layer !== 'KANNABOS') return true; var x = (l.a[0] + l.b[0]) / 2, y = (l.a[1] + l.b[1]) / 2; return !(x >= lgx - 6 * mm && x <= lgx + lgW * mm + 2 * mm && y >= lgy - 6 * mm && y <= lgy + (items.length * 5 + 10) * mm); });
+    // πάνελ
+    bl.forEach(function (b) { if (b.type === 'table') table(b); else textBlock(b); });
+    var N = sheets.length; E.texts.forEach(function (t) { if (/\{N\}/.test(t.text)) t.text = t.text.replace('{N}', String(N)); });
+    return { sheets: sheets, elems: E, scale: S, paper: P, fits: fits, mm: mm, drawArea: { x: dx0, y: dy0, w: drawW, h: drawH, plotY: dyP }, extent: box, panelFrac: PF, textScale: TS, blocks: bl, area: Ea, M: M, labels: labels };
+  }
+
+  // ---------- SVG φύλλου (mm χαρτιού) ----------
+  function sheetSVG(data, layout, i) {
+    var sh = layout.sheets[i], mm = layout.mm, P = layout.paper;
+    function X(x) { return (x - sh.x) / mm; } function Y(y) { return (sh.y + sh.h - y) / mm; }
+    var C = { '0': '#374151', YDROLHPSIA: '#0891b2', PINAKIDA: '#1f2a44', PINAKES: '#1f2a44', KEIMENA: '#1f2a44', SHMEIWSEIS: '#1f2a44', KANNABOS: '#1f2a44', APOSTASEIS: '#1f2a44', TOPO_PROP: '#e8790e', 'TOPO_PROP-labels': '#e8790e', PST_KAEK: '#a30d0d', BOUND_IMPL: '#b08a1e', BOUND_UNIMPL: '#c9b26b', IDIOKTHTES: '#1f2a44', KORYFES: '#3f9b1f', SHMEIA_TOPO_PROP: '#1d4ed8', BLD: '#6b7280', TOPO_LINES: '#6b7280', DASOS: '#16a34a' }; // ACI προτύπου Κτηματολογίου: TOPO_PROP 30, PST_KAEK 16, BOUND_IMPL 42, KORYFES 80, SHMEIA 5
+    var ACI = { 1: '#d11', 2: '#b8860b', 3: '#15803d', 4: '#06b6d4', 5: '#1d4ed8', 6: '#c026d3', 7: '#1f2a44', 8: '#6b7280', 9: '#9ca3af', 30: '#b45309', 256: '#1f2a44', 0: '#1f2a44' };
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+    var s = '<svg xmlns="http://www.w3.org/2000/svg" width="' + P.w + 'mm" height="' + P.h + 'mm" viewBox="0 0 ' + P.w + ' ' + P.h + '" font-family="Arial, Liberation Sans, sans-serif">';
+    s += '<rect width="' + P.w + '" height="' + P.h + '" fill="#fff"/>';
+    var inSheet = function (x, y) { return x >= sh.x - 1 && x <= sh.x + sh.w + 1 && y >= sh.y - 1 && y <= sh.y + sh.h + 1; };
+    var pts = function (r) { return r.map(function (q) { return X(q[0]).toFixed(2) + ',' + Y(q[1]).toFixed(2); }).join(' '); };
+    if (!sh.tablesOnly) {
+      var da = layout.drawArea;
+      s += '<clipPath id="da"><rect x="' + X(da.x) + '" y="' + Y(da.y + da.h) + '" width="' + (da.w / mm) + '" height="' + ((da.y + da.h - da.plotY) / mm) + '"/></clipPath><g clip-path="url(#da)">';
+      (data.parcels || []).forEach(function (p) { if (p.kaek === data.kaek) return; (p.rings || []).forEach(function (r) { s += '<polygon points="' + pts(r) + '" fill="none" stroke="' + C['0'] + '" stroke-width="0.25"/>'; }); });
+      if (data.kaekRing && data.kaekRing.length >= 3) s += '<polygon points="' + pts(data.kaekRing) + '" fill="none" stroke="' + C.PST_KAEK + '" stroke-width="0.3" stroke-dasharray="2 0.8"/>';
+      (data.lines || []).forEach(function (l) { s += '<' + (l.closed ? 'polygon' : 'polyline') + ' points="' + pts(l.pts) + '" fill="none" stroke="' + C.TOPO_LINES + '" stroke-width="0.25"/>'; });
+      (data.bld || []).forEach(function (r) { s += '<polygon points="' + pts(r) + '" fill="#6b7280" fill-opacity="0.08" stroke="' + C.BLD + '" stroke-width="0.35"/>'; });
+      (data.forest || []).forEach(function (f, k) { (f.outer || []).forEach(function (r) { s += '<polygon points="' + pts(r) + '" fill="#16a34a" fill-opacity="0.07" stroke="#16a34a" stroke-width="0.35" stroke-dasharray="2 1"/>'; }); if (f.outer && f.outer[0]) { var c = interior(open(f.outer[0])); s += '<text x="' + X(c[0]).toFixed(2) + '" y="' + Y(c[1]).toFixed(2) + '" font-size="2.2" fill="#15803d" text-anchor="middle">Δ' + (k + 1) + (f.cat ? ' · ' + esc(f.cat) : '') + '</text>'; } });
+      s += '<polygon points="' + pts(layout.M) + '" fill="none" stroke="' + C.BOUND_IMPL + '" stroke-width="1.1" stroke-opacity="0.35"/>';
+      s += '<polygon points="' + pts(layout.M) + '" fill="none" stroke="' + C.TOPO_PROP + '" stroke-width="0.55"/>';
+      if (data.kaekRing && data.kaekRing.length >= 3) { var ck = interior(open(data.kaekRing)); s += '<text x="' + X(ck[0]).toFixed(2) + '" y="' + (Y(ck[1]) + 6.6).toFixed(2) + '" font-size="2.4" fill="' + C.PST_KAEK + '" text-anchor="middle">ΚΑΕΚ ' + esc(data.kaek) + '</text>'; }
+      s += '</g>';
+    }
+    layout.elems.polys.forEach(function (p) {
+      if (!p.pts.every(function (q) { return inSheet(q[0], q[1]); })) return;
+      var col = ACI[p.color] || C[p.layer] || '#1f2a44';
+      if (p.bulges && p.pts.length === 2) { var cxp = (p.pts[0][0] + p.pts[1][0]) / 2, cyp = (p.pts[0][1] + p.pts[1][1]) / 2, rr = Math.abs(p.pts[1][0] - p.pts[0][0]) / 2; s += '<circle cx="' + X(cxp).toFixed(2) + '" cy="' + Y(cyp).toFixed(2) + '" r="' + (rr / mm).toFixed(2) + '" fill="none" stroke="' + col + '" stroke-width="0.2"/>'; return; }
+      s += '<' + (p.closed === false ? 'polyline' : 'polygon') + ' points="' + pts(p.pts) + '" fill="' + (p.fill ? col : 'none') + '" stroke="' + col + '" stroke-width="0.3"/>';
+    });
+    layout.elems.lines.forEach(function (l) { if (!inSheet(l.a[0], l.a[1]) || !inSheet(l.b[0], l.b[1])) return; s += '<line x1="' + X(l.a[0]).toFixed(2) + '" y1="' + Y(l.a[1]).toFixed(2) + '" x2="' + X(l.b[0]).toFixed(2) + '" y2="' + Y(l.b[1]).toFixed(2) + '" stroke="' + (ACI[l.color] || C[l.layer] || '#1f2a44') + '" stroke-width="' + (l.layer === 'PINAKES' ? 0.2 : l.layer === 'KANNABOS' ? 0.18 : 0.35) + '"/>'; });
+    layout.elems.texts.forEach(function (t) {
+      if (!inSheet(t.x, t.y)) return;
+      var fill = ACI[t.color] || C[t.layer] || '#1f2a44', anchor = t.align === 'center' ? 'middle' : t.align === 'right' ? 'end' : 'start';
+      s += '<text x="' + X(t.x).toFixed(2) + '" y="' + Y(t.y).toFixed(2) + '" font-size="' + (t.h / mm * 1.35).toFixed(2) + '" fill="' + fill + '" text-anchor="' + anchor + '"' + (t.rot ? ' transform="rotate(' + (-t.rot) + ' ' + X(t.x).toFixed(2) + ' ' + Y(t.y).toFixed(2) + ')"' : '') + '>' + esc(t.text) + '</text>';
+    });
+    (layout.elems.mtexts || []).forEach(function (t) {
+      if (!inSheet(t.x, t.y)) return;
+      var fill = ACI[t.color] || C[t.layer] || '#1f2a44', fs = t.h / mm * 1.35, lines = [];
+      if (t.lines) lines = t.lines.slice();
+      else { var cpl = t.cpl || Math.max(40, Math.floor((t.width / mm) / (fs * 0.55))); String(t.text).split(/\r?\n/).forEach(function (para) { var words = para.split(/\s+/), cur = ''; words.forEach(function (w) { if ((cur + ' ' + w).trim().length > cpl && cur) { lines.push(cur); cur = w; } else cur = (cur + ' ' + w).trim(); }); lines.push(cur); }); }
+      var x0 = X(t.x).toFixed(2), y0 = Y(t.y), lh = t.lineH ? t.lineH / mm : fs * 1.4, availW = t.width ? t.width / mm : 0;
+      // εκτίμηση πλάτους γραμμής (Arial): αν ξεπερνά το πλάτος του πλαισίου, συμπιέζεται με textLength — ποτέ έξω από το πλαίσιο
+      function lw(str) { var w = 0; for (var k = 0; k < str.length; k++) { var ch = str[k]; w += /[A-ZΑ-ΩΆ-Ώ0-9@%&]/.test(ch) ? 0.68 : /[ ,.;:'·]/.test(ch) ? 0.3 : /[ilj|!I]/.test(ch) ? 0.3 : 0.54; } return w * fs; }
+      s += '<text x="' + x0 + '" y="' + (y0 + fs).toFixed(2) + '" font-size="' + fs.toFixed(2) + '" fill="' + fill + '"' + (t.rot ? ' transform="rotate(' + (-t.rot) + ' ' + x0 + ' ' + y0.toFixed(2) + ')"' : '') + '>';
+      lines.forEach(function (ln, i) { var fit = availW > 1 && lw(ln) > availW ? ' textLength="' + availW.toFixed(2) + '" lengthAdjust="spacingAndGlyphs"' : ''; s += '<tspan x="' + x0 + '" dy="' + (i === 0 ? 0 : lh).toFixed(2) + '"' + fit + '>' + esc(ln) + '</tspan>'; });
+      s += '</text>';
+    });
+    s += '</svg>';
+    return s;
+  }
+
+  // ---------- DXF spec (Dxf2000.build) ----------
+  // Χρώματα: τα layers του Κτηματολογίου (TOPO_PROP, PST_KAEK, BOUND_IMPL, KORYFES, SHMEIA_*, BLD…) παίρνουν ΧΡΩΜΑ BYLAYER
+  // από το πρότυπο DXF (Τεύχος προδιαγραφών) — δεν γράφεται χρώμα στην οντότητα. Μόνο τα βοηθητικά layers έχουν δικό τους.
+  var SPEC_LAYERS = { TOPO_PROP: 1, PST_KAEK: 1, BOUND_IMPL: 1, BOUND_UNIMPL: 1, KORYFES: 1, SHMEIA_TOPO_PROP: 1, SHMEIA_PST_KAEK: 1, BLD: 1, '0': 1, IDIOKTHTES: 1, APOSTASEIS: 1, KANNABOS: 1, PINAKIDA: 1, PINAKES: 1 };
+  function dxfSpec(data, layout, opts) {
+    opts = opts || {};
+    var spec = { polys: [], texts: [], mtexts: [], lines: [], hatches: [], tables: [], points: [], layers: { BLD: { color: 8 }, DASOS: { color: 94 }, YDROLHPSIA: { color: 4 }, TOPO_LINES: { color: 8 }, KEIMENA: { color: 7 }, SHMEIWSEIS: { color: 7 }, 'TOPO_PROP-labels': { color: 30 } } };
+    spec.polys.push({ layer: 'TOPO_PROP', pts: layout.M, closed: true, lw: 50 });
+    spec.polys.push({ layer: opts.boundLayer || 'BOUND_IMPL', pts: layout.M, closed: true });
+    // PST_KAEK: ΜΟΝΟ το δικό μας γεωτεμάχιο της κτηματολογικής βάσης· τα όμορα σε layer 0, χρώμα 7, με τον αριθμό ΚΑΕΚ τους
+    if (data.kaekRing && data.kaekRing.length >= 3) { spec.polys.push({ layer: 'PST_KAEK', pts: open(data.kaekRing), closed: true }); var ck = interior(open(data.kaekRing)); spec.texts.push({ layer: 'PST_KAEK', x: ck[0], y: ck[1] - 6 * layout.mm, text: 'ΚΑΕΚ ' + data.kaek, h: 1.8 * layout.mm, align: 'center' }); }
+    (data.parcels || []).forEach(function (p) { if (p.kaek === data.kaek) return; (p.rings || []).forEach(function (r) { spec.polys.push({ layer: '0', pts: open(r), closed: true, color: 7 }); }); });
+    (data.bld || []).forEach(function (r) { spec.polys.push({ layer: 'BLD', pts: open(r), closed: true }); });
+    (data.lines || []).forEach(function (l) { spec.polys.push({ layer: 'TOPO_LINES', pts: l.pts, closed: !!l.closed, color: COL.TOPO_LINES }); });
+    (data.forest || []).forEach(function (f) { (f.outer || []).forEach(function (r) { spec.polys.push({ layer: 'DASOS', pts: open(r), closed: true, color: COL.DASOS }); }); });
+    var lc = { PINAKES: 7, PINAKIDA: 7, KANNABOS: 8, PST_KAEK: 1, TOPO_PROP: 5 };
+    function col(layer, c) { return SPEC_LAYERS[layer] && layer !== '0' ? undefined : (c || undefined); }
+    layout.elems.polys.forEach(function (p) { spec.polys.push({ layer: p.layer, pts: p.pts, bulges: p.bulges, closed: p.closed !== false, color: col(p.layer, p.color) }); if (p.fill) spec.hatches.push({ layer: p.layer, pts: p.pts, color: 7 }); });
+    layout.elems.lines.forEach(function (l) { if (l.layer === 'PINAKES') return; spec.lines.push({ layer: l.layer, a: l.a, b: l.b, color: col(l.layer, l.color || lc[l.layer]) }); });
+    layout.elems.texts.forEach(function (t) { if (t.layer === 'PINAKES') return; spec.texts.push({ layer: t.layer, x: t.x, y: t.y, text: t.text, h: t.h, rot: t.rot, align: t.align, color: col(t.layer, t.color) }); });
+    (layout.elems.mtexts || []).forEach(function (t) { spec.mtexts.push({ layer: t.layer, x: t.x, y: t.y, text: t.text, h: t.h, width: t.width, attach: t.attach, multiline: t.multiline, color: t.color || 7, lineH: t.lineH, rot: t.rot }); });
+    spec.tables = layout.elems.tables.map(function (t) { return Object.assign({ layer: 'PINAKES' }, t); });
+    // οι γραμμές/κείμενα των πινάκων παραλείπονται όταν γίνονται native TABLE (όπως στο ΔΓΜ)
+    return spec;
+  }
+
+  var api = { PAPERS: PAPERS, SCALES: SCALES, GRID: GRID, FOREST_CAT: FOREST_CAT, forestCatLabel: forestCatLabel, recommend: recommend, build: build, sheetSVG: sheetSVG, dxfSpec: dxfSpec, parseTemplate: parseTemplate, templateHasFields: templateHasFields, fillPlaceholders: fillPlaceholders, PLACEHOLDERS: Object.keys(PH), fromLisp: fromLisp, defaults: defaults, fillFromKaek: fillFromKaek, txt651: txt651, txt4030: txt4030, txtNotes: txtNotes, txtForest: txtForest, txtOroi: txtOroi, EIDOS: EIDOS, ODOS: ODOS, VASI: VASI, area: area, open: open };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  root.TopoSheet = api;
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /* HEXIS — Check My DXF (έλεγχος DXF Κτηματολογίου, Τεύχος v1.3/2024) — ενσωματωμένη έκδοση για το ΣΥΝΤΕΤΑΓΜΕΝΕΣ.
@@ -6537,6 +7226,8 @@ root.CmdCheck = api;
       stage('read', 'done', parsed.polys.length + ' γραμμές · ' + parsed.texts.length + ' κείμενα' + (bld.length ? ' · ' + bld.length + ' κτίσματα (BLD)' : ''));
       await finishLoad([pg], name, null);
       S.bld = bld;
+      // αρχείο «…_GEOmetry.dxf» από το HEXIS PAD: ξεκινά αμέσως το τοπογραφικό
+      if (/geometry/i.test(String(name || '')) && mainPlot()) setTimeout(function () { runTopo(); }, 50);
     } catch (err) {
       console.error(err);
       $('#progress').hidden = true; $('#landing').hidden = false;
@@ -6623,12 +7314,27 @@ root.CmdCheck = api;
     var plot = kept.filter(function (o) { return /TOPO_?PROP(?!_NEW)/i.test(String(o.layer || '')); })[0]
       || kept.filter(function (o) { return PLOT_LAYER.test(String(o.layer || '')); })[0] || kept[0];
     kept = [plot].concat(kept.filter(function (o) { return o !== plot; }));
+    // ονομασίες κορυφών από κείμενα δίπλα στις κορυφές (HEXIS PAD: layer HP_NAMES· γενικά layers ονομάτων/σημείων) — αλλιώς 1..n
+    var nameTexts = (pg.parsed.texts || []).filter(function (t) { return /HP_NAMES|NAME|ΟΝΟΜ|ΣΗΜΕΙ|σημείο|SHMEI|KORYF|ΚΟΡΥΦ|POINT|PNT|VERTEX/i.test(String(t.layer || '')) && /^[\wΑ-Ωα-ωΆ-ώ.\-\/]{1,10}$/.test(String(t.text || '').trim()); });
+    function vertexLabels(pts) {
+      if (!nameTexts.length) return null;
+      var used = {}, out = [], hits = 0;
+      pts.forEach(function (q) {
+        var best = null, bd = 1e9;
+        nameTexts.forEach(function (t, k) { if (used[k]) return; var d = Math.hypot(t.x - q[0], t.y - q[1]); if (d < bd) { bd = d; best = k; } });
+        if (best != null && bd <= Math.max(1.0, 3 * (nameTexts[best].h || 0.3))) { used[best] = 1; out.push(String(nameTexts[best].text).trim()); hits++; } else out.push(null);
+      });
+      if (hits < pts.length * 0.8) return null;
+      var seen = {}; if (out.some(function (l) { if (!l) return false; if (seen[l]) return true; seen[l] = 1; return false; })) return null;
+      return out;
+    }
     return kept.slice(0, 40).map(function (o, i) {
+      var vl = vertexLabels(o.pts);
       var inside = i > 0 && o.pts.every(function (q) { return CoordParser.pointInPoly(q, plot.pts, 0.05); });
       var guess = (i === 0 ? 'plot' : null) || CoordParser.classify(o.layer) || (inside ? 'building' : 'other');
       if (i > 0 && guess === 'plot') guess = inside ? 'building' : 'other';
       return { id: 't' + (newId++), source: 'dxf', page: 1, title: o.layer + ' (' + fixed(o.area, 2) + ' m²)', type: guess, typeAuto: 'από layer ' + o.layer, include: i === 0 || inside, confirmed: true, statedCands: [], bbox: null,
-        points: o.pts.map(function (q, k) { return { label: String(k + 1), X: { value: q[0], canon: q[0].toFixed(2), dec: 2, raw: String(q[0]) }, Y: { value: q[1], canon: q[1].toFixed(2), dec: 2, raw: String(q[1]) }, flags: {} }; }) };
+        points: o.pts.map(function (q, k) { return { label: (vl && vl[k]) || String(k + 1), X: { value: q[0], canon: q[0].toFixed(2), dec: 2, raw: String(q[0]) }, Y: { value: q[1], canon: q[1].toFixed(2), dec: 2, raw: String(q[1]) }, flags: {} }; }) };
     });
   }
 
@@ -6791,6 +7497,7 @@ root.CmdCheck = api;
   function renderAll() {
     var L = $('#left'); var html = renderSummary();
     html += renderKaekPanel();
+    html += renderTopoPanel();
     html += renderDgmPanel();
     // ο μεγάλος οδηγός ανάγνωσης μόνο όσο δεν υπάρχει πίνακας (ή τρέχει/ζητήθηκε ανάγνωση) — μετά μένει μια μικρή γραμμή
     if (!S.tables.length || (S.ai && S.ai.running) || S.forceAI) html += renderAIPanel();
@@ -7040,6 +7747,235 @@ root.CmdCheck = api;
     }
     renderAll(); renderPlan(); if (S.map) drawMap(false);
   }
+// ---------- ΤΟΠΟΓΡΑΦΙΚΟ ΔΙΑΓΡΑΜΜΑ (ανεξάρτητο από το ΔΓΜ) ----------
+  // Από το μετρημένο κλειστό πολύγωνο (HEXIS PAD → DXF/TXT): σχέδιο, πίνακας κορυφών, όροι δόμησης & δηλώσεις από το ΚΑΕΚ (DILOSI/OROIDOM), πινακίδα.
+  var TOPO_LISP_URL = 'https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/oroi-domisis';
+  function topoEngDefaults() { return store('hexis_topo_eng') || {}; }
+  function topoTemplate() { var t = store('hexis_topo_tpl'); if (!t || !t.text) return null; if (!S.topoTplParsed || S.topoTplParsed.name !== t.name) { try { S.topoTplParsed = Object.assign(TopoSheet.parseTemplate(t.text), { name: t.name }); } catch (e) { console.warn('tpl', e); return null; } } return S.topoTplParsed; }
+  // όμορα: το δικό μας + όσα ακουμπούν το όριο (≤ 1,5 m) — ίδια λογική με το πάνελ Κτηματολογίου
+  function topoParcels(M) {
+    var k = S.kaek; if (!k || k.status !== 'ok') return { own: null, list: [] };
+    var mains = k.parcels.filter(function (p) { return p.ovlPlot >= 0.02; }), own = mains.filter(function (p) { return !isPublicKaek(p.kaek); })[0] || mains[0] || null;
+    function d2seg(pt, a, b) { var dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy, t = L2 ? Math.max(0, Math.min(1, ((pt[0] - a[0]) * dx + (pt[1] - a[1]) * dy) / L2)) : 0; return Math.hypot(pt[0] - (a[0] + t * dx), pt[1] - (a[1] + t * dy)); }
+    // ΟΛΑ τα γεωτεμάχια της περιοχής (όμορα, ειδικού καθεστώτος ΕΚ — δρόμοι, ρέματα, κοινόχρηστα) μπαίνουν στο σχέδιο· τα «όμορα» (≤ 1,5 m) σημειώνονται
+    var TOL = 1.5;
+    function adjacent(p) {
+      if (mains.indexOf(p) >= 0) return true;
+      return (p.rings || []).some(function (r) { return r.some(function (q) { for (var i = 0; i < M.length; i++) if (d2seg(q, M[i], M[(i + 1) % M.length]) <= TOL) return true; return false; }); })
+        || M.some(function (q) { return (p.rings || []).some(function (r) { for (var i = 0; i < r.length; i++) if (d2seg(q, r[i], r[(i + 1) % r.length]) <= TOL) return true; return false; }); });
+    }
+    return { own: own, list: k.parcels.map(function (p) { return { kaek: p.kaek, rings: p.rings, owner: (S.owners || {})[p.kaek] || '', info: p.info, adjacent: adjacent(p), ek: isPublicKaek(p.kaek) }; }) };
+  }
+  async function topoLisp(kaek) {
+    var tok = null; try { tok = await freshToken(); } catch (e) {}
+    var r = await fetch(TOPO_LISP_URL, { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json', apikey: HEXIS.anonKey }, tok ? { Authorization: 'Bearer ' + tok } : {}), body: JSON.stringify({ action: 'lisp', kaek: kaek }) });
+    var txt = await r.text();
+    var L = TopoSheet.fromLisp(txt);
+    if (!L.ok) throw new Error(L.err === 'no_access' ? 'Οι όροι δόμησης/δηλώσεις από το ΚΑΕΚ χρειάζονται ενεργή συνδρομή Νομοθεσίας ή LISP στο HEXIS (συνδεδεμένος στο hexis-app.gr).' : (L.msg || ('Η υπηρεσία όρων δόμησης δεν απάντησε (HTTP ' + r.status + ').')));
+    return L;
+  }
+  // Ε.Μ.Σ.Υ. — σημεία υδροληψίας γύρω/εντός (μέσω της υπηρεσίας, γιατί το lmt.ypeka.gr είναι μόνο http)
+  async function topoEmsy(M) {
+    var tok = null; try { tok = await freshToken(); } catch (e) {}
+    var r = await fetch(TOPO_LISP_URL, { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json', apikey: HEXIS.anonKey }, tok ? { Authorization: 'Bearer ' + tok } : {}), body: JSON.stringify({ action: 'emsy', ring: M.map(function (q) { return [+q[0].toFixed(2), +q[1].toFixed(2)]; }), buffer: 300 }) });
+    var j = await r.json().catch(function () { return {}; });
+    if (!r.ok || j.error) throw new Error(j.error === 'login' ? 'Χρειάζεται σύνδεση στο HEXIS για τα σημεία υδροληψίας.' : j.error === 'emsy_unreachable' ? 'Το Ε.Μ.Σ.Υ. (lmt.ypeka.gr) δεν απάντησε.' : 'Ε.Μ.Σ.Υ.: ' + (j.msg || j.error || ('HTTP ' + r.status)));
+    return j.points || [];
+  }
+  // ακτογραμμή (OpenStreetMap) έως 3 km — ελάχιστη απόσταση του ορίου από τη θάλασσα, μέσω της υπηρεσίας (Overpass + εφεδρικό OSM API)
+  async function topoCoast(M) {
+    var tok = null; try { tok = await freshToken(); } catch (e) {}
+    var ctl = new AbortController(), to = setTimeout(function () { ctl.abort(); }, 70000);
+    var r = await fetch(TOPO_LISP_URL, { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json', apikey: HEXIS.anonKey }, tok ? { Authorization: 'Bearer ' + tok } : {}), body: JSON.stringify({ action: 'coast', ring: M.map(function (q) { return [+q[0].toFixed(2), +q[1].toFixed(2)]; }), radius: 3000 }), signal: ctl.signal }).finally(function () { clearTimeout(to); });
+    var j = await r.json().catch(function () { return {}; });
+    if (!r.ok || j.error) throw new Error(j.error === 'login' ? 'Χρειάζεται σύνδεση στο HEXIS.' : j.error === 'coast_unreachable' ? 'το OpenStreetMap δεν απάντησε' : (j.msg || j.error || ('HTTP ' + r.status)));
+    return j.dist != null ? { dist: j.dist, pt: j.pt, segs: j.segs, src: j.src } : null;
+  }
+  async function topoSvc(body, label) {
+    var tok = null; try { tok = await freshToken(); } catch (e) {}
+    var ctl = new AbortController(), to = setTimeout(function () { ctl.abort(); }, 45000);
+    var r = await fetch(TOPO_LISP_URL, { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json', apikey: HEXIS.anonKey }, tok ? { Authorization: 'Bearer ' + tok } : {}), body: JSON.stringify(body), signal: ctl.signal }).finally(function () { clearTimeout(to); });
+    var j = await r.json().catch(function () { return {}; });
+    if (!r.ok || j.error) throw new Error(label + ': ' + (j.error === 'login' ? 'χρειάζεται σύνδεση στο HEXIS' : (j.msg || j.error || ('HTTP ' + r.status))));
+    return j;
+  }
+  function ringM(M) { return M.map(function (q) { return [+q[0].toFixed(2), +q[1].toFixed(2)]; }); }
+  // δασικοί χάρτες από τον ΕΨΧ → δομή όπως του ανεβασμένου ZIP (outer/holes/cat), ώστε να κόβονται στο οικόπεδο με το forestForPlot
+  async function topoForest(M) {
+    var j = await topoSvc({ action: 'forest', ring: ringM(M) }, 'Δασικοί χάρτες');
+    function sarea(r) { var a = 0; for (var i = 0; i < r.length; i++) { var p = r[i], q = r[(i + 1) % r.length]; a += p[0] * q[1] - q[0] * p[1]; } return a / 2; }
+    var feats = (j.features || []).map(function (f) { var outer = [], holes = []; (f.rings || []).forEach(function (r) { if (r.length < 3) return; (sarea(r) < 0 ? outer : holes).push(r); }); if (!outer.length && holes.length) { outer = holes; holes = []; } return { outer: outer, holes: holes, rings: outer.concat(holes), cat: f.cat || '', attrs: { set: f.set, layer: f.layerName, cat1: f.cat1, cat2: f.cat2, ota: f.ota } }; });
+    return { features: feats, count: feats.length, natura: j.natura || [], src: j.src };
+  }
+  async function topoAigialos(M) { var j = await topoSvc({ action: 'aigialos', ring: ringM(M), buffer: 500 }, 'Αιγιαλός'); return j.items || []; }
+  function aigFekText(it) { if (!it) return ''; var d = it.fekDate ? it.fekDate.split('-').reverse().join('.') : ''; return (it.yyn ? 'ΥΥΝ ' + it.yyn + ', ' : '') + 'ΦΕΚ ' + (it.fek || '—') + (d ? '/' + d : '') + (it.place ? ' (' + it.place + ')' : ''); }
+  function nzs(v) { return v != null && String(v).trim() !== ''; }
+  function topoFields() {
+    if (!S.topoF) { S.topoF = TopoSheet.defaults(); var e = topoEngDefaults(), rep = store('hexis_coords_report') || {}; S.topoF.mix = e.mix || rep.eng || ''; S.topoF.eid = e.eid || ''; S.topoF.tee = e.tee || ''; S.topoF.gnssNet = e.gnssNet || ''; S.topoF.gnssRx = e.gnssRx || ''; S.topoF.idio = rep.client || ''; }
+    return S.topoF;
+  }
+  async function runTopo() {
+    var t = mainPlot(); if (!t) { toast('Χρειάζεται κλειστό πολύγωνο (οικόπεδο) — άνοιξε το DXF/TXT του HEXIS PAD.', true); return; }
+    var M = world(t); if (M.length > 3 && M[0][0] === M[M.length - 1][0] && M[0][1] === M[M.length - 1][1]) M = M.slice(0, -1);
+    var f = topoFields();
+    S.topo = { status: 'loading' }; renderAll();
+    var res = { status: 'ok', M: M, labels: t.points.map(function (p, i) { return p.label || String(i + 1); }), plotTitle: shortTitle(t), warn: [] };
+    try {
+      // ΚΑΕΚ: αν δεν έχει γίνει αναζήτηση, γίνεται τώρα
+      if (!S.kaek || S.kaek.key !== plotKey()) { try { await findKaek(); } catch (e) { console.warn(e); } }
+      var tp = topoParcels(M); res.own = tp.own; res.parcels = tp.list;
+      if (tp.own) {
+        res.kaek = tp.own.kaek; res.kaekRing = tp.own.rings && tp.own.rings[0] ? DGM.open(tp.own.rings[0]) : null; res.kaekArea = tp.own.area || null;
+        if (!S.topoLisp || S.topoLisp.kaek !== tp.own.kaek) { try { S.topoLisp = await topoLisp(tp.own.kaek); S.topoLisp.kaek = tp.own.kaek; } catch (e) { S.topoLisp = null; res.warn.push(e.message); } }
+        res.lisp = S.topoLisp;
+        if (res.lisp) TopoSheet.fillFromKaek(f, res.lisp.fields);
+        if (!f.kaek) f.kaek = tp.own.kaek;
+        if (!f.dimos && tp.own.info && tp.own.info.ota) f.dimos = tp.own.info.ota;
+        if (!f.thesi && S.kaek && S.kaek.region) f.thesi = S.kaek.region;
+      } else res.warn.push('Δεν βρέθηκε ΚΑΕΚ στη θέση του πολυγώνου — οι όροι δόμησης και τα στοιχεία των δηλώσεων συμπληρώνονται χειροκίνητα.');
+      res.bld = (S.bld || []).filter(function (r) { return r.some(function (q) { return CoordParser.pointInPoly(q, M, 0) || Math.min.apply(null, M.map(function (m) { return Math.hypot(m[0] - q[0], m[1] - q[1]); })) < 60; }); });
+      // Ε.Μ.Σ.Υ. σημεία υδροληψίας, ακτογραμμή, καθορισμοί αιγιαλού, δασικοί χάρτες — παράλληλα, δεν μπλοκάρουν το τοπογραφικό αν αποτύχουν
+      var pe = topoEmsy(M).then(function (p) { res.water = p; }, function (e) { res.water = null; res.warn.push(e.message); });
+      var pc = topoCoast(M).then(function (c) { res.coast = c; }, function (e) { res.coast = null; res.warn.push('Ακτογραμμή (OSM): ' + e.message); });
+      var pa = topoAigialos(M).then(function (a) { res.aig = a; }, function (e) { res.aig = null; res.warn.push(e.message); });
+      var pf = topoForest(M).then(function (fr) { res.forestSvc = fr; }, function (e) { res.forestSvc = null; res.warn.push(e.message); });
+      await Promise.all([pe, pc, pa, pf]);
+      // δασικά πολύγωνα: προτιμάται ο ανεβασμένος κυρωμένος χάρτης (ZIP), αλλιώς ο ΕΨΧ· στο σχέδιο μόνο ΕΚΤΟΣ σχεδίου/οικισμού
+      var fsrc = (S.forest && S.forest.features && S.forest.features.length) ? S.forest : (res.forestSvc && res.forestSvc.count ? res.forestSvc : null);
+      res.forestAll = fsrc ? (forestForPlot(M, fsrc) || []) : [];
+      res.forestSrc = fsrc === S.forest ? 'zip' : (fsrc ? 'epsx' : null);
+      res.forest = (+f.pos === 3 || S.topoForestAlways) ? res.forestAll : [];
+      if (res.forestAll.length && !f.forestCatAuto) { var cats = []; res.forestAll.forEach(function (x) { var c = String(x.cat || '').trim(); if (c && cats.indexOf(c) < 0) cats.push(c); }); f.forestCat = cats.map(TopoSheet.forestCatLabel).join(' · '); f.forestCatAuto = true; }
+      if (res.forestAll.length && S.topoForest == null) S.topoForest = +f.pos === 3;
+      // αιγιαλός: ο πλησιέστερος καθορισμός (έως 500 m από το πλαίσιό του) → ΦΕΚ στις παρατηρήσεις/δήλωση
+      var aigNear = (res.aig || []).filter(function (a) { return !a.poa && a.dist != null && a.dist <= 500; })[0] || null;
+      var poa = (res.aig || []).filter(function (a) { return a.poa && a.inside; })[0] || null;
+      res.aigNear = aigNear; res.poa = poa;
+      if (aigNear && !nzs(f.aigFek)) f.aigFek = aigFekText(aigNear) + (poa ? ' · παλαιός αιγιαλός: ' + aigFekText(poa) : '');
+      if (res.water && !f.waterAuto) { var ins = res.water.filter(function (w) { return w.inside; }); f.water = ins.map(function (w) { return w.code + ',' + w.x.toFixed(2) + ',' + w.y.toFixed(2); }).join('; '); f.waterAuto = true; }
+      if (res.coast && res.coast.dist <= 2000 && !nzs(f.aigd)) f.aigd = fixed(res.coast.dist, 2).replace('.', ',');
+      if (res.forest.length && !f.forestCat) f.forestCat = res.forest.map(function (x, i) { return 'Δ' + (i + 1) + ' ' + (x.cat || ''); }).join(', ');
+      res.rec = TopoSheet.recommend(topoData(res), { info: topoInfo(res), template: topoTemplate(), kaekTable: S.topoKaekTable !== false });
+      if (!S.topoScale || !S.topoPaper || S.topoAuto !== false) { S.topoScale = res.rec.best.scale; S.topoPaper = res.rec.best.paper; }
+      S.topo = res;
+    } catch (e) { console.error(e); S.topo = { status: 'error', error: e.message }; }
+    renderAll();
+    var el = $('#topoPanel'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function topoInfo(res) {
+    var rep = store('hexis_coords_report') || {}, f = topoFields();
+    var place = [f.thesi, f.dk ? 'Τ.Κ. ' + f.dk : '', f.de ? 'Δ.Ε. ' + f.de : ''].filter(Boolean).join(' · ');
+    return { office: rep.office || '', client: f.idio || rep.client || '', project: rep.project || 'ΑΠΟΤΥΠΩΣΗ ΙΔΙΟΚΤΗΣΙΑΣ', place: place || rep.place || '', dimos: f.dimos || '', eng: [f.mix, f.eid].filter(Boolean).join(', ') || rep.eng || '', date: rep.date || new Date().toLocaleDateString('el-GR', { month: 'long', year: 'numeric' }).toUpperCase(), drawingNo: rep.drawingNo || 'Τ1', subject: 'ΤΟΠΟΓΡΑΦΙΚΟ ΔΙΑΓΡΑΜΜΑ — ΑΠΟΤΥΠΩΣΗ ΙΔΙΟΚΤΗΣΙΑΣ' };
+  }
+  function topoData(res) {
+    var f = topoFields(), M = res.M, E = TopoSheet.area(M), ids = res.labels.map(String);
+    f.emb = fixed(E, 2); f.kor = '(' + (ids.length > 7 ? ids[0] + ', ' + ids[1] + ', ' + ids[2] + ', ..., ' + ids[ids.length - 2] + ', ' + ids[ids.length - 1] : ids.join(', ')) + ', ' + ids[0] + ')';
+    var K = scaleFactorK(M), Kt = K != null ? fmt(K, 6) : null;
+    var verdict = null; try { verdict = dgmVerdict(); } catch (e) {}
+    var lisp = res.lisp || null;
+    var water = String(f.water || '').split(/[;\n]+/).map(function (ln) { var a = ln.split(/[,\s]+/).filter(Boolean); if (a.length < 3) return null; var xx = parseFloat(a[1]), yy = parseFloat(a[2]); return isFinite(xx) && isFinite(yy) ? { code: a[0], x: xx, y: yy, inside: true } : null; }).filter(Boolean);
+    (res.water || []).forEach(function (w) { if (!water.some(function (v) { return v.code === w.code; })) water.push({ code: w.code, x: w.x, y: w.y, inside: !!w.inside, kind: w.kind, dist: w.dist }); });
+    var texts = { oroi: lisp ? TopoSheet.txtOroi(lisp) : [], oroiTitle: 'ΟΡΟΙ ΔΟΜΗΣΗΣ' + (lisp && lisp.fields.KATASTASI_TXT ? ' — ' + lisp.fields.KATASTASI_TXT : ''), oroiNote: lisp ? lisp.note : '', decl651: S.topoNo651 ? [] : TopoSheet.txt651(f), notes: S.topoNoNotes ? [] : TopoSheet.txtNotes(f, { K: Kt, verdict: verdict, water: water }), decl4030: S.topoNo4030 ? [] : TopoSheet.txt4030(f), forest: S.topoForest ? TopoSheet.txtForest(f) : [] };
+    var parcels = (res.parcels || []).map(function (p) { return { kaek: p.kaek, rings: p.rings, owner: (S.owners || {})[p.kaek] || p.owner || '', ek: p.ek, adjacent: p.adjacent }; });
+    return { M: M, labels: ids, kaek: res.kaek || f.kaek || '', kaekRing: res.kaekRing, kaekArea: res.kaekArea, owner: f.idio || '', parcels: parcels, bld: res.bld || [], lines: [], forest: res.forest || [], forestSrc: res.forestSrc, water: water, K: K, texts: texts, decl: egsaDeclText(K).split('\n').slice(0, 7) };
+  }
+  function topoLayout(res, light) {
+    var o = (res.rec.options || []).filter(function (x) { return x.scale === S.topoScale && x.paper === S.topoPaper; })[0];
+    var cfg = (o && o.cfg) || { panelFrac: 0.58, textScale: 0.85 };
+    return TopoSheet.build(topoData(res), { scale: S.topoScale, paper: S.topoPaper, panelFrac: cfg.panelFrac, textScale: cfg.textScale, info: topoInfo(res), template: topoTemplate(), kaekTable: S.topoKaekTable !== false, light: !!light });
+  }
+  function topoFileName(res) { return 'topo_' + (String(res.kaek || '').replace(/\D/g, '').slice(-6) || baseName().slice(0, 12)) + '_1-' + S.topoScale; }
+  function renderTopoPanel() {
+    var t = mainPlot(); if (!t) return '';
+    var r = S.topo, f = topoFields();
+    var h = '<section class="panel summary" id="topoPanel"><div class="file-row"><span class="fname">Τοπογραφικό διάγραμμα</span><span class="chip">από το πολύγωνο «' + esc(shortTitle(t)) + '» · όροι δόμησης & δηλώσεις από το ΚΑΕΚ</span></div>';
+    if (!r) return h + '<p style="margin:0;color:var(--muted);font-size:13px">Αυτόματη σύνταξη τοπογραφικού: σχέδιο με κορυφές, μήκη, κάνναβο ΕΓΣΑ87, πίνακας συντεταγμένων, όροι δόμησης, δήλωση μηχανικού Ν.651/77 & Ν.1337/83, παρατηρήσεις, δήλωση ιδιοκτήτη Ν.4030/2011, δασική δήλωση, πινακίδα (η δική σου από DXF). Τα πολεοδομικά στοιχεία βρίσκονται από το ΚΑΕΚ — εσύ συμπληρώνεις ιδιοκτήτη και θέση.</p><div class="file-row"><button class="btn primary" data-act="topo-run">Τοπογραφικό διάγραμμα</button><span style="color:var(--muted);font-size:12px">Ανεξάρτητο από το ΔΓΜ — δεν χρειάζεται να τρέξει το Διάγραμμα Γεωμετρικών Μεταβολών.</span></div></section>';
+    if (r.status === 'loading') return h + '<p style="margin:0;color:var(--muted)">Εύρεση ΚΑΕΚ, όρων δόμησης και σύνθεση πινακίδας…</p></section>';
+    if (r.status === 'error') return h + '<p style="margin:0;color:var(--err)">' + esc(r.error) + '</p><div><button class="btn small" data-act="topo-run">Δοκίμασε ξανά</button></div></section>';
+    var L = r.lisp, kf = L ? L.fields : {};
+    (r.warn || []).forEach(function (w) { h += '<p style="margin:0;color:var(--warn);font-size:12px">' + esc(w) + '</p>'; });
+    // τι βρέθηκε από το ΚΑΕΚ
+    if (r.kaek) {
+      h += '<div class="kpis"><div class="kpi"><label>ΚΑΕΚ</label><b style="font-size:14px">' + esc(r.kaek) + '</b><div class="sub">' + (r.kaekArea ? 'Ε βάσης ' + fmt(r.kaekArea, 2) + ' m²' : '') + '</div></div>';
+      h += '<div class="kpi"><label>Κατάσταση</label><b style="font-size:13px">' + esc(kf.KATASTASI_TXT || '—') + '</b><div class="sub">' + (kf.OIKISMOS ? 'οικισμός ' + esc(kf.OIKISMOS) : kf.OT ? 'Ο.Τ. ' + esc(kf.OT) : (f.posSure ? '' : 'επιβεβαίωσε')) + '</div></div>';
+      h += '<div class="kpi"><label>Αρτιότητα</label><b style="font-size:13px">' + (kf.ARTIO === '1' ? 'ΑΡΤΙΟ' : kf.ARTIO === '0' ? 'ΜΗ ΑΡΤΙΟ' : '—') + '</b><div class="sub">' + (kf.ART_EMB ? 'ελάχ. ' + esc(kf.ART_EMB) + ' τ.μ.' : '') + (kf.PROSOPO ? ' · πρόσωπο ' + esc(kf.PROSOPO) + ' μ.' : '') + '</div></div>';
+      h += '<div class="kpi"><label>Μέγιστη δόμηση</label><b style="font-size:13px">' + (kf.MAX_DOMISI ? esc(kf.MAX_DOMISI) + ' τ.μ.' : '—') + '</b><div class="sub">' + (kf.SD ? 'ΣΔ ' + esc(kf.SD) : '') + (kf.KALYPSI ? ' · κάλυψη ' + esc(kf.KALYPSI) + '%' : '') + '</div></div></div>';
+      if (L && !f.posSure) h += '<p style="margin:0;color:var(--warn);font-size:12px">Ο Ενιαίος Ψηφιακός Χάρτης δεν βρήκε σχέδιο ή όριο οικισμού στη θέση — η δήλωση γράφει «εκτός σχεδίου και εκτός ορίων οικισμού». Έλεγξέ το.</p>';
+      if (L && !f.artioSure) h += '<p style="margin:0;color:var(--warn);font-size:12px">Η αρτιότητα δεν κρίθηκε αυτόματα (λείπει πρόσωπο ή όριο) — διάλεξε παρακάτω «άρτιο / μη άρτιο».</p>';
+      var wi = (r.water || []).filter(function (w) { return w.inside; });
+      h += '<div class="file-row" style="flex-wrap:wrap;gap:6px"><span class="chip' + (r.water ? (wi.length ? ' warn' : ' ok') : '') + '" title="Εθνικό Μητρώο Σημείων Υδροληψίας (ΥΠΕΝ)">Ε.Μ.Σ.Υ.: ' + (r.water ? (wi.length ? wi.length + ' σημεί' + (wi.length === 1 ? 'ο' : 'α') + ' υδροληψίας ΕΝΤΟΣ (' + wi.map(function (w) { return w.code; }).join(', ') + ')' : 'κανένα εντός · ' + r.water.length + ' σε 300 m' + (r.water.length ? ' (πλησιέστερο ' + fmt(r.water[0].dist, 1) + ' m)' : '')) : 'μη διαθέσιμο') + '</span>';
+      h += '<span class="chip" title="Ελάχιστη απόσταση του ορίου από την ακτογραμμή (OpenStreetMap)">Ακτογραμμή: ' + (r.coast ? fmt(r.coast.dist, 1) + ' m' : 'πάνω από 3 km ή μη διαθέσιμη') + '</span>';
+      h += '<span class="chip' + (r.aigNear ? ' warn' : '') + '" title="Καθορισμοί οριογραμμής αιγιαλού–παραλίας (Δημόσια Περιουσία, gsis.gr) έως 500 m από το πλαίσιό τους">Αιγιαλός: ' + (r.aig ? (r.aigNear ? esc(aigFekText(r.aigNear)) + (r.aigNear.dist ? ' · ' + fmt(r.aigNear.dist, 0) + ' m' : ' · εντός πλαισίου καθορισμού') : 'κανένας καθορισμός σε 500 m') : 'μη διαθέσιμο') + '</span>';
+      var fa = r.forestAll || [];
+      h += '<span class="chip' + (fa.length ? (fa.some(function (x) { return /^(Δ|Π|Χ|ΑΔ)/.test(String(x.cat || '')) && !/^(ΠΑ|ΔΑ|ΧΑ)$/.test(String(x.cat || '')); }) ? ' warn' : ' ok') : '') + '" title="Δασικοί χάρτες: κυρωμένος (ZIP) αν έχει ανέβει, αλλιώς αναρτημένοι/μερικώς κυρωμένοι από τον Ενιαίο Ψηφιακό Χάρτη">Δασικός: ' + (fa.length ? fa.length + ' πολύγων' + (fa.length === 1 ? 'ο' : 'α') + ' (' + esc(f.forestCat || '') + ')' + (r.forestSrc === 'zip' ? ' · κυρωμένος ZIP' : ' · ΕΨΧ') + (+f.pos === 3 ? '' : ' — δεν τυπώνονται (εντός σχεδίου/οικισμού)') : (r.forestSvc ? 'κανένα πολύγωνο' : 'μη διαθέσιμο')) + '</span>';
+      if (r.forestSvc && r.forestSvc.natura && r.forestSvc.natura.length) h += '<span class="chip warn">Natura 2000: ' + esc(r.forestSvc.natura.map(function (n) { return (n.code || '') + ' ' + (n.name || ''); }).join(', ')) + '</span>';
+      h += '</div>';
+      if (L && L.rows.length) h += '<details style="font-size:12px"><summary style="cursor:pointer;color:var(--muted)">Όροι δόμησης που θα τυπωθούν (' + L.rows.length + ')</summary><ul style="margin:4px 0 0 16px;padding:0">' + L.rows.map(function (x) { return '<li><b>' + esc(x[0]) + '</b>: ' + esc(x[1]) + '</li>'; }).join('') + '</ul></details>';
+    }
+    var nbs = (r.parcels || []).filter(function (p) { return p.kaek !== r.kaek; }).sort(function (a, b) { return (b.adjacent ? 1 : 0) - (a.adjacent ? 1 : 0); }), nAdj = nbs.filter(function (p) { return p.adjacent; }).length;
+    if (nbs.length) h += '<details class="piece"><summary><b>Γεωτεμάχια Κτηματολογίου στο σχέδιο (' + nbs.length + ')</b><span style="color:var(--muted)">' + nAdj + ' όμορα + ' + (nbs.length - nAdj) + ' της περιοχής, μαζί με τα ειδικού καθεστώτος (ΕΚ) — layer 0 με τον αριθμό ΚΑΕΚ· ιδιοκτήτες όπως τους γράφεις εσύ</span></summary><div class="kaek-list" style="margin-top:6px">' + nbs.map(function (p) { return '<div class="kaek-row"><span class="sw"></span><div><b>ΚΑΕΚ ' + esc(p.kaek) + '</b>' + (p.ek ? '<span class="chip" style="font-size:10.5px">ΕΚ — δρόμος/ρέμα/κοινόχρηστο</span>' : '') + (p.adjacent ? '<span class="chip ok" style="font-size:10.5px">όμορο</span>' : '') + '</div><input class="owner" data-kaek="' + esc(p.kaek) + '" placeholder="' + (p.ek ? 'π.χ. ΔΗΜΟΤΙΚΗ ΟΔΟΣ (προαιρετικά)' : 'ιδιοκτήτης (προαιρετικά)') + '" value="' + esc((S.owners || {})[p.kaek] || '') + '" style="flex:1 1 200px"></div>'; }).join('') + '</div></details>';
+    // πεδία που συμπληρώνει ο μηχανικός
+    function inp(key, label, ph, w) { return '<label style="' + (w ? 'flex:1 1 ' + w + 'px' : '') + '">' + label + '<input class="topoF" data-f="' + key + '" value="' + esc(f[key] || '') + '"' + (ph ? ' placeholder="' + esc(ph) + '"' : '') + '></label>'; }
+    function sel(key, label, opts) { return '<label>' + label + '<select class="topoF" data-f="' + key + '">' + opts.map(function (o, i) { return '<option value="' + i + '"' + (+f[key] === i ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select></label>'; }
+    function chk(key, label) { return '<label class="toggle"><input type="checkbox" class="topoF" data-f="' + key + '"' + (+f[key] === 1 ? ' checked' : '') + '>' + label + '</label>'; }
+    h += '<details open class="piece"><summary><b>Ιδιοκτήτης & θέση</b><span style="color:var(--muted)">τα μόνα που δεν βγαίνουν από το ΚΑΕΚ</span></summary><div class="dgm-ctl" style="margin-top:6px">' + inp('idio', 'Ιδιοκτήτης', 'ΕΠΩΝΥΜΟ ΟΝΟΜΑ', 220) + inp('pat', 'Πατρώνυμο', '', 120) + inp('afm', 'Α.Φ.Μ. (προαιρ.)', '', 110) + inp('pointedBy', 'Υπέδειξε τα όρια', 'αν άλλος από τον ιδιοκτήτη', 200) + '</div><div class="dgm-ctl">' + inp('thesi', 'Θέση / τοπωνύμιο', 'π.χ. ΠΑΝΩ ΧΩΡΙΟ', 220) + inp('dk', 'Δ.Κ./Τ.Κ.', '', 130) + inp('de', 'Δ.Ε.', '', 130) + inp('dimos', 'Δήμος', '', 150) + inp('pe', 'Π.Ε.', '', 130) + '</div><div class="dgm-ctl">' + inp('titles', 'Τίτλοι ιδιοκτησίας', 'π.χ. συμβόλαιο αρ. …/…, συμβ. …', 320) + inp('kid', 'ΚΗΔ (αν υπάρχει)', '', 140) + inp('aigd', 'Απόσταση από αιγιαλό (μ.)', 'κενό = δεν αναφέρεται', 170) + inp('aigFek', 'Καθορισμός αιγιαλού (ΥΥΝ/ΦΕΚ)', 'αυτόματα από gsis.gr', 260) + '</div><div class="dgm-ctl">' + inp('water', 'Σημεία υδροληψίας Ε.Μ.Σ.Υ. εντός (κωδικός,X,Y· χωρισμένα με ;)', 'π.χ. 123456,230512.30,4273210.80', 420) + '<a class="btn small" href="http://lmt.ypeka.gr/public_view.html" target="_blank" rel="noopener">Ε.Μ.Σ.Υ. ↗</a></div></details>';
+    h += '<details class="piece"><summary><b>Δήλωση μηχανικού — επιλογές</b><span style="color:var(--muted)">προσυμπληρωμένα από το ΚΑΕΚ</span></summary><div class="dgm-ctl" style="margin-top:6px">' + sel('eidos', 'Είδος', TopoSheet.EIDOS) + sel('artio', 'Αρτιότητα', ['μη άρτιο', 'άρτιο']) + sel('vasi', 'Βάση αρτιότητας', TopoSheet.VASI) + sel('oik', 'Οικοδομησιμότητα', ['μη οικοδομήσιμο', 'οικοδομήσιμο']) + sel('odos', 'Πρόσωπο σε', TopoSheet.ODOS) + inp('pros', 'Πρόσωπο (μ.)', '', 90) + inp('artemb', 'Ελάχ. εμβαδόν αρτιότητας', '', 120) + '</div><div class="dgm-ctl">' + sel('pos', 'Θέση', ['εντός ρυμοτομικού σχεδίου', 'εντός οικισμού προ 1923', 'εντός οικισμού < 2.000 κατ.', 'εκτός σχεδίου & οικισμού']) + inp('ot', 'Ο.Τ.', '', 80) + inp('fekrym', 'ΦΕΚ ρυμοτομικού', '', 120) + inp('oikfek', 'ΦΕΚ ορίων οικισμού', '', 120) + inp('gpsfek', 'ΦΕΚ ΓΠΣ/ΣΧΟΟΑΠ', '', 120) + inp('zoefek', 'ΦΕΚ ΖΟΕ', '', 110) + '</div><div class="file-row" style="flex-wrap:wrap">' + chk('gps', 'ΓΠΣ/ΣΧΟΟΑΠ') + chk('zoe', 'ΖΟΕ') + chk('parad', 'παραδοσιακός οικισμός') + chk('katat', 'δεν προήλθε από κατάτμηση') + chk('n1337', 'Ν.1337/83') + chk('n2242', 'Ν.2242/94') + chk('ktim', 'Κτηματολόγιο') + chk('rema', 'ρέμα') + chk('dasos', 'δασική έκταση') + chk('arxaio', 'αρχαιολογική ζώνη') + chk('dei', 'γραμμή ΔΕΗ') + chk('aerio', 'αγωγός αερίου') + chk('aig', 'εντός ζώνης αιγιαλού') + '</div></details>';
+    h += '<details class="piece"><summary><b>Μηχανικός & μετρήσεις</b><span style="color:var(--muted)">αποθηκεύονται για τα επόμενα τοπογραφικά</span></summary><div class="dgm-ctl" style="margin-top:6px">' + inp('mix', 'Μηχανικός', 'ΕΠΩΝΥΜΟ ΟΝΟΜΑ', 220) + inp('eid', 'Ειδικότητα', 'π.χ. Πολιτικός Μηχανικός', 200) + inp('tee', 'Α.Μ. ΤΕΕ', '', 100) + '</div><div class="dgm-ctl">' + inp('gnssDate', 'Ημερομηνία μετρήσεων', 'ηη/μμ/εεεε', 130) + inp('gnssNet', 'Δίκτυο/μέθοδος', 'π.χ. HEPOS (RTK) ή HxGN SmartNet', 240) + inp('gnssRx', 'Δέκτης GNSS', 'π.χ. Singular X1 Lite', 180) + inp('forestFek', 'ΦΕΚ κύρωσης δασικού χάρτη', '', 160) + inp('forestCat', 'Δασικός χαρακτηρισμός', 'π.χ. ΑΑ — εξαιρείται', 200) + inp('nomos', 'Π.Ε. δασικού χάρτη', '', 120) + '</div><div class="file-row" style="flex-wrap:wrap"><label class="toggle"><input type="checkbox" id="topoForest"' + (S.topoForest ? ' checked' : '') + '>δασική δήλωση</label><label class="toggle"><input type="checkbox" id="topoForestAlways"' + (S.topoForestAlways ? ' checked' : '') + '>δασικά πολύγωνα και εντός σχεδίου</label><label class="toggle"><input type="checkbox" id="topoKaekTable"' + (S.topoKaekTable !== false ? ' checked' : '') + '>πίνακας ΚΑΕΚ κτηματολογικής βάσης</label><label class="toggle"><input type="checkbox" id="topoNo651"' + (S.topoNo651 ? ' checked' : '') + '>χωρίς δήλωση μηχανικού</label><label class="toggle"><input type="checkbox" id="topoNo4030"' + (S.topoNo4030 ? ' checked' : '') + '>χωρίς δήλωση ιδιοκτήτη</label><label class="toggle"><input type="checkbox" id="topoNoNotes"' + (S.topoNoNotes ? ' checked' : '') + '>χωρίς παρατηρήσεις</label></div></details>';
+    // πινακίδα
+    var tpl = topoTemplate(), tplRaw = store('hexis_topo_tpl');
+    h += '<details class="piece"><summary><b>Πινακίδα</b><span style="color:var(--muted)">' + (tpl ? 'η δική σου: ' + esc(tplRaw.name) + ' (' + Math.round(tpl.w) + '×' + Math.round(tpl.h) + ' mm)' : 'προεπιλεγμένη του HEXIS — ή ανέβασε τη δική σου (DXF)') + '</span></summary><div class="file-row" style="margin-top:6px;flex-wrap:wrap"><label class="btn small" style="cursor:pointer">Ανέβασε DXF πινακίδας<input type="file" id="topoTpl" accept=".dxf" hidden></label>' + (tpl ? '<button class="btn small" data-act="topo-tpl-clear">Αφαίρεση — προεπιλεγμένη</button>' : '') + '<button class="btn small" data-act="sheet-info">Στοιχεία γραφείου / μελετητή</button></div>';
+    if (tpl) { var ff = TopoSheet.templateHasFields(tpl); h += '<p style="margin:4px 0 0;color:var(--muted);font-size:12px">' + (ff.length ? 'Πεδία που συμπληρώνονται: ' + ff.map(function (x) { return '{' + x + '}'; }).join(' ') : 'Δεν βρέθηκαν πεδία {…} στην πινακίδα — θα τυπωθεί όπως είναι.') + (tpl.warn.length ? ' · αγνοήθηκαν: ' + tpl.warn.join(', ') : '') + (tpl.unitWarn ? ' · ' + esc(tpl.unitWarn) : '') + '</p>'; }
+    h += '<p style="margin:4px 0 0;color:var(--muted);font-size:12px">Σχεδίασε την πινακίδα σου σε <b>mm χαρτιού</b> (π.χ. 185×95) και γράψε στα κελιά <code>{ΕΡΓΟΔΟΤΗΣ}</code> <code>{ΕΡΓΟ}</code> <code>{ΘΕΣΗ}</code> <code>{ΘΕΜΑ}</code> <code>{ΗΜΕΡΟΜΗΝΙΑ}</code> <code>{ΚΛΙΜΑΚΑ}</code> <code>{ΑΡ_ΣΧΕΔΙΟΥ}</code> <code>{ΜΕΛΕΤΗΤΗΣ}</code> <code>{ΚΑΕΚ}</code> <code>{ΓΡΑΦΕΙΟ}</code> <code>{ΔΗΜΟΣ}</code> <code>{ΕΜΒΑΔΟΝ}</code>. Το λογότυπο/κείμενα μένουν όπως τα έχεις· η πινακίδα τοποθετείται κάτω-δεξιά και κλιμακώνεται στην κλίμακα του σχεδίου. Αποθηκεύεται στον browser σου.</p></details>';
+    // κλίμακα/χαρτί + εξαγωγές
+    var rec = r.rec, best = rec.best, lay = topoLayout(r, true); S.topoLayoutLight = lay;
+    var pOrder = ['A3', 'A2', 'A1', 'A0'];
+    h += '<div class="dgm-ctl"><label>Κλίμακα<select id="topoScale">' + TopoSheet.SCALES.map(function (sc) { var any = rec.options.filter(function (o) { return o.scale === sc && o.fits; })[0]; return '<option value="' + sc + '"' + (sc === S.topoScale ? ' selected' : '') + '>1:' + sc + (sc === best.scale ? ' ✓ πρόταση' : any ? ' (χωράει από ' + any.paper + ')' : ' (δεν χωράει σε Α0)') + '</option>'; }).join('') + '</select></label>';
+    h += '<label>Χαρτί<select id="topoPaper">' + TopoSheet.PAPERS.filter(function (P) { return pOrder.indexOf(P.id) >= 0; }).map(function (P) { var o = rec.options.filter(function (x) { return x.scale === S.topoScale && x.paper === P.id; })[0]; return '<option value="' + P.id + '"' + (P.id === S.topoPaper ? ' selected' : '') + '>' + P.id + ' ' + P.w + '×' + P.h + ' mm' + (P.id === best.paper ? ' ✓ πρόταση' : o && o.fits ? ' ✓' : ' ✕') + '</option>'; }).join('') + '</select></label>';
+    h += '<span class="chip' + (lay.fits && lay.sheets.length === 1 ? ' ok' : ' warn') + '">' + (lay.fits ? 'Το σχέδιο χωράει' : 'Το σχέδιο κόβεται στα όρια') + ' · ' + (lay.sheets.length === 1 ? 'ένα φύλλο' : lay.sheets.length + ' φύλλα') + ' · κάνναβος ανά ' + (TopoSheet.GRID[S.topoScale] || Math.round(S.topoScale / 10)) + ' m</span>';
+    if (S.topoAuto === false) h += '<button class="btn small" data-act="topo-auto">↺ Αυτόματη πρόταση</button>';
+    h += '<button class="btn small" data-act="topo-run" title="Ξανά εύρεση ΚΑΕΚ/όρων και σύνθεση">↻ Ανανέωση</button></div>';
+    h += '<div class="file-row"><button class="btn primary small" data-exp="topo-print-dxf">DXF τοπογραφικού (σχέδιο + πίνακες + δηλώσεις + πινακίδα)</button><button class="btn small" data-exp="topo-print-pdf">PDF ' + esc(S.topoPaper) + '</button><button class="btn small" data-exp="topo-svg">Εικόνα SVG</button><button class="btn small" data-act="topo-preview">Προεπισκόπηση</button><button class="btn small" data-exp="topo-txt">TXT δηλώσεων</button></div>';
+    h += '<p style="margin:0;color:var(--muted);font-size:12px">Το DXF είναι R2018 σε μονάδες ΕΓΣΑ87 (τυπώνεις το πλαίσιο σε 1:' + S.topoScale + ')· οι πίνακες είναι ενεργοί TABLE, οι δηλώσεις MTEXT (layer KEIMENA) — τα διορθώνεις στο CAD. Τα κείμενα των δηλώσεων είναι αυτά του DILOSI.lsp και οι όροι δόμησης του OROIDOM.lsp, συμπληρωμένα αυτόματα από το ΚΑΕΚ· έλεγξέ τα πριν την υπογραφή.</p>';
+    if (S.topoPreview) h += '<div style="margin-top:8px;border:1px solid var(--line);border-radius:8px;overflow:auto;background:#fff"><img alt="Προεπισκόπηση τοπογραφικού" style="width:100%;display:block" src="data:image/svg+xml;charset=utf-8,' + encodeURIComponent(S.topoPreview) + '"></div>';
+    h += '</section>';
+    return h;
+  }
+  async function exportTopo(kind) {
+    var r = S.topo; if (!r || r.status !== 'ok') return;
+    var lay = topoLayout(r), data = topoData(r), name = topoFileName(r);
+    if (kind === 'topo-svg') { download(name + '.svg', TopoSheet.sheetSVG(data, lay, 0), 'image/svg+xml'); toast('Έτοιμη η εικόνα.'); return; }
+    if (kind === 'topo-txt') { var T = data.texts, out = ['ΔΗΛΩΣΗ ΜΗΧΑΝΙΚΟΥ (Ν.651/77 & Ν.1337/83)', ''].concat(T.decl651, ['', 'ΠΑΡΑΤΗΡΗΣΕΙΣ', ''], T.notes, ['', 'ΔΗΛΩΣΗ ΙΔΙΟΚΤΗΤΗ (Ν.4030/2011)', ''], T.decl4030, T.forest.length ? ['', 'ΥΠΕΥΘΥΝΗ ΔΗΛΩΣΗ ΔΑΣΙΚΗΣ ΠΛΗΡΟΦΟΡΙΑΣ', ''].concat(T.forest) : [], T.oroi.length ? ['', T.oroiTitle, ''].concat(T.oroi, [T.oroiNote]) : []); download(name + '_dhloseis.txt', '﻿' + out.join('\r\n') + '\r\n', 'text/plain;charset=utf-8'); toast('Έτοιμο το TXT δηλώσεων.'); return; }
+    if (kind === 'topo-print-dxf') {
+      var spec = TopoSheet.dxfSpec(data, lay, { boundLayer: boundLayer() });
+      var txt = Dxf2000.build(spec, { prune: true, template: '2018' });
+      download(name + '.dxf', new Blob([new TextEncoder().encode(txt)], { type: 'application/dxf' }));
+      toast('Έτοιμο το DXF τοπογραφικού (R2018): ' + lay.sheets.length + (lay.sheets.length === 1 ? ' φύλλο ' : ' φύλλα ') + S.topoPaper + ' σε 1:' + S.topoScale + ' · ' + spec.tables.length + ' πίνακες ως TABLE.');
+      return;
+    }
+    if (kind === 'topo-print-pdf') {
+      await loadScript(LIBS.pdfmake); await loadScript(LIBS.vfs);
+      var P = lay.paper, pw = P.w * 72 / 25.4, ph = P.h * 72 / 25.4;
+      var content = lay.sheets.map(function (sh, i) { return { svg: TopoSheet.sheetSVG(data, lay, i), width: pw, pageBreak: i ? 'before' : undefined }; });
+      pdfMake.createPdf({ pageSize: { width: pw, height: ph }, pageMargins: [0, 0, 0, 0], content: content, defaultStyle: { font: 'Roboto' } }).getBlob(function (blob) { download(name + '.pdf', blob); toast('Έτοιμο το PDF ' + P.id + ' (' + lay.sheets.length + ' φύλλα).'); });
+      return;
+    }
+  }
+  function topoSaveEng() { var f = topoFields(); store('hexis_topo_eng', { mix: f.mix, eid: f.eid, tee: f.tee, gnssNet: f.gnssNet, gnssRx: f.gnssRx }); }
+  function topoRefresh() { var r = S.topo; if (!r || r.status !== 'ok') return; r.rec = TopoSheet.recommend(topoData(r), { info: topoInfo(r), template: topoTemplate(), kaekTable: S.topoKaekTable !== false }); if (S.topoAuto !== false) { S.topoScale = r.rec.best.scale; S.topoPaper = r.rec.best.paper; } if (S.topoPreview) S.topoPreview = TopoSheet.sheetSVG(topoData(r), topoLayout(r), 0); renderAll(); }
+  function loadTopoTemplate(file) {
+    var rd = new FileReader();
+    rd.onload = function () {
+      try {
+        var text = decodeDxf(rd.result), tpl = TopoSheet.parseTemplate(text);
+        if (text.length > 1500000) throw new Error('Το DXF της πινακίδας είναι πολύ μεγάλο (' + Math.round(text.length / 1024) + ' KB) — κράτα μόνο την πινακίδα, χωρίς το υπόλοιπο σχέδιο.');
+        store('hexis_topo_tpl', { name: file.name, text: text }); S.topoTplParsed = null;
+        var ff = TopoSheet.templateHasFields(tpl);
+        toast('Πινακίδα: ' + Math.round(tpl.w) + '×' + Math.round(tpl.h) + ' mm · ' + tpl.ents.length + ' στοιχεία · ' + (ff.length ? ff.length + ' πεδία {…}' : 'χωρίς πεδία {…}'));
+        topoRefresh();
+      } catch (e) { toast('Δεν διαβάστηκε η πινακίδα: ' + e.message, true); }
+    };
+    rd.readAsArrayBuffer(file);
+  }
   function renderKaekPanel() {
     var t = mainPlot(); if (!t) return '';
     var k = S.kaek;
@@ -7181,10 +8117,11 @@ root.CmdCheck = api;
     } catch (e) { return 0; }
   }
   // Δασικά πολύγωνα που ΕΠΗΡΕΑΖΟΥΝ την ιδιοκτησία — κομμένα στο εύρος του ΚΑΕΚ μας
-  function forestForPlot(M) {
-    if (!S.forest || !S.forest.features || !S.forest.features.length || !M || M.length < 3) return null;
+  function forestForPlot(M, src) {
+    var F = src || S.forest;
+    if (!F || !F.features || !F.features.length || !M || M.length < 3) return null;
     var box = plotClipBox(M), out = [];
-    S.forest.features.forEach(function (f) {
+    F.features.forEach(function (f) {
       var cr = []; f.outer.forEach(function (r) { var c = clipRingToRect(r, box); if (c.length >= 3) cr.push(c); });
       if (!cr.length) return;
       var holesC = []; (f.holes || []).forEach(function (r) { var c = clipRingToRect(r, box); if (c.length >= 3) holesC.push(c); });
@@ -8001,6 +8938,12 @@ root.CmdCheck = api;
     if (ev.target.id === 'arcgisUrls') { store('hexis_arcgis_urls', ev.target.value.trim()); S.kaek = null; S.dgm = null; findKaek(); }
     if (ev.target.id === 'inspireWfs' || ev.target.id === 'inspireType') { store(ev.target.id === 'inspireWfs' ? 'hexis_inspire_wfs' : 'hexis_inspire_type', ev.target.value.trim()); S.kaek = null; S.dgm = null; findKaek(); }
     if (ev.target.id === 'kaekSource') { S.kaekSource = ev.target.value; store('hexis_kaek_source', S.kaekSource); S.kaek = null; S.dgm = null; findKaek(); }
+    if (ev.target.classList.contains('topoF')) { var fk = ev.target.dataset.f, fv = ev.target.type === 'checkbox' ? (ev.target.checked ? 1 : 0) : ev.target.tagName === 'SELECT' ? +ev.target.value : ev.target.value.trim(); topoFields()[fk] = fv; if (fk === 'artio') topoFields().artioSure = true; if (fk === 'pos') topoFields().posSure = true; topoSaveEng(); return; }
+    if (ev.target.id === 'topoScale') { S.topoScale = +ev.target.value; S.topoAuto = false; topoRefresh(); return; }
+    if (ev.target.id === 'topoPaper') { S.topoPaper = ev.target.value; S.topoAuto = false; topoRefresh(); return; }
+    if (['topoForest', 'topoKaekTable', 'topoNo651', 'topoNo4030', 'topoNoNotes'].indexOf(ev.target.id) >= 0) { S[ev.target.id] = ev.target.checked; topoRefresh(); return; }
+    if (ev.target.id === 'topoForestAlways') { S.topoForestAlways = ev.target.checked; if (S.topo && S.topo.status === 'ok') { S.topo.forest = (S.topoForestAlways || +topoFields().pos === 3) ? S.topo.forestAll : []; } topoRefresh(); return; }
+    if (ev.target.id === 'topoTpl') { var tf = ev.target.files[0]; ev.target.value = ''; if (tf) loadTopoTemplate(tf); return; }
     if (ev.target.id === 'kaekOnlyMain') { S.kaekOnlyMain = ev.target.checked; renderPlan(); if (S.map) drawMap(false); }
     if (ev.target.id === 'dgmOwn') { S.dgmOwn = ev.target.value; runDgm(); }
     if (ev.target.classList.contains('praxisSel')) { S.praxisOp = ev.target.value; S.sheetAuto = true; $$('.praxisSel').forEach(function (e) { e.value = S.praxisOp; }); if (S.dgm) runDgm(); }
@@ -8021,6 +8964,7 @@ root.CmdCheck = api;
     var x = ev.target.closest('[data-exp]');
     if (x && /^kaek-/.test(x.dataset.exp)) { exportKaek(x.dataset.exp).catch(function (e) { toast('Η εξαγωγή απέτυχε: ' + e.message, true); }); return; }
     if (x && /^compat-/.test(x.dataset.exp)) { exportCompat(x.dataset.exp).catch(function (e) { console.error(e); toast('Ο έλεγχος απέτυχε: ' + e.message, true); }); return; }
+    if (x && /^topo-/.test(x.dataset.exp)) { exportTopo(x.dataset.exp).catch(function (e) { console.error(e); toast('Η εξαγωγή απέτυχε: ' + e.message, true); }); return; }
     if (x && /^(dgm-|praxis-)/.test(x.dataset.exp)) { exportDgm(x.dataset.exp).catch(function (e) { console.error(e); toast('Η εξαγωγή απέτυχε: ' + e.message, true); }); return; }
     var b = ev.target.closest('[data-act]'); if (!b) return;
     var act = b.dataset.act, card = b.closest('.tcard'), t = card ? tableById(card.dataset.id) : null;
@@ -8028,6 +8972,10 @@ root.CmdCheck = api;
     if (act === 'ai-run') return runAI();
     if (act === 'kaek-find') { S.kaek = null; return findKaek(); }
     if (act === 'dgm-run') return runDgm();
+    if (act === 'topo-run') return runTopo();
+    if (act === 'topo-auto') { S.topoAuto = true; topoRefresh(); return; }
+    if (act === 'topo-preview') { var rT = S.topo; if (rT && rT.status === 'ok') { S.topoPreview = TopoSheet.sheetSVG(topoData(rT), topoLayout(rT), 0); renderAll(); } return; }
+    if (act === 'topo-tpl-clear') { store('hexis_topo_tpl', null); S.topoTplParsed = null; topoRefresh(); return; }
     if (act === 'sheet-auto') { S.sheetAuto = true; var rb = S.dgm && S.dgm.rec && S.dgm.rec.best; if (rb) { S.sheetScale = rb.scale; S.sheetPaper = rb.paper; } renderAll(); return; }
     if (act === 'pick-sheet') { S.sheetPaper = b.dataset.paper; S.sheetScale = +b.dataset.scale; S.sheetAuto = false; renderAll(); return; }
     if (act === 'hash-any') return hashAnyDxf();
