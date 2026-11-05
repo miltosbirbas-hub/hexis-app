@@ -497,7 +497,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       <circle cx="10" cy="28" r="2.4" fill="#22d3ee"/><circle cx="16" cy="12" r="2.4" fill="#8b5cf6"/><circle cx="27" cy="15" r="2.4" fill="#8b5cf6"/><circle cx="31" cy="26" r="2.4" fill="#fb7185"/>
     </svg>
     <div>
-      <h1>HEXIS <span>GEOmetry</span> <small id="geoBuild" style="font:600 10px var(--f-mono);color:var(--faint);letter-spacing:0">build 05.11-23h59</small></h1>
+      <h1>HEXIS <span>GEOmetry</span> <small id="geoBuild" style="font:600 10px var(--f-mono);color:var(--faint);letter-spacing:0">build 06.11-00h</small></h1>
       <small>Συντεταγμένες ΕΓΣΑ87 · ΚΑΕΚ Κτηματολογίου · Διαγράμματα Γεωμετρικών Μεταβολών</small>
     </div>
   </div>
@@ -5625,7 +5625,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   var SCALES = [100, 200, 250, 500, 1000];
   var RANGE = ['A3', 'A2', 'A1', 'A0'];
   var MARGIN = 10, TITLE_W = 185, TITLE_H = 136, STAMP_H = 50; // πινακίδα με ζώνη 50 mm για σφραγίδα 9×4 cm (1:1) + ψηφιακή υπογραφή
-  var COL = { TOPO_PROP: 5, PST_KAEK: 1, KORYFES: 7, BLD: 8, TOPO_LINES: 8, DASOS: 3, XORTOLIVADIKA: 50 };
+  var COL = { TOPO_PROP: 5, PST_KAEK: 1, KORYFES: 7, BLD: 8, TOPO_LINES: 8, DASOS: 3, DASIKOS_LOIPA: 50 };
   var GRID = { 100: 10, 200: 20, 250: 25, 500: 50, 1000: 100 };
 
   function bbox(pts) { var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; pts.forEach(function (p) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }); return [x0, y0, x1, y1]; }
@@ -5682,10 +5682,10 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     return { dir: (pick || cand[0]).dir, fek: pick ? pick.fek : '', all: all, sure: !!pick && dirs.length === 1 };
   }
   function forestCatLabel(c) { c = String(c || '').trim(); return c ? c + (FOREST_CAT[c] ? ' — ' + FOREST_CAT[c] : '') : ''; }
-  // μόνο δάση / δασικές εκτάσεις (και όσες άλλαξαν μορφή) σχεδιάζονται ως δασικά· χορτολιβαδικές χωριστά· ΑΑ, αγροτικές, οικισμοί κ.λπ. ΔΕΝ είναι δασικά
-  function forestKind(c) { c = String(c || '').trim(); if (!c) return 'dasos'; if (/^(ΔΔ|ΔΙ|ΔΑ|ΠΔ|ΠΙ|ΠΑ|ΠΧ|ΑΔ)$/.test(c)) return 'dasos'; if (/^(ΧΔ|ΧΙ|ΧΑ|ΑΧ)$/.test(c)) return 'xorto'; return null; }
+  // πράσινα (δασικά) μόνο ΔΔ, ΠΔ, ΔΑ· κάθε άλλη κατηγορία του δασικού χάρτη με κίτρινο σε δικό της layer
+  function forestKind(c) { c = String(c || '').trim(); if (!c || /^(ΔΔ|ΠΔ|ΔΑ)$/.test(c)) return 'dasos'; return 'xorto'; }
   function forestList(data) { return (data.forest || []).filter(function (f) { return forestKind(f.cat); }); }
-  function forestTag(f, i) { return (forestKind(f.cat) === 'xorto' ? 'Χ' : 'Δ') + (i + 1); }
+  function forestTag(f, i) { return 'Δ' + (i + 1); }
   function defaults() {
     return { eidos: 2, kor: '', emb: '', thesi: '', dk: '', de: '', dimos: '', pe: '', ot: '', kaek: '', pos: 3, posSure: true, gps: 0, gpsfek: '', zoe: 0, zoefek: '', parad: 0, fekrym: '', fekoron: '', oikfek: '',
       artio: 1, artioSure: false, vasi: 0, oik: 1, artemb: '', pros: '', odos: 2, katat: 1, katdate: '', n1337: 0, eisgi: 0, eisxr: 0, praxi: 0, n2242: 0, ktim: 1, aig: 0, aigd: '', rema: 0, remad: '', dasos: 0, arxaio: 0, dei: 0, aerio: 0,
@@ -6247,7 +6247,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     (data.rasters || []).forEach(function (rs) { bl.push({ type: 'raster', r: rs }); });
     if ((data.photos || []).length) bl.push({ type: 'photos', title: 'ΦΩΤΟΓΡΑΦΙΚΗ ΤΕΚΜΗΡΙΩΣΗ', photos: data.photos.slice(0, 3) });
     var FL = forestList(data);
-    if (FL.length) bl.push({ type: 'table', title: 'ΠΙΝΑΚΑΣ ' + (FL.some(function (f) { return forestKind(f.cat) === 'xorto'; }) ? (FL.some(function (f) { return forestKind(f.cat) === 'dasos'; }) ? 'ΔΑΣΙΚΩΝ / ΧΟΡΤΟΛΙΒΑΔΙΚΩΝ' : 'ΧΟΡΤΟΛΙΒΑΔΙΚΩΝ') : 'ΔΑΣΙΚΩΝ') + ' ΠΟΛΥΓΩΝΩΝ (' + (data.forestSrc === 'zip' ? 'ΚΥΡΩΜΕΝΟΣ ΔΑΣΙΚΟΣ ΧΑΡΤΗΣ' : 'ΔΑΣΙΚΟΣ ΧΑΡΤΗΣ — ΕΝΙΑΙΟΣ ΨΗΦΙΑΚΟΣ ΧΑΡΤΗΣ') + ')', cols: [['ΠΟΛΥΓΩΝΟ', 18, 'center'], ['ΧΑΡΑΚΤΗΡΙΣΜΟΣ', 40, 'center'], ['ΕΜΒΑΔΟΝ ΕΝΤΟΣ ΙΔΙΟΚΤΗΣΙΑΣ (τ.μ.)', 30, 'center']], rows: FL.map(function (x, i) { return [forestTag(x, i), forestCatLabel(x.cat) || '-', x.areaProp > 0.005 ? f2(x.areaProp) : '-']; }), headRows: 2 });
+    if (FL.length) bl.push({ type: 'table', title: 'ΠΙΝΑΚΑΣ ΠΟΛΥΓΩΝΩΝ ΔΑΣΙΚΟΥ ΧΑΡΤΗ (' + (data.forestSrc === 'zip' ? 'ΚΥΡΩΜΕΝΟΣ ΔΑΣΙΚΟΣ ΧΑΡΤΗΣ' : 'ΔΑΣΙΚΟΣ ΧΑΡΤΗΣ — ΕΝΙΑΙΟΣ ΨΗΦΙΑΚΟΣ ΧΑΡΤΗΣ') + ')', cols: [['ΠΟΛΥΓΩΝΟ', 18, 'center'], ['ΧΑΡΑΚΤΗΡΙΣΜΟΣ', 40, 'center'], ['ΕΜΒΑΔΟΝ ΕΝΤΟΣ ΙΔΙΟΚΤΗΣΙΑΣ (τ.μ.)', 30, 'center']], rows: FL.map(function (x, i) { return [forestTag(x, i), forestCatLabel(x.cat) || '-', x.areaProp > 0.005 ? f2(x.areaProp) : '-']; }), headRows: 2 });
     var TX = data.texts || {};
     if ((TX.oroi || []).length) bl.push({ type: 'text', title: TX.oroiTitle || 'ΟΡΟΙ ΔΟΜΗΣΗΣ', paras: TX.oroi.concat(TX.oroiNote ? [TX.oroiNote] : []), gap: false });
     if ((TX.decl651 || []).length) bl.push({ type: 'text', title: 'ΔΗΛΩΣΗ ΜΗΧΑΝΙΚΟΥ (Ν.651/77 & Ν.1337/83)', paras: TX.decl651, sign: 'Ο ΜΗΧΑΝΙΚΟΣ', signDate: info.date || '', gap: false });
@@ -6392,8 +6392,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     if (data.extract && data.extract.bb0) { var PLN = { HX_RYMOTOMIKI: ['DBOUND_RYM', 'Ρυμοτομική γραμμή (ΕΨΧ)'], HX_OIKODOMIKI: ['OIKODOMIKI', 'Οικοδομική γραμμή (ΕΨΧ)'], HX_ORIO_OIKISMOU: ['ORIO_OIKISMOU', 'Όριο οικισμού (ΕΨΧ)'], HX_KOINOXRISTA: ['KOINOXRISTA', 'Κοινόχρηστοι χώροι (ΕΨΧ)'] }; Object.keys(PLN).forEach(function (k) { if (data.extract.layers[k]) items.push(PLN[k]); }); }
     if (data.closeOT && otRingOf(data)) items.push(['OT_KLEISIMO', 'Κλείσιμο Ο.Τ. ' + ((data.extract && data.extract.ot) || '') + ' (διαστάσεις σε μ., ΕΨΧ)']);
     if ((data.lines || []).length) items.push(['TOPO_LINES', 'Λοιπά στοιχεία του αρχείου (με τα layers τους)']);
-    if (forestList(data).some(function (f) { return forestKind(f.cat) === 'dasos'; })) items.push(['DASOS', 'Δασικά πολύγωνα (δασικός χάρτης)']);
-    if (forestList(data).some(function (f) { return forestKind(f.cat) === 'xorto'; })) items.push(['XORTOLIVADIKA', 'Χορτολιβαδικές εκτάσεις (δασικός χάρτης)']);
+    if (forestList(data).some(function (f) { return forestKind(f.cat) === 'dasos'; })) items.push(['DASOS', 'Δασικός χάρτης: ΔΔ / ΠΔ / ΔΑ']);
+    if (forestList(data).some(function (f) { return forestKind(f.cat) === 'xorto'; })) items.push(['DASIKOS_LOIPA', 'Δασικός χάρτης: λοιπές κατηγορίες']);
     if ((data.water || []).length) items.push(['YDROLHPSIA', 'Σημεία υδροληψίας Ε.Μ.Σ.Υ. (κωδικός)']);
     items.push(['KANNABOS', 'Κάνναβος ΕΓΣΑ 87 ανά ' + sbLen + ' m']);
     var lgW = Math.max(96, 44 + Math.max.apply(null, items.map(function (it) { return String(it[1]).length; })) * 2.0 * 0.62 + 4), lgx = dx0 + drawW - lgW * mm - 4 * mm, lgy = dyP + 6 * mm;
@@ -6413,7 +6413,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   function sheetSVG(data, layout, i) {
     var sh = layout.sheets[i], mm = layout.mm, P = layout.paper;
     function X(x) { return (x - sh.x) / mm; } function Y(y) { return (sh.y + sh.h - y) / mm; }
-    var C = { XORTOLIVADIKA: '#ca8a04', OT_KLEISIMO: '#b8860b', OT_DIASTASEIS: '#8a6500', DBOUND_RYM: '#d11', OIKODOMIKI: '#1d4ed8', OT_ORIA: '#6b7280', ORIO_OIKISMOU: '#c026d3', KOINOXRISTA: '#15803d', POL_GRAMMES: '#6b7280', OT: '#1f2a44', ROAD: '#1f2a44', '0': '#374151', KORYFES_BLD: '#4b5563', SHMEIA_BLD: '#6b7280', YDROLHPSIA: '#0891b2', PINAKIDA: '#1f2a44', PINAKES: '#1f2a44', KEIMENA: '#1f2a44', SHMEIWSEIS: '#1f2a44', KANNABOS: '#1f2a44', APOSTASEIS: '#1f2a44', TOPO_PROP: '#e8790e', 'TOPO_PROP-labels': '#e8790e', PST_KAEK: '#a30d0d', BOUND_IMPL: '#b08a1e', BOUND_UNIMPL: '#c9b26b', IDIOKTHTES: '#1f2a44', KORYFES: '#3f9b1f', SHMEIA_TOPO_PROP: '#1d4ed8', BLD: '#6b7280', TOPO_LINES: '#6b7280', DASOS: '#16a34a' }; // ACI προτύπου Κτηματολογίου: TOPO_PROP 30, PST_KAEK 16, BOUND_IMPL 42, KORYFES 80, SHMEIA 5
+    var C = { DASIKOS_LOIPA: '#ca8a04', OT_KLEISIMO: '#b8860b', OT_DIASTASEIS: '#8a6500', DBOUND_RYM: '#d11', OIKODOMIKI: '#1d4ed8', OT_ORIA: '#6b7280', ORIO_OIKISMOU: '#c026d3', KOINOXRISTA: '#15803d', POL_GRAMMES: '#6b7280', OT: '#1f2a44', ROAD: '#1f2a44', '0': '#374151', KORYFES_BLD: '#4b5563', SHMEIA_BLD: '#6b7280', YDROLHPSIA: '#0891b2', PINAKIDA: '#1f2a44', PINAKES: '#1f2a44', KEIMENA: '#1f2a44', SHMEIWSEIS: '#1f2a44', KANNABOS: '#1f2a44', APOSTASEIS: '#1f2a44', TOPO_PROP: '#e8790e', 'TOPO_PROP-labels': '#e8790e', PST_KAEK: '#a30d0d', BOUND_IMPL: '#b08a1e', BOUND_UNIMPL: '#c9b26b', IDIOKTHTES: '#1f2a44', KORYFES: '#3f9b1f', SHMEIA_TOPO_PROP: '#1d4ed8', BLD: '#6b7280', TOPO_LINES: '#6b7280', DASOS: '#16a34a' }; // ACI προτύπου Κτηματολογίου: TOPO_PROP 30, PST_KAEK 16, BOUND_IMPL 42, KORYFES 80, SHMEIA 5
     var ACI = { 9: '#b7bcc4', 1: '#d11', 2: '#b8860b', 3: '#15803d', 4: '#06b6d4', 5: '#1d4ed8', 6: '#c026d3', 7: '#1f2a44', 8: '#6b7280', 9: '#9ca3af', 30: '#b45309', 256: '#1f2a44', 0: '#1f2a44' };
     function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
     var s = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="' + P.w + 'mm" height="' + P.h + 'mm" viewBox="0 0 ' + P.w + ' ' + P.h + '" font-family="Arial, Liberation Sans, sans-serif">';
@@ -6466,14 +6466,14 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   var SPEC_LAYERS = { YPOMNIMA: 0, TOPO_PROP: 1, PST_KAEK: 1, BOUND_IMPL: 1, BOUND_UNIMPL: 1, KORYFES: 1, SHMEIA_TOPO_PROP: 1, SHMEIA_PST_KAEK: 1, BLD: 1, '0': 1, IDIOKTHTES: 1, APOSTASEIS: 1, KANNABOS: 1, PINAKIDA: 1, PINAKES: 1 };
   function dxfSpec(data, layout, opts) {
     opts = opts || {};
-    var spec = { polys: [], texts: [], mtexts: [], lines: [], hatches: [], tables: [], points: [], layers: { BLD: { color: 8 }, DASOS: { color: 94 }, XORTOLIVADIKA: { color: 50 }, YDROLHPSIA: { color: 4 }, TOPO_LINES: { color: 8 }, KEIMENA: { color: 7 }, SHMEIWSEIS: { color: 7 }, 'TOPO_PROP-labels': { color: 30 } } };
+    var spec = { polys: [], texts: [], mtexts: [], lines: [], hatches: [], tables: [], points: [], layers: { BLD: { color: 8 }, DASOS: { color: 94 }, DASIKOS_LOIPA: { color: 50 }, YDROLHPSIA: { color: 4 }, TOPO_LINES: { color: 8 }, KEIMENA: { color: 7 }, SHMEIWSEIS: { color: 7 }, 'TOPO_PROP-labels': { color: 30 } } };
     spec.polys.push({ layer: 'TOPO_PROP', pts: layout.M, closed: true, lw: 50 });
     spec.polys.push({ layer: opts.boundLayer || 'BOUND_IMPL', pts: layout.M, closed: true });
     // PST_KAEK: ΜΟΝΟ το δικό μας γεωτεμάχιο της κτηματολογικής βάσης· τα όμορα σε layer 0, χρώμα 7, με τον αριθμό ΚΑΕΚ τους
     if (data.kaekRing && data.kaekRing.length >= 3) { spec.polys.push({ layer: 'PST_KAEK', pts: open(data.kaekRing), closed: true }); }
     (data.parcels || []).forEach(function (p) { if (p.kaek === data.kaek) return; (p.rings || []).forEach(function (r) { spec.polys.push({ layer: '0', pts: open(r), closed: true, color: 7 }); }); });
     (data.bld || []).forEach(function (r) { spec.polys.push({ layer: 'BLD', pts: open(r), closed: true }); });
-    forestList(data).forEach(function (f) { var xo = forestKind(f.cat) === 'xorto'; (f.outer || []).forEach(function (r) { spec.polys.push({ layer: xo ? 'XORTOLIVADIKA' : 'DASOS', pts: open(r), closed: true, color: xo ? 50 : COL.DASOS }); }); (f.propRings || []).forEach(function (r) { if (r.length >= 4) spec.hatches.push({ layer: xo ? 'XORTOLIVADIKA_ENTOS' : 'DASOS_ENTOS', pts: open(r), color: xo ? 50 : COL.DASOS }); }); });
+    forestList(data).forEach(function (f) { var xo = forestKind(f.cat) === 'xorto'; (f.outer || []).forEach(function (r) { spec.polys.push({ layer: xo ? 'DASIKOS_LOIPA' : 'DASOS', pts: open(r), closed: true, color: xo ? 50 : COL.DASOS }); }); (f.propRings || []).forEach(function (r) { if (r.length >= 4) spec.hatches.push({ layer: xo ? 'DASIKOS_LOIPA_ENTOS' : 'DASOS_ENTOS', pts: open(r), color: xo ? 50 : COL.DASOS }); }); });
     var lc = { PINAKES: 7, PINAKIDA: 7, KANNABOS: 8, PST_KAEK: 1, TOPO_PROP: 5 };
     function col(layer, c) { return SPEC_LAYERS[layer] && layer !== '0' ? undefined : (c || undefined); }
     layout.elems.polys.forEach(function (p) { spec.polys.push({ layer: p.layer, pts: p.pts, bulges: p.bulges, closed: p.closed !== false, color: col(p.layer, p.color), lw: p.lw }); if (p.fill) spec.hatches.push({ layer: p.layer, pts: p.pts, color: 7 }); });
