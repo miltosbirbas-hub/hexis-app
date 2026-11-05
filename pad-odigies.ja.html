@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HEXIS PAD · ユーザーガイド</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  table { display:block; max-width:100%; overflow-x:auto; } code { overflow-wrap:anywhere; }
+  .shots { display:flex; flex-wrap:wrap; gap:16px; margin:14px 0 18px; }
+  .shots figure { margin:0; width:calc(50% - 8px); max-width:270px; }
+  .shots img { display:block; width:100%; height:auto; border-radius:20px; border:1px solid var(--line); box-shadow:0 8px 22px rgba(8,16,31,.12); background:#fff; }
+  .shots figcaption { font-size:14.5px; line-height:1.4; color:var(--muted); margin-top:7px; font-weight:600; }
+  @media (max-width:420px) { .shots figure { width:100%; max-width:none; } }
+  :root { --text:#08101f; --muted:#3d4d66; --line:#c9d3e0; --primary:#0060a8; --violet:#5b2fd6; --rose:#c4145a; --bg:#ffffff; --soft:#f2f6fb; }
+  body { margin:0; background:var(--bg); color:var(--text); font:500 15.5px/1.55 'Manrope',system-ui,sans-serif; }
+  header { background:radial-gradient(circle at 20% 0,#0e1a33,#04070f 70%); color:#e8f1ff; padding:28px 20px 22px; }
+  header h1 { margin:0; font:700 30px 'Unbounded','Manrope',sans-serif; background:linear-gradient(90deg,#3de8ff,#8b5cff 60%,#ff3d81); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  header p { margin:6px 0 0; color:#9fb3d1; }
+  main { max-width:860px; margin:0 auto; padding:10px 18px 60px; }
+  h2 { font:700 19px 'Manrope',sans-serif; margin:30px 0 8px; padding-bottom:6px; border-bottom:2px solid; border-image:linear-gradient(90deg,var(--primary),var(--violet)) 1; }
+  h3 { font-size:16px; margin:18px 0 4px; color:var(--primary); }
+  table { border-collapse:collapse; width:100%; font-size:14px; margin:8px 0; }
+  td, th { border:1px solid var(--line); padding:6px 8px; text-align:left; vertical-align:top; }
+  th { background:var(--soft); }
+  .tip { background:var(--soft); border-left:4px solid var(--primary); padding:8px 12px; border-radius:6px; margin:10px 0; }
+  .warn { border-left-color:var(--rose); }
+  code { background:var(--soft); padding:1px 5px; border-radius:4px; font-size:13.5px; }
+  ol li, ul li { margin:3px 0; }
+  .toc a { color:var(--primary); text-decoration:none; font-weight:700; }
+  footer { color:var(--muted); font-size:13px; margin-top:40px; border-top:1px solid var(--line); padding-top:10px; }
+  @media print { header { background:#fff; color:#000; } header h1 { color:#0060a8; background:none; } }
+</style>
+</head>
+<body>
+<div style="text-align:right;margin:0 0 10px;font:600 13px system-ui"><select onchange="location.href=this.value" aria-label="Language" style="padding:6px 8px;border-radius:8px"><option value="pad-odigies.html">Ελληνικά</option><option value="pad-odigies.en.html">English</option><option value="pad-odigies.es.html">Español</option><option value="pad-odigies.fr.html">Français</option><option value="pad-odigies.de.html">Deutsch</option><option value="pad-odigies.it.html">Italiano</option><option value="pad-odigies.pl.html">Polski</option><option value="pad-odigies.ru.html">Русский</option><option value="pad-odigies.he.html">עברית</option><option value="pad-odigies.ar.html">العربية</option><option value="pad-odigies.zh.html">中文</option><option value="pad-odigies.ja.html" selected>日本語</option><option value="pad-odigies.ko.html">한국어</option></select></div><header><img src="pad-logo.svg" alt="" style="width:64px;height:64px;float:left;margin-right:14px"><h1>HEXIS PAD</h1><p>RTK assistant — ユーザーガイド (バージョン 1.7)</p></header>
+<main>
+<p class="toc">
+  <a href="#start">1. はじめに</a> · <a href="#first">受信機と NTRIP の初回接続</a> · <a href="#screen">画面とツール</a> · <a href="#conn">2. 受信機の接続</a> · <a href="#ntrip">3. NTRIP</a> · <a href="#base">4. Base / Rover</a> · <a href="#survey">5. 観測</a> · <a href="#qc">6. 品質管理</a> · <a href="#stake">7. 測設</a> · <a href="#cogo">8. COGO</a> · <a href="#crs">9. 座標系</a> · <a href="#abroad">海外での作業</a> · <a href="#map">10. マップと背景地図</a> · <a href="#files">11. ファイルとメール</a> · <a href="#photo">12. 写真</a> · <a href="#power">バッテリー</a> · <a href="#lic">ライセンス</a>
+</p>
+
+<h2 id="start">1. はじめに</h2>
+<ol>
+  <li>Android のスマートフォンまたはタブレットに <b>HEXIS_PAD.apk</b> をインストールします (ブラウザ/ファイルアプリに「不明なアプリのインストール」を許可してください)。</li>
+  <li>初回は <b>ライセンスコード</b> (形式 <b>PAD-XXXX-XXXX-XXXX</b>) を求められます。入力して <b>有効化</b> を押してください — インターネットが必要なのはこの1回のみです。<a href="#lic">ライセンス</a> を参照してください。</li>
+  <li>起動 → 求められたら Bluetooth、位置情報、カメラの権限を許可します。</li>
+  <li>受信機と NTRIP の初回接続: <a href="#first">初回接続のステップガイド</a> を参照してください。</li>
+  <li>アプリはプロジェクトを1つ開いた状態で起動します。新規プロジェクト、名前の変更、切り替えは <b>メニュー → プロジェクト</b> から行います。</li>
+  <li>上部バーの表示: 解 (<b>FIX</b> 緑、<b>FLOAT</b> オレンジ、<b>SINGLE/DGPS</b> 赤)、sH / sV (m、1s)、衛星数、PDOP、補正データ遅延、<b>QC</b> と <b>NTRIP</b> の表示。バーをタップ → GNSS 状態の詳細。</li>
+</ol>
+<div class="shots"><figure><img src="pad-help/01_kodikos.webp" alt="初回起動: ライセンスコードを入力 → 有効化" loading="lazy"><figcaption>初回起動: ライセンスコードを入力 → 有効化</figcaption></figure><figure><img src="pad-help/02_arxiki.webp" alt="ホーム画面: プロジェクト、受信機、作業カテゴリ" loading="lazy"><figcaption>ホーム画面: プロジェクト、受信機、作業カテゴリ</figcaption></figure></div>
+
+<div class="tip">表示テーマ: <b>☀ 太陽</b> (直射日光下で最大コントラスト) と <b>NEO ダーク</b> (暗所向け)。メニュー → 設定。</div>
+
+<h2 id="first">初回接続のステップガイド: 受信機と NTRIP</h2>
+<p>以下の手順は <b>1回だけ</b> 行います。以後アプリは受信機とネットワークを記憶します: アプリを開いて受信機の電源を入れれば、自動で接続されます。</p>
+<p><b>開始前に準備するもの:</b> 充電済みの受信機、<b>モバイルデータ (4G/5G) をオン</b> にした端末、NTRIP 契約情報: <b>caster host</b>、<b>port</b>、<b>ユーザー</b>、<b>パスワード</b>。これらは契約している電子基準点網から提供されます。</p>
+
+<h3>A. Bluetooth で受信機を接続</h3>
+<ol>
+  <li><b>受信機の電源を入れ</b>、Bluetooth ランプが点灯するまで待ちます。</li>
+  <li><b>Android でペアリング</b>: 端末の設定 → <b>Bluetooth</b> → <b>新しいデバイスとペア設定</b> → 受信機を選択。名前は通常、受信機底面のラベルにあるシリアル番号 (S/N) です。コードを求められたら: <b>1234</b> または <b>0000</b>。<br>
+      より速い方法: 初回はアプリに <b>「受信機の初回接続」</b> 画面が表示されます。<b>「受信機のペアリング (Bluetooth)」</b> ボタンで Bluetooth 設定が直接開きます。受信機に NFC があれば、端末をかざすだけで済みます。</li>
+  <li><b>HEXIS PAD に戻ります。</b> 受信機を検出して自動で接続します。接続されない場合: ホーム → <b>受信機と RTK</b> → <b>受信機を接続</b> → <b>Bluetooth</b> → 受信機を選択 → <b>接続</b>。</li>
+  <li>初回は Android が <b>「付近のデバイス」</b> の権限を求めます。<b>許可</b> を押してください。</li>
+  <li><b>確認:</b> 上部バーに <b>SINGLE</b> または <b>DGPS</b> (赤) の解と衛星数が表示されます。受信機は位置を送信しています。RTK は NTRIP で得られます (手順 C)。</li>
+</ol>
+<div class="shots"><figure><img src="pad-help/03_dektis_menu.webp" alt="ホーム → 受信機と RTK" loading="lazy"><figcaption>ホーム → 受信機と RTK</figcaption></figure><figure><img src="pad-help/04_syndesi_dekti.webp" alt="受信機を接続: リストから ★ 付きの受信機 → 接続" loading="lazy"><figcaption>受信機を接続: リストから ★ 付きの受信機 → 接続</figcaption></figure></div>
+
+
+<h3>B. 受信機の Wi-Fi で接続 (Bluetooth で位置が届かない場合)</h3>
+<ol>
+  <li>ホーム → <b>受信機と RTK</b> → <b>受信機の Wi-Fi で接続</b>。</li>
+  <li><b>メーカー</b> を選び、次にリストから受信機を選択します。</li>
+  <li>Android の <b>「デバイスを検索」</b> ダイアログが開きます。受信機の Wi-Fi ネットワークを選択 → <b>接続</b>。受信機の Wi-Fi は <b>アプリ専用</b> に使われ、NTRIP 用のインターネットはモバイルデータで継続します。</li>
+  <li>以後、受信機の電源が入ると、ホームの <b>受信機</b> カードに <b>「受信機を検出 · タップで接続」</b> と表示されます。タップすると接続します。Android の「デバイスを検索」ダイアログは <b>自分で要求した時だけ</b> 開き、勝手に開くことはありません。端末が既に受信機の Wi-Fi に接続されている場合は、ダイアログなしで自動接続されます。</li>
+</ol>
+<div class="shots"><figure><img src="pad-help/22_wifi_vrethike.webp" alt="近くで受信機の電源が入っている:「受信機を検出 · タップで接続」" loading="lazy"><figcaption>近くで受信機の電源が入っている:「受信機を検出 · タップで接続」</figcaption></figure></div>
+
+
+<h3>C. NTRIP: 電子基準点網からの RTK 補正</h3>
+<ol>
+  <li>ホーム → <b>受信機と RTK</b> → <b>NTRIP / RTK</b>。</li>
+  <li><b>電子基準点網:</b> 契約しているネットワークを選択します (例: <b>HEPOS (ギリシャ地籍)</b>)。その他のネットワークは <b>「その他のネットワーク / 自前の caster」</b> を選び、<b>Caster host</b> と <b>Port</b> (通常 2101) を入力します。</li>
+  <li>契約の <b>ユーザー</b> と <b>パスワード</b> を入力します。</li>
+  <li><b>リスト</b> を押すと、ネットワークの mountpoint を取得します。ネットワークから指定されたもの (通常は <b>MSM</b> 形式の <b>VRS</b>) を選択します。</li>
+  <li><b>「GGA を送信 (VRS / ネットワークに必須)」</b> はチェックしたままにします。<b>「受信機接続時に自動開始」</b> もチェックすると、毎回自動で開始します。</li>
+  <li><b>💾 プロファイル</b> → 名前を付けて設定を保存します。ネットワークやアカウントが2つある場合、ワンタップで切り替えられます。</li>
+  <li><b>開始</b> を押します。補正が届くと上部バーの <b>NTRIP</b> 表示が <b>緑</b> になります。数秒 (視界が悪い場合は 1–2 分) で、解が <b>FLOAT</b> (オレンジ) から <b>FIX</b> (緑) に変わります。</li>
+</ol>
+<div class="shots"><figure><img src="pad-help/05_ntrip.webp" alt="NTRIP / RTK: ネットワーク、mountpoint (リスト)、ユーザー、パスワード" loading="lazy"><figcaption>NTRIP / RTK: ネットワーク、mountpoint (リスト)、ユーザー、パスワード</figcaption></figure><figure><img src="pad-help/06_ntrip_kato.webp" alt="GGA を送信、自動開始、💾 プロファイル → 開始" loading="lazy"><figcaption>GGA を送信、自動開始、💾 プロファイル → 開始</figcaption></figure></div>
+
+
+<h3>D. 作業前のチェック</h3>
+<ul>
+  <li><b>アンテナ高:</b> 画面下部の <b>アンテナ高</b> 欄にポール高を入力します。受信機に位相中心 offset がある場合は、受信機を接続 画面で1回だけ設定します。ここを誤ると <b>すべて</b> の標高が誤ります。</li>
+  <li><b>座標系:</b> ホーム → 受信機と RTK → <b>座標系</b> → <b>GGRS87 (HEPOS)</b>。これにより平面位置と標高の両方に公式の変換グリッドが適用されます。</li>
+  <li>上部バーで <b>FIX</b>、sH / sV が小さく、<b>QC</b> 表示が緑であること。</li>
+  <li>観測や測設の前に <b>既知点</b> (例: 三角点、または座標と標高が既知の点) を1点観測して比較してください。</li>
+</ul>
+<div class="shots"><figure><img src="pad-help/07_arxiki_fix.webp" alt="作業準備完了:「受信機」カードに FIX と sH を表示" loading="lazy"><figcaption>作業準備完了:「受信機」カードに FIX と sH を表示</figcaption></figure></div>
+
+
+<h3>E. うまくいかない場合</h3>
+<table>
+  <tr><th>症状</th><th>対処</th></tr>
+  <tr><td>受信機がリストに表示されない</td><td>ペアリングされていません。受信機を接続 → <b>⚙ Bluetooth 設定</b> → 新しいデバイスとペア設定。</td></tr>
+  <tr><td>接続 を押すとエラーになる</td><td>受信機が他の機器またはメーカーアプリに接続されています。他の接続を閉じるか、受信機を再起動して、もう一度 接続 を押してください。</td></tr>
+  <tr><td>「接続しました」だが位置が届かない</td><td>受信機が NMEA を送信していません。アプリが自動で有効化コマンドを送るので、数秒待ってください。それでもだめなら Wi-Fi 接続 (B) を試すか、<b>🔎 受信機データのサンプル</b> を押してサポートへ送ってください。</td></tr>
+  <tr><td>「NTRIP 用のインターネットがありません」</td><td>モバイルデータをオンにしてください。端末を設定から受信機の Wi-Fi に接続している場合は、そこから切断し、アプリから受信機を接続してください (B)。</td></tr>
+  <tr><td>mountpoint のリストが空、または NTRIP エラー</td><td>caster host と port を確認してください。ユーザーやパスワードに関するエラーなら、入力内容と契約が有効かを確認してください。</td></tr>
+  <tr><td>NTRIP は緑だが DGPS または FLOAT のまま</td><td>「GGA を送信」がチェックされ、正しい mountpoint (VRS / MSM) を選んだか確認してください。建物や樹木から離れた、上空の開けた場所へ移動してください。</td></tr>
+</table>
+
+<h2 id="screen">ホーム画面、マップ、ツール列</h2>
+<p><b>ホーム画面</b> (列の ⌂ ボタン): 上部に <b>プロジェクト</b> と <b>受信機</b> が表示され、緑・オレンジ・赤の点で FIX、FLOAT、解なしを示します。その下に <b>6つのカテゴリ</b> が同じ青色で並びます:</p>
+<ul>
+  <li><b>観測</b>: 観測開始、連続、static、レーザーによる点、到達困難点、音声コマンド。</li>
+  <li><b>測設</b>: 点、線、床/勾配、直角出し、グリッド。</li>
+  <li><b>計算</b>: すべての COGO、距離/方位角、面積、直線交会、勾配、現場キャリブレーション。</li>
+  <li><b>ファイルとプロジェクト</b>: インポート、点、貼り付け、エクスポート/メール、プロジェクト。</li>
+  <li><b>受信機と RTK</b>: 受信機接続、NTRIP、base/rover、IMU/気泡、レーザー、座標系。</li>
+  <li><b>設定</b>: 設定、列のツール、ユーザーガイド。</li>
+</ul>
+<div class="shots"><figure><img src="pad-help/19_arxiki_fix_simeia.webp" alt="FIX 状態と現在のプロジェクトを表示したホーム" loading="lazy"><figcaption>FIX 状態と現在のプロジェクトを表示したホーム</figcaption></figure><figure><img src="pad-help/17_menu_apotyposi.webp" alt="カテゴリをタップすると、その項目だけが表示されます" loading="lazy"><figcaption>カテゴリをタップすると、その項目だけが表示されます</figcaption></figure></div>
+
+<p>カテゴリをタップすると、<b>その項目だけ</b> が表示されます。最初の基本項目は大きな色付きボタンです。<b>‹ 戻る</b> または端末の戻るボタンでカテゴリに戻ります。右上の <b>マップ</b> ボタンでマップへ直接移動します。</p>
+<p><b>全画面マップ:</b> ツール列は <b>左側に折りたたまれ</b>、マップが全幅を使います。<b>画面の左端</b> (青いタブ ›) をタップまたはスワイプすると開き、ツールを選ぶか、マップをタップするか、数秒経つと自動で閉じます。列のツールは「列のツール」で追加・削除します。常に開いておきたい場合: 設定 → 画面 → ツール列 →「常に開く」。上部に FIX、H/V、衛星数、Age、QC、NTRIP、下部に現在位置の座標が表示されます。</p>
+<div class="shots"><figure><img src="pad-help/25_stili_anoixti.webp" alt="左端をタップ: ツール列が開きます" loading="lazy"><figcaption>左端をタップ: ツール列が開きます</figcaption></figure></div>
+
+<h2 id="conn">2. 受信機の接続</h2>
+<ol>
+  <li>Android の <b>Bluetooth 設定</b> で受信機をペアリングします。</li>
+  <li><b>メニュー → 受信機を接続 → Bluetooth</b>、デバイスを選択 → <b>接続</b>。</li>
+  <li>代替方法: <b>Wi-Fi / TCP</b> (受信機の IP とポート)、<b>端末の GPS</b> (方向確認のみ)、<b>シミュレーター</b> (訓練用 — マップを長押し =「そこへ歩く」)。</li>
+</ol>
+<p>NMEA 0183 対応の受信機すべてに対応します。<code>GGA</code> は必須、<code>GST</code> で sH/sV 精度、<code>GSA</code> で PDOP が得られます。受信機がこれらを送信しない場合は「初期化コマンド」欄にコマンドを入力するか、<b>Base / Rover → Rover コマンド</b> を使用してください。</p>
+
+<h3>自動接続 — 設定不要</h3>
+<ul>
+  <li><b>初回:</b> 受信機が未登録の場合、「受信機の初回接続」画面が表示されます。受信機の電源を入れ、「受信機のペアリング」を押して Bluetooth リストから選択します。受信機に NFC があれば端末をかざします。戻るとアプリが受信機を検出して自動で接続します。</li>
+  <li><b>2回目以降:</b> アプリを開き、受信機の電源を入れます (順序は問いません)。アプリは自動で接続し、受信機がまだオフなら数秒ごとに再試行します。設定済みなら NTRIP も自動で開始します。</li>
+  <li><b>NMEA を送信しない受信機:</b> アプリが自動で有効化コマンドを送ります。また、多くの受信機の公開プロトコル (Unicore、NovAtel、u-blox、BESTPOS/BESTNAV、NAV-PVT メッセージ) から直接位置を読み取ります。その場合「受信機プロトコルを認識しました」と表示されます。</li>
+  <li><b>Wi-Fi 付き受信機 (Singular XYZ、CHC、South、Stonex、Hi-Target、Emlid):</b> 最も安定するのは受信機の Wi-Fi です。受信機 →「📶 受信機の Wi-Fi で接続」→ メーカー → リストから受信機。アプリは自分専用に受信機の Wi-Fi に接続し (モバイルデータは NTRIP 用に残ります)、位置を出力するポートを自動で探し、以後は自動で接続します。受信機がオフの間は、バックグラウンドで静かに Wi-Fi の出現を確認し、電源が入ると自動で接続します — ダイアログは出ません。工場出荷時に NMEA を出力しない受信機 (例: Singular X1 Lite) では、受信機ページを1回だけ開いて TCP NMEA-0183 出力 (ポート 9000、GGA+GST+GSA、1 Hz) を有効にします — Bluetooth やメーカーのソフトには影響しません。近くで受信機の電源が入っていると、「受信機」カードに「受信機を検出 · タップで接続」と表示されます。Android の「デバイスを検索」ダイアログは、自分でタップした時だけ開きます。</li>
+  <li>受信機がメーカーの暗号化プロトコルしか送信しない場合は、受信機の Wi-Fi ページまたはメーカーアプリで NMEA 出力を1回だけ有効にします。「🔎 受信機データのサンプル」で、アプリが受信した内容を送信して対応追加を依頼できます。</li>
+  <li><b>🧪 他アプリの Bluetooth をキャプチャ:</b> 受信機がメーカーのソフトにしか位置を送らない場合、受信機を接続 画面で「🧪 Bluetooth キャプチャ」を押し、4 つの手順 (開発者向けオプション →「Bluetooth HCI スヌープログ」、開始、メーカーのソフトで接続、停止して送信) に従ってファイルを送ってください。カウンターが 0 kB のままなら「🔍 システムファイルを検索して送信」を押すと、アプリが Android のログファイル (btsnoop_hci.log) を自動で見つけて送信します。受信機への対応は1回追加されれば全ユーザーに有効で、受信機や他のソフトには何も変更を加えません。</li>
+  <li>「切断」を押すと、再び「接続」を押すまで自動再接続を停止します。</li>
+</ul>
+<p><b>受信機がリストに表示されない?</b> 受信機を接続 画面で <b>⚙ Bluetooth 設定</b> → 新しいデバイスとペア設定 を押し、受信機を選択します。名前は通常、受信機底面のラベルにあるシリアル番号 (S/N)、例:「2124A0176」です。戻るとリストは自動で更新されます。「↻ リストを更新」ボタンもあります。GNSS 受信機の可能性があるものは ★ 付きで上位に、スピーカー・車・イヤホンは末尾に表示されます。</p>
+
+<h2 id="ntrip">3. NTRIP (電子基準点網)</h2>
+<p>あらゆる NTRIP ネットワークに接続できます: <b>HEPOS、URANUS、CivilPOS、HxGN SmartNet、JGC NET</b> または自前の caster。接続情報は契約時にネットワークから提供されます。</p>
+<ol>
+  <li><b>メニュー → NTRIP / RTK</b>: caster host、port (通常 2101)、ユーザー、パスワード。</li>
+  <li><b>リスト</b> → caster の mountpoint を取得します。適切なもの (例: VRS / MSM) を選択します。</li>
+  <li>「GGA を送信」(VRS に必須) を有効にしたまま → <b>開始</b>。</li>
+  <li>データが届くと NTRIP 表示が緑になります。補正は Bluetooth で受信機に転送されます。ネットワークが切れても自動で再接続します。</li>
+</ol>
+<div class="tip">💾 プロファイル: ネットワーク/アカウントごとに保存して素早く切り替えられます。「自動開始」= 受信機の接続時に自動で開始。</div>
+
+<h2 id="base">4. Base / Rover とベース変更</h2>
+<h3>受信機メーカー</h3>
+<p><b>メニュー → Base / Rover</b>: メーカーを選択します (CHC、South、Stonex、Hi-Target、ComNav、Singular XYZ、Kolida、Ruide、Tersus、SatLab、FOIF、Emlid、ArduSimple、Septentrio、Leica、GeoMax、Trimble、Spectra、Topcon、Sokkia)。ボードのコマンド系統が提案されます。お使いのモデルが異なる場合は変更してください。</p>
+<table>
+  <tr><th>系統</th><th>HEXIS PAD の機能</th></tr>
+  <tr><td>Unicore、NovAtel/ComNav、Septentrio</td><td>ベースの設置 (既知点または「ここ」)、無線機ポートへの RTCM3 出力の有効化、rover と NMEA 出力の設定。</td></tr>
+  <tr><td>u-blox (Emlid 等)</td><td>設定はメーカーのパネルで行います。HEXIS PAD は rover、NTRIP、観測、測設として動作します。</td></tr>
+  <tr><td>Leica、Trimble、Topcon、Sokkia、Spectra、GeoMax、CHC</td><td>ベース/無線機の設定はクローズド — 各社のソフトで行います。HEXIS PAD は NMEA 経由の rover として動作します。</td></tr>
+</table>
+<p>すべてのコマンドは送信前に表示されます — 受信機のマニュアルで確認してください (特にベース高が楕円体高か正標高か)。</p>
+<h3>新しいベース</h3>
+<ol>
+  <li><b>＋ 新しいベース</b> → <b>既知点で</b> (点を選択) または <b>単独測位「ここ」</b>。</li>
+  <li>ベースのアンテナ高、RTCM ポート、ジオイド高 N。</li>
+  <li><b>ベースへのコマンド…</b> → 確認 → <b>送信</b> (ベースと Bluetooth 接続した状態で)。</li>
+  <li><b>使用中のベースに設定</b>: 新しい点はすべてこのベースに紐づけられます。</li>
+</ol>
+<h3>ベースのシフト</h3>
+<p>ベースを単独測位/誤った位置に設置した場合: リストからベースを開く →「使用した位置」と「正しい位置」を入力 → <b>シフトを適用</b>。ベースのすべての点が dX/dY/dZ だけシフトされ、各点のメモに記録されます。</p>
+
+<h2 id="survey">5. 観測 (Survey)</h2>
+<div class="shots"><figure><img src="pad-help/08_apotyposi.webp" alt="観測: 名前、コード、アンテナ高 → 観測" loading="lazy"><figcaption>観測: 名前、コード、アンテナ高 → 観測</figcaption></figure><figure><img src="pad-help/09_xartis_simeia.webp" alt="マップ上の点と標高" loading="lazy"><figcaption>マップ上の点と標高</figcaption></figure></div>
+<ol>
+  <li>点名 (自動で増加)、コード (最近のコードがボタンで表示)、アンテナ高 (ポール + 位相中心)。</li>
+  <li><b>時間</b>: 秒 (1、2、3、5、10、15、30 s、1 または 3 分) またはエポック。「その他…」で任意の値。<b>エポック</b> = 受信機の位置解 1 回分 (1 Hz で 1 エポック ≈ 1 s)。全エポックを平均します。<b>FIX のみ</b>: FLOAT エポックは除外されます。</li>
+  <li><b>FIX 待ち</b> (設定、初期値 10 s): 解がこの秒数連続して FIX を維持した時のみ観測を開始します。ボタンに「⏳ FIX 4/10 s」と表示されます。</li>
+  <li>点が保存されると、ボタンが一時的に <b>緑の「✓ 名前」</b> になり (音付き)、次の観測に備えて元に戻ります。</li>
+  <li><b>サウンド</b> (設定 → サウンド、音量とテスト付き): 点の保存音、FIX になった時の上昇音、FIX を失った時の低音と振動。</li>
+  <li><b>● 観測</b> → 品質チェックを実行します (セクション 6)。観測中にもう一度押す = キャンセル。</li>
+  <li><b>コード付きの線</b>: 同じコードの連続した点を線で結びます (DXF に出力)。</li>
+  <li><b>⌖ Offset</b>: 距離 + 方位角による点 (手入力またはレーザーから)。</li>
+  <li>既存の名前で観測 → 独立した観測の比較と「チェックとして保存」の選択肢。</li>
+</ol>
+
+<h3>連続観測</h3>
+<p>ホーム → <b>⟳ 連続観測</b> (または列の ⟳ ツール)。<b>距離ごと</b> (例: 1 m ごと) または <b>時間ごと</b> (例: 2 s ごと)、コード、「FIX のみ」、最大 sH を選択します。歩きながら点が自動保存され、名前は自動で増加します。マップ上に「⟳ 連続 · N 点」バーと <b>■ 停止</b> ボタンが表示されます。解が FIX でない、または sH が上限を超えた場合、バーに理由が黄色で表示され、点は保存されません。</p>
+<h3>Static</h3>
+<p>ホーム → <b>◷ Static</b>。点、コード、アンテナ高、時間 (5 分〜2 時間、または「停止するまで」) を入力します。受信機を静止させると、アプリは:</p>
+<ul>
+  <li>毎秒 1 つの解を保持し、平均、sH、sV を計算します。FIX 解があればそれのみを使用します。FIX が一度もなければ、点に「FIX なし」と記録されます。</li>
+  <li>後処理用に <b>受信機の全データ</b> をファイル <code>Documents/HEXIS PAD/Static/&lt;プロジェクト&gt;_&lt;点&gt;_&lt;日付&gt;.gnss</code> に記録します。事務所での後処理には、受信機が生の観測データ (RTCM3 MSM またはメーカー独自形式) を出力する必要があります。</li>
+  <li>終了時に結果と「ファイルを共有 / メール」ボタンを表示します。</li>
+</ul>
+<p>実行中にもう一度 ◷ を押すと、統計をリアルタイムで確認でき、早めに終了することもできます。</p>
+<h3>点から点へ線を作図</h3>
+<p>Survey で <b>✎ 作図</b> を押し、<b>Draw lines</b> グループで <b>Line</b> (独立した直線区間)、<b>Polyline</b> (連続線)、<b>Spline</b> (点を通る滑らかな曲線)、<b>Polygon</b> (閉じた多角形) を選びます。各ボタンには形を示すアイコンがあります。以後観測する点はすべて線に追加され、マップの上に種類と点数を示す緑のバーが表示されます。最後に観測した点から始めることもできます。バーの <b>↶</b> は線から最後の点を外し (点は残ります)、<b>✕</b> は線をキャンセルし (全点が残ります)、<b>✓ 終了</b> で線を完成させます。DXF エクスポートでは、線は LINE / POLYLINE / spline の場合は高密度 polyline として、レイヤー HP_&lt;コード&gt; に出力されます。</p>
+<h3>アンテナ高 = ポール + 受信機 offset</h3>
+<p>Survey の欄には <b>ポール高のみ</b> を入力します。アンテナ offset (基準点 ARP から位相中心まで、例: Singular X1 Lite / L1 では <b>0.068 m</b>) は、受信機が認識されると自動で加算されます。または 設定 →「受信機アンテナ Offset」で設定します。欄のラベルは「ポール (+0.068)」と表示され、点のプロパティには両方が記録されます。</p>
+<h3>GST なしの位置誤差</h3>
+<p>受信機が GST を送信しない場合 (例: Wi-Fi 経由の Singular)、sH/sV は <b>~</b> 付きで表示されます (HDOP と解の種類からの推定: FIX ≈ 1.2 cm × HDOP)。QC チェックでは「警告」として扱われ、不合格にはなりません。観測エポックの実際のばらつきは通常どおりチェックされます。</p>
+<h3>観測中の到達困難点</h3>
+<p>Survey カードの Offset の隣に <b>✕ 困難</b> ボタンがあります。観測を終了する必要はありません:</p>
+<ol>
+  <li><b>✕ 困難</b> を押します。4 点の図が開きます。</li>
+  <li>「● 点 1 を観測」を押します (または「取得」と話す)。続いて 2、3、4。ボタンは自動で次へ進みます。</li>
+  <li>結果、直線の交差角、幾何配置が弱い場合の警告が表示されます。</li>
+  <li><b>💾 観測に保存</b> を押します。点には観測の <b>次の番号</b> と現在のコードが付きます。線に追加され (「コード付きの線」で観測中の場合)、番号付けは通常どおり続きます。</li>
+</ol>
+<p>「補助点もリストに残す」で、4 つの補助点をリストに残すか削除するかを選べます。上部の選択肢には他の方法もあります: レーザーによる距離 + 方位角、距離による交会、直線の延長。</p>
+
+<h3>レーザー距離計 (DISTO 等) による 2–3 か所からの点</h3>
+<p>ポールが届かない点 (建物の角、柱、樹木、フェンスの向こうの桝) に。Survey カードの <b>⟟ レーザー</b> ボタン。</p>
+<ol>
+  <li>レーザーを Bluetooth の「キーボードモード」で接続し (DISTO: Bluetooth → Keyboard mode)、Android でペアリングします。</li>
+  <li><b>位置 1</b> に立ち、「● 位置 1: GNSS 観測」を押します (または「取得」と話す)。</li>
+  <li>レーザーをポールに当てて点を照準し、レーザーの観測ボタンを押します。距離は自動で欄に入力されます。接続していない場合は手入力します。</li>
+  <li>数メートル離れた <b>位置 2</b> へ移動し、2 つの位置が点に対して 60°–120° の角度をなすようにします。再度 GNSS 観測と距離観測を行います。</li>
+  <li>解は 2 通りあります。<b>左 / 右</b> (位置 1 から位置 2 を見て) を選ぶか、<b>3 番目の位置</b> を追加します: アプリが自動で選択し、チェック用に残差 (RMS) を表示します。</li>
+  <li><b>💾 観測に保存</b>: 点には次の番号とコードが付きます。</li>
+</ol>
+<p>「距離補正」には、ポールに当てたレーザーの背面から測る場合のポール半径などを入力します。標高には「位置の平均 Z + dH」を選択します。幾何配置が弱い場合や距離が位置と整合しない場合は警告します。同じ機能が COGO → レーザーによる点 と 到達困難点 にもあります。</p>
+
+<h3>傾斜 ↔ 厳密な求心</h3>
+<p>IMU が有効な場合、Survey カードに <b>∠ 傾斜 60°</b> ボタンがあります。押すと <b>⊙ 求心</b> に切り替わります。ステータスバーの ∠ 表示をタップするか、音声コマンド「求心」/「傾斜」でも同じです。</p>
+<ul>
+  <li><b>∠ 傾斜:</b> 受信機の上限まで傾けたポールで観測します。</li>
+  <li><b>⊙ 求心:</b> 求心許容値内 (例: ±0.5°) の鉛直ポールでのみ点を取得します。三角点、チェック点、ベースに使います。許容値を外れると、ボタンに「⏳ 求心外」と表示されて待機します。</li>
+  <li>各点には、観測方法と傾斜量が記録されます。</li>
+</ul>
+
+<h3>IMU — 傾斜ポールでの観測</h3>
+<div class="shots"><figure><img src="pad-help/21_fouska_katakoryfo.webp" alt="座標の横の小さな気泡: 蛍光グリーン = 鉛直" loading="lazy"><figcaption>座標の横の小さな気泡: 蛍光グリーン = 鉛直</figcaption></figure><figure><img src="pad-help/20_fouska_klisi.webp" alt="ポールが傾くと赤 (2°)" loading="lazy"><figcaption>ポールが傾くと赤 (2°)</figcaption></figure><figure><img src="pad-help/26_fouska_megali.webp" alt="1回タップ: 精密な求心用の大きな気泡" loading="lazy"><figcaption>1回タップ: 精密な求心用の大きな気泡</figcaption></figure><figure><img src="pad-help/24_vathmonomisi.webp" alt="必要な時: 先端を固定してポールを揺らす" loading="lazy"><figcaption>必要な時: 先端を固定してポールを揺らす</figcaption></figure></div>
+<p>受信機に IMU があれば、整準せずに観測できます。補正は <b>受信機内部で</b> 行われ、アプリはメーカーの上限を超えて観測しないよう管理します。</p>
+<ul>
+  <li><b>自動認識:</b> アプリは受信機が送信するデータから自動で判断します:
+    <ul>
+      <li>受信機が <b>傾斜補正の状態</b> を送信する場合、IMU はすぐに有効になり、許容される最大角度を音声でも知らせます。</li>
+      <li><b>傾斜角</b> のみを送信する場合 (単なる電子気泡の可能性もあります)、受信機に IMU があるかを <b>1回だけ</b> 尋ねるので、カタログの最大傾斜を入力します。「いいえ」と答えると、求心気泡のみになります。</li>
+      <li>アプリが知っているモデル (例: Emlid Reach RS3: 60°、CHC i73: 45°) では、メーカーの上限が設定されます。それ以外は、カタログ値を入力するまで 30° になります。</li>
+      <li>すべて メニュー → <b>IMU / 求心気泡</b> で変更できます。</li>
+    </ul></li>
+  <li><b>表示:</b> ステータスバーに <b>∠ 12°/60°</b> と表示され、上限内は緑、上限外は赤になります。<b>∠ INIT</b> と表示された場合は IMU の初期化が必要です: メーカーの指示どおりにポールを揺らすか歩いてください。</li>
+  <li><b>保護:</b> 上限を超えている間、または初期化完了前は、観測で <b>点を取得しません</b>。ボタンに「⏳ 傾斜 65° > 60°」と表示され、警告音が鳴ります。上限内に入ると自動で観測します。測設、到達困難点、連続観測でも同様です。</li>
+  <li><b>デジタル求心気泡:</b> 観測エリアを隠さないよう、<b>座標の横</b> に小さく表示されます (列を常に開いている場合は、列の「気泡 / IMU」ボタンにあります)。点はポールの傾く方向を示し、横に角度が表示されます。<b>蛍光グリーン</b> = 鉛直、オレンジ = 近い、赤 = 範囲外。<b>1回タップ</b> でマップ上に大きく表示して精密に求心でき (好きな位置へドラッグ可)、もう1回タップで非表示になります。<b>長押し</b>: 気泡 / IMU の設定。IMU ありの場合、赤い破線の円は受信機の傾斜上限です。</li>
+  <li><b>IMU なし</b> (電子気泡付き受信機): 気泡は鉛直許容値を表示します (例:「0.4° · ±0.5°」)。緑 = 求心済み、オレンジ = 近い、赤 = 範囲外。「求心許容値外では点を取得しない」を選ぶと、求心するまで観測を待機します。</li>
+  <li><b>気泡は常に表示されます。</b> 受信機が傾斜を送信する場合、気泡は受信機の値を表示し、<b>較正は一切不要</b> です。それ以外の場合、端末やタブレットがポールの台座に装着されていれば、<b>端末のセンサー</b> の値を「端末」表示付きで示します。</li>
+  <li><b>端末の較正 — 必要な時だけ自動:</b> 受信機が傾斜を送信せず端末が未較正の場合、自動でメッセージが表示されます: <b>ポールの先端を固定したまま、前後と左右に揺らしてください</b> (数度、約 10″)。バーが満たされると気泡は自動で較正され、水準器もボタンも不要です。台座上の端末の位置を変えた場合のみ再実行します: 気泡に「較正」と表示されている時にタップするか、気泡の設定から行います。</li>
+  <li><b>独自の上限:</b> 精度を上げるため、メーカーより小さい上限 (例: 30°) を設定できます。</li>
+  <li><b>高さ:</b> 受信機がポール先端の位置を出力する場合、ポール高は <b>受信機側で</b> 設定され、アプリでは再度差し引きません。この設定は初期状態で有効です。</li>
+  <li><b>記録:</b> 各点に観測中の最大傾斜と受信機モデルが記録されます。</li>
+  <li>アプリは受信機が角度を送信する場合にチェックします (PASHR、PSAT HPR、PTNL AVR、HPD メッセージ、または Unicore の傾斜状態)。角度を送信しない場合は「∠ IMU」と表示されるので、メーカーの上限を自分で守ってください。</li>
+  <li>作業前に、<b>傾けたポールで</b> 既知点を観測してください。これでポール高と初期化を確認できます。</li>
+</ul>
+
+<h3>フローティング観測ボタン</h3>
+<p>マップ上に丸い <b>● 観測</b> ボタンがあります。測設では紫になり <b>記録</b> と表示されます。</p>
+<ul>
+  <li><b>タップ</b> = 観測 (大きなボタンと同じ)。観測中はオレンジ (■)、点が保存されると緑 (✓) になります。</li>
+  <li><b>ドラッグ</b> = 手に合った位置へ移動し、位置を記憶します。ドラッグ中は観測しません。</li>
+  <li>設定 → <b>フローティング観測ボタン</b>:「✋ 左利き」/「右利き ✋」で対応する側へ移動します。手袋用の「大きなボタン」オプションがあり、無効にすることもできます。</li>
+  <li>その下に Survey または Stakeout カードが開くと、ボタンは自動でカードの上へ移動します。</li>
+</ul>
+
+<h3>通話とバックグラウンド動作</h3>
+<p>受信機が接続されている間、または NTRIP や static の実行中は、アプリは <b>優先的にバックグラウンドでも</b> 動作します。電話がかかってきても、他のアプリを開いても、画面が消えても、何も止まりません:</p>
+<ul>
+  <li>受信機との接続、NTRIP 補正、連続観測、static 記録は通常どおり継続します。</li>
+  <li>通知に「HEXIS PAD — 受信機接続済み · NTRIP」と表示されます。タップするとアプリに戻ります。初回は Android が通知の権限を求めるので、<b>許可</b> を押してください。</li>
+  <li>通話中はアプリは話さず (音声確認)、音声コマンドのマイクは戻るまで停止します。</li>
+  <li>通話中に Bluetooth が切れても、バックグラウンドで自動再接続します。</li>
+  <li>受信機を切断し NTRIP を停止すると、通知は消えます。</li>
+</ul>
+<p class="muted">一部の端末 (Xiaomi、Huawei、「バッテリー節約」が有効な Samsung) では、Android のバッテリー設定で HEXIS PAD を「制限なし」にしてください。</p>
+
+<h3>音声コマンド</h3>
+<p><b>🎙 音声</b> ツール、または ホーム → 音声コマンド、または 設定 → 音声コマンド。聞き取り中はマップ上に緑の「🎙 聞き取り中…」表示が出ます。タップすると無効になります。</p>
+<ul>
+  <li><b>「取得」</b> (または「観測」「記録」): 点を観測します。測設では Pn を記録します。</li>
+  <li><b>「削除」</b>: 最後に観測した点を削除します。次の番号がその名前を再利用します。</li>
+  <li><b>「元に戻す」</b>: 15 s 以内なら削除した点を復元します。画面には黄色の「↶ 元に戻す」ボタンもあります。</li>
+  <li><b>「次へ」/「前へ」</b>: 測設点。</li>
+  <li><b>「キャンセル」/「ストップ」</b>: 観測または連続観測を停止します。</li>
+</ul>
+<p>アプリは音声で確認します (「P12 を保存しました」)。初回はマイクの権限を求めます。認識は端末の音声サービスで行われます。オフライン用の言語データをダウンロードしていれば (Android の設定 → 音声認識)、インターネットなしでも動作します。<b>⌫ 最後を削除</b> ツールは、ワンタップで「削除」と同じ操作を行います。</p>
+
+<h2 id="qc">6. RTK の連続品質管理 (QC)</h2>
+<p>NOAA/NGS の RTK ガイドライン (クラス RT1–RT4) と ISO 17123-8 の考え方に基づいています。<b>全エポック</b> と <b>全観測</b> をチェックします。</p>
+<table>
+  <tr><th>クラス</th><th>精度 95% (水平/鉛直)</th><th>PDOP</th><th>衛星</th><th>s (1s)</th><th>エポック</th></tr>
+  <tr><td>RT1 · 基準点網 / 器械点</td><td>2 / 4 cm</td><td>≤ 2</td><td>≥ 7</td><td>1 cm</td><td>180</td></tr>
+  <tr><td>RT2 · 高精度測量</td><td>4 / 5 cm</td><td>≤ 3</td><td>≥ 6</td><td>1.5 cm</td><td>12</td></tr>
+  <tr><td>RT3 · 地形測量 / 測設</td><td>6 / 8 cm</td><td>≤ 4</td><td>≥ 5</td><td>3 cm</td><td>15</td></tr>
+  <tr><td>RT4 · 簡易測量 / GIS</td><td>20 / 30 cm</td><td>≤ 6</td><td>≥ 5</td><td>5 cm</td><td>10</td></tr>
+</table>
+<ul>
+  <li><b>リアルタイム</b>: FIX 解、FIX 継続時間、sH/sV、PDOP、衛星数、補正データ遅延、<b>ジャンプ検出</b> (ポール静止中の FIX での急な移動 — 誤った解の可能性。FIX 時間はリセットされます)。</li>
+  <li><b>観測ごと</b>: エポックのばらつき (std)、最大偏差、最悪 sH/PDOP、最小衛星数、ジャンプ、非 FIX エポック。結果: <b>OK / 注意 / 不合格</b> — 各点と CSV に保存されます。</li>
+  <li>既知点での <b>チェック観測</b>: 点 → 点 → ✓ チェック観測。クラスの許容値と比較します。</li>
+</ul>
+<div class="tip warn"><b>推奨手順 (NGS):</b> 開始時、途中、終了時に既知点でチェック。重要な点は、時間をおいた独立した 2 回の観測 (RT1/RT2 は ~4 時間) と、その間の再初期化 (アンテナを ~5 s 覆うか、30 m 以上移動)。ポール高を 1–2 dm 変えて高さをチェック。</div>
+
+<h2 id="stake">7. 測設 (Stakeout)</h2>
+<div class="shots"><figure><img src="pad-help/18_menu_xaraxi.webp" alt="ホーム → 測設: 点、線、床、直角出し、グリッド" loading="lazy"><figcaption>ホーム → 測設: 点、線、床、直角出し、グリッド</figcaption></figure><figure><img src="pad-help/10_xaraxi.webp" alt="点の測設: 矢印、距離、前/右、高さ" loading="lazy"><figcaption>点の測設: 矢印、距離、前/右、高さ</figcaption></figure><figure><img src="pad-help/11_xaraxi_konta.webp" alt="点の上: 緑、cm 単位のターゲット" loading="lazy"><figcaption>点の上: 緑、cm 単位のターゲット</figcaption></figure></div>
+<h3>点</h3>
+<p>目標はリストから選択するか、◀ ▶ (次/前)、またはマップ上の ⌖ (点、DXF/DWG の頂点) で選びます。ターゲット円は、遠いと矢印を、近いと目盛り付きリングを表示します。緑 = 許容範囲内 (音と振動付き)。</p>
+<p><b>方向基準</b>:「基準: 移動」(歩く方向に対する前/後、右/左)、「基準: 北」(dX/dY)、「基準: 点」(点への方向、例: 杭の方を向いて)。<b>切土 / 盛土</b> = 設計 Z − 地盤。</p>
+<h3>線</h3>
+<p>図面のポリライン (円弧を含む)、2 点、または観測した線。STA 空欄 = リアルタイムの追加距離と垂直距離。STA + Offset = 目標。▶ で「間隔」ずつ進みます。</p>
+<h3>面 (床、勾配)</h3>
+<p>COGO → 床勾配 から: 基準点 + 主/横断勾配 %、3 点による平面、または水平。設計 Z と切土/盛土をリアルタイムで表示します。</p>
+<h3>直角出し</h3>
+<p>基線 A→B: A からの STA と垂直距離 (+右)。チェック用対角線付きで矩形の 4 隅を作成します。</p>
+<p><b>⛶</b> 大きな数字の全画面測設。<b>● 記録</b>: 測設した点を観測し、目標名に「n」を付けた名前 (例: P1 → <b>P1n</b>) で、目標からの dX/dY/dZ とともに、測設画面を離れずに保存します。その後自動で次へ進みます。<b>📄 測設確認ファイル</b>: 目標、測設点、偏差、許容範囲内/外の表示を含む CSV と TXT — 保存、共有、またはメール。許容値: 設定。</p>
+
+<h2 id="cogo">8. COGO</h2>
+<div class="shots"><figure><img src="pad-help/12_cogo.webp" alt="COGO 計算" loading="lazy"><figcaption>COGO 計算</figcaption></figure></div>
+<table>
+  <tr><th>ツール</th><th>用途</th></tr>
+  <tr><td>距離 / 方位角</td><td>水平/斜距離、方位角 (度と grad)、dX dY dZ、勾配。</td></tr>
+  <tr><td>勾配観測</td><td>点 A から現在位置または点 B へ: %、‰、度、1:n。</td></tr>
+  <tr><td>直線の延長</td><td>B の先 (または A の手前) の距離にある点、横方向の距離付き。</td></tr>
+  <tr><td>線形の点密度化</td><td>A→B または図面の線上に間隔ごとの測設点を offset 付きで作成。</td></tr>
+  <tr><td>到達困難点</td><td><b>前 2 点 + 後 2 点</b>: 点の手前の直線上で 1、2 を、先の直線上で 3、4 を観測します (ボタンが手順を案内し、自動で次へ進みます)。2 直線の交点が求める点で、直線の交差角、2 と 3 からの距離、Z 差、幾何配置が弱い場合の警告を表示します。その他: 距離 + 方位角 (レーザー、磁気偏角と子午線収差を考慮)、距離による交会、直線の延長、直線交会 (建物の角)。</td></tr>
+  <tr><td>床勾配 / 面</td><td>標高測設用の設計面を定義。</td></tr>
+  <tr><td>施工用直角出し</td><td>直角のチェック (″ と mm)、基線から測設、矩形の角。</td></tr>
+  <tr><td>面積 / 周長</td><td>順に並べた点から (m² とストレマ)。</td></tr>
+  <tr><td>現場キャリブレーション</td><td>ローカル網の既知点による 4 パラメータ変換 + Z シフト、残差付き。</td></tr>
+</table>
+<p>各点入力欄で: 名前を入力、☰ リスト、📍 現在位置、● 今すぐ観測。結果: 💾 保存 または ◎ 測設。</p>
+
+<h3>多角形の辺からのグリッド (植樹、杭)</h3>
+<p>COGO → <b>⁘ グリッド</b>、または列の ⁘ ツール。</p>
+<ol>
+  <li><b>多角形:</b> 観測した線 (例: コード「境界」で観測した境界)、DXF/DWG 図面の閉じたポリライン、または順に選んだ頂点。</li>
+  <li><b>基準辺:</b> 列はこれに平行になります (offset)。初期値は最長辺で、マップ上に赤で表示されます。</li>
+  <li><b>間隔:</b> 列内 (例: 5 m) と列間 (例: 5 m)。基準辺からの 1 列目の offset と、全境界からの最小距離も設定します。</li>
+  <li><b>パターン:</b> 正方形 または 千鳥 (1 列おきに半間隔ずらす)。「中央揃え」を選ぶと、各列の左右の余白が均等になります。</li>
+  <li>プレビューは点数と列数とともに、マップ上にリアルタイムで表示されます (緑の点)。</li>
+  <li><b>✓ 測設点を作成</b>: 点には名前 D1、D2… とコード「樹木」が付きます (変更可)。番号は <b>蛇行順</b> (往復) なので、「次へ」で常に隣の点へ移動します。測設は D1 からすぐに始まります。</li>
+</ol>
+
+<h3>Relocalize — 点を既知点へシフト</h3>
+<p><b>誤った FIX</b> や間違ったベースで観測し、すべてずれてしまった点に使います。計算 → <b>Relocalize</b> (または ⇄ ツール)。</p>
+<ol>
+  <li><b>移動する点:</b> すべて、特定の日に観測した点、または点 A から B まで。既知点と三角点は決して変更されません。</li>
+  <li><b>既知点:</b>「＋ 既知点を追加」→ 誤った位置にある <b>観測点</b> を選択します。次に <b>正しい</b> 座標を、リストの既知点から、または手入力で指定します。</li>
+  <li><b>既知点 1 点:</b> dX、dY、dZ のシフトのみ。<b>2 点:</b> シフトと回転。<b>3 点以上:</b> 残差 (RMS) のチェックと、任意で縮尺も。</li>
+  <li>dX、dY、dZ、回転、残差を確認し、<b>適用</b> を押します。すべての点が正しい位置へ移動し、各点のメモに補正内容が記録されます。</li>
+  <li><b>↶ 最後の relocalize を元に戻す</b>: 点は元どおりに戻ります。直近 10 件の補正が保持されます。</li>
+</ol>
+
+<h2 id="crs">9. 座標系</h2>
+<p><b>GGRS87 — HEPOS 公式モデル</b> (初期設定): ギリシャ地籍による HTRS07 → GGRS87 変換 (7 パラメータ + 2 km の dE/dN 補正グリッド、双一次補間) をアプリに内蔵 — ファイルは一切不要です。ギリシャ地籍の公式例で検証済みで、偏差は 1 mm 未満です。HEPOS および ETRS89 を提供するネットワークで使用してください。カステロリゾ島には専用モデル (3 シフト、TM87、lon0 = 27°) が適用されます。</p>
+<div class="tip warn">「GGRS87 — 3 パラメータ」(EPSG:2100) は近似です: グリッドなしでは偏差が平均 ~0.6 m、地域によっては 2 m を超えます。標高: ギリシャ地籍の HEPOS パッケージにはまだ公式ジオイドがありません — 正標高は受信機のモデルから得られます。cm 精度が必要なら、標高既知点 2–3 点で現場キャリブレーションを行ってください。</div>
+<p>その他の国: アプリが位置から座標系とジオイドを自動で選びます — <a href="#abroad">海外での作業</a>を参照。任意の国向けに<b>独自の proj4 定義</b>を入力することもできます。標高: 受信機の正標高または楕円体高。ローカル網には: COGO → 現場キャリブレーション。</p>
+
+<h2 id="abroad">海外での作業</h2>
+<p>アプリは受信機の位置から<b>現在いる国</b>を自動で判別し、その国の公式座標系、標高用の<b>国のジオイドモデル</b> (無償で公開されている場合)、およびその国の<b>常設基準局ネットワーク</b>の一覧 (現地版の HEPOS に相当) を NTRIP に設定します。</p>
+<ul>
+  <li><b>ギリシャ:</b> すべてそのまま — GGRS87 / HEPOS、ギリシャ地籍、KAEK — <b>どの言語を選んでいても</b>変わりません。言語によって座標系や背景地図が変わることはありません。</li>
+  <li><b>ギリシャ国外:</b> ギリシャ地籍と KAEK のレイヤーは<b>表示されません</b> (列にも背景地図にも表示されません)。</li>
+  <li><b>自動切り替えは空のプロジェクトのみ。</b>プロジェクトにすでに点がある場合、アプリは一度だけ確認します: 現在の座標系を維持する、切り替える、または新しい国で新規プロジェクトを始める。作業の途中で座標系を変えることはありません。</li>
+  <li><b>ジオイド:</b> 初回にダウンロードされ (インターネットが必要)、オフライン作業のために端末に保存されます。正標高は受信機の楕円体高から H = h − N で計算されます。国のモデルがない場合、標高は受信機の値を使います。</li>
+  <li><b>手動:</b> 受信機と RTK → 座標系。作業国とジオイドが表示され、自動選択をオフにしたり、「現在地に適用」をタップしたり、別の座標系 / 独自の proj4 を選んだりできます。</li>
+</ul>
+<table><tr><th>国</th><th>座標系</th><th>ジオイド</th><th>NTRIP ネットワーク</th></tr>
+<tr><td>キプロス</td><td>CGRS93 / LTM</td><td>受信機</td><td>CYPOS</td></tr>
+<tr><td>スペイン</td><td>ETRS89 / UTM 29–31 (カナリア諸島: REGCAN95 / UTM 27–28)</td><td>EGM08-REDNAP (IGN)</td><td>ERGNSS (IGN), 地域網</td></tr>
+<tr><td>フランス</td><td>RGF93 / Lambert-93</td><td>RAF20 (IGN)</td><td>Teria, Orphéon, Sat-Info</td></tr>
+<tr><td>ドイツ / オーストリア</td><td>ETRS89 / UTM 32–33</td><td>GCG2016 (BKG) (ドイツ)</td><td>SAPOS · APOS, EPOSA</td></tr>
+<tr><td>イタリア</td><td>RDN2008 / UTM 32–34</td><td>受信機</td><td>NetGEO, ItalPoS, 地域網</td></tr>
+<tr><td>ポーランド</td><td>PL-2000 ゾーン 5–8</td><td>PL-geoid2021 (GUGiK)</td><td>ASG-EUPOS, TPI NET PRO</td></tr>
+<tr><td>イギリス</td><td>British National Grid</td><td>OSGM15</td><td>OS Net, SmartNet</td></tr>
+<tr><td>オランダ</td><td>RD New</td><td>NLGEO2018</td><td>NETPOS, 06-GPS</td></tr>
+<tr><td>日本</td><td>JGD2011 平面直角座標系 (19 系)</td><td>GSIGEO2011</td><td>Jenoba, ichimill</td></tr>
+<tr><td>韓国 / 中国 / ロシア</td><td>Korea 2000 ベルト · CGCS2000 3° · GSK-2011</td><td>受信機</td><td>NGII · Qianxun · EFT-CORS</td></tr>
+<tr><td>イスラエル / サウジアラビア</td><td>Israeli TM Grid · KSA-GRF17 / UTM</td><td>受信機</td><td>APN · SACORS</td></tr>
+<tr><td>その他の国</td><td>WGS84 / UTM ゾーン自動</td><td>受信機</td><td>SmartNet, VRS Now</td></tr></table>
+<div class="tip warn">イギリスとオランダ: 公式の OSTN15 / RDNAPTRANS グリッドがないと、水平誤差は ±1–2 m に達します。日本: 最も近い系の原点が選ばれます — 作業地の都道府県の系であることを確認してください。ローカル座標系でセンチメートル精度を得るには: COGO → 現場キャリブレーション (2–3 点の既知点で)。</div>
+<div class="shots"><figure><img src="pad-help/27_xora_nea.webp" alt="プロジェクトに点がある状態で新しい国へ: アプリは一度だけ確認します" loading="lazy"><figcaption>プロジェクトに点がある状態で新しい国へ: アプリは一度だけ確認します</figcaption></figure><figure><img src="pad-help/28_xora_systima.webp" alt="座標系: 作業国と国のジオイド" loading="lazy"><figcaption>座標系: 作業国と国のジオイド</figcaption></figure></div>
+
+<h2 id="map">10. マップと背景地図</h2>
+<p>列の <b>▦ 地籍</b> で、白地図上の筆界と KAEK の表示/非表示を切り替え、<b>◐ 衛星</b> で白地図/衛星画像を切り替えます。≣ → 背景: Esri 衛星画像 / 道路 / 地形図、OpenStreetMap、Google (設定で自分の Map Tiles API key を入力)。オーバーレイ: Esri 注記、<b>ギリシャ地籍</b> (筆界 WMS)、<b>HEXIS KAEK</b> (KAEK の境界と番号)。DXF/DWG の layers の表示切替もできます。</p>
+<p>マップ上の点をタップ = <b>測設</b>、<b>✎ プロパティ</b> (名前、コード、X/Y/Z、種類、メモ)、ℹ 詳細、<b>🗑 削除</b>。図面の頂点/線をタップ = 測設 または新しい点。ダブルタップ = ズームイン。📏 = マップ上で長さ/面積を計測。◎ = 現在位置を追従。⤢ = 全体表示。</p>
+
+<h2 id="files">11. ファイルとメール</h2>
+<div class="shots"><figure><img src="pad-help/15_eisagogi.webp" alt="インポート: TXT、CSV、XLSX、DXF、DWG、KML" loading="lazy"><figcaption>インポート: TXT、CSV、XLSX、DXF、DWG、KML</figcaption></figure><figure><img src="pad-help/14_exagogi.webp" alt="エクスポート: 形式、写真、メール" loading="lazy"><figcaption>エクスポート: 形式、写真、メール</figcaption></figure><figure><img src="pad-help/13_simeia.webp" alt="座標付きの点リスト" loading="lazy"><figcaption>座標付きの点リスト</figcaption></figure></div>
+<h3>インポート</h3>
+<p><b>メールから:</b> 添付ファイルをタップ →「アプリで開く」→ <b>HEXIS PAD</b>。インポートウィザードが直接開きます。既にダウンロード済みの場合: インポート →「ファイルを選択」。ダイアログは直接 <b>ダウンロード</b> フォルダで開きます。</p>
+<p>「ファイルを選択」ボタン1つで、種類は自動認識されます:</p>
+<ul>
+  <li><b>TXT、CSV、XYZ、PNT、DAT</b>: 任意の区切り文字 (カンマ、セミコロン、タブ、スペース)、小数点はカンマまたはピリオド、ギリシャ語エンコーディング。</li>
+  <li><b>XLS、XLSX、ODS</b>: シート選択。</li>
+  <li><b>DXF、DWG</b>: 背景図面。任意で dX/dY シフト、POINT を測設点としてインポート。</li>
+  <li><b>KML、GeoJSON</b>: 緯度・経度の点 → プロジェクト座標系に変換。</li>
+  <li><b>貼り付け</b>: メール、Excel、メッセージのテキスト。</li>
+</ul>
+<p>インポート前に <b>プレビュー</b> が表示されます: 列の表 (名前 / X / Y / Z / コード を自動認識 — 必要なら変更)、見出しの有無、X↔Y の入替、緯度/経度、点の簡易図、正しい範囲にあるかのチェック、重複名の処理 (名前を変更 / スキップ / 置き換え)。</p>
+<p>他のアプリ (Gmail、ファイル、Drive、Viber) から: <b>アプリで開く</b> または <b>共有 → HEXIS PAD</b>。ブラウザ版のタブレットでは: ファイルをマップ上にドラッグします。</p>
+<h3>エクスポート</h3>
+<p>クイック選択: <b>点のみ (TXT)</b>、<b>DXF (点 + 線)</b>、または <b>すべて</b>。または形式を個別にチェックします。点は内部で完全な精度で保存され、エクスポート時の座標は <b>小数 4 桁</b> (0.1 mm) で出力されます — 設定 →「エクスポート時の座標小数桁」で 3 または 5 に変更できます。</p>
+<p>TXT、CSV 完全版 (精度、QC、ベース、測設偏差、写真)、DXF (点/名前/標高/コードを layers に、線)、KML、GeoJSON、写真 — すべて ZIP に。<b>💾 保存</b> (ドキュメント/HEXIS PAD)、<b>↗ 共有</b>、または <b>✉ メール</b> (ファイル添付済みでメールアプリを開きます)。</p>
+
+<p><b>すべてのエクスポートに写真:</b> どのクイック選択 (「点のみ」「DXF」「すべて」) を選んでも、点の写真は <b>常に同梱</b> されます。<b>photos/</b> フォルダを含む ZIP ファイルにまとめられ、各写真の名前は点名になります。<b>測設ファイル</b> (CSV + TXT + 写真) も同様です。ある送信で不要な場合は「点の写真」のチェックを外してください。</p>
+
+<h2 id="power">バッテリーと電源</h2>
+<div class="shots"><figure><img src="pad-help/23_energeia.webp" alt="設定 → 電源: 画面を常にオン と省電力" loading="lazy"><figcaption>設定 → 電源: 画面を常にオン と省電力</figcaption></figure></div>
+<ul>
+  <li><b>画面を常にオン「作業中のみ」</b> (初期設定): 受信機が接続されていて直近 10 分以内に画面に触れた場合、または測設・連続観測・static の実行中は、画面が点灯したままになります。それ以外は通常どおり消灯し、受信機との接続と NTRIP は <b>バックグラウンドで継続</b> します。タッチすれば再点灯し、元の画面に戻ります。</li>
+  <li>マップは <b>表示内容が変わった時だけ再描画</b> されます: 移動した時や解が変わった時です。静止している間、処理は約 1/4 に下がります。</li>
+  <li><b>省電力</b>: 充電していない時、<b>バッテリー 30% 未満で自動</b> 的に有効になります。マップと表示は毎秒 2 回更新され、画面は 10 分ではなく 3 分間操作がないと消灯します。</li>
+  <li><b>気泡は影響を受けません</b>: 常に動作します。</li>
+  <li>すべて <b>設定 → 電源</b> で設定します:「画面を常にオン」(作業中のみ / 常に / 端末の設定に従う) と「省電力」(自動 / 常に / しない)。</li>
+  <li>ヒント: 最も電力を消費するのは画面の明るさです。日なたでは高くする必要がありますが、日陰や夜間は端末側で下げてください。</li>
+</ul>
+
+<h2 id="lic">ライセンス</h2>
+<div class="shots"><figure><img src="pad-help/16_adeia.webp" alt="設定 → ライセンス: 残り、コード、有効期限" loading="lazy"><figcaption>設定 → ライセンス: 残り、コード、有効期限</figcaption></figure></div>
+<ul>
+  <li>コードは最初に入力した <b>デバイスにロック</b> されます。他のデバイスでは動作しません。端末を変更する場合は、ロック解除を依頼してください。</li>
+  <li><b>使用時間ライセンス</b> (例: 現場 7 または 10 時間): <b>アプリが画面に表示されている時間のみ</b> カウントされます — 画面が消えたりアプリを離れたりするとカウントは止まります。終了 30′ 前と 10′ 前に警告します。時間は「ライセンス」に表示される日付まで有効です。</li>
+  <li><b>日数制の試用ライセンス:</b> 日数は有効化した時点からカウントされます。</li>
+  <li>どちらの種類でも、現場では <b>インターネットなし</b> で通常どおり動作します。使用時間は接続時に送信されます。ライセンスはインターネットがあれば自動で確認されます。デバイスが <b>7 日以上</b> まったくインターネットに接続しない場合 (オーナーデバイスは 30 日)、短い確認を求めます: モバイルデータをオンにして <b>有効化</b> を押してください。</li>
+  <li>ライセンスは <b>サーバーによって署名</b> されており、アプリは正規版であることを確認します。HEXIS PAD は必ず <b>hexis-app.gr/pad.html</b> からダウンロードしてください。改変されたバージョンは起動しません。</li>
+  <li><b>設定 → ライセンス:</b> コード、残り時間または日数、使用量、正確な有効期限を確認できます。<b>今すぐチェック</b> で即座に更新されます (例: 延長後)。</li>
+  <li>有効期限が切れるか時間を使い切ると、コード画面が開きます。プロジェクトと点はデバイスに残ります。延長後、同じコードで再度 <b>有効化</b> を押せば、中断したところから続けられます。</li>
+  <li>デバイスの時刻は正しくなければなりません。時刻が巻き戻されると、アプリはインターネットによる確認を求めます。</li>
+  <li><b>自分のデバイス (オーナー):</b> コード画面で「HEXIS-APP アカウントでオーナーログイン」を押し、hexis-app.gr のメールとパスワードを入力します。管理者アカウントは、有効期限も時間カウントもなしに、任意の数のデバイス (スマートフォン、タブレット) を永続的にロック解除します。パスワードはデバイスに保存されません。</li>
+  <li>コード、延長、購入のお問い合わせ: <b>693 322 6314</b> (通話 · WhatsApp · Viber)。</li>
+</ul>
+<h2 id="photo">12. 写真</h2>
+<p>📷 は Survey (最後の点)、測設 (最後の測設点)、または点の詳細から使えます。各写真には名前、コード、座標、日付、解の透かしが入り、点名でエクスポートされます。</p>
+<p><b>保存場所:</b> 各写真はプロジェクト内に、対応する点に紐づけて保存されます。点の詳細から開き、<b>エクスポート → 写真 (ZIP) / メール</b> で出力します。さらに、アプリをアンインストールしても失われないよう、<b>端末にコピー</b> がフォルダ <b>ドキュメント/HEXIS PAD/写真/&lt;プロジェクト&gt;/</b> に点名で自動保存されます。コピーは 設定 →「各写真のコピーを端末に保存」でオフにできます。</p>
+<p><b>測設時の記録:</b> 点に到着したら <b>● 記録</b> を押します。新しい点 (例:「3n」) として、目標からの偏差 dX / dY / dZ とともに観測され、測設ファイルに追加されます。</p>
+
+<footer>HEXIS PAD · HEXIS-APP · hexis-app.gr — powered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.<br>
+HEPOS 変換: Kotsakis, Katsambalos, Giannou,「Coordinate transformation model between HTRS07 and GGRS87」, School of Rural and Surveying Engineering AUTh / Hellenic Cadastre S.A., 2008.<br>QC の参考文献: NOAA/NGS,「User Guidelines for Single Base Real Time GNSS Positioning」v2.1 · ISO 17123-8,「Field procedures for testing geodetic and surveying instruments — Part 8: GNSS field measurement systems in RTK」.</footer>
+</main>
+</body>
+</html>
