@@ -558,6 +558,10 @@ td { font-size: 14px; padding: 11px 12px; }
 #new-entry-btn { background: var(--neo-primary) !important; color: var(--neo-on-primary) !important; box-shadow: 0 8px 24px var(--neo-glow) !important; border-radius: 12px !important; }
 /* Ετικέτες με κεφαλαία: Manrope (τα ελληνικά της mono δεν διαβάζονται άνετα) */
 .sidebar-group, th, .form-label, .home-group { font-family: var(--f-body); font-weight: 800; }
+/* Κινητό: καρτελάκι εργαλείων μικρότερο, κάτω δεξιά — δεν πέφτει πάνω στις κάρτες */
+@media (max-width: 768px) {
+  #qt-handle { top: auto; bottom: calc(110px + var(--safe-bottom)); transform: none; width: 26px; height: 54px; border-radius: 10px 0 0 10px; font-size: 15px; }
+}
 @media (max-width: 420px) {
   .tab { font-size: 12.5px; padding: 8px 11px; }
   .proj-actions .btn { font-size: 12px !important; }
@@ -4787,7 +4791,7 @@ function buildReportHTML(period, lang, trMap) {
   }
 
   const engCount = [...new Set(allE.map(e=>e.engineer).filter(Boolean))].length;
-  const hexisLogo = '<svg width="48" height="48" viewBox="0 0 100 100" style="vertical-align:middle"><polygon points="50,8 86,29 86,71 50,92 14,71 14,29" fill="none" stroke="#0089A8" stroke-width="4"/><polygon points="50,28 68,39 68,61 50,72 32,61 32,39" fill="#5B3BD6"/><text x="50" y="58" font-size="24" font-weight="bold" fill="#fff" text-anchor="middle" font-family="Arial">H</text></svg>';
+  const hexisLogo = '<svg width="48" height="48" viewBox="0 0 100 100" style="vertical-align:middle"><polygon points="50,8 86,29 86,71 50,92 14,71 14,29" fill="none" stroke="#E8772E" stroke-width="4"/><polygon points="50,28 68,39 68,61 50,72 32,61 32,39" fill="#E8772E"/><text x="50" y="58" font-size="24" font-weight="bold" fill="#fff" text-anchor="middle" font-family="Arial">H</text></svg>';
   const brbLogo = '<img src="' + window.BRB_LOGO_DATA + '" style="height:48px;border-radius:4px;vertical-align:middle">';
   const partnerLogo = window._customLogo ? '<img src="' + window._customLogo + '" style="height:48px;max-width:200px;object-fit:contain;vertical-align:middle">' : brbLogo;
   // ── Εξώφυλλο (1η σελίδα): logos + έργο + χάρτης με πινέζα ──
@@ -5217,6 +5221,8 @@ async function buildReportDocDef(period, lang, trMap) {
   // ── Εξώφυλλο/κεφαλίδα ──
   const partner = window._customLogo || window.BRB_LOGO_DATA || null;
   const headCols = [];
+  // λογότυπο HEXIS-APP (αμετάβλητο, στα δικά του χρώματα) + λογότυπο γραφείου
+  headCols.push({ svg: '<svg width="44" height="44" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><polygon points="50,8 86,29 86,71 50,92 14,71 14,29" fill="none" stroke="#E8772E" stroke-width="5"/><polygon points="50,28 68,39 68,61 50,72 32,61 32,39" fill="#E8772E"/><text x="50" y="59" font-size="24" font-weight="bold" fill="#ffffff" text-anchor="middle" font-family="Helvetica">H</text></svg>', width: 44 });
   if (partner) headCols.push({ image: partner, fit: [120, 40], width: 130 });
   headCols.push({ stack: [
     { text: 'HEXIS-APP — ' + L3('Αναφορά Προόδου Εργοταξίου','Site Progress Report','Raport i Progresit të Kantierit'), style: 'h1' },
