@@ -144,3 +144,23 @@ begin
     update entitlements set active = not p_on where user_id = k.redeemed_by and module = 'syntetagmenes_pro';
   end if;
 end $$;
+
+-- ---------- Το Pro περιλαμβάνει το Basic ----------
+-- Όταν ενεργοποιείται/ανανεώνεται το «syntetagmenes_pro» (αγορά, κλειδί, admin), ανοίγει και το «syntetagmenes»
+-- τουλάχιστον μέχρι την ίδια ημερομηνία — ώστε το εργαλείο να φαίνεται ενεργό στο Hub και να ανοίγει κανονικά.
+create or replace function public.geo_pro_sync() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.active then
+    insert into entitlements(user_id, module, active, expires_at) values (new.user_id, 'syntetagmenes', true, new.expires_at)
+    on conflict (user_id, module) do update set active = true,
+      expires_at = case
+        when excluded.expires_at is null then null
+        when entitlements.active and entitlements.expires_at is null then null
+        when entitlements.active then greatest(entitlements.expires_at, excluded.expires_at)
+        else excluded.expires_at end;
+  end if;
+  return new;
+end $$;
+drop trigger if exists geo_pro_sync on public.entitlements;
+create trigger geo_pro_sync after insert or update of active, expires_at on public.entitlements
+  for each row when (new.module = 'syntetagmenes_pro') execute function public.geo_pro_sync();

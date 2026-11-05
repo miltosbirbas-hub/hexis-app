@@ -81,6 +81,16 @@ jobs:
           done
       - name: Secrets (μόνο ονόματα, για έλεγχο)
         run: supabase secrets list --project-ref "$REF" | awk -F'|' 'NR>2{gsub(/ /,"",$1);print $1}'
+      - name: Δοκιμή geo-pro (GEOmetry Pro)
+        run: |
+          U="https://$REF.supabase.co/functions/v1/geo-pro"; K="sb_publishable_AjcKB0okxSvA9SUBazKEHQ_-HR0FMHP"
+          a=$(curl -sS -X POST "$U" -H "apikey: $K" -H "Content-Type: application/json" -d '{}'); echo "χωρίς σύνδεση: $a"
+          echo "$a" | grep -q '"login"' || { echo "::error::geo-pro δίνει απάντηση χωρίς σύνδεση"; exit 1; }
+          KEY=$(openssl rand -hex 32); echo "::add-mask::$KEY"
+          supabase secrets set SELFTEST_KEY=$KEY --project-ref "$REF" --yes >/dev/null; sleep 25
+          b=$(curl -sS -X POST "$U" -H "apikey: $K" -H "x-hx-selftest: $KEY" -H "Content-Type: application/json" -d '{}'); echo "αποκρυπτογράφηση: $b"
+          echo "$b" | grep -q '"selftest":true' || { echo "::error::geo-pro: δεν απάντησε ο αυτοέλεγχος"; exit 1; }
+          echo "$b" | grep -q '"ok":true' || echo "::warning::geo-pro: ο κώδικας Pro δεν είναι ακόμα έτοιμος (κενό bundle;)"
       - name: Δοκιμή pad-lic
         run: |
           U="https://$REF.supabase.co/functions/v1/pad-lic"; K="sb_publishable_AjcKB0okxSvA9SUBazKEHQ_-HR0FMHP"

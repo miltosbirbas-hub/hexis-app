@@ -7,6 +7,7 @@
 // Είσοδος (POST, Authorization: Bearer <JWT χρήστη hexis-app.gr>)
 // Έξοδος : { ok:true, until, code }  — μόνο αν ο λογαριασμός έχει ενεργό «syntetagmenes_pro» (ή είναι admin)
 //          { ok:false, code:'login'|'pro'|'not_ready'|'server' }
+// Αυτοέλεγχος CI: header x-hx-selftest = SELFTEST_KEY → { ok, bytes, names } χωρίς τον κώδικα.
 // Verify JWT: OFF (ο χρήστης ελέγχεται εδώ).
 // ============================================================================
 import nacl from "npm:tweetnacl@1.0.3";
@@ -48,6 +49,13 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: H });
   if (req.method !== "POST") return json({ ok: false, code: "method" }, 405);
   try {
+    // αυτοέλεγχος του CI (προσωρινό κλειδί μιας εκτέλεσης): επιβεβαιώνει την αποκρυπτογράφηση χωρίς να δίνει κώδικα
+    const st = req.headers.get("x-hx-selftest"), stk = Deno.env.get("SELFTEST_KEY");
+    if (st && stk && st === stk) {
+      const c = proCode();
+      const names = ["DGM", "DgmPraxis", "PraxisDescr", "DgmSheet", "TopoSheet", "CmdCheck"].filter((n) => c && c.includes("." + n + "="));
+      return json({ ok: !!c && names.length === 6, selftest: true, bytes: c ? c.length : 0, names });
+    }
     const auth = req.headers.get("authorization") || "";
     if (!/^Bearer\s+\S+/.test(auth)) return json({ ok: false, code: "login" }, 401);
     const anon = Deno.env.get("SUPABASE_ANON_KEY") || ANON;

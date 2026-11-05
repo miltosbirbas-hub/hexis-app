@@ -192,11 +192,24 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
     <button data-go="interior"><span>Interior · κλειδιά</span><b id="nIx"></b></button>
     <button data-go="mapping"><span>Mapping · κλειδιά</span><b id="nMap"></b></button>
     <button data-go="pad"><span>PAD · κλειδιά</span><b id="nPad"></b></button>
+    <button data-go="geo"><span>GEOmetry Pro · κλειδιά</span><b id="nGeo"></b></button>
     <button data-go="payments"><span>Πληρωμές</span><b id="nPay"></b></button>
     <button data-go="requests"><span>Αιτήματα</span><b id="nReq"></b></button>
     <button data-go="sos" class="sosnav" data-app="interior" title="Αναφορές προβλημάτων από το HEXIS INTERIOR"><span>🆘 SOS Interior</span><b id="nSos"></b></button><button data-go="sosmap" class="sosnav" data-app="mapping" title="Αναφορές προβλημάτων από το HEXIS MAPPING"><span>🆘 SOS Mapping</span><b id="nSosMap"></b></button>
   </nav>
 
+  <div class="card" id="geoCard" data-sec="geo">
+    <h2>HEXIS GEOmetry Pro · κλειδιά <span class="count" id="geoCnt">0</span><span style="flex:1"></span><button class="btn" id="geoRef" type="button">↻</button></h2>
+    <div class="ixgrid">
+      <div><label>Πόσα κλειδιά</label><input id="geoN" type="number" min="1" max="50" value="1" style="width:80px!important"></div>
+      <div><label>Διάρκεια Pro</label><div style="display:flex;gap:6px;align-items:center"><input id="geoMo" type="number" min="1" max="60" value="12" style="width:80px!important"><span>μήνες</span></div><small style="color:var(--muted)">από την ενεργοποίηση</small></div>
+      <div><label>Email πελάτη</label><input id="geoEmail" type="email" placeholder="προαιρετικό"></div>
+      <div><label>Σημείωση</label><input id="geoNote" placeholder="προαιρετικό"></div>
+    </div>
+    <div class="ixrow"><span class="hint" style="margin:0;flex:1">Ο πελάτης βάζει το κλειδί στο GEOmetry → καρτέλα «Τοπογραφικό» → «Έχεις κλειδί Pro;». Κάθε κλειδί χρησιμοποιείται από έναν λογαριασμό. Η ανάκληση κλείνει και το Pro του λογαριασμού που το χρησιμοποίησε.</span><button class="btn btn-orange" id="geoNew">Νέα κλειδιά</button></div>
+    <div id="geoOut"></div>
+    <div class="ixtw scrl" id="geoList" style="max-height:calc(100vh - 470px)"><div class="empty">Φόρτωση...</div></div>
+  </div>
   <div class="card" id="padCard" data-sec="pad">
     <h2>HEXIS PAD · άδειες & χρήση <span class="count" id="padCnt">0</span><span style="flex:1"></span><span class="hint" id="padNow" style="margin:0;font-size:13px"></span><button class="btn" id="padRef" type="button" style="margin-left:8px">↻</button></h2>
     <div class="ixgrid">
@@ -834,16 +847,45 @@ document.getElementById('padNew').onclick=async()=>{const kind=document.getEleme
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn btn-orange" id="padCpK">Αντιγραφή κωδικού</button><button class="btn" id="padCpM">Αντιγραφή μηνύματος</button>${document.getElementById('padEmail').value?`<a class="btn" style="text-decoration:none" href="mailto:${encodeURIComponent(document.getElementById('padEmail').value)}?subject=${encodeURIComponent('HEXIS PAD · κωδικός πρόσβασης')}&body=${encodeURIComponent(msg)}">✉ Email</a>`:''}<a class="btn" style="text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">WhatsApp</a></div></div>`;
   o.querySelector('#padCpK').onclick=()=>{navigator.clipboard.writeText(data.key);toast('Αντιγράφηκε')};o.querySelector('#padCpM').onclick=()=>{navigator.clipboard.writeText(document.getElementById('padMsg').value);toast('Αντιγράφηκε')};
   ['padName','padEmail','padNote'].forEach(i=>document.getElementById(i).value='');padLoad()};
+// ===== HEXIS GEOmetry Pro · κλειδιά =====
+async function geoLoad(){const L=document.getElementById('geoList');if(!L)return;
+  const {data,error}=await sb.rpc('admin_geo_list');
+  if(error){L.innerHTML='<div class="empty">'+ixe(error.message)+' · τρέχει αυτόματα το geo-pro.sql — περίμενε λίγα λεπτά</div>';return}
+  const R=data||[],free=R.filter(r=>!r.redeemed_at&&!r.revoked).length;
+  document.getElementById('geoCnt').textContent=R.length;document.getElementById('nGeo').textContent=free?free:'';
+  const d=v=>v?new Date(v).toLocaleDateString('el-GR'):'—';
+  L.innerHTML=R.length?`<table><tr><th>Κλειδί</th><th>Διάρκεια</th><th>Για</th><th>Σημείωση</th><th>Εκδόθηκε</th><th>Ενεργοποίηση</th><th>Pro έως</th><th></th></tr>`+
+    R.map(r=>`<tr style="${r.revoked?'opacity:.5':''}"><td class="k">${ixe(r.key)} <button class="btn" data-gcp="${ixe(r.key)}" title="Αντιγραφή κλειδιού" style="padding:2px 7px">⧉</button></td>
+      <td>${r.months} μήν.</td><td class="wr">${ixe(r.email||'οποιονδήποτε')}</td><td class="wr">${ixe(r.note||'')}</td><td>${d(r.created_at)}</td>
+      <td class="wr">${r.redeemed_at?'<b>'+ixe(r.redeemed_email||'—')+'</b><br><small>'+d(r.redeemed_at)+'</small>':(r.revoked?'ανακλήθηκε':'<span class="muted">διαθέσιμο</span>')}</td>
+      <td>${d(r.pro_until)}</td>
+      <td><button class="btn ${r.revoked?'btn-ok':'btn-no'}" data-grv="${ixe(r.key)}" data-on="${r.revoked?0:1}">${r.revoked?'Επαναφορά':'Ανάκληση'}</button></td></tr>`).join('')+'</table>':'<div class="empty">Δεν έχουν εκδοθεί κλειδιά ακόμα.</div>';
+  L.querySelectorAll('[data-gcp]').forEach(b=>b.onclick=()=>{navigator.clipboard.writeText(b.dataset.gcp);toast('Αντιγράφηκε')});
+  L.querySelectorAll('[data-grv]').forEach(b=>b.onclick=async()=>{const on=b.dataset.on==='1';if(on&&!confirm('Ανάκληση του '+b.dataset.grv+';\nΑν έχει ήδη χρησιμοποιηθεί, κλείνει και το Pro του λογαριασμού.'))return;const {error}=await sb.rpc('admin_geo_revoke',{p_key:b.dataset.grv,p_on:on});toast(error?error.message:(on?'Ανακλήθηκε':'Επανήλθε'));geoLoad()});
+}
+document.getElementById('geoRef').onclick=()=>geoLoad();
+document.getElementById('geoNew').onclick=async()=>{const n=Math.round(+document.getElementById('geoN').value)||1,mo=Math.round(+document.getElementById('geoMo').value)||12,em=document.getElementById('geoEmail').value.trim();
+  const {data,error}=await sb.rpc('admin_geo_issue',{p_count:n,p_months:mo,p_email:em||null,p_note:document.getElementById('geoNote').value||null});
+  if(error){toast(error.message);return}
+  const keys=(data||[]).map(x=>typeof x==='string'?x:(x.admin_geo_issue||Object.values(x)[0]));
+  const msg=`Καλησπέρα,\n\nσου στέλνω ${keys.length>1?'τα κλειδιά':'το κλειδί'} για το HEXIS GEOmetry Pro (${mo} μήνες):\n\n${keys.join('\n')}\n\n1. Άνοιξε το HEXIS GEOmetry: https://hexis-app.gr/syntetagmenes.html (συνδεδεμένος στον λογαριασμό σου HEXIS-APP)\n2. Καρτέλα «Τοπογραφικό» → «Έχεις κλειδί Pro;» → γράψε το κλειδί → «Ενεργοποίηση».\n\nΚάθε κλειδί ενεργοποιείται σε έναν λογαριασμό.\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.`;
+  const o=document.getElementById('geoOut');o.innerHTML=`<div style="margin:10px 0;padding:12px 14px;border:2px solid #F7941D;border-radius:12px;background:#FFF8F0"><div style="font-size:13px;color:#667085">${keys.length>1?keys.length+' νέα κλειδιά':'Νέο κλειδί'} · Pro ${mo} μηνών${em?' · για '+ixe(em):''}</div>
+    <div style="font:700 22px var(--font-m);letter-spacing:1px;margin:4px 0 8px;white-space:pre-line">${keys.map(ixe).join('\n')}</div>
+    <textarea id="geoMsg" style="width:100%;height:170px;font-size:13px">${ixe(msg)}</textarea>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn btn-orange" id="geoCpK">Αντιγραφή κλειδιών</button><button class="btn" id="geoCpM">Αντιγραφή μηνύματος</button>${em?`<a class="btn" style="text-decoration:none" href="mailto:${encodeURIComponent(em)}?subject=${encodeURIComponent('HEXIS GEOmetry Pro · κλειδί ενεργοποίησης')}&body=${encodeURIComponent(msg)}">Άνοιγμα στο email</a>`:''}</div></div>`;
+  o.querySelector('#geoCpK').onclick=()=>{navigator.clipboard.writeText(keys.join('\n'));toast('Αντιγράφηκε')};o.querySelector('#geoCpM').onclick=()=>{navigator.clipboard.writeText(document.getElementById('geoMsg').value);toast('Αντιγράφηκε')};
+  ['geoEmail','geoNote'].forEach(i=>document.getElementById(i).value='');geoLoad()};
+(function geoWait(){const m=document.getElementById('main');if(m&&m.style.display!=='none'){geoLoad();return}setTimeout(geoWait,400)})();
 (function padWait(){const m=document.getElementById('main');if(m&&m.style.display!=='none'){padLoad();return}setTimeout(padWait,400)})();
 (function hxWait(){const m=document.getElementById('main');if(m&&m.style.display!=='none'){hxLoad();return}setTimeout(hxWait,400)})();
 
 document.querySelectorAll('#uTabs [data-st]').forEach(b=>b.onclick=()=>{USTAB=b.dataset.st;renderUsers()});
 // ===== Καρτέλες: μία ενότητα τη φορά, χωρίς κύλιση όλης της σελίδας =====
-(function(){const C=document.querySelector('.adc'),T=['users','interior','mapping','pad','payments','requests'];
+(function(){const C=document.querySelector('.adc'),T=['users','interior','mapping','pad','geo','payments','requests'];
   function go(g){if(g==='sosmap'){window.REPAPP='mapping';g='sos'}else if(g==='sos'){window.REPAPP='interior'}if(g==='sos'){g='interior';try{ixRepLoad()}catch(e){}setTimeout(()=>{const b=document.querySelector('[data-grp="ix"] [data-sub="rep"]');if(b)b.click()},50)}if(!T.includes(g))g='users';document.querySelectorAll('#adNav [data-go]').forEach(x=>x.classList.toggle('on',x.dataset.go===g));
     C.querySelectorAll('.card[data-sec]').forEach(c=>c.classList.toggle('show',c.dataset.sec===g));
     try{localStorage.setItem('hxAdmTab',g)}catch(e){}if(location.hash!=='#'+g)history.replaceState(null,'','#'+g);
-    if(g==='mapping')setTimeout(()=>{if(typeof mpOpen==='function')mpOpen()},0);if(g==='pad')setTimeout(()=>{if(typeof padLoad==='function')padLoad()},0);window.scrollTo({top:0})}
+    if(g==='mapping')setTimeout(()=>{if(typeof mpOpen==='function')mpOpen()},0);if(g==='pad')setTimeout(()=>{if(typeof padLoad==='function')padLoad()},0);if(g==='geo')setTimeout(()=>{if(typeof geoLoad==='function')geoLoad()},0);window.scrollTo({top:0})}
   document.querySelectorAll('#adNav [data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
   document.querySelectorAll('.subtabs').forEach(bar=>bar.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{
     bar.querySelectorAll('[data-sub]').forEach(x=>x.classList.toggle('on',x===b));
