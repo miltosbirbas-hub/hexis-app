@@ -424,6 +424,8 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
       if (smallSettlementRegime(L)) { const m = oikismosMax(E); if (m.max < max) { max = m.max; rule = m.rule + " (όριο οικισμού <2.000 κατ.)"; } } }
   } else { kalPct = 10; artMin = 4000; artPros = 25; const k = ektosKatoikia(E); if (k) { max = k.max; rule = k.rule; } else rule = "γήπεδο < 4.000 τ.μ.: μη άρτιο κατά κανόνα (έλεγχος παρεκκλίσεων άρ.273)"; }
   const artio = artMin == null ? "?" : (E >= artMin && (artPros == null || (front != null && front >= artPros))) ? "1" : (E < artMin ? "0" : "?");
+  // εκτός σχεδίου: η μέγιστη κάλυψη δεν υπερβαίνει τη μέγιστη δόμηση
+  const kalMax = kalPct != null ? (stt.startsWith("ektos") && max != null ? Math.min(kalPct * E / 100, max) : kalPct * E / 100) : null;
   const out: string[] = ["OK=1", "KAEK=" + kaek, "EMBADON=" + f2(E), "PROSOPO=" + f2(front), "KATASTASI=" + stt, "KATASTASI_TXT=" + STATUS_TXT[stt],
     "OIKISMOS=" + clean(oik && oik.NAME), "DIMOS=" + clean((oik && oik.KALL_DHM_NAME) || (ot && ot.KALL_DHM_NAME) || (sd0 && sd0.KALL_DHM_NAME) || (kal && kal.KALL_DHM_NAME)),
     "OT=" + clean(ot && ot.OT_NUM), "FEK_SXEDIO=" + clean(rymFek[0]), "FEK_OIKISMOU=" + clean(oik && oik.FEK), "FEK_OROI=" + clean((sd0 && sd0.FEK) || (kal && kal.FEK)),
@@ -432,7 +434,7 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
     "APALLOTRIOSI=" + (L.apallotr ? "1" : "0"), "KOINOXRISTO=" + (L.koinox ? "1" : "0"),
     "SD=" + f2(sd0 ? num(sd0.SD_TIMH) : null), "KALYPSI=" + f2(kalPct, 0), "YPSOS=" + f2(num(yp && yp.MAX_HEIGHT_M)), "OROFOI=" + clean(yp && yp.MAX_OROFOI),
     "ART_EMB=" + f2(artMin, 0), "ART_PROS=" + f2(artPros, 1), "ARTIO=" + artio, "SYSTIMA=" + clean(sy && sy.OIK_SYSTHMA),
-    "EK=" + (isEK(kaek) ? "1" : "0"), "MAX_DOMISI=" + f2(max), "SAO=" + f2(max != null && E ? max / E : null, 3), "KANONAS=" + clean(rule), "MAX_KALYPSI=" + f2(kalPct != null ? kalPct * E / 100 : null)];
+    "EK=" + (isEK(kaek) ? "1" : "0"), "MAX_DOMISI=" + f2(max), "SAO=" + f2(max != null && E ? max / E : null, 3), "KANONAS=" + clean(rule), "MAX_KALYPSI=" + f2(kalMax)];
   // πίνακας για OROIDOM
   const row = (l: string, v: string) => { if (v) out.push("ROW=" + l + "|" + clean(v)); };
   row("ΚΑΕΚ", kaek + " · Ε = " + gr(E) + " τ.μ." + (front != null ? " · πρόσωπο ≈ " + gr(front) + " μ." : ""));
@@ -440,7 +442,7 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
   row("ΜΕΓΙΣΤΗ ΔΟΜΗΣΗ", max != null ? gr(max) + " τ.μ. (" + rule + ")" : rule);
   row("Σ.Α.Ο.", max != null && E ? gr(max / E, 3) + " (μέγιστη δόμηση ÷ εμβαδόν)" : "");
   row("ΣΔ", sd0 ? gr(num(sd0.SD_TIMH)) + (sd0.SD_KLIMAKOTOS === "ΝΑΙ" ? " (κλιμακωτός)" : "") + (sd0.FEK ? " — ΦΕΚ " + clean(sd0.FEK) : "") : (stt.startsWith("ektos") ? "0,18 (άρ.251)" : ""));
-  row("ΚΑΛΥΨΗ", kalPct != null ? gr(kalPct, 0) + "% → " + gr(kalPct * E / 100) + " τ.μ." : "");
+  row("ΚΑΛΥΨΗ", kalPct != null ? gr(kalPct, 0) + "% : " + gr(kalPct * E / 100) + " τ.μ." + (kalMax != null && kalMax < kalPct * E / 100 - 0.005 ? " — εκτός σχεδίου η κάλυψη δεν υπερβαίνει τη δόμηση: μέγιστη κάλυψη " + gr(kalMax) + " τ.μ." : "") : "");
   row("ΥΨΟΣ / ΟΡΟΦΟΙ", yp ? (num(yp.MAX_HEIGHT_M) != null ? gr(num(yp.MAX_HEIGHT_M)) + " μ." : clean(yp.OROR_MAX_HEIGHT_COMMENT).slice(0, 120)) + (yp.MAX_OROFOI ? " · " + clean(yp.MAX_OROFOI) + " όροφοι" : "") : (stt.startsWith("ektos") ? "7,50 μ. (+1,20 μ. στέγη) · 2 όροφοι" : ""));
   row("ΑΡΤΙΟΤΗΤΑ", artMin != null ? gr(artMin, 0) + " τ.μ." + (artPros != null ? " · πρόσωπο " + gr(artPros, 1) + " μ." : "") + (artio === "1" ? " — ΑΡΤΙΟ κατά κανόνα" : artio === "0" ? " — ΜΗ ΑΡΤΙΟ κατά κανόνα" : "") : "");
   row("ΟΙΚΟΔ. ΣΥΣΤΗΜΑ", clean(sy && sy.OIK_SYSTHMA));
