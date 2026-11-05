@@ -14,6 +14,9 @@ on:
       - "ai-costs.sql"
       - "mapping-audit.sql"
       - "pad-licenses.sql"
+      - "geo-pro.sql"
+permissions:
+  contents: write
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -26,7 +29,7 @@ jobs:
         run: '[ -n "$SUPABASE_ACCESS_TOKEN" ] || { echo "::error::Λείπει το secret SUPABASE_ACCESS_TOKEN"; exit 1; }'
       - name: SQL (με τη σειρά)
         run: |
-          for f in interior-billing.sql hexis-payments.sql admin-users.sql ai-costs.sql mapping-audit.sql pad-licenses.sql; do
+          for f in interior-billing.sql hexis-payments.sql admin-users.sql ai-costs.sql mapping-audit.sql pad-licenses.sql geo-pro.sql; do
             echo "== $f"
             jq -Rs '{query: .}' "$f" > /tmp/q.json
             code=$(curl -sS -o /tmp/r.json -w '%{http_code}' -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
@@ -36,6 +39,23 @@ jobs:
           done
       - uses: supabase/setup-cli@v1
         with: { version: latest }
+      - name: Κλειδί κρυπτογράφησης HEXIS GEOmetry Pro (φτιάχνεται μία φορά)
+        # Το ιδιωτικό κλειδί πάει μόνο στο secret GEO_PRO_SK του Supabase — δεν τυπώνεται, δεν αποθηκεύεται αλλού.
+        # Το δημόσιο κλειδί γράφεται στο geometry/pro-key.pub (με αυτό κρυπτογραφείται ο κώδικας Pro πριν μπει στο repo).
+        run: |
+          set -e
+          if supabase secrets list --project-ref "$REF" | awk -F'|' '{gsub(/ /,"",$1);print $1}' | grep -qx GEO_PRO_SK && [ -s geometry/pro-key.pub ]; then
+            echo "Υπάρχει ήδη: $(cat geometry/pro-key.pub)"
+          else
+            mkdir -p "$RUNNER_TEMP/gk" && ( cd "$RUNNER_TEMP/gk" && npm i -s tweetnacl@1.0.3 >/dev/null 2>&1 && node -e "const n=require('tweetnacl'),fs=require('fs');const k=n.box.keyPair();fs.writeFileSync('sk',Buffer.from(k.secretKey).toString('base64'));fs.writeFileSync('pk',Buffer.from(k.publicKey).toString('base64'))" )
+            SK=$(cat "$RUNNER_TEMP/gk/sk"); echo "::add-mask::$SK"; rm -f "$RUNNER_TEMP/gk/sk"
+            supabase secrets set --project-ref "$REF" --yes "GEO_PRO_SK=$SK" >/dev/null
+            mkdir -p geometry && cp "$RUNNER_TEMP/gk/pk" geometry/pro-key.pub
+            git config user.name "hexis-bot"; git config user.email "bot@hexis-app.gr"
+            git add geometry/pro-key.pub && git commit -m "GEOmetry Pro: δημόσιο κλειδί κρυπτογράφησης"
+            for i in 1 2 3; do git pull --rebase && git push && break; sleep 5; done
+            echo "Νέο κλειδί GEOmetry Pro: $(cat geometry/pro-key.pub)"
+          fi
       - name: Κλειδί υπογραφής άδειας HEXIS PAD (φτιάχνεται μία φορά)
         # Το ιδιωτικό κλειδί πάει μόνο στο secret PAD_SIGN_SK του Supabase — δεν τυπώνεται, δεν αποθηκεύεται αλλού.
         # Το δημόσιο κλειδί γράφεται στον πίνακα pad_config (το χρειάζεται η εφαρμογή για τον έλεγχο).
