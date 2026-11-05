@@ -385,6 +385,24 @@ async function aigialosFek(b: HxAttr) {
   return { items, n: items.length, buffer: buf, src: "Δημόσια Περιουσία — Αιγιαλός (ΓΓΠΣ/gsis.gr)" };
 }
 
+// εικόνα (διαφανές PNG) με τις γραμμές αιγιαλού / παλαιού αιγιαλού / ακτογραμμής για ένα πλαίσιο ΕΓΣΑ87 — η υπηρεσία δεν δίνει διανύσματα
+const AIGIALOS_EXPORT = "https://maps.gsis.gr/gspp/maps/rest/services/Dhpe/AIGIALOS_TILES/MapServer/export";
+async function aigialosImg(b: HxAttr) {
+  const bb = (b.bbox || []) as number[];
+  if (bb.length !== 4 || !bb.every((v) => isFinite(Number(v))) || !(bb[2] > bb[0] && bb[3] > bb[1]) || bb[2] - bb[0] > 20000 || bb[3] - bb[1] > 20000) return { error: "bad_bbox" };
+  const w = Math.max(64, Math.min(2000, Math.round(Number(b.w) || 1000))), h = Math.max(64, Math.min(2000, Math.round(Number(b.h) || 1000)));
+  const qs = new URLSearchParams({ bbox: bb.map((v) => Number(v).toFixed(2)).join(","), bboxSR: "2100", imageSR: "2100", size: w + "," + h, format: "png32", transparent: "true", layers: "show:1,2,4", dpi: "96", f: "image" });
+  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 25000);
+  try {
+    const r = await fetch(AIGIALOS_EXPORT + "?" + qs.toString(), { signal: ctl.signal, headers: { "User-Agent": "HEXIS-APP/1.0 (hexis-app.gr)" } });
+    if (!r.ok || !/image/.test(r.headers.get("content-type") || "")) return { error: "aigialos_img_http_" + r.status };
+    const buf = new Uint8Array(await r.arrayBuffer());
+    let bin = ""; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+    return { ok: 1, png: btoa(bin), w, h, bbox: bb, src: "Δημόσια Περιουσία — Αιγιαλός (ΓΓΠΣ/gsis.gr)" };
+  } catch (e) { return { error: "aigialos_unreachable", msg: String(e).slice(0, 120) }; }
+  finally { clearTimeout(tm); }
+}
+
 async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
   // χαρακτήρες που δεν υπάρχουν στο ANSI 1253 (progeCAD / παλιό AutoCAD) → απλά ισοδύναμα
   const ansi = (t: string) => t.replace(/→/g, ":").replace(/≈/g, "~").replace(/×/g, "x").replace(/÷/g, "/").replace(/−/g, "-").replace(/≥/g, ">=").replace(/≤/g, "<=");
@@ -664,6 +682,7 @@ Deno.serve(async (req) => {
     if (b.action === "coast") return json(await coastDistance(b));
     if (b.action === "forest") return json(await forestPolys(b));
     if (b.action === "aigialos") return json(await aigialosFek(b));
+    if (b.action === "aigialos_img") return json(await aigialosImg(b));
     const x = Number(b.x), y = Number(b.y);
     // Ελλάδα σε ΕΓΣΑ'87: περίπου x 50.000–1.050.000, y 3.850.000–4.650.000
     if (!(x > 50000 && x < 1050000 && y > 3800000 && y < 4700000)) return json({ error: "bad_coords" }, 400);
