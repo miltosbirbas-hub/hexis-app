@@ -1197,6 +1197,9 @@ public class HexisGnssPlugin extends Plugin {
                 long now = System.currentTimeMillis();
                 if (now - lastScanReq > 25000) { lastScanReq = now; try { wm.startScan(); } catch (Exception ignored) { } try { Thread.sleep(2500); } catch (InterruptedException ignored) { } }
                 java.util.List<android.net.wifi.ScanResult> rs = wm.getScanResults();
+                o.put("count", rs == null ? 0 : rs.size());
+                boolean loc = androidx.core.content.ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED;
+                o.put("noPerm", !loc);
                 if (rs != null) for (android.net.wifi.ScanResult r : rs) {
                     String s = r.SSID == null ? "" : r.SSID; if (s.isEmpty()) continue;
                     if (s.equals(ssid) || (!prefix.isEmpty() && s.toLowerCase(java.util.Locale.US).startsWith(prefix.toLowerCase(java.util.Locale.US)))) { found = true; names.put(s); }

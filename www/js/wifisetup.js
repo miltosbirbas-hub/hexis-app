@@ -117,7 +117,8 @@
       A._wifiBusy = true;
       // 1) αθόρυβα: είναι το Wi-Fi του δέκτη γύρω μας; αν όχι, καμία ενόχληση — ξαναελέγχει σε λίγο
       let vis = null; try { vis = await P().wifiScan({ ssid: G.wifiSsid }); } catch (e) { }
-      if (vis && !vis.found && !vis.error) { A._wifiBusy = false; A._wifiNext = Date.now() + 12000; return; }
+      // μόνο όταν η σάρωση ΕΙΔΕ δίκτυα και ο δέκτης δεν είναι ανάμεσά τους, περιμένουμε· αλλιώς (κενή λίστα, χωρίς άδεια) προχωράμε όπως πριν
+      if (vis && !vis.found && !vis.error && vis.count > 0 && !vis.noPerm) { A._wifiBusy = false; A._wifiNext = Date.now() + 12000; return; }
       // 2) αν το κινητό είναι ήδη στο Wi-Fi του δέκτη (από τις Ρυθμίσεις) → κατευθείαν TCP, χωρίς παράθυρο
       if (vis && vis.connected) { try { await HCONN.connect({ type: 'tcp', host: G.host, port: G.port, channel: 'gnss' }); A.toast('✓ ' + t('Συνδέθηκε ο δέκτης μέσω Wi-Fi'), 'ok', 3000); if (A.settings.ntrip.auto && A.settings.ntrip.host) A.startNtrip(); A._wifiBusy = false; return; } catch (e) { } }
       try { await P().wifiConnect({ ssid: G.wifiSsid, pass: (A.settings.wifiRx || {}).pass || '12345678' }); await HCONN.connect({ type: 'tcp', host: G.host, port: G.port, channel: 'gnss' }); A._wifiNext = 0; A._wifiFails = 0; A.toast('✓ ' + t('Συνδέθηκε ο δέκτης μέσω Wi-Fi'), 'ok'); if (A.settings.ntrip.auto && A.settings.ntrip.host) A.startNtrip(); }
