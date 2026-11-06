@@ -189,7 +189,7 @@ function statusOf(L: Record<string, HxAttr[]>) {
   if (rym) return "sxedio";
   return L.ektos ? "ektos" : "ektos?";
 }
-const STATUS_TXT: Record<string, string> = { sxedio: "Εντός εγκεκριμένου σχεδίου", oikismos: "Εντός ορίων οικισμού (<2.000 κατ.)", ektos: "Εκτός σχεδίου", "ektos?": "Δεν βρέθηκε σχέδιο ή όριο οικισμού — πιθανώς εκτός σχεδίου" };
+const STATUS_TXT: Record<string, string> = { sxedio: "Εντός εγκεκριμένου σχεδίου", oikismos: "Εντός ορίων οικισμού (<2.000 κατ.)", ektos: "Εκτός σχεδίου", "ektos?": "Εκτός σχεδίου" }; // ό,τι δεν είναι σε εγκεκριμένο σχέδιο ή σε όριο οικισμού ΕΙΝΑΙ εκτός σχεδίου
 function oikismosMax(E: number) {
   if (E <= 200) return { max: E, rule: "γήπεδο έως 200 τ.μ. → ΣΔ 1 (δόμηση = εμβαδόν)" };
   if (E < 700) return { max: 240, rule: "γήπεδο έως 699,99 τ.μ. → μέγιστη δόμηση 240 τ.μ. (+ πατάρι ξηράς δόμησης έως 40 τ.μ.)" };
@@ -481,7 +481,7 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
   row("ΜΕΓΙΣΤΗ ΔΟΜΗΣΗ", max != null ? gr(max) + " τ.μ. (" + rule + ")" : rule);
   row("Σ.Α.Ο.", max != null && E ? gr(max / E, 3) + " (μέγιστη δόμηση ÷ εμβαδόν)" : "");
   row("ΣΔ", sd0 ? gr(num(sd0.SD_TIMH)) + (sd0.SD_KLIMAKOTOS === "ΝΑΙ" ? " (κλιμακωτός)" : "") + (sd0.FEK ? " — ΦΕΚ " + clean(sd0.FEK) : "") : (stt.startsWith("ektos") ? "0,18 (άρ.251)" : ""));
-  row("ΚΑΛΥΨΗ", kalPct != null ? gr(kalPct, 0) + "% : " + gr(kalPct * E / 100) + " τ.μ." + (kalMax != null && kalMax < kalPct * E / 100 - 0.005 ? " — εκτός σχεδίου η κάλυψη δεν υπερβαίνει τη δόμηση: μέγιστη κάλυψη " + gr(kalMax) + " τ.μ." : "") : "");
+  row("ΚΑΛΥΨΗ", kalPct != null ? gr(kalPct, 0) + "%" : ""); // μόνο ποσοστό — όχι υπολογισμός τ.μ.
   row("ΥΨΟΣ / ΟΡΟΦΟΙ", yp ? (num(yp.MAX_HEIGHT_M) != null ? gr(num(yp.MAX_HEIGHT_M)) + " μ." : clean(yp.OROR_MAX_HEIGHT_COMMENT).slice(0, 120)) + (yp.MAX_OROFOI ? " · " + clean(yp.MAX_OROFOI) + " όροφοι" : "") : (stt.startsWith("ektos") ? "7,50 μ. (+1,20 μ. στέγη) · 2 όροφοι" : ""));
   row("ΑΡΤΙΟΤΗΤΑ", artMin != null ? gr(artMin, 0) + " τ.μ." + (artPros != null ? " · πρόσωπο " + gr(artPros, 1) + " μ." : "") + (artio === "1" ? " — ΑΡΤΙΟ κατά κανόνα" : artio === "0" ? " — ΜΗ ΑΡΤΙΟ κατά κανόνα" : "") : "");
   row("ΟΙΚΟΔ. ΣΥΣΤΗΜΑ", clean(sy && sy.OIK_SYSTHMA));
