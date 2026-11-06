@@ -1,0 +1,24 @@
+name: ΚΑΕΚ · έλεγχος γεωμετρίας
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/kaek-probe.yml"]
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Λήψη
+        run: |
+          mkdir -p out
+          for L in GEOTEMAXIA_LEITOURGOUN_ON_gdb GEOTEMAXIA_PROKATARKTIKA_ON_gdb; do
+            curl -s -m 60 "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/$L/FeatureServer/0/query?f=json&where=KAEK%3D%27340160302330%27&outFields=*&returnGeometry=true&outSR=2100" -o "out/$L.json"
+            curl -s -m 60 "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/$L/FeatureServer/0/query?f=json&where=1%3D1&geometry=207352,4276950&geometryType=esriGeometryPoint&inSR=2100&distance=60&units=esriSRUnit_Meter&spatialRel=esriSpatialRelIntersects&outFields=KAEK&returnGeometry=true&outSR=2100" -o "out/near_$L.json"
+          done
+          ls -la out
+      - name: Αποθήκευση
+        run: |
+          git config user.name bot; git config user.email bot@users.noreply.github.com
+          git checkout --orphan probe-kaek; git rm -rf . -q || true; cp out/* . ; git add *.json; git commit -qm probe; git push -f origin probe-kaek
