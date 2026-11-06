@@ -528,7 +528,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       <circle cx="10" cy="28" r="2.4" fill="#22d3ee"/><circle cx="16" cy="12" r="2.4" fill="#8b5cf6"/><circle cx="27" cy="15" r="2.4" fill="#8b5cf6"/><circle cx="31" cy="26" r="2.4" fill="#fb7185"/>
     </svg>
     <div>
-      <h1>HEXIS <span>GEOmetry</span> <b id="geoTier" style="display:none;font:800 12px var(--f-mono);letter-spacing:.06em;padding:2px 8px;border-radius:6px;vertical-align:3px"></b> <button id="geoRelease" type="button" data-pro="release" title="Αποδέσμευση («παρκάρισμα») του κλειδιού Pro από αυτή τη συσκευή, για να το ανοίξεις σε άλλη" style="display:none;font:700 11px var(--f-mono);padding:2px 8px;border-radius:6px;border:1px solid var(--line-2,#cbd5e1);background:var(--surface,#fff);color:var(--text,#111);cursor:pointer;vertical-align:3px">Αποδέσμευση</button> <small id="geoBuild" style="font:600 10px var(--f-mono);color:var(--faint);letter-spacing:0">build 06.11-22h · Basic/Pro</small></h1>
+      <h1>HEXIS <span>GEOmetry</span> <b id="geoTier" style="display:none;font:800 12px var(--f-mono);letter-spacing:.06em;padding:2px 8px;border-radius:6px;vertical-align:3px"></b> <button id="geoRelease" type="button" data-pro="release" title="Αποδέσμευση («παρκάρισμα») του κλειδιού Pro από αυτή τη συσκευή, για να το ανοίξεις σε άλλη" style="display:none;font:700 11px var(--f-mono);padding:2px 8px;border-radius:6px;border:1px solid var(--line-2,#cbd5e1);background:var(--surface,#fff);color:var(--text,#111);cursor:pointer;vertical-align:3px">Αποδέσμευση</button> <small id="geoBuild" style="font:600 10px var(--f-mono);color:var(--faint);letter-spacing:0">build 06.11-23h · Basic/Pro</small></h1>
       <small>Συντεταγμένες ΕΓΣΑ87 · ΚΑΕΚ Κτηματολογίου · Διαγράμματα Γεωμετρικών Μεταβολών</small>
     </div>
   </div>
@@ -4269,8 +4269,11 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       var polys = outers.map(function (o) { return { outer: o, holes: [] }; });
       holes.forEach(function (h) { var host = polys.filter(function (p) { return pip(h[0], p.outer); })[0] || polys[0]; host.holes.push(h); });
       var geom = polys.length === 1 ? { type: 'Polygon', coordinates: [close(polys[0].outer)].concat(polys[0].holes.map(close)) } : { type: 'MultiPolygon', coordinates: polys.map(function (p) { return [close(p.outer)].concat(p.holes.map(close)); }) };
-      var area = at.SHAPE__Area || at.Shape__Area || at.AREA || at.EMBADO || null;
-      out.push({ kaek: String(kaek), area: area && area > 0 ? area : null, geom: geom, attrs: at, layer: j.__layer || '' });
+      // Εμβαδόν ΠΑΝΤΑ από τις συντεταγμένες ΕΓΣΑ87 του πολυγώνου. ΟΧΙ το Shape__Area: αυτό η υπηρεσία το μετρά σε Web Mercator
+      // και στην Ελλάδα βγαίνει ~1,6 φορές μεγαλύτερο (π.χ. 1.376,37 αντί 840,61 τ.μ.). Το AREA της βάσης κρατιέται μόνο ως σημείωση.
+      var garea = polys.reduce(function (t, p) { return t + Math.abs(sarea(p.outer)) - p.holes.reduce(function (u, h) { return u + Math.abs(sarea(h)); }, 0); }, 0);
+      var areaReg = at.AREA || at.EMBADO || null;
+      out.push({ kaek: String(kaek), area: garea > 0 ? garea : (areaReg > 0 ? areaReg : null), areaReg: areaReg > 0 ? areaReg : null, geom: geom, attrs: at, layer: j.__layer || '' });
     });
     return out;
   }
