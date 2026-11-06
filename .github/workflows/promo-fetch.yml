@@ -1,0 +1,15 @@
+name: Promo · δεδομένα ομόρων
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/promo-fetch.yml"]
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          mkdir -p out
+          curl -s -m 60 -o out/kaekgeo_panetas.json -w "kaek-geo %{http_code} %{size_download}B\n" "https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/kaek-geo?lat=38.7844971&lon=21.1123348&neighbors=1&r=150" | tee out/summary.txt
+          cd out && git init -q && git checkout -q -b promo-data && git add -A && git -c user.name=bot -c user.email=bot@x commit -qm data && git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" promo-data
