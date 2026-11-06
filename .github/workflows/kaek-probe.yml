@@ -18,7 +18,14 @@ jobs:
             curl -s -m 60 "https://services-eu1.arcgis.com/40tFGWzosjaLJpmn/arcgis/rest/services/$L/FeatureServer/0/query?f=json&where=1%3D1&geometry=207352,4276950&geometryType=esriGeometryPoint&inSR=2100&distance=60&units=esriSRUnit_Meter&spatialRel=esriSpatialRelIntersects&outFields=KAEK&returnGeometry=true&outSR=2100" -o "out/near_$L.json"
           done
           ls -la out
-      - name: Αποθήκευση
+      - name: Εμφάνιση
         run: |
-          git config user.name bot; git config user.email bot@users.noreply.github.com
-          git checkout --orphan probe-kaek; git rm -rf . -q || true; cp out/* . ; git add *.json; git commit -qm probe; git push -f origin probe-kaek
+          for f in out/*.json; do echo "=== $f"; python3 -c "
+import json,sys
+d=json.load(open('$f'))
+for ft in d.get('features',[]):
+    a=ft['attributes']; g=ft.get('geometry',{})
+    print('KAEK',a.get('KAEK'),'attrs',{k:v for k,v in a.items() if k in('SHAPE__Area','Shape__Area','AREA','EMBADON','OBJECTID')})
+    for r in g.get('rings',[]): print('RING',len(r),[[round(x,3),round(y,3)] for x,y in r])
+if 'error' in d: print(d)
+"; done
