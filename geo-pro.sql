@@ -205,3 +205,17 @@ begin
 end $$;
 revoke execute on function public.admin_geo_list(), public.admin_geo_release(text) from public, anon;
 grant execute on function public.admin_geo_list(), public.admin_geo_release(text) to authenticated;
+
+-- ---------- Προσωπικές ρυθμίσεις GEOmetry ανά λογαριασμό (πινακίδα DXF + λογότυπο) ----------
+-- Για να μη χρειάζεται ο μηχανικός να ανεβάζει την πινακίδα του σε κάθε συσκευή/browser.
+create table if not exists public.geo_user_prefs (
+  user_id    uuid primary key references auth.users(id) on delete cascade,
+  tpl        jsonb,          -- {name, text} — το DXF της πινακίδας
+  logo       jsonb,          -- {href (data:image/jpeg), wpx, hpx}
+  updated_at timestamptz not null default now()
+);
+alter table public.geo_user_prefs enable row level security;
+drop policy if exists "geo prefs own" on public.geo_user_prefs;
+create policy "geo prefs own" on public.geo_user_prefs for all to authenticated
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+grant select, insert, update, delete on public.geo_user_prefs to authenticated;
