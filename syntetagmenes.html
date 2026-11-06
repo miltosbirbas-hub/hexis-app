@@ -528,7 +528,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       <circle cx="10" cy="28" r="2.4" fill="#22d3ee"/><circle cx="16" cy="12" r="2.4" fill="#8b5cf6"/><circle cx="27" cy="15" r="2.4" fill="#8b5cf6"/><circle cx="31" cy="26" r="2.4" fill="#fb7185"/>
     </svg>
     <div>
-      <h1>HEXIS <span>GEOmetry</span> <b id="geoTier" style="display:none;font:800 12px var(--f-mono);letter-spacing:.06em;padding:2px 8px;border-radius:6px;vertical-align:3px"></b> <button id="geoRelease" type="button" data-pro="release" title="Αποδέσμευση («παρκάρισμα») του κλειδιού Pro από αυτή τη συσκευή, για να το ανοίξεις σε άλλη" style="display:none;font:700 11px var(--f-mono);padding:2px 8px;border-radius:6px;border:1px solid var(--line-2,#cbd5e1);background:var(--surface,#fff);color:var(--text,#111);cursor:pointer;vertical-align:3px">Αποδέσμευση</button> <small id="geoBuild" style="font:600 10px var(--f-mono);color:var(--faint);letter-spacing:0">build 06.11-17h · Basic/Pro</small></h1>
+      <h1>HEXIS <span>GEOmetry</span> <b id="geoTier" style="display:none;font:800 12px var(--f-mono);letter-spacing:.06em;padding:2px 8px;border-radius:6px;vertical-align:3px"></b> <button id="geoRelease" type="button" data-pro="release" title="Αποδέσμευση («παρκάρισμα») του κλειδιού Pro από αυτή τη συσκευή, για να το ανοίξεις σε άλλη" style="display:none;font:700 11px var(--f-mono);padding:2px 8px;border-radius:6px;border:1px solid var(--line-2,#cbd5e1);background:var(--surface,#fff);color:var(--text,#111);cursor:pointer;vertical-align:3px">Αποδέσμευση</button> <small id="geoBuild" style="font:600 10px var(--f-mono);color:var(--faint);letter-spacing:0">build 06.11-18h · Basic/Pro</small></h1>
       <small>Συντεταγμένες ΕΓΣΑ87 · ΚΑΕΚ Κτηματολογίου · Διαγράμματα Γεωμετρικών Μεταβολών</small>
     </div>
   </div>
@@ -5518,13 +5518,17 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       if (res.forestAll.length && S.topoForest == null) S.topoForest = +f.pos === 3;
       if (res.forestSvc && res.forestSvc.natura && res.forestSvc.natura.length && !f.naturaAuto) { f.natura = res.forestSvc.natura.map(function (nt) { return (nt.code ? nt.code + ' ' : '') + (nt.name || '') + (nt.type ? ' (' + nt.type + ')' : ''); }).join(', '); f.naturaAuto = true; }
       // αιγιαλός: ο πλησιέστερος καθορισμός (έως 500 m από το πλαίσιό του) → ΦΕΚ στις παρατηρήσεις/δήλωση
-      var aigNear = (res.aig || []).filter(function (a) { return !a.poa && a.dist != null && a.dist <= 500; })[0] || null;
+      // Η υπηρεσία δίνει μόνο το ΠΛΑΙΣΙΟ (bbox) κάθε καθορισμού — όχι τη γραμμή. Ένα μεγάλο πλαίσιο (π.χ. όλο ένα νησί) «πιάνει» και άσχετα οικόπεδα.
+      // Γι' αυτό ο καθορισμός μπαίνει στη δήλωση ΜΟΝΟ αν το οικόπεδο είναι πραγματικά κοντά στη θάλασσα (≤ 200 m από την ακτογραμμή) ΚΑΙ μέσα/δίπλα στο πλαίσιο (≤ 100 m).
+      var nearSea = !!(res.coast && res.coast.dist != null && res.coast.dist <= 200);
+      var aigNear = nearSea ? ((res.aig || []).filter(function (a) { return !a.poa && a.dist != null && a.dist <= 100; })[0] || null) : null;
       res.aigLabel = aigNear ? 'ΓΡΑΜΜΗ ΑΙΓΙΑΛΟΥ: ' + aigFekText(aigNear) : null;
-      var poa = (res.aig || []).filter(function (a) { return a.poa && a.inside; })[0] || null;
+      var poa = nearSea ? ((res.aig || []).filter(function (a) { return a.poa && a.inside; })[0] || null) : null;
       res.aigNear = aigNear; res.poa = poa;
-      if (aigNear && !nzs(f.aigFek)) f.aigFek = aigFekText(aigNear) + (poa ? ' · παλαιός αιγιαλός: ' + aigFekText(poa) : '');
+      // αυτόματες τιμές: ξαναϋπολογίζονται σε κάθε οικόπεδο (δεν «κολλάνε» από προηγούμενο έργο)· ό,τι γράψει ο μηχανικός με το χέρι μένει
+      if (!nzs(f.aigFek) || f.aigFekAuto) { f.aigFek = aigNear ? aigFekText(aigNear) + (poa ? ' · παλαιός αιγιαλός: ' + aigFekText(poa) : '') : ''; f.aigFekAuto = true; }
       if (res.water && !f.waterAuto) { var ins = res.water.filter(function (w) { return w.inside; }); f.water = ins.map(function (w) { return w.code + ',' + w.x.toFixed(2) + ',' + w.y.toFixed(2); }).join('; '); f.waterAuto = true; }
-      if (res.coast && res.coast.dist <= 2000 && !nzs(f.aigd)) f.aigd = fixed(res.coast.dist, 2).replace('.', ',');
+      if (!nzs(f.aigd) || f.aigdAuto) { f.aigd = res.coast && res.coast.dist != null && res.coast.dist <= 500 ? fixed(res.coast.dist, 2).replace('.', ',') : ''; f.aigdAuto = true; }
       if (res.forest.length && !f.forestCat) f.forestCat = res.forest.map(function (x, i) { return 'Δ' + (i + 1) + ' ' + (x.cat || ''); }).join(', ');
       res.rec = TopoSheet.recommend(topoData(res), { info: topoInfo(res), template: topoTemplate(), kaekTable: S.topoKaekTable !== false });
       if (!S.topoScale || !S.topoPaper || S.topoAuto !== false) { S.topoScale = res.rec.best.scale; S.topoPaper = res.rec.best.paper; }
@@ -6939,7 +6943,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     if (ev.target.id === 'inspireWfs' || ev.target.id === 'inspireType') { store(ev.target.id === 'inspireWfs' ? 'hexis_inspire_wfs' : 'hexis_inspire_type', ev.target.value.trim()); S.kaek = null; S.dgm = null; findKaek(); }
     if (ev.target.id === 'kaekSource') { S.kaekSource = ev.target.value; store('hexis_kaek_source', S.kaekSource); S.kaek = null; S.dgm = null; findKaek(); }
     if (ev.target.classList.contains('topoF') && ev.target.dataset.f === 'idio' && S.topo && S.topo.kaek) kaekOwnersStore(S.topo.kaek, ev.target.value.trim());
-    if (ev.target.classList.contains('topoF')) { var fk = ev.target.dataset.f, fv = ev.target.type === 'checkbox' ? (ev.target.checked ? 1 : 0) : ev.target.tagName === 'SELECT' ? +ev.target.value : ev.target.value.trim(); topoFields()[fk] = fv; if (fk === 'artio') topoFields().artioSure = true; if (fk === 'pos') topoFields().posSure = true; topoSaveEng(); return; }
+    if (ev.target.classList.contains('topoF')) { var fk = ev.target.dataset.f, fv = ev.target.type === 'checkbox' ? (ev.target.checked ? 1 : 0) : ev.target.tagName === 'SELECT' ? +ev.target.value : ev.target.value.trim(); topoFields()[fk] = fv; if (fk === 'aigFek' || fk === 'aigd') topoFields()[fk + 'Auto'] = false; if (fk === 'artio') topoFields().artioSure = true; if (fk === 'pos') topoFields().posSure = true; topoSaveEng(); return; }
     if (ev.target.id === 'topoScale') { S.topoScale = +ev.target.value; S.topoAuto = false; topoRefresh(); return; }
     if (ev.target.id === 'topoPaper') { S.topoPaper = ev.target.value; S.topoAuto = false; topoRefresh(); return; }
     if (ev.target.id === 'topoBound') { S.dgmBound = ev.target.value; topoRefresh(); return; }
