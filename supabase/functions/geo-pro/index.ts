@@ -5,8 +5,10 @@
 // Το ιδιωτικό κλειδί υπάρχει μόνο στο secret GEO_PRO_SK (φτιάχνεται στο CI, δεν το βλέπει κανείς).
 //
 // Είσοδος (POST, Authorization: Bearer <JWT χρήστη hexis-app.gr>)
+// Σώμα  : { device, name, action?: 'load'|'beat'|'release', take?: true }
 // Έξοδος : { ok:true, until, code }  — μόνο αν ο λογαριασμός έχει ενεργό «syntetagmenes_pro» (ή είναι admin)
-//          { ok:false, code:'login'|'pro'|'not_ready'|'server' }
+//          και η συσκευή κρατά τη θέση της άδειας (μία συσκευή τη φορά· πίνακας geo_seats)
+//          { ok:false, code:'login'|'pro'|'seat'|'device'|'not_ready'|'server' }
 // Αυτοέλεγχος CI: header x-hx-selftest = SELFTEST_KEY → { ok, bytes, names } χωρίς τον κώδικα.
 // Verify JWT: OFF (ο χρήστης ελέγχεται εδώ).
 // ============================================================================
@@ -73,12 +75,51 @@ Deno.serve(async (req) => {
     const now = Date.now();
     const e = (rows || []).find((x: { active: boolean; expires_at: string | null }) => x.active && (!x.expires_at || Date.parse(x.expires_at) > now));
     let until: string | null = e ? e.expires_at : null;
+    const a = await fetch(`${SB}/rest/v1/rpc/is_admin`, { method: "POST", headers: { apikey: anon, Authorization: auth, "Content-Type": "application/json" }, body: "{}" });
+    const admin = a.ok && (await a.json()) === true;
     if (!e) {
-      const a = await fetch(`${SB}/rest/v1/rpc/is_admin`, { method: "POST", headers: { apikey: anon, Authorization: auth, "Content-Type": "application/json" }, body: "{}" });
-      const isAdmin = a.ok && (await a.json()) === true;
-      if (!isAdmin) return json({ ok: false, code: "pro" }, 403);
+      if (!admin) return json({ ok: false, code: "pro" }, 403);
       until = null;
     }
+
+    // ---- μία συσκευή τη φορά ----
+    let body: { action?: string; device?: string; name?: string; take?: boolean } = {};
+    try { body = await req.json(); } catch (_) { body = {}; }
+    const dev = String(body.device || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 64);
+    const dname = String(body.name || "").replace(/[<>]/g, "").slice(0, 80) || null;
+    if (dev.length < 12) return json({ ok: false, code: "device" }, 400);
+    if (admin) { // ο διαχειριστής δεν δεσμεύει θέση
+      if (body.action === "release" || body.action === "beat") return json({ ok: true, admin: true });
+      const c0 = proCode();
+      if (!c0) return json({ ok: false, code: "not_ready" }, 503);
+      return json({ ok: true, until, admin: true, code: `/* HEXIS-APP GEOmetry Pro · ${String(user.email || user.id).replace(/\*\//g, "")} */\n` + c0 });
+    }
+    const SH = { apikey: service, Authorization: "Bearer " + service, "Content-Type": "application/json" };
+    const sr = await fetch(`${SB}/rest/v1/geo_seats?select=device_id,device_name,last_seen&user_id=eq.${user.id}`, { headers: SH });
+    if (!sr.ok) return json({ ok: false, code: "server" }, 500);
+    const seat = ((await sr.json()) || [])[0] as { device_id: string; device_name: string | null; last_seen: string } | undefined;
+    const mine = !!seat && seat.device_id === dev;
+    const IDLE = 48 * 3600 * 1000; // παλιά συσκευή χωρίς σημείο ζωής 48 ώρες → επιτρέπεται μεταφορά
+    const idle = !!seat && now - Date.parse(seat.last_seen) > IDLE;
+    const action = String(body.action || "load");
+
+    if (action === "release") {
+      if (mine) await fetch(`${SB}/rest/v1/geo_seats?user_id=eq.${user.id}&device_id=eq.${dev}`, { method: "DELETE", headers: SH });
+      return json({ ok: true, released: mine });
+    }
+    if (action === "beat") {
+      if (!mine) return json({ ok: false, code: "seat", device_name: seat ? seat.device_name : null }, 409);
+      await fetch(`${SB}/rest/v1/geo_seats?user_id=eq.${user.id}`, { method: "PATCH", headers: SH, body: JSON.stringify({ last_seen: new Date().toISOString() }) });
+      return json({ ok: true });
+    }
+    if (seat && !mine && !(idle && body.take)) {
+      return json({ ok: false, code: "seat", device_name: seat.device_name, last_seen: seat.last_seen, can_take: idle }, 409);
+    }
+    const up = await fetch(`${SB}/rest/v1/geo_seats?on_conflict=user_id`, {
+      method: "POST", headers: { ...SH, Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify({ user_id: user.id, device_id: dev, device_name: dname, ...(mine ? {} : { bound_at: new Date().toISOString() }), last_seen: new Date().toISOString() }),
+    });
+    if (!up.ok) return json({ ok: false, code: "server" }, 500);
 
     const code = proCode();
     if (!code) return json({ ok: false, code: "not_ready" }, 503);

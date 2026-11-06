@@ -164,3 +164,44 @@ end $$;
 drop trigger if exists geo_pro_sync on public.entitlements;
 create trigger geo_pro_sync after insert or update of active, expires_at on public.entitlements
   for each row when (new.module = 'syntetagmenes_pro') execute function public.geo_pro_sync();
+
+-- ---------- Μία συσκευή κάθε φορά (θέση άδειας Pro) ----------
+-- Το Pro ενός λογαριασμού δουλεύει σε μία συσκευή τη φορά. Η πρώτη συσκευή που το ανοίγει «κρατά» το κλειδί.
+-- Ο χρήστης το αποδεσμεύει («παρκάρει») από εκείνη τη συσκευή και το ανοίγει σε άλλη.
+-- Αν η παλιά συσκευή χάθηκε: μεταφορά επιτρέπεται όταν δεν έχει δώσει σημείο ζωής 48 ώρες, ή αποδέσμευση από τον διαχειριστή.
+-- Η function «geo-pro» διαβάζει/γράφει τον πίνακα με το service key· ο χρήστης δεν έχει άμεση πρόσβαση.
+create table if not exists public.geo_seats (
+  user_id      uuid primary key references auth.users(id) on delete cascade,
+  device_id    text not null,
+  device_name  text,
+  bound_at     timestamptz not null default now(),
+  last_seen    timestamptz not null default now()
+);
+alter table public.geo_seats enable row level security;
+
+drop function if exists public.admin_geo_list();
+create or replace function public.admin_geo_list()
+returns table(key text, months int, email text, note text, created_at timestamptz, redeemed_email text, redeemed_at timestamptz, revoked boolean, pro_until timestamptz,
+              seat_device text, seat_seen timestamptz)
+language plpgsql stable security definer set search_path = public, auth as $$
+begin
+  if not public.is_admin() then raise exception 'not admin'; end if;
+  return query select g.key, g.months, g.email, g.note, g.created_at, u.email::text, g.redeemed_at, g.revoked,
+      (select e.expires_at from entitlements e where e.user_id = g.redeemed_by and e.module = 'syntetagmenes_pro'),
+      s.device_name, s.last_seen
+    from geo_keys g left join auth.users u on u.id = g.redeemed_by left join geo_seats s on s.user_id = g.redeemed_by
+    order by g.created_at desc limit 300;
+end $$;
+
+-- Αποδέσμευση συσκευής από τον διαχειριστή (π.χ. χάθηκε ο υπολογιστής)· η λήξη μένει ίδια
+create or replace function public.admin_geo_release(p_key text)
+returns void language plpgsql security definer set search_path = public as $$
+declare k geo_keys;
+begin
+  if not public.is_admin() then raise exception 'not admin'; end if;
+  select * into k from geo_keys where key = p_key;
+  if k.key is null then raise exception 'Δεν βρέθηκε το κλειδί'; end if;
+  if k.redeemed_by is not null then delete from geo_seats where user_id = k.redeemed_by; end if;
+end $$;
+revoke execute on function public.admin_geo_list(), public.admin_geo_release(text) from public, anon;
+grant execute on function public.admin_geo_list(), public.admin_geo_release(text) to authenticated;

@@ -854,13 +854,15 @@ async function geoLoad(){const L=document.getElementById('geoList');if(!L)return
   const R=data||[],free=R.filter(r=>!r.redeemed_at&&!r.revoked).length;
   document.getElementById('geoCnt').textContent=R.length;document.getElementById('nGeo').textContent=free?free:'';
   const d=v=>v?new Date(v).toLocaleDateString('el-GR'):'—';
-  L.innerHTML=R.length?`<table><tr><th>Κλειδί</th><th>Διάρκεια</th><th>Για</th><th>Σημείωση</th><th>Εκδόθηκε</th><th>Ενεργοποίηση</th><th>Pro έως</th><th></th></tr>`+
+  L.innerHTML=R.length?`<table><tr><th>Κλειδί</th><th>Διάρκεια</th><th>Για</th><th>Σημείωση</th><th>Εκδόθηκε</th><th>Ενεργοποίηση</th><th>Pro έως</th><th>Συσκευή</th><th></th></tr>`+
     R.map(r=>`<tr style="${r.revoked?'opacity:.5':''}"><td class="k">${ixe(r.key)} <button class="btn" data-gcp="${ixe(r.key)}" title="Αντιγραφή κλειδιού" style="padding:2px 7px">⧉</button></td>
       <td>${r.months} μήν.</td><td class="wr">${ixe(r.email||'οποιονδήποτε')}</td><td class="wr">${ixe(r.note||'')}</td><td>${d(r.created_at)}</td>
       <td class="wr">${r.redeemed_at?'<b>'+ixe(r.redeemed_email||'—')+'</b><br><small>'+d(r.redeemed_at)+'</small>':(r.revoked?'ανακλήθηκε':'<span class="muted">διαθέσιμο</span>')}</td>
       <td>${d(r.pro_until)}</td>
+      <td class="wr">${r.seat_device?ixe(r.seat_device)+'<br><small>τελ. χρήση '+d(r.seat_seen)+'</small> <button class="btn" data-grl="'+ixe(r.key)+'" title="Αποδέσμευση συσκευής: ο πελάτης ανοίγει το Pro σε άλλη συσκευή" style="padding:2px 7px">Αποδέσμευση</button>':'<span class="muted">—</span>'}</td>
       <td><button class="btn ${r.revoked?'btn-ok':'btn-no'}" data-grv="${ixe(r.key)}" data-on="${r.revoked?0:1}">${r.revoked?'Επαναφορά':'Ανάκληση'}</button></td></tr>`).join('')+'</table>':'<div class="empty">Δεν έχουν εκδοθεί κλειδιά ακόμα.</div>';
   L.querySelectorAll('[data-gcp]').forEach(b=>b.onclick=()=>{navigator.clipboard.writeText(b.dataset.gcp);toast('Αντιγράφηκε')});
+  L.querySelectorAll('[data-grl]').forEach(b=>b.onclick=async()=>{if(!confirm('Αποδέσμευση της συσκευής για το '+b.dataset.grl+';\nΟ πελάτης θα μπορεί να ανοίξει το Pro σε άλλη συσκευή. Η λήξη δεν αλλάζει.'))return;const {error}=await sb.rpc('admin_geo_release',{p_key:b.dataset.grl});toast(error?error.message:'Η συσκευή αποδεσμεύτηκε');geoLoad()});
   L.querySelectorAll('[data-grv]').forEach(b=>b.onclick=async()=>{const on=b.dataset.on==='1';if(on&&!confirm('Ανάκληση του '+b.dataset.grv+';\nΑν έχει ήδη χρησιμοποιηθεί, κλείνει και το Pro του λογαριασμού.'))return;const {error}=await sb.rpc('admin_geo_revoke',{p_key:b.dataset.grv,p_on:on});toast(error?error.message:(on?'Ανακλήθηκε':'Επανήλθε'));geoLoad()});
 }
 document.getElementById('geoRef').onclick=()=>geoLoad();
@@ -868,7 +870,7 @@ document.getElementById('geoNew').onclick=async()=>{const n=Math.round(+document
   const {data,error}=await sb.rpc('admin_geo_issue',{p_count:n,p_months:mo,p_email:em||null,p_note:document.getElementById('geoNote').value||null});
   if(error){toast(error.message);return}
   const keys=(data||[]).map(x=>typeof x==='string'?x:(x.admin_geo_issue||Object.values(x)[0]));
-  const msg=`Καλησπέρα,\n\nσου στέλνω ${keys.length>1?'τα κλειδιά':'το κλειδί'} για το HEXIS GEOmetry Pro (${mo} μήνες):\n\n${keys.join('\n')}\n\n1. Άνοιξε το HEXIS GEOmetry: https://hexis-app.gr/syntetagmenes.html (συνδεδεμένος στον λογαριασμό σου HEXIS-APP)\n2. Καρτέλα «Τοπογραφικό» → «Έχεις κλειδί Pro;» → γράψε το κλειδί → «Ενεργοποίηση».\n\nΚάθε κλειδί ενεργοποιείται σε έναν λογαριασμό.\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.`;
+  const msg=`Καλησπέρα,\n\nσου στέλνω ${keys.length>1?'τα κλειδιά':'το κλειδί'} για το HEXIS GEOmetry Pro (${mo} μήνες):\n\n${keys.join('\n')}\n\n1. Άνοιξε το HEXIS GEOmetry: https://hexis-app.gr/syntetagmenes.html (συνδεδεμένος στον λογαριασμό σου HEXIS-APP)\n2. Καρτέλα «Τοπογραφικό» → «Έχεις κλειδί Pro;» → γράψε το κλειδί → «Ενεργοποίηση».\n\nΚάθε κλειδί ενεργοποιείται σε έναν λογαριασμό και δουλεύει σε μία συσκευή κάθε φορά. Για αλλαγή συσκευής: πάτα «Αποδέσμευση» δίπλα στην ένδειξη PRO στην παλιά συσκευή και άνοιξε το GEOmetry στη νέα.\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr\npowered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.`;
   const o=document.getElementById('geoOut');o.innerHTML=`<div style="margin:10px 0;padding:12px 14px;border:2px solid #F7941D;border-radius:12px;background:#FFF8F0"><div style="font-size:13px;color:#667085">${keys.length>1?keys.length+' νέα κλειδιά':'Νέο κλειδί'} · Pro ${mo} μηνών${em?' · για '+ixe(em):''}</div>
     <div style="font:700 22px var(--font-m);letter-spacing:1px;margin:4px 0 8px;white-space:pre-line">${keys.map(ixe).join('\n')}</div>
     <textarea id="geoMsg" style="width:100%;height:170px;font-size:13px">${ixe(msg)}</textarea>
