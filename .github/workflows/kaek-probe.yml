@@ -20,12 +20,15 @@ jobs:
           ls -la out
       - name: Εμφάνιση
         run: |
-          for f in out/*.json; do echo "=== $f"; python3 -c "
-import json,sys
-d=json.load(open('$f'))
-for ft in d.get('features',[]):
-    a=ft['attributes']; g=ft.get('geometry',{})
-    print('KAEK',a.get('KAEK'),'attrs',{k:v for k,v in a.items() if k in('SHAPE__Area','Shape__Area','AREA','EMBADON','OBJECTID')})
-    for r in g.get('rings',[]): print('RING',len(r),[[round(x,3),round(y,3)] for x,y in r])
-if 'error' in d: print(d)
-"; done
+          cat > show.py <<'PY'
+          import json, glob
+          for f in sorted(glob.glob('out/*.json')):
+              print('===', f)
+              d = json.load(open(f))
+              if 'error' in d: print(d)
+              for ft in d.get('features', []):
+                  a = ft['attributes']; g = ft.get('geometry', {})
+                  print('KAEK', a.get('KAEK'), a)
+                  for r in g.get('rings', []): print('RING', len(r), [[round(x, 3), round(y, 3)] for x, y in r])
+          PY
+          python3 show.py
