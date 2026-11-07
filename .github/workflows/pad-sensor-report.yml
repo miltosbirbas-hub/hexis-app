@@ -27,7 +27,7 @@ jobs:
             'codes', (select coalesce(json_agg(c),'[]') from (select kind, code, sum(n) n, sum(val) val, count(distinct device_id) devices, max(at) last,
                        (array_agg(msg order by at desc) filter (where msg is not null))[1] msg, (array_agg(ctx order by at desc) filter (where ctx is not null))[1] ctx, max(app_ver) ver
                        from t group by kind, code order by sum(n) desc limit 500) c),
-            'daily', (select coalesce(json_agg(d),'[]') from (select date_trunc('day', at)::date day, count(distinct device_id) devices,
+            'daily', (select coalesce(json_agg(d),'[]') from (select date_trunc('day', at)::date as day, count(distinct device_id) devices,
                        sum(val) filter (where code like 'sol:%') sol_s, sum(val) filter (where code = 'sol:fix') fix_s, sum(n) filter (where code = 'fix_lost') fix_lost,
                        sum(n) filter (where kind = 'err') errors from t group by 1 order by 1) d)
           ) as report;"
