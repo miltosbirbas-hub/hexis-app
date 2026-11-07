@@ -78,6 +78,8 @@ label.chk input{width:22px;height:22px;accent-color:var(--pri)}
 .lnk{border:none;background:none;color:var(--pri);font-weight:700;cursor:pointer;text-decoration:underline;padding:2px 4px;font-size:.88rem}
 #issues h3{color:var(--warn);margin:10px 0 6px}
 #issues h3.unch{color:var(--pri2)}
+#issues h3.okh{color:var(--ok)}
+.issue.fixed{border-color:#7cc79a;background:#f0f9f3}
 .issue.unc{border-color:#9fc3ee;background:#f3f8ff}
 .evimg{display:block;max-width:100%;height:auto;border:1px solid var(--line);border-radius:8px;margin:8px 0;background:#fff}
 .cell.uncc{border-color:#e0a100;background:#fffbea}
@@ -133,10 +135,11 @@ details summary{cursor:pointer;font-weight:700;color:var(--pri);margin-top:10px}
   <h3>Πώς δουλεύει</h3>
   <ol>
     <li><b>Ανέβασε το ΦΕΚ</b> (PDF ή φωτογραφία). Ψηφιακά ΦΕΚ διαβάζονται αμέσως· τα σαρωμένα με αναγνώριση κειμένου (λίγα δευτερόλεπτα ανά σελίδα). Ξετίκαρε τις σελίδες που είναι μόνο σχέδια για να τελειώσει πιο γρήγορα.</li>
-    <li><b>Έλεγξε τα σημεία.</b> Οι κορυφές μπαίνουν ανά γραμμή (αιγιαλός, παραλία, παλαιός αιγιαλός). Το εργαλείο εντοπίζει τυπογραφικά λάθη του ΦΕΚ και προτείνει διόρθωση — εσύ αποφασίζεις.</li>
+    <li><b>Έλεγξε τα σημεία.</b> Οι κορυφές μπαίνουν ανά γραμμή (αιγιαλός, παραλία, παλαιός αιγιαλός). Τα προφανή τυπογραφικά λάθη του ΦΕΚ (π.χ. λείπει το «−», ένα λάθος ψηφίο) διορθώνονται αυτόματα και φαίνονται με πράσινο — μπορείς να τα αναιρέσεις. Οι αβέβαιες αναγνώσεις δείχνουν την εικόνα του ΦΕΚ για να διαλέξεις. <b>Δεν προχωράς στο βήμα 3 όσο υπάρχει ανοιχτό ζήτημα.</b></li>
     <li><b>Σύστημα αναφοράς.</b> Αναγνωρίζεται αυτόματα (HATT, ΤΜ3, UTM, ΕΓΣΑ87, γεωγραφικές). Για HATT βρίσκεται το φύλλο χάρτη ΓΥΣ 1:50.000 με κέντρο φ₀, λ₀ — από το κείμενο ή από την περιοχή του ΦΕΚ.</li>
     <li><b>Αποτέλεσμα.</b> Έλεγχος πάνω σε δορυφορική εικόνα και εξαγωγή σε TXT, CSV (Excel), DXF, KML.</li>
     <li><b>Έλεγχος με Κτηματολόγιο.</b> Το «Σύγκριση με Κτηματολόγιο» φέρνει τα γεωτεμάχια της περιοχής και μετρά, κάθε 1 μ. κατά μήκος κάθε γραμμής, την απόσταση από τα παράλληλα όρια γεωτεμαχίων. Δίνει κάλυψη, διάμεση/95%/μέγιστη απόκλιση, συστηματική μετάθεση και απόκλιση ανά κορυφή (από όριο και από κορυφή γεωτεμαχίου). Τα γεωτεμάχια μπαίνουν και στο DXF (layer PST_KAEK). Γίνεται αυτόματα μόλις ανοίξει το βήμα 4.</li>
+    <li><b>Κορυφές εκτός Κτηματολογίου.</b> Αν η γραμμή συμπίπτει με τα όρια του Κτηματολογίου αλλά κάποια κορυφή ξεφεύγει (π.χ. 10 μ.), εμφανίζεται προειδοποίηση· η οριστική μετατροπή γίνεται μόνο αφού την ελέγξεις με το ΦΕΚ.</li>
     <li><b>Οριστική μετατροπή.</b> Μετά τον έλεγχο επιλέγεις «όπως προκύπτει από το ΦΕΚ» ή, αν βρεθεί σταθερή συστηματική μετάθεση, «με διόρθωση μετάθεσης». Μόνο τότε ενεργοποιούνται οι εξαγωγές. Η επιλογή καταγράφεται στο CSV.</li>
   </ol>
   <p class="hint">HATT → ΕΓΣΑ87 με τα επίσημα πολυώνυμα 2ου βαθμού ΟΚΧΕ/ΓΥΣ ανά φύλλο χάρτη. ΤΜ3 και γεωγραφικές Bessel περνούν από την προβολή HATT του φύλλου τους και τα ίδια πολυώνυμα. UTM/ED50 και WGS84 με παραμέτρους 3 μεταθέσεων (ακρίβεια λίγων μέτρων). Για τοπικά συστήματα: μετασχηματισμός ομοιότητας με κοινά σημεία.</p>
@@ -1140,6 +1143,12 @@ function variants(v) { // υποψήφιες διορθώσεις: [τιμή, κ
   }
   return [...out];
 }
+function autoFix() { // προφανή τυπογραφικά λάθη του ΦΕΚ (πρόσημο / ένα ψηφίο) διορθώνονται αυτόματα — με σημείωση και δυνατότητα αναίρεσης
+  for (let it = 0; it < 4; it++) {
+    const iss = checkGroups().filter(({ p }) => p.flag && p.flag.fix && !p.ok && !p.autoFix); if (!iss.length) break;
+    iss.forEach(({ p }) => { const f = p.flag.fix, old = p[f.ax]; p[f.ax] = f.v; p.autoFix = { ax: f.ax, from: old, to: f.v }; p.note = `αυτόματη διόρθωση: ${f.ax === 'x' ? 'X' : 'Y'} στο ΦΕΚ ${fmtGr(old)} → ${fmtGr(f.v)}`; p.flag = null; });
+  }
+}
 function checkGroups() {
   const issues = [];
   for (const k of GKEYS) {
@@ -1497,7 +1506,7 @@ function applyText(text) {
   S.text = text; $('#rawText').value = text;
   let r = parseFEK(text, S.ocr);
   if (S.rowText) { const r2 = parseFEK(S.rowText, S.ocr); if (r2.count > r.count) r = Object.assign(r2, { meta: Object.assign({}, r2.meta, r.meta) }); }
-  S.groups = r.groups; S.meta = r.meta; attachEvid();
+  S.groups = r.groups; S.meta = r.meta; attachEvid(); autoFix();
   if (!r.count) { toast('Δεν βρέθηκαν συντεταγμένες. Δες το κείμενο ή συμπλήρωσε τον πίνακα με το χέρι.', 'warn'); }
   else toast(`Βρέθηκαν ${r.count} κορυφές.`, 'ok');
   const d = detectSystem(text); S.sys = d.sys; S.sysWhy = d.why; S.swap = !!d.swap;
@@ -1523,6 +1532,7 @@ function attachEvid() {
    ===================================================================== */
 function go(n) {
   if (n > 1 && !anyPoints()) { toast('Πρώτα χρειάζονται σημεία.', 'warn'); n = 1; }
+  if (n > 2 && openIssues()) { toast(`Υπάρχουν ${openIssues()} ανοιχτά ζητήματα στα σημεία — λύσε τα πρώτα (πάνω στη σελίδα).`, 'warn'); n = 2; }
   S.step = n; $$('.step').forEach(s => s.hidden = +s.dataset.step !== n);
   $$('#stepper button').forEach(b => { const k = +b.dataset.go; b.classList.toggle('on', k === n); b.classList.toggle('done', k < n); b.disabled = k > 1 && !anyPoints(); });
   if (n === 2) renderPoints();
@@ -1538,6 +1548,12 @@ function renderPoints() {
   const m = S.meta;
   $('#metaBox').innerHTML = [m.place && `<b>Περιοχή:</b> ${esc(m.place)}`, m.dimos && `<b>Δήμος:</b> ${esc(m.dimos)}`, m.nomos && `<b>Νομός:</b> ${esc(m.nomos)}`, m.offset && `<b>Παραλία:</b> σταθερή απόσταση ${fmtGr(m.offset)} μ. από τον αιγιαλό`].filter(Boolean).join(' · ') || 'Δεν εντοπίστηκαν στοιχεία περιοχής — μπορείς να τα δώσεις στο επόμενο βήμα.';
   const iss = $('#issues'); iss.innerHTML = '';
+  const fixed = []; GKEYS.forEach(k => S.groups[k].forEach(p => p.autoFix && fixed.push({ g: k, p })));
+  if (fixed.length) {
+    iss.append(el('h3', { class: 'okh' }, `✔ ${fixed.length} τυπογραφικά λάθη του ΦΕΚ διορθώθηκαν αυτόματα — δες τα`));
+    fixed.forEach(({ g, p }) => { const f = p.autoFix; iss.append(el('div', { class: 'issue fixed' }, el('div', {}, el('b', {}, `${GROUPS[g].name.replace('Οριογραμμή ', '')} — κορυφή ${p.label}: `), `${f.ax === 'x' ? 'X' : 'Y'} στο ΦΕΚ ${fmtGr(f.from)} → `, el('b', {}, fmtGr(f.to)), ' (η τιμή του ΦΕΚ έβγαζε την κορυφή εκτός γραμμής)'),
+      el('div', { class: 'fixline' }, el('button', { class: 'btn sm', onclick: () => { p[f.ax] = f.from; p.note = 'κρατήθηκε η τιμή του ΦΕΚ'; delete p.autoFix; p.ok = true; saveSession(); renderPoints(); } }, 'Αναίρεση — κράτα την τιμή του ΦΕΚ')))); });
+  }
   const uncs = []; GKEYS.forEach(k => S.groups[k].forEach(p => p.unc && Object.keys(p.unc).forEach(ax => uncs.push({ g: k, p, ax }))));
   if (uncs.length) {
     iss.append(el('h3', { class: 'unch' }, `🔍 ${uncs.length} αβέβαιες αναγνώσεις — σύγκρινε με την εικόνα του ΦΕΚ`));
@@ -1862,7 +1878,7 @@ async function runKT() {
     GKEYS.forEach(k => S.prov[k].forEach(p => { if (p.E == null) return; e0 = Math.min(e0, p.E); n0 = Math.min(n0, p.N); e1 = Math.max(e1, p.E); n1 = Math.max(n1, p.N); }));
     if (!isFinite(e0)) throw new Error('Δεν υπάρχουν σημεία.');
     const bb = [e0 - 60, n0 - 60, e1 + 60, n1 + 60];
-    if ((bb[2] - bb[0]) * (bb[3] - bb[1]) > 4e7) throw new Error('Η έκταση είναι πολύ μεγάλη για σύγκριση (> 40 km²) — μάλλον υπάρχει λάθος σημείο. Διόρθωσέ το στο βήμα 2.');
+    if ((bb[2] - bb[0]) * (bb[3] - bb[1]) > 2.5e7) throw new Error('Η έκταση των σημείων είναι πολύ μεγάλη για σύγκριση (> 25 km²) — μάλλον υπάρχει λάθος σημείο. Διόρθωσέ το στο βήμα 2.');
     const r = await ktFetch(bb, m => st.textContent = m);
     KT = { parcels: r.parcels, src: r.src, at: new Date(), sig: sig() };
     ktCompare(); renderKT(); drawMap(); renderResultsTables();
@@ -1940,11 +1956,21 @@ function renderFinal() {
   opts.append(opt('asis', 'Όπως προκύπτει από το ΦΕΚ', 'Οι συντεταγμένες του ΦΕΚ μετασχηματισμένες, χωρίς καμία μετακίνηση.', true));
   if (sh) opts.append(opt('shift', `Με διόρθωση συστηματικής μετάθεσης ΔX ${fmtGr(sh.dE)} μ., ΔY ${fmtGr(sh.dN)} μ.`, `Οι γραμμές μετακινούνται ${fmtGr(sh.m)} μ. ώστε να συμπέσουν με τα όρια του Κτηματολογίου (μένει διάμεση απόκλιση ${fmtGr(sh.resMed)} μ., 95%: ${fmtGr(sh.res95)} μ.). Απόφαση του μηχανικού.`, false));
   host.append(el('div', { class: 'verdict ' + v.cls }, 'Έλεγχος σύγκλισης: ' + v.txt));
+  // κορυφές που ξεφεύγουν από το Κτηματολόγιο ενώ η γραμμή κατά τα άλλα συμπίπτει → πιθανό λάθος τιμής (π.χ. ένα ψηφίο)
+  const devs = [];
+  if (v.cls !== 'bad') GKEYS.forEach(k => { const s = KT.cmp[k]; if (!s || s.cov < 0.4 || !(s.med <= 0.5)) return; s.per.forEach(q => { if (q.d == null || q.d > Math.max(1, s.p95 * 2.5)) devs.push({ k, q }); }); });
+  let devCb = null;
+  if (devs.length) {
+    host.append(el('div', { class: 'verdict warn' }, `Κορυφές που δεν συμφωνούν με τα όρια του Κτηματολογίου, ενώ η υπόλοιπη γραμμή συμπίπτει: ${devs.map(({ k, q }) => `${q.label} (${q.d == null ? '> 5' : fmtGr(q.d)} μ.)`).join(', ')}. Συνήθως είναι λάθος ψηφίο στην ανάγνωση ή στο ΦΕΚ — έλεγξέ τες στο βήμα 2.`));
+    devCb = el('input', { type: 'checkbox' });
+    host.append(el('div', { class: 'row' }, el('button', { class: 'btn sm', onclick: () => go(2) }, '← Έλεγχος στο βήμα 2'), el('label', { class: 'chk' }, devCb, 'Τις έλεγξα με το ΦΕΚ — είναι σωστές')));
+  }
   host.append(opts);
   const cb = el('input', { type: 'checkbox' });
   const need = v.cls === 'bad';
   const btn = el('button', { class: 'btn pri', onclick: () => finalize(mode, mode === 'shift' ? { dE: sh.dE, dN: sh.dN } : {}) }, 'Οριστική μετατροπή σε ΕΓΣΑ87');
-  const upd = () => { btn.disabled = need && !cb.checked; };
+  const upd = () => { btn.disabled = (need && !cb.checked) || (devCb && !devCb.checked); };
+  if (devCb) devCb.onchange = () => upd();
   if (need) host.append(el('label', { class: 'chk' }, cb, 'Η σύγκλιση είναι ασθενής — το έχω ελέγξει και προχωρώ'));
   cb.onchange = upd; upd();
   host.append(el('div', { class: 'row' }, btn));
@@ -2010,7 +2036,7 @@ function bind() {
   const prev = LS.get('session', null);
   if (!EMBED && prev && prev.groups && GKEYS.some(k => prev.groups[k]?.length)) {
     $('#resume').hidden = false; $('#resumeTxt').textContent = `Προηγούμενη εργασία: ${prev.fileName || ''} (${GKEYS.reduce((s, k) => s + prev.groups[k].length, 0)} κορυφές)`;
-    $('#resumeBtn').onclick = () => { S = Object.assign(freshState(), prev); $('#rawText').value = S.text || ''; $('#resume').hidden = true; go(S.step > 1 ? S.step : 2); };
+    $('#resumeBtn').onclick = () => { S = Object.assign(freshState(), prev); autoFix(); $('#rawText').value = S.text || ''; $('#resume').hidden = true; go(S.step > 1 ? S.step : 2); };
   }
 }
 function setBase(k) { SET.basemap = k; saveSet(); if (!map) return; Object.values(baseLayers).forEach(l => map.removeLayer(l)); baseLayers[k].addTo(map); $('#bmSat').classList.toggle('on', k === 'sat'); $('#bmOsm').classList.toggle('on', k === 'osm'); }
