@@ -294,3 +294,63 @@ grant execute on function public.pad_owner_login(text,text) to authenticated;
 -- Ρυθμίσεις (δημόσιο κλειδί υπογραφής άδειας)· καμία πρόσβαση από την εφαρμογή
 create table if not exists public.pad_config (k text primary key, v text not null, updated_at timestamptz not null default now());
 alter table public.pad_config enable row level security;
+
+-- ── Αισθητήρας λειτουργίας HEXIS PAD (για βελτίωση της εφαρμογής) ─────────────
+-- Μόνο τεχνικά στοιχεία: σφάλματα, απώλειες FIX/σύνδεσης, λόγοι που δεν πάρθηκε σημείο, χρήση εργαλείων/ρυθμίσεων.
+-- ΚΑΜΙΑ συντεταγμένη, όνομα σημείου, έργο ή αρχείο. Ο χρήστης το κλείνει από τις Ρυθμίσεις.
+create table if not exists public.pad_telemetry (
+  id         bigserial primary key,
+  key        text not null,
+  device_id  text,
+  app_ver    text,
+  at         timestamptz not null,
+  kind       text not null,        -- err | count | time | event
+  code       text not null,        -- π.χ. fix_lost, blocked:<λόγος>, tool:<εργαλείο>, sheet:<τίτλος>, warn:<μήνυμα>
+  n          integer not null default 1,
+  val        numeric,              -- δευτερόλεπτα / τιμή
+  msg        text,
+  ctx        jsonb,
+  synced_at  timestamptz not null default now()
+);
+create index if not exists pad_telemetry_at on public.pad_telemetry(at desc);
+create index if not exists pad_telemetry_code on public.pad_telemetry(code, at desc);
+create index if not exists pad_telemetry_dev on public.pad_telemetry(device_id, synced_at desc);
+alter table public.pad_telemetry enable row level security;
+
+create or replace function public.pad_tele(p_key text, p_device text, p_events jsonb)
+returns json language plpgsql security definer set search_path = public as $$
+declare l public.pad_licenses; e jsonb; n int := 0; today int; k text := upper(regexp_replace(coalesce(p_key,''), '\s', '', 'g'));
+begin
+  select * into l from pad_licenses where key = k;
+  if not found or l.revoked or not (l.device_id is not distinct from p_device or exists (select 1 from pad_devices d where d.key = k and d.device_id = p_device)) then
+    return json_build_object('ok',false,'code','invalid');
+  end if;
+  select count(*) into today from pad_telemetry where device_id = p_device and synced_at > now() - interval '1 day';
+  if today > 5000 then return json_build_object('ok',true,'n',0,'capped',true); end if;
+  for e in select * from jsonb_array_elements(coalesce(p_events,'[]'::jsonb)) loop
+    exit when n >= 300;
+    insert into pad_telemetry(key, device_id, app_ver, at, kind, code, n, val, msg, ctx)
+    values (k, p_device, left(e->>'ver',20), least(coalesce((e->>'at')::timestamptz, now()), now()), left(coalesce(e->>'kind','event'),10),
+            left(coalesce(e->>'code','?'),120), least(greatest(coalesce((e->>'n')::int,1),0),100000), (e->>'val')::numeric, left(e->>'msg',600),
+            case when e ? 'ctx' and length((e->'ctx')::text) < 2000 then e->'ctx' else null end);
+    n := n + 1;
+  end loop;
+  return json_build_object('ok',true,'n',n);
+end $$;
+revoke all on function public.pad_tele(text,text,jsonb) from public;
+grant execute on function public.pad_tele(text,text,jsonb) to anon, authenticated;
+
+-- Admin: σύνοψη ανά κωδικό (τελευταίες p_days ημέρες)
+create or replace function public.admin_pad_tele(p_days int default 7)
+returns table(kind text, code text, n bigint, val numeric, devices bigint, last_at timestamptz, msg text, ver text)
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'forbidden'; end if;
+  return query
+  select t.kind, t.code, sum(t.n)::bigint, sum(t.val), count(distinct t.device_id), max(t.at),
+         (array_agg(t.msg order by t.at desc) filter (where t.msg is not null))[1], max(t.app_ver)
+  from pad_telemetry t where t.at > now() - make_interval(days => greatest(1, least(p_days, 90)))
+  group by t.kind, t.code order by sum(t.n) desc limit 400;
+end $$;
+revoke all on function public.admin_pad_tele(int) from public, anon;
+grant execute on function public.admin_pad_tele(int) to authenticated;

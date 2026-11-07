@@ -238,6 +238,10 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
     <div id="padOut"></div>
     <div class="ixsub">Ποιος δουλεύει και πόση ώρα <span class="hint" style="margin:0">· 🟢 = δουλεύει τώρα (ανανέωση κάθε 30″) · ο χρόνος χωρίς ίντερνετ έρχεται μόλις βρει σύνδεση</span></div>
     <div class="ixtw scrl" id="padList" style="max-height:calc(100vh - 470px)"><div class="empty">Φόρτωση...</div></div>
+    <div class="ixsub" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">Αισθητήρας εφαρμογής · τι να βελτιωθεί <span class="hint" style="margin:0">· ανώνυμα τεχνικά στοιχεία από τις συσκευές — καμία συντεταγμένη</span><span style="flex:1"></span>
+      <select id="teleDays" style="font-size:14px;padding:5px 8px;border:1px solid var(--border-strong);border-radius:8px"><option value="1">24 ώρες</option><option value="7" selected>7 ημέρες</option><option value="30">30 ημέρες</option></select>
+      <button class="btn" id="teleRef" type="button">↻</button></div>
+    <div id="teleBox" class="scrl" style="max-height:70vh"><div class="empty">Φόρτωση...</div></div>
   </div>
 
   <div class="card" data-sec="requests">
@@ -849,6 +853,42 @@ const padLeft=r=>{if(r.revoked)return '<span class="ixtag" style="background:#FD
       (r.activated_at?(r.expires_at?'<small>ισχύς έως '+ixd(r.expires_at)+'</small>':''):'<small>δεν ενεργοποιήθηκε'+(r.days?' · ισχύς '+r.days+' ημ.':'')+'</small>')}
   if(!r.activated_at)return '<span class="ixtag">δεν ενεργοποιήθηκε · '+r.days+' ημ.</span>';const d=(Date.parse(r.expires_at)-Date.now())/86400e3;
   return d<=0?'<span class="ixtag" style="background:#FDECEC;color:#B42318">έληξε '+ixd(r.expires_at)+'</span>':'<span class="ixtag '+(d<2?'pro':'pok')+'">'+(d<1?Math.max(1,Math.round(d*24))+' ώρες':Math.ceil(d)+' ημέρες')+'</span> <small>έως '+ixd(r.expires_at)+'</small>'};
+// ===== HEXIS PAD: αισθητήρας λειτουργίας — σύνοψη και αυτόματες προτάσεις βελτίωσης =====
+let teleT=0;
+async function teleLoad(force){const B=document.getElementById('teleBox');if(!B)return;if(!force&&Date.now()-teleT<300000)return;teleT=Date.now();
+  const days=+document.getElementById('teleDays').value||7;
+  const {data,error}=await sb.rpc('admin_pad_tele',{p_days:days});
+  if(error){B.innerHTML='<div class="empty">'+ixe(error.message)+' · τρέχει αυτόματα το pad-licenses.sql — περίμενε λίγα λεπτά</div>';return}
+  const R=data||[];if(!R.length){B.innerHTML='<div class="empty">Δεν έχουν έρθει ακόμη στοιχεία — έρχονται κάθε 10′ από τις συσκευές με τη νέα έκδοση.</div>';return}
+  const by=p=>R.filter(r=>r.code.startsWith(p)),sum=(a,f)=>a.reduce((x,r)=>x+(+r[f]||0),0),sec=v=>{v=+v||0;return v<90?Math.round(v)+'″':v<5400?Math.round(v/60)+'′':(v/3600).toFixed(1)+' ώρες'};
+  const sol=by('sol:'),solT=sum(sol,'val')||1,fixT=sum(sol.filter(r=>r.code==='sol:fix'),'val'),lost=sum(by('fix_lost'),'n'),ff=by('first_fix_s')[0];
+  const blk=by('blocked:').sort((a,b)=>b.val-a.val),err=R.filter(r=>r.kind==='err').sort((a,b)=>b.n-a.n),warn=by('warn:').sort((a,b)=>b.n-a.n);
+  const sh=by('sheet:'),shs=by('sheet_s:'),tools=by('tool:').sort((a,b)=>b.n-a.n),conn=by('conn:'),slow=by('slow_ui_ms')[0];
+  const hrs=fixT/3600;
+  // αυτόματες προτάσεις (κανόνες)
+  const P=[];
+  err.slice(0,5).forEach(r=>P.push(['bad','Σφάλμα κώδικα '+r.n+'× σε '+r.devices+' συσκευή(ές): «'+r.code.replace(/^err:/,'')+'» (έκδοση '+(r.ver||'?')+')']));
+  if(hrs>0.2&&lost/hrs>6)P.push(['warn','Το FIX χάνεται '+(lost/hrs).toFixed(0)+' φορές/ώρα — έλεγχος NTRIP/θέσης κεραίας ή πιο ανεκτικό κράτημα λύσης.']);
+  if(ff&&ff.n>=2&&ff.val/ff.n>120)P.push(['warn','Το πρώτο FIX αργεί κατά μέσο όρο '+sec(ff.val/ff.n)+' μετά τη σύνδεση.']);
+  const workT=solT;blk.slice(0,3).forEach(r=>{if(r.val>60&&r.val/workT>0.05)P.push(['warn','Δεν παίρνεται σημείο λόγω «'+r.code.replace(/^blocked:/,'')+'» για '+sec(r.val)+' ('+(r.val/workT*100).toFixed(0)+'% του χρόνου πεδίου) — να απλοποιηθεί ή να εξηγείται καλύτερα.'])});
+  shs.forEach(r=>{const c=sh.find(x=>x.code==='sheet:'+r.code.slice(8));const n=c?+c.n:1;if(n>=3&&r.val/n>40)P.push(['info','Η οθόνη «'+r.code.slice(8)+'» ανοίγει '+n+'× με μέσο χρόνο '+sec(r.val/n)+' — μάλλον μπερδεύει· υποψήφια για απλοποίηση.'])});
+  warn.slice(0,3).forEach(r=>{if(r.n>=10)P.push(['info','Συχνή προειδοποίηση ('+r.n+'×): «'+r.code.replace(/^warn:/,'')+'».'])});
+  const cut=sum(conn.filter(r=>/:(disconnected|error|lost)$/.test(r.code)),'n');if(hrs>0.2&&cut/hrs>3)P.push(['warn','Οι συνδέσεις κόβονται '+(cut/hrs).toFixed(0)+' φορές/ώρα πεδίου.']);
+  if(slow&&slow.n>=20)P.push(['info','Αργή απόκριση οθόνης '+slow.n+'× (μέσος '+Math.round(slow.val/slow.n)+' ms).']);
+  if(!P.length)P.push(['ok','Τίποτα ανησυχητικό στην περίοδο.']);
+  const col={bad:'#FDECEC;color:#B42318',warn:'#FFF4E5;color:#8A4B00',info:'#EEF0FF;color:#3730A3',ok:'#E7F6EC;color:#1F7A4A'};
+  const tbl=(h,rows)=>rows.length?'<table><tr>'+h.map(x=>'<th>'+x+'</th>').join('')+'</tr>'+rows.join('')+'</table>':'<div class="hint">—</div>';
+  B.innerHTML=`<div style="display:grid;gap:6px;margin:6px 0 12px">${P.map(p=>`<div class="ixtag" style="display:block;white-space:normal;padding:8px 10px;font-size:14px;background:${col[p[0]]}">${ixe(p[1])}</div>`).join('')}</div>
+   <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:14px;margin-bottom:8px"><span>Χρόνος με δέκτη: <b>${sec(solT)}</b></span><span>σε FIX: <b>${(fixT/solT*100).toFixed(0)}%</b></span><span>Απώλειες FIX: <b>${lost}</b></span>${ff?`<span>Πρώτο FIX (μ.ό.): <b>${sec(ff.val/ff.n)}</b></span>`:''}</div>
+   <div class="ixsub">Γιατί δεν πάρθηκε σημείο</div>${tbl(['Λόγος','Χρόνος','Συσκευές'],blk.map(r=>`<tr><td class="wr">${ixe(r.code.replace(/^blocked:/,''))}</td><td>${sec(r.val)}</td><td>${r.devices}</td></tr>`))}
+   <div class="ixsub">Σφάλματα</div>${tbl(['Σφάλμα','Φορές','Συσκευές','Έκδοση','Τελευταίο'],err.map(r=>`<tr><td class="wr"><small>${ixe(r.code.replace(/^err:/,''))}</small></td><td>${r.n}</td><td>${r.devices}</td><td>${ixe(r.ver||'')}</td><td>${padAgo(r.last_at)}</td></tr>`))}
+   <div class="ixsub">Οθόνες / ρυθμίσεις που ανοίγει ο χειριστής</div>${tbl(['Οθόνη','Φορές','Μέσος χρόνος'],sh.sort((a,b)=>b.n-a.n).map(r=>{const t=shs.find(x=>x.code==='sheet_s:'+r.code.slice(6));return `<tr><td>${ixe(r.code.slice(6))}</td><td>${r.n}</td><td>${t?sec(t.val/r.n):'—'}</td></tr>`}))}
+   <div class="ixsub">Εργαλεία & επιλογές</div>${tbl(['Εργαλείο','Φορές'],tools.concat(by('pole:'),by('bubble:'),by('tilt_')).map(r=>`<tr><td>${ixe(r.code)}</td><td>${r.n}</td></tr>`))}
+   <div class="ixsub">Προειδοποιήσεις που είδε ο χειριστής</div>${tbl(['Μήνυμα','Φορές'],warn.map(r=>`<tr><td class="wr">${ixe(r.code.replace(/^warn:/,''))}</td><td>${r.n}</td></tr>`))}
+   <div class="ixsub">Συνδέσεις</div>${tbl(['Γεγονός','Φορές'],conn.sort((a,b)=>b.n-a.n).map(r=>`<tr><td>${ixe(r.code.slice(5))}</td><td>${r.n}</td></tr>`))}`;
+}
+document.addEventListener('change',e=>{if(e.target&&e.target.id==='teleDays')teleLoad(true)});
+document.addEventListener('click',e=>{if(e.target&&e.target.id==='teleRef')teleLoad(true)});
 let padTimer=null;
 async function padLoad(){clearTimeout(padTimer);const L=document.getElementById('padList');if(!L)return;
   const {data,error}=await sb.rpc('admin_pad_overview');
@@ -870,6 +910,7 @@ async function padLoad(){clearTimeout(padTimer);const L=document.getElementById(
   L.querySelectorAll('[data-pdv]').forEach(b=>b.onclick=async()=>{if(!confirm('Αποδέσμευση συσκευής για '+b.dataset.pdv+';\nΘα μπορεί να μπει από νέα συσκευή· η λήξη μένει ίδια.'))return;const {error}=await sb.rpc('admin_pad_reset_device',{p_key:b.dataset.pdv});toast(error?error.message:'Έγινε');padLoad()});
   L.querySelectorAll('[data-prv]').forEach(b=>b.onclick=async()=>{const on=b.dataset.on==='1';if(on&&!confirm('Ανάκληση του '+b.dataset.prv+';\nΗ εφαρμογή κλειδώνει μόλις βρει ίντερνετ.'))return;const {error}=await sb.rpc('admin_pad_revoke',{p_key:b.dataset.prv,p_on:on});toast(error?error.message:(on?'Ανακλήθηκε':'Επανήλθε'));padLoad()});
   L.querySelectorAll('[data-pss]').forEach(b=>b.onclick=()=>padSess(b.dataset.pss));
+  teleLoad();
   const card=document.getElementById('padCard');if(card&&card.classList.contains('show'))padTimer=setTimeout(padLoad,30000)}
 async function padSess(k){const r=(window.PADR||[]).find(x=>x.key===k)||{};const {data,error}=await sb.rpc('admin_pad_sessions',{p_key:k,p_limit:200});if(error){toast(error.message);return}
   const f=v=>new Date(v).toLocaleString('el-GR',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});const ft=v=>new Date(v).toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'});
