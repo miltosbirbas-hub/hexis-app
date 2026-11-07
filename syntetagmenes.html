@@ -5800,9 +5800,42 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
         Object.keys(by).map(Number).sort(function (a, b) { return b - a; }).forEach(function (y) { rows.push(by[y].sort(function (a, b) { return a.x - b.x; }).map(function (q) { return q.s; }).join(' ')); });
       }
       var out = TopoFek.parse(rows);
-      if (!out.length) { toast('Το PDF φαίνεται σαρωμένο (εικόνα) ή χωρίς πίνακα συντεταγμένων — δώσε τις συντεταγμένες ως TXT/CSV (Α1,X,Y) ή DXF.', true); return; }
+      if (!out.length) { fekConvertOffer(file, buf); return; }
       topoAigApply(out, 'το ΦΕΚ');
     } catch (e) { console.error(e); toast('Το ΦΕΚ δεν διαβάστηκε: ' + e.message, true); }
+  }
+  // ΦΕΚ χωρίς αναγνώσιμο πίνακα ΕΓΣΑ87 (σαρωμένο ή σε HATT / ΤΜ3 / UTM κ.λπ.) → προσφορά μετατροπής με το εργαλείο «ΦΕΚ → ΕΓΣΑ87»
+  function fekConvertOffer(file, buf) {
+    var old = document.getElementById('fekConvDlg'); if (old) old.remove();
+    var d = document.createElement('div'); d.id = 'fekConvDlg';
+    d.setAttribute('style', 'position:fixed;inset:0;z-index:100000;background:rgba(15,27,45,.45);display:grid;place-items:center;padding:16px');
+    d.innerHTML = '<div style="background:#fff;color:#0f1b2d;max-width:560px;width:100%;border-radius:14px;padding:18px 18px 14px;box-shadow:0 10px 40px rgba(0,0,0,.25);font-size:1.02rem;line-height:1.45">' +
+      '<div style="font-weight:800;font-size:1.12rem;margin-bottom:6px">Οι συντεταγμένες του ΦΕΚ δεν αναγνωρίστηκαν αυτόματα</div>' +
+      '<div style="margin-bottom:12px">Το ΦΕΚ είναι σαρωμένο ή δίνει τις κορυφές σε παλιό σύστημα (HATT, ΤΜ3, UTM κ.ά.). Με τη <b>μετατροπή</b> διαβάζονται οι κορυφές, αναγνωρίζεται σύστημα και φύλλο χάρτη, γίνεται έλεγχος σύγκλισης με τα γεωτεμάχια του Κτηματολογίου και οι γραμμές έρχονται εδώ σε ΕΓΣΑ87.</div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button class="btn" data-x="no">Άκυρο</button><button class="btn primary" data-x="go">Μετατροπή ΦΕΚ σε ΕΓΣΑ87</button></div></div>';
+    document.body.appendChild(d);
+    d.addEventListener('click', function (e) { var b = e.target.closest('[data-x]'); if (!b && e.target !== d) return; d.remove(); if (b && b.getAttribute('data-x') === 'go') fekConvertOpen(file, buf); });
+  }
+  function fekConvertOpen(file, buf) {
+    var ov = document.createElement('div'); ov.id = 'fekConvOv';
+    ov.setAttribute('style', 'position:fixed;inset:0;z-index:100001;background:#f4f7fb;display:flex;flex-direction:column');
+    ov.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border-bottom:1px solid #d6deea"><b style="flex:1;color:#0f1b2d">ΦΕΚ → ΕΓΣΑ87 · ' + String(file.name).replace(/[<>&"]/g, '') + '</b><button class="btn small" data-x="close">✕ Κλείσιμο</button></div><iframe src="fek2egsa.html?embed=1" style="flex:1;border:0;width:100%" title="ΦΕΚ σε ΕΓΣΑ87"></iframe>';
+    document.body.appendChild(ov);
+    var fr = ov.querySelector('iframe');
+    function close() { window.removeEventListener('message', onMsg); ov.remove(); }
+    function onMsg(ev) {
+      if (ev.origin !== location.origin || ev.source !== fr.contentWindow || !ev.data) return;
+      if (ev.data.type === 'fek2egsa-ready') { file.arrayBuffer().then(function (b) { fr.contentWindow.postMessage({ type: 'fek2egsa-file', name: file.name, buf: b }, location.origin, [b]); }); }
+      else if (ev.data.type === 'fek2egsa-result') {
+        var lines = (ev.data.lines || []).filter(function (l) { return l && l.pts && l.pts.length >= 2; });
+        close();
+        if (!lines.length) { toast('Δεν ήρθαν γραμμές από τη μετατροπή.', true); return; }
+        topoAigApply(lines, 'το ΦΕΚ (μετατροπή σε ΕΓΣΑ87' + (ev.data.final && ev.data.final.mode === 'shift' ? ', με διόρθωση σύγκλισης' : '') + ')');
+      }
+      else if (ev.data.type === 'fek2egsa-close') close();
+    }
+    window.addEventListener('message', onMsg);
+    ov.querySelector('[data-x="close"]').onclick = close;
   }
   function aigFekText(it) { if (!it) return ''; var d = it.fekDate ? it.fekDate.split('-').reverse().join('.') : ''; return (it.yyn ? 'ΥΥΝ ' + it.yyn + ', ' : '') + 'ΦΕΚ ' + (it.fek || '—') + (d ? '/' + d : '') + (it.place ? ' (' + it.place + ')' : ''); }
   // Κτίσματα: πίνακες «κτίριο» του αρχείου (PDF ή κλειστά πολύγωνα DXF μέσα στο οικόπεδο) + πολύγωνα στο layer BLD, χωρίς διπλά
