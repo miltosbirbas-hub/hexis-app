@@ -6933,11 +6933,12 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
   function ownerOf(kaek, isOwn) { var o = (S.owners || {})[kaek]; if (o) return o; if (isOwn) { var f = store('hexis_coords_report') || {}; return f.client || ''; } return ''; }
   // Όρια ιδιοκτησίας: πάντα BOUND_UNIMPL (μη υλοποιημένα), εκτός αν ο χρήστης πει ότι είναι υλοποιημένα (επιλογή ή layer BOUND_IMPL στο DXF του)
   function boundLayer() { return S.dgmBound === 'BOUND_IMPL' ? 'BOUND_IMPL' : 'BOUND_UNIMPL'; }
-  // πρόταση: από το πεδίο «Θέση» της δήλωσης (4 = εκτός σχεδίου & οικισμού), αλλιώς από τους όρους δόμησης
-  function zoneGuess() { var pos = null; try { if (S.topo && S.topo.status === 'ok') pos = +topoFields().pos; } catch (e) {} if (pos === 3) return 'rural'; if (pos === 0 || pos === 1 || pos === 2) return 'urban'; var L = S.topo && S.topo.lisp, st = L && L.fields ? String(L.fields.KATASTASI || '') : ''; return /^ektos/.test(st) ? 'rural' : 'urban'; }
+  // πρόταση: από το καθεστώς του ΕΨΧ (μέσω του πεδίου «Θέση», που προσυμπληρώνεται από αυτό και μπορεί να το διορθώσει ο μηχανικός).
+  // Χωρίς απάντηση ΕΨΧ → αστική (αυστηρότερη ανοχή), ώστε να μη δηλωθεί ποτέ συμβατό με λάθος ανοχή.
+  function zoneGuess() { var L = S.topo && S.topo.lisp; if (!L || !L.fields || !L.fields.KATASTASI) return 'urban'; var pos = null; try { pos = +topoFields().pos; } catch (e) {} if (pos === 3) return 'rural'; if (pos === 0 || pos === 1 || pos === 2) return 'urban'; return /^ektos/.test(String(L.fields.KATASTASI)) ? 'rural' : 'urban'; }
   function zoneCur() { return S.zone === 'rural' || S.zone === 'urban' ? S.zone : zoneGuess(); }
   function zoneUo() { return zoneCur() === 'rural' ? 2 : 0.5; }
-  function zoneSelHtml(id) { var z = zoneCur(), auto = !(S.zone === 'rural' || S.zone === 'urban'); return '<label class="zone">Περιοχή (ανοχή Κτηματολογίου)<select id="' + id + '"><option value="urban"' + (z === 'urban' ? ' selected' : '') + '>αστική (Uo 0,50 m)</option><option value="rural"' + (z === 'rural' ? ' selected' : '') + '>αγροτική (Uo 2,00 m)</option></select>' + (auto ? '<small style="color:var(--muted)"> αυτόματα από τους όρους δόμησης</small>' : '') + '</label>'; }
+  function zoneSelHtml(id) { var z = zoneCur(), auto = !(S.zone === 'rural' || S.zone === 'urban'); return '<label class="zone">Περιοχή (ανοχή Κτηματολογίου)<select id="' + id + '"><option value="urban"' + (z === 'urban' ? ' selected' : '') + '>αστική (Uo 0,50 m)</option><option value="rural"' + (z === 'rural' ? ' selected' : '') + '>αγροτική (Uo 2,00 m)</option></select>' + (auto ? (S.topo && S.topo.lisp && S.topo.lisp.fields && S.topo.lisp.fields.KATASTASI ? '<small style="color:var(--muted)"> αυτόματα από τη «Θέση» / όρους δόμησης</small>' : '<small style="color:var(--warn)"> δεν βρέθηκε καθεστώς περιοχής — έλεγξε την επιλογή</small>') : '') + '</label>'; }
   // έλεγχος συμβατότητας για το τοπογραφικό: με τον ΚΑΕΚ του ίδιου του τοπογραφικού (ή του Κτηματολογίου, αν έχει φορτωθεί)
   function topoVerdict(res) {
     var v = null;
