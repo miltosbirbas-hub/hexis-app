@@ -905,7 +905,7 @@ function parseFEK(raw, isOcr) {
   else if ((m = flat.match(/ΦΕΚ\s*(\d{1,4})\s*\/\s*([ΑΒΓΔ]|ΑΑΠ)\s*\/\s*(\d{1,2}[.\-\/]\d{1,2}[.\-\/]\d{2,4})/))) { meta.fekNo = meta.fekNo || m[1]; meta.teuxos = m[2]; meta.fekDate = m[3].replace(/[-\/]/g, '.'); }
   if (!meta.fekDate && (m = flat.slice(0, 900).match(/(\d{1,2})\s+(Ιανουαρίου|Φεβρουαρίου|Μαρτίου|Απριλίου|Μαΐου|Μαίου|Ιουνίου|Ιουλίου|Αυγούστου|Σεπτεμβρίου|Οκτωβρίου|Νοεμβρίου|Δεκεμβρίου)\s+(\d{4})/i))) meta.fekDate = String(m[1]).padStart(2, '0') + '.' + String(['ιανουαριου', 'φεβρουαριου', 'μαρτιου', 'απριλιου', 'μαιου', 'ιουνιου', 'ιουλιου', 'αυγουστου', 'σεπτεμβριου', 'οκτωβριου', 'νοεμβριου', 'δεκεμβριου'].indexOf(stripAcc(m[2])) + 1).padStart(2, '0') + '.' + m[3];
   if ((m = flat.match(/(?:Αριθ\.?|Αρ\.\s*πρωτ\.?)\s*([\dΑ-Ωα-ω\/.\-]{1,30}?)\s+(?:Καθορισμ|Επανακαθορισμ)/i))) meta.apof = m[1];
-  if ((m = flat.match(/παραλ[^.]{0,300}?σταθερ\S*\s+απ\S*\s*(?:των\s*)?(\d+(?:[.,]\d+)?)\s*(?:μ|m)/i))) meta.offset = parseNum(m[1]);
+  if ((m = flat.match(/παραλ[^.]{0,300}?σταθερ\S*\s+απ\S*\s*(?:των\s*)?(\d+(?:[.,]\d+)?)\s*(?:μ|m)/i))) { const v = parseNum(m[1]); if (v > 0 && v <= 50) meta.offset = v; else meta.offsetBad = m[1]; }
 
   const starts = [];
   const re = /κορυφ[^\s,.;:]*/gi;
@@ -1156,7 +1156,13 @@ function checkGroups() {
       issues.push({ g: k, p });
     }
   }
-  // ασυνέπεια πρόσημου (π.χ. λείπει το «−»)
+  // σφαιρικός έλεγχος: κορυφή πολύ μακριά από το σύνολο της γραμμής (π.χ. λείπει «−» ή ψηφίο) — πιάνει και τα άκρα
+  for (const k of GKEYS) {
+    const arr = S.groups[k].filter(p => !p.ref && Number.isFinite(p.x) && Number.isFinite(p.y) && !p.flag && !p.ok); if (arr.length < 4) continue;
+    const mx = median(arr.map(p => p.x)), my = median(arr.map(p => p.y)), dd = arr.map(p => Math.hypot(p.x - mx, p.y - my)), md = median(dd) || 1;
+    const scale = Math.abs(arr[0].x) > 100 ? 1 : 1e-5;
+    arr.forEach((p, i) => { if (dd[i] > Math.max(md * 8, 1500 * scale)) { p.flag = { msg: `Η κορυφή ${p.label} απέχει ${fmtGr(dd[i] / scale, 0)} μ. από τις υπόλοιπες της γραμμής — σχεδόν σίγουρα λάθος τιμή (ΦΕΚ ή ανάγνωση).`, fix: null }; issues.push({ g: k, p }); } });
+  }
   return issues;
 }
 
@@ -1196,7 +1202,7 @@ function transformAll() {
   // παραλία με παράλληλη μετάθεση (όταν το ΦΕΚ ορίζει σταθερή απόσταση χωρίς συντεταγμένες)
   const parHasXY = S.groups.par.some(p => !p.ref && Number.isFinite(p.x));
   res._offset = null;
-  if (!parHasXY && S.meta.offset > 0 && res.aig.filter(p => p.E != null).length >= 2) {
+  if (!parHasXY && S.meta.offset > 0 && S.meta.offset <= 50 && res.aig.filter(p => p.E != null).length >= 2) {
     const base = res.aig.filter(p => p.E != null);
     let side = S.offsetSide || autoSide(base, res);
     const off = offsetLine(base.map(p => [p.E, p.N]), S.meta.offset * side);
@@ -1548,7 +1554,7 @@ function renderPoints() {
         row.append(el('div', { class: 'fixline' }, `Πρόταση: ${f.ax === 'x' ? 'X' : 'Y'} = ${fmtGr(old)} → `, el('b', {}, fmtGr(f.v)),
           el('button', { class: 'btn sm pri', onclick: () => { p[f.ax] = f.v; p.note = `διορθώθηκε: ${f.ax === 'x' ? 'X' : 'Y'} ΦΕΚ = ${fmtGr(old)}`; saveSession(); renderPoints(); toast('Η διόρθωση εφαρμόστηκε.', 'ok'); } }, 'Εφαρμογή'),
           el('button', { class: 'btn sm', onclick: () => { p.flag = null; p.ok = true; row.remove(); } }, 'Αφήνω όπως είναι')));
-      } else row.append(el('div', { class: 'fixline' }, 'Έλεγξε την τιμή με το ΦΕΚ και διόρθωσέ τη στον πίνακα.'));
+      } else row.append(el('div', { class: 'fixline' }, 'Έλεγξε την τιμή με το ΦΕΚ και διόρθωσέ τη στον πίνακα.', el('button', { class: 'btn sm', onclick: () => { p.flag = null; p.ok = true; saveSession(); renderPoints(); } }, 'Είναι σωστή — αφήνω όπως είναι')));
       iss.append(row);
     });
   }
@@ -1557,7 +1563,7 @@ function renderPoints() {
     const card = el('section', { class: 'card grp' });
     card.append(el('div', { class: 'grphead' }, el('span', { class: 'sw', style: `background:${GROUPS[k].color}` }), el('h3', {}, GROUPS[k].name), el('span', { class: 'muted' }, ` ${arr.length} κορυφές`)));
     if (k === 'par' && !arr.some(p => !p.ref && Number.isFinite(p.x))) {
-      const oi = el('input', { class: 'cell', value: m.offset ? fmtGr(m.offset) : '', inputmode: 'decimal', style: 'width:100px;min-width:80px', 'aria-label': 'Απόσταση παραλίας', onchange: e => { const v = parseNum(e.target.value); S.meta.offset = v > 0 ? v : null; saveSession(); renderPoints(); } });
+      const oi = el('input', { class: 'cell', value: m.offset ? fmtGr(m.offset) : '', inputmode: 'decimal', style: 'width:100px;min-width:80px', 'aria-label': 'Απόσταση παραλίας', onchange: e => { const v = parseNum(e.target.value); if (v > 50) toast('Η παραλία ορίζεται σε πλάτος έως 50 μ. από τον αιγιαλό — έλεγξε την τιμή.', 'warn'); S.meta.offset = v > 0 && v <= 50 ? v : null; saveSession(); renderPoints(); } });
       card.append(el('div', { class: 'row hint' }, 'Το ΦΕΚ δεν δίνει συντεταγμένες παραλίας. Παράλληλη σε σταθερή απόσταση', oi, 'μ. από τον αιγιαλό (έλεγξε την τιμή με το ΦΕΚ· κενό = όχι υπολογισμός). Η πλευρά επιλέγεται στο βήμα 4.'));
     }
     const tb = el('table', { class: 'tbl' }); tb.innerHTML = '<thead><tr><th>Κορυφή</th><th>X</th><th>Y</th><th>Σημείωση</th><th></th></tr></thead>';
@@ -1609,6 +1615,9 @@ function renderSystem() {
   $('#toResults').disabled = !ready();
   setTimeout(initMini, 30);
 }
+function sheetSelfCheck(s) { // πολυώνυμο ΟΚΧΕ vs γεωμετρική λύση (HATT Bessel → φ,λ → ΕΓΣΑ87) στο κέντρο του φύλλου
+  try { const [la2, lo2] = GEO.datum(s.cy, s.cx + GEO.ATHENS, 'bessel', 'ggrs87'); const [E, N] = GEO.tmFwd('grs80', GEO.PROJ.tm87, la2, lo2); return Math.hypot(E - s.A[0], N - s.B[0]); } catch { return 0; }
+}
 function sheetCard(s) {
   const lonG = s.cx + GEO.ATHENS;
   return `<div class="sheet"><div class="sname">${esc(s.name)}</div><div class="sgrid">
@@ -1618,6 +1627,7 @@ function sheetCard(s) {
   <div><span>λ₀ (από Greenwich)</span>${GEO.fmtDMS(lonG)}</div>
   <div><span>Όρια φύλλου φ</span>${GEO.fmtDM(s.bb[1])} – ${GEO.fmtDM(s.bb[3])}</div>
   <div><span>Όρια φύλλου λ (Αθ.)</span>${GEO.fmtDM(s.bb[0])} – ${GEO.fmtDM(s.bb[2])}</div></div>
+  ${sheetSelfCheck(s) > 30 ? `<div class="warnline">⚠ Οι δημοσιευμένοι συντελεστές αυτού του φύλλου αποκλίνουν ${fmtGr(sheetSelfCheck(s), 0)} μ. από τη γεωμετρική λύση — πιθανό τυπογραφικό λάθος στους πίνακες ΟΚΧΕ. Έλεγξε με κοινά σημεία.</div>` : ''}
   <details><summary>Πολυωνυμικοί συντελεστές ΟΚΧΕ (HATT → ΕΓΣΑ87)</summary><div class="mono">X = A0 + A1·x + A2·y + A3·x² + A4·y² + A5·x·y<br>Y = B0 + B1·x + B2·y + B3·x² + B4·y² + B5·x·y<br>${s.A.map((v, i) => 'A' + i + ' = ' + v).join(' · ')}<br>${s.B.map((v, i) => 'B' + i + ' = ' + v).join(' · ')}</div></details></div>`;
 }
 function ready() {
@@ -1629,8 +1639,8 @@ function ready() {
 function initMini() {
   if (!window.L || $('#locBox').hidden) return;
   if (!miniMap) {
-    miniMap = L.map('miniMap', { zoomControl: true, attributionControl: false }).setView([38.5, 23.5], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(miniMap);
+    miniMap = L.map('miniMap', { zoomControl: true }).setView([38.5, 23.5], 6);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 19, maxZoom: 20, attribution: 'Tiles © Esri' }).addTo(miniMap);
     miniMap.on('click', e => { S.loc = { lat: e.latlng.lat, lon: e.latlng.lng, src: 'map', q: 'σημείο στο χάρτη' }; afterLoc(); });
   }
   miniMap.invalidateSize();
@@ -1699,7 +1709,7 @@ function drawMap() {
   if (!map) {
     map = L.map('map', { maxZoom: 22, zoomControl: true });
     baseLayers.sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 19, maxZoom: 22, attribution: 'Imagery © Esri' });
-    baseLayers.osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxNativeZoom: 19, maxZoom: 22, attribution: '© OpenStreetMap' });
+    baseLayers.osm = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 19, maxZoom: 22, attribution: 'Tiles © Esri' });
     baseLayers[SET.basemap].addTo(map);
     mapLayers = L.layerGroup().addTo(map);
   }
@@ -1897,11 +1907,18 @@ function renderFinal() {
   if (!KT || KT.sig !== sig()) { host.append(el('div', { class: 'verdict warn' }, 'Προσωρινά αποτελέσματα — πρώτα γίνεται ο έλεγχος σύγκλισης με το Κτηματολόγιο.')); return; }
   const finalize = (mode, extra) => { S.final = Object.assign({ mode, sig: sig(), at: Date.now(), verdict: KT.err ? 'δεν έγινε' : ktVerdict(KT.cmp).cls === 'ok' ? 'ταύτιση' : ktVerdict(KT.cmp).cls === 'warn' ? 'μερική σύγκλιση' : 'ασθενής σύγκλιση', src: KT.src || '' }, extra || {}); S.final.sig = sig(); saveSession(); transformAll(); renderResultsTables(); drawMap(); renderFinal(); toast('Οριστική μετατροπή σε ΕΓΣΑ87 — οι εξαγωγές ενεργοποιήθηκαν.', 'ok'); };
   if (KT.err) {
+    if (openIssues()) { host.append(el('div', { class: 'verdict bad' }, `Δεν γίνεται οριστική μετατροπή: υπάρχουν ${openIssues()} ανοιχτά ζητήματα στα σημεία. Διόρθωσέ τα ή επιβεβαίωσέ τα στο βήμα 2.`)); host.append(el('button', { class: 'btn pri', onclick: () => go(2) }, '← Στα σημεία (βήμα 2)')); return; }
     host.append(el('div', { class: 'verdict bad' }, 'Ο έλεγχος σύγκλισης δεν έγινε: ' + KT.err));
     const cb = el('input', { type: 'checkbox' });
     const b = el('button', { class: 'btn', disabled: true, onclick: () => finalize('nocheck') }, 'Οριστικοποίηση χωρίς έλεγχο');
     cb.onchange = () => b.disabled = !cb.checked;
     host.append(el('div', { class: 'row' }, el('button', { class: 'btn pri', onclick: runKT }, 'Νέα προσπάθεια ελέγχου'), el('label', { class: 'chk' }, cb, 'Το ελέγχω εγώ με άλλο τρόπο'), b));
+    return;
+  }
+  const oi = openIssues();
+  if (oi) {
+    host.append(el('div', { class: 'verdict bad' }, `Δεν γίνεται οριστική μετατροπή: υπάρχουν ${oi} ανοιχτά ζητήματα στα σημεία (ύποπτες ή αβέβαιες τιμές, παραπομπές). Διόρθωσέ τα ή επιβεβαίωσέ τα ένα-ένα στο βήμα 2.`));
+    host.append(el('div', { class: 'row' }, el('button', { class: 'btn pri', onclick: () => go(2) }, '← Στα σημεία (βήμα 2)')));
     return;
   }
   const v = ktVerdict(KT.cmp), sh = shiftOption();
