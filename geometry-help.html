@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Οδηγός HEXIS GEOmetry</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Commissioner:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap">
+<style>
+/* Ίδια δομή με τον οδηγό του Interior: σταθερά περιεχόμενα αριστερά + μία στήλη ανάγνωσης· κάθε ενότητα = σύντομα βήματα δίπλα σε βίντεο ή στιγμιότυπο. */
+:root{
+  --bg:#f4f6fb; --surface:#ffffff; --ink:#111827; --muted:#56627a; --line:rgba(30,41,80,.13);
+  --accent:#7c3aed; --accent2:#0e9aa7; --accent-soft:rgba(124,58,237,.10); --kbd:#eef1f7; --ok:#15803d; --bad:#b91c1c;
+  --f-ui:"Commissioner","Segoe UI","Noto Sans",system-ui,sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0f1220;--surface:#171b2e;--ink:#e6e9f5;--muted:#a3abc4;--line:rgba(200,210,255,.14);--accent:#a78bfa;--accent2:#2fb9ca;--accent-soft:rgba(167,139,250,.15);--kbd:#222842;--ok:#4ade80;--bad:#f87171;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1220;--surface:#171b2e;--ink:#e6e9f5;--muted:#a3abc4;--line:rgba(200,210,255,.14);--accent:#a78bfa;--accent2:#2fb9ca;--accent-soft:rgba(167,139,250,.15);--kbd:#222842;--ok:#4ade80;--bad:#f87171;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.62 var(--f-ui);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+img{max-width:100%}
+.wrap{max-width:1220px;margin:0 auto;display:grid;grid-template-columns:240px minmax(0,1fr);gap:40px;padding-block:32px 90px}
+nav.toc{position:sticky;top:20px;align-self:start;display:flex;flex-direction:column;gap:2px;font-size:14px}
+nav.toc b{font:700 11px var(--f-mono);letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin:0 0 8px 10px}
+nav.toc .grp{font:700 11px var(--f-mono);letter-spacing:.1em;color:var(--accent);margin:12px 0 2px 10px;text-transform:uppercase}
+nav.toc a{color:var(--muted);text-decoration:none;padding:5px 10px;border-radius:8px;display:flex;gap:8px}
+nav.toc a span{font:600 11px var(--f-mono);color:var(--accent);min-width:18px;padding-top:3px}
+nav.toc a:hover,nav.toc a:focus-visible{background:var(--accent-soft);color:var(--ink);outline:none}
+header.top{display:flex;flex-direction:column;gap:12px;margin-bottom:26px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand small{display:block;font:700 11px var(--f-mono);letter-spacing:.18em;color:var(--muted)}
+.grow{flex:1}
+.back{font:600 13px var(--f-ui);color:var(--accent);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:7px 14px;background:var(--surface);white-space:nowrap}
+.back:hover{background:var(--accent-soft)}
+h1{font-size:clamp(30px,4.2vw,44px);line-height:1.12;margin:0;letter-spacing:-.02em;text-wrap:balance}
+h1 em{font-style:normal;background:linear-gradient(90deg,var(--accent2),var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{color:var(--muted);max-width:68ch;margin:0;font-size:17px}
+.goals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:8px}
+.goal{display:flex;flex-direction:column;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 18px;text-decoration:none;color:var(--ink);transition:border-color .15s,transform .15s}
+.goal:hover{border-color:var(--accent);transform:translateY(-2px)}
+.goal .gn{font:700 12px var(--f-mono);color:var(--accent);letter-spacing:.08em}
+.goal b{font-size:19px}
+.goal p{color:var(--muted);font-size:14px;margin:0}
+.goal .tag{align-self:flex-start;font:700 11px var(--f-mono);padding:3px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+section{padding-block:30px;border-top:1px solid var(--line);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:30px;align-items:start;scroll-margin-top:16px}
+section.wide{grid-template-columns:minmax(0,1fr)}
+.part{border-top:0;padding:40px 0 4px;display:block}
+.part h2{font-size:28px}
+.part p{color:var(--muted)}
+.txt{min-width:0;display:flex;flex-direction:column;gap:12px}
+h2{font-size:22px;margin:0;letter-spacing:-.01em;display:flex;gap:10px;align-items:baseline;text-wrap:balance}
+h2 .n{font:700 12px var(--f-mono);color:var(--accent)}
+p{margin:0;max-width:68ch}
+ol,ul{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:7px}
+li{max-width:64ch}
+code,.ly{font:700 13px var(--f-mono);background:var(--kbd);border:1px solid var(--line);border-radius:6px;padding:1px 6px;white-space:nowrap}
+kbd{font:600 12px var(--f-mono);background:var(--kbd);border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:1px 6px;white-space:nowrap}
+.btn{font:700 13px var(--f-ui);color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:1px 8px;white-space:nowrap}
+.tip{font-size:14.5px;color:var(--muted);border-left:3px solid var(--accent);padding:2px 0 2px 12px}
+.warn{font-size:14.5px;border-left:3px solid var(--bad);padding:2px 0 2px 12px}
+.must{display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.must .row{display:flex;gap:10px;align-items:baseline}
+.must .yes{color:var(--ok);font-weight:800}.must .no{color:var(--bad);font-weight:800}
+figure{margin:0;min-width:0;display:flex;flex-direction:column;gap:8px}
+figure video,figure img{width:100%;display:block;border-radius:14px;border:1px solid var(--line);background:var(--surface);box-shadow:0 10px 30px rgba(20,30,70,.08)}
+figure video{aspect-ratio:16/9}
+figcaption{font-size:13px;color:var(--muted)}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.trio{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.faq{display:flex;flex-direction:column;gap:10px}
+.faq details{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 16px}
+.faq summary{cursor:pointer;font-weight:700}
+.faq details p{margin-top:8px;color:var(--muted)}
+@media (max-width:960px){.wrap{grid-template-columns:minmax(0,1fr);gap:8px}nav.toc{display:none}section{grid-template-columns:minmax(0,1fr)}.pair,.trio,.goals{grid-template-columns:1fr}}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="toc" aria-label="Περιεχόμενα">
+  <b>Περιεχόμενα</b>
+  <a href="#goal"><span>0</span>Τι θέλεις να κάνεις;</a>
+  <div class="grp">Συντεταγμένες</div>
+  <a href="#coords"><span>1</span>Από PDF σε συντεταγμένες</a>
+  <div class="grp">Τοπογραφικό</div>
+  <a href="#topo-dxf"><span>2</span>Τι σχεδιάζω στο DXF</a>
+  <a href="#topo-steps"><span>3</span>Τα 8 βήματα</a>
+  <a href="#topo-data"><span>4</span>Στοιχεία, φωτογραφίες, πινακίδα</a>
+  <a href="#compat"><span>5</span>Συμβατότητα με το Κτηματολόγιο</a>
+  <a href="#editor"><span>6</span>Σχεδιαστικός έλεγχος</a>
+  <a href="#print"><span>7</span>PDF και DXF για ΚΗΔ</a>
+  <div class="grp">ΔΓΜ</div>
+  <a href="#dgm-dxf"><span>8</span>Τι σχεδιάζω στο DXF</a>
+  <a href="#dgm-steps"><span>9</span>Βήμα βήμα</a>
+  <div class="grp">Γενικά</div>
+  <a href="#jobs"><span>10</span>Εργασίες & αποθήκευση</a>
+  <a href="#faq"><span>11</span>Συχνές απορίες</a>
+</nav>
+
+<main>
+<header class="top">
+  <div class="brand">
+    <svg width="42" height="42" viewBox="0 0 34 34" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0E9AA7"/><stop offset="1" stop-color="#7C3AED"/></linearGradient></defs><rect x="1" y="1" width="32" height="32" rx="9" fill="url(#lg)"/><path d="M8 24 L12 9 L26 12 L23 25 Z" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/><circle cx="8" cy="24" r="2" fill="#fff"/><circle cx="12" cy="9" r="2" fill="#fff"/><circle cx="26" cy="12" r="2" fill="#fff"/><circle cx="23" cy="25" r="2" fill="#fff"/></svg>
+    <div><small>HEXIS-APP · GEOmetry · ΟΔΗΓΟΣ</small></div>
+    <span class="grow"></span><a class="back" href="syntetagmenes.html">← Στο GEOmetry</a>
+  </div>
+  <h1>Συντεταγμένες, τοπογραφικό και ΔΓΜ — <em>βήμα βήμα</em></h1>
+  <p class="lead">Κάθε ενότητα έχει τι κάνεις, με τη σειρά, δίπλα σε σύντομο βίντεο ή εικόνα. Τα βίντεο παίζουν σε επανάληψη· πάτα πάνω τους για παύση. Ξεκίνα από το «Τι θέλεις να κάνεις;».</p>
+</header>
+
+<section id="goal" class="wide">
+  <div class="txt">
+    <h2><span class="n">0</span>Τι θέλεις να κάνεις;</h2>
+    <div class="goals">
+      <a class="goal" href="#coords"><span class="gn">ΣΤΟΧΟΣ 1</span><b>Συντεταγμένες</b><p>Από PDF ή DXF τοπογραφικού / διαγράμματος κάλυψης σε Excel, TXT, DXF. Δεν σχεδιάζεις τίποτα.</p><span class="tag">Basic</span></a>
+      <a class="goal" href="#topo-dxf"><span class="gn">ΣΤΟΧΟΣ 2</span><b>Τοπογραφικό</b><p>Από το DXF σου σε πλήρες τοπογραφικό με πίνακες, δηλώσεις, πινακίδα, PDF και DXF για ΚΗΔ.</p><span class="tag">Pro</span></a>
+      <a class="goal" href="#dgm-dxf"><span class="gn">ΣΤΟΧΟΣ 3</span><b>ΔΓΜ</b><p>Διάγραμμα Γεωμετρικών Μεταβολών: διόρθωση ορίων, κατάτμηση, συνένωση, κάθετες.</p><span class="tag">Pro</span></a>
+    </div>
+  </div>
+  <figure><img src="geometry-help/media/00-landing.jpg" alt="Αρχική σελίδα του GEOmetry με τον οδηγό «Τι θέλεις να κάνεις;»" loading="lazy"><figcaption>Ο ίδιος σύντομος οδηγός υπάρχει στην αρχική σελίδα και στο κουμπί «? Οδηγός» πάνω δεξιά.</figcaption></figure>
+</section>
+
+<section class="part" id="p-coords"><h2>Συντεταγμένες</h2><p>Για να πάρεις τις συντεταγμένες ενός σχεδίου που ήδη υπάρχει.</p></section>
+
+<section id="coords">
+  <div class="txt">
+    <h2><span class="n">1</span>Από PDF σε συντεταγμένες</h2>
+    <div class="must"><div class="row"><span class="yes">Χρειάζεσαι</span><span>το PDF του τοπογραφικού ή του διαγράμματος κάλυψης — από CAD, σκαναρισμένο ή φωτογραφία κινητού — ή το DXF.</span></div><div class="row"><span class="no">Δεν</span><span>σχεδιάζεις τίποτα.</span></div></div>
+    <p><b>Από πού βγαίνουν:</b> από τους πίνακες συντεταγμένων που είναι γραμμένοι στο σχέδιο, με τα ίδια ψηφία και δεκαδικά. Σε DXF χωρίς πίνακες, από τα κλειστά πολύγωνα σε ΕΓΣΑ 87.</p>
+    <ol>
+      <li>Πάτα <span class="btn">Επιλογή PDF / DXF</span> ή σύρε το αρχείο στην αρχική σελίδα.</li>
+      <li>Καρτέλα <span class="btn">1 Πίνακες</span>: κάθε πίνακας έχει τρεις ελέγχους — εμβαδό, πλευρές, κορυφές. Πράσινο ✓ = σωστός.</li>
+      <li>Αν μια τιμή είναι κόκκινη, πάτα στο κελί και γράψε την όπως είναι στο χαρτί.</li>
+      <li>Πάνω: <span class="btn">Excel</span> <span class="btn">CSV</span> <span class="btn">TXT</span> <span class="btn">DXF</span> και <span class="btn">Αναφορά PDF</span> με τους ελέγχους.</li>
+    </ol>
+    <p class="tip">Σκαναρισμένο χαρτί ή φωτογραφία: αν δεν βρεθεί πίνακας, πάτα «Επιλογή περιοχής» και πιάσε τον πίνακα με το πλαίσιο.</p>
+  </div>
+  <figure><video src="geometry-help/media/20-coords.mp4" poster="geometry-help/media/20-coords.jpg" muted loop playsinline autoplay controls preload="metadata"></video><figcaption>Από το PDF στους πίνακες με ελέγχους και στις εξαγωγές.</figcaption></figure>
+</section>
+<section class="wide"><div class="pair">
+  <figure><img src="geometry-help/media/01-tables.jpg" alt="Πίνακες συντεταγμένων με τους ελέγχους" loading="lazy"><figcaption>Οι πίνακες που βρέθηκαν, με εμβαδό, κτίρια και κάλυψη· δεξιά το σχέδιο.</figcaption></figure>
+  <figure><img src="geometry-help/media/01-export.jpg" alt="Μπάρα εξαγωγών" loading="lazy"><figcaption>Εξαγωγές: Excel, CSV, TXT, DXF, αναφορά PDF.</figcaption></figure>
+</div></section>
+
+<section class="part" id="p-topo"><h2>Τοπογραφικό</h2><p>Από το DXF της αποτύπωσης σε πλήρες τοπογραφικό. Στο Pro.</p></section>
+
+<section id="topo-dxf" class="wide">
+  <div class="txt">
+    <h2><span class="n">2</span>Τι σχεδιάζω στο DXF πριν το ανεβάσω</h2>
+    <div class="must">
+      <div class="row"><span class="yes">Υποχρεωτικό</span><span>το όριο της ιδιοκτησίας: μία <b>κλειστή</b> πολυγραμμή στο layer <span class="ly">TOPO_PROP</span>, σε ΕΓΣΑ 87 και μέτρα.</span></div>
+      <div class="row"><span class="yes">Αν υπάρχουν</span><span>κτίσματα: κλειστές πολυγραμμές στο <span class="ly">BLD</span> με ένα κείμενο μέσα (π.χ. <span class="ly">1Κ</span>, <span class="ly">2Π</span>).</span></div>
+      <div class="row"><span class="yes">Μόνο αν</span><span>τα όρια είναι υλοποιημένα (τοίχος, περίφραξη): και στο <span class="ly">BOUND_IMPL</span>. Αλλιώς τίποτα — μπαίνουν αυτόματα <span class="ly">BOUND_UNIMPL</span>.</span></div>
+      <div class="row"><span class="yes">Ό,τι άλλο</span><span>θέλεις να φαίνεται (δρόμοι, φρεάτια, «Αγροτική οδός») στα δικά σου layers: περνά στο σχέδιο ως έχει.</span></div>
+      <div class="row"><span class="no">Δεν</span><span>σχεδιάζεις πίνακες συντεταγμένων, πινακίδα, κάνναβο, βορρά, ΚΑΕΚ, όμορους, διαστάσεις. Τα φτιάχνει το πρόγραμμα.</span></div>
+    </div>
+    <p class="tip">Από το HEXIS PAD: το αρχείο «…_GEOmetry.dxf» είναι ήδη σωστό. Το ανεβάζεις και το τοπογραφικό ξεκινά μόνο του.</p>
+  </div>
+  <figure><img src="geometry-help/media/ill-topo.jpg" alt="Σχήμα: τι σχεδιάζεται σε κάθε layer για το τοπογραφικό" loading="lazy"></figure>
+</section>
+
+<section id="topo-steps">
+  <div class="txt">
+    <h2><span class="n">3</span>Τα 8 βήματα</h2>
+    <ol>
+      <li>Ανέβασε το DXF. Καρτέλα <span class="btn">3 Τοπογραφικό</span> → <span class="btn">Τοπογραφικό διάγραμμα</span>. Βρίσκει μόνο του ΚΑΕΚ, όρους δόμησης, όμορους, αιγιαλό, δασικά.</li>
+      <li>Τα στοιχεία μπαίνουν σε <b>8 αριθμημένα βήματα</b>. Κάτω γράφει «Βήμα 2 από 8» με <span class="btn">← Βήμα 1</span> και <span class="btn">Επόμενο →</span>.</li>
+      <li><b>1 Σύνοψη</b> · <b>2 Ιδιοκτήτης & θέση</b> · <b>3 Όμοροι</b> · <b>4 Δηλώσεις & μηχανικός</b> · <b>5 Κατάτμηση / Συνένωση</b> · <b>6 Φωτογραφίες & χάρτες</b> · <b>7 Πινακίδα</b> · <b>8 Εκτύπωση</b>.</li>
+      <li>Τα περισσότερα είναι ήδη συμπληρωμένα από το Κτηματολόγιο και τους όρους δόμησης — έλεγξε και συμπλήρωσε ό,τι λείπει.</li>
+    </ol>
+  </div>
+  <figure><video src="geometry-help/media/21-topo.mp4" poster="geometry-help/media/21-topo.jpg" muted loop playsinline autoplay controls preload="metadata"></video><figcaption>Από το DXF στο φύλλο: βήματα με «Επόμενο» και προεπισκόπηση.</figcaption></figure>
+</section>
+<section class="wide"><div class="pair">
+  <figure><img src="geometry-help/media/02-synopsi.jpg" alt="Βήμα 1 Σύνοψη" loading="lazy"><figcaption>Βήμα 1: ΚΑΕΚ, κατάσταση (εντός/εκτός σχεδίου), αρτιότητα, μέγιστη δόμηση.</figcaption></figure>
+  <figure><img src="geometry-help/media/03-stoixeia.jpg" alt="Βήμα 2 Ιδιοκτήτης και θέση" loading="lazy"><figcaption>Βήμα 2: ιδιοκτήτης, θέση, δήμος, τίτλοι.</figcaption></figure>
+</div></section>
+
+<section id="topo-data">
+  <div class="txt">
+    <h2><span class="n">4</span>Στοιχεία, φωτογραφίες, πινακίδα</h2>
+    <ol>
+      <li><b>Φωτογραφίες & χάρτες</b>: ανέβασε φωτογραφίες του ακινήτου· μπαίνουν μεγάλες, δύο σε κάθε σειρά.</li>
+      <li><b>Πινακίδα</b>: χρησιμοποιείται η πινακίδα του HEXIS ή η δική σου σε DXF, πάντα σε μέγεθος σελίδας Α4.</li>
+      <li>Τα κελιά «Εργοδότης», «Έργο», «Θέση», «Θέμα Σχεδίου», «Ημερομηνία», «Κλίμακα», «Αριθμός Σχεδίου» συμπληρώνονται μόνα τους. Κάτω από τη θέση μπαίνει πάντα ο <b>ΚΑΕΚ</b>.</li>
+      <li>Την πινακίδα και το λογότυπο τα ανεβάζεις <b>μία φορά</b>: μένουν στον λογαριασμό σου και είναι μόνο δικά σου.</li>
+    </ol>
+  </div>
+  <figure><img src="geometry-help/media/13-pinakida.jpg" alt="Βήμα 7 Πινακίδα" loading="lazy"><figcaption>Βήμα 7: «Ανέβασε DXF πινακίδας» και «Στοιχεία γραφείου / μελετητή».</figcaption></figure>
+</section>
+
+<section id="compat">
+  <div class="txt">
+    <h2><span class="n">5</span>Συμβατότητα με το Κτηματολόγιο</h2>
+    <ol>
+      <li>Στο βήμα <b>4 Δηλώσεις & μηχανικός</b> διάλεξε <b>αστική (Uo 0,50 m)</b> ή <b>αγροτική (Uo 2,00 m)</b>. Προτείνεται αυτόματα από τη «Θέση».</li>
+      <li>Βλέπεις αμέσως: <b style="color:var(--ok)">ΣΥΜΒΑΤΟ</b>, <b>οριακά</b> ή <b style="color:var(--bad)">απαιτείται ΔΓΜ</b>, με εμβαδά, ανοχή και απόκλιση ορίων.</li>
+      <li>Η <b>Δήλωση συμβατότητας</b> του συντάκτη μπαίνει μόνη της στο σχέδιο, στο PDF και στο TXT. Με «χωρίς δήλωση συμβατότητας» βγαίνει εκτός.</li>
+    </ol>
+    <p class="tip">Αν βγει «απαιτείται ΔΓΜ», συνέχισε στην ενότητα 9 με το ίδιο αρχείο.</p>
+  </div>
+  <figure><img src="geometry-help/media/04-compat.jpg" alt="Έλεγχος συμβατότητας με επιλογή αστικής/αγροτικής περιοχής" loading="lazy"><figcaption>Αστική ή αγροτική και το αποτέλεσμα του ελέγχου.</figcaption></figure>
+</section>
+
+<section id="editor">
+  <div class="txt">
+    <h2><span class="n">6</span>Σχεδιαστικός έλεγχος</h2>
+    <ol>
+      <li>Βήμα 8 → <span class="btn">✎ Προεπισκόπηση & διόρθωση</span>: βλέπεις το φύλλο όπως θα τυπωθεί.</li>
+      <li><b>Μετακίνηση</b>: σύρε ένα κείμενο ή έναν πίνακα. <span class="btn">A+</span> / <span class="btn">A−</span> για μέγεθος.</li>
+      <li><b>Στροφή</b>: σύρε τη μωβ λαβή πάνω από το κείμενο, γράψε γωνία στο <span class="btn">∠</span>, ή <span class="btn">∥ σε γραμμή</span> και δύο σημεία πάνω στον δρόμο.</li>
+      <li><span class="btn">＋ Νέο κείμενο</span>: πάτα στο σημείο και διάλεξε έτοιμο (1Π, 2Κ, Αγροτική οδός…) ή γράψε δικό σου.</li>
+      <li><span class="btn">Copy</span>: ίδιο κείμενο, μέγεθος και γωνία σε όσα σημεία θέλεις· <kbd>Esc</kbd> για τέλος.</li>
+      <li><span class="btn">↶ Αναίρεση</span> για το τελευταίο, <span class="btn">Επαναφορά</span> για όλα.</li>
+    </ol>
+  </div>
+  <figure><video src="geometry-help/media/22-editor.mp4" poster="geometry-help/media/22-editor.jpg" muted loop playsinline autoplay controls preload="metadata"></video><figcaption>Μετακίνηση, Copy, νέο κείμενο, μέγεθος και ελεύθερη στροφή.</figcaption></figure>
+</section>
+<section class="wide"><div class="pair">
+  <figure><img src="geometry-help/media/07-presets.jpg" alt="Παράθυρο νέου κειμένου με έτοιμα κείμενα" loading="lazy"><figcaption>Έτοιμα κείμενα: 1Π, 2Π, 3Π, 1Κ, 2Κ, 3Κ, οδοί, ρέμα, όμορος, περίφραξη.</figcaption></figure>
+  <figure><img src="geometry-help/media/08-rotate.jpg" alt="Στροφή κειμένου με τη λαβή" loading="lazy"><figcaption>Η μωβ λαβή: σύρε την για ελεύθερη στροφή.</figcaption></figure>
+</div></section>
+
+<section id="print">
+  <div class="txt">
+    <h2><span class="n">7</span>PDF και DXF για ΚΗΔ</h2>
+    <ol>
+      <li>Στο βήμα 8 διάλεξε <b>κλίμακα</b> και <b>χαρτί</b> (ή άφησε το αυτόματο).</li>
+      <li><span class="btn">PDF</span> για εκτύπωση, <span class="btn">DXF τοπογραφικού</span> για CAD και υποβολή.</li>
+      <li>Το DXF ελέγχεται αυτόματα με τους κανόνες του Τεύχους Κτηματολογίου. Αν περνά, γράφει <b>«✓ Περνά τον έλεγχο Κτηματολογίου»</b>· αλλιώς λέει τι λείπει.</li>
+      <li>Το όνομα αρχείου βγαίνει σωστό για υποβολή, π.χ. <code>topo_0900252013.dxf</code>.</li>
+      <li>Οι πίνακες στο DXF είναι επεξεργάσιμοι (TABLE) και ίδιοι με το PDF· ανοίγει σε όλα τα CAD της αγοράς.</li>
+    </ol>
+  </div>
+  <figure><img src="geometry-help/media/06-editor.jpg" alt="Το φύλλο του τοπογραφικού στην προεπισκόπηση" loading="lazy"><figcaption>Το φύλλο: σχέδιο, πίνακες, δηλώσεις, υπόμνημα, πινακίδα.</figcaption></figure>
+</section>
+
+<section class="part" id="p-dgm"><h2>Διάγραμμα Γεωμετρικών Μεταβολών</h2><p>Όταν η αποτύπωση δεν ταιριάζει με το Κτηματολόγιο ή για πράξη (κατάτμηση, συνένωση, κάθετες). Στο Pro.</p></section>
+
+<section id="dgm-dxf" class="wide">
+  <div class="txt">
+    <h2><span class="n">8</span>Τι σχεδιάζω στο DXF για ΔΓΜ</h2>
+    <div class="must">
+      <div class="row"><span class="yes">Διόρθωση ορίων</span><span>μόνο το μετρημένο όριο στο <span class="ly">TOPO_PROP</span>. Τα όρια του Κτηματολογίου και τα τμήματα Δ / Α τα βγάζει το πρόγραμμα.</span></div>
+      <div class="row"><span class="yes">Κατάτμηση</span><span>το αρχικό στο <span class="ly">TOPO_PROP</span> και κάθε νέο γεωτεμάχιο κλειστή πολυγραμμή στο <span class="ly">TOPO_PROP_NEW</span>.</span></div>
+      <div class="row"><span class="yes">Συνένωση</span><span>το ενιαίο νέο γεωτεμάχιο στο <span class="ly">TOPO_PROP_NEW</span>.</span></div>
+      <div class="row"><span class="yes">Κάθετες / ΧΑΧ</span><span>κάθε χώρος κλειστή πολυγραμμή στο <span class="ly">VST</span>, μέσα στο <span class="ly">TOPO_PROP</span>.</span></div>
+    </div>
+  </div>
+  <figure><img src="geometry-help/media/ill-dgm.jpg" alt="Σχήμα: τι σχεδιάζεται για κάθε είδος ΔΓΜ" loading="lazy"></figure>
+</section>
+
+<section id="dgm-steps">
+  <div class="txt">
+    <h2><span class="n">9</span>ΔΓΜ βήμα βήμα</h2>
+    <ol>
+      <li>Ανέβασε το DXF. Καρτέλα <span class="btn">2 Κτηματολόγιο</span> → <span class="btn">Εύρεση ΚΑΕΚ</span>.</li>
+      <li>Διάλεξε <b>αστική / αγροτική</b>: βλέπεις αν είσαι μέσα στην ανοχή ή χρειάζεται ΔΓΜ.</li>
+      <li>Πάτα <span class="btn">Διάγραμμα Γεωμετρικών Μεταβολών</span>. Στην καρτέλα <span class="btn">4 ΔΓΜ</span> διάλεξε είδος (διόρθωση, κατάτμηση, συνένωση, κάθετες) και το δικό σου γεωτεμάχιο.</li>
+      <li>Δες τα τμήματα <b style="color:var(--ok)">Δ</b> (προσάρτηση) και <b style="color:var(--bad)">Α</b> (αποκοπή) και διάλεξε ποιες μεταβολές εφαρμόζονται.</li>
+      <li>Στοιχεία πινακίδας → <span class="btn">PDF</span> και <span class="btn">DXF Κτηματολογίου</span>. Ο έλεγχος του Τεύχους γίνεται μόνος του.</li>
+    </ol>
+  </div>
+  <figure><video src="geometry-help/media/23-dgm.mp4" poster="geometry-help/media/23-dgm.jpg" muted loop playsinline autoplay controls preload="metadata"></video><figcaption>Εύρεση ΚΑΕΚ, ανοχή, δημιουργία ΔΓΜ και το διάγραμμα.</figcaption></figure>
+</section>
+<section class="wide"><div class="trio">
+  <figure><img src="geometry-help/media/09-kaek.jpg" alt="Καρτέλα Κτηματολόγιο" loading="lazy"><figcaption>Τα γεωτεμάχια ΚΑΕΚ στη θέση του TOPO_PROP.</figcaption></figure>
+  <figure><img src="geometry-help/media/10-dgm.jpg" alt="Καρτέλα ΔΓΜ" loading="lazy"><figcaption>Μετρημένο, αρχικό ΚΑΕΚ, προσαρτώνται (Δ), αποκόπτονται (Α).</figcaption></figure>
+  <figure><img src="geometry-help/media/10b-dgm-view.jpg" alt="Το διάγραμμα ΔΓΜ" loading="lazy"><figcaption>Το διάγραμμα με τα τμήματα Δ και Α.</figcaption></figure>
+</div></section>
+
+<section class="part" id="p-gen"><h2>Γενικά</h2></section>
+
+<section id="jobs">
+  <div class="txt">
+    <h2><span class="n">10</span>Εργασίες & αποθήκευση</h2>
+    <ol>
+      <li>Στο Pro κάθε εργασία σώζεται <b>αυτόματα</b> κάθε λίγα δευτερόλεπτα: διορθώσεις, στοιχεία, φωτογραφίες, κείμενα, ΔΓΜ.</li>
+      <li><span class="btn">＋ Νέα εργασία</span> πάνω αριστερά: σε ρωτά πρώτα· η τρέχουσα μένει αποθηκευμένη.</li>
+      <li>Στην αρχική σελίδα, <b>Πρόσφατες εργασίες</b>: πάτα <span class="btn">Συνέχεια</span> και συνεχίζεις από εκεί που σταμάτησες.</li>
+      <li>Αν ξανανεβάσεις το ίδιο αρχείο, σε ρωτά αν θέλεις συνέχεια ή από την αρχή.</li>
+    </ol>
+    <p class="tip">Οι εργασίες μένουν στη συσκευή (έως 20). Η πινακίδα και το λογότυπο μένουν στον λογαριασμό σου, σε όλες τις συσκευές.</p>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:14px">
+    <figure><img src="geometry-help/media/11-newjob.jpg" alt="Ερώτηση νέας εργασίας" loading="lazy"><figcaption>«Νέα εργασία;» — η τρέχουσα έχει ήδη αποθηκευτεί.</figcaption></figure>
+    <figure><img src="geometry-help/media/12-recent.jpg" alt="Πρόσφατες εργασίες στην αρχική" loading="lazy"><figcaption>Πρόσφατες εργασίες με «Συνέχεια».</figcaption></figure>
+  </div>
+</section>
+
+<section id="faq" class="wide">
+  <div class="txt">
+    <h2><span class="n">11</span>Συχνές απορίες</h2>
+    <div class="faq">
+      <details><summary>Δεν βρίσκει το όριο της ιδιοκτησίας στο DXF.</summary><p>Το όριο πρέπει να είναι μία κλειστή πολυγραμμή στο layer TOPO_PROP, σε ΕΓΣΑ 87 και σε μέτρα. Ανοιχτές γραμμές του ίδιου layer ενώνονται μόνες τους αν ακουμπούν (≤ 1 cm).</p></details>
+      <details><summary>Τα κτίσματα δεν βγαίνουν στους πίνακες.</summary><p>Βάλε κάθε κτίσμα ως κλειστή πολυγραμμή στο layer BLD και ένα κείμενο μέσα (π.χ. 1Κ). Αν είναι σε άλλο layer, αρκεί το κείμενο να είναι στο BLD.</p></details>
+      <details><summary>Υλοποιημένα ή μη υλοποιημένα όρια;</summary><p>Πάντα BOUND_UNIMPL (μη υλοποιημένα). Γίνονται BOUND_IMPL μόνο αν το διαλέξεις στο βήμα 8 ή αν το DXF σου έχει ήδη τα όρια στο layer BOUND_IMPL.</p></details>
+      <details><summary>Αστική ή αγροτική περιοχή;</summary><p>Αστική (Uo 0,50 m) για εντός σχεδίου και οικισμούς· αγροτική (Uo 2,00 m) για εκτός σχεδίου. Αν η υπηρεσία όρων δόμησης δεν απαντήσει, προτείνεται αστική (αυστηρότερη) με πορτοκαλί σημείωση — έλεγξέ το.</p></details>
+      <details><summary>Το DXF λέει ότι δεν περνά τον έλεγχο Κτηματολογίου.</summary><p>Το μήνυμα λέει τι λείπει (π.χ. ΚΑΕΚ, όνομα αρχείου, layer). Τα περισσότερα τα διορθώνει μόνο του το πρόγραμμα· αν λείπει ο ΚΑΕΚ, κάνε «Εύρεση ΚΑΕΚ» στην καρτέλα 2.</p></details>
+      <details><summary>Basic ή Pro;</summary><p>Basic: συντεταγμένες, έλεγχοι, εξαγωγές. Pro: τοπογραφικό, ΔΓΜ, δηλώσεις, πινακίδα, αυτόματη αποθήκευση εργασιών.</p></details>
+    </div>
+  </div>
+</section>
+</main>
+</div>
+<script>
+// Παύση/αναπαραγωγή με πάτημα· παύση όταν το βίντεο βγαίνει από την οθόνη.
+document.querySelectorAll('video').forEach(function (v) { v.addEventListener('click', function (e) { if (e.target === v && !v.controls) { v.paused ? v.play() : v.pause(); } }); });
+if (matchMedia('(prefers-reduced-motion: reduce)').matches) document.querySelectorAll('video').forEach(function (v) { v.removeAttribute('autoplay'); v.pause(); });
+if ('IntersectionObserver' in window) { var io = new IntersectionObserver(function (es) { es.forEach(function (en) { var v = en.target; if (en.isIntersecting) { if (v.hasAttribute('autoplay')) v.play().catch(function () {}); } else v.pause(); }); }, { threshold: .25 }); document.querySelectorAll('video').forEach(function (v) { io.observe(v); }); }
+</script>
+</body>
+</html>
