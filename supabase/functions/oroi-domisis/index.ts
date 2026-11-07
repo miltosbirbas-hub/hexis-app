@@ -190,6 +190,28 @@ function statusOf(L: Record<string, HxAttr[]>) {
   return L.ektos ? "ektos" : "ektos?";
 }
 const STATUS_TXT: Record<string, string> = { sxedio: "Εντός εγκεκριμένου σχεδίου", oikismos: "Εντός ορίων οικισμού (<2.000 κατ.)", ektos: "Εκτός σχεδίου", "ektos?": "Εκτός σχεδίου" }; // ό,τι δεν είναι σε εγκεκριμένο σχέδιο ή σε όριο οικισμού ΕΙΝΑΙ εκτός σχεδίου
+// γενικό θεσμικό πλαίσιο ανά καθεστώς — ίδια διατύπωση με το OROIDOM.lsp και τη Νομοθεσία του HEXIS
+const LEGAL: Record<string, string> = {
+  sxedio: "ΝΟΚ ν.4067/2012, κωδικοποιημένος στα άρ.195–225 ν.5306/2026 (Κώδικας Χωροταξίας & Πολεοδομίας) · όροι δόμησης, χρήσεις και ρυμοτομία κατά τις πράξεις έγκρισης/τροποποίησης του σχεδίου της περιοχής",
+  oikismos: "ΠΔ 24.4/1985 (ΦΕΚ Δ 181/1985) · ΦΕΚ 289/ΑΑΠ/2011 · ισχύουν μεταβατικά κατά το άρ.247 §3 ν.5306/2026 έως την οριοθέτηση του οικισμού με νέο ΠΔ · ΝΟΚ (άρ.195–225 ν.5306/2026)",
+  ektos: "Εκτός σχεδίου: άρ.250–251 & 256 ν.5306/2026 (ΦΕΚ Α 88/08-06-2026), πρώην άρ.32–33 ν.4759/2020 · μεταβατικές διατάξεις/παρεκκλίσεις άρ.273 ν.5306/2026",
+  "ektos?": "Εκτός σχεδίου: άρ.250–251 & 256 ν.5306/2026 (ΦΕΚ Α 88/08-06-2026), πρώην άρ.32–33 ν.4759/2020 · μεταβατικές διατάξεις/παρεκκλίσεις άρ.273 ν.5306/2026",
+};
+// πράξεις που αφορούν το σημείο (σχέδιο/τροποποιήσεις, ΓΠΣ/ΣΧΟΟΑΠ, ΖΟΕ, ΠΔ προστασίας, όρια οικισμού, ΦΕΚ χωρίς διάγραμμα) — θέμα + ΦΕΚ, χωρίς διπλότυπα
+function areaActs(L: Record<string, HxAttr[]>): string {
+  const KIND: Record<string, string> = { oikismos: "Όρια οικισμού", sxedio: "", xriseis_gps: "ΓΠΣ/ΣΧΟΟΑΠ", zoe: "ΖΟΕ", pd_prost: "ΠΔ προστασίας", fek_nodiag: "", sd: "Όροι δόμησης", kalypsi: "Όροι δόμησης", ypsos: "Όροι δόμησης", artiotita: "Αρτιότητα" };
+  const seen = new Set<string>(), out: string[] = [];
+  for (const k of Object.keys(KIND)) {
+    for (const a of (L[k] || []).slice(0, 8)) {
+      const fek = clean(a.FEK || a.FEK_NUM || a.FEK_ARITHMOS).replace(/^ΦΕΚ\s*/i, ""); if (!fek) continue;
+      const nameKey = Object.keys(a).find((x) => /APOF_THEME|THEMA|TITLOS|TITLE|ONOMA|NAME|PERIGRAFH|PERIGRAFI|DESCR/i.test(x) && typeof a[x] === "string" && String(a[x]).trim().length > 2 && !/DHM|KALL|NOMOS|PERIF/i.test(x));
+      const theme = clean(nameKey ? a[nameKey] : "").slice(0, 90), lbl = KIND[k] || theme || "Πράξη";
+      const key = fek.replace(/\s+/g, "").toUpperCase(); if (seen.has(key)) continue; seen.add(key);
+      out.push((lbl && theme && lbl !== theme ? lbl + " (" + theme + ")" : lbl) + " — ΦΕΚ " + fek);
+    }
+  }
+  return out.slice(0, 10).join(" · ");
+}
 function oikismosMax(E: number) {
   if (E <= 200) return { max: E, rule: "γήπεδο έως 200 τ.μ. → ΣΔ 1 (δόμηση = εμβαδόν)" };
   if (E < 700) return { max: 240, rule: "γήπεδο έως 699,99 τ.μ. → μέγιστη δόμηση 240 τ.μ. (+ πατάρι ξηράς δόμησης έως 40 τ.μ.)" };
@@ -461,7 +483,7 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
       rule = "Μέσος ΣΔ τομέα ΓΠΣ " + gr(num(sd0.SD_TIMH)) + " — ο ΣΔ του οικοπέδου προκύπτει από το ΦΕΚ του σχεδίου";
     } else if (sd0) { const v = num(sd0.SD_TIMH)!; max = v * E; rule = "ΣΔ " + gr(v) + " × " + gr(E) + " τ.μ.";
       if (smallSettlementRegime(L)) { const m = oikismosMax(E); if (m.max < max) { max = m.max; rule = m.rule + " (όριο οικισμού <2.000 κατ.)"; } } }
-  } else { kalPct = 10; artMin = 4000; artPros = 25; const k = ektosKatoikia(E); if (k) { max = k.max; rule = k.rule; } else rule = "γήπεδο < 4.000 τ.μ.: μη άρτιο κατά κανόνα (έλεγχος παρεκκλίσεων άρ.273)"; }
+  } else { kalPct = 10; artMin = 4000; artPros = 25; const k = ektosKatoikia(E); if (k) { max = k.max; rule = k.rule; } else rule = "γήπεδο < 4.000 τ.μ.: μη άρτιο κατά κανόνα (έλεγχος παρεκκλίσεων άρ.273 ν.5306/2026)"; }
   const artio = artMin == null ? "?" : (E >= artMin && (artPros == null || (front != null && front >= artPros))) ? "1" : (E < artMin ? "0" : "?");
   // εκτός σχεδίου: η μέγιστη κάλυψη δεν υπερβαίνει τη μέγιστη δόμηση
   const kalMax = kalPct != null ? (stt.startsWith("ektos") && max != null ? Math.min(kalPct * E / 100, max) : kalPct * E / 100) : null;
@@ -480,7 +502,7 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
   row("ΚΑΤΑΣΤΑΣΗ", STATUS_TXT[stt] + (oik && oik.NAME ? " — " + clean(oik.NAME) : "") + (ot && ot.OT_NUM ? " — Ο.Τ. " + clean(ot.OT_NUM) : ""));
   row("ΜΕΓΙΣΤΗ ΔΟΜΗΣΗ", max != null ? gr(max) + " τ.μ. (" + rule + ")" : rule);
   row("Σ.Α.Ο.", max != null && E ? gr(max / E, 3) + " (μέγιστη δόμηση ÷ εμβαδόν)" : "");
-  row("ΣΔ", sd0 ? gr(num(sd0.SD_TIMH)) + (sd0.SD_KLIMAKOTOS === "ΝΑΙ" ? " (κλιμακωτός)" : "") + (sd0.FEK ? " — ΦΕΚ " + clean(sd0.FEK) : "") : (stt.startsWith("ektos") ? "0,18 (άρ.251)" : ""));
+  row("ΣΔ", sd0 ? gr(num(sd0.SD_TIMH)) + (sd0.SD_KLIMAKOTOS === "ΝΑΙ" ? " (κλιμακωτός)" : "") + (sd0.FEK ? " — ΦΕΚ " + clean(sd0.FEK) : "") : (stt.startsWith("ektos") ? "0,18 (άρ.251 ν.5306/2026)" : ""));
   row("ΚΑΛΥΨΗ", kalPct != null ? gr(kalPct, 0) + "%" : ""); // μόνο ποσοστό — όχι υπολογισμός τ.μ.
   row("ΥΨΟΣ / ΟΡΟΦΟΙ", yp ? (num(yp.MAX_HEIGHT_M) != null ? gr(num(yp.MAX_HEIGHT_M)) + " μ." : clean(yp.OROR_MAX_HEIGHT_COMMENT).slice(0, 120)) + (yp.MAX_OROFOI ? " · " + clean(yp.MAX_OROFOI) + " όροφοι" : "") : (stt.startsWith("ektos") ? "7,50 μ. (+1,20 μ. στέγη) · 2 όροφοι" : ""));
   row("ΑΡΤΙΟΤΗΤΑ", artMin != null ? gr(artMin, 0) + " τ.μ." + (artPros != null ? " · πρόσωπο " + gr(artPros, 1) + " μ." : "") + (artio === "1" ? " — ΑΡΤΙΟ κατά κανόνα" : artio === "0" ? " — ΜΗ ΑΡΤΙΟ κατά κανόνα" : "") : "");
@@ -493,6 +515,9 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
   if (L.koinox) row("ΠΡΟΣΟΧΗ", "Κοινόχρηστος / κοινωφελής χώρος");
   if (L.rema) row("ΠΡΟΣΟΧΗ", "Ρέμα ιδιαίτερου ενδιαφέροντος");
   row("ΦΕΚ", [oik && oik.FEK ? "όρια οικισμού " + clean(oik.FEK) : "", rymFek[0] ? "σχέδιο " + clean(rymFek[0]) : "", sd0 && sd0.FEK ? "όροι " + clean(sd0.FEK) : ""].filter(Boolean).join(" · "));
+  // νομοθεσία που διέπει την περιοχή — γενικό πλαίσιο (νέα κωδικοποίηση ν.5306/2026) + οι ειδικές πράξεις της περιοχής από τον ΕΨΧ
+  row("ΝΟΜΟΘΕΣΙΑ", LEGAL[stt] || "");
+  row("ΠΡΑΞΕΙΣ ΠΕΡΙΟΧΗΣ", areaActs(L));
   out.push("NOTE=Πηγές: Ενιαίος Ψηφιακός Χάρτης (ΤΕΕ/ΥΠΕΝ), Ελληνικό Κτηματολόγιο — ενημερωτικό, δεν υποκαθιστά βεβαίωση ΥΔΟΜ. HEXIS-APP " + new Date().toLocaleDateString("el-GR"));
   return text(out);
 }
