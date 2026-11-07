@@ -110,6 +110,18 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 .gate{max-width:420px;margin:80px auto;text-align:center}
 .gate h1{font-family:var(--font-d);font-weight:800;font-size:22px;margin-bottom:8px}
 .gate p{color:var(--muted)}
+.alog{max-width:400px;margin:70px auto 0;background:#fff;border:1px solid var(--border);border-radius:16px;padding:26px 24px;box-shadow:0 6px 24px rgba(16,40,70,.08)}
+.alog .brand{justify-content:center;margin-bottom:6px}
+.alog h1{font-family:var(--font-d);font-weight:800;font-size:21px;text-align:center;margin:8px 0 4px}
+.alog .lead{text-align:center;color:var(--muted);font-size:13.5px;margin-bottom:18px}
+.alog label{display:block;font-size:13px;font-weight:600;margin:12px 0 5px}
+.alog input{width:100%;font-family:var(--font-b);font-size:15px;padding:11px 13px;border:1px solid var(--border-strong);border-radius:10px;outline:none;color:var(--text);background:#fff}
+.alog input:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(242,107,33,.15)}
+.alog .btn{width:100%;margin-top:18px;font-size:15px;padding:12px}
+.alog .err{color:var(--red);font-size:13px;margin-top:10px;text-align:center;min-height:18px}
+.alog .note{font-size:12px;color:var(--faint);text-align:center;margin-top:12px}
+.whoami{font-size:12px;color:var(--muted);font-family:var(--font-m);display:flex;align-items:center;gap:8px}
+.whoami button{font-family:var(--font-d);font-weight:600;font-size:12px;color:var(--muted);background:#fff;border:1px solid var(--border);border-radius:8px;padding:5px 10px;cursor:pointer}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(80px);background:#1F2836;color:#fff;padding:11px 20px;border-radius:11px;font-size:13.5px;z-index:60;opacity:0;transition:.3s ease}
 .toast.show{transform:translateX(-50%);opacity:1}
 .hint{font-size:12px;color:var(--faint);margin-top:10px}
@@ -174,9 +186,10 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
   <header class="topbar">
     <div class="brand">
       <img src="icon-192.png" alt="">
-      <span class="bname">HEXIS <em>Admin</em></span>
+      <span class="bname">HEXIS-APP <em>Admin</em></span>
     </div>
     <div class="tlinks"><a class="ext" href="https://dashboard.stripe.com" target="_blank" rel="noopener">Stripe ↗</a><a class="ext" href="https://supabase.com/dashboard/project/oucqqudfdimccgowvpqp" target="_blank" rel="noopener">Supabase ↗</a><a class="back" href="hub.html">&larr; Hub</a></div>
+    <div class="whoami" style="flex-basis:100%;justify-content:flex-end"><span>Διαχειριστής: <b id="admEmail"></b></span><button type="button" onclick="admLogout()">Αποσύνδεση</button></div>
   </header>
   <section class="adc">
   <div class="kpis" id="kpis">
@@ -326,15 +339,29 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
   <p style="text-align:center;font-family:var(--font-m);font-size:11px;color:var(--faint);margin-top:22px" id="ver"></p>
 </div>
 
+<form class="alog" id="alogin" style="display:none" onsubmit="admLogin(event)">
+  <div class="brand"><img src="admin-icon-192.png" alt=""><span class="bname">HEXIS-APP <em>Admin</em></span></div>
+  <h1>Σύνδεση Διαχειριστή</h1>
+  <p class="lead">Πίνακας διαχείρισης HEXIS-APP — μόνο για διαχειριστές.</p>
+  <label for="aEmail">Email διαχειριστή</label>
+  <input id="aEmail" type="email" autocomplete="username" required>
+  <label for="aPw">Κωδικός</label>
+  <input id="aPw" type="password" autocomplete="current-password" required>
+  <button class="btn btn-orange" id="aBtn" type="submit">Είσοδος στο Admin</button>
+  <div class="err" id="aErr"></div>
+  <p class="note">Μετά τη σύνδεση μένεις εδώ, στο Admin.</p>
+</form>
+
 <div class="gate" id="gate" style="display:none">
   <h1>Δεν έχεις πρόσβαση</h1>
-  <p>Η σελίδα είναι μόνο για διαχειριστές του HEXIS.</p>
+  <p>Ο λογαριασμός <b id="gateEmail"></b> δεν είναι διαχειριστής του HEXIS-APP.</p>
+  <p style="margin-top:18px"><button class="btn btn-orange" type="button" onclick="admLogout()">Σύνδεση ως διαχειριστής</button></p>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-const ADMIN_VERSION = 'v2.7';
+const ADMIN_VERSION = 'v2.8';
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
@@ -344,13 +371,37 @@ const MODULES = window.HEXIS_MODULES || {};
 let toastTimer;
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2400); }
 
+// Σύνδεση διαχειριστή μέσα στο admin.html (δεν στέλνει στη σελίδα σύνδεσης χρηστών)
+function showAdmLogin(msg){
+  ['gate','main'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('alogin').style.display='block';
+  document.getElementById('aErr').textContent=msg||'';
+  setTimeout(()=>{const e=document.getElementById('aEmail'); if(e&&!e.value) e.focus();},50);
+}
+async function admLogin(ev){
+  ev.preventDefault();
+  const btn=document.getElementById('aBtn'), err=document.getElementById('aErr');
+  const email=document.getElementById('aEmail').value.trim(), password=document.getElementById('aPw').value;
+  btn.disabled=true; btn.textContent='Σύνδεση...'; err.textContent='';
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  btn.disabled=false; btn.textContent='Είσοδος στο Admin';
+  if (error) { err.textContent = /invalid/i.test(error.message) ? 'Λάθος email ή κωδικός.' : error.message; return; }
+  document.getElementById('aPw').value='';
+  init();
+}
+async function admLogout(){
+  try { await sb.auth.signOut(); } catch(e) {}
+  MY_UID=null; showAdmLogin();
+}
 async function init(){
   const { data:{ session } } = await sb.auth.getSession();
-  if (!session) { location.href='login.html'; return; }
+  ['alogin','gate','main'].forEach(id=>document.getElementById(id).style.display='none');
+  if (!session) { showAdmLogin(); return; }
   MY_UID = session.user.id;
   // δοκιμή admin πρόσβασης
   const { data: isAdm, error } = await sb.rpc('is_admin');
-  if (error || !isAdm) { document.getElementById('gate').style.display='block'; return; }
+  if (error || !isAdm) { document.getElementById('gateEmail').textContent=session.user.email||''; document.getElementById('gate').style.display='block'; return; }
+  document.getElementById('admEmail').textContent=session.user.email||'';
   document.getElementById('main').style.display='block';
   loadRequests();
   loadUsers();
