@@ -1922,6 +1922,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   // ανεξάρτητα από την κωδικοσελίδα του συστήματος (τα R2000 αρχεία δεν είναι Unicode).
   function uesc(s) { if (!ESC) return String(s); return String(s).replace(/[^\x00-\x7F]/g, function (c) { var h = c.charCodeAt(0).toString(16).toUpperCase(); return '\\U+' + ('0000' + h).slice(-4); }); }
   function clean(s) { return uesc(String(s == null ? '' : s).replace(/[\r\n]+/g, ' ').slice(0, 250)); }
+  // κείμενο κελιού πίνακα: οι αλλαγές γραμμής του PDF γίνονται \P, ώστε το CAD να το στοιχίζει όπως το PDF
+  function cleanML(s) { return uesc(String(s == null ? '' : s).slice(0, 250).replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}').replace(/\r?\n/g, '\\P')); }
 
   function mtxt(t) { return uesc(String(t == null ? '' : t).replace(/[\r\n]+/g, ' ').slice(0, 250).replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}')); }
   // πολυγραμμικό MTEXT: διατηρεί αλλαγές γραμμής ως \P, χωρίς περικοπή (η τεμαχισμός σε ομάδες 3/1 γίνεται στον emitter)
@@ -2066,7 +2068,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
         blkRecs.push(['  0', 'BLOCK_RECORD', '  5', brH, '330', brTableH, '100', 'AcDbSymbolTableRecord', '100', 'AcDbBlockTableRecord', '  2', name, '340', '0', '102', '{BLKREFS', '331', tblH, '102', '}', ' 70', '0', '280', '1', '281', '0'].join('\n'));
         var bl = ['  0', 'BLOCK', '  5', next(), '330', brH, '100', 'AcDbEntity', '  8', '0', '100', 'AcDbBlockBegin', '  2', name, ' 70', '1', ' 10', '0.0', ' 20', '0.0', ' 30', '0.0', '  3', name, '  1', ''];
         function bline(x1, y1, x2, y2) { bl.push('  0', 'LINE', '  5', next(), '330', brH, '100', 'AcDbEntity', '  8', '0', '100', 'AcDbLine', ' 10', f(x1), ' 20', f(y1), ' 30', '0.0', ' 11', f(x2), ' 21', f(y2), ' 31', '0.0'); }
-        function bmtext(cx, cy, w, text, h) { bl.push('  0', 'MTEXT', '  5', next(), '330', brH, '100', 'AcDbEntity', '  8', '0', '100', 'AcDbMText', ' 10', f(cx), ' 20', f(cy), ' 30', '0.0', ' 40', f(h), ' 41', f(Math.max(0, w)), ' 71', '5', ' 72', '5', '  1', mtxt(text), '  7', 'Standard'); }
+        function bmtext(cx, cy, w, text, h) { bl.push('  0', 'MTEXT', '  5', next(), '330', brH, '100', 'AcDbEntity', '  8', '0', '100', 'AcDbMText', ' 10', f(cx), ' 20', f(cy), ' 30', '0.0', ' 40', f(h), ' 41', f(Math.max(0, w)), ' 71', '5', ' 72', '5', '  1', mtxtML(String(text == null ? '' : text).slice(0, 250)), '  7', 'Standard'); }
         var y = 0; var rowTops = [];
         rowsH.forEach(function (h) { rowTops.push(y); y -= h; });
         bline(0, 0, totalW, 0); rowTops.forEach(function (yy, i) { bline(0, yy - rowsH[i], totalW, yy - rowsH[i]); });
@@ -2091,9 +2093,9 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
           if (center) o.push('170', '5');
           o.push('140', f(h), '92', '0', '301', 'CELL_VALUE');
           if (text === '' || text == null) o.push('93', '3', '90', '0', '91', '0', '94', '0', '300', '', '302', '', '304', 'ACVALUE_END');
-          else o.push('93', '6', '90', '4', '1', clean(text), '94', '0', '300', '', '302', clean(text), '304', 'ACVALUE_END');
+          else { var ct = cleanML(text); o.push('93', '6', '90', '4', '1', ct, '94', '0', '300', '', '302', ct, '304', 'ACVALUE_END'); }
         }
-        if (hasTitle) { cellText(t.title, tth, false, cols, false); for (var c1 = 1; c1 < cols; c1++) cellText('', tth, true); }
+        if (hasTitle) { cellText(t.title, tth, false, cols, true); for (var c1 = 1; c1 < cols; c1++) cellText('', tth, true); }
         t.header.forEach(function (hd) { cellText(hd, th, false, 1, true); });
         t.rows.forEach(function (row) { for (var c2 = 0; c2 < cols; c2++) cellText(row[c2] == null ? '' : String(row[c2]), th, false, 1, true); });
         if (t.footer) { cellText(t.footer, th, false, cols, true); for (var c3 = 1; c3 < cols; c3++) cellText('', th, true); }
@@ -3544,6 +3546,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   // ανεξάρτητα από την κωδικοσελίδα του συστήματος (τα R2000 αρχεία δεν είναι Unicode).
   function uesc(s) { if (!ESC) return String(s); return String(s).replace(/[^\x00-\x7F]/g, function (c) { var h = c.charCodeAt(0).toString(16).toUpperCase(); return '\\U+' + ('0000' + h).slice(-4); }); }
   function clean(s) { return uesc(String(s == null ? '' : s).replace(/[\r\n]+/g, ' ').slice(0, 250)); }
+  // κείμενο κελιού πίνακα: οι αλλαγές γραμμής του PDF γίνονται \P, ώστε το CAD να το στοιχίζει όπως το PDF
+  function cleanML(s) { return uesc(String(s == null ? '' : s).slice(0, 250).replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}').replace(/\r?\n/g, '\\P')); }
 
   function mtxt(t) { return uesc(String(t == null ? '' : t).replace(/[\r\n]+/g, ' ').slice(0, 250).replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}')); }
   // πολυγραμμικό MTEXT: διατηρεί αλλαγές γραμμής ως \P, χωρίς περικοπή (η τεμαχισμός σε ομάδες 3/1 γίνεται στον emitter)
@@ -3688,7 +3692,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
         blkRecs.push(['  0', 'BLOCK_RECORD', '  5', brH, '330', brTableH, '100', 'AcDbSymbolTableRecord', '100', 'AcDbBlockTableRecord', '  2', name, '340', '0', '102', '{BLKREFS', '331', tblH, '102', '}', ' 70', '0', '280', '1', '281', '0'].join('\n'));
         var bl = ['  0', 'BLOCK', '  5', next(), '330', brH, '100', 'AcDbEntity', '  8', '0', '100', 'AcDbBlockBegin', '  2', name, ' 70', '1', ' 10', '0.0', ' 20', '0.0', ' 30', '0.0', '  3', name, '  1', ''];
         function bline(x1, y1, x2, y2) { bl.push('  0', 'LINE', '  5', next(), '330', brH, '100', 'AcDbEntity', '  8', '0', '100', 'AcDbLine', ' 10', f(x1), ' 20', f(y1), ' 30', '0.0', ' 11', f(x2), ' 21', f(y2), ' 31', '0.0'); }
-        function bmtext(cx, cy, w, text, h) { bl.push('  0', 'MTEXT', '  5', next(), '330', brH, '100', 'AcDbEntity', '  8', '0', '100', 'AcDbMText', ' 10', f(cx), ' 20', f(cy), ' 30', '0.0', ' 40', f(h), ' 41', f(Math.max(0, w)), ' 71', '5', ' 72', '5', '  1', mtxt(text), '  7', 'Standard'); }
+        function bmtext(cx, cy, w, text, h) { bl.push('  0', 'MTEXT', '  5', next(), '330', brH, '100', 'AcDbEntity', '  8', '0', '100', 'AcDbMText', ' 10', f(cx), ' 20', f(cy), ' 30', '0.0', ' 40', f(h), ' 41', f(Math.max(0, w)), ' 71', '5', ' 72', '5', '  1', mtxtML(String(text == null ? '' : text).slice(0, 250)), '  7', 'Standard'); }
         var y = 0; var rowTops = [];
         rowsH.forEach(function (h) { rowTops.push(y); y -= h; });
         bline(0, 0, totalW, 0); rowTops.forEach(function (yy, i) { bline(0, yy - rowsH[i], totalW, yy - rowsH[i]); });
@@ -3713,9 +3717,9 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
           if (center) o.push('170', '5');
           o.push('140', f(h), '92', '0', '301', 'CELL_VALUE');
           if (text === '' || text == null) o.push('93', '3', '90', '0', '91', '0', '94', '0', '300', '', '302', '', '304', 'ACVALUE_END');
-          else o.push('93', '6', '90', '4', '1', clean(text), '94', '0', '300', '', '302', clean(text), '304', 'ACVALUE_END');
+          else { var ct = cleanML(text); o.push('93', '6', '90', '4', '1', ct, '94', '0', '300', '', '302', ct, '304', 'ACVALUE_END'); }
         }
-        if (hasTitle) { cellText(t.title, tth, false, cols, false); for (var c1 = 1; c1 < cols; c1++) cellText('', tth, true); }
+        if (hasTitle) { cellText(t.title, tth, false, cols, true); for (var c1 = 1; c1 < cols; c1++) cellText('', tth, true); }
         t.header.forEach(function (hd) { cellText(hd, th, false, 1, true); });
         t.rows.forEach(function (row) { for (var c2 = 0; c2 < cols; c2++) cellText(row[c2] == null ? '' : String(row[c2]), th, false, 1, true); });
         if (t.footer) { cellText(t.footer, th, false, cols, true); for (var c3 = 1; c3 < cols; c3++) cellText('', th, true); }
@@ -3928,6 +3932,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   // ανεξάρτητα από την κωδικοσελίδα του συστήματος (τα R2000 αρχεία δεν είναι Unicode).
   function uesc(s) { if (!ESC) return String(s); return String(s).replace(/[^\x00-\x7F]/g, function (c) { var h = c.charCodeAt(0).toString(16).toUpperCase(); return '\\U+' + ('0000' + h).slice(-4); }); }
   function clean(s) { return uesc(String(s == null ? '' : s).replace(/[\r\n]+/g, ' ').slice(0, 250)); }
+  // κείμενο κελιού πίνακα: οι αλλαγές γραμμής του PDF γίνονται \P, ώστε το CAD να το στοιχίζει όπως το PDF
+  function cleanML(s) { return uesc(String(s == null ? '' : s).slice(0, 250).replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}').replace(/\r?\n/g, '\\P')); }
 
   function mtxt(t) { return uesc(String(t == null ? '' : t).replace(/[\r\n]+/g, ' ').slice(0, 250).replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}')); }
   // πολυγραμμικό MTEXT: διατηρεί αλλαγές γραμμής ως \P, χωρίς περικοπή (η τεμαχισμός σε ομάδες 3/1 γίνεται στον emitter)
@@ -4072,7 +4078,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
         blkRecs.push(['  0', 'BLOCK_RECORD', '  5', brH, '330', brTableH, '100', 'AcDbSymbolTableRecord', '100', 'AcDbBlockTableRecord', '  2', name, '340', '0', '102', '{BLKREFS', '331', tblH, '102', '}', ' 70', '0', '280', '1', '281', '0'].join('\n'));
         var bl = ['  0', 'BLOCK', '  5', next(), '330', brH, '100', 'AcDbEntity', '  8', '0', '100', 'AcDbBlockBegin', '  2', name, ' 70', '1', ' 10', '0.0', ' 20', '0.0', ' 30', '0.0', '  3', name, '  1', ''];
         function bline(x1, y1, x2, y2) { bl.push('  0', 'LINE', '  5', next(), '330', brH, '100', 'AcDbEntity', '  8', '0', '100', 'AcDbLine', ' 10', f(x1), ' 20', f(y1), ' 30', '0.0', ' 11', f(x2), ' 21', f(y2), ' 31', '0.0'); }
-        function bmtext(cx, cy, w, text, h) { bl.push('  0', 'MTEXT', '  5', next(), '330', brH, '100', 'AcDbEntity', '  8', '0', '100', 'AcDbMText', ' 10', f(cx), ' 20', f(cy), ' 30', '0.0', ' 40', f(h), ' 41', f(Math.max(0, w)), ' 71', '5', ' 72', '5', '  1', mtxt(text), '  7', 'Standard'); }
+        function bmtext(cx, cy, w, text, h) { bl.push('  0', 'MTEXT', '  5', next(), '330', brH, '100', 'AcDbEntity', '  8', '0', '100', 'AcDbMText', ' 10', f(cx), ' 20', f(cy), ' 30', '0.0', ' 40', f(h), ' 41', f(Math.max(0, w)), ' 71', '5', ' 72', '5', '  1', mtxtML(String(text == null ? '' : text).slice(0, 250)), '  7', 'Standard'); }
         var y = 0; var rowTops = [];
         rowsH.forEach(function (h) { rowTops.push(y); y -= h; });
         bline(0, 0, totalW, 0); rowTops.forEach(function (yy, i) { bline(0, yy - rowsH[i], totalW, yy - rowsH[i]); });
@@ -4097,9 +4103,9 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
           if (center) o.push('170', '5');
           o.push('140', f(h), '92', '0', '301', 'CELL_VALUE');
           if (text === '' || text == null) o.push('93', '3', '90', '0', '91', '0', '94', '0', '300', '', '302', '', '304', 'ACVALUE_END');
-          else o.push('93', '6', '90', '4', '1', clean(text), '94', '0', '300', '', '302', clean(text), '304', 'ACVALUE_END');
+          else { var ct = cleanML(text); o.push('93', '6', '90', '4', '1', ct, '94', '0', '300', '', '302', ct, '304', 'ACVALUE_END'); }
         }
-        if (hasTitle) { cellText(t.title, tth, false, cols, false); for (var c1 = 1; c1 < cols; c1++) cellText('', tth, true); }
+        if (hasTitle) { cellText(t.title, tth, false, cols, true); for (var c1 = 1; c1 < cols; c1++) cellText('', tth, true); }
         t.header.forEach(function (hd) { cellText(hd, th, false, 1, true); });
         t.rows.forEach(function (row) { for (var c2 = 0; c2 < cols; c2++) cellText(row[c2] == null ? '' : String(row[c2]), th, false, 1, true); });
         if (t.footer) { cellText(t.footer, th, false, cols, true); for (var c3 = 1; c3 < cols; c3++) cellText('', th, true); }
@@ -5910,7 +5916,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     // οι διορθώσεις της οθόνης (μετακινήσεις/αλλαγές κειμένων και ομάδων) περνούν σε προεπισκόπηση, PDF, SVG και DXF
     return TopoSheet.applyEdits ? TopoSheet.applyEdits(lay, S.topoEdits) : lay;
   }
-  function topoFileName(res) { return 'topo_' + (String(res.kaek || '').replace(/\D/g, '').slice(-6) || baseName().slice(0, 12)) + '_1-' + S.topoScale; }
+  // όνομα κατά §4.3 του Τεύχους (έως 15 λατινικοί χαρακτήρες/αριθμοί/«_»): topo_ + τα 10 τελευταία ψηφία του ΚΑΕΚ
+  function topoFileName(res) { var k = String(res.kaek || '').replace(/\D/g, '').slice(-10); if (k) return 'topo_' + k; var GL = { α: 'a', β: 'v', γ: 'g', δ: 'd', ε: 'e', ζ: 'z', η: 'i', θ: 'th', ι: 'i', κ: 'k', λ: 'l', μ: 'm', ν: 'n', ξ: 'x', ο: 'o', π: 'p', ρ: 'r', σ: 's', ς: 's', τ: 't', υ: 'y', φ: 'f', χ: 'x', ψ: 'ps', ω: 'o', ά: 'a', έ: 'e', ή: 'i', ί: 'i', ό: 'o', ύ: 'y', ώ: 'o', ϊ: 'i', ϋ: 'y', ΐ: 'i', ΰ: 'y' }, b = String(baseName().replace(/\.dxf$/i, '').toLowerCase().replace(/[α-ωάέήίόύώϊϋΐΰς]/g, function (c) { return GL[c] || ''; })).replace(/[^A-Za-z0-9_]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 10); return 'topo_' + (b || 'sxedio'); }
   function renderTopoPanel() {
     var t = mainPlot(); if (!t) return '';
     var r = S.topo, f = topoFields();
@@ -6270,7 +6277,13 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
         var zb = await zip.generateAsync({ type: 'blob' });
         download(name + '.zip', zb);
       } else download(name + '.dxf', new Blob([new TextEncoder().encode(txt)], { type: 'application/dxf' }));
-      toast('Έτοιμο το DXF τοπογραφικού (R2018): ' + lay.sheets.length + (lay.sheets.length === 1 ? ' φύλλο ' : ' φύλλα ') + S.topoPaper + ' σε 1:' + S.topoScale + ' · ' + spec.tables.length + ' πίνακες ως TABLE.');
+      // έλεγχος με τους κανόνες του Τεύχους Κτηματολογίου (ίδιος με το Check My DXF)
+      try {
+        var kc = CmdCheck.check(txt, name + '.dxf', 'TD', { ktimaOn: !!data.kaekRing, Uo: zoneUo() }), kE = kc.results.filter(function (x) { return x.sev === 'E'; }), kW = kc.results.filter(function (x) { return x.sev === 'W'; });
+        S.topoKtCheck = { E: kE.map(function (x) { return String(x.msg).replace(/<[^>]+>/g, ''); }), W: kW.map(function (x) { return String(x.msg).replace(/<[^>]+>/g, ''); }) };
+        if (kE.length) toast('Προσοχή — έλεγχος Κτηματολογίου: ' + S.topoKtCheck.E[0], true);
+      } catch (e) { console.warn('ktcheck', e); }
+      toast((S.topoKtCheck && !S.topoKtCheck.E.length ? '✓ Περνά τον έλεγχο Κτηματολογίου · ' : '') + 'Έτοιμο το DXF τοπογραφικού (R2018): ' + lay.sheets.length + (lay.sheets.length === 1 ? ' φύλλο ' : ' φύλλα ') + S.topoPaper + ' σε 1:' + S.topoScale + ' · ' + spec.tables.length + ' πίνακες ως TABLE.');
       return;
     }
     if (kind === 'topo-print-pdf') {
