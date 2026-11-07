@@ -1,0 +1,43 @@
+name: PAD sensor report
+# Συγκεντρωτική αναφορά του αισθητήρα λειτουργίας HEXIS PAD (pad_telemetry).
+# Η έξοδος τυπώνεται ΚΡΥΠΤΟΓΡΑΦΗΜΕΝΗ με το pad-sensor-report.pub — διαβάζεται μόνο με το ιδιωτικό κλειδί (ιδιωτικό repo).
+on:
+  workflow_dispatch:
+    inputs:
+      days: { description: "Ημέρες", default: "7" }
+permissions: { contents: read }
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: oucqqudfdimccgowvpqp
+      DAYS: ${{ github.event.inputs.days }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ερώτημα και κρυπτογράφηση
+        run: |
+          set -euo pipefail
+          D=$(echo "${DAYS:-7}" | tr -cd '0-9'); D=${D:-7}
+          Q="with t as (select * from public.pad_telemetry where at > now() - interval '$D days')
+          select json_build_object(
+            'days', $D, 'generated', now(),
+            'devices', (select count(distinct device_id) from t),
+            'versions', (select coalesce(json_agg(v),'[]') from (select app_ver, count(distinct device_id) devices, max(at) last from t group by app_ver order by last desc) v),
+            'codes', (select coalesce(json_agg(c),'[]') from (select kind, code, sum(n) n, sum(val) val, count(distinct device_id) devices, max(at) last,
+                       (array_agg(msg order by at desc) filter (where msg is not null))[1] msg, (array_agg(ctx order by at desc) filter (where ctx is not null))[1] ctx, max(app_ver) ver
+                       from t group by kind, code order by sum(n) desc limit 500) c),
+            'daily', (select coalesce(json_agg(d),'[]') from (select date_trunc('day', at)::date day, count(distinct device_id) devices,
+                       sum(val) filter (where code like 'sol:%') sol_s, sum(val) filter (where code = 'sol:fix') fix_s, sum(n) filter (where code = 'fix_lost') fix_lost,
+                       sum(n) filter (where kind = 'err') errors from t group by 1 order by 1) d)
+          ) as report;"
+          jq -n --arg q "$Q" '{query: $q}' > /tmp/q.json
+          code=$(curl -sS -o /tmp/r.json -w '%{http_code}' -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data @/tmp/q.json)
+          [ "$code" -lt 300 ] || { echo "::error::ερώτημα απέτυχε ($code)"; head -c 300 /tmp/r.json; exit 1; }
+          jq '.[0].report' /tmp/r.json > /tmp/report.json
+          openssl rand -hex 32 | tr -d '\n' > /tmp/k
+          openssl enc -aes-256-cbc -pbkdf2 -salt -pass file:/tmp/k -in /tmp/report.json -out /tmp/report.enc
+          echo "SENSOR_KEY:$(openssl pkeyutl -encrypt -pubin -inkey pad-sensor-report.pub -pkeyopt rsa_padding_mode:oaep -in /tmp/k | base64 -w0)"
+          echo "SENSOR_DATA:$(base64 -w0 /tmp/report.enc)"
+          rm -f /tmp/k /tmp/report.json /tmp/r.json
