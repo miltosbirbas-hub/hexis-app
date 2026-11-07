@@ -5441,14 +5441,21 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     try {
       var tok = await freshToken(); if (!tok || !prefsUid(tok)) return;
       var r = await fetch('https://' + HEXIS.supabaseRef + '.supabase.co/rest/v1/geo_user_prefs?select=tpl,logo', { headers: { apikey: HEXIS.anonKey, Authorization: 'Bearer ' + tok } });
-      if (!r.ok) return; var a = await r.json(), row = a && a[0], lt = store('hexis_topo_tpl'), ll = store('hexis_topo_tpl_logo'), up = {}, chg = false;
-      if (row && row.tpl && row.tpl.text) { if (!lt || lt.name !== row.tpl.name || lt.text !== row.tpl.text) { store('hexis_topo_tpl', row.tpl); S.topoTplParsed = null; chg = true; } } else if (lt && lt.text) up.tpl = lt;
-      if (row && row.logo && row.logo.href) { if (!ll || ll.href !== row.logo.href) { store('hexis_topo_tpl_logo', row.logo); chg = true; } } else if (ll && ll.href) up.logo = ll;
+      if (!r.ok) return; var uid = prefsUid(tok); S.prefsUid = uid;
+      // η πινακίδα είναι ΠΡΟΣΩΠΙΚΗ: ό,τι έχει μείνει στον browser από άλλον λογαριασμό δεν χρησιμοποιείται ούτε ανεβαίνει
+      var lt0 = store('hexis_topo_tpl'), ll0 = store('hexis_topo_tpl_logo');
+      if (lt0 && lt0.uid && lt0.uid !== uid) { store('hexis_topo_tpl', null); S.topoTplParsed = null; }
+      if (ll0 && ll0.uid && ll0.uid !== uid) store('hexis_topo_tpl_logo', null);
+      var a = await r.json(), row = a && a[0], lt = store('hexis_topo_tpl'), ll = store('hexis_topo_tpl_logo'), up = {}, chg = false;
+      if (row && row.tpl && row.tpl.text) { if (!lt || lt.name !== row.tpl.name || lt.text !== row.tpl.text) { store('hexis_topo_tpl', Object.assign({}, row.tpl, { uid: uid })); S.topoTplParsed = null; chg = true; } } else if (lt && lt.text) up.tpl = lt;
+      if (row && row.logo && row.logo.href) { if (!ll || ll.href !== row.logo.href) { store('hexis_topo_tpl_logo', Object.assign({}, row.logo, { uid: uid })); chg = true; } } else if (ll && ll.href) up.logo = ll;
+      if (up.tpl) { store('hexis_topo_tpl', Object.assign({}, up.tpl, { uid: uid })); up.tpl = { name: up.tpl.name, text: up.tpl.text }; }
+      if (up.logo) { store('hexis_topo_tpl_logo', Object.assign({}, up.logo, { uid: uid })); up.logo = { href: up.logo.href, wpx: up.logo.wpx, hpx: up.logo.hpx }; }
       if (up.tpl || up.logo) prefsPush(up);                                   // πρώτη φορά: ό,τι υπάρχει στον browser ανεβαίνει στον λογαριασμό
       if (chg && S.topo && S.topo.status === 'ok') topoRefresh();
     } catch (e) { console.warn('prefs pull', e); }
   }
-  function topoTemplate() { var t = store('hexis_topo_tpl'); if (!t || !t.text) return null; if (!S.topoTplParsed || S.topoTplParsed.name !== t.name) { try { S.topoTplParsed = Object.assign(TopoSheet.parseTemplate(t.text), { name: t.name }); } catch (e) { console.warn('tpl', e); return null; } } S.topoTplParsed.logo = store('hexis_topo_tpl_logo') || null; return S.topoTplParsed; }
+  function topoTemplate() { var t = store('hexis_topo_tpl'); if (!t || !t.text) return null; if (t.uid && S.prefsUid && t.uid !== S.prefsUid) return null; if (!S.topoTplParsed || S.topoTplParsed.name !== t.name) { try { S.topoTplParsed = Object.assign(TopoSheet.parseTemplate(t.text), { name: t.name }); } catch (e) { console.warn('tpl', e); return null; } } var lg0 = store('hexis_topo_tpl_logo'); S.topoTplParsed.logo = lg0 && !(lg0.uid && S.prefsUid && lg0.uid !== S.prefsUid) ? lg0 : null; return S.topoTplParsed; }
   // όμορα: το δικό μας + όσα ακουμπούν το όριο (≤ 1,5 m) — ίδια λογική με το πάνελ Κτηματολογίου
   function topoParcels(M) {
     var k = S.kaek; if (!k || k.status !== 'ok') return { own: null, list: [] };
@@ -5995,7 +6002,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     h += '</div>';
     h += so('pinakida');
     // πινακίδα
-    var tpl = topoTemplate(), tplRaw = store('hexis_topo_tpl');
+    var tpl = topoTemplate(), tplRaw = tpl ? store('hexis_topo_tpl') : null;
     h += '<details open class="piece"><summary><b>Πινακίδα</b><span style="color:var(--muted)">' + (tpl ? 'η δική σου: ' + esc(tplRaw.name) + ' — σε μέγεθος σελίδας Α4 · αποθηκευμένη στον λογαριασμό σου, δεν χρειάζεται να την ξανανεβάσεις' : 'προεπιλεγμένη του HEXIS — ή ανέβασε τη δική σου (DXF)') + '</span></summary><div class="file-row" style="margin-top:6px;flex-wrap:wrap"><label class="btn small" style="cursor:pointer">Ανέβασε DXF πινακίδας<input type="file" id="topoTpl" accept=".dxf" hidden></label>' + (tpl ? '<button class="btn small" data-act="topo-tpl-clear">Αφαίρεση — προεπιλεγμένη</button>' : '') + (tpl && tpl.images ? '<label class="btn small" style="cursor:pointer" title="Η πινακίδα έχει θέση για εικόνα (λογότυπο). Η εικόνα δεν περιέχεται στο DXF — ανέβασέ την εδώ μία φορά.">' + (tpl.logo ? '✓ Λογότυπο — αλλαγή' : '⤒ Λογότυπο πινακίδας (PNG/JPG)') + '<input type="file" id="topoTplLogo" accept="image/*" hidden></label>' : '') + '<button class="btn small" data-act="sheet-info">Στοιχεία γραφείου / μελετητή</button></div>';
     if (tpl) { var ff = TopoSheet.templateHasFields(tpl); h += '<p style="margin:4px 0 0;color:var(--muted);font-size:12px">' + (ff.length ? 'Πεδία που συμπληρώνονται: ' + ff.map(function (x) { return '{' + x + '}'; }).join(' ') : 'Δεν βρέθηκαν πεδία {…} στην πινακίδα — θα τυπωθεί όπως είναι.') + (tpl.warn.length ? ' · αγνοήθηκαν: ' + tpl.warn.join(', ') : '') + (tpl.unitWarn ? ' · ' + esc(tpl.unitWarn) : '') + '</p>'; }
     h += '<p style="margin:4px 0 0;color:var(--muted);font-size:12px">Η πινακίδα σου τοποθετείται κάτω-δεξιά <b>πάντα σε μέγεθος σελίδας Α4</b> (210×297, όπως διπλώνεται το σχέδιο), όποιες κι αν είναι οι μονάδες του DXF. Τα κελιά με ετικέτα «Εργοδότης», «Έργο», «Θέση», «Θέμα Σχεδίου», «Ημερομηνία», «Κλίμακα», «Αριθμός Σχεδίου» συμπληρώνονται μόνα τους· εναλλακτικά γράψε στα κελιά <code>{ΕΡΓΟΔΟΤΗΣ}</code> <code>{ΕΡΓΟ}</code> <code>{ΘΕΣΗ}</code> <code>{ΘΕΜΑ}</code> <code>{ΗΜΕΡΟΜΗΝΙΑ}</code> <code>{ΚΛΙΜΑΚΑ}</code> <code>{ΑΡ_ΣΧΕΔΙΟΥ}</code> <code>{ΜΕΛΕΤΗΤΗΣ}</code> <code>{ΚΑΕΚ}</code> <code>{ΓΡΑΦΕΙΟ}</code> <code>{ΔΗΜΟΣ}</code> <code>{ΕΜΒΑΔΟΝ}</code>. Λογότυπο (IMAGE) μπαίνει από το κουμπί «Λογότυπο πινακίδας». Αποθηκεύεται στον browser σου.</p></details>';
@@ -6378,7 +6385,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       try {
         var text = decodeDxf(rd.result), tpl = TopoSheet.parseTemplate(text);
         if (text.length > 1500000) throw new Error('Το DXF της πινακίδας είναι πολύ μεγάλο (' + Math.round(text.length / 1024) + ' KB) — κράτα μόνο την πινακίδα, χωρίς το υπόλοιπο σχέδιο.');
-        store('hexis_topo_tpl', { name: file.name, text: text }); S.topoTplParsed = null; prefsPush({ tpl: { name: file.name, text: text } });
+        store('hexis_topo_tpl', { name: file.name, text: text, uid: S.prefsUid || null }); S.topoTplParsed = null; prefsPush({ tpl: { name: file.name, text: text } });
         var ff = TopoSheet.templateHasFields(tpl);
         toast('Πινακίδα: ' + Math.round(tpl.w) + '×' + Math.round(tpl.h) + ' mm · ' + tpl.ents.length + ' στοιχεία · ' + (ff.length ? ff.length + ' πεδία {…}' : 'χωρίς πεδία {…}'));
         topoRefresh();
@@ -7406,7 +7413,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     if (ev.target.id === 'topoPhotoIn') { var pf2 = ev.target.files; if (pf2 && pf2.length) topoPhotoAdd(pf2); ev.target.value = ''; return; }
     if (ev.target.id === 'topoMapIn') { var mf = ev.target.files; if (mf && mf.length) topoMapAdd(mf); ev.target.value = ''; return; }
     if (ev.target.classList.contains('topoPhotoCap')) { var pi = +ev.target.dataset.i; if (S.topoPhotos && S.topoPhotos[pi]) S.topoPhotos[pi].caption = ev.target.value.trim(); if (S.topoPreview) topoRefresh(); return; }
-    if (ev.target.id === 'topoTplLogo') { var lf = ev.target.files[0]; ev.target.value = ''; if (lf) { var u = URL.createObjectURL(lf), im = new Image(); im.onload = function () { var kk = Math.min(1, 1600 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * kk); c.height = Math.round(im.height * kk); var cx = c.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height); cx.drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(u); try { var lg = { href: c.toDataURL('image/jpeg', 0.9), wpx: c.width, hpx: c.height }; store('hexis_topo_tpl_logo', lg); prefsPush({ logo: lg }); toast('Λογότυπο πινακίδας αποθηκεύτηκε και στον λογαριασμό σου.'); } catch (e) { toast('Το λογότυπο είναι πολύ μεγάλο για αποθήκευση.', true); } topoRefresh(); }; im.src = u; } return; }
+    if (ev.target.id === 'topoTplLogo') { var lf = ev.target.files[0]; ev.target.value = ''; if (lf) { var u = URL.createObjectURL(lf), im = new Image(); im.onload = function () { var kk = Math.min(1, 1600 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * kk); c.height = Math.round(im.height * kk); var cx = c.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height); cx.drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(u); try { var lg = { href: c.toDataURL('image/jpeg', 0.9), wpx: c.width, hpx: c.height }; store('hexis_topo_tpl_logo', Object.assign({ uid: S.prefsUid || null }, lg)); prefsPush({ logo: lg }); toast('Λογότυπο πινακίδας αποθηκεύτηκε και στον λογαριασμό σου.'); } catch (e) { toast('Το λογότυπο είναι πολύ μεγάλο για αποθήκευση.', true); } topoRefresh(); }; im.src = u; } return; }
     if (ev.target.id === 'topoTpl') { var tf = ev.target.files[0]; ev.target.value = ''; if (tf) loadTopoTemplate(tf); return; }
     if (ev.target.id === 'kaekOnlyMain') { S.kaekOnlyMain = ev.target.checked; renderPlan(); if (S.map) drawMap(false); }
     if (ev.target.id === 'dgmOwn') { S.dgmOwn = ev.target.value; runDgm(); }
