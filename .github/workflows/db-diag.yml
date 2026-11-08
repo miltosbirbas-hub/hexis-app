@@ -1,0 +1,19 @@
+name: Supabase · διάγνωση (μόνο ανάγνωση)
+on:
+  workflow_dispatch:
+    inputs:
+      file: { description: "Αρχείο SELECT στο diag/", required: true, default: "interior-access.sql" }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: oucqqudfdimccgowvpqp
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ερώτημα
+        run: |
+          f="diag/${{ github.event.inputs.file }}"
+          grep -qiE '\b(insert|update|delete|drop|alter|create|grant|revoke|truncate)\b' "$f" && { echo "μόνο SELECT"; exit 1; }
+          python3 -c "import json,sys;print(json.dumps({'query':'begin read only; '+open(sys.argv[1]).read().rstrip().rstrip(';')+'; commit;'}))" "$f" > q.json
+          curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data-binary @q.json | python3 -c "import json,sys;d=json.load(sys.stdin);[print(r) for r in d] if isinstance(d,list) else print(d)"
