@@ -23,7 +23,7 @@ jobs:
       - name: Προσωρινό κλειδί
         run: |
           KEY=$(openssl rand -hex 32); echo "::add-mask::$KEY"; echo "KEY=$KEY" >> $GITHUB_ENV
-          supabase secrets set SELFTEST_KEY=$KEY --project-ref $REF >/dev/null
+          supabase secrets set SELFTEST_KEY=$KEY --project-ref $REF --yes >/dev/null
           sleep 25
       - name: Αποδόσεις
         run: |
@@ -61,7 +61,7 @@ jobs:
           done
       - name: Κλείσιμο κλειδιού
         if: always()
-        run: supabase secrets unset SELFTEST_KEY --project-ref $REF >/dev/null || true
+        run: supabase secrets unset SELFTEST_KEY --project-ref $REF --yes >/dev/null || true
       - name: Αποτελέσματα στον κλάδο selftest-out
         run: |
           cd out && git init -q && git checkout -q -b selftest-out
