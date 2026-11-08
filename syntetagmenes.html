@@ -4679,7 +4679,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     var b = atob(SAMPLE_PDF), u = new Uint8Array(b.length);
     for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
     S.isSample = true;
-    loadPdf(u.buffer, 'Παράδειγμα τοπογραφικού.pdf');
+    jobReset(); loadPdf(u.buffer, 'Παράδειγμα τοπογραφικού.pdf');
   });
 
   function openFile(f) {
@@ -4697,8 +4697,13 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   // επιλογές ΔΓΜ, γραμμές ΦΕΚ). Ξανανοίγει από «Πρόσφατες εργασίες» ή όταν ξαναφορτωθεί το ίδιο αρχείο.
   var JOB_KEYS = ['tables', 'rot', 'owners', 'topoF', 'topoEdits', 'topoPhotos', 'topoMaps', 'topoScale', 'topoPaper', 'topoAuto', 'sheetScale', 'sheetPaper', 'sheetAuto', 'sheetLayout',
     'dgmOwn', 'dgmSkip', 'dgmAssign', 'dgmAbsorb', 'dgmBound', 'dgmSnap', 'dgmMode', 'dgmMin', 'dgmSkipOwn', 'praxisOp', 'praxisKaeks', 'topoSplit', 'topoForest', 'topoForestAlways',
-    'topoExtractBg', 'topoCloseOT', 'topoLayoutLight', 'topoNoNotes', 'topoNoLines', 'topoNoExtract', 'topoNo651', 'topoNoCompat', 'topoNo4030', 'topoKaekTable', 'zone', 'kaekOnlyMain', 'kaekFocus', 'residOk', 'topoAigFekSaved'];
+    'topoExtractBg', 'topoCloseOT', 'topoLayoutLight', 'topoNoNotes', 'topoNoLines', 'topoNoExtract', 'topoNo651', 'topoNoCompat', 'topoNo4030', 'topoKaekTable', 'zone', 'kaekOnlyMain', 'kaekFocus', 'residOk', 'topoAigFekSaved', 'jobRep', 'sheetEdits'];
   var JOB = { db: null, last: '', busy: false };
+  // Κάθε εργασία ξεκινά καθαρή: τίποτα από την προηγούμενη (ιδιοκτήτης, θέση, πινακίδα, διορθώσεις, φωτογραφίες…) δεν περνά στην επόμενη.
+  function jobReset() { JOB_KEYS.forEach(function (k) { if (k !== 'tables') S[k] = null; }); S.rot = {}; S.jobRep = {}; }
+  // Στοιχεία πινακίδας/αναφοράς: «Τεχνικό γραφείο» και «Μηχανικός» μένουν για όλες τις εργασίες· εργοδότης, έργο, θέση, αρ. σχεδίου, ημερομηνία είναι της εργασίας.
+  function repInfo() { var g = store('hexis_coords_report') || {}; return Object.assign({ office: g.office || '', eng: g.eng || '' }, S.jobRep || {}); }
+  function repSave(d) { var g = store('hexis_coords_report') || {}, j = Object.assign({}, S.jobRep || {}); Object.keys(d).forEach(function (k) { if (k === 'office' || k === 'eng') g[k] = d[k]; else j[k] = d[k]; }); store('hexis_coords_report', g); S.jobRep = j; }
   function jobPro() { return !!(S.pro && S.pro.st === 'ok'); }   // αυτόματη αποθήκευση εργασιών: μόνο στο Pro
   function jobDb() {
     if (JOB.db) return JOB.db;
@@ -4717,7 +4722,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   function jobIdOf(name, buf) { var u = new Uint8Array(buf), h = 2166136261, n = Math.min(u.length, 262144); for (var i = 0; i < n; i++) { h ^= u[i]; h = Math.imul(h, 16777619); } return name + '|' + buf.byteLength + '|' + (h >>> 0).toString(36); }
   function jobSnap() { var o = {}; JOB_KEYS.forEach(function (k) { if (S[k] !== undefined && S[k] !== null) o[k] = S[k]; }); o.topoBuilt = !!(S.topo && S.topo.status === 'ok'); o.leftTab = S.leftTab; o.topoSub = S.topoSub; try { return JSON.stringify(o); } catch (e) { console.warn('job snap', e); return ''; } }
   async function jobSave(force) {
-    if (!S.jobId || JOB.busy || S.isSample || !S.pages.length || !jobPro()) return;
+    if (!S.jobId || JOB.busy || S.jobLoading || S.isSample || !S.pages.length || !jobPro()) return;
     var snap = jobSnap(); if (!snap || (!force && snap === JOB.last)) return;
     JOB.busy = true;
     try {
@@ -4737,6 +4742,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     if (!prev && S.pro && S.pro.st === 'loading') { try { await loadPro(); } catch (e) {} }
     if (!prev && jobPro()) { var j = await jobGet(id); if (j && j.state && confirm('Το «' + name + '» το έχεις ξαναδουλέψει (' + new Date(j.at).toLocaleString('el-GR') + ').\n\nOK = συνέχεια από εκεί που σταμάτησες\nΆκυρο = από την αρχή')) prev = j; }
     if (!prev) S.zone = null;   // αστική/αγροτική: ιδιότητα του ακινήτου — σε νέο αρχείο ξαναπροτείνεται αυτόματα
+    jobReset(); S.jobLoading = true;
     S.jobId = id; S.jobSize = buf.byteLength; S.jobRestore = prev ? JSON.parse(prev.state) : null; JOB.last = prev ? prev.state : '';
     try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
     S.jobBuf = restore ? null : copy; S.jobFileSaved = !!restore;   // το αρχείο γράφεται με την πρώτη αποθήκευση (μόνο Pro)
@@ -5115,6 +5121,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       S.view = 'pdf'; S.fitZoom = true;
       await tick();
       $('#progress').hidden = true; $('#work').hidden = false; $('#exportBar').hidden = false;
+      S.jobLoading = false;
       if (JR) { jobApply(JR); if (JR.leftTab) S.leftTab = JR.leftTab; if (JR.topoSub) S.topoSub = JR.topoSub; }
       else autoStraighten();
       renderAll();
@@ -5876,7 +5883,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   function kaekOwnersStore(k, v) { var m = store('hexis_kaek_owners') || {}; if (k) { if (v) m[k] = v; else delete m[k]; store('hexis_kaek_owners', m); } return m; }
   function ownersPrefill(list) { var m = kaekOwnersStore(); S.owners = S.owners || {}; (list || []).forEach(function (p) { if (!S.owners[p.kaek] && m[p.kaek]) S.owners[p.kaek] = m[p.kaek]; }); }
   function topoFields() {
-    if (!S.topoF) { S.topoF = TopoSheet.defaults(); var e = topoEngDefaults(), rep = store('hexis_coords_report') || {}; S.topoF.mix = e.mix || rep.eng || ''; S.topoF.eid = e.eid || ''; S.topoF.tee = e.tee || ''; S.topoF.gnssNet = e.gnssNet || ''; S.topoF.gnssRx = e.gnssRx || ''; S.topoF.idio = rep.client || ''; }
+    if (!S.topoF) { S.topoF = TopoSheet.defaults(); var e = topoEngDefaults(), rep = repInfo(); S.topoF.mix = e.mix || rep.eng || ''; S.topoF.eid = e.eid || ''; S.topoF.tee = e.tee || ''; S.topoF.gnssNet = e.gnssNet || ''; S.topoF.gnssRx = e.gnssRx || ''; S.topoF.idio = rep.client || ''; }
     return S.topoF;
   }
   async function runTopo() {
@@ -5944,7 +5951,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     var el = $('#topoPanel'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   function topoInfo(res) {
-    var rep = store('hexis_coords_report') || {}, f = topoFields();
+    var rep = repInfo(), f = topoFields();
     var place = [f.thesi, f.dk ? 'Τ.Κ. ' + f.dk : '', f.de ? 'Δ.Ε. ' + f.de : ''].filter(Boolean).join(' · ');
     // πινακίδα: η θέση και από κάτω, σε δική της γραμμή το καθένα, Τοπική Κοινότητα, Δημοτική Ενότητα, Δήμος (και μετά ο ΚΑΕΚ)
     var up = function (v) { return String(v || '').trim().toUpperCase(); }, strip = function (v, re) { return up(v).replace(re, '').trim(); };
@@ -6144,9 +6151,15 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
   // ---------- Προεπισκόπηση & διόρθωση στην οθόνη (πριν από PDF / DXF) ----------
   function topoEditCount() { var e = S.topoEdits || {}; return Object.keys(e.t || {}).length + Object.keys(e.b || {}).length + (e.add || []).length + (e.img || []).length; }
   var TE = null; // κατάσταση επεξεργαστή
-  function topoEditorOpen() {
-    var r = S.topo; if (!r || r.status !== 'ok') return;
-    S.topoEdits = S.topoEdits || { t: {}, b: {} };
+  function topoEditorOpen() { editorOpen('topo'); }
+  // ίδιος επεξεργαστής για το τοπογραφικό (S.topoEdits) και για το ΔΓΜ (S.sheetEdits)
+  function teE() { return TE && TE.kind === 'dgm' ? S.sheetEdits : S.topoEdits; }
+  function teSetE(v) { if (TE && TE.kind === 'dgm') S.sheetEdits = v; else S.topoEdits = v; }
+  function teCount() { var e = teE() || {}; return Object.keys(e.t || {}).length + Object.keys(e.b || {}).length + (e.add || []).length + (e.img || []).length; }
+  function editorOpen(kind) {
+    if (kind === 'dgm') { if (!S.dgm || S.dgm.status !== 'ok') return; S.sheetEdits = S.sheetEdits || { t: {}, b: {}, add: [], img: [] }; }
+    else { var r = S.topo; if (!r || r.status !== 'ok') return; S.topoEdits = S.topoEdits || { t: {}, b: {} }; }
+    if (TE && TE.kind !== kind) { TE.undo = []; TE.sel = null; TE.sheet = 0; }
     if (!TE) {
       var o = document.createElement('div'); o.id = 'topoEd';
       o.innerHTML = '<div class="te-bar">'
@@ -6182,20 +6195,23 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       TE.stage.addEventListener('wheel', function (ev) { ev.preventDefault(); teZoom(ev.deltaY < 0 ? 1.2 : 1 / 1.2, ev.clientX, ev.clientY); }, { passive: false });
       document.addEventListener('keydown', function (ev) { if (!TE || TE.el.hidden) return; if (ev.key === 'Escape') { if (TE.addMode || TE.copyMode || TE.alignMode || TE.imgMode) { teModeOff(); return; } teClose(); } else if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z') { ev.preventDefault(); teUndo(); } else if ((ev.key === 'Delete') && TE.sel && document.activeElement === document.body) teHide(); });
     }
+    TE.kind = kind;
+    TE.el.querySelector('.te-title').textContent = kind === 'dgm' ? 'Σχεδιαστικός έλεγχος — Διάγραμμα' : 'Σχεδιαστικός έλεγχος';
     TE.el.hidden = false; document.body.style.overflow = 'hidden';
     teRender(true);
   }
-  function teClose() { if (!TE) return; TE.el.hidden = true; document.body.style.overflow = ''; if (S.topoPreview) S.topoPreview = TopoSheet.sheetSVG(topoData(S.topo), topoLayout(S.topo), 0); renderAll(); }
+  function teClose() { if (!TE) return; TE.el.hidden = true; document.body.style.overflow = ''; if (TE.kind === 'dgm') { renderAll(); return; } if (S.topoPreview) S.topoPreview = TopoSheet.sheetSVG(topoData(S.topo), topoLayout(S.topo), 0); renderAll(); }
   function teRender(fit) {
-    var r = S.topo; TE.lay = topoLayout(r); TE.data = topoData(r);
+    if (TE.kind === 'dgm') { var dd = S.dgm, pp = dgmUsed(dd); TE.lay = sheetLayout(dd, pp); TE.svgOf = function (i, o) { return DgmSheet.sheetSVG(dd, pp, TE.lay, i, o); }; }
+    else { var r = S.topo; TE.lay = topoLayout(r); TE.data = topoData(r); TE.svgOf = function (i, o) { return TopoSheet.sheetSVG(TE.data, TE.lay, i, o); }; }
     var n = TE.lay.sheets.length; if (TE.sheet >= n) TE.sheet = 0;
     var sel = TE.el.querySelector('.te-sheet'); sel.innerHTML = TE.lay.sheets.map(function (_, i) { return '<option value="' + i + '"' + (i === TE.sheet ? ' selected' : '') + '>Φύλλο ' + (i + 1) + '/' + n + '</option>'; }).join(''); sel.style.display = n > 1 ? '' : 'none';
-    TE.paper.innerHTML = TopoSheet.sheetSVG(TE.data, TE.lay, TE.sheet, { edit: true });
+    TE.paper.innerHTML = TE.svgOf(TE.sheet, { edit: true });
     TE.svg = TE.paper.querySelector('svg'); TE.svg.removeAttribute('width'); TE.svg.removeAttribute('height');
     var P = TE.lay.paper; TE.pw = P.w; TE.ph = P.h;
     if (fit) teFit(); else teApplyView();
     if (TE.sel) teMark(TE.sel);
-    var c = topoEditCount();
+    var c = teCount();
     TE.status.textContent = (c ? c + ' διορθώσεις · ' : '') + TE.lay.paper.id + ' · 1:' + TE.lay.scale + ' · οι διορθώσεις περνούν αυτόματα στο PDF, στο SVG και στο DXF';
   }
   function teFit() { var w = TE.stage.clientWidth - 24, h = TE.stage.clientHeight - 24; var k = Math.min(w / TE.pw, h / TE.ph); TE.z = 1; TE.base = k; TE.px = (TE.stage.clientWidth - TE.pw * k) / 2; TE.py = (TE.stage.clientHeight - TE.ph * k) / 2; teApplyView(); }
@@ -6237,8 +6253,8 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
   }
   function teSetAngle(deg) {
     var sel = TE.sel; if (!teRotatable(sel)) { toast('Διάλεξε πρώτα ένα κείμενο (κλικ πάνω του).', true); return; }
-    var d0 = (S.topoEdits.t[sel.k] || {}).r || 0, base = teCurRot(sel) - d0;
-    tePush(); var d = S.topoEdits.t[sel.k] = S.topoEdits.t[sel.k] || { dx: 0, dy: 0 }; d.r = teNorm(deg - base); if (!d.r) delete d.r; teRender(false);
+    var d0 = (teE().t[sel.k] || {}).r || 0, base = teCurRot(sel) - d0;
+    tePush(); var d = teE().t[sel.k] = teE().t[sel.k] || { dx: 0, dy: 0 }; d.r = teNorm(deg - base); if (!d.r) delete d.r; teRender(false);
   }
   function teImgDrag(ev, g) {
     var im = teImg(TE.sel); if (!im) return; var bx = g.dataset.box.split(',').map(Number), ctm = TE.svg.getScreenCTM().inverse(), pt = TE.svg.createSVGPoint(), w0 = im.wmm || 40, img = teEls(TE.sel)[0], nw = w0;
@@ -6278,14 +6294,14 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     function up() {
       TE.stage.removeEventListener('pointermove', mv); TE.stage.removeEventListener('pointerup', up); TE.stage.removeEventListener('pointercancel', up);
       if (!delta) { teHandle(); return; }
-      tePush(); var d = S.topoEdits.t[sel.k] = S.topoEdits.t[sel.k] || { dx: 0, dy: 0 }; d.r = teNorm((d.r || 0) + delta); if (!d.r) delete d.r; teRender(false);
+      tePush(); var d = teE().t[sel.k] = teE().t[sel.k] || { dx: 0, dy: 0 }; d.r = teNorm((d.r || 0) + delta); if (!d.r) delete d.r; teRender(false);
     }
     TE.stage.addEventListener('pointermove', mv); TE.stage.addEventListener('pointerup', up); TE.stage.addEventListener('pointercancel', up);
     ev.preventDefault();
   }
-  function tePush() { TE.undo.push(JSON.stringify(S.topoEdits)); if (TE.undo.length > 60) TE.undo.shift(); }
-  function teUndo() { if (!TE.undo.length) { toast('Δεν υπάρχει κάτι για αναίρεση.'); return; } S.topoEdits = JSON.parse(TE.undo.pop()); teRender(false); }
-  function teEdit(sel) { var E = S.topoEdits; if (sel.b) return (E.b[sel.b] = E.b[sel.b] || { dx: 0, dy: 0 }); return (E.t[sel.k] = E.t[sel.k] || { dx: 0, dy: 0 }); }
+  function tePush() { TE.undo.push(JSON.stringify(teE())); if (TE.undo.length > 60) TE.undo.shift(); }
+  function teUndo() { if (!TE.undo.length) { toast('Δεν υπάρχει κάτι για αναίρεση.'); return; } teSetE(JSON.parse(TE.undo.pop())); teRender(false); }
+  function teEdit(sel) { var E = teE(); if (sel.b) return (E.b[sel.b] = E.b[sel.b] || { dx: 0, dy: 0 }); return (E.t[sel.k] = E.t[sel.k] || { dx: 0, dy: 0 }); }
   function teDown(ev) {
     if (ev.button !== undefined && ev.button !== 0) return;
     var rsz = ev.target.closest && ev.target.closest('.te-rsh'); if (rsz && TE.sel) { teImgDrag(ev, rsz.parentNode); return; }
@@ -6294,8 +6310,8 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       // τοποθέτηση εικόνας: το κέντρο της στο σημείο που πατήθηκε
       ev.preventDefault(); var im0 = TE.imgMode, rc4 = TE.paper.getBoundingClientRect(), k4 = TE.base * TE.z, mx4 = (ev.clientX - rc4.left) / k4, my4 = (ev.clientY - rc4.top) / k4, sh4 = TE.lay.sheets[TE.sheet];
       if (mx4 < 0 || my4 < 0 || mx4 > TE.pw || my4 > TE.ph) return;
-      var hmm = im0.wmm * im0.hpx / im0.wpx; tePush(); S.topoEdits.img = S.topoEdits.img || []; var nid = (Date.now() + Math.floor(Math.random() * 1000)).toString(36);
-      S.topoEdits.img.push({ id: nid, x: sh4.x + (mx4 - im0.wmm / 2) * TE.lay.mm, y: sh4.y + sh4.h - (my4 + hmm / 2) * TE.lay.mm, wmm: im0.wmm, href: im0.href, wpx: im0.wpx, hpx: im0.hpx });
+      var hmm = im0.wmm * im0.hpx / im0.wpx; tePush(); teE().img = teE().img || []; var nid = (Date.now() + Math.floor(Math.random() * 1000)).toString(36);
+      teE().img.push({ id: nid, x: sh4.x + (mx4 - im0.wmm / 2) * TE.lay.mm, y: sh4.y + sh4.h - (my4 + hmm / 2) * TE.lay.mm, wmm: im0.wmm, href: im0.href, wpx: im0.wpx, hpx: im0.hpx });
       TE.imgMode = null; TE.stage.style.cursor = ''; TE.sel = { b: 'UI|' + nid }; teRender(false); teMark(TE.sel); return;
     }
     if (TE.alignMode) {
@@ -6312,8 +6328,8 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       // Copy: ίδιο κείμενο / μέγεθος / γωνία στο σημείο που πατήθηκε — πολλαπλά, μέχρι Esc
       ev.preventDefault(); var cm = TE.copyMode, rc3 = TE.paper.getBoundingClientRect(), k3 = TE.base * TE.z, mx3 = (ev.clientX - rc3.left) / k3, my3 = (ev.clientY - rc3.top) / k3, sh3 = TE.lay.sheets[TE.sheet];
       if (mx3 < 0 || my3 < 0 || mx3 > TE.pw || my3 > TE.ph) return;
-      tePush(); S.topoEdits.add = S.topoEdits.add || []; var cid = (Date.now() + Math.floor(Math.random() * 1000)).toString(36);
-      S.topoEdits.add.push({ id: cid, x: sh3.x + mx3 * TE.lay.mm, y: sh3.y + sh3.h - my3 * TE.lay.mm, text: cm.text, h: cm.h, rot: cm.rot });
+      tePush(); teE().add = teE().add || []; var cid = (Date.now() + Math.floor(Math.random() * 1000)).toString(36);
+      teE().add.push({ id: cid, x: sh3.x + mx3 * TE.lay.mm, y: sh3.y + sh3.h - my3 * TE.lay.mm, text: cm.text, h: cm.h, rot: cm.rot });
       cm.n++; teRender(false); TE.status.textContent = 'Copy «' + cm.text + '»: ' + cm.n + ' αντίγραφα · πάτα κι άλλο σημείο ή Esc για τέλος';
       return;
     }
@@ -6325,8 +6341,8 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       var wx = sh.x + mx * mmL, wy = sh.y + sh.h - my * mmL;
       teTextBox('', false, function (v) {
         if (!v || !v.trim()) { teRender(false); return; }
-        tePush(); S.topoEdits.add = S.topoEdits.add || []; var id = Date.now().toString(36);
-        S.topoEdits.add.push({ id: id, x: wx, y: wy, text: v.trim(), h: TE.addH || 2.5, rot: 0 });
+        tePush(); teE().add = teE().add || []; var id = Date.now().toString(36);
+        teE().add.push({ id: id, x: wx, y: wy, text: v.trim(), h: TE.addH || 2.5, rot: 0 });
         TE.sel = { k: 'U|' + id }; teRender(false);
       }, TE_PRESETS);
       return;
@@ -6387,30 +6403,30 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     var cur = teCurText(sel), multi = /^M\|/.test(sel.k) || /\n/.test(cur);
     teTextBox(cur, multi, function (v) {
       if (v == null || v === cur) return;
-      tePush(); var d = S.topoEdits.t[sel.k] = S.topoEdits.t[sel.k] || { dx: 0, dy: 0 };
+      tePush(); var d = teE().t[sel.k] = teE().t[sel.k] || { dx: 0, dy: 0 };
       if (v.trim() === '') d.hide = true; else { d.text = v; delete d.hide; }
       teRender(false);
     });
   }
   function teHide() {
     if (!TE.sel) { toast('Διάλεξε πρώτα κάτι (κλικ πάνω του).', true); return; }
-    if (TE.sel.b && /^UI\|/.test(TE.sel.b)) { tePush(); var iid = TE.sel.b.slice(3); S.topoEdits.img = (S.topoEdits.img || []).filter(function (a) { return a.id !== iid; }); TE.sel = null; teRender(false); return; }
-    tePush(); if (TE.sel.k && /^U\|/.test(TE.sel.k)) { var uid = TE.sel.k.slice(2); S.topoEdits.add = (S.topoEdits.add || []).filter(function (a) { return a.id !== uid; }); TE.sel = null; teRender(false); return; }
+    if (TE.sel.b && /^UI\|/.test(TE.sel.b)) { tePush(); var iid = TE.sel.b.slice(3); teE().img = (teE().img || []).filter(function (a) { return a.id !== iid; }); TE.sel = null; teRender(false); return; }
+    tePush(); if (TE.sel.k && /^U\|/.test(TE.sel.k)) { var uid = TE.sel.k.slice(2); teE().add = (teE().add || []).filter(function (a) { return a.id !== uid; }); TE.sel = null; teRender(false); return; }
     var d = teEdit(TE.sel); d.hide = true; TE.sel = null; teRender(false);
   }
-  function teImg(sel) { if (!sel || !sel.b || !/^UI\|/.test(sel.b)) return null; var id = sel.b.slice(3); return (S.topoEdits.img || []).filter(function (a) { return a.id === id; })[0] || null; }
+  function teImg(sel) { if (!sel || !sel.b || !/^UI\|/.test(sel.b)) return null; var id = sel.b.slice(3); return (teE().img || []).filter(function (a) { return a.id === id; })[0] || null; }
   function teImgW(a, wmm) {   // νέο πλάτος (mm χαρτιού), σταθερή η κάτω-αριστερή γωνία
     tePush(); a.wmm = Math.max(5, Math.min(400, Math.round(wmm * 10) / 10)); teRender(false); TE.status.textContent = '🖼 Πλάτος εικόνας ' + a.wmm + ' mm (ύψος ' + (Math.round(a.wmm * a.hpx / a.wpx * 10) / 10) + ' mm) — σύρε τη γωνία ή A+ / A−';
   }
   function teSize(f) {
     var im = teImg(TE.sel); if (im) { teImgW(im, (im.wmm || 40) * f); return; }
     var sel = TE.sel && TE.sel.k ? TE.sel : null; if (!sel) { toast('Διάλεξε πρώτα ένα κείμενο (κλικ πάνω του).', true); return; }
-    tePush(); var d = S.topoEdits.t[sel.k] = S.topoEdits.t[sel.k] || { dx: 0, dy: 0 }; d.k = Math.max(0.4, Math.min(3, (d.k || 1) * f)); teRender(false);
+    tePush(); var d = teE().t[sel.k] = teE().t[sel.k] || { dx: 0, dy: 0 }; d.k = Math.max(0.4, Math.min(3, (d.k || 1) * f)); teRender(false);
   }
   function teModeOff() { TE.addMode = false; TE.copyMode = null; TE.alignMode = false; TE.imgMode = null; if (TE.stage) TE.stage.style.cursor = ''; if (TE.svg) teRender(false); }
   function teRot(deg) {
     var sel = TE.sel && TE.sel.k ? TE.sel : null; if (!sel) { toast('Διάλεξε πρώτα ένα κείμενο (κλικ πάνω του).', true); return; }
-    tePush(); var d = S.topoEdits.t[sel.k] = S.topoEdits.t[sel.k] || { dx: 0, dy: 0 }; d.r = teNorm((d.r || 0) + deg); if (!d.r) delete d.r; teRender(false);
+    tePush(); var d = teE().t[sel.k] = teE().t[sel.k] || { dx: 0, dy: 0 }; d.r = teNorm((d.r || 0) + deg); if (!d.r) delete d.r; teRender(false);
   }
   function teClick(ev) {
     var b = ev.target.closest('[data-te]'); if (!b) return; var a = b.dataset.te;
@@ -6421,9 +6437,9 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     else if (a === 'align') { if (!teRotatable(TE.sel)) { toast('Διάλεξε πρώτα ένα κείμενο (κλικ πάνω του).', true); return; } TE.alignMode = true; TE.alignPts = []; TE.stage.style.cursor = 'crosshair'; TE.status.textContent = '∥ Πάτα δύο σημεία πάνω στη γραμμή (π.χ. άκρη δρόμου) — το κείμενο θα μπει παράλληλα…'; }
     else if (a === 'img') { var fi = TE.el.querySelector('.te-imgfile'); fi.value = ''; fi.click(); }
     else if (a === 'add') { TE.copyMode = null; TE.alignMode = false; TE.addMode = true; TE.stage.style.cursor = 'crosshair'; TE.status.textContent = '＋ Πάτα στο σημείο του σχεδίου όπου θα μπει το νέο κείμενο…'; }
-    else if (a === 'reset') { if (!topoEditCount() || !confirm('Επαναφορά όλων των διορθώσεων του σχεδίου;')) return; tePush(); S.topoEdits = { t: {}, b: {}, add: [], img: [] }; TE.sel = null; teRender(false); }
+    else if (a === 'reset') { if (!teCount() || !confirm('Επαναφορά όλων των διορθώσεων του σχεδίου;')) return; tePush(); teSetE({ t: {}, b: {}, add: [], img: [] }); TE.sel = null; teRender(false); }
     else if (a === 'zin') teZoom(1.3); else if (a === 'zout') teZoom(1 / 1.3); else if (a === 'fit') teFit();
-    else if (a === 'pdf' || a === 'dxf' || a === 'svg') { var kind = a === 'pdf' ? 'topo-print-pdf' : a === 'dxf' ? 'topo-print-dxf' : 'topo-svg'; if (proClick({ target: b, preventDefault: function () {} })) return; exportTopo(kind).catch(function (e) { console.error(e); toast('Η εξαγωγή απέτυχε: ' + e.message, true); }); }
+    else if (a === 'pdf' || a === 'dxf' || a === 'svg') { var kind = a === 'pdf' ? 'topo-print-pdf' : a === 'dxf' ? 'topo-print-dxf' : 'topo-svg'; if (proClick({ target: b, preventDefault: function () {} })) return; if (TE.kind === 'dgm') { exportDgm(a === 'pdf' ? 'dgm-print-pdf' : a === 'dxf' ? 'dgm-print-dxf' : 'dgm-sheet-svg').catch(function (e) { console.error(e); toast('Η εξαγωγή απέτυχε: ' + e.message, true); }); return; } exportTopo(kind).catch(function (e) { console.error(e); toast('Η εξαγωγή απέτυχε: ' + e.message, true); }); }
   }
   async function exportTopo(kind) {
     var r = S.topo; if (!r || r.status !== 'ok') return;
@@ -6543,11 +6559,13 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
         store('hexis_topo_tpl', { name: file.name, text: text, uid: S.prefsUid || null }); S.topoTplParsed = null; prefsPush({ tpl: { name: file.name, text: text } });
         var ff = TopoSheet.templateHasFields(tpl);
         toast('Πινακίδα: ' + Math.round(tpl.w) + '×' + Math.round(tpl.h) + ' mm · ' + tpl.ents.length + ' στοιχεία · ' + (ff.length ? ff.length + ' πεδία {…}' : 'χωρίς πεδία {…}'));
-        topoRefresh();
+        store('hexis_dgm_owntpl', null);
+        topoRefresh(); dgmTplRefresh();
       } catch (e) { toast('Δεν διαβάστηκε η πινακίδα: ' + e.message, true); }
     };
     rd.readAsArrayBuffer(file);
   }
+  function dgmTplRefresh() { if (S.dgm && S.dgm.status === 'ok') { if (S.dgm.rec) try { S.dgm.rec = DgmSheet.recommend(S.dgm, S.dgm.parcels, { template: dgmTemplate(), plotTitle: S.dgm.plotTitle, kaekName: kaekName, boundLayer: boundLayer() }); if (S.sheetAuto !== false && S.dgm.rec.best.single) { S.sheetScale = S.dgm.rec.best.scale; S.sheetPaper = S.dgm.rec.best.paper; } } catch (e) { console.warn('dgm rec', e); } renderAll(); } }
   function renderKaekPanel() {
     var t = mainPlot(); if (!t) return '';
     var k = S.kaek;
@@ -6755,7 +6773,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       res.num = DGM.numbering(res, res.parcels, numericLabels ? res.labels : null);
       res.labels = res.Mr.map(function (q) { return res.num.id(q); });
       res.svg = DgmPraxis.svg(res, { W: 1000, H: 700, labels: res.labels });
-      res.rec = DgmSheet.recommend(res, res.parcels, { plotTitle: res.plotTitle, kaekName: kaekName, boundLayer: boundLayer() });
+      res.rec = DgmSheet.recommend(res, res.parcels, { template: dgmTemplate(), plotTitle: res.plotTitle, kaekName: kaekName, boundLayer: boundLayer() });
       if (!S.sheetScale || !S.sheetPaper || S.sheetAuto !== false) { S.sheetScale = res.rec.best.scale; S.sheetPaper = res.rec.best.paper; }
       res.status = 'ok'; S.dgm = res;
       $('#tabDgm').hidden = false;
@@ -6889,7 +6907,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       res.num = DGM.numbering(res, res.parcels, numericLabels ? res.labels : null);
       res.labels = res.Mmeas.map(function (q) { return res.num.id(q); });
       res.svg = DGM.svg(res, M, res.parcels, { W: 1000, H: 700, labels: res.labels });
-      res.rec = DgmSheet.recommend(res, res.parcels, { plotTitle: res.plotTitle, kaekName: kaekName, boundLayer: boundLayer() });
+      res.rec = DgmSheet.recommend(res, res.parcels, { template: dgmTemplate(), plotTitle: res.plotTitle, kaekName: kaekName, boundLayer: boundLayer() });
       if (!S.sheetScale || !S.sheetPaper || S.sheetAuto !== false) { S.sheetScale = res.rec.best.scale; S.sheetPaper = res.rec.best.paper; }
       res.status = 'ok'; S.dgm = res;
       $('#tabDgm').hidden = false;
@@ -6986,8 +7004,11 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     var o = (d.rec.options || []).filter(function (x) { return x.scale === S.sheetScale && x.paper === S.sheetPaper; })[0];
     var cfg = (o && o.cfg) || { panelFrac: 0.55, textScale: 0.85 };
     var K = scaleFactorK(dgmMeasured(d));
-    return DgmSheet.build(d, parcels, { scale: S.sheetScale, paper: S.sheetPaper, panelFrac: cfg.panelFrac, textScale: cfg.textScale, extentMode: cfg.extentMode, info: sheetInfo(), plotTitle: d.plotTitle, kaekName: kaekName, boundLayer: boundLayer(), labels: d.labels, ownerOf: function (k) { return ownerOf(k, k === d.own); }, declaration: egsaDeclText(K).split('\n'), scaleK: K });
+    var lay = DgmSheet.build(d, parcels, { template: dgmTemplate(), scale: S.sheetScale, paper: S.sheetPaper, panelFrac: cfg.panelFrac, textScale: cfg.textScale, extentMode: cfg.extentMode, info: sheetInfo(), plotTitle: d.plotTitle, kaekName: kaekName, boundLayer: boundLayer(), labels: d.labels, ownerOf: function (k) { return ownerOf(k, k === d.own); }, declaration: egsaDeclText(K).split('\n'), scaleK: K });
+    return TopoSheet.applyEdits(lay, S.sheetEdits || {});   // διορθώσεις στην οθόνη (μετακινήσεις, κείμενα, σφραγίδα) — ίδιες σε προεπισκόπηση, PDF, DXF
   }
+  // η πινακίδα του χρήστη (ίδια με του τοπογραφικού) και στο ΔΓΜ — εκτός αν ο χρήστης διάλεξε την πινακίδα του Κτηματολογίου
+  function dgmTemplate() { return store('hexis_dgm_owntpl') === false ? null : topoTemplate(); }
   function renderSheetPanel(d) {
     var rec = d.rec, best = rec.best, parcels = dgmUsed(d);
     var lay = sheetLayout(d, parcels);
@@ -7003,6 +7024,12 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     h += '<span class="chip' + (lay.fits && lay.sheets.length === 1 ? ' ok' : ' warn') + '">' + (lay.fits ? 'Το σχέδιο χωράει' : 'Το σχέδιο κόβεται στα όρια') + ' · ' + (lay.sheets.length === 1 ? 'ένα φύλλο' : lay.sheets.length + ' φύλλα') + '</span>';
     if (!isAuto) h += '<button class="btn small" data-act="sheet-auto" title="Επιστροφή στο προτεινόμενο χαρτί/κλίμακα για οικονομία">↺ Αυτόματη πρόταση</button>';
     h += '<button class="btn small" data-act="sheet-info">Στοιχεία πινακίδας</button></div>';
+    // ίδια εργαλεία με το τοπογραφικό: διορθώσεις στην οθόνη, σφραγίδα (εικόνα), δική σου πινακίδα
+    var ec = (function (e) { e = e || {}; return Object.keys(e.t || {}).length + Object.keys(e.b || {}).length + (e.add || []).length + (e.img || []).length; })(S.sheetEdits), tplD = topoTemplate(), tplDRaw = tplD ? store('hexis_topo_tpl') : null, ownOn = store('hexis_dgm_owntpl') !== false;
+    h += '<div class="file-row" style="flex-wrap:wrap;gap:6px"><button class="btn primary small" data-act="dgm-editor" title="Δες το φύλλο στην οθόνη: μετακίνησε πίνακες, υπόμνημα, κείμενα, πρόσθεσε δικά σου κείμενα και σφραγίδα (εικόνα)">✎ Προεπισκόπηση & διόρθωση στην οθόνη</button>' + (ec ? '<span class="chip ok">' + ec + ' διορθώσεις — περνούν σε PDF και DXF</span>' : '<span style="color:var(--muted);font-size:12px">σφραγίδα: «🖼 Εικόνα» μέσα στην προεπισκόπηση</span>');
+    if (tplD) h += '<label class="toggle" title="Η πινακίδα σου (ίδια με του τοπογραφικού), σε μέγεθος Α4"><input type="checkbox" id="dgmOwnTpl"' + (ownOn ? ' checked' : '') + '>Η δική μου πινακίδα · ' + esc(tplDRaw.name) + '</label>' + (ownOn && tplD.images ? '<label class="btn small" style="cursor:pointer">' + (tplD.logo ? '✓ Λογότυπο — αλλαγή' : '⤒ Λογότυπο πινακίδας (PNG/JPG)') + '<input type="file" id="dgmTplLogo" accept="image/*" hidden></label>' : '');
+    else h += '<label class="btn small" style="cursor:pointer" title="Η δική σου πινακίδα (DXF) — ίδια για τοπογραφικό και διάγραμμα, αποθηκεύεται στον λογαριασμό σου">Ανέβασε DXF πινακίδας<input type="file" id="dgmTpl" accept=".dxf" hidden></label>';
+    h += '</div>';
     // Μενού επιλογών: ΟΛΟΙ οι συνδυασμοί που χωρούν σε ένα φύλλο — ο χρήστης διαλέγει κατά προτίμηση (η πρόταση σημειώνεται)
     var pOrder = ['A3', 'A2', 'A1', 'A0'];
     var combos = rec.options.filter(function (o) { return o.single; }).sort(function (a, b) { return pOrder.indexOf(a.paper) - pOrder.indexOf(b.paper) || a.scale - b.scale; });
@@ -7012,7 +7039,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     return h;
   }
   function ownOta() { var k = S.kaek; if (!k || k.status !== 'ok') return ''; var own = ownParcel(k); return (own && own.info && own.info.ota) || (k.region || ''); }
-  function sheetInfo() { var f = store('hexis_coords_report') || {}, ota = ownOta(); return { title: 'Διάγραμμα Γεωμετρικών Μεταβολών', office: f.office || '', client: f.client || f.project || '', project: f.project || '', place: f.place || ota || '', ota: ota, eng: f.eng || '', drawingNo: f.drawingNo || 'Α1', date: f.date || new Date().toLocaleDateString('el-GR', { month: 'long', year: 'numeric' }).toUpperCase() }; }
+  function sheetInfo() { var f = repInfo(), ota = ownOta(); return { title: 'Διάγραμμα Γεωμετρικών Μεταβολών', office: f.office || '', client: f.client || f.project || '', project: f.project || '', place: f.place || ota || '', ota: ota, eng: f.eng || '', drawingNo: f.drawingNo || 'Α1', date: f.date || new Date().toLocaleDateString('el-GR', { month: 'long', year: 'numeric' }).toUpperCase() }; }
   // Συντελεστής κλίμακας γραμμικής παραμόρφωσης Κ — επίσημος προσεγγιστικός τύπος Κτηματολογίου:
   // k = 0.012311·(X−0.5)² + 0.9996, όπου X η τετμημένη (Easting ΕΓΣΑ87) σε εκατομμύρια μέτρα (X·10⁻⁶).
   function scaleFactorK(M) { if (!M || !M.length) return null; var sx = 0, n = 0; M.forEach(function (q) { sx += q[0]; n++; }); if (!n) return null; var Xm = (sx / n) / 1e6; return 0.012311 * Math.pow(Xm - 0.5, 2) + 0.9996; }
@@ -7092,7 +7119,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     });
     return { polys: polys, texts: texts, points: [], hatches: hatches, layers: { BOUND_IMPL: { color: 42 }, BOUND_UNIMPL: { color: 61 }, BLD: { color: 8 }, DASOS: { color: 94 }, 'DASOS-labels': { color: 94 }, 'AREA_D-labels': { color: 1 }, 'AREA_A-labels': { color: 3 }, 'AREA_D-hatch': { color: 1 }, 'AREA_A-hatch': { color: 3 }, 'AREA_EKTOS_KAEK-labels': { color: 30 }, SHMEIA_TOPO_PROP: { color: 5 }, SHMEIA_PST_KAEK: { color: 1 }, IDIOKTHTES: { color: 7 }, KORYFES: { color: 7 }, KANNABOS: { color: 8 }, APOSTASEIS: { color: 7 }, PINAKES: { color: 7 }, PINAKIDA: { color: 7 } } };
   }
-  function ownerOf(kaek, isOwn) { var o = (S.owners || {})[kaek]; if (o) return o; if (isOwn) { var f = store('hexis_coords_report') || {}; return f.client || ''; } return ''; }
+  function ownerOf(kaek, isOwn) { var o = (S.owners || {})[kaek]; if (o) return o; if (isOwn) { var f = repInfo(); return f.client || ''; } return ''; }
   // Όρια ιδιοκτησίας: πάντα BOUND_UNIMPL (μη υλοποιημένα), εκτός αν ο χρήστης πει ότι είναι υλοποιημένα (επιλογή ή layer BOUND_IMPL στο DXF του)
   function boundLayer() { return S.dgmBound === 'BOUND_IMPL' ? 'BOUND_IMPL' : 'BOUND_UNIMPL'; }
   // πρόταση: από το καθεστώς του ΕΨΧ (μέσω του πεδίου «Θέση», που προσυμπληρώνεται από αυτό και μπορεί να το διορθώσει ο μηχανικός).
@@ -7359,10 +7386,24 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       // γεμίσματα υπομνήματος (τα τμήματα έχουν ήδη hatch από το dgmSpec)
       lay.elems.hatches.forEach(function (h) { if (h.legend) spec.hatches.push({ layer: h.layer, pts: h.pts, color: h.color }); });
       var txt2 = Dxf2000.build(spec, { prune: true, template: '2018' });
-      download(dgmFileName(d) + '_print.dxf', new Blob([new TextEncoder().encode(txt2)], { type: 'application/dxf' }));
+      var imsD = lay.elems.images || [];
+      if (imsD.length) {
+        // σφραγίδα / λογότυπο: σε ZIP μαζί με το DXF, κάθε εικόνα με world file στη θέση της πάνω στο φύλλο (μονάδες ΕΓΣΑ87)
+        await loadScript(LIBS.jszip);
+        var zipD = new JSZip(), nmD = dgmFileName(d) + '_print'; zipD.file(nmD + '.dxf', txt2);
+        imsD.forEach(function (im, i) {
+          var jpg = /^data:image\/jpe?g/.test(im.href), ext = jpg ? 'jpg' : 'png', fn = nmD + '_' + (im.name || 'eikona') + '_' + (i + 1);
+          zipD.file(fn + '.' + ext, im.href.split(',')[1], { base64: true });
+          var A = im.w / im.wpx, E2 = -im.h / im.hpx;
+          zipD.file(fn + '.' + (jpg ? 'jgw' : 'pgw'), [A, 0, 0, E2, im.x + A / 2, im.y + im.h + E2 / 2].map(function (v) { return v.toFixed(6); }).join('\r\n') + '\r\n');
+        });
+        zipD.file('ΔΙΑΒΑΣΕ_ΜΕ.txt', '\ufeffΤο ' + nmD + '.dxf είναι το διάγραμμα για εκτύπωση. Οι εικόνες (σφραγίδα, λογότυπο) είναι δίπλα, η καθεμία με world file (.pgw/.jgw) που την τοποθετεί ακριβώς στη θέση της πάνω στο φύλλο.\r\nΣτο CAD: εισαγωγή εικόνας (raster) με το world file της.\r\n');
+        download(nmD + '.zip', await zipD.generateAsync({ type: 'blob' }));
+      } else download(dgmFileName(d) + '_print.dxf', new Blob([new TextEncoder().encode(txt2)], { type: 'application/dxf' }));
       toast('Έτοιμο το DXF εκτύπωσης (R2018): ' + lay.sheets.length + (lay.sheets.length === 1 ? ' φύλλο ' : ' φύλλα ') + S.sheetPaper + ' σε 1:' + S.sheetScale + ' · ' + spec.tables.length + ' πίνακες ως TABLE.');
       return;
     }
+    if (kind === 'dgm-sheet-svg') { var layS = sheetLayout(d, parcels); download(dgmFileName(d) + '_fyllo.svg', DgmSheet.sheetSVG(d, parcels, layS, 0), 'image/svg+xml'); toast('Έτοιμη η εικόνα του φύλλου.'); return; }
     if (kind === 'dgm-tables-lsp') {
       var lay3 = sheetLayout(d, parcels);
       var lsp = DgmSheet.lispTables(lay3, { title: dgmFileName(d) });
@@ -7575,7 +7616,9 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     if (ev.target.id === 'topoPhotoIn') { var pf2 = ev.target.files; if (pf2 && pf2.length) topoPhotoAdd(pf2); ev.target.value = ''; return; }
     if (ev.target.id === 'topoMapIn') { var mf = ev.target.files; if (mf && mf.length) topoMapAdd(mf); ev.target.value = ''; return; }
     if (ev.target.classList.contains('topoPhotoCap')) { var pi = +ev.target.dataset.i; if (S.topoPhotos && S.topoPhotos[pi]) S.topoPhotos[pi].caption = ev.target.value.trim(); if (S.topoPreview) topoRefresh(); return; }
-    if (ev.target.id === 'topoTplLogo') { var lf = ev.target.files[0]; ev.target.value = ''; if (lf) { var u = URL.createObjectURL(lf), im = new Image(); im.onload = function () { var kk = Math.min(1, 1600 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * kk); c.height = Math.round(im.height * kk); var cx = c.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height); cx.drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(u); try { var lg = { href: c.toDataURL('image/jpeg', 0.9), wpx: c.width, hpx: c.height }; store('hexis_topo_tpl_logo', Object.assign({ uid: S.prefsUid || null }, lg)); prefsPush({ logo: lg }); toast('Λογότυπο πινακίδας αποθηκεύτηκε και στον λογαριασμό σου.'); } catch (e) { toast('Το λογότυπο είναι πολύ μεγάλο για αποθήκευση.', true); } topoRefresh(); }; im.src = u; } return; }
+    if (ev.target.id === 'dgmOwnTpl') { store('hexis_dgm_owntpl', ev.target.checked ? null : false); dgmTplRefresh(); return; }
+    if (ev.target.id === 'dgmTpl') { var tf2 = ev.target.files[0]; ev.target.value = ''; if (tf2) loadTopoTemplate(tf2); return; }
+    if (ev.target.id === 'topoTplLogo' || ev.target.id === 'dgmTplLogo') { var lf = ev.target.files[0]; ev.target.value = ''; if (lf) { var u = URL.createObjectURL(lf), im = new Image(); im.onload = function () { var kk = Math.min(1, 1600 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * kk); c.height = Math.round(im.height * kk); var cx = c.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height); cx.drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(u); try { var lg = { href: c.toDataURL('image/jpeg', 0.9), wpx: c.width, hpx: c.height }; store('hexis_topo_tpl_logo', Object.assign({ uid: S.prefsUid || null }, lg)); prefsPush({ logo: lg }); toast('Λογότυπο πινακίδας αποθηκεύτηκε και στον λογαριασμό σου.'); } catch (e) { toast('Το λογότυπο είναι πολύ μεγάλο για αποθήκευση.', true); } topoRefresh(); dgmTplRefresh(); }; im.src = u; } return; }
     if (ev.target.id === 'topoTpl') { var tf = ev.target.files[0]; ev.target.value = ''; if (tf) loadTopoTemplate(tf); return; }
     if (ev.target.id === 'kaekOnlyMain') { S.kaekOnlyMain = ev.target.checked; renderPlan(); if (S.map) drawMap(false); }
     if (ev.target.id === 'dgmOwn') { S.dgmOwn = ev.target.value; runDgm(); }
@@ -7614,6 +7657,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     if (act === 'left-tab') { S.leftTab = b.dataset.tab; renderAll(); var Lp = $('#left'); if (Lp) Lp.scrollTop = 0; return; }
     if (act === 'topo-auto') { S.topoAuto = true; topoRefresh(); return; }
     if (act === 'topo-editor') { topoEditorOpen(); return; }
+    if (act === 'dgm-editor') { editorOpen('dgm'); return; }
     if (act === 'topo-preview') { var rT = S.topo; if (rT && rT.status === 'ok') { S.topoPreview = TopoSheet.sheetSVG(topoData(rT), topoLayout(rT), 0); renderAll(); } return; }
     if (act === 'topo-photo-del') { (S.topoPhotos || []).splice(+b.dataset.i, 1); topoRefresh(); return; }
     if (act === 'topo-map-del') { (S.topoMaps || []).splice(+b.dataset.i, 1); if (S.topo && S.topo.status === 'ok') topoRasterizeMaps(S.topo).then(topoRefresh); else topoRefresh(); return; }
@@ -7625,7 +7669,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     if (act === 'dgm-apply-uo') { var dd = S.dgm, uo = zoneUo(); S.dgmSkip = {}; ((dd && dd.allPieces) || []).forEach(function (x) { if (x.kind !== 'common' && x.dev <= uo) S.dgmSkip[x.id] = true; }); return runDgm(); }
     if (act === 'praxis-copy') { var ta = $('#praxisDescr'); if (ta) { ta.select(); try { navigator.clipboard.writeText(ta.value).then(function () { toast('Αντιγράφηκε η περιγραφή.'); }, function () { document.execCommand('copy'); toast('Αντιγράφηκε η περιγραφή.'); }); } catch (e) { document.execCommand('copy'); } } return; }
     if (act === 'dgm-view') { setView('dgm'); return; }
-    if (act === 'sheet-info') { var f0 = store('hexis_coords_report') || {}; gate('<h3>Στοιχεία πινακίδας</h3><div class="fields"><label>Τεχνικό γραφείο<input id="rf0" value="' + esc(f0.office || '') + '"></label><label>Εργοδότης<input id="rf4" value="' + esc(f0.client || '') + '"></label><label>Έργο / Ιδιοκτησία<input id="rf1" value="' + esc(f0.project || '') + '"></label><label>Θέση<input id="rf2" value="' + esc(f0.place || '') + '"></label><label>Ομάδα μελέτης (χώρισε με ;)<input id="rf3" value="' + esc(f0.eng || '') + '"></label><label>Αριθμός σχεδίου<input id="rf5" value="' + esc(f0.drawingNo || 'Α1') + '"></label><label>Ημερομηνία<input id="rf6" value="' + esc(f0.date || '') + '" placeholder="π.χ. ΑΠΡΙΛΙΟΣ 2026"></label></div><div class="row"><button class="btn" data-g="no">Άκυρο</button><button class="btn primary" data-g="yes">Αποθήκευση</button></div>', function (a) { if (a === 'yes') { store('hexis_coords_report', { office: $('#rf0').value.trim(), client: $('#rf4').value.trim(), project: $('#rf1').value.trim(), place: $('#rf2').value.trim(), eng: $('#rf3').value.trim(), drawingNo: $('#rf5').value.trim(), date: $('#rf6').value.trim() }); renderAll(); } }); return; }
+    if (act === 'sheet-info') { var f0 = repInfo(); gate('<h3>Στοιχεία πινακίδας</h3><div class="fields"><label>Τεχνικό γραφείο<input id="rf0" value="' + esc(f0.office || '') + '"></label><label>Εργοδότης<input id="rf4" value="' + esc(f0.client || '') + '"></label><label>Έργο / Ιδιοκτησία<input id="rf1" value="' + esc(f0.project || '') + '"></label><label>Θέση<input id="rf2" value="' + esc(f0.place || '') + '"></label><label>Ομάδα μελέτης (χώρισε με ;)<input id="rf3" value="' + esc(f0.eng || '') + '"></label><label>Αριθμός σχεδίου<input id="rf5" value="' + esc(f0.drawingNo || 'Α1') + '"></label><label>Ημερομηνία<input id="rf6" value="' + esc(f0.date || '') + '" placeholder="π.χ. ΑΠΡΙΛΙΟΣ 2026"></label></div><div class="row"><button class="btn" data-g="no">Άκυρο</button><button class="btn primary" data-g="yes">Αποθήκευση</button></div>', function (a) { if (a === 'yes') { repSave({ office: $('#rf0').value.trim(), client: $('#rf4').value.trim(), project: $('#rf1').value.trim(), place: $('#rf2').value.trim(), eng: $('#rf3').value.trim(), drawingNo: $('#rf5').value.trim(), date: $('#rf6').value.trim() }); renderAll(); } }); return; }
     if (act === 'kaek-show') { S.kaekFocus = b.dataset.kaek; setView('map'); return; }
     if (act === 'ai-cancel') { if (S.ai && S.ai.running) { S.ai.cancelled = true; if (S.ai.ctl) S.ai.ctl.abort(); } return; }
     if (act === 'ai-open') { S.ai = S.ai || {}; S.forceAI = true; showAIGate(); return; }
@@ -8499,7 +8543,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
 
   // ---------- αναφορά PDF ----------
   function reportDialog(inc) {
-    var f = store('hexis_coords_report') || {};
+    var f = repInfo();
     gate('<h3>Αναφορά ελέγχου συντεταγμένων</h3><p>Τα στοιχεία εμφανίζονται στην κεφαλίδα της αναφοράς. Όλα είναι προαιρετικά.</p><div class="fields">' +
       '<label>Έργο / Ιδιοκτησία<input id="rf1" value="' + esc(f.project || '') + '"></label>' +
       '<label>Θέση<input id="rf2" value="' + esc(f.place || '') + '"></label>' +
@@ -8507,7 +8551,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       '<div class="row"><button class="btn" data-g="no">Άκυρο</button><button class="btn primary" data-g="yes">Δημιουργία PDF</button></div>', function (a) {
       if (a !== 'yes') return;
       var data = { project: $('#rf1').value.trim(), place: $('#rf2').value.trim(), eng: $('#rf3').value.trim() };
-      store('hexis_coords_report', data);
+      repSave(data);
       buildReport(inc, data).catch(function (e) { console.error(e); toast('Η αναφορά απέτυχε: ' + e.message, true); });
     });
   }
