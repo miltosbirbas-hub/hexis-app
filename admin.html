@@ -890,6 +890,15 @@ async function teleLoad(force){const B=document.getElementById('teleBox');if(!B)
 document.addEventListener('change',e=>{if(e.target&&e.target.id==='teleDays')teleLoad(true)});
 document.addEventListener('click',e=>{if(e.target&&e.target.id==='teleRef')teleLoad(true)});
 let padTimer=null;
+// δέκτης, σύνδεση, λύση, εργασία, σύστημα (στοιχεία χρήσης της άδειας — χωρίς θέση χρήστη)
+const PAD_TASK={survey:'Αποτύπωση',stake:'Χάραξη',stakeout:'Χάραξη',map:'Χάρτης',cogo:'COGO',points:'Σημεία',base:'Base / Rover',qc:'QC'};
+function padRx(r){const i=r.info||{},c=r.fix==='FIX'?'#1F7A4A':r.fix==='FLOAT'?'#B26A00':'#667085';const L=[];
+  L.push('<b>'+ixe(i.model||r.receiver||'—')+'</b>'+(i.model&&r.receiver&&i.model!==r.receiver?'<br><small>'+ixe(r.receiver)+'</small>':''));
+  const conn={bt:'Bluetooth',ble:'BLE',tcp:'Wi‑Fi',wifi:'Wi‑Fi',sim:'Προσομοιωτής',phone:'GPS κινητού'}[i.conn]||i.conn;
+  L.push((r.fix?'<b style="color:'+c+'">'+ixe(r.fix)+'</b>':'')+(conn?' · '+ixe(conn):'')+(i.ntrip?' · NTRIP '+(i.ntripOn?'<span style="color:#1F7A4A">●</span>':'<span style="color:#B42318">○</span>')+' <small>'+ixe(i.ntrip)+'</small>':''));
+  const meta=[i.task?(PAD_TASK[i.task]||i.task):'',i.crs?String(i.crs).replace(/_/g,' '):'',i.mode?(i.mode==='tilt'?'∠ κεκλιμένο':'⊥ κατακόρυφο'):'',i.pole!=null?'κοντάρι '+(+i.pole).toFixed(3)+(i.antOff?' + '+(+i.antOff).toFixed(3):'')+' m':'',r.n_sessions?null:''].filter(Boolean);
+  if(meta.length)L.push('<small class="muted">'+meta.map(ixe).join(' · ')+'</small>');
+  return L.join('<br>')}
 async function padLoad(){clearTimeout(padTimer);const L=document.getElementById('padList');if(!L)return;
   const {data,error}=await sb.rpc('admin_pad_overview');
   if(error){L.innerHTML='<div class="empty">'+ixe(error.message)+' · τρέχει αυτόματα το pad-licenses.sql — περίμενε λίγα λεπτά</div>';return}
@@ -897,11 +906,11 @@ async function padLoad(){clearTimeout(padTimer);const L=document.getElementById(
   document.getElementById('padCnt').textContent=R.length;document.getElementById('nPad').textContent=on?'🟢 '+on:'';
   document.getElementById('padNow').textContent=on?('🟢 '+on+(on===1?' δουλεύει τώρα':' δουλεύουν τώρα')):'κανείς δεν δουλεύει τώρα';
   L.innerHTML=R.length?`<table><tr><th></th><th>Δοκιμαστής · συσκευή</th><th>Κωδικός</th><th>Άδεια</th><th>Τελευταία χρήση</th><th>Δέκτης · λύση</th><th>Σήμερα</th><th>7 ημ.</th><th>Σύνολο</th><th></th></tr>`+
-    R.map(r=>`<tr style="${r.revoked?'opacity:.5':''}"><td title="${r.online?'δουλεύει τώρα':''}">${r.online?'🟢':'⚪'}</td>
+    R.map(r=>`<tr style="${r.revoked?'opacity:.5':''}"><td title="${r.online?(r.info&&r.info.active===false?'συνδεδεμένος — εφαρμογή στο παρασκήνιο':'ενεργός τώρα'):'εκτός'}">${r.online?(r.info&&r.info.active===false?'🟡':'🟢'):'⚪'}</td>
       <td class="wr"><b>${ixe(r.name||'—')}</b>${r.email?'<br><small>'+ixe(r.email)+'</small>':''}${r.device_model?'<br><small>📱 '+ixe(r.device_model)+'</small>':''}${r.note?'<br><small class="muted">'+ixe(r.note)+'</small>':''}</td>
       <td class="k">${ixe(r.key)} <button class="btn" data-pcp="${ixe(r.key)}" title="Αντιγραφή κωδικού" style="padding:2px 7px">⧉</button></td>
       <td class="wr">${padLeft(r)}</td><td>${padAgo(r.last_at||r.last_seen)}</td>
-      <td>${ixe(r.receiver||'—')}${r.fix?'<br><b style="color:'+(r.fix==='FIX'?'#1F7A4A':r.fix==='FLOAT'?'#B26A00':'#667085')+'">'+ixe(r.fix)+'</b>':''}</td>
+      <td class="wr">${padRx(r)}</td>
       <td>${padH(r.today_min)}</td><td>${padH(r.week_min)}</td><td><b>${padH(r.total_min)}</b>${r.n_sessions?`<br><button class="btn" data-pss="${ixe(r.key)}" style="padding:2px 8px;font-size:12.5px;margin-top:3px" title="Αναλυτικά οι συνεδρίες">${r.n_sessions} συνεδρ. ▸</button>`:''}</td>
       <td><div class="pact">${r.kind==='hours'&&!r.revoked?`<button class="btn btn-ok" data-phr="${ixe(r.key)}" title="Πρόσθεσε ώρες χρήσης">+ ώρες</button>`:''}${r.kind==='demo'&&!r.revoked?`<button class="btn btn-ok" data-pex="${ixe(r.key)}" title="Παράταση της δοκιμής">+ ημέρες</button>`:''}${(r.activated_at||r.kind==='owner')&&!r.revoked?`<button class="btn" data-pdv="${ixe(r.key)}" title="Να μπορεί να μπει από άλλη συσκευή (π.χ. άλλαξε κινητό)">⇄ συσκευή</button>`:''}<button class="btn btn-no" data-prv="${ixe(r.key)}" data-on="${r.revoked?0:1}" title="${r.revoked?'Επαναφορά του κωδικού':'Ανάκληση: η εφαρμογή κλειδώνει μόλις βρει ίντερνετ'}">${r.revoked?'Επαναφορά':'Ανάκληση'}</button></div></td></tr>`).join('')+'</table>':'<div class="empty">Δεν έχει βγει κανένας κωδικός ακόμα.</div>';
   L.querySelectorAll('[data-pcp]').forEach(b=>b.onclick=()=>{navigator.clipboard.writeText(b.dataset.pcp);toast('Αντιγράφηκε')});

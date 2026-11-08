@@ -199,6 +199,9 @@ create table if not exists public.pad_sessions (
 create index if not exists pad_sessions_key on public.pad_sessions(key, last_at desc);
 alter table public.pad_sessions enable row level security;
 
+-- εικόνα συνεδρίας (δέκτης, σύνδεση, εργασία, σύστημα, NTRIP χωρίς κωδικούς) — ΧΩΡΙΣ θέση χρήστη
+alter table public.pad_sessions add column if not exists info jsonb;
+
 create or replace function public.pad_beat(p_key text, p_device text, p_sessions jsonb)
 returns json language plpgsql security definer set search_path = public as $$
 declare l public.pad_licenses; s jsonb; n int := 0; used numeric; k text := upper(regexp_replace(coalesce(p_key,''), '\s', '', 'g'));
@@ -213,13 +216,14 @@ begin
   end if;
   for s in select * from jsonb_array_elements(coalesce(p_sessions,'[]'::jsonb)) loop
     exit when n >= 200;
-    insert into pad_sessions(id, key, device_id, started_at, last_at, minutes, receiver, fix, points, app_ver)
+    insert into pad_sessions(id, key, device_id, started_at, last_at, minutes, receiver, fix, points, app_ver, info)
     values ((s->>'id')::uuid, k, p_device,
             least((s->>'start')::timestamptz, now()), least(greatest((s->>'end')::timestamptz, (s->>'start')::timestamptz), now()),
-            least(greatest(coalesce((s->>'min')::numeric,0),0), 1440), left(s->>'rx',60), left(s->>'fix',12), (s->>'pts')::int, left(s->>'ver',20))
+            least(greatest(coalesce((s->>'min')::numeric,0),0), 1440), left(s->>'rx',60), left(s->>'fix',12), (s->>'pts')::int, left(s->>'ver',20),
+            case when jsonb_typeof(s->'info') = 'object' and length((s->'info')::text) < 2000 then (s->'info') - 'p' - 'p0' - 'lat' - 'lon' else null end)
     on conflict (id) do update set last_at = greatest(pad_sessions.last_at, excluded.last_at), minutes = greatest(pad_sessions.minutes, excluded.minutes),
       receiver = coalesce(excluded.receiver, pad_sessions.receiver), fix = excluded.fix, points = coalesce(excluded.points, pad_sessions.points),
-      app_ver = excluded.app_ver, synced_at = now()
+      app_ver = excluded.app_ver, info = coalesce(excluded.info, pad_sessions.info), synced_at = now()
     where pad_sessions.key = k;
     n := n + 1;
   end loop;
@@ -238,7 +242,7 @@ drop function if exists public.admin_pad_overview();
 create or replace function public.admin_pad_overview()
 returns table(key text, kind text, days int, hours numeric, name text, email text, note text, device_model text, created_at timestamptz,
   activated_at timestamptz, expires_at timestamptz, last_seen timestamptz, revoked boolean,
-  online boolean, last_at timestamptz, receiver text, fix text, total_min numeric, today_min numeric, week_min numeric, n_sessions int)
+  online boolean, last_at timestamptz, receiver text, fix text, total_min numeric, today_min numeric, week_min numeric, n_sessions int, info jsonb)
 language plpgsql security definer set search_path = public as $$
 begin
   if not public.is_admin() then raise exception 'forbidden'; end if;
@@ -247,9 +251,9 @@ begin
     case when l.kind = 'owner' then (select string_agg(coalesce(d.model,'συσκευή'), ' · ' order by d.first_at) from pad_devices d where d.key = l.key) else l.device_model end, l.created_at, l.activated_at, l.expires_at, l.last_seen, l.revoked,
     coalesce(x.last_at > now() - interval '5 minutes' and x.synced_at > now() - interval '5 minutes', false),
     coalesce(x.last_at, (select max(d.last_at) from pad_devices d where d.key = l.key)), x.receiver, x.fix,
-    coalesce(a.tot,0), coalesce(a.today,0), coalesce(a.week,0), coalesce(a.n,0)::int
+    coalesce(a.tot,0), coalesce(a.today,0), coalesce(a.week,0), coalesce(a.n,0)::int, x.info
   from pad_licenses l
-  left join lateral (select s.last_at, s.synced_at, s.receiver, s.fix from pad_sessions s where s.key = l.key order by s.last_at desc limit 1) x on true
+  left join lateral (select s.last_at, s.synced_at, s.receiver, s.fix, s.info from pad_sessions s where s.key = l.key order by s.last_at desc limit 1) x on true
   left join lateral (select sum(s.minutes) tot,
       sum(s.minutes) filter (where s.started_at >= date_trunc('day', now() at time zone 'Europe/Athens') at time zone 'Europe/Athens') today,
       sum(s.minutes) filter (where s.started_at >= now() - interval '7 days') week, count(*) n
