@@ -60,8 +60,11 @@ Deno.serve(async (req) => {
     const selftest = stk.length >= 32 && req.headers.get("x-hx-selftest") === stk;
     if (!selftest) {
       if (!auth.startsWith("Bearer ")) return json({ error: "login" }, 401);
-      const u = await fetch(SB + "/auth/v1/user", { headers: { apikey: anon, Authorization: auth } });
-      if (!u.ok) return json({ error: "login" }, 401);
+      // έλεγχος χρήστη με το κλειδί υπηρεσίας (δεν εξαρτάται από το δημόσιο κλειδί)· αποτυχία = καταγραφή της αιτίας
+      const srkU = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || anon;
+      let u = await fetch(SB + "/auth/v1/user", { headers: { apikey: srkU, Authorization: auth } });
+      if (!u.ok && srkU !== anon) u = await fetch(SB + "/auth/v1/user", { headers: { apikey: anon, Authorization: auth } });
+      if (!u.ok) { console.log("login-fail", u.status, (await u.text().catch(() => "")).slice(0, 160)); return json({ error: "login", reason: "token" }, 401); }
       const user = await u.json();
       if (!(await ticketOk(req.headers.get("x-hx-ticket") || "", user.id))) return json({ error: "Η εφαρμογή ανοίγει μόνο από το hexis-app.gr με ενεργό κλειδί. Ανανέωσε τη σελίδα." }, 403);
       const now = Date.now(), list = (hits.get(user.id) || []).filter((t) => now - t < 3600e3);

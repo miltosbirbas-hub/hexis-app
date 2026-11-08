@@ -80,11 +80,7 @@ declare ok boolean := false;
 begin
   select coalesce(pro_until > now(), false) into ok from interior_accounts where user_id = u;
   if coalesce(ok,false) then return true; end if;
-  -- συμβατότητα: ενεργό module «interior» από το admin του hub = PRO
-  begin
-    execute 'select exists(select 1 from public.entitlements where user_id = $1 and module = ''interior'' and active and (expires_at is null or expires_at > now()))' into ok using u;
-  exception when others then ok := false;
-  end;
+  -- ΜΟΝΟ κλειδί HXI από τον διαχειριστή: το module «interior» του hub ΔΕΝ δίνει πρόσβαση (έμπαιναν χωρίς κλειδί)
   return coalesce(ok,false);
 end $$;
 
