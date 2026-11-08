@@ -14,11 +14,11 @@ jobs:
     steps:
       - name: Κλήσεις
         run: |
-          S=$(date -u -d "-${{ github.event.inputs.days }} days" +%Y-%m-%dT%H:%M:%SZ); E=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          q() { curl -sS -G "https://api.supabase.com/v1/projects/$REF/analytics/endpoints/logs" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" --data-urlencode "iso_timestamp_start=$S" --data-urlencode "iso_timestamp_end=$E" --data-urlencode "sql=$1"; echo; }
           F="${{ github.event.inputs.fn }}"
           P='import json,sys;d=json.load(sys.stdin);[print(r) for r in d.get("result",[])] if "result" in d else print(d)'
-          echo "== sample"; q "select timestamp, event_message from logs order by timestamp desc limit 15"
-          echo "== count"; q "select count() as n, min(timestamp) as a, max(timestamp) as b from logs" | python3 -c "$P"
-          echo "== edge"; q "select timestamp, event_message from logs where event_message ilike '%$F%' order by timestamp desc limit 200" | python3 -c "$P"
-          echo "== console"; q "select timestamp, source_name, event_message, log_attributes from logs where source_name like '%function_logs%' and (event_message ilike '%error%' or event_message ilike '%fail%') order by timestamp desc limit 40" | python3 -c "$P"
+          for k in $(seq 0 ${{ github.event.inputs.days }}); do
+            S=$(date -u -d "-$((k+1)) days" +%Y-%m-%dT%H:%M:%SZ); E=$(date -u -d "-$k days" +%Y-%m-%dT%H:%M:%SZ)
+            echo "== $S .. $E"
+            curl -sS -G "https://api.supabase.com/v1/projects/$REF/analytics/endpoints/logs" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" --data-urlencode "iso_timestamp_start=$S" --data-urlencode "iso_timestamp_end=$E" \
+              --data-urlencode "sql=select timestamp, event_message from logs where event_message ilike '%$F%' or event_message ilike '%interior%rror%' order by timestamp desc limit 120" | python3 -c "$P"
+          done
