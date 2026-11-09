@@ -92,11 +92,19 @@ Deno.serve(async (req) => {
     }
     const aspect = ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3", "21:9"].includes(body.aspect) ? body.aspect : "";
     let hiRes = body.quality !== "fast";
+    // όριο χρόνου: η function κόβεται στα ~150 s (504). Το «Τελικό» μοντέλο παίρνει έως ~85 s· αν αργήσει,
+    // συνεχίζουμε με το γρήγορο μοντέλο (σε 2K) στον χρόνο που μένει, ώστε ο χρήστης να πάρει πάντα εικόνα.
+    const T0 = Date.now(), BUDGET = 138_000;
     for (let ci = 0; ci < chain.length; ci++) {
       const m = chain[ci];
       model = m;
+      const left = BUDGET - (Date.now() - T0);
+      if (left < 15_000) { tried.push(m + ": no time"); break; }
+      const slow = !/flash/.test(m);
+      const ac = new AbortController(); const tm = setTimeout(() => ac.abort(), slow ? Math.min(85_000, left - 40_000 > 30_000 ? left - 40_000 : left) : left);
+      try {
       res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
-        method: "POST",
+        method: "POST", signal: ac.signal,
         headers: { "Content-Type": "application/json", "x-goog-api-key": gkey },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: prompt }, { inline_data: { mime_type: "image/jpeg", data: image } }, ...refParts] }],
@@ -104,13 +112,22 @@ Deno.serve(async (req) => {
         }),
       });
       data = await res.json().catch(() => ({}));
+      } catch (e) {
+        clearTimeout(tm); console.log("render-timeout", m, Math.round((Date.now() - T0) / 1000) + "s");
+        tried.push(m + ": timeout"); res = null;
+        // επόμενο: γρήγορο μοντέλο
+        const k = chain.findIndex((x, j) => j > ci && /flash/.test(x)); if (k < 0) break; ci = k - 1; continue;
+      }
+      clearTimeout(tm);
       if (res.ok) break;
       // αν το μοντέλο δεν δέχεται μέγεθος εικόνας, ξανά το ίδιο χωρίς αυτό
       if (hiRes && res.status === 400 && /image_?config|image_?size|aspect/i.test(String(data?.error?.message || ""))) { hiRes = false; ci--; continue; }
       tried.push(m + ": " + res.status + " " + String(data?.error?.message || "").slice(0, 120));
-      if (![400, 403, 404].includes(res.status)) break; // όριο/υπερφόρτωση: όχι άλλη δοκιμή
+      // υπερφόρτωση (429/5xx) του «Τελικού»: δοκίμασε το γρήγορο· αλλιώς μόνο για 400/403/404
+      if (![400, 403, 404].includes(res.status)) { if (slow && [429, 500, 502, 503, 504].includes(res.status)) { const k = chain.findIndex((x, j) => j > ci && /flash/.test(x)); if (k >= 0) { ci = k - 1; continue; } } break; }
     }
-    if (!res || !res.ok) { await refund(); return json({ error: "google · " + tried.join(" | ") }, res ? res.status : 502); }
+    if (!res || !res.ok) { await refund(); return json({ error: "google · " + tried.join(" | ") }, res ? res.status : 504); }
+    console.log("render-ok", model, Math.round((Date.now() - T0) / 1000) + "s");
     const parts = data?.candidates?.[0]?.content?.parts || [];
     const img = parts.map((p: any) => p.inlineData || p.inline_data).find((x: any) => x && x.data);
     if (!img) { await refund(); return json({ error: "no image: " + (parts.map((p: any) => p.text).join(" ").slice(0, 200) || data?.candidates?.[0]?.finishReason || "") }, 502); }
@@ -122,7 +139,7 @@ Deno.serve(async (req) => {
     const txtT = det.filter((d: any) => d.modality === "TEXT").reduce((a: number, d: any) => a + (d.tokenCount || 0), 0) + (um.thoughtsTokenCount || 0);
     const tin = um.promptTokenCount || 0, cost = (tin * pIn + imgT * pImg + txtT * pTxt) / 1e6;
     await saveCost(q.id, cost, model, tin, imgT + txtT);
-    return json({ image: img.data, mime: img.mimeType || img.mime_type || "image/png", model, source: q.source, cost_usd: Math.round(cost * 10000) / 10000 });
+    return json({ image: img.data, mime: img.mimeType || img.mime_type || "image/png", model, fallback: tried.length > 0, source: q.source, cost_usd: Math.round(cost * 10000) / 10000 });
   } catch (err) {
     return json({ error: String(err) }, 500);
   }
