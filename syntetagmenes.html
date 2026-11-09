@@ -5543,14 +5543,59 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     return l;
   }
   function tplLibSave(l) { store('hexis_tpl_lib', l); var back = store('hexis_tpl_lib'); if (!back || back.length !== l.length) toast('Δεν χωράνε άλλες πινακίδες στον browser — αφαίρεσε κάποια που δεν χρειάζεσαι.', true); prefsPush({ tpls: l.map(function (t) { return { id: t.id, name: t.name, text: t.text }; }) }); }
-  function tplById(id) { return tplLib().filter(function (t) { return t.id === id; })[0] || null; }
+  function tplById(id) { if (/^p:/.test(id || '')) return TPL_PRESETS.some(function (x) { return x[0] === id; }) ? { id: id, name: tplPreset(id).name, preset: id } : null; return tplLib().filter(function (t) { return t.id === id; })[0] || null; }
   function tplParsed(t) { S.tplCache = S.tplCache || {}; var p = S.tplCache[t.id]; if (!p) { try { p = S.tplCache[t.id] = Object.assign(TopoSheet.parseTemplate(t.text), { name: t.name }); } catch (e) { console.warn('tpl', e); return null; } } var lg0 = store('hexis_topo_tpl_logo'); p.logo = lg0 && !(lg0.uid && S.prefsUid && lg0.uid !== S.prefsUid) ? lg0 : null; return p; }
-  function topoTplSet(t) { if (t) { store('hexis_topo_tpl', { name: t.name, text: t.text, uid: S.prefsUid || null }); prefsPush({ tpl: { name: t.name, text: t.text } }); } else { store('hexis_topo_tpl', null); prefsPush({ tpl: null }); } S.topoTplParsed = null; }
-  function topoTplId() { var c = store('hexis_topo_tpl'); return tplMine(c) ? tplId(c.text) : ''; }
+  function topoTplSet(t) { if (t && t.preset) { store('hexis_topo_preset', t.preset); S.topoTplParsed = null; return; } store('hexis_topo_preset', null); if (t) { store('hexis_topo_tpl', { name: t.name, text: t.text, uid: S.prefsUid || null }); prefsPush({ tpl: { name: t.name, text: t.text } }); } else { store('hexis_topo_tpl', null); prefsPush({ tpl: null }); } S.topoTplParsed = null; }
+  function topoTplId() { var pr = store('hexis_topo_preset'); if (pr && /^p:/.test(pr)) return pr; var c = store('hexis_topo_tpl'); return tplMine(c) ? tplId(c.text) : ''; }
   // ΔΓΜ: 'kt' = πινακίδα Κτηματολογίου, 'topo' = ίδια με το τοπογραφικό, ή μία από τη βιβλιοθήκη
   function dgmTplSel() { var v = store('hexis_dgm_tplsel'); if (v == null) v = store('hexis_dgm_owntpl') === false ? 'kt' : 'topo'; if (v !== 'kt' && v !== 'topo' && !tplById(v)) v = 'topo'; return v; }
-  function tplOptions(lib, sel) { return lib.map(function (t) { return '<option value="' + esc(t.id) + '"' + (t.id === sel ? ' selected' : '') + '>' + esc(t.name) + '</option>'; }).join(''); }
-  function topoTemplate() { var t = store('hexis_topo_tpl'); if (!t || !t.text) return null; if (t.uid && S.prefsUid && t.uid !== S.prefsUid) return null; if (!S.topoTplParsed || S.topoTplParsed.name !== t.name) { try { S.topoTplParsed = Object.assign(TopoSheet.parseTemplate(t.text), { name: t.name }); } catch (e) { console.warn('tpl', e); return null; } } var lg0 = store('hexis_topo_tpl_logo'); S.topoTplParsed.logo = lg0 && !(lg0.uid && S.prefsUid && lg0.uid !== S.prefsUid) ? lg0 : null; return S.topoTplParsed; }
+  function tplOptions(lib, sel) { var o = function (id, nm) { return '<option value="' + esc(id) + '"' + (id === sel ? ' selected' : '') + '>' + esc(nm) + '</option>'; }; return '<optgroup label="Έτοιμες">' + TPL_PRESETS.map(function (x) { return o(x[0], x[1]); }).join('') + '</optgroup>' + (lib.length ? '<optgroup label="Δικές μου">' + lib.map(function (t) { return o(t.id, t.name); }).join('') + '</optgroup>' : ''); }
+  // ---- Έτοιμες πινακίδες (σε mm, όπως σχεδιάστηκαν· τα {ΠΕΔΙΑ} συμπληρώνονται μόνα τους) ----
+  // Μοντέρνα: δομή πεδίων κατά ISO 7200 · Κλασική: αυστηρή, κεφαλαία, με πλαίσια · Δημοσίων έργων: όπως οι πινακίδες των τεχνικών υπηρεσιών (Συντάχθηκε / Ελέγχθηκε / Θεωρήθηκε).
+  var TPL_PRESETS = [['p:modern', 'Μοντέρνα'], ['p:classic', 'Κλασική αυστηρή'], ['p:public', 'Δημοσίων έργων']];
+  function tplPreset(id) {
+    S.presetCache = S.presetCache || {}; if (S.presetCache[id]) return S.presetCache[id];
+    var E = [], W = 180, H, stamp;
+    function ln(x1, y1, x2, y2, c) { E.push({ type: 'line', a: [x1, y1], b: [x2, y2], color: c || 7 }); }
+    function rc(x, y, w, h, c) { E.push({ type: 'poly', pts: [[x, y], [x + w, y], [x + w, y + h], [x, y + h]], closed: true, color: c || 7 }); }
+    function tx(x, y, h, t, al, mw, c) { var o = { type: 'text', x: x, y: y, h: h, text: t, rot: 0, halign: al === 'c' ? 1 : al === 'r' ? 2 : 0, color: c || 7 }; if (al === 'c' || al === 'r') { o.x2 = x; o.y2 = y; } if (mw) o.maxW = mw; E.push(o); }
+    function lab(x, y, t) { tx(x, y, 1.7, t, 'l', 0, 8); }
+    function cell(x, y, w, h, label, ph, vh, center) { rc(x, y, w, h); lab(x + 1.5, y + h - 3.2, label); tx(center ? x + w / 2 : x + 2, y + Math.max(2, (h - 4.5) / 2 - vh / 2), vh, ph, center ? 'c' : 'l', w - 4); }
+    if (id === 'p:modern') {
+      H = 100; rc(0, 0, W, H);
+      E.push({ type: 'poly', pts: [[0, 84], [W, 84], [W, H], [0, H]], closed: true, color: 5 });
+      tx(4, 92, 4.2, '{ΓΡΑΦΕΙΟ}', 'l', W - 8, 5); tx(4, 86.5, 2.2, '{ΜΕΛΕΤΗΤΗΣ}', 'l', W - 8, 8);
+      cell(0, 70, W, 14, 'ΘΕΜΑ', '{ΘΕΜΑ}', 3.4);
+      cell(0, 56, 110, 14, 'ΕΡΓΟΔΟΤΗΣ', '{ΕΡΓΟΔΟΤΗΣ}', 3); cell(110, 56, 70, 14, 'ΘΕΣΗ', '{ΘΕΣΗ}', 2.6);
+      cell(0, 42, 110, 14, 'ΕΡΓΟ', '{ΕΡΓΟ}', 3); cell(110, 42, 70, 14, 'ΚΤΗΜΑΤΟΛΟΓΙΟ', '{ΚΑΕΚ}', 2.4);
+      cell(0, 28, 27.5, 14, 'ΚΛΙΜΑΚΑ', '{ΚΛΙΜΑΚΑ}', 3, true); cell(27.5, 28, 27.5, 14, 'ΗΜΕΡΟΜΗΝΙΑ', '{ΗΜΕΡΟΜΗΝΙΑ}', 2.2, true); cell(55, 28, 27.5, 14, 'ΑΡ. ΣΧΕΔΙΟΥ', '{ΑΡ_ΣΧΕΔΙΟΥ}', 3, true); cell(82.5, 28, 27.5, 14, 'ΦΥΛΛΟ', '{ΦΥΛΛΟ}', 3, true);
+      cell(0, 14, 110, 14, 'ΕΜΒΑΔΟΝ', '{ΕΜΒΑΔΟΝ}', 2.6); rc(0, 0, 110, 14); lab(1.5, 10.8, 'ΣΥΣΤΗΜΑ ΑΝΑΦΟΡΑΣ'); tx(2, 4, 2.6, 'ΕΓΣΑ 87', 'l');
+      rc(110, 0, 70, 42); lab(111.5, 38.8, 'ΣΦΡΑΓΙΔΑ – ΥΠΟΓΡΑΦΗ ΜΗΧΑΝΙΚΟΥ'); stamp = [113, 2, 177, 36];
+    } else if (id === 'p:classic') {
+      H = 120; rc(0, 0, W, H); rc(1.2, 1.2, W - 2.4, H - 2.4);
+      var row = function (y, h, label, ph, vh) { ln(1.2, y, W - 1.2, y); ln(42, y, 42, y + h); tx(3, y + h / 2 - 1, 2.2, label, 'l'); tx(111, y + h / 2 - vh / 2, vh, ph, 'c', 134); };
+      tx(W / 2, 111, 3.6, '{ΓΡΑΦΕΙΟ}', 'c', W - 8); ln(1.2, 106, W - 1.2, 106);
+      row(94, 12, 'ΕΡΓΟΔΟΤΗΣ', '{ΕΡΓΟΔΟΤΗΣ}', 3); row(82, 12, 'ΕΡΓΟ', '{ΕΡΓΟ}', 3); row(70, 12, 'ΘΕΣΗ', '{ΘΕΣΗ}', 2.6); row(58, 12, 'ΚΤΗΜΑΤΟΛΟΓΙΟ', '{ΚΑΕΚ}', 2.6); row(42, 16, 'ΘΕΜΑ', '{ΘΕΜΑ}', 3.2);
+      ln(1.2, 30, W - 1.2, 30); [60, 120].forEach(function (x) { ln(x, 30, x, 42); });
+      tx(30, 38.5, 1.9, 'ΚΛΙΜΑΚΑ', 'c'); tx(30, 32.5, 3, '{ΚΛΙΜΑΚΑ}', 'c', 56); tx(90, 38.5, 1.9, 'ΗΜΕΡΟΜΗΝΙΑ', 'c'); tx(90, 32.5, 2.6, '{ΗΜΕΡΟΜΗΝΙΑ}', 'c', 56); tx(150, 38.5, 1.9, 'ΑΡΙΘΜΟΣ ΣΧΕΔΙΟΥ', 'c'); tx(150, 32.5, 3, '{ΑΡ_ΣΧΕΔΙΟΥ}', 'c', 56);
+      ln(90, 1.2, 90, 30); tx(3, 26, 2, 'Ο ΜΗΧΑΝΙΚΟΣ', 'l'); tx(45.6, 16, 2.4, '{ΜΕΛΕΤΗΤΗΣ}', 'c', 84); tx(92, 26, 2, 'ΣΦΡΑΓΙΔΑ – ΥΠΟΓΡΑΦΗ', 'l'); stamp = [93, 3, 177, 24];
+    } else {
+      H = 150; rc(0, 0, W, H);
+      tx(4, 143, 2.6, 'ΕΛΛΗΝΙΚΗ ΔΗΜΟΚΡΑΤΙΑ', 'l'); tx(4, 137, 3, '{ΕΡΓΟΔΟΤΗΣ}', 'l', 110); tx(4, 131.5, 2.2, 'ΔΙΕΥΘΥΝΣΗ ΤΕΧΝΙΚΩΝ ΥΠΗΡΕΣΙΩΝ', 'l', 110, 8);
+      ln(118, 128, 118, H); lab(120, 146.8, 'ΜΕΛΕΤΗΤΗΣ'); tx(120, 139, 2.6, '{ΓΡΑΦΕΙΟ}', 'l', 58); tx(120, 133, 2, '{ΜΕΛΕΤΗΤΗΣ}', 'l', 58, 8);
+      cell(0, 114, W, 14, 'ΕΡΓΟ', '{ΕΡΓΟ}', 3.2); cell(0, 100, 110, 14, 'ΘΕΣΗ', '{ΘΕΣΗ}', 2.6); cell(110, 100, 70, 14, 'ΚΤΗΜΑΤΟΛΟΓΙΟ', '{ΚΑΕΚ}', 2.4);
+      cell(0, 82, W, 18, 'ΤΙΤΛΟΣ ΣΧΕΔΙΟΥ', '{ΘΕΜΑ}', 3.4);
+      cell(0, 68, 60, 14, 'ΚΛΙΜΑΚΑ', '{ΚΛΙΜΑΚΑ}', 3, true); cell(60, 68, 60, 14, 'ΗΜΕΡΟΜΗΝΙΑ', '{ΗΜΕΡΟΜΗΝΙΑ}', 2.6, true); cell(120, 68, 60, 14, 'ΑΡ. ΣΧΕΔΙΟΥ', '{ΑΡ_ΣΧΕΔΙΟΥ}', 3, true);
+      rc(0, 22, 60, 46); rc(60, 22, 60, 46); rc(120, 22, 60, 46);
+      tx(30, 63, 2.2, 'ΣΥΝΤΑΧΘΗΚΕ', 'c'); tx(30, 26, 1.9, '{ΜΕΛΕΤΗΤΗΣ}', 'c', 56); tx(90, 63, 2.2, 'ΕΛΕΓΧΘΗΚΕ', 'c'); tx(150, 63, 2.2, 'ΘΕΩΡΗΘΗΚΕ', 'c'); stamp = [2, 30, 58, 60];
+      rc(0, 0, W, 22); lab(1.5, 18.8, 'ΑΝΑΘΕΩΡΗΣΕΙΣ'); ln(0, 15.5, W, 15.5); ln(0, 7.75, W, 7.75); ln(14, 0, 14, 15.5); ln(150, 0, 150, 15.5);
+      tx(7, 10.5, 1.8, 'Α/Α', 'c', 0, 8); tx(82, 10.5, 1.8, 'ΠΕΡΙΓΡΑΦΗ', 'c', 0, 8); tx(165, 10.5, 1.8, 'ΗΜΕΡ.', 'c', 0, 8);
+    }
+    var name = (TPL_PRESETS.filter(function (x) { return x[0] === id; })[0] || [0, ''])[1];
+    return (S.presetCache[id] = { ents: E, box: [0, 0, W, H], w: W, h: H, images: 0, warn: [], fixedMm: true, stamp: stamp, name: name, preset: id });
+  }
+  function topoTemplate() {
+    var pr = store('hexis_topo_preset'); if (pr && /^p:/.test(pr)) return tplPreset(pr); var t = store('hexis_topo_tpl'); if (!t || !t.text) return null; if (t.uid && S.prefsUid && t.uid !== S.prefsUid) return null; if (!S.topoTplParsed || S.topoTplParsed.name !== t.name) { try { S.topoTplParsed = Object.assign(TopoSheet.parseTemplate(t.text), { name: t.name }); } catch (e) { console.warn('tpl', e); return null; } } var lg0 = store('hexis_topo_tpl_logo'); S.topoTplParsed.logo = lg0 && !(lg0.uid && S.prefsUid && lg0.uid !== S.prefsUid) ? lg0 : null; return S.topoTplParsed; }
   // όμορα: το δικό μας + όσα ακουμπούν το όριο (≤ 1,5 m) — ίδια λογική με το πάνελ Κτηματολογίου
   function topoParcels(M) {
     var k = S.kaek; if (!k || k.status !== 'ok') return { own: null, list: [] };
@@ -6139,7 +6184,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     // πινακίδα
     var tpl = topoTemplate(), tplRaw = tpl ? store('hexis_topo_tpl') : null;
     var libT = tplLib(), curTid = tpl ? topoTplId() : '';
-    h += '<details open class="piece"><summary><b>Πινακίδα</b><span style="color:var(--muted)">' + (tpl ? 'η δική σου: ' + esc(tplRaw.name) + ' — σε μέγεθος σελίδας Α4 · οι πινακίδες σου μένουν στον λογαριασμό' : 'προεπιλεγμένη του HEXIS-APP — ή ανέβασε τις δικές σου (DXF)') + '</span></summary><div class="dgm-ctl" style="margin-top:6px"><label style="flex:1 1 260px;min-width:0">Πινακίδα τοπογραφικού<select id="topoTplSel" style="width:100%"><option value="">Προεπιλεγμένη του HEXIS-APP</option>' + tplOptions(libT, curTid) + '</select></label></div><div class="file-row" style="flex-wrap:wrap"><label class="btn small" style="cursor:pointer" title="Πρόσθεσε άλλη πινακίδα (DXF) — μένουν όλες και διαλέγεις κάθε φορά">⤒ Ανέβασε ' + (libT.length ? 'άλλη ' : '') + 'DXF πινακίδας<input type="file" id="topoTpl" accept=".dxf" hidden></label>' + (curTid ? '<button class="btn small" data-act="tpl-lib-del" data-id="' + esc(curTid) + '" title="Αφαίρεση αυτής της πινακίδας από τη λίστα (και από τον λογαριασμό)">✕ Αφαίρεση</button>' : '') + (tpl && tpl.images ? '<label class="btn small" style="cursor:pointer" title="Η πινακίδα έχει θέση για εικόνα (λογότυπο). Η εικόνα δεν περιέχεται στο DXF — ανέβασέ την εδώ μία φορά.">' + (tpl.logo ? '✓ Λογότυπο — αλλαγή' : '⤒ Λογότυπο πινακίδας (PNG/JPG)') + '<input type="file" id="topoTplLogo" accept="image/*" hidden></label>' : '') + '<button class="btn small" data-act="sheet-info">Στοιχεία γραφείου / μελετητή</button></div>';
+    h += '<details open class="piece"><summary><b>Πινακίδα</b><span style="color:var(--muted)">' + (tpl && tpl.preset ? 'έτοιμη πινακίδα: ' + esc(tpl.name) : tpl ? 'η δική σου: ' + esc((tplRaw && tplRaw.name) || tpl.name || '') + ' — σε μέγεθος σελίδας Α4 · οι πινακίδες σου μένουν στον λογαριασμό' : 'προεπιλεγμένη του HEXIS-APP — ή ανέβασε τις δικές σου (DXF)') + '</span></summary><div class="dgm-ctl" style="margin-top:6px"><label style="flex:1 1 260px;min-width:0">Πινακίδα τοπογραφικού<select id="topoTplSel" style="width:100%"><option value="">Προεπιλεγμένη του HEXIS-APP</option>' + tplOptions(libT, curTid) + '</select></label></div><div class="file-row" style="flex-wrap:wrap"><label class="btn small" style="cursor:pointer" title="Πρόσθεσε άλλη πινακίδα (DXF) — μένουν όλες και διαλέγεις κάθε φορά">⤒ Ανέβασε ' + (libT.length ? 'άλλη ' : '') + 'DXF πινακίδας<input type="file" id="topoTpl" accept=".dxf" hidden></label>' + (curTid && !/^p:/.test(curTid) ? '<button class="btn small" data-act="tpl-lib-del" data-id="' + esc(curTid) + '" title="Αφαίρεση αυτής της πινακίδας από τη λίστα (και από τον λογαριασμό)">✕ Αφαίρεση</button>' : '') + (tpl && tpl.images ? '<label class="btn small" style="cursor:pointer" title="Η πινακίδα έχει θέση για εικόνα (λογότυπο). Η εικόνα δεν περιέχεται στο DXF — ανέβασέ την εδώ μία φορά.">' + (tpl.logo ? '✓ Λογότυπο — αλλαγή' : '⤒ Λογότυπο πινακίδας (PNG/JPG)') + '<input type="file" id="topoTplLogo" accept="image/*" hidden></label>' : '') + '<button class="btn small" data-act="sheet-info">Στοιχεία γραφείου / μελετητή</button></div>';
     if (tpl) { var ff = TopoSheet.templateHasFields(tpl); h += '<p style="margin:4px 0 0;color:var(--muted);font-size:12px">' + (ff.length ? 'Πεδία που συμπληρώνονται: ' + ff.map(function (x) { return '{' + x + '}'; }).join(' ') : 'Χωρίς πεδία {…}: η πινακίδα τυπώνεται όπως είναι· συμπληρώνονται μόνο εργοδότης και έργο, αν το κελί τους είναι άδειο.') + (tpl.warn.length ? ' · αγνοήθηκαν: ' + tpl.warn.join(', ') : '') + (tpl.unitWarn ? ' · ' + esc(tpl.unitWarn) : '') + '</p>'; }
     h += '<p style="margin:4px 0 0;color:var(--muted);font-size:12px">Η πινακίδα σου τοποθετείται κάτω-δεξιά <b>πάντα σε μέγεθος σελίδας Α4</b> (210×297, όπως διπλώνεται το σχέδιο), όποιες κι αν είναι οι μονάδες του DXF. Τα κελιά με ετικέτα «Εργοδότης», «Έργο», «Θέση», «Θέμα Σχεδίου», «Ημερομηνία», «Κλίμακα», «Αριθμός Σχεδίου» συμπληρώνονται μόνα τους· εναλλακτικά γράψε στα κελιά <code>{ΕΡΓΟΔΟΤΗΣ}</code> <code>{ΕΡΓΟ}</code> <code>{ΘΕΣΗ}</code> <code>{ΘΕΜΑ}</code> <code>{ΗΜΕΡΟΜΗΝΙΑ}</code> <code>{ΚΛΙΜΑΚΑ}</code> <code>{ΑΡ_ΣΧΕΔΙΟΥ}</code> <code>{ΜΕΛΕΤΗΤΗΣ}</code> <code>{ΚΑΕΚ}</code> <code>{ΓΡΑΦΕΙΟ}</code> <code>{ΔΗΜΟΣ}</code> <code>{ΕΜΒΑΔΟΝ}</code>. Λογότυπο (IMAGE) μπαίνει από το κουμπί «Λογότυπο πινακίδας». Μένει αποθηκευμένη στον λογαριασμό σου — την ανεβάζεις μία φορά.</p></details>';
     h += '</div>';
@@ -7056,7 +7101,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     return TopoSheet.applyEdits(lay, S.sheetEdits || {});   // διορθώσεις στην οθόνη (μετακινήσεις, κείμενα, σφραγίδα) — ίδιες σε προεπισκόπηση, PDF, DXF
   }
   // η πινακίδα του χρήστη (ίδια με του τοπογραφικού) και στο ΔΓΜ — εκτός αν ο χρήστης διάλεξε την πινακίδα του Κτηματολογίου
-  function dgmTemplate() { var v = dgmTplSel(); if (v === 'kt') return null; if (v === 'topo') return topoTemplate(); var t = tplById(v); return t ? tplParsed(t) : topoTemplate(); }
+  function dgmTemplate() { var v = dgmTplSel(); if (v === 'kt') return null; if (v === 'topo') return topoTemplate(); var t = tplById(v); return t ? (t.preset ? tplPreset(t.preset) : tplParsed(t)) : topoTemplate(); }
   function renderSheetPanel(d) {
     // Απλή σελίδα σε 4 βήματα: 1 στοιχεία · 2 πινακίδα & σφραγίδα · 3 χαρτί · 4 δες & κατέβασε. Ό,τι σπάνιο → «Περισσότερα».
     var rec = d.rec, best = rec.best, parcels = dgmUsed(d);
@@ -7079,7 +7124,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     h += '</div>' + dgmSo('pinakida');
     h += STEP('', 'Πινακίδα και σφραγίδα');
     h += '<div class="dgm-ctl"><label style="flex:1 1 260px;min-width:0;font-size:14px">Ποια πινακίδα;<select id="dgmTplSel" style="width:100%;font-size:16px"><option value="kt"' + (selD === 'kt' ? ' selected' : '') + '>Του Κτηματολογίου</option><option value="topo"' + (selD === 'topo' ? ' selected' : '') + '>Ίδια με το τοπογραφικό</option>' + tplOptions(libD, selD) + '</select></label></div>';
-    h += '<div class="file-row" style="flex-wrap:wrap;gap:8px"><label class="btn" style="cursor:pointer" title="Ανέβασε τη δική σου πινακίδα σε DXF — μένει στη λίστα">＋ Δική μου πινακίδα (DXF)<input type="file" id="dgmTpl" accept=".dxf" hidden></label>' + (selD !== 'kt' && selD !== 'topo' ? '<button class="btn" data-act="tpl-lib-del" data-id="' + esc(selD) + '" title="Βγάλε αυτή την πινακίδα από τη λίστα">✕ Βγάλ’ την</button>' : '') + (effD && effD.images ? '<label class="btn" style="cursor:pointer">' + (effD.logo ? '✓ Λογότυπο — αλλαγή' : '＋ Λογότυπο') + '<input type="file" id="dgmTplLogo" accept="image/*" hidden></label>' : '') + '</div>';
+    h += '<div class="file-row" style="flex-wrap:wrap;gap:8px"><label class="btn" style="cursor:pointer" title="Ανέβασε τη δική σου πινακίδα σε DXF — μένει στη λίστα">＋ Δική μου πινακίδα (DXF)<input type="file" id="dgmTpl" accept=".dxf" hidden></label>' + (selD !== 'kt' && selD !== 'topo' && !/^p:/.test(selD) ? '<button class="btn" data-act="tpl-lib-del" data-id="' + esc(selD) + '" title="Βγάλε αυτή την πινακίδα από τη λίστα">✕ Βγάλ’ την</button>' : '') + (effD && effD.images ? '<label class="btn" style="cursor:pointer">' + (effD.logo ? '✓ Λογότυπο — αλλαγή' : '＋ Λογότυπο') + '<input type="file" id="dgmTplLogo" accept="image/*" hidden></label>' : '') + '</div>';
     h += '<div class="file-row" style="flex-wrap:wrap;gap:8px"><label class="btn" style="cursor:pointer" title="Φωτογραφία ή σκανάρισμα της σφραγίδας σου (JPEG/PNG) — μπαίνει στο κουτί «Σφραγίδα Μελετητή»">＋ ' + (stI.length ? 'Άλλη σφραγίδα' : 'Σφραγίδα (εικόνα)') + '<input type="file" id="dgmStampIn" accept="image/*" hidden></label>' + stI.map(function (im, i) { return '<span class="chip" style="display:inline-flex;align-items:center;gap:6px;font-size:14px"><img src="' + im.href + '" alt="" style="height:28px;max-width:70px;object-fit:contain">σφραγίδα ' + (stI.length > 1 ? i + 1 : '') + ' <button class="btn small" data-act="dgm-img-del" data-i="' + i + '" title="Βγάλε τη σφραγίδα">✕</button></span>'; }).join('') + '</div>';
     // ---- 3. χαρτί ----
     var pOrder = ['A3', 'A2', 'A1', 'A0'];
