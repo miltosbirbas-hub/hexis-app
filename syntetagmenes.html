@@ -7024,6 +7024,9 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     h += '<span class="chip' + (lay.fits && lay.sheets.length === 1 ? ' ok' : ' warn') + '">' + (lay.fits ? 'Το σχέδιο χωράει' : 'Το σχέδιο κόβεται στα όρια') + ' · ' + (lay.sheets.length === 1 ? 'ένα φύλλο' : lay.sheets.length + ' φύλλα') + '</span>';
     if (!isAuto) h += '<button class="btn small" data-act="sheet-auto" title="Επιστροφή στο προτεινόμενο χαρτί/κλίμακα για οικονομία">↺ Αυτόματη πρόταση</button>';
     h += '<button class="btn small" data-act="sheet-info">Στοιχεία πινακίδας</button></div>';
+    // στοιχεία μηχανικού: ίδια με του τοπογραφικού, μένουν για όλες τις εργασίες
+    var eg = topoEngDefaults(), ri = repInfo(), ei = function (k, label, ph, w, v) { return '<label style="flex:1 1 ' + w + 'px;min-width:0">' + label + '<input class="dgmEng" data-f="' + k + '" value="' + esc(v || '') + '" placeholder="' + esc(ph) + '" style="width:100%;box-sizing:border-box"></label>'; };
+    h += '<details open class="piece"><summary><b>Μηχανικός</b><span style="color:var(--muted)">μπαίνουν στην πινακίδα · μένουν για όλες τις εργασίες (και στο τοπογραφικό)</span></summary><div class="dgm-ctl" style="margin-top:6px;flex-wrap:wrap">' + ei('mix', 'Μηχανικός', 'ΕΠΩΝΥΜΟ ΟΝΟΜΑ', 200, eg.mix) + ei('eid', 'Ειδικότητα', 'π.χ. Πολιτικός Μηχανικός', 180, eg.eid) + ei('tee', 'Α.Μ. ΤΕΕ', '', 90, eg.tee) + ei('office', 'Τεχνικό γραφείο', 'όνομα γραφείου', 200, ri.office) + '</div></details>';
     // ίδια εργαλεία με το τοπογραφικό: διορθώσεις στην οθόνη, σφραγίδα (εικόνα), δική σου πινακίδα
     var ec = (function (e) { e = e || {}; return Object.keys(e.t || {}).length + Object.keys(e.b || {}).length + (e.add || []).length + (e.img || []).length; })(S.sheetEdits), tplD = topoTemplate(), tplDRaw = tplD ? store('hexis_topo_tpl') : null, ownOn = store('hexis_dgm_owntpl') !== false;
     h += '<div class="file-row" style="flex-wrap:wrap;gap:6px"><button class="btn primary small" data-act="dgm-editor" title="Δες το φύλλο στην οθόνη: μετακίνησε πίνακες, υπόμνημα, κείμενα, πρόσθεσε δικά σου κείμενα και σφραγίδα (εικόνα)">✎ Προεπισκόπηση & διόρθωση στην οθόνη</button>' + (ec ? '<span class="chip ok">' + ec + ' διορθώσεις — περνούν σε PDF και DXF</span>' : '<span style="color:var(--muted);font-size:12px">σφραγίδα: «🖼 Εικόνα» μέσα στην προεπισκόπηση</span>');
@@ -7039,7 +7042,9 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     return h;
   }
   function ownOta() { var k = S.kaek; if (!k || k.status !== 'ok') return ''; var own = ownParcel(k); return (own && own.info && own.info.ota) || (k.region || ''); }
-  function sheetInfo() { var f = repInfo(), ota = ownOta(); return { title: 'Διάγραμμα Γεωμετρικών Μεταβολών', office: f.office || '', client: f.client || f.project || '', project: f.project || '', place: f.place || ota || '', ota: ota, eng: f.eng || '', drawingNo: f.drawingNo || 'Α1', date: f.date || new Date().toLocaleDateString('el-GR', { month: 'long', year: 'numeric' }).toUpperCase() }; }
+  // «Ομάδα Μελέτης» της πινακίδας: αν δεν γράφτηκε ομάδα, ο μηχανικός με ειδικότητα και Α.Μ. ΤΕΕ
+  function dgmEngLine() { var e = topoEngDefaults(); return [e.mix, e.eid, e.tee ? 'Α.Μ. ΤΕΕ ' + e.tee : ''].filter(Boolean).join('; '); }
+  function sheetInfo() { var f = repInfo(), ota = ownOta(); return { title: 'Διάγραμμα Γεωμετρικών Μεταβολών', office: f.office || '', client: f.client || f.project || '', project: f.project || '', place: f.place || ota || '', ota: ota, eng: f.eng || dgmEngLine(), drawingNo: f.drawingNo || 'Α1', date: f.date || new Date().toLocaleDateString('el-GR', { month: 'long', year: 'numeric' }).toUpperCase() }; }
   // Συντελεστής κλίμακας γραμμικής παραμόρφωσης Κ — επίσημος προσεγγιστικός τύπος Κτηματολογίου:
   // k = 0.012311·(X−0.5)² + 0.9996, όπου X η τετμημένη (Easting ΕΓΣΑ87) σε εκατομμύρια μέτρα (X·10⁻⁶).
   function scaleFactorK(M) { if (!M || !M.length) return null; var sx = 0, n = 0; M.forEach(function (q) { sx += q[0]; n++; }); if (!n) return null; var Xm = (sx / n) / 1e6; return 0.012311 * Math.pow(Xm - 0.5, 2) + 0.9996; }
@@ -7616,6 +7621,11 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     if (ev.target.id === 'topoPhotoIn') { var pf2 = ev.target.files; if (pf2 && pf2.length) topoPhotoAdd(pf2); ev.target.value = ''; return; }
     if (ev.target.id === 'topoMapIn') { var mf = ev.target.files; if (mf && mf.length) topoMapAdd(mf); ev.target.value = ''; return; }
     if (ev.target.classList.contains('topoPhotoCap')) { var pi = +ev.target.dataset.i; if (S.topoPhotos && S.topoPhotos[pi]) S.topoPhotos[pi].caption = ev.target.value.trim(); if (S.topoPreview) topoRefresh(); return; }
+    if (ev.target.classList && ev.target.classList.contains('dgmEng')) {
+      var kE = ev.target.dataset.f, vE = ev.target.value.trim();
+      if (kE === 'office') repSave({ office: vE }); else { var eE = topoEngDefaults(); eE[kE] = vE; store('hexis_topo_eng', eE); if (S.topoF) S.topoF[kE] = vE; }
+      renderAll(); return;
+    }
     if (ev.target.id === 'dgmOwnTpl') { store('hexis_dgm_owntpl', ev.target.checked ? null : false); dgmTplRefresh(); return; }
     if (ev.target.id === 'dgmTpl') { var tf2 = ev.target.files[0]; ev.target.value = ''; if (tf2) loadTopoTemplate(tf2); return; }
     if (ev.target.id === 'topoTplLogo' || ev.target.id === 'dgmTplLogo') { var lf = ev.target.files[0]; ev.target.value = ''; if (lf) { var u = URL.createObjectURL(lf), im = new Image(); im.onload = function () { var kk = Math.min(1, 1600 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * kk); c.height = Math.round(im.height * kk); var cx = c.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height); cx.drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(u); try { var lg = { href: c.toDataURL('image/jpeg', 0.9), wpx: c.width, hpx: c.height }; store('hexis_topo_tpl_logo', Object.assign({ uid: S.prefsUid || null }, lg)); prefsPush({ logo: lg }); toast('Λογότυπο πινακίδας αποθηκεύτηκε και στον λογαριασμό σου.'); } catch (e) { toast('Το λογότυπο είναι πολύ μεγάλο για αποθήκευση.', true); } topoRefresh(); dgmTplRefresh(); }; im.src = u; } return; }
