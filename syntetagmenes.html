@@ -6474,11 +6474,13 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     var lay = topoLayout(r), data = topoData(r), name = topoFileName(r);
     if (kind === 'topo-svg') { download(name + '.svg', TopoSheet.sheetSVG(data, lay, 0), 'image/svg+xml'); toast('Έτοιμη η εικόνα.'); return; }
     if (kind === 'topo-txt') { var T = data.texts, out = ['ΔΗΛΩΣΗ ΜΗΧΑΝΙΚΟΥ (Ν.651/77 & Ν.1337/83)', ''].concat(T.decl651, (T.compat || []).length ? ['', 'ΔΗΛΩΣΗ ΣΥΜΒΑΤΟΤΗΤΑΣ ΜΕ ΤΟ ΚΤΗΜΑΤΟΛΟΓΙΚΟ ΔΙΑΓΡΑΜΜΑ', ''].concat(T.compat) : [], ['', 'ΠΑΡΑΤΗΡΗΣΕΙΣ', ''], T.notes, ['', 'ΔΗΛΩΣΗ ΙΔΙΟΚΤΗΤΗ (Ν.4030/2011)', ''], T.decl4030, T.forest.length ? ['', 'ΥΠΕΥΘΥΝΗ ΔΗΛΩΣΗ ΔΑΣΙΚΗΣ ΠΛΗΡΟΦΟΡΙΑΣ', ''].concat(T.forest) : [], T.oroi.length ? ['', T.oroiTitle, ''].concat(T.oroi, [T.oroiNote]) : []); download(name + '_dhloseis.txt', '﻿' + out.join('\r\n') + '\r\n', 'text/plain;charset=utf-8'); toast('Έτοιμο το TXT δηλώσεων.'); return; }
-    if (kind === 'topo-print-dxf') {
+    if (kind === 'topo-print-dxf' || kind === 'topo-print-zip') {
       var spec = TopoSheet.dxfSpec(data, lay, { boundLayer: boundLayer() });
       var txt = Dxf2000.build(spec, { prune: true, template: '2018' });
       var ims = lay.elems.images || [];
-      if (ims.length) {
+      // «DXF» = πάντα σκέτο .dxf που ανοίγει κατευθείαν στο CAD· οι εικόνες (δεν χωράνε μέσα σε DXF) μόνο με «DXF + εικόνες (ZIP)»
+      if (ims.length && kind === 'topo-print-dxf') toast('Οι εικόνες (σφραγίδα, λογότυπο, φωτογραφίες) δεν μπαίνουν μέσα σε DXF — αν τις θέλεις στο CAD: «DXF + εικόνες (ZIP)».');
+      if (ims.length && kind === 'topo-print-zip') {
         // εικόνες (απόσπασμα, χάρτης, φωτογραφίες): σε ZIP μαζί με το DXF, κάθε μία με world file στη θέση της πάνω στο φύλλο (μονάδες ΕΓΣΑ87)
         await loadScript(LIBS.jszip);
         var zip = new JSZip(); zip.file(name + '.dxf', txt);
@@ -7095,7 +7097,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     h += '<div class="file-row" style="flex-wrap:wrap"><span class="chip">έκταση σχεδίου ' + fixed(w, 0) + ' × ' + fixed(hh, 0) + ' m</span>' + (Kf != null ? '<span class="chip" title="Συντελεστής κλίμακας γραμμικής παραμόρφωσης — αυτόματος υπολογισμός από το κέντρο του μετρημένου ορίου (τύπος Κτηματολογίου)">Κ = ' + fmt(Kf, 6) + '</span>' : '') + '</div>';
     h += '<div class="dgm-ctl"><label>Κλίμακα<select id="sheetScale">' + DgmSheet.SCALES.map(function (sc) { var any = rec.options.filter(function (o) { return o.scale === sc && o.fits; })[0]; return '<option value="' + sc + '"' + (sc === S.sheetScale ? ' selected' : '') + '>1:' + sc + (sc === best.scale ? ' ✓ πρόταση' : any ? ' (χωράει από ' + any.paper + ')' : ' (δεν χωράει σε Α0)') + '</option>'; }).join('') + '</select></label>';
     h += '<label>Χαρτί<select id="sheetPaper">' + DgmSheet.PAPERS.filter(function (P) { return ['A3', 'A2', 'A1', 'A0'].indexOf(P.id) >= 0; }).map(function (P) { var o = rec.options.filter(function (x) { return x.scale === S.sheetScale && x.paper === P.id; })[0]; return '<option value="' + P.id + '"' + (P.id === S.sheetPaper ? ' selected' : '') + '>' + P.id + ' ' + P.w + '×' + P.h + ' mm' + (P.id === best.paper ? ' ✓ πρόταση' : o && o.fits ? ' ✓' : ' ✕') + '</option>'; }).join('') + '</select></label>' + (S.sheetAuto === false ? '<button class="btn small" data-act="sheet-auto">↺ Αυτόματη πρόταση</button>' : '') + '</div>';
-    h += '<div class="file-row" style="flex-wrap:wrap;gap:6px"><button class="btn small" data-act="sheet-info">Όλα τα στοιχεία πινακίδας (ομάδα μελέτης, αρ. σχεδίου)</button><button class="btn small" data-exp="dgm-tables-lsp">LISP: πίνακες ως TABLE</button><button class="btn small" data-exp="dgm-egsa-decl" title="Δήλωση ΕΓΣΑ87 με αυτόματο συντελεστή Κ + αποδοχή μετάπτωσης + αναφορά εφαρμογής">Δήλωση ΕΓΣΑ87 + Κ</button><button class="btn small" data-exp="dgm-sheet-svg">Εικόνα φύλλου (SVG)</button>' + (ownP.indexOf(d.own) >= 0 ? '' : '') + '</div>';
+    h += '<div class="file-row" style="flex-wrap:wrap;gap:6px"><button class="btn small" data-act="sheet-info">Όλα τα στοιχεία πινακίδας (ομάδα μελέτης, αρ. σχεδίου)</button><button class="btn small" data-exp="dgm-tables-lsp">LISP: πίνακες ως TABLE</button><button class="btn small" data-exp="dgm-egsa-decl" title="Δήλωση ΕΓΣΑ87 με αυτόματο συντελεστή Κ + αποδοχή μετάπτωσης + αναφορά εφαρμογής">Δήλωση ΕΓΣΑ87 + Κ</button><button class="btn small" data-exp="dgm-sheet-svg">Εικόνα φύλλου (SVG)</button>' + (((S.sheetEdits && S.sheetEdits.img) || []).length || (dgmTemplate() && dgmTemplate().logo) ? '<button class="btn small" data-exp="dgm-print-zip" title="Το DXF μαζί με τη σφραγίδα/λογότυπο ως εικόνες με world file, σε ZIP">DXF + εικόνες (ZIP)</button>' : '') + '' + (ownP.indexOf(d.own) >= 0 ? '' : '') + '</div>';
     h += '<p style="margin:0;color:var(--muted);font-size:12px">Το DXF εκτύπωσης έχει την πινακίδα στο model space σε μονάδες ΕΓΣΑ87: τυπώνεις το πλαίσιο σε 1:' + S.sheetScale + '.</p><p style="margin:0;color:var(--muted);font-size:12px">Η δήλωση ΕΓΣΑ87 (με αυτόματο συντελεστή Κ) τυπώνεται και κάτω-αριστερά στο σχέδιο. Το DXF εκτύπωσης είναι R2018 και οι πίνακες είναι <b>ενεργοί TABLE</b> του CAD (επεξεργάσιμα κελιά, Arial, κεντραρισμένα), με την ίδια δομή που έχουν τα αρχεία του AutoCAD. Το LISP είναι εφεδρικό: αν κάποιο CAD δεν φορτώσει τους TABLE, APPLOAD και <b>HEXISTABLES</b> τους ξαναφτιάχνει.</p>';
     h += '</div></details>';
     return h;   // η ενότητα «Εκτύπωση» κλείνει στο renderDgmPanel (μετά τα αρχεία Κτηματολογίου)
@@ -7434,7 +7436,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     if (kind === 'dgm-svg') { download(base + '.svg', d.svg, 'image/svg+xml'); toast('Έτοιμη η εικόνα.'); return; }
     if (kind === 'dgm-egsa-decl') { var Kv = scaleFactorK(dgmMeasured(d)); download(dgmFileName(d) + '_dhlosh_EGSA87.txt', '﻿' + egsaDeclText(Kv), 'text/plain;charset=utf-8'); toast('Έτοιμη η δήλωση ΕΓΣΑ87 · Κ = ' + (Kv != null ? fmt(Kv, 6) : '—')); return; }
     if (kind === 'praxis-descr') { download(dgmFileName(d) + '_perigrafi.txt', '\ufeff' + praxisDescription(d), 'text/plain;charset=utf-8'); toast('Έτοιμη η περιγραφή ορίων.'); return; }
-    if (kind === 'dgm-print-dxf') {
+    if (kind === 'dgm-print-dxf' || kind === 'dgm-print-zip') {
       var lay = sheetLayout(d, parcels);
       var spec = dgmSpec(d, parcels);
       // + πινακίδα, πίνακες, υπόμνημα (πρόσθετα layers) — τα χρώματα των τμημάτων είναι ήδη κόκκινο/πράσινο
@@ -7451,7 +7453,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       lay.elems.hatches.forEach(function (h) { if (h.legend) spec.hatches.push({ layer: h.layer, pts: h.pts, color: h.color }); });
       var txt2 = Dxf2000.build(spec, { prune: true, template: '2018' });
       var imsD = lay.elems.images || [];
-      if (imsD.length) {
+      if (imsD.length && kind === 'dgm-print-zip') {
         // σφραγίδα / λογότυπο: σε ZIP μαζί με το DXF, κάθε εικόνα με world file στη θέση της πάνω στο φύλλο (μονάδες ΕΓΣΑ87)
         await loadScript(LIBS.jszip);
         var zipD = new JSZip(), nmD = dgmFileName(d) + '_print'; zipD.file(nmD + '.dxf', txt2);
@@ -7464,6 +7466,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
         zipD.file('ΔΙΑΒΑΣΕ_ΜΕ.txt', '\ufeffΤο ' + nmD + '.dxf είναι το διάγραμμα για εκτύπωση. Οι εικόνες (σφραγίδα, λογότυπο) είναι δίπλα, η καθεμία με world file (.pgw/.jgw) που την τοποθετεί ακριβώς στη θέση της πάνω στο φύλλο.\r\nΣτο CAD: εισαγωγή εικόνας (raster) με το world file της.\r\n');
         download(nmD + '.zip', await zipD.generateAsync({ type: 'blob' }));
       } else download(dgmFileName(d) + '_print.dxf', new Blob([new TextEncoder().encode(txt2)], { type: 'application/dxf' }));
+      if (imsD.length && kind === 'dgm-print-dxf') { toast('Έτοιμο το DXF. Η σφραγίδα δεν μπαίνει μέσα σε DXF (μπαίνει στο PDF) — αν τη θέλεις και στο CAD: Περισσότερα → «DXF + εικόνες (ZIP)».'); return; }
       toast('Έτοιμο το DXF εκτύπωσης (R2018): ' + lay.sheets.length + (lay.sheets.length === 1 ? ' φύλλο ' : ' φύλλα ') + S.sheetPaper + ' σε 1:' + S.sheetScale + ' · ' + spec.tables.length + ' πίνακες ως TABLE.');
       return;
     }
