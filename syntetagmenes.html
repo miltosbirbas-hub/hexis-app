@@ -2052,7 +2052,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     });
     (spec.lines || []).forEach(function (l) {
       out.push('0', 'LINE', '5', next(), '330', owner, '100', 'AcDbEntity', '8', U(l.layer));
-      if (l.color) out.push('62', String(l.color));
+      if (l.color) out.push('62', String(l.color)); if (l.lw != null) out.push('370', String(l.lw));
       out.push('100', 'AcDbLine', '10', f(l.a[0]), '20', f(l.a[1]), '30', '0.0', '11', f(l.b[0]), '21', f(l.b[1]), '31', '0.0');
       ext(l.a[0], l.a[1]); ext(l.b[0], l.b[1]);
     });
@@ -5556,41 +5556,55 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   function tplPreset(id) {
     S.presetCache = S.presetCache || {}; if (S.presetCache[id]) return presetLogo(S.presetCache[id]);
     var E = [], W, H, stamp;
-    function ln(x1, y1, x2, y2, c) { E.push({ type: 'line', a: [x1, y1], b: [x2, y2], color: c || 7 }); }
-    function rc(x, y, w, h, c) { E.push({ type: 'poly', pts: [[x, y], [x + w, y], [x + w, y + h], [x, y + h]], closed: true, color: c || 7 }); }
-    function tx(x, y, h, t, al, mw, c) { var o = { type: 'text', x: x, y: y, h: h, text: t, rot: 0, halign: al === 'c' ? 1 : al === 'r' ? 2 : 0, color: c || 7 }; if (al === 'c' || al === 'r') { o.x2 = x; o.y2 = y; } if (mw) o.maxW = mw; E.push(o); }
-    function lab(x, y, t) { tx(x, y, 1.7, t, 'l', 0, 8); }
-    function cell(x, y, w, h, label, ph, vh, center) { rc(x, y, w, h); lab(x + 1.5, y + h - 3.2, label); tx(center ? x + w / 2 : x + 2, y + Math.max(2, (h - 4.5) / 2 - vh / 2), vh, ph, center ? 'c' : 'l', w - 4); }
+    // st: { sw: πάχος mm (PDF), lw: DXF 1/100 mm, hex: χρώμα, fillHex: γέμισμα }
+    var THIN = { sw: 0.18, lw: 13, hex: '#9aa5b8' }, MID = { sw: 0.4, lw: 30 }, BOLD = { sw: 0.8, lw: 60 };
+    function ln(x1, y1, x2, y2, c, st) { E.push(Object.assign({ type: 'line', a: [x1, y1], b: [x2, y2], color: c || 7 }, st || {})); }
+    function rc(x, y, w, h, c, st) { E.push(Object.assign({ type: 'poly', pts: [[x, y], [x + w, y], [x + w, y + h], [x, y + h]], closed: true, color: c || 7 }, st || {})); }
+    function fillR(x, y, w, h, hex) { rc(x, y, w, h, 7, { sw: 0, fillHex: hex, lw: 0 }); }
+    var LABHEX = null;
+    function tx(x, y, h, t, al, mw, c, hex) { var o = { type: 'text', x: x, y: y, h: h, text: t, rot: 0, halign: al === 'c' ? 1 : al === 'r' ? 2 : 0, color: c || 7 }; if (al === 'c' || al === 'r') { o.x2 = x; o.y2 = y; } if (mw) o.maxW = mw; if (hex) o.hex = hex; E.push(o); }
+    function lab(x, y, t) { tx(x, y, 1.8, t, 'l', 0, 8, LABHEX); }
+    function cell(x, y, w, h, label, ph, vh, center, st) { rc(x, y, w, h, 7, st || THIN); lab(x + 2, y + h - 3.6, label); tx(center ? x + w / 2 : x + 3, y + Math.max(2, (h - 5) / 2 - vh / 2), vh, ph, center ? 'c' : 'l', w - 6); }
     W = 210; H = 297;   // πάντα σε μέγεθος σελίδας Α4 (όρθια)
     function logo(x, y, w, h) { E.push({ type: 'image', x: x, y: y, w: w, h: h }); }
     if (id === 'p:modern') {
-      rc(0, 0, W, H);
-      logo(6, 252, 54, 40); tx(66, 280, 5, '{ΓΡΑΦΕΙΟ}', 'l', 138, 5); tx(66, 270, 2.6, '{ΜΕΛΕΤΗΤΗΣ}', 'l', 138, 8); ln(0, 247, W, 247, 5);
-      cell(0, 223, W, 24, 'ΘΕΜΑ', '{ΘΕΜΑ}', 4.4);
-      cell(0, 205, W, 18, 'ΕΡΓΟΔΟΤΗΣ', '{ΕΡΓΟΔΟΤΗΣ}', 3.6); cell(0, 187, W, 18, 'ΕΡΓΟ', '{ΕΡΓΟ}', 3.6); cell(0, 169, W, 18, 'ΘΕΣΗ', '{ΘΕΣΗ}', 3.2); cell(0, 151, W, 18, 'ΚΤΗΜΑΤΟΛΟΓΙΟ', '{ΚΑΕΚ}', 3);
-      cell(0, 133, 105, 18, 'ΕΜΒΑΔΟΝ', '{ΕΜΒΑΔΟΝ}', 3.2); rc(105, 133, 105, 18); lab(106.5, 147.8, 'ΣΥΣΤΗΜΑ ΑΝΑΦΟΡΑΣ'); tx(107, 138, 3.2, 'ΕΓΣΑ 87', 'l');
-      cell(0, 113, 52.5, 20, 'ΚΛΙΜΑΚΑ', '{ΚΛΙΜΑΚΑ}', 3.6, true); cell(52.5, 113, 52.5, 20, 'ΗΜΕΡΟΜΗΝΙΑ', '{ΗΜΕΡΟΜΗΝΙΑ}', 2.8, true); cell(105, 113, 52.5, 20, 'ΑΡ. ΣΧΕΔΙΟΥ', '{ΑΡ_ΣΧΕΔΙΟΥ}', 3.6, true); cell(157.5, 113, 52.5, 20, 'ΦΥΛΛΟ', '{ΦΥΛΛΟ}', 3.6, true);
-      rc(0, 0, 105, 113); lab(1.5, 109.8, 'Ο ΜΗΧΑΝΙΚΟΣ'); tx(52.5, 98, 2.6, '{ΜΕΛΕΤΗΤΗΣ}', 'c', 98);
-      rc(105, 0, 105, 113); lab(106.5, 109.8, 'ΣΦΡΑΓΙΔΑ – ΥΠΟΓΡΑΦΗ ΜΗΧΑΝΙΚΟΥ'); stamp = [109, 5, 206, 104];
+      // Μοντέρνα: λεπτό πλέγμα, ανοιχτόχρωμη κεφαλίδα, μπλε έντονο περίγραμμα και ζώνη στην κορυφή
+      var NAVY = '#1e3a8a'; LABHEX = '#3b5998';
+      fillR(0, 247, W, 50, '#eef2fa'); fillR(0, 292, W, 5, NAVY); fillR(0, 223, W, 24, '#f7f9fd');
+      logo(8, 250, 52, 38); tx(66, 276, 5.4, '{ΓΡΑΦΕΙΟ}', 'l', 138, 5, NAVY); tx(66, 266, 2.6, '{ΜΕΛΕΤΗΤΗΣ}', 'l', 138, 8);
+      cell(0, 223, W, 24, 'ΘΕΜΑ', '{ΘΕΜΑ}', 4.6);
+      cell(0, 205, W, 18, 'ΕΡΓΟΔΟΤΗΣ', '{ΕΡΓΟΔΟΤΗΣ}', 3.8); cell(0, 187, W, 18, 'ΕΡΓΟ', '{ΕΡΓΟ}', 3.8); cell(0, 169, W, 18, 'ΘΕΣΗ', '{ΘΕΣΗ}', 3.3); cell(0, 151, W, 18, 'ΚΤΗΜΑΤΟΛΟΓΙΟ', '{ΚΑΕΚ}', 3.1);
+      cell(0, 133, 105, 18, 'ΕΜΒΑΔΟΝ', '{ΕΜΒΑΔΟΝ}', 3.3); rc(105, 133, 105, 18, 7, THIN); lab(107, 147.4, 'ΣΥΣΤΗΜΑ ΑΝΑΦΟΡΑΣ'); tx(108, 138, 3.3, 'ΕΓΣΑ 87', 'l');
+      fillR(0, 113, W, 20, '#f7f9fd');
+      cell(0, 113, 52.5, 20, 'ΚΛΙΜΑΚΑ', '{ΚΛΙΜΑΚΑ}', 3.8, true); cell(52.5, 113, 52.5, 20, 'ΗΜΕΡΟΜΗΝΙΑ', '{ΗΜΕΡΟΜΗΝΙΑ}', 2.9, true); cell(105, 113, 52.5, 20, 'ΑΡ. ΣΧΕΔΙΟΥ', '{ΑΡ_ΣΧΕΔΙΟΥ}', 3.8, true); cell(157.5, 113, 52.5, 20, 'ΦΥΛΛΟ', '{ΦΥΛΛΟ}', 3.8, true);
+      rc(0, 0, 105, 113, 7, THIN); lab(2, 109.4, 'Ο ΜΗΧΑΝΙΚΟΣ'); tx(52.5, 97, 2.7, '{ΜΕΛΕΤΗΤΗΣ}', 'c', 98);
+      rc(105, 0, 105, 113, 7, THIN); lab(107, 109.4, 'ΣΦΡΑΓΙΔΑ – ΥΠΟΓΡΑΦΗ ΜΗΧΑΝΙΚΟΥ'); stamp = [109, 5, 206, 104];
+      [247, 223, 133, 113].forEach(function (y) { ln(0, y, W, y, 5, { sw: 0.5, lw: 35, hex: NAVY }); });
+      rc(0, 0, W, H, 5, { sw: 1, lw: 70, hex: NAVY });
     } else if (id === 'p:classic') {
-      rc(0, 0, W, H); rc(1.5, 1.5, W - 3, H - 3);
-      var row = function (y, h, label, ph, vh) { ln(1.5, y, W - 1.5, y); ln(52, y, 52, y + h); tx(4, y + h / 2 - 1.1, 2.6, label, 'l'); tx(131, y + h / 2 - vh / 2, vh, ph, 'c', 138); };
-      logo(8, 258, 44, 34); tx(131, 281, 4.6, '{ΓΡΑΦΕΙΟ}', 'c', 152); tx(131, 270, 2.4, '{ΜΕΛΕΤΗΤΗΣ}', 'c', 152); ln(1.5, 255, W - 1.5, 255);
+      // Κλασική αυστηρή: χοντρό εξωτερικό + λεπτό εσωτερικό πλαίσιο, μαύρο
+      var row = function (y, h, label, ph, vh) { ln(2.5, y, W - 2.5, y, 7, MID); ln(54, y, 54, y + h, 7, MID); tx(5, y + h / 2 - 1.2, 2.7, label, 'l'); tx(132, y + h / 2 - vh / 2, vh, ph, 'c', 138); };
+      logo(9, 259, 42, 32); tx(132, 281, 4.8, '{ΓΡΑΦΕΙΟ}', 'c', 145); tx(132, 270, 2.5, '{ΜΕΛΕΤΗΤΗΣ}', 'c', 145); ln(2.5, 255, W - 2.5, 255, 7, BOLD);
       row(237, 18, 'ΕΡΓΟΔΟΤΗΣ', '{ΕΡΓΟΔΟΤΗΣ}', 3.6); row(219, 18, 'ΕΡΓΟ', '{ΕΡΓΟ}', 3.6); row(201, 18, 'ΘΕΣΗ', '{ΘΕΣΗ}', 3.2); row(183, 18, 'ΚΤΗΜΑΤΟΛΟΓΙΟ', '{ΚΑΕΚ}', 3); row(159, 24, 'ΘΕΜΑ', '{ΘΕΜΑ}', 3.6);
-      ln(1.5, 141, W - 1.5, 141); [70, 140].forEach(function (x) { ln(x, 141, x, 159); });
-      tx(35, 154, 2.2, 'ΚΛΙΜΑΚΑ', 'c'); tx(35, 145, 3.6, '{ΚΛΙΜΑΚΑ}', 'c', 66); tx(105, 154, 2.2, 'ΗΜΕΡΟΜΗΝΙΑ', 'c'); tx(105, 145, 3, '{ΗΜΕΡΟΜΗΝΙΑ}', 'c', 66); tx(175, 154, 2.2, 'ΑΡΙΘΜΟΣ ΣΧΕΔΙΟΥ', 'c'); tx(175, 145, 3.6, '{ΑΡ_ΣΧΕΔΙΟΥ}', 'c', 66);
-      ln(105, 1.5, 105, 141); tx(4, 135, 2.4, 'Ο ΜΗΧΑΝΙΚΟΣ', 'l'); tx(53, 122, 2.6, '{ΜΕΛΕΤΗΤΗΣ}', 'c', 98); tx(108, 135, 2.4, 'ΣΦΡΑΓΙΔΑ – ΥΠΟΓΡΑΦΗ', 'l'); stamp = [109, 6, 205, 130];
+      ln(2.5, 141, W - 2.5, 141, 7, BOLD); [70, 140].forEach(function (x) { ln(x, 141, x, 159, 7, MID); });
+      tx(35, 154, 2.3, 'ΚΛΙΜΑΚΑ', 'c'); tx(35, 145, 3.8, '{ΚΛΙΜΑΚΑ}', 'c', 64); tx(105, 154, 2.3, 'ΗΜΕΡΟΜΗΝΙΑ', 'c'); tx(105, 145, 3.1, '{ΗΜΕΡΟΜΗΝΙΑ}', 'c', 64); tx(175, 154, 2.3, 'ΑΡΙΘΜΟΣ ΣΧΕΔΙΟΥ', 'c'); tx(175, 145, 3.8, '{ΑΡ_ΣΧΕΔΙΟΥ}', 'c', 64);
+      ln(105, 2.5, 105, 141, 7, MID); tx(5, 135, 2.5, 'Ο ΜΗΧΑΝΙΚΟΣ', 'l'); tx(54, 122, 2.7, '{ΜΕΛΕΤΗΤΗΣ}', 'c', 96); tx(108, 135, 2.5, 'ΣΦΡΑΓΙΔΑ – ΥΠΟΓΡΑΦΗ', 'l'); stamp = [110, 7, 204, 130];
+      rc(0, 0, W, H, 7, { sw: 1.2, lw: 80 }); rc(2.5, 2.5, W - 5, H - 5, 7, MID);
     } else {
-      rc(0, 0, W, H);
-      logo(6, 252, 40, 40); tx(52, 285, 3, 'ΕΛΛΗΝΙΚΗ ΔΗΜΟΚΡΑΤΙΑ', 'l'); tx(52, 276.5, 3.6, '{ΕΡΓΟΔΟΤΗΣ}', 'l', 152); tx(52, 269, 2.4, 'ΔΙΕΥΘΥΝΣΗ ΤΕΧΝΙΚΩΝ ΥΠΗΡΕΣΙΩΝ', 'l', 152, 8);
-      lab(52, 262, 'ΜΕΛΕΤΗΤΗΣ'); tx(52, 256, 3, '{ΓΡΑΦΕΙΟ}', 'l', 152); tx(52, 250.5, 2.2, '{ΜΕΛΕΤΗΤΗΣ}', 'l', 152, 8); ln(0, 247, W, 247);
-      cell(0, 229, W, 18, 'ΕΡΓΟ', '{ΕΡΓΟ}', 3.8); cell(0, 211, 120, 18, 'ΘΕΣΗ', '{ΘΕΣΗ}', 3); cell(120, 211, 90, 18, 'ΚΤΗΜΑΤΟΛΟΓΙΟ', '{ΚΑΕΚ}', 2.6);
-      cell(0, 187, W, 24, 'ΤΙΤΛΟΣ ΣΧΕΔΙΟΥ', '{ΘΕΜΑ}', 4.2);
-      cell(0, 169, 70, 18, 'ΚΛΙΜΑΚΑ', '{ΚΛΙΜΑΚΑ}', 3.6, true); cell(70, 169, 70, 18, 'ΗΜΕΡΟΜΗΝΙΑ', '{ΗΜΕΡΟΜΗΝΙΑ}', 3, true); cell(140, 169, 70, 18, 'ΑΡ. ΣΧΕΔΙΟΥ', '{ΑΡ_ΣΧΕΔΙΟΥ}', 3.6, true);
-      rc(0, 79, 70, 90); rc(70, 79, 70, 90); rc(140, 79, 70, 90);
-      tx(35, 163, 2.6, 'ΣΥΝΤΑΧΘΗΚΕ', 'c'); tx(35, 83, 2, '{ΜΕΛΕΤΗΤΗΣ}', 'c', 66); tx(105, 163, 2.6, 'ΕΛΕΓΧΘΗΚΕ', 'c'); tx(175, 163, 2.6, 'ΘΕΩΡΗΘΗΚΕ', 'c'); stamp = [3, 89, 67, 158];
-      rc(0, 0, W, 79); lab(1.5, 75.5, 'ΑΝΑΘΕΩΡΗΣΕΙΣ'); ln(0, 72, W, 72); ln(0, 64, W, 64); [52, 40, 28, 16].forEach(function (y) { ln(0, y, W, y); }); ln(16, 0, 16, 72); ln(178, 0, 178, 72);
+      // Δημοσίων έργων: καθαρές ζώνες, έντονα όρια ενοτήτων
+      LABHEX = '#334155';
+      fillR(0, 247, W, 50, '#f4f6f9');
+      logo(6, 252, 40, 40); tx(52, 285, 3.1, 'ΕΛΛΗΝΙΚΗ ΔΗΜΟΚΡΑΤΙΑ', 'l'); tx(52, 276.5, 3.8, '{ΕΡΓΟΔΟΤΗΣ}', 'l', 152); tx(52, 269, 2.4, 'ΔΙΕΥΘΥΝΣΗ ΤΕΧΝΙΚΩΝ ΥΠΗΡΕΣΙΩΝ', 'l', 152, 8);
+      lab(52, 262, 'ΜΕΛΕΤΗΤΗΣ'); tx(52, 256, 3.1, '{ΓΡΑΦΕΙΟ}', 'l', 152); tx(52, 250.5, 2.2, '{ΜΕΛΕΤΗΤΗΣ}', 'l', 152, 8);
+      cell(0, 229, W, 18, 'ΕΡΓΟ', '{ΕΡΓΟ}', 3.9); cell(0, 211, 120, 18, 'ΘΕΣΗ', '{ΘΕΣΗ}', 3.1); cell(120, 211, 90, 18, 'ΚΤΗΜΑΤΟΛΟΓΙΟ', '{ΚΑΕΚ}', 2.7);
+      cell(0, 187, W, 24, 'ΤΙΤΛΟΣ ΣΧΕΔΙΟΥ', '{ΘΕΜΑ}', 4.3);
+      cell(0, 169, 70, 18, 'ΚΛΙΜΑΚΑ', '{ΚΛΙΜΑΚΑ}', 3.8, true); cell(70, 169, 70, 18, 'ΗΜΕΡΟΜΗΝΙΑ', '{ΗΜΕΡΟΜΗΝΙΑ}', 3.1, true); cell(140, 169, 70, 18, 'ΑΡ. ΣΧΕΔΙΟΥ', '{ΑΡ_ΣΧΕΔΙΟΥ}', 3.8, true);
+      rc(0, 79, 70, 90, 7, THIN); rc(70, 79, 70, 90, 7, THIN); rc(140, 79, 70, 90, 7, THIN);
+      tx(35, 163, 2.7, 'ΣΥΝΤΑΧΘΗΚΕ', 'c'); tx(35, 83, 2, '{ΜΕΛΕΤΗΤΗΣ}', 'c', 66); tx(105, 163, 2.7, 'ΕΛΕΓΧΘΗΚΕ', 'c'); tx(175, 163, 2.7, 'ΘΕΩΡΗΘΗΚΕ', 'c'); stamp = [3, 89, 67, 158];
+      lab(2, 75.5, 'ΑΝΑΘΕΩΡΗΣΕΙΣ'); ln(0, 72, W, 72, 7, MID); ln(0, 64, W, 64, 7, THIN); [52, 40, 28, 16].forEach(function (y) { ln(0, y, W, y, 7, THIN); }); ln(16, 0, 16, 72, 7, THIN); ln(178, 0, 178, 72, 7, THIN);
       tx(8, 66.5, 2, 'Α/Α', 'c', 0, 8); tx(97, 66.5, 2, 'ΠΕΡΙΓΡΑΦΗ', 'c', 0, 8); tx(194, 66.5, 2, 'ΗΜΕΡ.', 'c', 0, 8);
+      [247, 187, 169, 79].forEach(function (y) { ln(0, y, W, y, 7, MID); });
+      rc(0, 0, W, H, 7, { sw: 1, lw: 70 });
     }
     var name = (TPL_PRESETS.filter(function (x) { return x[0] === id; })[0] || [0, ''])[1];
     S.presetCache[id] = { ents: E, box: [0, 0, W, H], w: W, h: H, images: 1, warn: [], fixedMm: true, stamp: stamp, name: name, preset: id };
@@ -7501,9 +7515,9 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       var skipL = { KORYFES: 1, SHMEIA_TOPO_PROP: 1, SHMEIA_PST_KAEK: 1, 'AREA_D-labels': 1, 'AREA_A-labels': 1, 'AREA_EKTOS_KAEK': 1, PINAKES: 1 };
       spec.tables = lay.elems.tables.map(function (t) { return Object.assign({ layer: 'PINAKES' }, t); });
       spec.mtexts = (spec.mtexts || []).concat((lay.elems.mtexts || []).filter(function (t) { return !skipL[t.layer]; }));
-      lay.elems.polys.forEach(function (p) { if (skipL[p.layer]) return; spec.polys.push({ layer: p.layer, pts: p.pts, bulges: p.bulges, closed: p.closed, color: p.color || 7 }); });
+      lay.elems.polys.forEach(function (p) { if (skipL[p.layer]) return; spec.polys.push({ layer: p.layer, pts: p.pts, bulges: p.bulges, closed: p.closed, color: p.color || 7, lw: p.lw }); });
       var lc = { PINAKES: 7, PINAKIDA: 7, KANNABOS: 8, AREA_A: 3, AREA_D: 1, AREA_EKTOS_KAEK: 30 };
-      spec.lines = lay.elems.lines.filter(function (l) { return !skipL[l.layer]; }).map(function (l) { return { layer: l.layer, a: l.a, b: l.b, color: l.color || lc[l.layer] || 256 }; });
+      spec.lines = lay.elems.lines.filter(function (l) { return !skipL[l.layer]; }).map(function (l) { return { layer: l.layer, a: l.a, b: l.b, color: l.color || lc[l.layer] || 256, lw: l.lw }; });
       lay.elems.texts.forEach(function (t) { if (skipL[t.layer]) return; spec.texts.push({ layer: t.layer, x: t.x, y: t.y, text: t.text, h: t.h, rot: t.rot, align: t.align, fit: t.fit, color: t.color || 7 }); });
       // γεμίσματα υπομνήματος (τα τμήματα έχουν ήδη hatch από το dgmSpec)
       lay.elems.hatches.forEach(function (h) { if (h.legend) spec.hatches.push({ layer: h.layer, pts: h.pts, color: h.color }); });
