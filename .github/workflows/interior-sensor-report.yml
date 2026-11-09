@@ -1,0 +1,44 @@
+name: Interior sensor report
+# Συγκεντρωτική αναφορά του αισθητήρα HEXIS INTERIOR (interior_telemetry) + αναφορές SOS των χρηστών.
+# Η έξοδος τυπώνεται ΚΡΥΠΤΟΓΡΑΦΗΜΕΝΗ με το interior-sensor-report.pub — διαβάζεται μόνο με το ιδιωτικό κλειδί (ιδιωτικό repo hexis-mapping).
+on:
+  workflow_dispatch:
+    inputs:
+      days: { description: "Ημέρες", default: "1" }
+permissions: { contents: read }
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: oucqqudfdimccgowvpqp
+      DAYS: ${{ github.event.inputs.days }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ερώτημα και κρυπτογράφηση
+        run: |
+          set -euo pipefail
+          D=$(echo "${DAYS:-1}" | tr -cd '0-9'); D=${D:-1}
+          Q="with t as (select * from public.interior_telemetry where at > now() - interval '$D days')
+          select json_build_object(
+            'days', $D, 'generated', now(),
+            'users', (select count(distinct user_id) from t), 'devices', (select count(distinct dev) from t),
+            'versions', (select coalesce(json_agg(v),'[]') from (select ver, count(distinct dev) devices, max(at) last from t group by ver order by last desc) v),
+            'codes', (select coalesce(json_agg(c),'[]') from (select kind, code, sum(n) n, avg(val) val, count(distinct user_id) users, max(at) last,
+                       (array_agg(msg order by at desc) filter (where msg is not null))[1] msg, (array_agg(ctx order by at desc) filter (where ctx is not null))[1] ctx, max(ver) ver
+                       from t group by kind, code order by (kind='err') desc, sum(n) desc limit 600) c),
+            'daily', (select coalesce(json_agg(d),'[]') from (select date_trunc('day', at)::date as day, count(distinct user_id) users,
+                       sum(n) filter (where kind='err') errors, sum(n) filter (where kind='ai') ai_fail, sum(n) filter (where kind='warn') warns from t group by 1 order by 1) d),
+            'sos', (select coalesce(json_agg(r),'[]') from (select id, created_at, status, app, text, ctx, (shot is not null) has_shot from public.interior_reports
+                       where status <> 'fixed' and created_at > now() - interval '60 days' order by created_at desc limit 60) r)
+          ) as report;"
+          jq -n --arg q "$Q" '{query: $q}' > /tmp/q.json
+          code=$(curl -sS -o /tmp/r.json -w '%{http_code}' -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data @/tmp/q.json)
+          [ "$code" -lt 300 ] || { echo "::error::ερώτημα απέτυχε ($code)"; head -c 300 /tmp/r.json; exit 1; }
+          jq '.[0].report' /tmp/r.json > /tmp/report.json
+          openssl rand -hex 32 | tr -d '\n' > /tmp/k
+          openssl enc -aes-256-cbc -pbkdf2 -salt -pass file:/tmp/k -in /tmp/report.json -out /tmp/report.enc
+          echo "SENSOR_KEY:$(openssl pkeyutl -encrypt -pubin -inkey interior-sensor-report.pub -pkeyopt rsa_padding_mode:oaep -in /tmp/k | base64 -w0)"
+          echo "SENSOR_DATA:$(base64 -w0 /tmp/report.enc)"
+          rm -f /tmp/k /tmp/report.json /tmp/r.json

@@ -16,6 +16,7 @@ on:
       - "pad-licenses.sql"
       - "geo-pro.sql"
       - "interior-reports.sql"
+      - "interior-telemetry.sql"
 permissions:
   contents: write
 jobs:
@@ -30,7 +31,7 @@ jobs:
         run: '[ -n "$SUPABASE_ACCESS_TOKEN" ] || { echo "::error::Λείπει το secret SUPABASE_ACCESS_TOKEN"; exit 1; }'
       - name: SQL (με τη σειρά)
         run: |
-          for f in interior-billing.sql hexis-payments.sql admin-users.sql ai-costs.sql mapping-audit.sql pad-licenses.sql geo-pro.sql interior-reports.sql; do
+          for f in interior-billing.sql hexis-payments.sql admin-users.sql ai-costs.sql mapping-audit.sql pad-licenses.sql geo-pro.sql interior-reports.sql interior-telemetry.sql; do
             echo "== $f"
             jq -Rs '{query: .}' "$f" > /tmp/q.json
             code=$(curl -sS -o /tmp/r.json -w '%{http_code}' -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
