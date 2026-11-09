@@ -219,3 +219,5 @@ drop policy if exists "geo prefs own" on public.geo_user_prefs;
 create policy "geo prefs own" on public.geo_user_prefs for all to authenticated
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
 grant select, insert, update, delete on public.geo_user_prefs to authenticated;
+-- πολλές πινακίδες ανά μηχανικό: [{id, name, text}] — διαλέγει ποια μπαίνει σε τοπογραφικό / διάγραμμα
+alter table public.geo_user_prefs add column if not exists tpls jsonb;
