@@ -1,0 +1,40 @@
+name: Έλεγχος κλειδιού AI
+# Μία μικρή κλήση στη nomothesia-ai για να επιβεβαιωθεί ότι το ANTHROPIC_API_KEY του Supabase δουλεύει. Γράφει μόνο τον κωδικό HTTP και το είδος σφάλματος (όχι κλειδιά) στον κλάδο keycheck-out.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/key-check.yml"]
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { sparse-checkout: nomothesia.html, sparse-checkout-cone-mode: false }
+      - name: Κλήση
+        run: |
+          mkdir -p out
+          ANON=$(grep -o 'const SB_ANON = "[^"]*"' nomothesia.html | cut -d'"' -f2)
+          curl -s -m 90 -o out/resp.json -w "nomothesia-ai HTTP %{http_code} %{time_total}s\n" -X POST \
+            "https://oucqqudfdimccgowvpqp.supabase.co/functions/v1/nomothesia-ai" \
+            -H "Content-Type: application/json" -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+            --data '{"messages":[{"role":"user","content":"Απάντησε μόνο με τη λέξη ΟΚ"}]}' | tee out/summary.txt
+          python3 - <<'EOF' | tee -a out/summary.txt
+          import json
+          try:
+              j = json.load(open("out/resp.json"))
+          except Exception as e:
+              print("not json:", open("out/resp.json").read()[:300]); raise SystemExit
+          if isinstance(j, dict) and j.get("content"):
+              print("OK model:", j.get("model"), "text:", "".join(c.get("text","") for c in j["content"])[:80])
+          else:
+              print("ERROR:", json.dumps(j, ensure_ascii=False)[:400])
+          EOF
+          rm -f out/resp.json
+      - name: Δημοσίευση
+        run: |
+          cd out && git init -q && git checkout -q -b keycheck-out
+          git -c user.name=probe -c user.email=probe@hexis add -A && git -c user.name=probe -c user.email=probe@hexis commit -qm "key check $(date -u +%FT%TZ)"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" keycheck-out
