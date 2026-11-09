@@ -115,7 +115,7 @@ button { cursor: pointer; }
 .btn:hover:not(:disabled) { border-color: var(--cyan); background: var(--surface-3); }
 .btn:disabled { opacity: .38; cursor: not-allowed; }
 .btn svg { width: 16px; height: 16px; flex: none; }
-.btn.primary { background: linear-gradient(135deg, var(--cyan), var(--violet)); border-color: transparent; color: #06101c; }
+.btn.primary { background: #1e3a8a; border-color: #1e3a8a; color: #fff; font-weight: 700; } /* σκούρο μπλε + λευκά γράμματα: διαβάζεται σε φωτεινό και σκοτεινό θέμα */
 .btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
 .btn.ghost { background: transparent; }
 .btn.small { height: 30px; padding: 0 10px; font-size: 12px; border-radius: 8px; }
@@ -225,6 +225,7 @@ button { cursor: pointer; }
 .dgm-tbl tr.own td { background: var(--input-focus); }
 .dgm-tbl td.pos { color: var(--ok); } .dgm-tbl td.neg { color: var(--err); }
 .dgm-ctl { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+@media (max-width: 600px) { #dgmPanel .dgm-ctl > label { flex: 1 1 100%; min-width: 0; } #dgmPanel .dgm-ctl select, #dgmPanel .dgm-ctl input { width: 100%; max-width: 100%; box-sizing: border-box; } #dgmPanel p { overflow-wrap: anywhere; } }
 /* Απαιτείται ΔΓΜ; */
 .verdict { border: 1px solid var(--line-2); border-left: 4px solid var(--muted); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; background: var(--surface-2); }
 .verdict.ok { border-left-color: var(--ok); } .verdict.warn { border-left-color: var(--warn); } .verdict.err { border-left-color: var(--err); }
@@ -6811,6 +6812,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
   function renderPraxisPanel(d) {
     var op = d.praxis, OP = DgmPraxis.OPS[op], parcels = dgmParcels(), inp = praxisInputs();
     var h = '<section class="panel summary" id="dgmPanel"><div class="file-row"><span class="fname">Διάγραμμα Γεωμετρικών Μεταβολών — ' + esc(OP.label) + '</span><span class="chip">εγγραπτέα πράξη · §4.5.2.β</span></div>';
+    h += dgmTabs([['synopsi', 'Σύνοψη']].concat(DGM_STEPS_TAIL)) + dgmSo('synopsi');
     h += '<div class="dgm-ctl">' + praxisSelect();
     if (op === 'synenosi') h += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><span style="color:var(--muted);font-size:12px">Συνενούμενα ΚΑΕΚ:</span>' + parcels.map(function (p) { return '<label class="toggle"><input type="checkbox" class="praxisKaek" data-kaek="' + esc(p.kaek) + '"' + (d.ownKaeks.indexOf(p.kaek) >= 0 ? ' checked' : '') + '>' + esc(p.kaek) + ' <small style="color:var(--muted)">' + fmt(p.area, 0) + ' m²</small></label>'; }).join('') + '</div>';
     else h += '<label>Γεωτεμάχιο ΚΑΕΚ<select id="dgmOwn">' + parcels.map(function (p) { return '<option value="' + esc(p.kaek) + '"' + (p.kaek === d.own ? ' selected' : '') + '>ΚΑΕΚ ' + esc(p.kaek) + ' · ' + fmt(p.area, 0) + ' m²</option>'; }).join('') + '</select></label>';
@@ -6858,11 +6860,13 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       return '<details class="piece"><summary><span class="tag ' + x.tag + '">' + esc(x.id) + '</span><b>' + esc(x.title) + '</b><span style="margin-left:auto" class="mono">' + fmt(x.area, 2) + ' m²</span></summary><div class="tbl-wrap"><table class="coords"><thead><tr><th>#</th><th>Κορυφή</th><th class="num">X</th><th class="num">Y</th></tr></thead><tbody>' + rows + '</tbody></table></div></details>';
     }).join('') + '</div>';
     h += '<img class="dgm-svg" alt="Διάγραμμα γεωμετρικών μεταβολών" src="data:image/svg+xml;charset=utf-8,' + encodeURIComponent(d.svg) + '">';
+    h += '</div>';
     h += renderSheetPanel(d);
     try { var descr = praxisDescription(d); h += '<details class="piece"><summary><b>Περιγραφή ορίων για το συμβόλαιο</b><span style="color:var(--muted)">προσανατολισμοί, μήκη ολογράφως, όμοροι από την πράξη και τα ΚΑΕΚ της βάσης</span><span style="margin-left:auto" class="chip">ΝΟΜΙΚΟ ΤΟΠΟ</span></summary><textarea id="praxisDescr" readonly style="width:100%;min-height:220px;font:12.5px/1.5 ui-monospace,Menlo,Consolas,monospace;background:var(--input-bg);color:inherit;border:1px solid var(--line);border-radius:8px;padding:10px">' + esc(descr) + '</textarea><div class="file-row" style="margin-top:6px"><button class="btn small" data-act="praxis-copy">Αντιγραφή</button><button class="btn small" data-exp="praxis-descr">TXT περιγραφής</button></div></details>'; } catch (e) { console.warn('descr', e); }
     h += '<div class="file-row"><button class="btn primary small" data-exp="dgm-dxf">DXF Κτηματολογίου (ΠΙΝΑΚΑΣ Ι)</button><button class="btn small" data-exp="dgm-xlsx">Excel πινάκων</button><button class="btn small" data-exp="dgm-pdf">Αναφορά PDF</button><button class="btn small" data-exp="dgm-txt-all">TXT όλα</button><button class="btn small" data-exp="dgm-txt">TXT ανά πολύγωνο</button><button class="btn small" data-exp="dgm-svg">Εικόνα SVG</button><a class="btn small ghost" href="' + HEXIS.checkPage + '" target="_blank" rel="noopener" style="margin-left:auto">Check My DXF ↗</a></div>';
     h += hashRow();
-    h += '<details><summary>Τι κάνω μετά — υποβολή ΔΓΜ εγγραπτέας πράξης</summary><ol><li>Υποβολή του <b>τοπογραφικού</b> (ΚΗΔ) και του <b>ΔΓΜ</b> από εδώ («DXF Κτηματολογίου» + «PDF πινακίδας») στην Ηλεκτρονική Υποβολή Διαγραμμάτων (ktimatologio.gr → Ηλεκτρονικές Υπηρεσίες → Μηχανικοί) → ΚΗΔ του ΔΓΜ.</li><li>Ο συμβολαιογράφος αναγράφει τα ΚΗΔ στην πράξη (' + esc(OP.label.toLowerCase()) + ') και η πράξη υποβάλλεται για καταχώριση (άρθ. 14 ν.2664/98) με το ΔΓΜ.</li><li>Αν το μετρημένο όριο αποκλίνει από το ΚΑΕΚ πέρα από την αποδεκτή απόκλιση, προηγείται <b>ΔΓΜ διόρθωσης</b> (επίλεξε «Διόρθωση γεωμετρικών στοιχείων» παραπάνω).</li></ol></details>';
+    h += '<details class="after"><summary>Τι κάνω μετά — υποβολή ΔΓΜ εγγραπτέας πράξης</summary><ol><li>Υποβολή του <b>τοπογραφικού</b> (ΚΗΔ) και του <b>ΔΓΜ</b> από εδώ («DXF Κτηματολογίου» + «PDF πινακίδας») στην Ηλεκτρονική Υποβολή Διαγραμμάτων (ktimatologio.gr → Ηλεκτρονικές Υπηρεσίες → Μηχανικοί) → ΚΗΔ του ΔΓΜ.</li><li>Ο συμβολαιογράφος αναγράφει τα ΚΗΔ στην πράξη (' + esc(OP.label.toLowerCase()) + ') και η πράξη υποβάλλεται για καταχώριση (άρθ. 14 ν.2664/98) με το ΔΓΜ.</li><li>Αν το μετρημένο όριο αποκλίνει από το ΚΑΕΚ πέρα από την αποδεκτή απόκλιση, προηγείται <b>ΔΓΜ διόρθωσης</b> (επίλεξε «Διόρθωση γεωμετρικών στοιχείων» παραπάνω).</li></ol></details>';
+    h += '</div><div id="dgmStepNav" class="step-nav">' + dgmStepNav() + '</div>';
     return h + '</section>';
   }
   function praxisDescription(d) {
@@ -6953,6 +6957,16 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     return c.length ? ' ' + c.join(' ') : '';
   }
   function dgmUsed(d) { return (d && d.parcels) || dgmParcels(); }
+  // ΔΓΜ σε βήματα, όπως το τοπογραφικό: καρτέλες 1…N, «Βήμα x από N» με Προηγούμενο / Επόμενο
+  function dgmTabs(list) { var cur = S.dgmSub; if (!list.some(function (x) { return x[0] === cur; })) cur = list[0][0]; S.dgmSub = cur; S.dgmSteps = list; return '<div class="ltabs sub steps" role="tablist">' + list.map(function (s2, i) { return '<button role="tab" data-act="dgm-sub" data-sec="' + s2[0] + '" aria-selected="' + (cur === s2[0]) + '"><span class="stn">' + (i + 1) + '</span>' + s2[1] + '</button>'; }).join('') + '</div>'; }
+  function dgmSo(k) { return '<div class="tsec' + (S.dgmSub === k ? ' on' : '') + '" data-sec="' + k + '">'; }
+  function dgmStepNav() {
+    var L = S.dgmSteps || [], i = Math.max(0, L.map(function (x) { return x[0]; }).indexOf(S.dgmSub)); if (!L.length) return '';
+    return (i > 0 ? '<button class="btn small" data-act="dgm-sub" data-sec="' + L[i - 1][0] + '">← Βήμα ' + i + '</button>' : '<span></span>')
+      + '<span class="step-of">Βήμα <b>' + (i + 1) + '</b> από ' + L.length + ' · ' + esc(L[i][1]) + '</span>'
+      + (i + 1 < L.length ? '<button class="btn small primary" data-act="dgm-sub" data-sec="' + L[i + 1][0] + '">Επόμενο: ' + esc(L[i + 1][1]) + ' →</button>' : '<button class="btn small primary" data-act="dgm-editor">👁 Δες το φύλλο</button>');
+  }
+  var DGM_STEPS_TAIL = [['stoixeia', 'Στοιχεία & μηχανικός'], ['pinakida', 'Πινακίδα & σφραγίδα'], ['ektyposi', 'Εκτύπωση']];
   function renderDgmPanel() {
     var d = S.dgm; if (!d) return '';
     var h = '<section class="panel summary" id="dgmPanel"><div class="file-row"><span class="fname">Διάγραμμα Γεωμετρικών Μεταβολών</span><span class="chip">μετρημένο όριο έναντι ΚΑΕΚ</span></div>';
@@ -6960,6 +6974,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     if (d.status === 'error') return h + '<p style="margin:0;color:var(--err)">' + esc(d.error) + '</p></section>';
     if (d.praxis) return renderPraxisPanel(d);
     var parcels = dgmParcels();
+    h += dgmTabs([['synopsi', 'Σύνοψη'], ['idiok', 'Ιδιοκτήτες & μεταβολές'], ['tmimata', 'Τμήματα']].concat(DGM_STEPS_TAIL)) + dgmSo('synopsi');
     h += '<div class="dgm-ctl">' + praxisSelect() + '<label>Δικό μας γεωτεμάχιο<select id="dgmOwn">' + parcels.map(function (p) { return '<option value="' + esc(p.kaek) + '"' + (p.kaek === d.own ? ' selected' : '') + '>ΚΑΕΚ ' + esc(p.kaek) + ' · ' + fmt(p.area, 0) + ' m²</option>'; }).join('') + '</select></label>';
     h += '<label>Ελάχιστο τμήμα (m²)<input id="dgmMin" inputmode="decimal" value="' + d.minArea + '" style="width:90px"></label>';
     h += '<label title="Κορυφές του μετρημένου ορίου που απέχουν έως τόσο από όριο ΚΑΕΚ κουμπώνουν πάνω του, ώστε να μη γεννιούνται σχισμές με πλήθος σημείων">Ταύτιση με ΚΑΕΚ έως (m)<input id="dgmSnap" inputmode="decimal" value="' + d.snapTol + '" style="width:80px"></label>';
@@ -6983,6 +6998,8 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       remA.forEach(function (x) { var on = !!(S.dgmAbsorb || {})[x.key]; h += '<label style="flex-basis:100%"><input type="checkbox" class="remAbsorb" data-key="' + esc(x.key) + '"' + (on ? ' checked' : '') + '> ' + esc((on ? '' : x.id + ' · ') + 'ΚΑΕΚ ' + x.kaek + ' — ' + fmt(x.area, 2) + ' m²') + ' · <b>προσάρτηση ως Δ</b></label>'; });
       h += '</div>';
     }
+    h += '<img class="dgm-svg" alt="Διάγραμμα γεωμετρικών μεταβολών" src="data:image/svg+xml;charset=utf-8,' + encodeURIComponent(d.svg) + '">';
+    h += '</div>' + dgmSo('idiok');
     // σύνοψη ανά ΚΑΕΚ
     h += '<p style="margin:0;color:var(--muted);font-size:12px">Στους πίνακες και στο DXF μπαίνουν μόνο τα εμπλεκόμενα γεωτεμάχια: το δικό μας και όσα ανταλλάσσουν επιφάνεια με το μετρημένο όριο (' + d.parcels.length + ' από ' + parcels.length + ' της περιοχής).</p>';
     h += '<div class="tbl-wrap"><table class="dgm-tbl"><thead><tr><th>ΚΑΕΚ</th><th>Ιδιοκτήτης <small style="font-weight:400;color:var(--muted)">(προαιρετικό)</small></th><th class="num">Αρχικό (m²)</th><th class="num">Αφαιρείται</th><th class="num">Προστίθεται</th><th class="num">Τελικό (m²)</th><th class="num">Μεταβολή</th></tr></thead><tbody>';
@@ -6993,6 +7010,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     if (!d.transfers.length) h += '<tr><td colspan="4" style="color:var(--muted)">Καμία μεταβολή: το μετρημένο όριο συμπίπτει με το γεωτεμάχιο (εντός του ελάχιστου τμήματος).</td></tr>';
     d.transfers.forEach(function (x) { h += '<tr><td>' + esc(kaekName(x.from)) + '</td><td>' + esc(kaekName(x.to)) + '</td><td class="num">' + fmt(x.area, 2) + '</td><td>' + esc(x.pieces.join(', ')) + '</td></tr>'; });
     h += '</tbody></table></div>';
+    h += '</div>' + dgmSo('tmimata');
     // τμήματα με πίνακες συντεταγμένων
     var kinds = { common: 'Κοινό τμήμα', cut: 'Από όμορο ΚΑΕΚ (AREA_D)', given: 'Από το αρχικό ΚΑΕΚ (AREA_A)', gap: 'Εκτός ΚΑΕΚ' };
     var Uo = zoneUo(), nSk = (d.skipped || []).length, nAll = (d.allPieces || d.pieces).filter(function (x) { return x.kind !== 'common'; }).length;
@@ -7020,10 +7038,11 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       var flow = x.kind === 'given' ? ('<span style="color:var(--muted)">' + esc(kaekName(x.from)) + ' →</span>' + assignSel(x)) : x.kind === 'cut' ? (assignSel(x) + '<span style="color:var(--muted)">→ ' + esc(kaekName(x.to)) + '</span>') : (assignSel(x) + '<span style="color:var(--muted)">→ ' + esc(kaekName(x.to)) + '</span>');
       return '<details class="piece"' + (x.applied ? '' : ' style="opacity:.6"') + '><summary><span class="tag ' + x.kind + '">' + esc(x.id) + '</span><b>' + kinds[x.kind] + '</b>' + flow + devTxt + tog + '<span style="margin-left:auto" class="mono">' + fmt(x.area, 2) + ' m²</span></summary><div class="tbl-wrap"><table class="coords"><thead><tr><th>#</th><th>Κορυφή</th><th class="num">X</th><th class="num">Y</th></tr></thead><tbody>' + rows + '</tbody></table></div></details>';
     }).join('') + '</div>';
-    h += '<img class="dgm-svg" alt="Διάγραμμα γεωμετρικών μεταβολών" src="data:image/svg+xml;charset=utf-8,' + encodeURIComponent(d.svg) + '">';
+    h += '</div>';
     h += renderSheetPanel(d);
     h += '<div class="file-row"><button class="btn primary small" data-exp="dgm-dxf">DXF Κτηματολογίου (ΠΙΝΑΚΑΣ Α)</button><button class="btn small" data-exp="dgm-xlsx">Excel πινάκων</button><button class="btn small" data-exp="dgm-pdf">Αναφορά PDF</button><button class="btn small" data-exp="dgm-txt-all">TXT όλα (ΚΑΕΚ + τμήματα)</button><button class="btn small" data-exp="dgm-txt">TXT ανά τμήμα</button><button class="btn small" data-exp="dgm-svg">Εικόνα SVG</button><a class="btn small ghost" href="' + HEXIS.checkPage + '" target="_blank" rel="noopener" style="margin-left:auto">Check My DXF ↗</a></div>';
     h += hashRow();
+    h += '</div><div id="dgmStepNav" class="step-nav">' + dgmStepNav() + '</div>';
     return h + '</section>';
   }
   function hashRow() { return '<div class="file-row"><button class="btn small" data-exp="dgm-dxf-pack">DXF + PDF hash (πακέτο υποβολής)</button><button class="btn small" data-act="hash-any">PDF hash για δικό σου DXF…</button><span style="color:var(--muted);font-size:12px">Η πλατφόρμα ζητά ZIP με το DXF και ένα ψηφιακά υπογεγραμμένο PDF που περιέχει το hash (SHA-512) του DXF. Αν ανοίξεις/αποθηκεύσεις το DXF στο CAD, ξαναϋπολόγισε το hash από το τελικό αρχείο.</span></div>'; }
@@ -7037,46 +7056,49 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
   // η πινακίδα του χρήστη (ίδια με του τοπογραφικού) και στο ΔΓΜ — εκτός αν ο χρήστης διάλεξε την πινακίδα του Κτηματολογίου
   function dgmTemplate() { var v = dgmTplSel(); if (v === 'kt') return null; if (v === 'topo') return topoTemplate(); var t = tplById(v); return t ? tplParsed(t) : topoTemplate(); }
   function renderSheetPanel(d) {
+    // Απλή σελίδα σε 4 βήματα: 1 στοιχεία · 2 πινακίδα & σφραγίδα · 3 χαρτί · 4 δες & κατέβασε. Ό,τι σπάνιο → «Περισσότερα».
     var rec = d.rec, best = rec.best, parcels = dgmUsed(d);
     var lay = sheetLayout(d, parcels);
     S.sheetLayout = lay;
     var ex = rec.extent.box, w = ex[2] - ex[0], hh = ex[3] - ex[1];
     var Kf = scaleFactorK(dgmMeasured(d));
-    var h = '<div class="panel" style="padding:14px;display:grid;gap:10px;background:var(--surface-2)"><div class="file-row"><b>Εκτύπωση</b><span class="chip">έκταση σχεδίου ' + fixed(w, 0) + ' × ' + fixed(hh, 0) + ' m</span>' + (Kf != null ? '<span class="chip" title="Συντελεστής κλίμακας γραμμικής παραμόρφωσης — αυτόματος υπολογισμός από το κέντρο του μετρημένου ορίου (τύπος Κτηματολογίου)">Κ = ' + fmt(Kf, 6) + '</span>' : '');
-    var isAuto = S.sheetAuto !== false, onBest = best.single && S.sheetPaper === best.paper && S.sheetScale === best.scale;
-    h += best.single ? '<span class="chip ok" title="Το ΜΙΚΡΟΤΕΡΟ χαρτί (Α3 → Α0) όπου χωρούν ευανάγνωστα, σε ΕΝΑ φύλλο: τα πολύγωνα, τα περιγράμματα DGM_PROP_FINAL του οικοπέδου και των εμπλεκόμενων όμορων, και οι πίνακες — για οικονομία χαρτιού.">Προτεινόμενο χαρτί: <b>' + best.paper + '</b> · κλίμακα <b>1:' + best.scale + '</b></span>' : '<span class="chip warn">Ακόμη και σε Α0 / 1:1000 δεν χωρούν όλα σε ένα φύλλο — θα χρειαστεί δεύτερο φύλλο για πίνακες</span>';
-    if (best.single && !onBest) h += '<span class="chip warn">έχεις επιλέξει χειροκίνητα ' + esc(S.sheetPaper) + ' · 1:' + S.sheetScale + '</span>';
-    h += '</div><div class="dgm-ctl"><label>Κλίμακα<select id="sheetScale">' + DgmSheet.SCALES.map(function (sc) { var any = rec.options.filter(function (o) { return o.scale === sc && o.fits; })[0]; return '<option value="' + sc + '"' + (sc === S.sheetScale ? ' selected' : '') + '>1:' + sc + (sc === best.scale ? ' ✓ πρόταση' : any ? ' (χωράει από ' + any.paper + ')' : ' (δεν χωράει σε Α0)') + '</option>'; }).join('') + '</select></label>';
-    h += '<label>Χαρτί<select id="sheetPaper">' + DgmSheet.PAPERS.filter(function (P) { return ['A3', 'A2', 'A1', 'A0'].indexOf(P.id) >= 0; }).map(function (P) { var o = rec.options.filter(function (x) { return x.scale === S.sheetScale && x.paper === P.id; })[0]; return '<option value="' + P.id + '"' + (P.id === S.sheetPaper ? ' selected' : '') + '>' + P.id + ' ' + P.w + '×' + P.h + ' mm' + (P.id === best.paper ? ' ✓ πρόταση' : o && o.fits ? ' ✓' : ' ✕') + '</option>'; }).join('') + '</select></label>';
-    h += '<span class="chip' + (lay.fits && lay.sheets.length === 1 ? ' ok' : ' warn') + '">' + (lay.fits ? 'Το σχέδιο χωράει' : 'Το σχέδιο κόβεται στα όρια') + ' · ' + (lay.sheets.length === 1 ? 'ένα φύλλο' : lay.sheets.length + ' φύλλα') + '</span>';
-    if (!isAuto) h += '<button class="btn small" data-act="sheet-auto" title="Επιστροφή στο προτεινόμενο χαρτί/κλίμακα για οικονομία">↺ Αυτόματη πρόταση</button>';
-    h += '<button class="btn small" data-act="sheet-info">Στοιχεία πινακίδας</button></div>';
-    // στοιχεία μηχανικού: ίδια με του τοπογραφικού, μένουν για όλες τις εργασίες
-    var eg = topoEngDefaults(), ri = repInfo(), ei = function (k, label, ph, w, v) { return '<label style="flex:1 1 ' + w + 'px;min-width:0">' + label + '<input class="dgmEng" data-f="' + k + '" value="' + esc(v || '') + '" placeholder="' + esc(ph) + '" style="width:100%;box-sizing:border-box"></label>'; };
-    h += '<details open class="piece"><summary><b>Μηχανικός</b><span style="color:var(--muted)">μπαίνουν στην πινακίδα · μένουν για όλες τις εργασίες (και στο τοπογραφικό)</span></summary><div class="dgm-ctl" style="margin-top:6px;flex-wrap:wrap">' + ei('mix', 'Μηχανικός', 'ΕΠΩΝΥΜΟ ΟΝΟΜΑ', 200, eg.mix) + ei('eid', 'Ειδικότητα', 'π.χ. Πολιτικός Μηχανικός', 180, eg.eid) + ei('tee', 'Α.Μ. ΤΕΕ', '', 90, eg.tee) + ei('office', 'Τεχνικό γραφείο', 'όνομα γραφείου', 200, ri.office) + '</div></details>';
-    // στοιχεία ιδιοκτήτη / εργασίας (της εργασίας) και ιδιοκτήτες ανά ΚΑΕΚ
-    var di = function (k, label, ph, w, v) { return '<label style="flex:1 1 ' + w + 'px;min-width:0">' + label + '<input class="dgmInfo" data-f="' + k + '" value="' + esc(v || '') + '" placeholder="' + esc(ph) + '" style="width:100%;box-sizing:border-box"></label>'; };
-    var siI = sheetInfo();
-    h += '<details open class="piece"><summary><b>Ιδιοκτήτης & έργο</b><span style="color:var(--muted)">μπαίνουν στην πινακίδα · μόνο για αυτή την εργασία</span></summary><div class="dgm-ctl" style="margin-top:6px;flex-wrap:wrap">' + di('client', 'Ιδιοκτήτης / Εργοδότης', 'ΕΠΩΝΥΜΟ ΟΝΟΜΑ', 220, ri.client) + di('project', 'Έργο', 'π.χ. ΔΙΑΓΡΑΜΜΑ ΓΕΩΜΕΤΡΙΚΩΝ ΜΕΤΑΒΟΛΩΝ', 220, ri.project) + di('place', 'Θέση', 'π.χ. Θέση «…», Τ.Κ. …, Δήμος …', 220, ri.place || siI.place) + di('drawingNo', 'Αρ. σχεδίου', 'Α1', 70, ri.drawingNo) + di('date', 'Ημερομηνία', siI.date, 120, ri.date) + '</div>';
+    var STEP = function (n, t, sub) { return '<div style="display:flex;align-items:center;gap:10px;margin-top:4px">' + (n ? '<span style="flex:0 0 30px;height:30px;border-radius:50%;background:#1e3a8a;color:#fff;font-weight:800;display:grid;place-items:center;font-size:16px">' + n + '</span>' : '') + '<div><div style="font-size:17px;font-weight:800">' + t + '</div>' + (sub ? '<div style="color:var(--muted);font-size:13px">' + sub + '</div>' : '') + '</div></div>'; };
+    var F = function (cls, k, label, ph, wd, v, extra) { return '<label style="flex:1 1 ' + wd + 'px;min-width:0;font-size:14px">' + label + '<input class="' + cls + '" data-f="' + k + '" value="' + esc(v || '') + '" placeholder="' + esc(ph) + '" style="width:100%;box-sizing:border-box;font-size:16px"' + (extra || '') + '></label>'; };
+    var eg = topoEngDefaults(), ri = repInfo(), siI = sheetInfo();
+    var h = dgmSo('stoixeia');
+    // ---- στοιχεία ----
+    h += STEP('', 'Γράψε τα στοιχεία', 'Μπαίνουν μόνα τους στην πινακίδα');
+    h += '<div class="dgm-ctl" style="flex-wrap:wrap">' + F('dgmInfo', 'client', 'Ιδιοκτήτης', 'ΕΠΩΝΥΜΟ ΟΝΟΜΑ', 220, ri.client) + F('dgmInfo', 'project', 'Έργο', 'όνομα έργου', 220, ri.project) + F('dgmInfo', 'place', 'Θέση', 'π.χ. Θέση «…», Τ.Κ. …, Δήμος …', 220, ri.place || siI.place) + F('dgmInfo', 'date', 'Ημερομηνία', siI.date, 140, ri.date) + '</div>';
     var ownP = (d.summary || []).map(function (x) { return x.kaek; }).filter(function (k) { return k && !isPublicKaek(k); });
-    if (ownP.length) h += '<div style="font-size:13px;color:var(--muted);margin-top:6px">Ιδιοκτήτες ανά ΚΑΕΚ (γράφονται στο σχέδιο)</div><div class="dgm-ctl" style="flex-wrap:wrap">' + ownP.map(function (k) { return '<label style="flex:1 1 220px;min-width:0">ΚΑΕΚ ' + esc(k) + '<input class="owner" data-kaek="' + esc(k) + '" value="' + esc((S.owners || {})[k] || '') + '" placeholder="' + esc(k === d.own ? (ri.client || 'ΕΠΩΝΥΜΟ ΟΝΟΜΑ') : 'ΕΠΩΝΥΜΟ ΟΝΟΜΑ') + '" style="width:100%;box-sizing:border-box"></label>'; }).join('') + '</div>';
-    h += '</details>';
-    // σφραγίδα μηχανικού: μπαίνει κατευθείαν στη θέση «Σφραγίδα Μελετητή» της πινακίδας
-    var stI = (S.sheetEdits && S.sheetEdits.img) || [];
-    h += '<div class="file-row" style="flex-wrap:wrap;gap:6px"><label class="btn small" style="cursor:pointer" title="Σκαναρισμένη σφραγίδα/υπογραφή (JPEG/PNG) — το λευκό φόντο γίνεται διάφανο">🖼 ' + (stI.length ? 'Άλλη εικόνα / σφραγίδα' : 'Σφραγίδα μηχανικού (εικόνα)') + '<input type="file" id="dgmStampIn" accept="image/*" hidden></label>' + stI.map(function (im, i) { return '<span class="chip" style="display:inline-flex;align-items:center;gap:4px"><img src="' + im.href + '" alt="" style="height:22px;max-width:60px;object-fit:contain">εικόνα ' + (i + 1) + ' <button class="btn small" data-act="dgm-img-del" data-i="' + i + '" title="Αφαίρεση">✕</button></span>'; }).join('') + '</div>';
-    // ίδια εργαλεία με το τοπογραφικό: διορθώσεις στην οθόνη, σφραγίδα (εικόνα), δική σου πινακίδα
-    var ec = (function (e) { e = e || {}; return Object.keys(e.t || {}).length + Object.keys(e.b || {}).length + (e.add || []).length + (e.img || []).length; })(S.sheetEdits), tplD = topoTemplate(), tplDRaw = tplD ? store('hexis_topo_tpl') : null, ownOn = store('hexis_dgm_owntpl') !== false;
-    h += '<div class="file-row" style="flex-wrap:wrap;gap:6px"><button class="btn primary small" data-act="dgm-editor" title="Δες το φύλλο στην οθόνη: μετακίνησε πίνακες, υπόμνημα, κείμενα, πρόσθεσε δικά σου κείμενα και σφραγίδα (εικόνα)">✎ Προεπισκόπηση & διόρθωση στην οθόνη</button>' + (ec ? '<span class="chip ok">' + ec + (ec === 1 ? ' διόρθωση — περνά' : ' διορθώσεις — περνούν') + ' σε PDF και DXF</span>' : '<span style="color:var(--muted);font-size:12px">σφραγίδα: «🖼 Εικόνα» μέσα στην προεπισκόπηση</span>');
-    var libD = tplLib(), selD = dgmTplSel(), effD = dgmTemplate();
-    h += '</div><div class="dgm-ctl"><label style="flex:1 1 260px;min-width:0">Πινακίδα διαγράμματος<select id="dgmTplSel" style="width:100%"><option value="kt"' + (selD === 'kt' ? ' selected' : '') + '>Κτηματολογίου (προεπιλογή)</option><option value="topo"' + (selD === 'topo' ? ' selected' : '') + '>Ίδια με το τοπογραφικό</option>' + tplOptions(libD, selD) + '</select></label></div><div class="file-row" style="flex-wrap:wrap;gap:6px"><label class="btn small" style="cursor:pointer" title="Πρόσθεσε άλλη πινακίδα (DXF) — μένουν όλες και διαλέγεις κάθε φορά">⤒ Ανέβασε ' + (libD.length ? 'άλλη ' : '') + 'DXF πινακίδας<input type="file" id="dgmTpl" accept=".dxf" hidden></label>' + (selD !== 'kt' && selD !== 'topo' ? '<button class="btn small" data-act="tpl-lib-del" data-id="' + esc(selD) + '" title="Αφαίρεση αυτής της πινακίδας από τη λίστα">✕</button>' : '') + (effD && effD.images ? '<label class="btn small" style="cursor:pointer">' + (effD.logo ? '✓ Λογότυπο — αλλαγή' : '⤒ Λογότυπο πινακίδας (PNG/JPG)') + '<input type="file" id="dgmTplLogo" accept="image/*" hidden></label>' : '');
-    h += '</div>';
-    // Μενού επιλογών: ΟΛΟΙ οι συνδυασμοί που χωρούν σε ένα φύλλο — ο χρήστης διαλέγει κατά προτίμηση (η πρόταση σημειώνεται)
+    if (ownP.length > 1 || (ownP.length === 1 && ownP[0] !== d.own)) h += '<div class="dgm-ctl" style="flex-wrap:wrap">' + ownP.filter(function (k) { return k !== d.own; }).map(function (k) { return '<label style="flex:1 1 220px;min-width:0;font-size:14px">Ιδιοκτήτης όμορου ΚΑΕΚ ' + esc(k) + '<input class="owner" data-kaek="' + esc(k) + '" value="' + esc((S.owners || {})[k] || '') + '" placeholder="ΕΠΩΝΥΜΟ ΟΝΟΜΑ" style="width:100%;box-sizing:border-box;font-size:16px"></label>'; }).join('') + '</div>';
+    h += '<div style="font-size:14px;font-weight:700;margin-top:2px">Εσύ, ο μηχανικός <span style="font-weight:400;color:var(--muted)">— το γράφεις μία φορά, μένει για πάντα</span></div><div class="dgm-ctl" style="flex-wrap:wrap">' + F('dgmEng', 'mix', 'Ονοματεπώνυμο', 'ΕΠΩΝΥΜΟ ΟΝΟΜΑ', 200, eg.mix) + F('dgmEng', 'eid', 'Ειδικότητα', 'π.χ. Πολιτικός Μηχανικός', 180, eg.eid) + F('dgmEng', 'tee', 'Α.Μ. ΤΕΕ', '', 90, eg.tee) + F('dgmEng', 'office', 'Γραφείο', 'όνομα γραφείου (προαιρετικό)', 200, ri.office) + '</div>';
+    // ---- 2. πινακίδα & σφραγίδα ----
+    var libD = tplLib(), selD = dgmTplSel(), effD = dgmTemplate(), stI = (S.sheetEdits && S.sheetEdits.img) || [];
+    h += '</div>' + dgmSo('pinakida');
+    h += STEP('', 'Πινακίδα και σφραγίδα');
+    h += '<div class="dgm-ctl"><label style="flex:1 1 260px;min-width:0;font-size:14px">Ποια πινακίδα;<select id="dgmTplSel" style="width:100%;font-size:16px"><option value="kt"' + (selD === 'kt' ? ' selected' : '') + '>Του Κτηματολογίου</option><option value="topo"' + (selD === 'topo' ? ' selected' : '') + '>Ίδια με το τοπογραφικό</option>' + tplOptions(libD, selD) + '</select></label></div>';
+    h += '<div class="file-row" style="flex-wrap:wrap;gap:8px"><label class="btn" style="cursor:pointer" title="Ανέβασε τη δική σου πινακίδα σε DXF — μένει στη λίστα">＋ Δική μου πινακίδα (DXF)<input type="file" id="dgmTpl" accept=".dxf" hidden></label>' + (selD !== 'kt' && selD !== 'topo' ? '<button class="btn" data-act="tpl-lib-del" data-id="' + esc(selD) + '" title="Βγάλε αυτή την πινακίδα από τη λίστα">✕ Βγάλ’ την</button>' : '') + (effD && effD.images ? '<label class="btn" style="cursor:pointer">' + (effD.logo ? '✓ Λογότυπο — αλλαγή' : '＋ Λογότυπο') + '<input type="file" id="dgmTplLogo" accept="image/*" hidden></label>' : '') + '</div>';
+    h += '<div class="file-row" style="flex-wrap:wrap;gap:8px"><label class="btn" style="cursor:pointer" title="Φωτογραφία ή σκανάρισμα της σφραγίδας σου (JPEG/PNG) — μπαίνει στο κουτί «Σφραγίδα Μελετητή»">＋ ' + (stI.length ? 'Άλλη σφραγίδα' : 'Σφραγίδα (εικόνα)') + '<input type="file" id="dgmStampIn" accept="image/*" hidden></label>' + stI.map(function (im, i) { return '<span class="chip" style="display:inline-flex;align-items:center;gap:6px;font-size:14px"><img src="' + im.href + '" alt="" style="height:28px;max-width:70px;object-fit:contain">σφραγίδα ' + (stI.length > 1 ? i + 1 : '') + ' <button class="btn small" data-act="dgm-img-del" data-i="' + i + '" title="Βγάλε τη σφραγίδα">✕</button></span>'; }).join('') + '</div>';
+    // ---- 3. χαρτί ----
     var pOrder = ['A3', 'A2', 'A1', 'A0'];
     var combos = rec.options.filter(function (o) { return o.single; }).sort(function (a, b) { return pOrder.indexOf(a.paper) - pOrder.indexOf(b.paper) || a.scale - b.scale; });
-    if (combos.length) h += '<div class="file-row" style="flex-wrap:wrap;gap:4px"><span style="color:var(--muted);font-size:12px">Χωρούν όλα σε ένα φύλλο — διάλεξε κατά προτίμηση:</span>' + combos.map(function (o) { var sel = o.paper === S.sheetPaper && o.scale === S.sheetScale, isBest = o.paper === best.paper && o.scale === best.scale; return '<button class="btn small' + (sel ? ' primary' : '') + '" data-act="pick-sheet" data-paper="' + o.paper + '" data-scale="' + o.scale + '" title="' + (isBest ? 'Προτεινόμενο — πιο οικονομικό' : 'Μεγαλύτερο χαρτί/άλλη κλίμακα') + '">' + o.paper + ' · 1:' + o.scale + (isBest ? ' ✓ πρόταση' : '') + '</button>'; }).join('') + '</div>';
-    h += '<p style="margin:0;color:var(--muted);font-size:12px">Στόχος: ένα φύλλο με σχέδιο, πίνακες, υπόμνημα και πινακίδα. Η στήλη πινάκων πλαταίνει και τα γράμματα μικραίνουν όσο χρειάζεται για να χωρέσουν. Το DXF εκτύπωσης έχει την πινακίδα στο model space σε μονάδες ΕΓΣΑ87: τυπώνεις το πλαίσιο σε 1:' + S.sheetScale + '.</p>';
-    h += '<div class="file-row"><button class="btn primary small" data-exp="dgm-print-dxf">DXF εκτύπωσης (σχέδιο + πίνακες + πινακίδα)</button><button class="btn small" data-exp="dgm-print-pdf">PDF πινακίδας ' + S.sheetPaper + '</button><button class="btn small" data-exp="dgm-tables-lsp">LISP: πίνακες ως TABLE</button><button class="btn small" data-exp="dgm-egsa-decl" title="Δήλωση ΕΓΣΑ87 με αυτόματο συντελεστή Κ + αποδοχή μετάπτωσης + αναφορά εφαρμογής">Δήλωση ΕΓΣΑ87 + Κ</button></div><p style="margin:0;color:var(--muted);font-size:12px">Η δήλωση ΕΓΣΑ87 (με αυτόματο συντελεστή Κ) τυπώνεται και κάτω-αριστερά στο σχέδιο. Το DXF εκτύπωσης είναι R2018 και οι πίνακες είναι <b>ενεργοί TABLE</b> του CAD (επεξεργάσιμα κελιά, Arial, κεντραρισμένα), με την ίδια δομή που έχουν τα αρχεία του AutoCAD. Το LISP είναι εφεδρικό: αν κάποιο CAD δεν φορτώσει τους TABLE, APPLOAD και <b>HEXISTABLES</b> τους ξαναφτιάχνει.</p></div>';
-    return h;
+    h += '</div>' + dgmSo('ektyposi');
+    h += STEP('1', 'Χαρτί και κλίμακα', best.single ? 'Σου προτείνουμε το μικρότερο χαρτί που χωράει' : 'Δεν χωρούν όλα σε ένα φύλλο — θα βγει και δεύτερο φύλλο για τους πίνακες');
+    if (combos.length) h += '<div class="file-row" style="flex-wrap:wrap;gap:8px">' + combos.map(function (o) { var sel = o.paper === S.sheetPaper && o.scale === S.sheetScale, isBest = o.paper === best.paper && o.scale === best.scale; return '<button class="btn' + (sel ? ' primary' : '') + '" data-act="pick-sheet" data-paper="' + o.paper + '" data-scale="' + o.scale + '" style="font-size:15px">' + (sel ? '✓ ' : '') + o.paper + ' · 1:' + o.scale + (isBest ? ' (πρόταση)' : '') + '</button>'; }).join('') + '</div>';
+    if (!(lay.fits && lay.sheets.length === 1)) h += '<div class="chip warn" style="font-size:14px">' + (lay.fits ? lay.sheets.length + ' φύλλα' : 'Το σχέδιο κόβεται — διάλεξε μεγαλύτερο χαρτί') + '</div>';
+    // ---- 4. δες & κατέβασε ----
+    var ec = (function (e) { e = e || {}; return Object.keys(e.t || {}).length + Object.keys(e.b || {}).length + (e.add || []).length + (e.img || []).length; })(S.sheetEdits);
+    h += STEP('2', 'Δες και κατέβασε');
+    h += '<div class="file-row" style="flex-wrap:wrap;gap:8px"><button class="btn" data-act="dgm-editor" style="font-size:15px" title="Το φύλλο όπως θα τυπωθεί — μπορείς να μετακινήσεις πίνακες/κείμενα και να γράψεις δικά σου">👁 Δες το φύλλο' + (ec ? ' (' + ec + ' αλλαγές σου)' : '') + '</button><button class="btn primary" data-exp="dgm-print-pdf" style="font-size:15px">⬇ PDF για εκτύπωση</button><button class="btn primary" data-exp="dgm-print-dxf" style="font-size:15px">⬇ DXF για CAD</button></div>';
+    // ---- περισσότερα ----
+    h += '<details class="piece"><summary><b>Περισσότερα</b><span style="color:var(--muted)">κλίμακα με το χέρι, ομάδα μελέτης, LISP, δήλωση ΕΓΣΑ87</span></summary><div style="display:grid;gap:8px;margin-top:8px">';
+    h += '<div class="file-row" style="flex-wrap:wrap"><span class="chip">έκταση σχεδίου ' + fixed(w, 0) + ' × ' + fixed(hh, 0) + ' m</span>' + (Kf != null ? '<span class="chip" title="Συντελεστής κλίμακας γραμμικής παραμόρφωσης — αυτόματος υπολογισμός από το κέντρο του μετρημένου ορίου (τύπος Κτηματολογίου)">Κ = ' + fmt(Kf, 6) + '</span>' : '') + '</div>';
+    h += '<div class="dgm-ctl"><label>Κλίμακα<select id="sheetScale">' + DgmSheet.SCALES.map(function (sc) { var any = rec.options.filter(function (o) { return o.scale === sc && o.fits; })[0]; return '<option value="' + sc + '"' + (sc === S.sheetScale ? ' selected' : '') + '>1:' + sc + (sc === best.scale ? ' ✓ πρόταση' : any ? ' (χωράει από ' + any.paper + ')' : ' (δεν χωράει σε Α0)') + '</option>'; }).join('') + '</select></label>';
+    h += '<label>Χαρτί<select id="sheetPaper">' + DgmSheet.PAPERS.filter(function (P) { return ['A3', 'A2', 'A1', 'A0'].indexOf(P.id) >= 0; }).map(function (P) { var o = rec.options.filter(function (x) { return x.scale === S.sheetScale && x.paper === P.id; })[0]; return '<option value="' + P.id + '"' + (P.id === S.sheetPaper ? ' selected' : '') + '>' + P.id + ' ' + P.w + '×' + P.h + ' mm' + (P.id === best.paper ? ' ✓ πρόταση' : o && o.fits ? ' ✓' : ' ✕') + '</option>'; }).join('') + '</select></label>' + (S.sheetAuto === false ? '<button class="btn small" data-act="sheet-auto">↺ Αυτόματη πρόταση</button>' : '') + '</div>';
+    h += '<div class="file-row" style="flex-wrap:wrap;gap:6px"><button class="btn small" data-act="sheet-info">Όλα τα στοιχεία πινακίδας (ομάδα μελέτης, αρ. σχεδίου)</button><button class="btn small" data-exp="dgm-tables-lsp">LISP: πίνακες ως TABLE</button><button class="btn small" data-exp="dgm-egsa-decl" title="Δήλωση ΕΓΣΑ87 με αυτόματο συντελεστή Κ + αποδοχή μετάπτωσης + αναφορά εφαρμογής">Δήλωση ΕΓΣΑ87 + Κ</button><button class="btn small" data-exp="dgm-sheet-svg">Εικόνα φύλλου (SVG)</button>' + (ownP.indexOf(d.own) >= 0 ? '' : '') + '</div>';
+    h += '<p style="margin:0;color:var(--muted);font-size:12px">Το DXF εκτύπωσης έχει την πινακίδα στο model space σε μονάδες ΕΓΣΑ87: τυπώνεις το πλαίσιο σε 1:' + S.sheetScale + '.</p><p style="margin:0;color:var(--muted);font-size:12px">Η δήλωση ΕΓΣΑ87 (με αυτόματο συντελεστή Κ) τυπώνεται και κάτω-αριστερά στο σχέδιο. Το DXF εκτύπωσης είναι R2018 και οι πίνακες είναι <b>ενεργοί TABLE</b> του CAD (επεξεργάσιμα κελιά, Arial, κεντραρισμένα), με την ίδια δομή που έχουν τα αρχεία του AutoCAD. Το LISP είναι εφεδρικό: αν κάποιο CAD δεν φορτώσει τους TABLE, APPLOAD και <b>HEXISTABLES</b> τους ξαναφτιάχνει.</p>';
+    h += '</div></details>';
+    return h;   // η ενότητα «Εκτύπωση» κλείνει στο renderDgmPanel (μετά τα αρχεία Κτηματολογίου)
   }
   function ownOta() { var k = S.kaek; if (!k || k.status !== 'ok') return ''; var own = ownParcel(k); return (own && own.info && own.info.ota) || (k.region || ''); }
   // «Ομάδα Μελέτης» της πινακίδας: αν δεν γράφτηκε ομάδα, ο μηχανικός με ειδικότητα και Α.Μ. ΤΕΕ
@@ -7714,6 +7736,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     if (act === 'dgm-run') { S.leftTab = 'dgm'; return runDgm(); }
     if (act === 'topo-run') return runTopo();
     if (act === 'sp-go') { var rr2 = S.topo; if (rr2) { topoSplitCompute(rr2); topoRefresh(); toast(TS().err ? TS().err : 'Το τοπογραφικό ενημερώθηκε με τα γεωτεμάχια.'); } return; }
+    if (act === 'dgm-sub') { S.dgmSub = b.dataset.sec; var dn = $('#dgmStepNav'); if (dn) dn.innerHTML = dgmStepNav(); var dp0 = $('#dgmPanel'); if (dp0 && b.closest('#dgmStepNav')) { var ds0 = dp0.querySelector('.ltabs.sub'); if (ds0) ds0.scrollIntoView({ block: 'nearest' }); } $$('#dgmPanel .tsec').forEach(function (e) { e.classList.toggle('on', e.dataset.sec === S.dgmSub); }); $$('#dgmPanel .ltabs.sub button').forEach(function (e) { e.setAttribute('aria-selected', String(e.dataset.sec === S.dgmSub)); }); return; }
     if (act === 'topo-sub') { S.topoSub = b.dataset.sec; var sn = $('#topoStepNav'); if (sn) sn.innerHTML = topoStepNav(); var tp0 = $('#topoPanel'); if (tp0 && b.closest('#topoStepNav')) { var st0 = tp0.querySelector('.ltabs.sub'); if (st0) st0.scrollIntoView({ block: 'nearest' }); } $$('#topoPanel .tsec').forEach(function (e) { e.classList.toggle('on', e.dataset.sec === S.topoSub); }); $$('#topoPanel .ltabs.sub button').forEach(function (e) { e.setAttribute('aria-selected', String(e.dataset.sec === S.topoSub)); }); return; }
     if (act === 'left-tab') { S.leftTab = b.dataset.tab; renderAll(); var Lp = $('#left'); if (Lp) Lp.scrollTop = 0; return; }
     if (act === 'topo-auto') { S.topoAuto = true; topoRefresh(); return; }
