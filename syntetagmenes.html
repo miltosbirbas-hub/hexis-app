@@ -6492,7 +6492,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
   }
   function teImg(sel) { if (!sel || !sel.b || !/^UI\|/.test(sel.b)) return null; var id = sel.b.slice(3); return (teE().img || []).filter(function (a) { return a.id === id; })[0] || null; }
   function teImgW(a, wmm) {   // νέο πλάτος (mm χαρτιού), σταθερή η κάτω-αριστερή γωνία
-    tePush(); a.wmm = Math.max(5, Math.min(400, Math.round(wmm * 10) / 10)); teRender(false); TE.status.textContent = '🖼 Πλάτος εικόνας ' + a.wmm + ' mm (ύψος ' + (Math.round(a.wmm * a.hpx / a.wpx * 10) / 10) + ' mm) — σύρε τη γωνία ή A+ / A−';
+    tePush(); a.wmm = Math.max(5, Math.min(400, Math.round(wmm * 10) / 10)); a.userSized = true; teRender(false); TE.status.textContent = '🖼 Πλάτος εικόνας ' + a.wmm + ' mm (ύψος ' + (Math.round(a.wmm * a.hpx / a.wpx * 10) / 10) + ' mm) — σύρε τη γωνία ή A+ / A−';
   }
   function teSize(f) {
     var im = teImg(TE.sel); if (im) { teImgW(im, (im.wmm || 40) * f); return; }
@@ -7101,9 +7101,17 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     var cfg = (o && o.cfg) || { panelFrac: 0.55, textScale: 0.85 };
     var K = scaleFactorK(dgmMeasured(d));
     var lay = DgmSheet.build(d, parcels, { template: dgmTemplate(), scale: S.sheetScale, paper: S.sheetPaper, panelFrac: cfg.panelFrac, textScale: cfg.textScale, extentMode: cfg.extentMode, info: sheetInfo(), plotTitle: d.plotTitle, kaekName: kaekName, boundLayer: boundLayer(), labels: d.labels, ownerOf: function (k) { return ownerOf(k, k === d.own); }, declaration: egsaDeclText(K).split('\n'), scaleK: K });
+    ((S.sheetEdits || {}).img || []).forEach(function (a) { if (a.anchor === 'stamp') stampFit(lay, a); });
     return TopoSheet.applyEdits(lay, S.sheetEdits || {});   // διορθώσεις στην οθόνη (μετακινήσεις, κείμενα, σφραγίδα) — ίδιες σε προεπισκόπηση, PDF, DXF
   }
   // η πινακίδα του χρήστη (ίδια με του τοπογραφικού) και στο ΔΓΜ — εκτός αν ο χρήστης διάλεξε την πινακίδα του Κτηματολογίου
+  // σφραγίδα (εικόνα) στο κέντρο του κουτιού «Σφραγίδα» της πινακίδας — όσο μεγάλη χωράει (έως 45 mm), εκτός αν ο χρήστης άλλαξε μέγεθος
+  function stampFit(lay, a) {
+    var mmK = lay.mm, bx = lay.stampBox || (lay.tb ? { x: lay.tb.x, y: lay.tb.y, w: lay.tb.w * 0.5, h: Math.min(lay.tb.h, 45 * mmK) } : null);
+    if (!bx) { var sh0 = lay.sheets[0]; bx = { x: sh0.x + sh0.w - 70 * mmK, y: sh0.y + 10 * mmK, w: 50 * mmK, h: 40 * mmK }; }
+    var ar = a.hpx / a.wpx; if (!a.userSized) a.wmm = Math.max(10, Math.min(45, bx.w / mmK - 6, (bx.h / mmK - 4) / ar));
+    var hmm = a.wmm * ar; a.x = bx.x + bx.w / 2 - a.wmm * mmK / 2; a.y = bx.y + bx.h / 2 - hmm * mmK / 2;
+  }
   function dgmTemplate() { var v = dgmTplSel(); if (v === 'kt') return null; if (v === 'topo') return topoTemplate(); var t = tplById(v); return t ? (t.preset ? tplPreset(t.preset) : tplParsed(t)) : topoTemplate(); }
   function renderSheetPanel(d) {
     // Απλή σελίδα σε 4 βήματα: 1 στοιχεία · 2 πινακίδα & σφραγίδα · 3 χαρτί · 4 δες & κατέβασε. Ό,τι σπάνιο → «Περισσότερα».
@@ -7740,11 +7748,9 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     if (ev.target.id === 'dgmStampIn') {
       var sf = ev.target.files && ev.target.files[0]; ev.target.value = ''; if (!sf || !S.dgm || S.dgm.status !== 'ok') return;
       imgPrep(sf, function (r) {
-        var lay = sheetLayout(S.dgm, dgmUsed(S.dgm)), mmK = lay.mm, bx = lay.stampBox || (lay.tb ? { x: lay.tb.x, y: lay.tb.y, w: lay.tb.w * 0.5, h: Math.min(lay.tb.h, 45 * mmK) } : null);
-        if (!bx) { var sh0 = lay.sheets[0]; bx = { x: sh0.x + sh0.w - 70 * mmK, y: sh0.y + 10 * mmK, w: 50 * mmK, h: 40 * mmK }; }
-        var ar = r.hpx / r.wpx, wmm = Math.min(45, bx.w / mmK - 6, (bx.h / mmK - 4) / ar), hmm = wmm * ar;
         S.sheetEdits = S.sheetEdits || { t: {}, b: {}, add: [], img: [] }; S.sheetEdits.img = S.sheetEdits.img || [];
-        S.sheetEdits.img.push({ id: (Date.now() + Math.floor(Math.random() * 1000)).toString(36), x: bx.x + bx.w / 2 - wmm * mmK / 2, y: bx.y + bx.h / 2 - hmm * mmK / 2, wmm: wmm, href: r.href, wpx: r.wpx, hpx: r.hpx });
+        // «anchor: stamp» = μένει πάντα στο κουτί σφραγίδας της πινακίδας, ακόμη κι αν αλλάξεις πινακίδα ή χαρτί
+        S.sheetEdits.img.push({ id: (Date.now() + Math.floor(Math.random() * 1000)).toString(36), anchor: 'stamp', x: 0, y: 0, wmm: 40, href: r.href, wpx: r.wpx, hpx: r.hpx });
         renderAll(); toast('Η σφραγίδα μπήκε στη θέση «Σφραγίδα Μελετητή». Για μετακίνηση/μέγεθος: ✎ Προεπισκόπηση & διόρθωση στην οθόνη.');
       });
       return;
