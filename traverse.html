@@ -436,7 +436,9 @@ function model(){var u=navigator.userAgent,os=/Android/.test(u)?'Android':/iPhon
  var br=/Edg\//.test(u)?'Edge':/Chrome\//.test(u)?'Chrome':/Firefox\//.test(u)?'Firefox':/Safari\//.test(u)?'Safari':'browser';var mob=/Mobi|Android|iPhone/.test(u)?' κινητό/τάμπλετ':'';return os+mob+' · '+br}
 function dkind(){var u=navigator.userAgent;if(/Android|iPhone|iPad|iPod|Mobi/.test(u))return 'mobile';if(/Macintosh/.test(u)&&navigator.maxTouchPoints>1)return 'mobile';return 'pc'}
 function lic(){try{return JSON.parse(ls(LK)||'null')}catch(e){return null}}
-function valid(l){return l&&(l.owner||!l.expires_at||new Date(l.expires_at)>new Date())}
+var GRACE=30*864e5;
+function fresh(l){return !!(l&&l.checked&&(Date.now()-l.checked)<GRACE)}
+function valid(l){if(!l)return false;if(l.expires_at&&new Date(l.expires_at)<=new Date())return false;if(navigator.onLine)return !!(l.owner||l.key);return fresh(l)}
 function fmt(d){return new Date(d).toLocaleDateString('el-GR')}
 function show(msg,warn){G.hidden=false;M.textContent=msg||M.textContent;M.className='msg'+(warn?' warn':'');var l=lic();if(l&&l.key)I.value=l.key;if(l&&l.email)E.value=l.email;setTimeout(function(){try{I.focus()}catch(e){}},50)}
 function hide(){G.hidden=true;badge()}
@@ -459,7 +461,8 @@ B.onclick=function(){var k=norm(I.value);I.value=k;if(!/^TRV-[A-Z0-9]{4}-[A-Z0-9
 function ownerTok(){try{var s=JSON.parse(localStorage.getItem('sb-oucqqudfdimccgowvpqp-auth-token')||'null');return s&&(s.access_token||(s.currentSession&&s.currentSession.access_token))||''}catch(e){return ''}}
 function recheck(){var l=lic(),t=ownerTok();
  if(t){return rpc('trv_owner',{},t).then(function(r){if(r.j&&r.j.ok){save(r.j,true);hide()}else if(!valid(l))show()}).catch(function(){if(!valid(l))show()})}
- if(!l||!l.key){if(l&&l.owner&&valid(l))return;show();return}
+ if(l&&l.owner){ if(navigator.onLine){ls(LK,null);show('Η σύνδεση διαχειριστή έληξε. Μπες ξανά με τον λογαριασμό.',true)} return }
+ if(!l||!l.key){show();return}
  if(!navigator.onLine)return;
  rpc('trv_activate',{p_key:l.key,p_device:dev(),p_model:model(),p_email:l.email||'',p_dkind:dkind()}).then(function(r){var j=r.j||{};
   if(j.ok){save(j);badge();return}
@@ -2441,7 +2444,7 @@ function renderManual(){ $('manual').innerHTML=`
 </ul>
 <h3>Εγκατάσταση και κλειδί άδειας</h3>
 <ul>
-<li><b>Κλειδί:</b> την πρώτη φορά σε κάθε συσκευή γράφεις το κλειδί που σου έστειλε η HEXIS-APP (μορφή TRV-XXXX-XXXX-XXXX) και το email στο οποίο σου ήρθε, και πατάς «Ενεργοποίηση». Ένα κλειδί ανοίγει σε έως 3 συσκευές με το ίδιο email· από αυτές μόνο ένας υπολογιστής, οι άλλες κινητά ή τάμπλετ. Για αλλαγή υπολογιστή ζήτα αποδέσμευση από τη HEXIS-APP. Χρειάζεται ίντερνετ μόνο αυτή τη φορά· μετά η εφαρμογή δουλεύει και χωρίς σήμα στο πεδίο, μέχρι τη λήξη της άδειας. Ο έλεγχος ανανεώνεται μόνος του όταν υπάρχει ίντερνετ.</li>
+<li><b>Κλειδί:</b> την πρώτη φορά σε κάθε συσκευή γράφεις το κλειδί που σου έστειλε η HEXIS-APP (μορφή TRV-XXXX-XXXX-XXXX) και το email στο οποίο σου ήρθε, και πατάς «Ενεργοποίηση». Ένα κλειδί ανοίγει σε έως 3 συσκευές με το ίδιο email· από αυτές μόνο ένας υπολογιστής, οι άλλες κινητά ή τάμπλετ. Για αλλαγή υπολογιστή ζήτα αποδέσμευση από τη HEXIS-APP. Χρειάζεται ίντερνετ μόνο αυτή τη φορά· μετά η εφαρμογή δουλεύει και χωρίς σήμα στο πεδίο, μέχρι τη λήξη της άδειας. Ο έλεγχος ανανεώνεται μόνος του όταν υπάρχει ίντερνετ· γι' αυτό καλό είναι η συσκευή να συνδεθεί στο ίντερνετ τουλάχιστον μία φορά τον μήνα.</li>
 <li><b>Στοιχεία άδειας:</b> το μικρό κουμπί κάτω δεξιά («Άδεια έως …» ή «Δοκιμή έως …») δείχνει κλειδί και λήξη και επιτρέπει αλλαγή κλειδιού.</li>
 <li><b>Κινητό Android:</b> άνοιξε hexis-app.gr/traverse.html στον Chrome → μενού ⋮ → «Εγκατάσταση εφαρμογής» ή «Προσθήκη στην αρχική οθόνη». Ανοίγει με δικό της εικονίδιο, σε πλήρη οθόνη.</li>
 <li><b>iPhone / iPad:</b> άνοιξε τη διεύθυνση στο Safari → κουμπί Κοινοποίηση → «Προσθήκη στην οθόνη Αφετηρίας».</li>
