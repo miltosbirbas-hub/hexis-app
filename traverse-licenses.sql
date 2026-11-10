@@ -1,5 +1,6 @@
 -- HEXIS TRAVERSE · κλειδιά άδειας
--- Ένα κλειδί δουλεύει σε έως max_devices συσκευές (προεπιλογή 2: υπολογιστής + κινητό/τάμπλετ).
+-- Ένα κλειδί δουλεύει σε έως max_devices συσκευές (προεπιλογή 3), μόνο με το email του κλειδιού
+-- και σε έναν υπολογιστή το πολύ (οι υπόλοιπες: κινητά/τάμπλετ).
 -- Η δοκιμή μετράει από την πρώτη ενεργοποίηση. Ο διαχειριστής μπαίνει με τον λογαριασμό του, χωρίς κλειδί.
 -- Ασφαλές να ξανατρέξει. Το τρέχει αυτόματα το GitHub Actions (edge-functions.yml).
 
@@ -29,6 +30,8 @@ create table if not exists public.trv_devices (
   primary key (key, device_id)
 );
 alter table public.trv_devices enable row level security;
+alter table public.trv_devices add column if not exists kind text not null default 'mobile';
+alter table public.trv_licenses alter column max_devices set default 3;
 
 do $$ begin
   if to_regclass('public.hx_products') is not null then
@@ -55,20 +58,31 @@ begin
 end $$;
 
 -- Εφαρμογή: ενεργοποίηση / έλεγχος (χωρίς λογαριασμό)
-create or replace function public.trv_activate(p_key text, p_device text, p_model text default null)
+drop function if exists public.trv_activate(text,text,text);
+create or replace function public.trv_activate(p_key text, p_device text, p_model text default null, p_email text default null, p_dkind text default 'mobile')
 returns json language plpgsql security definer set search_path = public as $$
 declare l public.trv_licenses; n int; k text := upper(regexp_replace(coalesce(p_key,''), '\s', '', 'g'));
+        em text := lower(trim(coalesce(p_email,''))); dk text := case when p_dkind = 'pc' then 'pc' else 'mobile' end;
 begin
   if length(coalesce(p_device,'')) < 6 then return json_build_object('ok',false,'code','device','msg','Δεν αναγνωρίστηκε η συσκευή'); end if;
   select * into l from trv_licenses where key = k for update;
   if not found then return json_build_object('ok',false,'code','invalid','msg','Το κλειδί δεν είναι σωστό. Έλεγξε τα γράμματα και τους αριθμούς.'); end if;
   if l.revoked then return json_build_object('ok',false,'code','revoked','msg','Το κλειδί έχει ανακληθεί. Επικοινώνησε με τη HEXIS-APP.'); end if;
+  if em = '' or position('@' in em) = 0 then return json_build_object('ok',false,'code','email','msg','Γράψε το email στο οποίο σου στάλθηκε το κλειδί.'); end if;
+  if l.email is null then
+    update trv_licenses set email = em where key = k returning * into l;      -- το πρώτο email «δένει» το κλειδί
+  elsif l.email <> em then
+    return json_build_object('ok',false,'code','email','msg','Το email δεν ταιριάζει με αυτό το κλειδί. Γράψε το email στο οποίο σου στάλθηκε.');
+  end if;
   if not exists (select 1 from trv_devices d where d.key = k and d.device_id = p_device) then
+    if dk = 'pc' and exists (select 1 from trv_devices d where d.key = k and d.kind = 'pc') then
+      return json_build_object('ok',false,'code','device','msg','Το κλειδί είναι ήδη ενεργό σε άλλον υπολογιστή (ένας υπολογιστής ανά κλειδί). Ζήτα αποδέσμευση από τη HEXIS-APP.');
+    end if;
     select count(*) into n from trv_devices d where d.key = k;
     if n >= l.max_devices then
       return json_build_object('ok',false,'code','device','msg','Το κλειδί χρησιμοποιείται ήδη σε ' || n || ' συσκευές (όριο ' || l.max_devices || '). Ζήτα αποδέσμευση από τη HEXIS-APP.');
     end if;
-    insert into trv_devices(key, device_id, model) values (k, p_device, left(p_model, 80));
+    insert into trv_devices(key, device_id, model, kind) values (k, p_device, left(p_model, 80), dk);
   else
     update trv_devices set last_at = now(), model = coalesce(left(p_model,80), model) where key = k and device_id = p_device;
   end if;
@@ -81,10 +95,10 @@ begin
   if l.expires_at is not null and l.expires_at <= now() then
     return json_build_object('ok',false,'code','expired','msg','Η άδεια έληξε στις ' || to_char(l.expires_at at time zone 'Europe/Athens','DD/MM/YYYY') || '.','expires_at',l.expires_at);
   end if;
-  return json_build_object('ok',true,'key',l.key,'kind',l.kind,'name',l.name,'expires_at',l.expires_at,'server_time',now());
+  return json_build_object('ok',true,'key',l.key,'kind',l.kind,'name',l.name,'email',l.email,'expires_at',l.expires_at,'server_time',now());
 end $$;
-revoke all on function public.trv_activate(text,text,text) from public;
-grant execute on function public.trv_activate(text,text,text) to anon, authenticated;
+revoke all on function public.trv_activate(text,text,text,text,text) from public;
+grant execute on function public.trv_activate(text,text,text,text,text) to anon, authenticated;
 
 -- Είσοδος διαχειριστή (λογαριασμός HEXIS-APP με δικαίωμα admin): χωρίς κλειδί
 create or replace function public.trv_owner()
@@ -97,7 +111,7 @@ revoke all on function public.trv_owner() from public;
 grant execute on function public.trv_owner() to authenticated;
 
 -- ── Διαχειριστής ───────────────────────────────────────────────────────────
-create or replace function public.admin_trv_issue(p_kind text default 'demo', p_days int default 7, p_name text default null, p_email text default null, p_note text default null, p_max int default 2)
+create or replace function public.admin_trv_issue(p_kind text default 'demo', p_days int default 7, p_name text default null, p_email text default null, p_note text default null, p_max int default 3)
 returns json language plpgsql security definer set search_path = public as $$
 declare k text := public.trv_new_key(); oid uuid;
 begin
@@ -126,7 +140,7 @@ begin
   if not public.is_admin() then raise exception 'forbidden'; end if;
   return coalesce((select json_agg(x order by x.created_at desc) from (
     select l.*, (select count(*) from trv_devices d where d.key = l.key) as devices,
-           (select json_agg(json_build_object('device',d.device_id,'model',d.model,'first',d.first_at,'last',d.last_at) order by d.last_at desc) from trv_devices d where d.key = l.key) as device_list
+           (select json_agg(json_build_object('device',d.device_id,'model',d.model,'kind',d.kind,'first',d.first_at,'last',d.last_at) order by d.last_at desc) from trv_devices d where d.key = l.key) as device_list
     from trv_licenses l) x), '[]'::json);
 end $$;
 

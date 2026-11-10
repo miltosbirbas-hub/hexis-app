@@ -366,36 +366,40 @@ td.num,table.in input,.kpi .v,.fst b,#dCoord,.cmdbar input{font-family:var(--num
   <div class="brand"><img src="traverse-icon-192.png" alt=""><div><b id="trvGateT">HEXIS TRAVERSE</b><small>Επίλυση όδευσης · HEXIS-APP</small></div></div>
   <label for="trvKey">Κλειδί άδειας</label>
   <input id="trvKey" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="TRV-XXXX-XXXX-XXXX" inputmode="text">
+  <label for="trvEm" style="margin-top:12px">Email</label>
+  <input id="trvEm" type="email" autocomplete="email" spellcheck="false" placeholder="π.χ. onoma@gmail.com" style="font:500 18px 'IBM Plex Sans',system-ui,sans-serif;letter-spacing:0;text-transform:none">
   <button class="go" id="trvGo" type="button">Ενεργοποίηση</button>
-  <div class="msg" id="trvMsg">Γράψε το κλειδί που σου έστειλε η HEXIS-APP. Αρκεί μία φορά σε αυτή τη συσκευή· μετά δουλεύει και χωρίς ίντερνετ.</div>
+  <div class="msg" id="trvMsg">Γράψε το κλειδί και το email στο οποίο σου ήρθε. Αρκεί μία φορά σε αυτή τη συσκευή· μετά δουλεύει και χωρίς ίντερνετ.</div>
   <div class="alt">Δεν έχεις κλειδί; Ζήτα δοκιμαστικό στο <a href="mailto:info@hexis-app.gr?subject=HEXIS%20TRAVERSE%20-%20%CE%BA%CE%BB%CE%B5%CE%B9%CE%B4%CE%AF">info@hexis-app.gr</a>.<br>Διαχειριστής; <a href="login.html?next=traverse.html">Σύνδεση με λογαριασμό</a></div>
  </div>
 </div>
 <script>
 (function(){
 var SB='https://oucqqudfdimccgowvpqp.supabase.co',AK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8',LK='hexis_trv_lic',DK='hexis_trv_dev';
-var G=document.getElementById('trvGate'),I=document.getElementById('trvKey'),B=document.getElementById('trvGo'),M=document.getElementById('trvMsg');
+var E=document.getElementById('trvEm'),G=document.getElementById('trvGate'),I=document.getElementById('trvKey'),B=document.getElementById('trvGo'),M=document.getElementById('trvMsg');
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
 function dev(){var d=ls(DK);if(!d){d='d'+Date.now().toString(36)+Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,10);ls(DK,d)}return d}
 function model(){var u=navigator.userAgent,os=/Android/.test(u)?'Android':/iPhone|iPad|iPod/.test(u)?'iOS':/Windows/.test(u)?'Windows':/Mac/.test(u)?'Mac':/Linux/.test(u)?'Linux':'Συσκευή';
  var br=/Edg\//.test(u)?'Edge':/Chrome\//.test(u)?'Chrome':/Firefox\//.test(u)?'Firefox':/Safari\//.test(u)?'Safari':'browser';var mob=/Mobi|Android|iPhone/.test(u)?' κινητό/τάμπλετ':'';return os+mob+' · '+br}
+function dkind(){var u=navigator.userAgent;if(/Android|iPhone|iPad|iPod|Mobi/.test(u))return 'mobile';if(/Macintosh/.test(u)&&navigator.maxTouchPoints>1)return 'mobile';return 'pc'}
 function lic(){try{return JSON.parse(ls(LK)||'null')}catch(e){return null}}
 function valid(l){return l&&(l.owner||!l.expires_at||new Date(l.expires_at)>new Date())}
 function fmt(d){return new Date(d).toLocaleDateString('el-GR')}
-function show(msg,warn){G.hidden=false;M.textContent=msg||M.textContent;M.className='msg'+(warn?' warn':'');var l=lic();if(l&&l.key)I.value=l.key;setTimeout(function(){try{I.focus()}catch(e){}},50)}
+function show(msg,warn){G.hidden=false;M.textContent=msg||M.textContent;M.className='msg'+(warn?' warn':'');var l=lic();if(l&&l.key)I.value=l.key;if(l&&l.email)E.value=l.email;setTimeout(function(){try{I.focus()}catch(e){}},50)}
 function hide(){G.hidden=true;badge()}
 function badge(){var l=lic(),b=document.getElementById('trvLicBtn');if(!l)return;if(!b){b=document.createElement('button');b.id='trvLicBtn';b.type='button';document.body.appendChild(b);b.onclick=info}
  b.textContent=l.owner?'Διαχειριστής':(l.kind==='demo'?'Δοκιμή':'Άδεια')+(l.expires_at?' έως '+fmt(l.expires_at):'');b.title='Στοιχεία άδειας'}
-function info(){var l=lic()||{};var t=l.owner?'Είσαι συνδεδεμένος ως διαχειριστής.':'Κλειδί: '+l.key+'\n'+(l.kind==='demo'?'Δοκιμαστική άδεια':'Άδεια')+(l.expires_at?' έως '+fmt(l.expires_at):' χωρίς λήξη')+'\nΣυσκευή: '+model();
+function info(){var l=lic()||{};var t=l.owner?'Είσαι συνδεδεμένος ως διαχειριστής.':'Κλειδί: '+l.key+'\nEmail: '+(l.email||'')+'\n'+(l.kind==='demo'?'Δοκιμαστική άδεια':'Άδεια')+(l.expires_at?' έως '+fmt(l.expires_at):' χωρίς λήξη')+'\nΣυσκευή: '+model();
  if(confirm(t+'\n\nΘέλεις να βάλεις άλλο κλειδί σε αυτή τη συσκευή;')){ls(LK,null);I.value='';show('Γράψε το νέο κλειδί.')}}
 function rpc(fn,body,tok){return fetch(SB+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:AK,Authorization:'Bearer '+(tok||AK),'Content-Type':'application/json'},body:JSON.stringify(body||{})}).then(function(r){return r.json().then(function(j){return {status:r.status,j:j}})})}
-function save(j,owner){var l={key:owner?'':j.key,kind:owner?'owner':j.kind,name:j.name||'',expires_at:j.expires_at||null,owner:!!owner,checked:Date.now()};ls(LK,JSON.stringify(l));return l}
+function save(j,owner){var l={key:owner?'':j.key,email:owner?'':(j.email||(E.value||'').trim().toLowerCase()||((lic()||{}).email)||''),kind:owner?'owner':j.kind,name:j.name||'',expires_at:j.expires_at||null,owner:!!owner,checked:Date.now()};ls(LK,JSON.stringify(l));return l}
 function norm(v){v=(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');if(v.indexOf('TRV')===0)v=v.slice(3);v=v.slice(0,12);var p=[];for(var i=0;i<v.length;i+=4)p.push(v.slice(i,i+4));return 'TRV'+(p.length?'-'+p.join('-'):'')}
 I.addEventListener('input',function(){var a=I.value;if(a.length<3)return;var n=norm(a);if(n!==a)I.value=n});
-I.addEventListener('keydown',function(e){if(e.key==='Enter')B.click()});
+I.addEventListener('keydown',function(e){if(e.key==='Enter')E.focus()});E.addEventListener('keydown',function(e){if(e.key==='Enter')B.click()});
 B.onclick=function(){var k=norm(I.value);I.value=k;if(!/^TRV-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(k)){show('Το κλειδί έχει τη μορφή TRV- και 12 γράμματα/αριθμούς.',true);return}
+ var em=(E.value||'').trim().toLowerCase();if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){show('Γράψε το email στο οποίο σου ήρθε το κλειδί.',true);E.focus();return}
  B.disabled=true;M.className='msg';M.textContent='Έλεγχος κλειδιού...';
- rpc('trv_activate',{p_key:k,p_device:dev(),p_model:model()}).then(function(r){B.disabled=false;var j=r.j||{};
+ rpc('trv_activate',{p_key:k,p_device:dev(),p_model:model(),p_email:em,p_dkind:dkind()}).then(function(r){B.disabled=false;var j=r.j||{};
   if(j.ok){save(j);hide();return}
   show(j.msg||j.message||'Δεν ενεργοποιήθηκε. Δοκίμασε ξανά σε λίγο.',true)})
  .catch(function(){B.disabled=false;show('Χρειάζεται σύνδεση στο ίντερνετ για την πρώτη ενεργοποίηση. Δοκίμασε ξανά όταν έχεις σήμα.',true)})};
@@ -404,9 +408,9 @@ function recheck(){var l=lic(),t=ownerTok();
  if(t){return rpc('trv_owner',{},t).then(function(r){if(r.j&&r.j.ok){save(r.j,true);hide()}else if(!valid(l))show()}).catch(function(){if(!valid(l))show()})}
  if(!l||!l.key){if(l&&l.owner&&valid(l))return;show();return}
  if(!navigator.onLine)return;
- rpc('trv_activate',{p_key:l.key,p_device:dev(),p_model:model()}).then(function(r){var j=r.j||{};
+ rpc('trv_activate',{p_key:l.key,p_device:dev(),p_model:model(),p_email:l.email||'',p_dkind:dkind()}).then(function(r){var j=r.j||{};
   if(j.ok){save(j);badge();return}
-  if(j.code==='revoked'||j.code==='expired'||j.code==='invalid'||j.code==='device'){ls(LK,JSON.stringify(Object.assign({},l,{expires_at:new Date(0).toISOString()})));show(j.msg,true)}
+  if(j.code==='revoked'||j.code==='expired'||j.code==='invalid'||j.code==='device'||j.code==='email'){ls(LK,JSON.stringify(Object.assign({},l,{expires_at:new Date(0).toISOString()})));show(j.msg,true)}
  }).catch(function(){});
 }
 var l0=lic();
@@ -2384,7 +2388,7 @@ function renderManual(){ $('manual').innerHTML=`
 </ul>
 <h3>Εγκατάσταση και κλειδί άδειας</h3>
 <ul>
-<li><b>Κλειδί:</b> την πρώτη φορά σε κάθε συσκευή γράφεις το κλειδί που σου έστειλε η HEXIS-APP (μορφή TRV-XXXX-XXXX-XXXX) και πατάς «Ενεργοποίηση». Χρειάζεται ίντερνετ μόνο αυτή τη φορά· μετά η εφαρμογή δουλεύει και χωρίς σήμα στο πεδίο, μέχρι τη λήξη της άδειας. Ο έλεγχος ανανεώνεται μόνος του όταν υπάρχει ίντερνετ.</li>
+<li><b>Κλειδί:</b> την πρώτη φορά σε κάθε συσκευή γράφεις το κλειδί που σου έστειλε η HEXIS-APP (μορφή TRV-XXXX-XXXX-XXXX) και το email στο οποίο σου ήρθε, και πατάς «Ενεργοποίηση». Ένα κλειδί ανοίγει σε έως 3 συσκευές με το ίδιο email· από αυτές μόνο ένας υπολογιστής, οι άλλες κινητά ή τάμπλετ. Για αλλαγή υπολογιστή ζήτα αποδέσμευση από τη HEXIS-APP. Χρειάζεται ίντερνετ μόνο αυτή τη φορά· μετά η εφαρμογή δουλεύει και χωρίς σήμα στο πεδίο, μέχρι τη λήξη της άδειας. Ο έλεγχος ανανεώνεται μόνος του όταν υπάρχει ίντερνετ.</li>
 <li><b>Στοιχεία άδειας:</b> το μικρό κουμπί κάτω δεξιά («Άδεια έως …» ή «Δοκιμή έως …») δείχνει κλειδί και λήξη και επιτρέπει αλλαγή κλειδιού.</li>
 <li><b>Κινητό Android:</b> άνοιξε hexis-app.gr/traverse.html στον Chrome → μενού ⋮ → «Εγκατάσταση εφαρμογής» ή «Προσθήκη στην αρχική οθόνη». Ανοίγει με δικό της εικονίδιο, σε πλήρη οθόνη.</li>
 <li><b>iPhone / iPad:</b> άνοιξε τη διεύθυνση στο Safari → κουμπί Κοινοποίηση → «Προσθήκη στην οθόνη Αφετηρίας».</li>
