@@ -206,6 +206,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
     <button data-go="mapping"><span>Mapping · κλειδιά</span><b id="nMap"></b></button>
     <button data-go="pad"><span>PAD · κλειδιά</span><b id="nPad"></b></button>
     <button data-go="geo"><span>GEOmetry Pro · κλειδιά</span><b id="nGeo"></b></button>
+    <button data-go="trv"><span>TRAVERSE · κλειδιά</span><b id="nTrv"></b></button>
     <button data-go="payments"><span>Πληρωμές</span><b id="nPay"></b></button>
     <button data-go="requests"><span>Αιτήματα</span><b id="nReq"></b></button>
     <button data-go="sos" class="sosnav" data-app="interior" title="Αναφορές προβλημάτων από το HEXIS INTERIOR"><span>🆘 SOS Interior</span><b id="nSos"></b></button><button data-go="sosmap" class="sosnav" data-app="mapping" title="Αναφορές προβλημάτων από το HEXIS MAPPING"><span>🆘 SOS Mapping</span><b id="nSosMap"></b></button>
@@ -222,6 +223,20 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
     <div class="ixrow"><span class="hint" style="margin:0;flex:1">Ο πελάτης βάζει το κλειδί στο GEOmetry → καρτέλα «Τοπογραφικό» → «Έχεις κλειδί Pro;». Κάθε κλειδί χρησιμοποιείται από έναν λογαριασμό. Η ανάκληση κλείνει και το Pro του λογαριασμού που το χρησιμοποίησε.</span><button class="btn btn-orange" id="geoNew">Νέα κλειδιά</button></div>
     <div id="geoOut"></div>
     <div class="ixtw scrl" id="geoList" style="max-height:calc(100vh - 470px)"><div class="empty">Φόρτωση...</div></div>
+  </div>
+  <div class="card" id="trvCard" data-sec="trv">
+    <h2>HEXIS TRAVERSE · κλειδιά <span class="count" id="trvCnt">0</span><span style="flex:1"></span><button class="btn" id="trvRef" type="button">↻</button></h2>
+    <div class="ixgrid">
+      <div><label>Όνομα</label><input id="trvName" placeholder="π.χ. Γ. Παπαδόπουλος"></div>
+      <div><label>Email</label><input id="trvEmail" type="email" placeholder="προαιρετικό"></div>
+      <div><label>Τύπος</label><select id="trvKind" style="font-size:15px;padding:9px 11px;border:1px solid var(--border-strong);border-radius:9px;width:100%"><option value="demo" selected>Δοκιμή (ημέρες)</option><option value="full">Πλήρης</option></select></div>
+      <div><label id="trvDaysLab">Ημέρες</label><div style="display:flex;gap:6px;align-items:center"><input id="trvDays" type="number" min="0" max="3650" value="7" style="width:80px!important"><span>ημέρες</span></div><small style="color:var(--muted)">από την ενεργοποίηση · στην πλήρη 0 = χωρίς λήξη</small></div>
+      <div><label>Συσκευές</label><input id="trvMax" type="number" min="1" max="20" value="2" style="width:80px!important"><small style="color:var(--muted)">π.χ. 2 = υπολογιστής + κινητό</small></div>
+      <div><label>Σημείωση</label><input id="trvNote" placeholder="προαιρετικό"></div>
+    </div>
+    <div class="ixrow"><span class="hint" style="margin:0;flex:1">Ο πελάτης γράφει το κλειδί μία φορά στη συσκευή του· μετά δουλεύει και χωρίς ίντερνετ μέχρι τη λήξη. Εσύ μπαίνεις με τον λογαριασμό διαχειριστή, χωρίς κλειδί.</span><button class="btn btn-orange" id="trvNew" type="button">Νέο κλειδί</button></div>
+    <div id="trvOut"></div>
+    <div class="ixtw scrl" id="trvList" style="max-height:calc(100vh - 470px)"><div class="empty">Φόρτωση...</div></div>
   </div>
   <div class="card" id="padCard" data-sec="pad">
     <h2>HEXIS PAD · άδειες & χρήση <span class="count" id="padCnt">0</span><span style="flex:1"></span><span class="hint" id="padNow" style="margin:0;font-size:13px"></span><button class="btn" id="padRef" type="button" style="margin-left:8px">↻</button></h2>
@@ -978,17 +993,48 @@ document.getElementById('geoNew').onclick=async()=>{const n=Math.round(+document
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn btn-orange" id="geoCpK">Αντιγραφή κλειδιών</button><button class="btn" id="geoCpM">Αντιγραφή μηνύματος</button>${em?`<a class="btn" style="text-decoration:none" href="mailto:${encodeURIComponent(em)}?subject=${encodeURIComponent('HEXIS GEOmetry Pro · κλειδί ενεργοποίησης')}&body=${encodeURIComponent(msg)}">Άνοιγμα στο email</a>`:''}</div></div>`;
   o.querySelector('#geoCpK').onclick=()=>{navigator.clipboard.writeText(keys.join('\n'));toast('Αντιγράφηκε')};o.querySelector('#geoCpM').onclick=()=>{navigator.clipboard.writeText(document.getElementById('geoMsg').value);toast('Αντιγράφηκε')};
   ['geoEmail','geoNote'].forEach(i=>document.getElementById(i).value='');geoLoad()};
+// ===== HEXIS TRAVERSE · κλειδιά =====
+async function trvLoad(){const L=document.getElementById('trvList');if(!L)return;
+  const {data,error}=await sb.rpc('admin_trv_list');
+  if(error){L.innerHTML='<div class="empty">'+ixe(error.message)+' · τρέχει αυτόματα το traverse-licenses.sql — περίμενε λίγα λεπτά</div>';return}
+  const R=Array.isArray(data)?data:[];const act=R.filter(r=>r.activated_at&&!r.revoked&&(!r.expires_at||new Date(r.expires_at)>new Date())).length;
+  document.getElementById('trvCnt').textContent=R.length;document.getElementById('nTrv').textContent=act?act:'';
+  const d=v=>v?new Date(v).toLocaleDateString('el-GR'):'—';
+  L.innerHTML=R.length?`<table><tr><th>Κλειδί</th><th>Τύπος</th><th>Για</th><th>Σημείωση</th><th>Ενεργοποίηση</th><th>Λήξη</th><th>Συσκευές</th><th></th></tr>`+
+    R.map(r=>`<tr style="${r.revoked?'opacity:.5':''}"><td class="k">${ixe(r.key)} <button class="btn" data-tcp="${ixe(r.key)}" title="Αντιγραφή" style="padding:2px 7px">⧉</button></td>
+      <td>${r.kind==='demo'?'Δοκιμή '+(r.days||'')+' ημ.':'Πλήρης'+(r.days?' '+r.days+' ημ.':'')}</td><td class="wr">${ixe(r.name||'')}${r.email?'<br><small>'+ixe(r.email)+'</small>':''}</td><td class="wr">${ixe(r.note||'')}</td>
+      <td>${r.activated_at?d(r.activated_at):'<span class="muted">όχι ακόμα</span>'}</td><td>${r.expires_at?d(r.expires_at):(r.activated_at?'χωρίς λήξη':'—')}</td>
+      <td class="wr">${r.devices}/${r.max_devices}${(r.device_list||[]).map(x=>'<br><small>'+ixe((x.model||x.device).slice(0,40))+' · '+d(x.last)+'</small>').join('')}${r.devices?' <button class="btn" data-trs="'+ixe(r.key)+'" style="padding:2px 7px">Αποδέσμευση</button>':''}</td>
+      <td style="white-space:nowrap"><button class="btn" data-tex="${ixe(r.key)}" style="padding:4px 8px">+ ημέρες</button> <button class="btn ${r.revoked?'btn-ok':'btn-no'}" data-trv="${ixe(r.key)}" data-on="${r.revoked?0:1}">${r.revoked?'Επαναφορά':'Ανάκληση'}</button></td></tr>`).join('')+'</table>':'<div class="empty">Δεν έχουν εκδοθεί κλειδιά ακόμα.</div>';
+  L.querySelectorAll('[data-tcp]').forEach(b=>b.onclick=()=>{navigator.clipboard.writeText(b.dataset.tcp);toast('Αντιγράφηκε')});
+  L.querySelectorAll('[data-trs]').forEach(b=>b.onclick=async()=>{if(!confirm('Αποδέσμευση όλων των συσκευών για το '+b.dataset.trs+';\nΟ πελάτης ξαναγράφει το κλειδί στις συσκευές που θέλει. Η λήξη δεν αλλάζει.'))return;const {error}=await sb.rpc('admin_trv_reset_devices',{p_key:b.dataset.trs});toast(error?error.message:'Αποδεσμεύτηκαν');trvLoad()});
+  L.querySelectorAll('[data-tex]').forEach(b=>b.onclick=async()=>{const n=parseInt(prompt('Πόσες ημέρες να προστεθούν;','30'),10);if(!(n>0))return;const {error}=await sb.rpc('admin_trv_extend',{p_key:b.dataset.tex,p_days:n});toast(error?error.message:'Προστέθηκαν '+n+' ημέρες');trvLoad()});
+  L.querySelectorAll('[data-trv]').forEach(b=>b.onclick=async()=>{const on=b.dataset.on==='1';if(on&&!confirm('Ανάκληση του '+b.dataset.trv+';\nΣτον επόμενο έλεγχο με ίντερνετ η εφαρμογή κλειδώνει.'))return;const {error}=await sb.rpc('admin_trv_revoke',{p_key:b.dataset.trv,p_on:on});toast(error?error.message:(on?'Ανακλήθηκε':'Επανήλθε'));trvLoad()});
+}
+document.getElementById('trvRef').onclick=()=>trvLoad();
+document.getElementById('trvKind').onchange=()=>{const f=document.getElementById('trvKind').value==='full';document.getElementById('trvDays').value=f?0:7};
+document.getElementById('trvNew').onclick=async()=>{const kind=document.getElementById('trvKind').value,days=Math.round(+document.getElementById('trvDays').value)||0,mx=Math.round(+document.getElementById('trvMax').value)||2,name=document.getElementById('trvName').value.trim(),em=document.getElementById('trvEmail').value.trim();
+  const {data,error}=await sb.rpc('admin_trv_issue',{p_kind:kind,p_days:days,p_name:name||null,p_email:em||null,p_note:document.getElementById('trvNote').value||null,p_max:mx});
+  if(error){toast(error.message);return} if(!data||!data.ok){toast((data&&data.msg)||'Δεν εκδόθηκε');return}
+  const k=data.key, msg=`Καλησπέρα${name?' '+name.split(' ')[0]:''},\n\nσου στέλνω κλειδί για το HEXIS TRAVERSE (επίλυση όδευσης και ραπόρτο σημείων)${kind==='demo'?' για δοκιμή '+days+' ημερών':''}:\n\n${k}\n\n1. Άνοιξε https://hexis-app.gr/traverse.html από το κινητό, το τάμπλετ ή τον υπολογιστή.\n2. Γράψε το κλειδί και πάτα «Ενεργοποίηση». Αρκεί μία φορά σε κάθε συσκευή (έως ${mx} συσκευές)· μετά δουλεύει και χωρίς ίντερνετ.\n3. Στο κινητό: μενού του browser → «Προσθήκη στην αρχική οθόνη». Στα Windows υπάρχει και εγκατάσταση με εικονίδιο.\n\nΜίλτος Μπίρμπας\nΠολιτικός Μηχανικός Τ.Ε., MSc — HEXIS-APP\nhexis-app.gr`;
+  const o=document.getElementById('trvOut');o.innerHTML=`<div style="margin:10px 0;padding:12px 14px;border:2px solid #1F5BFF;border-radius:12px;background:#F2F6FF"><div style="font-size:13px;color:#667085">Νέο κλειδί · ${kind==='demo'?'δοκιμή '+days+' ημερών':'πλήρης'+(days?' '+days+' ημερών':' χωρίς λήξη')} · έως ${mx} συσκευές${em?' · για '+ixe(em):''}</div>
+    <div style="font:700 22px var(--font-m);letter-spacing:1px;margin:4px 0 8px">${ixe(k)}</div>
+    <textarea id="trvMsg" style="width:100%;height:170px;font-size:13px">${ixe(msg)}</textarea>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn btn-orange" id="trvCpK">Αντιγραφή κλειδιού</button><button class="btn" id="trvCpM">Αντιγραφή μηνύματος</button>${em?`<a class="btn" style="text-decoration:none" href="mailto:${encodeURIComponent(em)}?subject=${encodeURIComponent('HEXIS TRAVERSE · κλειδί')}&body=${encodeURIComponent(msg)}">Άνοιγμα στο email</a>`:''}</div></div>`;
+  o.querySelector('#trvCpK').onclick=()=>{navigator.clipboard.writeText(k);toast('Αντιγράφηκε')};o.querySelector('#trvCpM').onclick=()=>{navigator.clipboard.writeText(document.getElementById('trvMsg').value);toast('Αντιγράφηκε')};
+  ['trvName','trvEmail','trvNote'].forEach(i=>document.getElementById(i).value='');trvLoad()};
+(function trvWait(){const m=document.getElementById('main');if(m&&m.style.display!=='none'){trvLoad();return}setTimeout(trvWait,400)})();
 (function geoWait(){const m=document.getElementById('main');if(m&&m.style.display!=='none'){geoLoad();return}setTimeout(geoWait,400)})();
 (function padWait(){const m=document.getElementById('main');if(m&&m.style.display!=='none'){padLoad();return}setTimeout(padWait,400)})();
 (function hxWait(){const m=document.getElementById('main');if(m&&m.style.display!=='none'){hxLoad();return}setTimeout(hxWait,400)})();
 
 document.querySelectorAll('#uTabs [data-st]').forEach(b=>b.onclick=()=>{USTAB=b.dataset.st;renderUsers()});
 // ===== Καρτέλες: μία ενότητα τη φορά, χωρίς κύλιση όλης της σελίδας =====
-(function(){const C=document.querySelector('.adc'),T=['users','interior','mapping','pad','geo','payments','requests'];
+(function(){const C=document.querySelector('.adc'),T=['users','interior','mapping','pad','geo','trv','payments','requests'];
   function go(g){if(g==='sosmap'){window.REPAPP='mapping';g='sos'}else if(g==='sos'){window.REPAPP='interior'}if(g==='sos'){g='interior';try{ixRepLoad()}catch(e){}setTimeout(()=>{const b=document.querySelector('[data-grp="ix"] [data-sub="rep"]');if(b)b.click()},50)}if(!T.includes(g))g='users';document.querySelectorAll('#adNav [data-go]').forEach(x=>x.classList.toggle('on',x.dataset.go===g));
     C.querySelectorAll('.card[data-sec]').forEach(c=>c.classList.toggle('show',c.dataset.sec===g));
     try{localStorage.setItem('hxAdmTab',g)}catch(e){}if(location.hash!=='#'+g)history.replaceState(null,'','#'+g);
-    if(g==='mapping')setTimeout(()=>{if(typeof mpOpen==='function')mpOpen()},0);if(g==='pad')setTimeout(()=>{if(typeof padLoad==='function')padLoad()},0);if(g==='geo')setTimeout(()=>{if(typeof geoLoad==='function')geoLoad()},0);window.scrollTo({top:0})}
+    if(g==='mapping')setTimeout(()=>{if(typeof mpOpen==='function')mpOpen()},0);if(g==='pad')setTimeout(()=>{if(typeof padLoad==='function')padLoad()},0);if(g==='geo')setTimeout(()=>{if(typeof geoLoad==='function')geoLoad()},0);if(g==='trv')setTimeout(()=>{if(typeof trvLoad==='function')trvLoad()},0);window.scrollTo({top:0})}
   document.querySelectorAll('#adNav [data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
   document.querySelectorAll('.subtabs').forEach(bar=>bar.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{
     bar.querySelectorAll('[data-sub]').forEach(x=>x.classList.toggle('on',x===b));

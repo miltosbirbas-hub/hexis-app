@@ -17,6 +17,7 @@ const PRECACHE_STATIC = [
   'manifest.json', 'icon-192.png', 'icon-512.png', 'icon-512-maskable.png',
   'apple-touch-icon.png',
   'admin-manifest.json', 'admin-icon-192.png',
+  'traverse.html', 'traverse-manifest.json', 'traverse-icon-192.png', 'traverse-icon-512.png', 'traverse-icon-maskable.png', 'traverse-apple-touch.png',
   'intro.mp4',
   'nomothesia-manifest.json', 'nomothesia-icon-192.png',
   'nomothesia-icon-512.png', 'nomothesia-icon-maskable.png', 'oroi-domisis.js', 'oroi-export.js', 'oroi-icon.png', 'fakelos.html',

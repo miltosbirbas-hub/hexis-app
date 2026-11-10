@@ -1,0 +1,24 @@
+# HEXIS TRAVERSE: χτίζει το HEXIS_TRAVERSE_Setup.exe και το ανεβάζει στη σταθερή διεύθυνση:
+#   https://github.com/miltosbirbas-hub/hexis-app/releases/download/traverse-setup/HEXIS_TRAVERSE_Setup.exe
+name: HEXIS TRAVERSE setup
+on:
+  push:
+    branches: [main]
+    paths: ["traverse-setup/**", ".github/workflows/traverse-setup.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q nsis
+      - name: Χτίσιμο
+        run: bash traverse-setup/build.sh "$RUNNER_TEMP/ts" "$(date +%Y.%m.%d)"
+      - name: Δημοσίευση (σταθερή διεύθυνση)
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh release view traverse-setup >/dev/null 2>&1 || gh release create traverse-setup --title "HEXIS TRAVERSE · εγκατάσταση Windows" --notes "Εγκατάσταση HEXIS TRAVERSE για Windows 10/11."
+          gh release upload traverse-setup "$RUNNER_TEMP/ts/HEXIS_TRAVERSE_Setup.exe" --clobber
+          echo "::notice::Setup: https://github.com/${{ github.repository }}/releases/download/traverse-setup/HEXIS_TRAVERSE_Setup.exe"
