@@ -6860,6 +6860,9 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     var bb = function (pts, b) { pts.forEach(function (q) { b[0] = Math.min(b[0], q[0]); b[1] = Math.min(b[1], q[1]); b[2] = Math.max(b[2], q[0]); b[3] = Math.max(b[3], q[1]); }); return b; };
     var ch = bb((res.Mmeas || res.Mr || []).concat(res.Mtopo || []), [Infinity, Infinity, -Infinity, -Infinity]);
     (res.pieces || []).forEach(function (x) { if (x.kind !== 'common') bb(x.ring, ch); });
+    // το ΔΙΚΟ ΜΑΣ γεωτεμάχιο μένει πάντα ακέραιο, όσο μεγάλο κι αν είναι — το πλαίσιο το περιέχει ολόκληρο
+    (res.parcels || []).forEach(function (p) { if (p.kaek === res.own) (p.rings || []).forEach(function (r) { bb(r, ch); }); });
+    (res.finals || []).forEach(function (f) { if (f.kaek === res.own && f.outer) bb(f.outer, ch); });
     if (!isFinite(ch[0])) return;
     var full = ch.slice(); (res.parcels || []).forEach(function (p) { (p.rings || []).forEach(function (r) { bb(r, full); }); });
     if (full[2] - full[0] <= DGM_MAX_W && full[3] - full[1] <= DGM_MAX_H) return;   // χωράει ολόκληρο
@@ -6870,12 +6873,12 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     box = [cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2];
     var inside = function (rings) { return rings.every(function (r) { return r.every(function (q) { return q[0] >= box[0] && q[0] <= box[2] && q[1] >= box[1] && q[1] <= box[3]; }); }); };
     res.parcels = res.parcels.map(function (p) {
-      if (!p.rings || inside(p.rings)) return p;
-      var cr = clipRingsToBox(p.rings, box); if (!cr.length) return p.kaek === res.own ? p : null;
+      if (!p.rings || p.kaek === res.own || inside(p.rings)) return p;
+      var cr = clipRingsToBox(p.rings, box); if (!cr.length) return null;
       return Object.assign({}, p, { rings: cr, clipped: true, cutBox: box, fullArea: p.area });
     }).filter(Boolean);
     res.finals = (res.finals || []).map(function (f) {
-      if (!f.outer || inside([f.outer])) return f;
+      if (!f.outer || f.kaek === res.own || inside([f.outer])) return f;
       var co = clipRingToRect(f.outer, box); if (co.length < 3) return f;
       return Object.assign({}, f, { outer: co, holes: [], clipped: true, cutBox: box });
     });
