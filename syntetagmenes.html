@@ -558,7 +558,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       <circle cx="10" cy="28" r="2.4" fill="#22d3ee"/><circle cx="16" cy="12" r="2.4" fill="#8b5cf6"/><circle cx="27" cy="15" r="2.4" fill="#8b5cf6"/><circle cx="31" cy="26" r="2.4" fill="#fb7185"/>
     </svg>
     <div>
-      <h1>HEXIS <span>GEOmetry</span> <b id="geoTier" style="display:none;font:800 12px var(--f-mono);letter-spacing:.06em;padding:2px 8px;border-radius:6px;vertical-align:3px"></b> <button id="geoRelease" type="button" data-pro="release" title="Αποδέσμευση («παρκάρισμα») του κλειδιού Pro από αυτή τη συσκευή, για να το ανοίξεις σε άλλη" style="display:none;font:700 11px var(--f-mono);padding:2px 8px;border-radius:6px;border:1px solid var(--line-2,#cbd5e1);background:var(--surface,#fff);color:var(--text,#111);cursor:pointer;vertical-align:3px">Αποδέσμευση</button> <small id="geoBuild" style="font:600 10px var(--f-mono);color:var(--faint);letter-spacing:0">build 11.11-23h40 · Basic/Pro</small></h1>
+      <h1>HEXIS <span>GEOmetry</span> <b id="geoTier" style="display:none;font:800 12px var(--f-mono);letter-spacing:.06em;padding:2px 8px;border-radius:6px;vertical-align:3px"></b> <button id="geoRelease" type="button" data-pro="release" title="Αποδέσμευση («παρκάρισμα») του κλειδιού Pro από αυτή τη συσκευή, για να το ανοίξεις σε άλλη" style="display:none;font:700 11px var(--f-mono);padding:2px 8px;border-radius:6px;border:1px solid var(--line-2,#cbd5e1);background:var(--surface,#fff);color:var(--text,#111);cursor:pointer;vertical-align:3px">Αποδέσμευση</button> <small id="geoBuild" style="font:600 10px var(--f-mono);color:var(--faint);letter-spacing:0">build 12.11-00h10 · Basic/Pro</small></h1>
       <small>Συντεταγμένες ΕΓΣΑ87 · ΚΑΕΚ Κτηματολογίου · Διαγράμματα Γεωμετρικών Μεταβολών</small>
     </div>
   </div>
@@ -4461,6 +4461,21 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
   }
 
   function ringArea(r) { var a = 0; for (var i = 0; i < r.length; i++) { var p = r[i], q = r[(i + 1) % r.length]; a += p[0] * q[1] - q[0] * p[1]; } return a / 2; }
+  // Ταξινόμηση δακτυλίων πολυγώνου σε εξωτερικούς / οπές από το πόσοι άλλοι δακτύλιοι τους περικλείουν (άρτιο = εξωτερικός)
+  function forestRingClass(rings) {
+    rings = (rings || []).filter(function (r) { return r && r.length >= 3; });
+    function pin(p, r) { var c = false; for (var i = 0, j = r.length - 1; i < r.length; j = i++) { if (((r[i][1] > p[1]) !== (r[j][1] > p[1])) && (p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0])) c = !c; } return c; }
+    var A = rings.map(function (r) { return Math.abs(ringArea(r)); });
+    var outer = [], holes = [];
+    rings.forEach(function (r, i) {
+      var depth = 0;
+      rings.forEach(function (o, j) { if (i === j || A[j] <= A[i]) return; var n = Math.min(r.length, 7), inn = 0; for (var t = 0; t < n; t++) if (pin(r[Math.floor(t * r.length / n)], o)) inn++; if (inn * 2 > n) depth++; });
+      (depth % 2 ? holes : outer).push(r);
+    });
+    if (!outer.length && rings.length) { outer = rings.slice(); holes = []; }
+    return { outer: outer, holes: holes };
+  }
+  window.forestRingClass = forestRingClass;
 
   // εντοπισμός πεδίου χαρακτηρισμού: τιμές που μοιάζουν με κωδικό δασικού χάρτη (ΔΔ, ΑΑ, ΧΧ, ΔΑ, ΑΔ, ΠΑ, ΠΔ, ...)
   function pickCatField(fields, records) {
@@ -4487,10 +4502,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     geom.forEach(function (rings, i) {
       if (!rings) return;
       var attrs = dbf.records[i] || {};
-      // δακτύλιοι: θετικό εμβαδόν (CW στο shapefile) = εξωτερικός, αρνητικό = οπή
-      var outers = [], holes = [];
-      rings.forEach(function (r) { (ringArea(r) < 0 ? holes : outers).push(r); });
-      if (!outers.length && rings.length) outers = [rings[0]];
+      // δακτύλιοι: εξωτερικός / οπή με ΒΑΘΟΣ ΕΓΚΛΕΙΣΜΟΥ (όχι με τη φορά — τα αρχεία δεν την τηρούν πάντα)
+      var cls = forestRingClass(rings), outers = cls.outer, holes = cls.holes;
       var area = outers.reduce(function (a, r) { return a + Math.abs(ringArea(r)); }, 0) - holes.reduce(function (a, r) { return a + Math.abs(ringArea(r)); }, 0);
       feats.push({ rings: outers.concat(holes), outer: outers, holes: holes, attrs: attrs, cat: catField ? (attrs[catField] || '') : '', area: Math.abs(area) });
     });
@@ -7122,6 +7135,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       var fsrcD = (S.forest && S.forest.features && S.forest.features.length) ? S.forest : (S.topo && S.topo.forestSvc && S.topo.forestSvc.count ? S.topo.forestSvc : null);
       res.forestSrc = fsrcD === S.forest ? 'zip' : (fsrcD ? 'epsx' : null);
       res.forestRaw = fsrcD ? forestForPlot(M, fsrcD) : null; res.forest = res.forestRaw ? forestApplyObj(res.forestRaw) : res.forestRaw;
+      try { res.forestPartsRaw = dgmForestParts(res); } catch (e) { console.warn('forest parts', e); res.forestPartsRaw = []; } res.forestParts = forestApplyParts(res.forestPartsRaw);
       // ενιαία αρίθμηση κορυφών (όπως στα υποδείγματα): οι ετικέτες του τοπογραφικού κρατιούνται μόνο αν είναι αριθμοί
       var numericLabels = !res.Mabs && res.labels.every(function (l) { return /^\d+$/.test(String(l)); });
       res.num = DGM.numbering(res, res.parcels, numericLabels ? res.labels : null);
@@ -7378,6 +7392,8 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     // Κτίσματα (BLD) από το ανεβασμένο σχέδιο
     (d.bld || []).forEach(function (r) { var R = DGM.open(r); polys.push({ layer: 'BLD', pts: R, closed: true, color: 8 }); });
     // Δασικά πολύγωνα (κυρωμένος δασικός χάρτης) με χαρακτηρισμό — κομμένα στο εύρος του ΚΑΕΚ
+    // δασικά τμήματα μέσα στο ακίνητο: όρια + «ΤΜΗΜΑ κωδικός» με χαρακτήρα και εμβαδόν
+    (d.forestParts || []).forEach(function (fp) { polys.push({ layer: 'DASIKA_TMIMATA', pts: fp.ring, closed: true, color: 7 }); (fp.holes || []).forEach(function (hh) { polys.push({ layer: 'DASIKA_TMIMATA', pts: hh, closed: true, color: 7 }); }); var c9 = DGM.interior(fp.ring, fp.holes || []); texts.push({ layer: 'DASIKA_TMIMATA-labels', x: c9[0], y: c9[1] + TH * 1.6, text: 'ΤΜΗΜΑ ' + fp.code, h: TH * 1.4, color: 7, align: 'center' }); texts.push({ layer: 'DASIKA_TMIMATA-labels', x: c9[0], y: c9[1], text: (fp.cat || '') + ' Ε=' + fp.area.toFixed(3) + ' τ.μ.' + (fp.ada ? ' ΑΔΑ ' + fp.ada : ''), h: TH, color: 7, align: 'center' }); });
     (d.forest || []).forEach(function (f, i) {
       var fcol = /^(ΑΑ|ΑΓ|ΟΙ|ΥΔ|ΑΣ|ΤΕ)$/.test(String(f.cat || '').trim()) ? 8 : 94; // μη δασικές (ΑΑ κ.ά.): γκρι, όχι πράσινο
       f.outer.forEach(function (r) { var R = DGM.open(r); polys.push({ layer: 'DASOS', pts: R, closed: true, color: fcol }); });
@@ -7501,14 +7517,15 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     var O = S.forestObj || {};
     return (list || []).map(function (f) { var o = O[forestKey(f)]; if (!(o && o.ans === 'yes' && o.cat)) return f; return Object.assign({}, f, { cat: o.cat, catOrig: f.cat, ada: String(o.ada || '').trim() }); });
   }
-  function forestObjUI(list) {
-    var A = forestAsk(list); if (!A.length) return '';
+  function forestObjUI(list, parts) {
+    var A = forestAsk(list); if (parts) A = A.filter(function (f) { var k = forestKey(f); return parts.some(function (p) { return p.fkey === k; }); }); if (!A.length) return '';
     var O = S.forestObj || {}, cats = TopoSheet.FOREST_CAT || {};
     var h = '<div class="piece" style="border:2px solid ' + (A.some(function (f) { return !O[forestKey(f)]; }) ? 'var(--warn)' : 'var(--line)') + ';border-radius:10px;padding:10px 12px;margin:8px 0;display:flex;flex-direction:column;gap:10px"><b style="font-size:16px">Αντιρρήσεις στον δασικό χάρτη (ΕΠΕΑ)</b>';
     A.forEach(function (f, i) {
       var k = forestKey(f), o = O[k] || {};
       h += '<div style="display:flex;flex-direction:column;gap:6px;padding-top:' + (i ? '8px;border-top:1px solid var(--line)' : '0') + '">';
-      h += '<div style="font-size:15px">Δασικό τμήμα ' + (i + 1) + ' · <b>' + esc(TopoSheet.forestCatLabel(f.cat)) + '</b> · ' + fmt(f.areaProp, 2) + ' m² μέσα στην ιδιοκτησία</div>';
+      var myParts = parts ? parts.filter(function (p) { return p.fkey === k; }) : null;
+      h += '<div style="font-size:15px">' + (myParts ? 'Τμήματα <b>' + esc(myParts.map(function (p) { return p.code; }).join(', ')) + '</b>' : 'Δασικό τμήμα ' + (i + 1)) + ' · <b>' + esc(TopoSheet.forestCatLabel(f.cat)) + '</b> · ' + fmt(myParts ? myParts.reduce(function (t, p) { return t + p.area; }, 0) : f.areaProp, 2) + ' m² μέσα στην ιδιοκτησία</div>';
       h += '<div style="font-size:15px">Έγινε αντίρρηση και βγήκε απόφαση ΕΠΕΑ;</div><div class="file-row" style="gap:8px"><button class="btn' + (o.ans === 'yes' ? ' primary' : '') + '" data-act="fo-ans" data-k="' + esc(k) + '" data-v="yes">' + (o.ans === 'yes' ? '✓ ' : '') + 'Ναι</button><button class="btn' + (o.ans === 'no' ? ' primary' : '') + '" data-act="fo-ans" data-k="' + esc(k) + '" data-v="no">' + (o.ans === 'no' ? '✓ ' : '') + 'Όχι</button></div>';
       if (o.ans === 'yes') {
         h += '<div class="dgm-ctl" style="flex-wrap:wrap;gap:8px"><label style="font-size:14px;flex:0 1 250px">ΑΔΑ απόφασης ΕΠΕΑ<input class="fo-ada" data-k="' + esc(k) + '" value="' + esc(o.ada || '') + '" placeholder="π.χ. 6ΑΒΓ4653Π8-ΔΕΖ" style="font-size:16px;width:240px"></label>';
@@ -7520,10 +7537,48 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     });
     return h + '</div>';
   }
-  function forestObjChanged() {
-    if (S.topo && S.topo.status === 'ok') topoRefresh();
-    if (S.dgm && S.dgm.forestRaw) { S.dgm.forest = forestApplyObj(S.dgm.forestRaw); if (typeof dgmTplRefresh === 'function') dgmTplRefresh(); }
-    renderAll();
+  // Δασικά τμήματα της ΔΓΜ (όπως στα υποδείγματα): το τελικό ακίνητο χωρίζεται με τα όρια του δασικού χάρτη.
+  // Τμήματα του κοινού μέρους (Κ) → 1, 2, 3…· τμήματα που προσαρτώνται (Δi) ή εκτός ΚΑΕΚ → με τον κωδικό τους (Δ1, Δ1.2…).
+  function dgmForestParts(res) {
+    var pc = window.polygonClipping, F = res.forestRaw || []; if (!pc || !F.length || !res.pieces) return [];
+    function cl(r) { var o = r.slice(); if (o.length && (o[0][0] !== o[o.length - 1][0] || o[0][1] !== o[o.length - 1][1])) o = o.concat([o[0]]); return o; }
+    function op(r) { var o = r.slice(); if (o.length > 3 && o[0][0] === o[o.length - 1][0] && o[0][1] === o[o.length - 1][1]) o.pop(); return o; }
+    var P = res.pieces.filter(function (x) { return x.kind !== 'given'; });
+    var parts = [];
+    F.forEach(function (f) {
+      var fk = forestKey(f), geo;
+      try { geo = pc.union.apply(null, (f.outer || []).map(function (r) { return [[cl(r)]]; })); if ((f.holes || []).length) geo = pc.difference.apply(null, [geo].concat(f.holes.map(function (r) { return [[cl(r)]]; }))); } catch (e) { return; }
+      P.forEach(function (x) {
+        var I; try { I = pc.intersection(geo, [[cl(x.ring)].concat((x.holes || []).map(cl))]); } catch (e) { return; }
+        I.forEach(function (poly) {
+          var outer = op(poly[0]), holes = poly.slice(1).map(op), a = ringAreaAbs(outer) - holes.reduce(function (t, h) { return t + ringAreaAbs(h); }, 0);
+          if (a < 0.5) return;
+          parts.push({ fkey: fk, catRaw: f.cat || '', cat: f.cat || '', piece: x.id, common: x.kind === 'common', ring: outer, holes: holes, area: a });
+        });
+      });
+    });
+    // κωδικοί: κοινό μέρος 1, 2… (μεγαλύτερο πρώτα), τμήματα Δ με τον κωδικό τους
+    var com = parts.filter(function (p) { return p.common; }).sort(function (a, b) { return b.area - a.area; });
+    com.forEach(function (p, i) { p.code = String(i + 1); });
+    var byPiece = {}; parts.filter(function (p) { return !p.common; }).forEach(function (p) { (byPiece[p.piece] = byPiece[p.piece] || []).push(p); });
+    Object.keys(byPiece).forEach(function (k) { var L = byPiece[k].sort(function (a, b) { return b.area - a.area; }); L.forEach(function (p, i) { p.code = L.length > 1 ? k + '.' + (i + 1) : k; }); });
+    return com.concat(Object.keys(byPiece).sort().reduce(function (t, k) { return t.concat(byPiece[k]); }, []));
+  }
+  function forestApplyParts(parts) {
+    var O = S.forestObj || {};
+    return (parts || []).map(function (p) { var o = O[p.fkey]; return (o && o.ans === 'yes' && o.cat) ? Object.assign({}, p, { cat: o.cat, catOrig: p.catRaw, ada: String(o.ada || '').trim() }) : Object.assign({}, p, { cat: p.catRaw, catOrig: '', ada: '' }); });
+  }
+  // Γρήγορη απόκριση: τα δεδομένα της ΔΓΜ ενημερώνονται αμέσως (φτηνό)· η προεπισκόπηση του τοπογραφικού ξαναχτίζεται
+  // λίγο αργότερα, χωρίς νέο υπολογισμό χαρτιού/κλίμακας. Ο ΑΔΑ (πληκτρολόγηση) δεν ξαναζωγραφίζει τη φόρμα.
+  function forestObjChanged(quiet) {
+    if (S.dgm && S.dgm.forestRaw) { S.dgm.forest = forestApplyObj(S.dgm.forestRaw); S.dgm.forestParts = forestApplyParts(S.dgm.forestPartsRaw); }
+    if (!quiet) renderAll();
+    clearTimeout(S._foT);
+    S._foT = setTimeout(function run() {
+      var ae = document.activeElement; if (ae && ae.classList && (ae.classList.contains('fo-ada') || ae.classList.contains('fo-cat'))) { S._foT = setTimeout(run, 700); return; } // μην κλείνεις τη λίστα που ανοίγει ο χρήστης
+      var r = S.topo; if (r && r.status === 'ok' && S.topoPreview) { try { S.topoPreview = TopoSheet.sheetSVG(topoData(r), topoLayout(r), 0); } catch (e) { console.warn(e); } }
+      if (quiet || S.topoPreview) renderAll();
+    }, 700);
   }
   function renderForestRow(d) {
     var h = '<div class="file-row" style="flex-wrap:wrap"><b>Δασικός χάρτης (κύρωση)</b>';
@@ -7534,11 +7589,12 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     if (S.forestErr) h += '<span class="chip warn">' + esc(S.forestErr) + '</span>';
     h += '<span style="color:var(--muted);font-size:12px">ZIP με shapefile (.shp/.dbf) του κυρωμένου δασικού χάρτη σε ΕΓΣΑ87 — εμφανίζονται μόνο τα τμήματα που επηρεάζουν την ιδιοκτησία, προσαρμοσμένα στο εύρος του ΚΑΕΚ.</span></div>';
     var F = d && d.forest;
-    if (F && F.length) {
-      h += '<div class="tbl-wrap"><table class="dgm-tbl"><thead><tr><th>Πολύγωνο</th><th>Χαρακτηρισμός</th><th class="num">Εμβαδό εντός ιδιοκτησίας (m²)</th><th class="num">Εμβαδό στο σχέδιο (m²)</th></tr></thead><tbody>';
-      F.forEach(function (f, i) { h += '<tr><td>Δ' + (i + 1) + '</td><td><b>' + esc(f.cat || '—') + '</b>' + (f.ada ? ' <span style="color:var(--muted)">(αρχικά ' + esc(f.catOrig) + ' · ΑΔΑ ' + esc(f.ada) + ')</span>' : '') + '</td><td class="num">' + (f.areaProp > 0.005 ? fmt(f.areaProp, 2) : '—') + '</td><td class="num">' + fmt(f.areaClip, 2) + '</td></tr>'; });
-      h += '</tbody></table></div>';
-      h += forestObjUI(d.forestRaw || F);
+    var FP = d && d.forestParts;
+    if (FP && FP.length) {
+      h += '<b style="font-size:15px;margin-top:6px">Συγκεντρωτικός πίνακας δασικών τμημάτων</b><div class="tbl-wrap"><table class="dgm-tbl"><thead><tr><th>Κωδικός</th><th>Χαρακτήρας</th><th class="num">Εμβαδόν (m²)</th><th>Ισχύς</th></tr></thead><tbody>';
+      FP.forEach(function (p) { h += '<tr><td><b>' + esc(p.code) + '</b></td><td><b>' + esc(p.cat || '—') + '</b>' + (p.ada ? ' <span style="color:var(--muted)">(αρχικά ' + esc(p.catOrig) + ')</span>' : '') + '</td><td class="num">' + fmt(p.area, 3) + '</td><td>ΟΡΙΣΤΙΚΗ' + (p.ada ? ' · ΑΔΑ: ' + esc(p.ada) : '') + '</td></tr>'; });
+      h += '<tr><td colspan="2"><b>Σύνολο τμημάτων</b> <span style="color:var(--muted)">(ακίνητο ' + fmt(d.areaM, 3) + ' m²)</span></td><td class="num"><b>' + fmt(FP.reduce(function (t, p) { return t + p.area; }, 0), 3) + '</b></td><td></td></tr></tbody></table></div>';
+      h += forestObjUI(d.forestRaw, FP);
       if (S.forest) h += '<p style="margin:0;color:var(--muted);font-size:12px">Χαρακτηρισμός από το πεδίο «' + esc(S.forest.catField || '—') + '». Σχεδιάζονται στο layer DASOS με πίνακα δασικών πολυγώνων στο DXF/PDF.</p>';
     } else if (S.forest && S.forest.count) {
       h += '<p style="margin:0;color:var(--muted);font-size:12px">Κανένα δασικό πολύγωνο δεν τέμνει/γειτνιάζει με το εύρος του ΚΑΕΚ (' + S.forest.count + ' στο αρχείο).</p>';
@@ -7912,7 +7968,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     if (ev.target.id === 'topoBound') { S.dgmBound = ev.target.value; topoRefresh(); return; }
     if (['topoForest', 'topoKaekTable', 'topoNo651', 'topoNoCompat', 'topoNo4030', 'topoNoNotes', 'topoNoExtract', 'topoNoLines'].indexOf(ev.target.id) >= 0) { S[ev.target.id] = ev.target.checked; topoRefresh(); return; }
     if (ev.target.id === 'topoExtractBg') { S.topoExtractBg = ev.target.value; var rr = S.topo; if (rr && rr.extract && rr.M) { rr.extract.raster = null; toast('Υπόβαθρο αποσπάσματος…'); topoExtractBg(rr.extract, rr.M).catch(function () {}).then(function () { topoRefresh(); }); } return; }
-    if (ev.target.classList.contains('fo-ada') || ev.target.classList.contains('fo-cat')) { var FO2 = S.forestObj = Object.assign({}, S.forestObj || {}), k2 = ev.target.dataset.k; FO2[k2] = Object.assign({ ans: 'yes' }, FO2[k2] || {}); FO2[k2][ev.target.classList.contains('fo-ada') ? 'ada' : 'cat'] = ev.target.value.trim(); forestObjChanged(); return; }
+    if (ev.target.classList.contains('fo-ada') || ev.target.classList.contains('fo-cat')) { var FO2 = S.forestObj = Object.assign({}, S.forestObj || {}), k2 = ev.target.dataset.k; FO2[k2] = Object.assign({ ans: 'yes' }, FO2[k2] || {}); var isAda = ev.target.classList.contains('fo-ada'); FO2[k2][isAda ? 'ada' : 'cat'] = ev.target.value.trim(); forestObjChanged(isAda); return; }
     if (ev.target.id === 'topoCloseOT') { S.topoCloseOT = ev.target.checked; topoRefresh(); return; }
     if (ev.target.id === 'topoForestAlways') { S.topoForestAlways = ev.target.checked; if (S.topo && S.topo.status === 'ok') { S.topo.forest = (S.topoForestAlways || +topoFields().pos === 3) ? S.topo.forestAll : []; } topoRefresh(); return; }
     if (/^sp(Mode|Src|How|N|Given|Dir|Side)$/.test(ev.target.id) || ev.target.dataset.spk) {
