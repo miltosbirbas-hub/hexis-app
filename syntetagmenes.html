@@ -7119,7 +7119,9 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       // DGM_PROP_FINAL και για τον δρόμο/ΕΚ (όπως ζητήθηκε): το τελικό όριο του κομμένου κοινόχρηστου
       res.finals = (res.finals || []).filter(function (f) { return aff[f.kaek] || isPublicKaek(f.kaek); });
       dgmCropHuge(res);   // τεράστια ΚΑΕΚ → «ΤΜΗΜΑ ΜΕΓΑΛΥΤΕΡΗΣ ΕΚΤΑΣΗΣ», ώστε το διάγραμμα να χωρά έως Α0 σε 1:1000
-      res.forestRaw = forestForPlot(M); res.forest = res.forestRaw ? forestApplyObj(res.forestRaw) : res.forestRaw;
+      var fsrcD = (S.forest && S.forest.features && S.forest.features.length) ? S.forest : (S.topo && S.topo.forestSvc && S.topo.forestSvc.count ? S.topo.forestSvc : null);
+      res.forestSrc = fsrcD === S.forest ? 'zip' : (fsrcD ? 'epsx' : null);
+      res.forestRaw = fsrcD ? forestForPlot(M, fsrcD) : null; res.forest = res.forestRaw ? forestApplyObj(res.forestRaw) : res.forestRaw;
       // ενιαία αρίθμηση κορυφών (όπως στα υποδείγματα): οι ετικέτες του τοπογραφικού κρατιούνται μόνο αν είναι αριθμοί
       var numericLabels = !res.Mabs && res.labels.every(function (l) { return /^\d+$/.test(String(l)); });
       res.num = DGM.numbering(res, res.parcels, numericLabels ? res.labels : null);
@@ -7175,7 +7177,6 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     h += renderVerdict();
     h += '<div class="dgm-ctl"><label>Τύπος διαγράμματος<select id="dgmMode"><option value="dgm"' + (S.dgmMode !== 'dgmdy' ? ' selected' : '') + '>ΔΓΜ — ιδιώτης μηχανικός</option><option value="dgmdy"' + (S.dgmMode === 'dgmdy' ? ' selected' : '') + '>ΔΓΜΔΥ — δασική υπηρεσία</option></select></label>';
     h += '<label>Όρια ιδιοκτησίας<select id="dgmBound"><option value="BOUND_IMPL"' + (boundLayer() === 'BOUND_IMPL' ? ' selected' : '') + '>υλοποιημένα (BOUND_IMPL)</option><option value="BOUND_UNIMPL"' + (boundLayer() === 'BOUND_UNIMPL' ? ' selected' : '') + '>μη υλοποιημένα (BOUND_UNIMPL)</option></select></label>' + renderDgmChecks(d) + '</div>';
-    h += renderForestRow(d);
     try { h += renderCmdCheck(cmdCheckDgm(d)); } catch (e) { console.warn('cmdcheck', e); }
     if (d.slivers.count) h += '<p style="margin:0;color:var(--muted);font-size:12px">Αγνοήθηκαν ' + d.slivers.count + ' σχισμές συνολικού εμβαδού ' + fmt(d.slivers.area, 2) + ' m² (κάτω από το ελάχιστο τμήμα ή πολύ στενές).</p>';
     if (d.gaps.count) h += '<p style="margin:0;color:var(--warn);font-size:12px">' + d.gaps.count + ' τμήμα(τα) Δ του μετρημένου ορίου, ' + fmt(d.gaps.area, 2) + ' m², δεν ανήκουν σε ιδιωτικό γεωτεμάχιο (δρόμος / κοινόχρηστο ή περιοχή χωρίς δεδομένα) — προσαρτώνται ως Δ.</p>';
@@ -7263,6 +7264,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     var F = function (cls, k, label, ph, wd, v, extra) { return '<label style="flex:1 1 ' + wd + 'px;min-width:0;font-size:14px">' + label + '<input class="' + cls + '" data-f="' + k + '" value="' + esc(v || '') + '" placeholder="' + esc(ph) + '" style="width:100%;box-sizing:border-box;font-size:16px"' + (extra || '') + '></label>'; };
     var eg = topoEngDefaults(), ri = repInfo(), siI = sheetInfo();
     var h = dgmSo('stoixeia');
+    h += renderForestRow(d);
     // ---- στοιχεία ----
     h += STEP('', 'Γράψε τα στοιχεία', 'Μπαίνουν μόνα τους στην πινακίδα');
     h += '<div class="dgm-ctl" style="flex-wrap:wrap">' + F('dgmInfo', 'client', 'Ιδιοκτήτης', 'ΕΠΩΝΥΜΟ ΟΝΟΜΑ', 220, ri.client) + F('dgmInfo', 'project', 'Έργο', 'όνομα έργου', 220, ri.project) + F('dgmInfo', 'addr', 'Διεύθυνση (οδός & αριθμός)', 'κενό αν δεν υπάρχει', 220, ri.addr) + F('dgmInfo', 'place', 'Θέση', 'π.χ. Θέση «…», Τ.Κ. …, Δήμος …', 220, ri.place || ownOta()) + F('dgmInfo', 'date', 'Ημερομηνία', siI.date, 140, ri.date) + '</div>';
@@ -7528,17 +7530,20 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     h += '<label class="btn small">Ανέβασμα ZIP κύρωσης<input type="file" id="forestZip" accept=".zip" hidden></label>';
     if (S.forestStatus === 'loading') h += '<span class="chip">ανάγνωση…</span>';
     else if (S.forest && S.forest.count != null) h += '<span class="chip ok">' + S.forest.count + ' δασικά πολύγωνα' + (S.forest.catField ? ' · χαρακτηρισμός: ' + esc(S.forest.catField) : '') + '</span>';
+    else if (d && d.forestSrc === 'epsx') h += '<span class="chip ok">δασικός χάρτης αυτόματα (Ενιαίος Ψηφιακός Χάρτης)</span>';
     if (S.forestErr) h += '<span class="chip warn">' + esc(S.forestErr) + '</span>';
     h += '<span style="color:var(--muted);font-size:12px">ZIP με shapefile (.shp/.dbf) του κυρωμένου δασικού χάρτη σε ΕΓΣΑ87 — εμφανίζονται μόνο τα τμήματα που επηρεάζουν την ιδιοκτησία, προσαρμοσμένα στο εύρος του ΚΑΕΚ.</span></div>';
     var F = d && d.forest;
     if (F && F.length) {
       h += '<div class="tbl-wrap"><table class="dgm-tbl"><thead><tr><th>Πολύγωνο</th><th>Χαρακτηρισμός</th><th class="num">Εμβαδό εντός ιδιοκτησίας (m²)</th><th class="num">Εμβαδό στο σχέδιο (m²)</th></tr></thead><tbody>';
-      F.forEach(function (f, i) { h += '<tr><td>Δ' + (i + 1) + '</td><td><b>' + esc(f.cat || '—') + '</b></td><td class="num">' + (f.areaProp > 0.005 ? fmt(f.areaProp, 2) : '—') + '</td><td class="num">' + fmt(f.areaClip, 2) + '</td></tr>'; });
+      F.forEach(function (f, i) { h += '<tr><td>Δ' + (i + 1) + '</td><td><b>' + esc(f.cat || '—') + '</b>' + (f.ada ? ' <span style="color:var(--muted)">(αρχικά ' + esc(f.catOrig) + ' · ΑΔΑ ' + esc(f.ada) + ')</span>' : '') + '</td><td class="num">' + (f.areaProp > 0.005 ? fmt(f.areaProp, 2) : '—') + '</td><td class="num">' + fmt(f.areaClip, 2) + '</td></tr>'; });
       h += '</tbody></table></div>';
       h += forestObjUI(d.forestRaw || F);
-      h += '<p style="margin:0;color:var(--muted);font-size:12px">Χαρακτηρισμός από το πεδίο «' + esc(S.forest.catField || '—') + '». Σχεδιάζονται στο layer DASOS με πίνακα δασικών πολυγώνων στο DXF/PDF.</p>';
+      if (S.forest) h += '<p style="margin:0;color:var(--muted);font-size:12px">Χαρακτηρισμός από το πεδίο «' + esc(S.forest.catField || '—') + '». Σχεδιάζονται στο layer DASOS με πίνακα δασικών πολυγώνων στο DXF/PDF.</p>';
     } else if (S.forest && S.forest.count) {
       h += '<p style="margin:0;color:var(--muted);font-size:12px">Κανένα δασικό πολύγωνο δεν τέμνει/γειτνιάζει με το εύρος του ΚΑΕΚ (' + S.forest.count + ' στο αρχείο).</p>';
+    } else if (S.forestStatus !== 'loading') {
+      h += '<p style="margin:0;font-size:14px;color:var(--warn)">Δεν υπάρχει ακόμα δασικός χάρτης σε αυτή τη ΔΓΜ. Ανέβασε το ZIP κύρωσης, ή φτιάξε πρώτα το τοπογραφικό (φέρνει αυτόματα τον δασικό χάρτη) και ξανατρέξε τη ΔΓΜ.</p>';
     }
     return h;
   }
