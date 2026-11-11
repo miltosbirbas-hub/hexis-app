@@ -6852,6 +6852,35 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     return p.length >= 3 ? p : [];
   }
   function clipRingsToBox(rings, box) { var out = []; rings.forEach(function (r) { var c = clipRingToRect(r, box); if (c.length >= 3) out.push(c); }); return out; }
+  // Τεράστια γεωτεμάχια (π.χ. παραλιακή λωρίδα, μεγάλο αγροτεμάχιο) δεν τυπώνονται ολόκληρα: κόβονται σε πλαίσιο γύρω από
+  // τη μεταβολή και γράφονται «ΤΜΗΜΑ ΜΕΓΑΛΥΤΕΡΗΣ ΕΚΤΑΣΗΣ ΚΑΕΚ». Τα εμβαδά (αρχικό/τελικό) μένουν του ολόκληρου γεωτεμαχίου.
+  // Όριο: ό,τι χωρά στην περιοχή σχεδίου Α0 σε 1:1000 (≈ 620 × 520 m μαζί με τη στήλη πινάκων).
+  var DGM_MAX_W = 620, DGM_MAX_H = 520;
+  function dgmCropHuge(res) {
+    var bb = function (pts, b) { pts.forEach(function (q) { b[0] = Math.min(b[0], q[0]); b[1] = Math.min(b[1], q[1]); b[2] = Math.max(b[2], q[0]); b[3] = Math.max(b[3], q[1]); }); return b; };
+    var ch = bb((res.Mmeas || res.Mr || []).concat(res.Mtopo || []), [Infinity, Infinity, -Infinity, -Infinity]);
+    (res.pieces || []).forEach(function (x) { if (x.kind !== 'common') bb(x.ring, ch); });
+    if (!isFinite(ch[0])) return;
+    var full = ch.slice(); (res.parcels || []).forEach(function (p) { (p.rings || []).forEach(function (r) { bb(r, full); }); });
+    if (full[2] - full[0] <= DGM_MAX_W && full[3] - full[1] <= DGM_MAX_H) return;   // χωράει ολόκληρο
+    var w = ch[2] - ch[0], h = ch[3] - ch[1], pad = Math.max(25, 0.35 * Math.max(w, h));
+    var box = [ch[0] - pad, ch[1] - pad, ch[2] + pad, ch[3] + pad];
+    // όχι μεγαλύτερο από όσο χωράει (εκτός αν η ίδια η μεταβολή είναι μεγαλύτερη)
+    var cx = (ch[0] + ch[2]) / 2, cy = (ch[1] + ch[3]) / 2, bw = Math.max(w + 10, Math.min(box[2] - box[0], DGM_MAX_W)), bh = Math.max(h + 10, Math.min(box[3] - box[1], DGM_MAX_H));
+    box = [cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2];
+    var inside = function (rings) { return rings.every(function (r) { return r.every(function (q) { return q[0] >= box[0] && q[0] <= box[2] && q[1] >= box[1] && q[1] <= box[3]; }); }); };
+    res.parcels = res.parcels.map(function (p) {
+      if (!p.rings || inside(p.rings)) return p;
+      var cr = clipRingsToBox(p.rings, box); if (!cr.length) return p.kaek === res.own ? p : null;
+      return Object.assign({}, p, { rings: cr, clipped: true, cutBox: box, fullArea: p.area });
+    }).filter(Boolean);
+    res.finals = (res.finals || []).map(function (f) {
+      if (!f.outer || inside([f.outer])) return f;
+      var co = clipRingToRect(f.outer, box); if (co.length < 3) return f;
+      return Object.assign({}, f, { outer: co, holes: [], clipped: true, cutBox: box });
+    });
+    res.cropBox = box;
+  }
   function dgmParcels() {
     var k = S.kaek; if (!(k && k.status === 'ok')) return [];
     if (k._clipped) return k._clipped;
@@ -7086,6 +7115,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       res.bld = (S.bld || []).filter(function (r) { return r.some(function (q) { return CoordParser.pointInPoly(q, M, 0) || Math.min.apply(null, M.map(function (m) { return Math.hypot(m[0] - q[0], m[1] - q[1]); })) < 60; }); });
       // DGM_PROP_FINAL και για τον δρόμο/ΕΚ (όπως ζητήθηκε): το τελικό όριο του κομμένου κοινόχρηστου
       res.finals = (res.finals || []).filter(function (f) { return aff[f.kaek] || isPublicKaek(f.kaek); });
+      dgmCropHuge(res);   // τεράστια ΚΑΕΚ → «ΤΜΗΜΑ ΜΕΓΑΛΥΤΕΡΗΣ ΕΚΤΑΣΗΣ», ώστε το διάγραμμα να χωρά έως Α0 σε 1:1000
       res.forest = forestForPlot(M);
       // ενιαία αρίθμηση κορυφών (όπως στα υποδείγματα): οι ετικέτες του τοπογραφικού κρατιούνται μόνο αν είναι αριθμοί
       var numericLabels = !res.Mabs && res.labels.every(function (l) { return /^\d+$/.test(String(l)); });
@@ -7614,7 +7644,8 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       lay.elems.polys.forEach(function (p) { if (skipL[p.layer]) return; spec.polys.push({ layer: p.layer, pts: p.pts, bulges: p.bulges, closed: p.closed, color: p.color || 7, lw: p.lw }); });
       var lc = { PINAKES: 7, PINAKIDA: 7, KANNABOS: 8, AREA_A: 3, AREA_D: 1, AREA_EKTOS_KAEK: 30 };
       spec.lines = lay.elems.lines.filter(function (l) { return !skipL[l.layer]; }).map(function (l) { return { layer: l.layer, a: l.a, b: l.b, color: l.color || lc[l.layer] || 256, lw: l.lw }; });
-      lay.elems.texts.forEach(function (t) { if (skipL[t.layer]) return; spec.texts.push({ layer: t.layer, x: t.x, y: t.y, text: t.text, h: t.h, rot: t.rot, align: t.align, fit: t.fit, color: t.color || 7 }); });
+      if (lay.kaekLabels) spec.texts = spec.texts.filter(function (t) { return t.layer !== 'PST_KAEK' && t.layer !== 'IDIOKTHTES'; });   // οι ετικέτες ΚΑΕΚ έρχονται από το φύλλο (με τις μετακινήσεις σου)
+      lay.elems.texts.forEach(function (t) { if (skipL[t.layer]) return; if (t.layer === 'PST_KAEK-labels') t = Object.assign({}, t, { layer: 'PST_KAEK' }); spec.texts.push({ layer: t.layer, x: t.x, y: t.y, text: t.text, h: t.h, rot: t.rot, align: t.align, fit: t.fit, color: t.color || 7 }); });
       // γεμίσματα υπομνήματος (τα τμήματα έχουν ήδη hatch από το dgmSpec)
       lay.elems.hatches.forEach(function (h) { if (h.legend) spec.hatches.push({ layer: h.layer, pts: h.pts, color: h.color }); });
       var txt2 = Dxf2000.build(spec, { prune: true, template: '2018' });
