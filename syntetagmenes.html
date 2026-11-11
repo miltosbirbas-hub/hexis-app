@@ -7377,10 +7377,11 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     (d.bld || []).forEach(function (r) { var R = DGM.open(r); polys.push({ layer: 'BLD', pts: R, closed: true, color: 8 }); });
     // Δασικά πολύγωνα (κυρωμένος δασικός χάρτης) με χαρακτηρισμό — κομμένα στο εύρος του ΚΑΕΚ
     (d.forest || []).forEach(function (f, i) {
-      f.outer.forEach(function (r) { var R = DGM.open(r); polys.push({ layer: 'DASOS', pts: R, closed: true, color: 94 }); });
-      (f.holes || []).forEach(function (r) { var R = DGM.open(r); polys.push({ layer: 'DASOS', pts: R, closed: true, color: 94 }); });
+      var fcol = /^(ΑΑ|ΑΓ|ΟΙ|ΥΔ|ΑΣ|ΤΕ)$/.test(String(f.cat || '').trim()) ? 8 : 94; // μη δασικές (ΑΑ κ.ά.): γκρι, όχι πράσινο
+      f.outer.forEach(function (r) { var R = DGM.open(r); polys.push({ layer: 'DASOS', pts: R, closed: true, color: fcol }); });
+      (f.holes || []).forEach(function (r) { var R = DGM.open(r); polys.push({ layer: 'DASOS', pts: R, closed: true, color: fcol }); });
       var c = DGM.interior(DGM.open(f.outer[0]), []); var lab = 'Δ' + (i + 1) + (f.cat ? ' · ' + f.cat : '');
-      texts.push({ layer: 'DASOS-labels', x: c[0], y: c[1], text: lab, h: TH * 1.3, color: 94, align: 'center' });
+      texts.push({ layer: 'DASOS-labels', x: c[0], y: c[1], text: lab, h: TH * 1.3, color: fcol, align: 'center' });
     });
     return { polys: polys, texts: texts, points: [], hatches: hatches, layers: { BOUND_IMPL: { color: 42 }, BOUND_UNIMPL: { color: 61 }, BLD: { color: 8 }, DASOS: { color: 94 }, 'DASOS-labels': { color: 94 }, 'AREA_D-labels': { color: 1 }, 'AREA_A-labels': { color: 3 }, 'AREA_D-hatch': { color: 1 }, 'AREA_A-hatch': { color: 3 }, 'AREA_EKTOS_KAEK-labels': { color: 30 }, SHMEIA_TOPO_PROP: { color: 5 }, SHMEIA_PST_KAEK: { color: 1 }, IDIOKTHTES: { color: 7 }, KORYFES: { color: 7 }, KANNABOS: { color: 8 }, APOSTASEIS: { color: 7 }, PINAKES: { color: 7 }, PINAKIDA: { color: 7 } } };
   }
