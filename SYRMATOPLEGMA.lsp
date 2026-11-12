@@ -11,10 +11,13 @@
 ;;;  Diadromi: LINE, LWPOLYLINE (kai me toxa), ARC, CIRCLE
 ;;;            i simeia me klik [Simeia].
 ;;;  - Pasalos se KATHE koryfi (ta simeia einai oi apotypwmenoi pasaloi)
-;;;  - Symvola "x" se kathe anoigma, stramena kata tin poreia
-;;;  v1.1
-;;;  - Megethi symvolwn analoga me tin klimaka sxediasis (1:N):
-;;;      x = 2 mm, pasalos = 1 mm, apostasi x = 15 mm sto xarti
+;;;  v1.2
+;;;  - Ta "x" einai pleon TYPOS GRAMMIS (linetype SYRMATOPLEGMA):
+;;;    mia grammi, pou menei idia me copy-paste se allo sxedio.
+;;;    O typos grammis ftiaxnetai aytomata sto sxedio (kai yparxei kai
+;;;    sto arxeio HEXIS.lin gia LINETYPE > Load).
+;;;  - Megethi analoga me tin klimaka sxediasis (1:N), sxedio se metra:
+;;;      x = ~2 mm, pasalos = 1 mm, apostasi x = 15 mm sto xarti
 ;;;  - I grammi pou epilegeis pigainei sto layer SYRMATOPLEGMA
 ;;;  - Oli i entoli anaireitai me ena U
 ;;;  Oi rythmiseis kratiountai kai meta to kleisimo tou CAD.
@@ -69,10 +72,6 @@
               (cons 70 (if cl 1 0)) '(43 . 0.0))
         (mapcar '(lambda (p) (cons 10 p)) pts)))))
 
-(defun sy:line (a b lay)
-  (entmake (list '(0 . "LINE") (cons 8 lay)
-                 (list 10 (car a) (cadr a) 0.0) (list 11 (car b) (cadr b) 0.0))))
-
 ;; gemati koukida (donut) diametrou dd - pasalos
 (defun sy:dot2 (c dd lay / q)
   (setq q (/ dd 4.0))
@@ -81,14 +80,6 @@
           '(100 . "AcDbPolyline") '(90 . 2) '(70 . 1) (cons 43 (/ dd 2.0))
           (cons 10 (list (- (car c) q) (cadr c))) '(42 . 1.0)
           (cons 10 (list (+ (car c) q) (cadr c))) '(42 . 1.0))))
-
-;; symvolo "x": dyo grammes sta +-45 moires ws pros tin poreia u
-(defun sy:xmark (c u sz lay / a b h)
-  (setq h (/ sz 2.0)
-        a (sy:unit (sy:add u (sy:nrm u)))
-        b (sy:unit (sy:sub u (sy:nrm u))))
-  (sy:line (sy:sub c (sy:mul a h)) (sy:add c (sy:mul a h)) lay)
-  (sy:line (sy:sub c (sy:mul b h)) (sy:add c (sy:mul b h)) lay))
 
 ;;; ---------- undo / sfalmata -------------------------------------------
 (defun sy:err (msg)
@@ -215,19 +206,6 @@
     (setq res (append res (list (car res)))))
   (if (>= (length res) 2) (list res cl vs)))
 
-;;; ---------- anoigmata metaxy pasalwn ------------------------------------
-(defun sy:isv (p vs / r)
-  (foreach v vs (if (< (distance p v) 1e-6) (setq r T)))
-  r)
-;; spaei ti diadromi se anoigmata stis koryfes (pasalous)
-(defun sy:spans (pts vs / cur res)
-  (setq cur (list (car pts)) pts (cdr pts))
-  (foreach p pts
-    (setq cur (cons p cur))
-    (if (sy:isv p vs) (setq res (cons (reverse cur) res) cur (list p))))
-  (if (cdr cur) (setq res (cons (reverse cur) res)))
-  (reverse res))
-
 (defun sy:runlen (pts / L)
   (setq L 0.0)
   (while (cdr pts)
@@ -235,12 +213,6 @@
   L)
 
 ;; (simeio dieythynsi) se stathmo s panw sto run
-(defun sy:at (pts s / a b l)
-  (while (and (cddr pts) (> s (setq l (distance (car pts) (cadr pts)))))
-    (setq s (- s l) pts (cdr pts)))
-  (setq a (car pts) b (cadr pts) l (max 1e-12 (distance a b)))
-  (list (sy:lerp a b (min 1.0 (max 0.0 (/ s l)))) (sy:unit (sy:sub b a))))
-
 ;;; =====================================================================
 ;;;  SYRMATOPLEGMA
 ;;; =====================================================================
@@ -260,7 +232,52 @@
   (setq *sy:TY* (sy:askk "Symvola [Ola/X/Pasaloi]" "Ola X Pasaloi" *sy:TY*))
   (sy:setn "SY_SCALE" *sy:K*) (sy:sets "SY_TYPE" *sy:TY*))
 
-(defun c:SYRMATOPLEGMA ( / path pts cl vs L n i pu np nx ed doX doP sz dp dx)
+
+;;; ---------- typos grammis SYRMATOPLEGMA -------------------------------
+;; motivo se mm xartiou: grammi 13, keno 1, "x", keno 1  (periodos 15 mm)
+(defun sy:ltwrite (fn / f)
+  (if (setq f (open fn "w"))
+    (progn
+      (write-line "*SYRMATOPLEGMA,Syrmatoplegma ----x----x----" f)
+      (write-line "A,13.0,-1.0,[\"x\",STANDARD,S=2.5,R=0.0,X=-0.85,Y=-0.85],-1.0" f)
+      (close f)
+      fn)))
+
+(defun sy:ltype ( / st fn fd)
+  (if (not (tblsearch "LTYPE" "SYRMATOPLEGMA"))
+    (progn
+      ;; 1) apeytheias entmake (xoris erwtiseis)
+      (if (setq st (tblobjname "STYLE" "STANDARD"))
+        (entmake
+          (list '(0 . "LTYPE") '(100 . "AcDbSymbolTableRecord")
+                '(100 . "AcDbLinetypeTableRecord") '(2 . "SYRMATOPLEGMA") '(70 . 0)
+                '(3 . "Syrmatoplegma ----x----x----") '(72 . 65) '(73 . 3) '(40 . 15.0)
+                '(49 . 13.0) '(74 . 0)
+                '(49 . -1.0) '(74 . 2) '(75 . 0) (cons 340 st) '(46 . 2.5) '(50 . 0.0)
+                '(44 . -0.85) '(45 . -0.85) '(9 . "x")
+                '(49 . -1.0) '(74 . 0))))
+      ;; 2) an den egine, fortwsi apo arxeio .lin (LINETYPE Load)
+      (if (and (not (tblsearch "LTYPE" "SYRMATOPLEGMA"))
+               (setq fn (sy:ltwrite (strcat (getvar "TEMPPREFIX") "HEXIS_SYR.lin"))))
+        (progn
+          (setq fd (getvar "FILEDIA"))
+          (setvar "FILEDIA" 0)
+          (command "_.-LINETYPE" "_Load" "SYRMATOPLEGMA" fn "")
+          (while (> (getvar "CMDACTIVE") 0) (command ""))
+          (setvar "FILEDIA" fd)))))
+  (tblsearch "LTYPE" "SYRMATOPLEGMA"))
+
+;; vazei layer / typo grammis / klimaka typou se mia ontotita
+(defun sy:put (ed k v)
+  (if (assoc k ed) (subst (cons k v) (assoc k ed) ed) (append ed (list (cons k v)))))
+(defun sy:style (ed lt sc)
+  (setq ed (sy:put ed 8 "SYRMATOPLEGMA"))
+  (if lt (setq ed (sy:put (sy:put ed 6 lt) 48 sc)))
+  (if (= (cdr (assoc 0 ed)) "LWPOLYLINE")
+    (setq ed (sy:put ed 70 (logior 128 (cdr (assoc 70 ed))))))
+  ed)
+
+(defun c:SYRMATOPLEGMA ( / path pts cl vs np ed doX doP dp lt sc)
   (sy:begin)
   (sy:load)
   (while (progn (sy:show) (= (setq path (sy:getpath "Rythmiseis")) "Rythmiseis"))
@@ -270,15 +287,25 @@
       (sy:layer "SYRMATOPLEGMA" 3)
       (setq pts (car path) cl (cadr path) vs (caddr path)
             doX (/= *sy:TY* "Pasaloi") doP (/= *sy:TY* "X")
-            sz (* *sy:K* 0.002)        ; x: 2 mm sto xarti
-            dp (* *sy:K* 0.001)        ; pasalos: 1 mm
-            dx (* *sy:K* 0.015)        ; apostasi x: 15 mm
-            np 0 nx 0)
-      ;; i grammi: i epilegmeni pigainei sto layer, alliws nea polygrammi
+            dp (* *sy:K* 0.001)        ; pasalos: 1 mm sto xarti
+            np 0)
+      ;; typos grammis: motivo se mm -> klimaka N/1000 (sxedio se metra)
+      (if doX
+        (if (sy:ltype)
+          (setq lt "SYRMATOPLEGMA"
+                sc (/ (* *sy:K* 0.001) (max 1e-9 (getvar "LTSCALE"))))
+          (princ "\nO typos grammis SYRMATOPLEGMA den fortwthike - i grammi menei synexis.")))
+      ;; i grammi: i epilegmeni pairnei layer + typo grammis, alliws nea polygrammi
       (if *sy:ent*
-        (progn (setq ed (entget *sy:ent*))
-               (entmod (subst (cons 8 "SYRMATOPLEGMA") (assoc 8 ed) ed)))
-        (sy:pline (if cl (reverse (cdr (reverse pts))) pts) cl "SYRMATOPLEGMA"))
+        (entmod (sy:style (entget *sy:ent*) lt sc))
+        (entmake
+          (append
+            (list '(0 . "LWPOLYLINE") '(100 . "AcDbEntity") '(8 . "SYRMATOPLEGMA"))
+            (if lt (list (cons 6 lt) (cons 48 sc)))
+            (list '(100 . "AcDbPolyline")
+                  (cons 90 (length (if cl (cdr pts) pts)))
+                  (cons 70 (+ 128 (if cl 1 0))) '(43 . 0.0))
+            (mapcar '(lambda (p) (cons 10 p)) (if cl (reverse (cdr (reverse pts))) pts)))))
       ;; pasalos se kathe koryfi
       (if doP
         (progn
@@ -286,20 +313,10 @@
           (foreach v vs
             (sy:dot2 v dp "SYRMATOPLEGMA_PASALOI")
             (setq np (1+ np)))))
-      ;; symvola x se kathe anoigma
-      (if doX
-        (foreach sp (sy:spans pts vs)
-          (setq L (sy:runlen sp))
-          (if (> L (* 1.5 sz))
-            (progn
-              (setq n (max 1 (fix (+ 0.5 (/ L dx)))) i 0)
-              (while (< i n)
-                (setq pu (sy:at sp (* L (/ (+ i 0.5) n))))
-                (sy:xmark (car pu) (cadr pu) sz "SYRMATOPLEGMA")
-                (setq nx (1+ nx) i (1+ i)))))))
       (princ (strcat "\nSYRMATOPLEGMA: etoimo - mikos "
                      (rtos (sy:runlen pts) 2 2) " m, "
-                     (itoa np) " pasaloi, " (itoa nx) " symvola x."))))
+                     (itoa np) " pasaloi"
+                     (if lt ", typos grammis SYRMATOPLEGMA." ".")))))
   (sy:end)
   (princ))
 (defun c:SYR () (c:SYRMATOPLEGMA))
