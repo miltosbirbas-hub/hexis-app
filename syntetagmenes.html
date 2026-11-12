@@ -4219,23 +4219,110 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     for (var k = 0; k <= n - (full ? 1 : 0); k++) { var a = (a0 + (a1 - a0) * k / n) * Math.PI / 180; pts.push([c.c[0] + c.r * Math.cos(a), c.c[1] + c.r * Math.sin(a)]); }
     return { layer: c.layer, pts: pts, closed: full, arc: true };
   }
+  // ---------- τύποι γραμμής (LTYPE): απλοί διακεκομμένοι και σύνθετοι με κείμενο (π.χ. SYRMATOPLEGMA «--x--») ----------
+  // Διαβάζει $LTSCALE, τον πίνακα LTYPE και το linetype κάθε LAYER, ώστε οι γραμμές να μη φαίνονται όλες συνεχείς.
+  function readLtypes(lines) {
+    var n = lines.length, i = 0, res = { ltscale: 1, defs: {}, layerLt: {} };
+    function at(k) { return (lines[k] || '').trim(); }
+    var cur = null, el = null, kind = null;
+    function flush() {
+      if (kind === 'LTYPE' && cur && cur.name) { var nm = cur.name.toUpperCase(); if (cur.els.length && cur.els.some(function (e) { return e.len < 0 || e.text; })) res.defs[nm] = cur; }
+      else if (kind === 'LAYER' && cur && cur.name) res.layerLt[cur.name] = cur.lt || '';
+      cur = null; el = null; kind = null;
+    }
+    while (i < n - 1) {
+      var code = at(i), val = at(i + 1); i += 2;
+      if (code === '0' && val === 'SECTION') continue;
+      if (code === '9' && val === '$LTSCALE') { if (at(i) === '40') { var v = parseFloat(at(i + 1)); if (v > 0) res.ltscale = v; } continue; }
+      if (code === '2' && val === 'ENTITIES') break;
+      if (code === '0') {
+        flush();
+        if (val === 'LTYPE') { kind = 'LTYPE'; cur = { name: '', els: [], total: 0 }; }
+        else if (val === 'LAYER') { kind = 'LAYER'; cur = { name: '', lt: '' }; }
+        continue;
+      }
+      if (!cur) continue;
+      if (code === '2') cur.name = val;
+      else if (kind === 'LAYER' && code === '6') cur.lt = val;
+      else if (kind === 'LTYPE') {
+        if (code === '40') cur.total = parseFloat(val) || 0;
+        else if (code === '49') { el = { len: parseFloat(val) || 0, flags: 0, sc: 1, rot: 0, dx: 0, dy: 0, text: '' }; cur.els.push(el); }
+        else if (el) {
+          if (code === '74') el.flags = parseInt(val, 10) || 0;
+          else if (code === '46') el.sc = parseFloat(val) || 1;
+          else if (code === '50') el.rot = parseFloat(val) || 0;
+          else if (code === '44') el.dx = parseFloat(val) || 0;
+          else if (code === '45') el.dy = parseFloat(val) || 0;
+          else if (code === '9') el.text = val;
+        }
+      }
+    }
+    flush();
+    return res;
+  }
+  // Σπάει μια γραμμή με τύπο γραμμής σε κομμάτια (segs) και σημάδια (marks: κείμενο/«x»), σε μονάδες σχεδίου.
+  // Όπως στο CAD: μήκος μοτίβου × $LTSCALE × κλίμακα οντότητας· συνεχές μοτίβο σε όλη την πολυγραμμή.
+  // Το κείμενο ενός στοιχείου τοποθετείται στο τέλος του στοιχείου που το φέρει, μετατοπισμένο κατά X/Y.
+  function ltExpand(p, maxPieces) {
+    var d = p && p.ltdef, k = p && p.ltk || 1, pts = p && p.pts;
+    if (!d || !pts || pts.length < 2 || !(k > 0)) return null;
+    var P = pts.slice(); if (p.closed) P.push(pts[0]);
+    var per = d.els.reduce(function (a, e) { return a + Math.abs(e.len); }, 0) * k; if (!(per > 1e-9)) return null;
+    var cum = [0]; for (var i = 1; i < P.length; i++) cum.push(cum[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]));
+    var L = cum[cum.length - 1]; if (!(L > 0)) return null;
+    if (L / per * d.els.length > (maxPieces || 20000)) return null; // πολύ πυκνό μοτίβο: μένει συνεχής
+    var si = 0;
+    function at(s) { if (s <= 0) si = 0; while (si < P.length - 2 && cum[si + 1] < s) si++; var a = P[si], b = P[si + 1], l = (cum[si + 1] - cum[si]) || 1e-12, f = Math.max(0, Math.min(1, (s - cum[si]) / l)); return { x: a[0] + (b[0] - a[0]) * f, y: a[1] + (b[1] - a[1]) * f, ang: Math.atan2(b[1] - a[1], b[0] - a[0]) }; }
+    function piece(s0, s1) { var out = [], q = at(s0); out.push([q.x, q.y]); for (var j = si + 1; j < P.length - 1 && cum[j] < s1; j++) out.push([P[j][0], P[j][1]]); q = at(s1); out.push([q.x, q.y]); return out; }
+    var segs = [], marks = [], s = 0, guard = 0;
+    while (s < L - 1e-9 && guard++ < 200000) {
+      for (var e = 0; e < d.els.length && s < L - 1e-9; e++) {
+        var el = d.els[e], len = Math.abs(el.len) * k, s1 = Math.min(L, s + len);
+        if (el.len > 0) segs.push(piece(s, s1));
+        if (el.text && (el.flags & 2) && s + len <= L + 1e-9) {
+          var q = at(s1), ang = (el.flags & 1) ? el.rot * Math.PI / 180 : q.ang + el.rot * Math.PI / 180, c = Math.cos(q.ang), sn = Math.sin(q.ang);
+          var h = (el.sc || 1) * k, ox = el.dx * k, oy = el.dy * k;
+          marks.push({ x: q.x + ox * c - oy * sn, y: q.y + ox * sn + oy * c, cx: q.x, cy: q.y, ang: ang, h: h, text: el.text, ox: ox, oy: oy });
+        }
+        s = s1;
+      }
+    }
+    return { segs: segs, marks: marks };
+  }
+  // Σημάδι ως γραμμές: «x»/«X»/«+» γίνονται δύο γραμμούλες στο κέντρο του γλύφου (όπως στο CAD), αλλιώς null (σχεδιάζεται ως κείμενο)
+  function markStrokes(m) {
+    var t = String(m.text || '').trim(); if (!/^[xX+]$/.test(t)) return null;
+    var g = 0.68 * m.h / 2, c = Math.cos(m.ang), sn = Math.sin(m.ang);
+    var cx = m.x + g * c - g * sn, cy = m.y + g * sn + g * c;   // κέντρο του γλύφου (γωνία κάτω αριστερά = θέση κειμένου)
+    var r = t === '+' ? [[g, 0], [0, g]] : [[g, g], [g, -g]];
+    return r.map(function (v) { var dx = v[0] * c - v[1] * sn, dy = v[0] * sn + v[1] * c; return [[cx - dx, cy - dy], [cx + dx, cy + dy]]; });
+  }
+
   function parse(text) {
     var lines = text.split(/\r?\n/), n = lines.length;
     var polys = [], texts = [], layers = {};
+    var LT = readLtypes(lines);
     var i = 0;
     function at(k) { return (lines[k] || '').trim(); }
+    // τύπος γραμμής της οντότητας (ή του layer όταν είναι ByLayer) → ορισμός + συνολική κλίμακα
+    function withLt(o, src) {
+      var nm = String(src.lt || 'BYLAYER').toUpperCase();
+      if (nm === 'BYLAYER') nm = String(LT.layerLt[src.layer] || '').toUpperCase();
+      var d = LT.defs[nm]; if (d) { o.lt = nm; o.ltdef = d; o.ltk = LT.ltscale * (src.lts > 0 ? src.lts : 1); }
+      return o;
+    }
     // βρες ENTITIES
     while (i < n && !(at(i) === '2' && at(i + 1) === 'ENTITIES')) i += 2;
     i += 2;
     var cur = null, vtx = null, inPoly = null, blockDepth = 0;
-    function flush() { if (cur) { if (cur.type === 'LWPOLYLINE' && cur.pts.length >= 2) polys.push({ layer: cur.layer, pts: expandBulges(cur.pts, cur.bul, !!(cur.flags & 1)), closed: !!(cur.flags & 1) }); else if (cur.type === 'LINE' && cur.a && cur.b) polys.push({ layer: cur.layer, pts: [cur.a, cur.b], closed: false }); else if ((cur.type === 'TEXT' || cur.type === 'MTEXT') && cur.text) texts.push(txtOut(cur)); else if ((cur.type === 'CIRCLE' || cur.type === 'ARC') && cur.r > 0 && cur.c) polys.push(arcPoly(cur)); } cur = null; }
+    function flush() { if (cur) { if (cur.type === 'LWPOLYLINE' && cur.pts.length >= 2) polys.push(withLt({ layer: cur.layer, pts: expandBulges(cur.pts, cur.bul, !!(cur.flags & 1)), closed: !!(cur.flags & 1) }, cur)); else if (cur.type === 'LINE' && cur.a && cur.b) polys.push(withLt({ layer: cur.layer, pts: [cur.a, cur.b], closed: false }, cur)); else if ((cur.type === 'TEXT' || cur.type === 'MTEXT') && cur.text) texts.push(txtOut(cur)); else if ((cur.type === 'CIRCLE' || cur.type === 'ARC') && cur.r > 0 && cur.c) polys.push(withLt(arcPoly(cur), cur)); } cur = null; }
     while (i < n) {
       var code = at(i), val = at(i + 1); i += 2;
       if (code === '0') {
         if (val === 'ENDSEC') { flush(); if (inPoly) { polys.push(inPoly); inPoly = null; } break; }
         if (inPoly) {
           if (val === 'VERTEX') { vtx = {}; continue; }
-          if (val === 'SEQEND') { if (inPoly.pts.length >= 2) polys.push({ layer: inPoly.layer, pts: inPoly.pts, closed: !!(inPoly.flags & 1) }); inPoly = null; vtx = null; continue; }
+          if (val === 'SEQEND') { if (inPoly.pts.length >= 2) polys.push(withLt({ layer: inPoly.layer, pts: inPoly.pts, closed: !!(inPoly.flags & 1) }, inPoly)); inPoly = null; vtx = null; continue; }
         }
         flush();
         if (val === 'POLYLINE') { inPoly = { layer: '0', pts: [], flags: 0 }; vtx = null; continue; }
@@ -4244,11 +4331,13 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       }
       if (inPoly) {
         if (vtx) { if (code === '10') vtx.x = parseFloat(val); else if (code === '20') { vtx.y = parseFloat(val); if (vtx.x != null) { inPoly.pts.push([vtx.x, vtx.y]); } } }
-        else { if (code === '8') inPoly.layer = val; else if (code === '70') inPoly.flags = parseInt(val, 10) || 0; }
+        else { if (code === '8') inPoly.layer = val; else if (code === '70') inPoly.flags = parseInt(val, 10) || 0; else if (code === '6') inPoly.lt = val; else if (code === '48') inPoly.lts = parseFloat(val) || 0; }
         continue;
       }
       if (!cur) continue;
       if (code === '8') { cur.layer = val; layers[val] = 1; }
+      else if (code === '6' && cur.type !== 'MTEXT') cur.lt = val;
+      else if (code === '48' && cur.type !== 'MTEXT') cur.lts = parseFloat(val) || 0;
       else if (cur.type === 'LWPOLYLINE') { if (code === '70') cur.flags = parseInt(val, 10) || 0; else if (code === '10') cur._x = parseFloat(val); else if (code === '20') cur.pts.push([cur._x, parseFloat(val)]); else if (code === '42') { (cur.bul || (cur.bul = {}))[cur.pts.length - 1] = parseFloat(val) || 0; } }
       else if (cur.type === 'LINE') { if (code === '10') cur._ax = parseFloat(val); else if (code === '20') cur.a = [cur._ax, parseFloat(val)]; else if (code === '11') cur._bx = parseFloat(val); else if (code === '21') cur.b = [cur._bx, parseFloat(val)]; }
       else if (cur.type === 'TEXT' || cur.type === 'MTEXT') { if (code === '10') cur.x = parseFloat(val); else if (code === '20') cur.y = parseFloat(val); else if (code === '40') cur.h = parseFloat(val); else if (code === '1') cur.text = (cur.text || '') + val; else if (code === '3') cur.text = (cur.text || '') + val; else if (code === '50') cur.rot = parseFloat(val); else if (code === '11') cur.x2 = parseFloat(val); else if (code === '21') cur.y2 = parseFloat(val); else if (code === '72') cur.h72 = parseInt(val, 10) || 0; else if (code === '73') cur.v73 = parseInt(val, 10) || 0; else if (code === '71') cur.att = parseInt(val, 10) || 0; else if (code === '62') cur.col = parseInt(val, 10) || 0; }
@@ -4257,7 +4346,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     return { polys: polys, texts: texts, layers: Object.keys(layers) };
   }
 
-  var api = { build: build, parse: parse };
+  var api = { build: build, parse: parse, ltExpand: ltExpand, markStrokes: markStrokes };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.Dxf2000 = api;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -4970,7 +5059,19 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
         ctx.save(); ctx.setTransform(tr[0], tr[1], tr[2], tr[3], tr[4], tr[5]);
         ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, vp.width, vp.height);
         ctx.lineWidth = Math.max(0.6, 0.02 * vp.scale); ctx.strokeStyle = '#1f2a44'; ctx.lineJoin = 'round';
-        parsed.polys.forEach(function (p) { ctx.beginPath(); p.pts.forEach(function (q, i) { var v = vp.convertToViewportPoint(q[0], q[1]); if (i) ctx.lineTo(v[0], v[1]); else ctx.moveTo(v[0], v[1]); }); if (p.closed) ctx.closePath(); ctx.stroke(); });
+        var LXC = dxfPage._lxc || (dxfPage._lxc = new WeakMap());
+        function strokePts(pts, closed) { ctx.beginPath(); pts.forEach(function (q, i) { var v = vp.convertToViewportPoint(q[0], q[1]); if (i) ctx.lineTo(v[0], v[1]); else ctx.moveTo(v[0], v[1]); }); if (closed) ctx.closePath(); ctx.stroke(); }
+        parsed.polys.forEach(function (p) {
+          // τύπος γραμμής (π.χ. συρματόπλεγμα «--x--», διακεκομμένη): κομμάτια + σημάδια, όπως στο CAD
+          var ex = p.ltdef ? (LXC.has(p) ? LXC.get(p) : (LXC.set(p, Dxf2000.ltExpand(p)), LXC.get(p))) : null;
+          if (!ex) { strokePts(p.pts, p.closed); return; }
+          ex.segs.forEach(function (sg) { strokePts(sg, false); });
+          ex.marks.forEach(function (m) {
+            var st = Dxf2000.markStrokes(m); if (st) { st.forEach(function (sg) { strokePts(sg, false); }); return; }
+            var v = vp.convertToViewportPoint(m.x, m.y), fs = m.h * vp.scale; if (fs < 2) return;
+            ctx.save(); ctx.fillStyle = ctx.strokeStyle; ctx.translate(v[0], v[1]); ctx.rotate(-m.ang); ctx.font = fs + 'px Arial, sans-serif'; ctx.fillText(m.text, 0, 0); ctx.restore();
+          });
+        });
         ctx.fillStyle = '#1f2a44';
         parsed.texts.forEach(function (t) { var v = vp.convertToViewportPoint(t.x, t.y), fs = Math.max(2, (t.h || 1) * vp.scale); if (fs < 2.5) return; ctx.save(); ctx.translate(v[0], v[1]); ctx.rotate(-(t.rot || 0) * Math.PI / 180); ctx.font = fs + 'px Arial, sans-serif'; ctx.fillText(t.text, 0, 0); ctx.restore(); });
         ctx.restore();
@@ -6233,8 +6334,28 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     (res.water || []).forEach(function (w) { if (!water.some(function (v) { return v.code === w.code; })) water.push({ code: w.code, x: w.x, y: w.y, inside: !!w.inside, kind: w.kind, dist: w.dist }); });
     var texts = { oroi: lisp ? TopoSheet.txtOroi(lisp) : [], oroiTitle: 'ΟΡΟΙ ΔΟΜΗΣΗΣ' + (lisp && lisp.fields.KATASTASI_TXT ? ' — ' + lisp.fields.KATASTASI_TXT : ''), oroiNote: lisp ? lisp.note : '', decl651: S.topoNo651 ? [] : TopoSheet.txt651(f), compat: S.topoNoCompat || !verdict ? [] : ['Ο υπογράφων ' + (f.mix || '……………') + (f.eid ? ', ' + f.eid : '') + (f.tee ? ', με Α.Μ. Τ.Ε.Ε. ' + f.tee : '') + ', συντάκτης του παρόντος τοπογραφικού διαγράμματος, δηλώνω υπεύθυνα ότι:'].concat(compatParas(verdict, zoneNameOf(zoneCur()))), notes: S.topoNoNotes ? [] : TopoSheet.txtNotes(f, { K: Kt, verdict: verdict, water: water, closeOT: topoCloseOT(res) && res.extract && TopoSheet.otRingOf({ M: res.M, extract: res.extract }) ? (res.extract.ot || ' ') : '', bldCount: bldIn.length, bldArea: bldA, bldPct: E ? 100 * bldA / E : 0 }), decl4030: S.topoNo4030 ? [] : TopoSheet.txt4030(f), forest: S.topoForest ? TopoSheet.txtForest(f) : [] };
     var parcels = (res.parcels || []).map(function (p) { return { kaek: p.kaek, rings: p.rings, owner: (S.owners || {})[p.kaek] || p.owner || '', ek: p.ek, adjacent: p.adjacent }; });
-    return { oikZones: res.oikZones || null, aigZones: res.aigZones || null, M: M, labels: ids, kaek: res.kaek || f.kaek || '', kaekRing: res.kaekRing, kaekArea: res.kaekArea, owner: f.idio || '', parcels: parcels, closeOT: topoCloseOT(res), extract: (S.topoNoExtract ? null : res.extract) || null, srcTexts: S.topoNoLines ? [] : (S.dxfTexts || []), lines: S.topoNoLines ? [] : (S.dxfLines || []).map(function (l) { return { pts: l.pts, closed: l.closed, layer: String(l.layer || '0') === '0' ? 'TOPO_LINES' : String(l.layer) }; }), rasters: res.rasters || [], photos: S.topoPhotos || [], bld: res.bld || [], bldInfo: res.bldInfo || [], kalPct: (res.lisp && res.lisp.fields.KALYPSI !== '' && res.lisp.fields.KALYPSI != null && isFinite(parseFloat(res.lisp.fields.KALYPSI))) ? parseFloat(res.lisp.fields.KALYPSI) : null, split: res.split || null, artEmb: (function () { var F = res.lisp && res.lisp.fields; var v = F && parseFloat(String(F.ART_EMB || '').replace(',', '.')); return v > 0 ? v : null; })(), artPros: (function () { var F = res.lisp && res.lisp.fields; var v = F && parseFloat(String(F.ART_PROS || '').replace(',', '.')); return v > 0 ? v : null; })(), aigLabel: res.aigLabel || null, aigImg: res.aigImg || null, aigLines: res.aigLines || null, aigFek: res.aigFek || null, kalMax: (function () { var F = res.lisp && res.lisp.fields; if (!F) return null; var k = parseFloat(String(F.MAX_KALYPSI || '').replace(',', '.')), m = parseFloat(String(F.MAX_DOMISI || '').replace(',', '.')); if (!isFinite(k)) return null; return /^ektos/.test(F.KATASTASI || '') && isFinite(m) ? Math.min(k, m) : k; })(), forest: forestApplyObj(res.forest || []), forestSrc: res.forestSrc, water: water, K: K, texts: texts, decl: egsaDeclText(K).split('\n').slice(0, 7) };
+    return { oikZones: res.oikZones || null, aigZones: res.aigZones || null, M: M, labels: ids, kaek: res.kaek || f.kaek || '', kaekRing: res.kaekRing, kaekArea: res.kaekArea, owner: f.idio || '', parcels: parcels, closeOT: topoCloseOT(res), extract: (S.topoNoExtract ? null : res.extract) || null, srcTexts: S.topoNoLines ? [] : (S.dxfTexts || []).concat(topoLtTexts()), lines: S.topoNoLines ? [] : topoSrcLines(), rasters: res.rasters || [], photos: S.topoPhotos || [], bld: res.bld || [], bldInfo: res.bldInfo || [], kalPct: (res.lisp && res.lisp.fields.KALYPSI !== '' && res.lisp.fields.KALYPSI != null && isFinite(parseFloat(res.lisp.fields.KALYPSI))) ? parseFloat(res.lisp.fields.KALYPSI) : null, split: res.split || null, artEmb: (function () { var F = res.lisp && res.lisp.fields; var v = F && parseFloat(String(F.ART_EMB || '').replace(',', '.')); return v > 0 ? v : null; })(), artPros: (function () { var F = res.lisp && res.lisp.fields; var v = F && parseFloat(String(F.ART_PROS || '').replace(',', '.')); return v > 0 ? v : null; })(), aigLabel: res.aigLabel || null, aigImg: res.aigImg || null, aigLines: res.aigLines || null, aigFek: res.aigFek || null, kalMax: (function () { var F = res.lisp && res.lisp.fields; if (!F) return null; var k = parseFloat(String(F.MAX_KALYPSI || '').replace(',', '.')), m = parseFloat(String(F.MAX_DOMISI || '').replace(',', '.')); if (!isFinite(k)) return null; return /^ektos/.test(F.KATASTASI || '') && isFinite(m) ? Math.min(k, m) : k; })(), forest: forestApplyObj(res.forest || []), forestSrc: res.forestSrc, water: water, K: K, texts: texts, decl: egsaDeclText(K).split('\n').slice(0, 7) };
   }
+  // Γραμμές του αρχείου για το τοπογραφικό: όσες έχουν τύπο γραμμής (π.χ. SYRMATOPLEGMA) περνούν σπασμένες σε
+  // κομμάτια + «x» (γραμμούλες), ώστε σε οθόνη, PDF και DXF του φύλλου να φαίνονται όπως στο CAD και όχι συνεχείς.
+  function topoLtParts() {
+    if (S._ltParts && S._ltParts.src === S.dxfLines) return S._ltParts;
+    var lines = [], texts = [], n = 0;
+    (S.dxfLines || []).forEach(function (l) {
+      var ly = String(l.layer || '0') === '0' ? 'TOPO_LINES' : String(l.layer);
+      var ex = l.ltdef && n < 60000 ? Dxf2000.ltExpand(l, 20000) : null;
+      if (!ex) { lines.push({ pts: l.pts, closed: l.closed, layer: ly }); return; }
+      ex.segs.forEach(function (sg) { lines.push({ pts: sg, closed: false, layer: ly }); n++; });
+      ex.marks.forEach(function (m) {
+        var st = Dxf2000.markStrokes(m);
+        if (st) st.forEach(function (sg) { lines.push({ pts: sg, closed: false, layer: ly }); n++; });
+        else texts.push({ x: m.x, y: m.y, text: m.text, h: m.h, rot: m.ang * 180 / Math.PI, align: 'left', layer: ly });
+      });
+    });
+    return (S._ltParts = { src: S.dxfLines, lines: lines, texts: texts });
+  }
+  function topoSrcLines() { return topoLtParts().lines; }
+  function topoLtTexts() { return topoLtParts().texts; }
   function topoLayout(res, light) {
     if (S.topoPaper === 'CUSTOM') ensureCustomPaper();
     var o = (res.rec.options || []).filter(function (x) { return x.scale === S.topoScale && x.paper === S.topoPaper; })[0];
