@@ -6503,7 +6503,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
         + '<button class="btn small" data-te="add" title="Νέο κείμενο: πάτα μετά στο σημείο του σχεδίου (π.χ. «Αγροτική οδός»)">＋ Νέο κείμενο</button>'
         + '<button class="btn small" data-te="img" title="Εικόνα: βάλε σφραγίδα ή λογότυπο (JPEG/PNG) — πάτα στο σημείο, σύρε για μετακίνηση, σύρε τη γωνία ή A+/A− για μέγεθος">🖼 Εικόνα</button><input type="file" class="te-imgfile" accept="image/jpeg,image/png,image/webp" hidden>'
         + '<span class="te-drawg"><button class="btn small" data-te="d-line" title="Γραμμή: πάτα δύο σημεία (κουμπώνει σε κορυφές · Shift = οριζόντια/κατακόρυφη)">／ Line</button><button class="btn small" data-te="d-arrow" title="Βέλος: πάτα την αρχή και μετά τη μύτη">↗ Βέλος</button><button class="btn small" data-te="d-pline" title="Polyline: πάτα τα σημεία · Enter, διπλό πάτημα ή ξανά το κουμπί για τέλος">⌇ Polyline</button><button class="btn small" data-te="d-dim" title="Διάσταση: πάτα δύο σημεία — γράφει το μήκος σε μέτρα (κουμπώνει σε κορυφές)">↔ Διάσταση</button></span>'
-        + '<button class="btn small" data-te="copy" title="Copy: αντιγραφή του επιλεγμένου κειμένου (ίδιο κείμενο, μέγεθος, γωνία) — πάτα όσα σημεία θέλεις, Esc για τέλος">Copy</button>'
+        + '<button class="btn small" data-te="copy" title="Copy: αντίγραφο του επιλεγμένου κειμένου (ίδιο κείμενο, γραμμές, μέγεθος, γωνία, χρώμα, layer) — κλικ όσες φορές θέλεις· τέλος με ξανά Copy, Enter, Esc ή δεξί κλικ">Copy</button>'
         + '<button class="btn small" data-te="text" title="Αλλαγή του επιλεγμένου κειμένου (ή διπλό κλικ πάνω του)">Αλλαγή κειμένου</button>'
         + '<span class="te-rotg"><button class="btn small" data-te="rotl" title="Στροφή αριστερά 15° — ή σύρε τη λαβή ⟳ πάνω από το επιλεγμένο κείμενο για ελεύθερη στροφή">⟲</button><button class="btn small" data-te="rotr" title="Στροφή δεξιά 15°">⟳</button>'
         + '<label class="te-angw" title="Γωνία του επιλεγμένου κειμένου σε μοίρες (αριστερόστροφα από τον άξονα Χ) — γράψε τιμή και Enter">∠<input class="te-ang" type="number" step="0.5" inputmode="decimal" placeholder="—"></label></span>'
@@ -6524,11 +6524,13 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       o.querySelector('.te-sheet').addEventListener('change', function (ev) { TE.sheet = +ev.target.value || 0; teRender(true); });
       TE.stage.addEventListener('pointerdown', teDown);
       TE.stage.addEventListener('pointermove', teDrawMove);
+      TE.stage.addEventListener('pointermove', teCopyMove);
+      TE.stage.addEventListener('contextmenu', function (ev) { if (TE.copyMode) { ev.preventDefault(); teModeOff(); } });
       o.querySelector('.te-imgfile').addEventListener('change', function (ev) { teImgFile(ev.target.files && ev.target.files[0]); });
       o.querySelector('.te-ang').addEventListener('change', function (ev) { var v = parseFloat(String(ev.target.value).replace(',', '.')); if (isFinite(v)) teSetAngle(v); });
       o.querySelector('.te-ang').addEventListener('keydown', function (ev) { ev.stopPropagation(); if (ev.key === 'Enter') ev.target.blur(); });
       TE.stage.addEventListener('wheel', function (ev) { ev.preventDefault(); teZoom(ev.deltaY < 0 ? 1.2 : 1 / 1.2, ev.clientX, ev.clientY); }, { passive: false });
-      document.addEventListener('keydown', function (ev) { if (!TE || TE.el.hidden) return; if (TE.drawMode && (ev.key === 'Enter' || ev.key === 'Escape') && !/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '')) { ev.preventDefault(); teDrawEnd(); return; } if (ev.key === 'Escape') { if (TE.addMode || TE.copyMode || TE.alignMode || TE.imgMode) { teModeOff(); return; } teClose(); } else if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z') { ev.preventDefault(); teUndo(); } else if ((ev.key === 'Delete') && TE.sel && document.activeElement === document.body) teHide(); });
+      document.addEventListener('keydown', function (ev) { if (!TE || TE.el.hidden) return; if (TE.drawMode && (ev.key === 'Enter' || ev.key === 'Escape') && !/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '')) { ev.preventDefault(); teDrawEnd(); return; } if (TE.copyMode && ev.key === 'Enter' && !/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '')) { ev.preventDefault(); teModeOff(); return; } if (ev.key === 'Escape') { if (TE.addMode || TE.copyMode || TE.alignMode || TE.imgMode) { teModeOff(); return; } teClose(); } else if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z') { ev.preventDefault(); teUndo(); } else if ((ev.key === 'Delete') && TE.sel && document.activeElement === document.body) teHide(); });
     }
     TE.kind = kind;
     TE.el.querySelector('.te-title').textContent = kind === 'dgm' ? 'Σχεδιαστικός έλεγχος — Διάγραμμα' : 'Σχεδιαστικός έλεγχος';
@@ -6551,6 +6553,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     var c = teCount();
     TE.status.textContent = (c ? c + ' διορθώσεις · ' : '') + paperLabel(TE.lay.paper.id) + ' · 1:' + TE.lay.scale + ' · οι διορθώσεις περνούν αυτόματα στο PDF, στο SVG και στο DXF';
     if (TE.drawMode) teDrawHint();
+    if (TE.copyMode) { teCopyGhost(TE.copyPt); teCopyStatus(); }
   }
   function teFit() { var w = TE.stage.clientWidth - 24, h = TE.stage.clientHeight - 24; var k = Math.min(w / TE.pw, h / TE.ph); TE.z = 1; TE.base = k; TE.px = (TE.stage.clientWidth - TE.pw * k) / 2; TE.py = (TE.stage.clientHeight - TE.ph * k) / 2; teApplyView(); }
   function teApplyView() { var k = TE.base * TE.z; TE.paper.style.width = (TE.pw * k) + 'px'; TE.paper.style.height = (TE.ph * k) + 'px'; TE.paper.style.transform = 'translate(' + TE.px + 'px,' + TE.py + 'px)'; if (TE.svg && TE.sel) { clearTimeout(TE.hT); TE.hT = setTimeout(teHandle, 120); } }
@@ -6669,12 +6672,12 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       teSetAngle(Math.round(ag * 100) / 100); return;
     }
     if (TE.copyMode) {
-      // Copy: ίδιο κείμενο / μέγεθος / γωνία στο σημείο που πατήθηκε — πολλαπλά, μέχρι Esc
-      ev.preventDefault(); var cm = TE.copyMode, rc3 = TE.paper.getBoundingClientRect(), k3 = TE.base * TE.z, mx3 = (ev.clientX - rc3.left) / k3, my3 = (ev.clientY - rc3.top) / k3, sh3 = TE.lay.sheets[TE.sheet];
-      if (mx3 < 0 || my3 < 0 || mx3 > TE.pw || my3 > TE.ph) return;
-      tePush(); teE().add = teE().add || []; var cid = (Date.now() + Math.floor(Math.random() * 1000)).toString(36);
-      teE().add.push({ id: cid, x: sh3.x + mx3 * TE.lay.mm, y: sh3.y + sh3.h - my3 * TE.lay.mm, text: cm.text, h: cm.h, rot: cm.rot });
-      cm.n++; teRender(false); TE.status.textContent = 'Copy «' + cm.text + '»: ' + cm.n + ' αντίγραφα · πάτα κι άλλο σημείο ή Esc για τέλος';
+      // Copy: πάτημα/κλικ = αντίγραφο στη θέση του «φαντάσματος» · τράβηγμα = μετακίνηση φύλλου (όχι αντίγραφο κατά λάθος)
+      ev.preventDefault(); var cx0 = ev.clientX, cy0 = ev.clientY, cpx0 = TE.px, cpy0 = TE.py, cmoved = false;
+      TE.stage.setPointerCapture && TE.stage.setPointerCapture(ev.pointerId);
+      var cmv = function (e2) { var dx = e2.clientX - cx0, dy = e2.clientY - cy0; if (!cmoved && Math.abs(dx) + Math.abs(dy) > 8) cmoved = true; if (cmoved) { TE.px = cpx0 + dx; TE.py = cpy0 + dy; teApplyView(); } };
+      var cup = function (e2) { TE.stage.removeEventListener('pointermove', cmv); TE.stage.removeEventListener('pointerup', cup); TE.stage.removeEventListener('pointercancel', cup); if (cmoved || e2.type === 'pointercancel' || !TE.copyMode) return; teCopyPlace(e2); };
+      TE.stage.addEventListener('pointermove', cmv); TE.stage.addEventListener('pointerup', cup); TE.stage.addEventListener('pointercancel', cup);
       return;
     }
     if (TE.addMode) {
@@ -6714,6 +6717,48 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     }
     TE.stage.addEventListener('pointermove', mv); TE.stage.addEventListener('pointerup', up); TE.stage.addEventListener('pointercancel', up);
     ev.preventDefault();
+  }
+  // ---------- Copy κειμένου (όπως στο CAD) ----------
+  // Ίδιο κείμενο με όλες τις γραμμές, μέγεθος, γωνία, χρώμα, layer και στοίχιση. Ένα διάφανο «φάντασμα» δείχνει πού θα μπει·
+  // κλικ/πάτημα = αντίγραφο (όσα θέλεις), τράβηγμα = μετακίνηση φύλλου, τέλος με ξανά Copy, Enter, Esc ή δεξί κλικ.
+  function tePaperPt(ev) { var rc = TE.paper.getBoundingClientRect(), k = TE.base * TE.z; return [(ev.clientX - rc.left) / k, (ev.clientY - rc.top) / k]; }
+  function teCopyStart(cs) {
+    var src = teSrc(cs), ct = teCurText(cs);
+    if (!src || !String(ct).trim()) { toast('Διάλεξε πρώτα ένα κείμενο (κλικ πάνω του) και μετά Copy.', true); return; }
+    teModeOff(); TE.sel = cs; teMark(cs);   // το teModeOff ξαναχτίζει το φύλλο: τα στοιχεία διαβάζονται μετά
+    var els = teEls(cs); src = teSrc(cs) || src; if (!els.length) return;
+    var rc = TE.paper.getBoundingClientRect(), k = TE.base * TE.z, l = 1e9, t = 1e9, r = -1e9, b = -1e9;
+    els.forEach(function (e) { var q = e.getBoundingClientRect(); l = Math.min(l, q.left); t = Math.min(t, q.top); r = Math.max(r, q.right); b = Math.max(b, q.bottom); });
+    var mm = TE.lay.mm, ml = (TE.lay.elems.mtexts || []).indexOf(src) >= 0;
+    var rec = { text: ct, h: Math.round(src.h / mm * 100) / 100, rot: teNorm(+(src.rot || 0)), align: src.align || (ml ? 'left' : 'center'), layer: src.layer || 'SXOLIA' };
+    if (src.color != null) rec.color = src.color; if (src.hex) rec.hex = src.hex;
+    if (ml) { rec.ml = true; if (src.lines) rec.lines = src.lines.slice(); if (src.width) rec.wmm = src.width / mm; if (src.lineH) rec.lh = src.lineH / mm; if (src.attach) rec.attach = src.attach; }
+    TE.copyMode = { key: cs.k, rec: rec, sx: src.x, sy: src.y, cx: ((l + r) / 2 - rc.left) / k, cy: ((t + b) / 2 - rc.top) / k, n: 0, text: String(ct).replace(/\s*\n\s*/g, ' ') };
+    TE.stage.style.cursor = 'copy';
+    var bt = TE.el.querySelector('[data-te="copy"]'); if (bt) bt.classList.add('primary');
+    teCopyGhost(); teCopyStatus();
+  }
+  function teCopyStatus() { var cm = TE.copyMode; if (!cm) return; TE.status.textContent = 'Copy «' + (cm.text.length > 40 ? cm.text.slice(0, 40) + '…' : cm.text) + '»' + (cm.n ? ': ' + cm.n + ' αντίγραφα' : '') + ' · κλικ/πάτημα όπου θα μπει (τράβηγμα = μετακίνηση φύλλου) · τέλος: ξανά Copy, Enter, Esc ή δεξί κλικ'; }
+  // διάφανο αντίγραφο που ακολουθεί το ποντίκι — δείχνει ακριβώς πού θα μπει
+  function teCopyGhost(pt) {
+    if (!TE || !TE.svg) return; var g = TE.svg.querySelector('.te-ghost');
+    if (!TE.copyMode) { if (g) g.remove(); return; }
+    if (!g) {
+      g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); g.setAttribute('class', 'te-ghost'); g.setAttribute('opacity', '0.45'); g.setAttribute('pointer-events', 'none');
+      teEls({ k: TE.copyMode.key }).forEach(function (e) { var c = e.cloneNode(true); c.removeAttribute('data-k'); c.removeAttribute('data-b'); c.setAttribute('class', ''); g.appendChild(c); });
+      g.style.display = 'none'; TE.svg.appendChild(g);
+    }
+    if (pt) { var cm = TE.copyMode; g.setAttribute('transform', 'translate(' + (pt[0] - cm.cx).toFixed(3) + ' ' + (pt[1] - cm.cy).toFixed(3) + ')'); g.style.display = ''; TE.copyPt = pt; }
+  }
+  function teCopyMove(ev) { if (TE && TE.copyMode && ev.pointerType !== 'touch') teCopyGhost(tePaperPt(ev)); }
+  function teCopyPlace(ev) {
+    var cm = TE.copyMode, p = tePaperPt(ev); if (!cm) return;
+    if (p[0] < 0 || p[1] < 0 || p[0] > TE.pw || p[1] > TE.ph) return;
+    var mm = TE.lay.mm, a = JSON.parse(JSON.stringify(cm.rec));
+    a.id = (Date.now() + Math.floor(Math.random() * 1000)).toString(36);
+    a.x = cm.sx + (p[0] - cm.cx) * mm; a.y = cm.sy - (p[1] - cm.cy) * mm;
+    tePush(); teE().add = teE().add || []; teE().add.push(a);
+    cm.n++; teRender(false); teCopyGhost(p); teCopyStatus();
   }
   // ολόκληρο το κείμενο του στοιχείου (TEXT ή MTEXT με όλες τις γραμμές) — από το σχέδιο, όχι από την πρώτη γραμμή της οθόνης
   function teSrc(sel) { var E = (TE.lay && TE.lay.elems) || {}, all = (E.mtexts || []).concat(E.texts || []); for (var i = 0; i < all.length; i++) if (all[i].key === sel.k) return all[i]; return null; }
@@ -6768,7 +6813,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     var sel = TE.sel && TE.sel.k ? TE.sel : null; if (!sel) { toast('Διάλεξε πρώτα ένα κείμενο (κλικ πάνω του).', true); return; }
     tePush(); var d = teE().t[sel.k] = teE().t[sel.k] || { dx: 0, dy: 0 }; d.k = Math.max(0.4, Math.min(3, (d.k || 1) * f)); teRender(false);
   }
-  function teModeOff() { TE.addMode = false; TE.copyMode = null; TE.alignMode = false; TE.imgMode = null; TE.drawMode = null; teDrawMark(); if (TE.stage) TE.stage.style.cursor = ''; if (TE.svg) teRender(false); }
+  function teModeOff() { var cb = TE.el && TE.el.querySelector('[data-te="copy"]'); if (cb) cb.classList.remove('primary'); if (TE.copyMode) { TE.copyMode = null; teCopyGhost(); } TE.addMode = false; TE.copyMode = null; TE.alignMode = false; TE.imgMode = null; TE.drawMode = null; teDrawMark(); if (TE.stage) TE.stage.style.cursor = ''; if (TE.svg) teRender(false); }
   // ---------- σχεδίαση: γραμμή, βέλος, πολυγραμμή, διάσταση (κούμπωμα σε κορυφές, Shift = ορθογώνια) ----------
   var TE_DRAW = { line: ['／ Line', 2], arrow: ['↗ Βέλος', 2], pline: ['⌇ Polyline', 0], dim: ['↔ Διάσταση', 2] };
   function teDrawStart(k) {
@@ -6848,10 +6893,11 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
   function teClick(ev) {
     var b = ev.target.closest('[data-te]'); if (!b) return; var a = b.dataset.te;
     if (TE.drawMode && !/^(d-|zin|zout|fit|undo)/.test(a)) { TE.drawMode = null; teDrawMark(); TE.stage.style.cursor = ''; }
+    if (TE.copyMode && a !== 'copy' && /^(add|align|img|d-|text|hide|close|bigger|smaller|rotl|rotr)/.test(a)) teModeOff();
     if (a === 'close') teClose(); else if (a === 'undo') teUndo(); else if (a === 'text') teText(); else if (a === 'hide') teHide();
     else if (a === 'bigger') teSize(1.15); else if (a === 'smaller') teSize(1 / 1.15);
     else if (a === 'rotl') teRot(15); else if (a === 'rotr') teRot(-15);
-    else if (a === 'copy') { var cs = TE.sel && TE.sel.k ? TE.sel : null; if (!cs || /^PINAKES\|/.test(cs.k)) { toast('Διάλεξε πρώτα ένα κείμενο (κλικ πάνω του) και μετά Copy.', true); return; } var src = teSrc(cs), ct = teCurText(cs); if (!ct.trim()) return; teModeOff(); TE.copyMode = { text: ct.replace(/\s*\n\s*/g, ' '), h: src ? Math.round(src.h / TE.lay.mm * 100) / 100 : 2.5, rot: teNorm(teCurRot(cs)), n: 0 }; TE.stage.style.cursor = 'copy'; TE.status.textContent = 'Copy «' + TE.copyMode.text + '»: πάτα στα σημεία όπου θα μπει — Esc για τέλος'; }
+    else if (a === 'copy') { if (TE.copyMode) { teModeOff(); return; } var cs = TE.sel && TE.sel.k ? TE.sel : null; if (!cs || /^PINAKES\|/.test(cs.k)) { toast('Διάλεξε πρώτα ένα κείμενο (κλικ πάνω του) και μετά Copy.', true); return; } teCopyStart(cs); }
     else if (a === 'align') { if (!teRotatable(TE.sel)) { toast('Διάλεξε πρώτα ένα κείμενο (κλικ πάνω του).', true); return; } TE.alignMode = true; TE.alignPts = []; TE.stage.style.cursor = 'crosshair'; TE.status.textContent = '∥ Πάτα δύο σημεία πάνω στη γραμμή (π.χ. άκρη δρόμου) — το κείμενο θα μπει παράλληλα…'; }
     else if (a === 'img') { var fi = TE.el.querySelector('.te-imgfile'); fi.value = ''; fi.click(); }
     else if (/^d-/.test(a)) teDrawStart(a.slice(2));
