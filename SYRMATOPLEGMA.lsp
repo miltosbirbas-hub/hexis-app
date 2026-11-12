@@ -1,7 +1,7 @@
 ;;; =====================================================================
 ;;;  SYRMATOPLEGMA.LSP  -  HEXIS-APP  (hexis-app.gr)
 ;;;  Grammi syrmatoplegmatos (perifraxi) se katopsi kata mikos grammis:
-;;;  grammi + symvola "x" + pasaloi se isapostaseis.
+;;;  grammi + symvola "x" + pasaloi stis apotypwmenes koryfes.
 ;;;  AutoCAD / progeCAD / ZWCAD / BricsCAD / GstarCAD  (kathari AutoLISP,
 ;;;  xoris VLA/ActiveX - mono entmake, opote doulevei pantou)
 ;;;
@@ -10,8 +10,11 @@
 ;;;
 ;;;  Diadromi: LINE, LWPOLYLINE (kai me toxa), ARC, CIRCLE
 ;;;            i simeia me klik [Simeia].
-;;;  - Pasaloi se kathe gwnia kai se isapostaseis <= apostasi pasalwn
-;;;  - Symvolo "x" sto meso kathe anoigmatos, katheta stin poreia
+;;;  - Pasalos se KATHE koryfi (ta simeia einai oi apotypwmenoi pasaloi)
+;;;  - Symvola "x" se kathe anoigma, stramena kata tin poreia
+;;;  v1.1
+;;;  - Megethi symvolwn analoga me tin klimaka sxediasis (1:N):
+;;;      x = 2 mm, pasalos = 1 mm, apostasi x = 15 mm sto xarti
 ;;;  - I grammi pou epilegeis pigainei sto layer SYRMATOPLEGMA
 ;;;  - Oli i entoli anaireitai me ena U
 ;;;  Oi rythmiseis kratiountai kai meta to kleisimo tou CAD.
@@ -140,7 +143,7 @@
   (while (< i (1- n))
     (setq res (append res (sy:bulgepts (nth i pts) (nth (1+ i) pts) (nth i bul))) i (1+ i)))
   (if cl (setq res (append res (sy:bulgepts (last pts) (car pts) (last bul)))))
-  (list res cl))
+  (list res cl pts))
 
 (defun sy:arcpts (en a0 sw cl / ed c r n i res)
   (setq ed (entget en) c (cdr (assoc 10 ed)) r (cdr (assoc 40 ed))
@@ -162,7 +165,8 @@
               (q (grdraw p q 1 1) (setq pts (cons q pts) p q))
               (T (setq go nil))))
       (redraw)
-      (list (mapcar '(lambda (x) (sy:p2 (trans x 1 0))) (reverse pts)) cl))))
+      (setq pts (mapcar '(lambda (x) (sy:p2 (trans x 1 0))) (reverse pts)))
+      (list pts cl pts))))
 
 ;; epistrefei (pts closed), i to keyword, i nil.
 ;; *sy:ent* = i ontotita pou epilextike (nil an dothikan simeia)
@@ -183,42 +187,46 @@
          ((= typ "LWPOLYLINE") (setq res (sy:lwpts en) done T *sy:ent* en))
          ((= typ "LINE")
           (setq res (list (list (sy:p2 (cdr (assoc 10 ed))) (sy:p2 (cdr (assoc 11 ed)))) nil)
-                done T *sy:ent* en))
+                done T *sy:ent* en)
+          (setq res (list (car res) nil (car res))))
          ((= typ "ARC")
           (setq a0 (cdr (assoc 50 ed)) a1 (cdr (assoc 51 ed)) sw (- a1 a0))
           (if (<= sw 0.0) (setq sw (+ sw (* 2.0 pi))))
-          (setq res (sy:arcpts en a0 sw nil) done T *sy:ent* en))
+          (setq res (sy:arcpts en a0 sw nil) done T *sy:ent* en)
+          (setq res (list (car res) nil (list (car (car res)) (last (car res))))))
          ((= typ "CIRCLE")
           (setq res (sy:arcpts en 0.0 (* 2.0 pi) T) done T *sy:ent* en))
          (T (princ (strcat "\n" typ " den ypostirizetai - LINE/LWPOLYLINE/ARC/CIRCLE.")))))))
   res)
 
 ;; katharismos diplwn simeion, kleisimo
-(defun sy:clean (path / pts cl res)
+(defun sy:clean (path / pts cl res vs)
   (setq pts (car path) cl (cadr path))
+  (foreach v (caddr path)
+    (if (or (null vs) (> (distance v (car vs)) 1e-6)) (setq vs (cons v vs))))
+  (setq vs (reverse vs))
+  (if (and (cdr vs) (< (distance (car vs) (last vs)) 1e-6))
+    (setq vs (reverse (cdr (reverse vs)))))
   (foreach p pts
     (if (or (null res) (> (distance p (car res)) 1e-6)) (setq res (cons p res))))
   (setq res (reverse res))
   (if (and (> (length res) 2) (< (distance (car res) (last res)) 1e-6)) (setq cl T))
   (if (and cl (> (distance (car res) (last res)) 1e-6))
     (setq res (append res (list (car res)))))
-  (if (>= (length res) 2) (list res cl)))
+  (if (>= (length res) 2) (list res cl vs)))
 
-;;; ---------- tmimata ("runs") anamesa stis gwnies ----------------------
-;; spaei ti diadromi stis aixmires gwnies (> ~20 moires) -
-;; ekei mpainei panta pasalos. Ta toxa menoun ena tmima.
-(defun sy:runs (pts / i n cur runs d1 d2)
-  (setq n (length pts) i 1 cur (list (car pts)))
-  (while (< i n)
-    (setq cur (cons (nth i pts) cur))
-    (if (< i (1- n))
-      (progn
-        (setq d1 (sy:unit (sy:sub (nth i pts) (nth (1- i) pts)))
-              d2 (sy:unit (sy:sub (nth (1+ i) pts) (nth i pts))))
-        (if (< (sy:dot d1 d2) 0.94)
-          (setq runs (cons (reverse cur) runs) cur (list (nth i pts))))))
-    (setq i (1+ i)))
-  (reverse (cons (reverse cur) runs)))
+;;; ---------- anoigmata metaxy pasalwn ------------------------------------
+(defun sy:isv (p vs / r)
+  (foreach v vs (if (< (distance p v) 1e-6) (setq r T)))
+  r)
+;; spaei ti diadromi se anoigmata stis koryfes (pasalous)
+(defun sy:spans (pts vs / cur res)
+  (setq cur (list (car pts)) pts (cdr pts))
+  (foreach p pts
+    (setq cur (cons p cur))
+    (if (sy:isv p vs) (setq res (cons (reverse cur) res) cur (list p))))
+  (if (cdr cur) (setq res (cons (reverse cur) res)))
+  (reverse res))
 
 (defun sy:runlen (pts / L)
   (setq L 0.0)
@@ -237,22 +245,22 @@
 ;;;  SYRMATOPLEGMA
 ;;; =====================================================================
 (defun sy:load ()
-  (setq *sy:D*  (sy:getn "SY_D" 2.50)
-        *sy:SZ* (sy:getn "SY_SZ" 0.30)
+  (setq *sy:K*  (sy:getn "SY_SCALE" 200.0)
         *sy:TY* (sy:gets "SY_TYPE" "Ola")))
 
 (defun sy:show ()
-  (princ (strcat "\nSYRMATOPLEGMA:  Apostasi pasalwn=" (rtos *sy:D* 2 2)
-                 "  Megethos x=" (rtos *sy:SZ* 2 2)
-                 "  Symvola=" *sy:TY*)))
+  (princ (strcat "\nSYRMATOPLEGMA:  Klimaka=1:" (rtos *sy:K* 2 0)
+                 "  (x=" (rtos (* *sy:K* 0.002) 2 2) " m, pasalos="
+                 (rtos (* *sy:K* 0.001) 2 2) " m)  Symvola=" *sy:TY*)))
 
-(defun sy:set ()
-  (setq *sy:D*  (sy:askd "Megisti apostasi pasalwn" *sy:D* 6)
-        *sy:SZ* (sy:askd "Megethos symvolou x" *sy:SZ* 6)
-        *sy:TY* (sy:askk "Symvola [Ola/X/Pasaloi]" "Ola X Pasaloi" *sy:TY*))
-  (sy:setn "SY_D" *sy:D*) (sy:setn "SY_SZ" *sy:SZ*) (sy:sets "SY_TYPE" *sy:TY*))
+(defun sy:set ( / v)
+  (initget 6)
+  (setq v (getreal (strcat "\nKlimaka sxediasis 1:<" (rtos *sy:K* 2 0) ">: ")))
+  (if v (setq *sy:K* v))
+  (setq *sy:TY* (sy:askk "Symvola [Ola/X/Pasaloi]" "Ola X Pasaloi" *sy:TY*))
+  (sy:setn "SY_SCALE" *sy:K*) (sy:sets "SY_TYPE" *sy:TY*))
 
-(defun c:SYRMATOPLEGMA ( / path pts cl runs nr k run L n i s pu np nx ed doX doP lastrun)
+(defun c:SYRMATOPLEGMA ( / path pts cl vs L n i pu np nx ed doX doP sz dp dx)
   (sy:begin)
   (sy:load)
   (while (progn (sy:show) (= (setq path (sy:getpath "Rythmiseis")) "Rythmiseis"))
@@ -260,34 +268,35 @@
   (if (and path (setq path (sy:clean path)))
     (progn
       (sy:layer "SYRMATOPLEGMA" 3)
-      (setq pts (car path) cl (cadr path)
+      (setq pts (car path) cl (cadr path) vs (caddr path)
             doX (/= *sy:TY* "Pasaloi") doP (/= *sy:TY* "X")
+            sz (* *sy:K* 0.002)        ; x: 2 mm sto xarti
+            dp (* *sy:K* 0.001)        ; pasalos: 1 mm
+            dx (* *sy:K* 0.015)        ; apostasi x: 15 mm
             np 0 nx 0)
-      (if doP (sy:layer "SYRMATOPLEGMA_PASALOI" 1))
       ;; i grammi: i epilegmeni pigainei sto layer, alliws nea polygrammi
       (if *sy:ent*
         (progn (setq ed (entget *sy:ent*))
                (entmod (subst (cons 8 "SYRMATOPLEGMA") (assoc 8 ed) ed)))
         (sy:pline (if cl (reverse (cdr (reverse pts))) pts) cl "SYRMATOPLEGMA"))
-      (setq runs (sy:runs pts) nr (length runs) k 0)
-      (foreach run runs
-        (setq L (sy:runlen run) lastrun (= k (1- nr))
-              n (max 1 (fix (+ 0.999999 (/ L *sy:D*)))) i 0)
-        (while (<= i n)
-          (setq s (* L (/ (float i) n)))
-          ;; pasalos: oxi sto telos tou run (einai i arxi tou epomenou),
-          ;; ektos apo to teleftaio run anoixtis diadromis
-          (if (and doP (or (< i n) (and lastrun (not cl))))
-            (progn (sy:dot2 (car (sy:at run s)) (* 0.5 *sy:SZ*) "SYRMATOPLEGMA_PASALOI")
-                   (setq np (1+ np))))
-          ;; "x" sto meso tou anoigmatos
-          (if (and doX (< i n))
+      ;; pasalos se kathe koryfi
+      (if doP
+        (progn
+          (sy:layer "SYRMATOPLEGMA_PASALOI" 1)
+          (foreach v vs
+            (sy:dot2 v dp "SYRMATOPLEGMA_PASALOI")
+            (setq np (1+ np)))))
+      ;; symvola x se kathe anoigma
+      (if doX
+        (foreach sp (sy:spans pts vs)
+          (setq L (sy:runlen sp))
+          (if (> L (* 1.5 sz))
             (progn
-              (setq pu (sy:at run (+ s (/ L (* 2.0 n)))))
-              (sy:xmark (car pu) (cadr pu) *sy:SZ* "SYRMATOPLEGMA")
-              (setq nx (1+ nx))))
-          (setq i (1+ i)))
-        (setq k (1+ k)))
+              (setq n (max 1 (fix (+ 0.5 (/ L dx)))) i 0)
+              (while (< i n)
+                (setq pu (sy:at sp (* L (/ (+ i 0.5) n))))
+                (sy:xmark (car pu) (cadr pu) sz "SYRMATOPLEGMA")
+                (setq nx (1+ nx) i (1+ i)))))))
       (princ (strcat "\nSYRMATOPLEGMA: etoimo - mikos "
                      (rtos (sy:runlen pts) 2 2) " m, "
                      (itoa np) " pasaloi, " (itoa nx) " symvola x."))))
