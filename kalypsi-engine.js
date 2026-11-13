@@ -177,7 +177,9 @@
   }
   function recognize(D, cls) {
     cls.forEach(function (c) {
-      var tx = c.texts.map(function (i) { return D.texts[i]; }).sort(function (a, b) { return b.h - a.h; });
+      // τίτλοι πρώτα: ο πλησιέστερος στο σχέδιο (μέσα ή ακριβώς κάτω), μετά τα μεγαλύτερα γράμματα
+      var dcl = function (t) { var b = c.bb; return Math.hypot(Math.max(b[0] - t.x, 0, t.x - b[2]), Math.max(b[1] - t.y, 0, t.y - b[3])); };
+      var tx = c.texts.map(function (i) { return D.texts[i]; }).sort(function (a, b) { var ta = isTitle(a) ? 0 : 1, tb = isTitle(b) ? 0 : 1; if (ta !== tb) return ta - tb; var dd = dcl(a) - dcl(b); if (Math.abs(dd) > 0.5) return dd; var la = /ΚΑΤΟΨ|ΤΟΜΗ|ΟΨΗ/.test(a.n) ? 0 : 1, lb = /ΚΑΤΟΨ|ΤΟΜΗ|ΟΨΗ/.test(b.n) ? 0 : 1; if (la !== lb) return la - lb; return b.h - a.h; });
       var kind = null, label = '', lev = null;
       // τοπογραφικό: TOPO_PROP / όρια / ΕΓΣΑ87
       var hasProp = c.ents.some(function (i) { return /^(TOPO_PROP|BOUND_)/.test(D.ents[i].L); });
@@ -207,7 +209,7 @@
   /* ---------------- αναγνώριση στο τοπογραφικό ---------------- */
   function rx(s) { return new RegExp(s); }
   var LAY = {
-    plot: /^(TOPO_PROP|BOUND_IMPL|BOUND_UNIMPL|KAL_OIKOPEDO)$|OIKOP|GHPED|ΟΙΚΟΠ|ΓΗΠΕΔ|PLOT/,
+    plot: /^(TOPO_PROP|BOUND_IMPL|BOUND_UNIMPL|KAL_OIKOPEDO|KAEK_MAIN)$|OIKOP|GHPED|ΟΙΚΟΠ|ΓΗΠΕΔ|PLOT/,
     build: /KTIR|KTHR|BUILD|WALL|TOIX|KATOP|PERIG|ΚΤΙΡ|ΚΤΗΡ|ΤΟΙΧ|ΚΑΤΟΨ|ΠΕΡΙΓ|KALYPS|ΚΑΛΥΨ/,
     fyt: /FYT|PRASIN|GREEN|KHP|ΦΥΤ|ΠΡΑΣΙΝ|ΚΗΠ|PLANT/,
     pras: /PRASIA|ΠΡΑΣΙΑ/,
@@ -262,9 +264,29 @@
     ['F', /ΦΩΤΑΓ|ΑΙΘΡΙ|ΦΡΕΑΤ|ΑΓΩΓΟΣ ΑΕΡ|ΚΑΠΝΟΔ/],
     ['P', /ΣΤΑΘΜΕΥΣ|ΘΕΣΗ ΣΤΑΘΜ|ΓΚΑΡΑΖ|ΜΗΧΑΝΟΣΤ|ΛΕΒΗΤΟΣΤ|Η\/Μ|ΔΕΞΑΜΕΝ|ΑΝΤΛΙΟΣΤ/]
   ];
+  // δήλωση με layer (προτεινόμενα ονόματα KAL_…, δεκτά και ελληνικά / συνώνυμα)
+  var SPL_LAYER = [
+    ['O', /PERIGRAMMA|ΠΕΡΙΓΡΑΜΜΑ|OUTLINE/],
+    ['Y', /PILOT|ΠΥΛΩΤ/],
+    ['A', /ANOIX?T.{0,3}KLIM|KLIM.{0,10}ANOIX?T|ΑΝΟΙΧΤ.{0,3}ΚΛΙΜ|ΚΛΙΜ.{0,10}ΑΝΟΙΧΤ/],
+    ['K', /KLIM.{0,10}KOIN|ΚΛΙΜ.{0,10}ΚΟΙΝ/],
+    ['I', /KLIM.{0,10}IDI|ΚΛΙΜ.{0,10}ΙΔΙΩΤ/],
+    ['E', /ERKER|ΕΡΚΕΡ|KLEIST.{0,3}EXOST|ΚΛΕΙΣΤ.{0,3}ΕΞΩΣΤ/],
+    ['H', /HMIYP|ΗΜΙΥΠ|(^|_)HX($|_)|(^|_)Η_?Χ($|_)/],
+    ['X', /EXOST|ΕΞΩΣΤ|BALCON/],
+    ['F', /FOTAG|ΦΩΤΑΓ|AITHRI|ΑΙΘΡΙ|FREATI|ΦΡΕΑΤ/],
+    ['P', /STATHM|ΣΤΑΘΜ|PARKING|MHXANOST|ΜΗΧΑΝΟΣΤ|(^|_)H_?M($|_)/]
+  ];
+  function layerCode(L) { for (var k = 0; k < SPL_LAYER.length; k++) if (SPL_LAYER[k][1].test(L)) return SPL_LAYER[k][0]; return null; }
   function planDetect(D, c) {
-    var cs = closedIn(D, c).filter(function (e) { return e.area >= 1; });
+    var all = closedIn(D, c).filter(function (e) { return e.area >= 0.3; });
     var res = { outline: [], spaces: [] };
+    // α) δηλωμένα με layer
+    var lout = [], lsp = [];
+    all.forEach(function (e) { var k = layerCode(e.L); if (k === 'O') lout.push(e.id); else if (k) lsp.push({ id: e.id, code: k, lbl: false, byLayer: true }); });
+    var cs = all.filter(function (e) { return e.area >= 1 && !layerCode(e.L); });
+    if (lout.length) { res.outline = lout; res.spaces = lsp; return res; }
+    res.spaces = lsp.slice();
     if (!cs.length) return res;
     cs.sort(function (a, b) { return b.area - a.area; });
     var cw = c.bb[2] - c.bb[0], chh = c.bb[3] - c.bb[1];
@@ -277,7 +299,7 @@
     cand.slice(1).forEach(function (e) { if (e.area > out.area * 0.25 && !outs.some(function (o) { return pip(cent(e.pts), o.pts); }) && !textIn(D, c, /./, e)) outs.push(e); });
     res.outline = outs.map(function (e) { return e.id; });
     var excl = {}; outs.forEach(function (o) { excl[o.id] = 1; });
-    var seen = {};
+    var seen = {}; lsp.forEach(function (sp) { seen[sp.id] = 1; });
     c.texts.forEach(function (ti) {
       var t = D.texts[ti], code = null;
       for (var k = 0; k < SP.length; k++) if (SP[k][1].test(t.n)) { code = SP[k][0]; break; }
@@ -443,7 +465,11 @@
     var sx = { n: SEC.length, Hmax: null, roof: 0, fill: 0, dig: 0, slope: 0, baseRoof: null, parapet: 0 };
     SEC.forEach(function (x) { if (x.Hmax != null && isFinite(x.Hmax)) sx.Hmax = sx.Hmax == null ? x.Hmax : Math.max(sx.Hmax, x.Hmax); sx.roof = Math.max(sx.roof, x.roof || 0); sx.fill = Math.max(sx.fill, x.fill || 0); sx.dig = Math.max(sx.dig, x.dig || 0); sx.slope = Math.max(sx.slope, x.slope || 0); if (x.baseRoof != null) sx.baseRoof = sx.baseRoof == null ? x.baseRoof : Math.max(sx.baseRoof, x.baseRoof); });
     R.sx = sx;
-    var Hu = A.H > 0 ? A.H : (sx.Hmax || 0); R.Hu = Hu;
+    var Hu = A.H > 0 ? A.H : (sx.Hmax || 0);
+    // χωρίς τομές: εκτίμηση από τα ύψη των υπέργειων επιπέδων (άθροισμα), σημειώνεται ως εκτίμηση
+    R.Hest = false;
+    if (!(Hu > 0)) { var hs = 0; A.levels.forEach(function (L) { if (L.typ === 1) hs += (L.h || 0); }); if (hs > 0) { Hu = hs; R.Hest = true; } }
+    R.Hu = Hu;
     var baseLim = mode === 2 ? 0.80 : 1.20; R.baseLim = baseLim;
     var baseBad = sx.baseRoof != null && sx.baseRoof > baseLim + 0.005; R.baseBad = baseBad;
     if (mode === 2 && sx.slope > 35 && allow != null) remB = Math.min(remB, 0.2 * allow);   // 251 παρ. 7
@@ -518,8 +544,8 @@
         var rv = hv + (x.ridgeLv - x.topLv); Rg = Rg == null ? rv : Math.max(Rg, rv);
       });
     }
-    R.Hm = A.H > 0 ? A.H : Hm; R.H10 = H10;
-    R.ridge = A.H > 0 ? A.H + (A.roof || 0) : Rg; R.ridgeMax = (low ? 8.5 : hmax) + roofmax;
+    R.Hm = A.H > 0 ? A.H : (Hm != null ? Hm : (R.Hest ? Hu : null)); R.H10 = H10;
+    R.ridge = A.H > 0 ? A.H + (A.roof || 0) : (Rg != null ? Rg : (R.Hest ? Hu : null)); R.ridgeMax = (low ? 8.5 : hmax) + roofmax;
     var dreq = null, Dbig = null;
     if (mode === 1 && Hu > 0) { dreq = low ? 2.5 : 2.5 + 0.05 * Hu; Dbig = low ? 2.5 : 3 + 0.1 * Hu; }
     if (mode === 3) { dreq = 2.5; Dbig = 2.5; }
@@ -595,8 +621,8 @@
     var hRule = E1 ? 'Μέγιστο ύψος κατά τον ΣΔ της περιοχής (0,4→10,75 · 0,8→14 · 1,2→17,25 · 1,6→19,50 · 2,0→22,75 · 2,6→26 μ.), μετρούμενο σε κάθε σημείο των όψεων από την οριστική στάθμη του εδάφους (ή από το πεζοδρόμιο, αν οι όψεις είναι στη ρυμοτομική γραμμή)· έως την άνω επιφάνεια του τελευταίου ορόφου ή, σε στέγη, έως την κατώτερη έδρασή της.'
       : E3 ? 'Μέγιστο ύψος 7,50 μ. (έως 8 μ. σε πεδινούς οικισμούς Ζώνης Β), μετρούμενο από το ψηλότερο σημείο τομής του περιγράμματος της κάτοψης με το φυσικό ή οριστικά διαμορφωμένο έδαφος· λόγω κλίσης, όχι πάνω από 10 μ. σε κανένα σημείο.'
       : 'Μέγιστο ύψος 7,50 μ. (μονώροφο 4,00 μ. για κατοικία), μετρούμενο από το φυσικό ή διαμορφωμένο έδαφος σε κάθε όψη· με κεκλιμένη στέγη +1,20 μ.';
-    if (R.hmax) add(G, !(Hc > 0) ? 'warn' : (le(Hc, R.hmax) ? 'ok' : 'fail'), 'Ύψος κτιρίου', (Hc > 0 ? 'Η=' + gr(Hc) + ' μ.' + (A.H > 0 ? ' (δόθηκε)' : R.sx.n ? ' (μετρήθηκε σε ' + R.sx.n + ' τομές/όψεις)' : '') : 'δεν μετρήθηκε') + ' — μέγιστο ' + gr(R.hmax) + ' μ.', hArt, hRule,
-      !(Hc > 0) ? 'Σχεδίασε στις τομές γραμμή εδάφους και στάθμες (±0,00, +3,20 …) ή δώσε το ύψος στο βήμα 5.' : '');
+    if (R.hmax) add(G, !(Hc > 0) ? 'warn' : (le(Hc, R.hmax) ? (R.Hest ? 'warn' : 'ok') : 'fail'), 'Ύψος κτιρίου', (Hc > 0 ? 'Η=' + gr(Hc) + ' μ.' + (A.H > 0 ? ' (δόθηκε)' : R.sx.n ? ' (μετρήθηκε σε ' + R.sx.n + ' τομές/όψεις)' : R.Hest ? ' (εκτίμηση: άθροισμα υψών υπέργειων ορόφων)' : '') : 'δεν μετρήθηκε') + ' — μέγιστο ' + gr(R.hmax) + ' μ.', hArt, hRule,
+      !(Hc > 0) ? 'Σχεδίασε στις τομές γραμμή εδάφους και στάθμες (±0,00, +3,20 …) ή δώσε το ύψος στο βήμα 5.' : R.Hest ? 'Το ύψος βγήκε από τα ύψη ορόφων (βήμα 4), όχι από τομές· για τελικό έλεγχο ανέβασε τομές με στάθμες και έδαφος ή δώσε το Η στο βήμα 5. Με αυτό το Η υπολογίστηκαν και τα Δ/δ.' : '');
     if (E3 && R.H10 != null) add(G, le(R.H10, 10) ? 'ok' : 'fail', 'Ύψος σε κάθε σημείο (κεκλιμένο)', 'μέγιστο ' + gr(R.H10) + ' μ. από το χαμηλότερο σημείο εδάφους — όριο 10,00 μ.', N + 'άρθ. 239 Γ1', 'Λόγω κλίσης του εδάφους, το κτίριο δεν υπερβαίνει τα 10 μ. σε κανένα σημείο.');
     if (E2 && Hc > 0) { var n1 = A.levels.filter(function (L) { return L.typ === 1; }).length; if (n1 === 1 && A.resid !== false) add(G, le(Hc, 4) ? 'ok' : 'fail', 'Ύψος μονώροφου', 'Η=' + gr(Hc) + ' μ. — έως 4,00 μ.', N + 'άρθ. 256 παρ. 1β', 'Μονώροφη κατοικία ή τμήμα: έως 4,00 μ.'); }
     // στέγη
@@ -781,7 +807,7 @@
     }
     n('ΜΕΓΙΣΤΟ ΕΠΙΤΡΕΠΟΜΕΝΟ ΥΨΟΣ: Ηmax= ' + gr(R.hmax) + ' + ' + (R.roofmax ? gr(R.roofmax) : '....') + ' M ΣΤΕΓΗ (όπου προβλέπεται από τις διατάξεις της περιοχής ή από τη μελέτη βάσει ΝΟΚ)');
     var Hr = R.Hm, rf = A.roof > 0 ? A.roof : (R.sx ? R.sx.roof : 0);
-    n('ΠΡΑΓΜΑΤΟΠΟΙΟΥΜΕΝΟ ΥΨΟΣ: Η= ' + gr(Hr) + ' M + ' + gr(rf || 0) + ' M(ΣΤΕΓΗ) < Ηmax' + fl(!(Hr > 0) || !R.hmax || (Hr <= R.hmax + 0.005 && (!rf || !R.roofmax || rf <= R.roofmax + 0.005))));
+    n('ΠΡΑΓΜΑΤΟΠΟΙΟΥΜΕΝΟ ΥΨΟΣ: Η= ' + gr(Hr) + ' M' + (R.Hest ? ' (από ύψη ορόφων)' : '') + ' + ' + gr(rf || 0) + ' M(ΣΤΕΓΗ) < Ηmax' + fl(!(Hr > 0) || !R.hmax || (Hr <= R.hmax + 0.005 && (!rf || !R.roofmax || rf <= R.roofmax + 0.005))));
     if (A.mode === 2 || A.mode === 3) { var nab2 = A.levels.filter(function (L) { return L.typ === 1; }).length; n('ΑΡΙΘΜΟΣ ΟΡΟΦΩΝ: ' + nab2 + ' <= 2' + fl(nab2 <= 2)); }
     if (!ekt) {
       n('ΕΛΕΓΧΟΣ ΦΥΤΕΥΣΗΣ (άρθ. 17 παρ. 2α ν.4067/12 - άρθ. 212 ν.5306/26)', true);
@@ -839,7 +865,7 @@
     area: area, cent: cent, bbox: bbox, bbUnion: bbUnion, bbGrow: bbGrow, pip: pip, ptseg: ptseg, dist: dist, inside: inside, edgeMin: edgeMin,
     norm: norm, prepare: prepare, cluster: cluster, recognize: recognize, levelFromText: levelFromText, topoDetect: topoDetect, planDetect: planDetect,
     compute: compute, checks: checks, suggest: suggest, yTemplate: yTemplate, levelBlock: levelBlock,
-    sectionAnalyze: sectionAnalyze, verdict: verdict, split: split, PLOTL: /KAEK|ΚΑΕΚ|TOPO_PROP|BOUND|OIKOPED|ΟΙΚΟΠΕΔ|PLOT|GEOTEM|ΓΕΩΤΕΜ/, oikMax: oikMax, ektMax: ektMax, hmax210: hmax210, gr: gr, grz: grz, CODE: CODE, typText: typText, EGSA: EGSA
+    sectionAnalyze: sectionAnalyze, verdict: verdict, split: split, layerCode: layerCode, PLOTL: /KAEK|ΚΑΕΚ|TOPO_PROP|BOUND|OIKOPED|ΟΙΚΟΠΕΔ|PLOT|GEOTEM|ΓΕΩΤΕΜ/, oikMax: oikMax, ektMax: ektMax, hmax210: hmax210, gr: gr, grz: grz, CODE: CODE, typText: typText, EGSA: EGSA
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.KalEngine = api;

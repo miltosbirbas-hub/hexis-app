@@ -264,6 +264,8 @@
     if (c.type === 'TEXT') { if ((c.h72 || c.v73) && isFinite(c.x2) && isFinite(c.y2)) { x = c.x2; y = c.y2; } al = c.h72 === 1 || c.h72 === 4 ? 'center' : c.h72 === 2 ? 'right' : 'left'; }
     else { var at = c.att || 1, col = (at - 1) % 3; al = col === 1 ? 'center' : col === 2 ? 'right' : 'left'; if (!c.rot && isFinite(c.x2) && isFinite(c.y2) && (c.x2 || c.y2)) rot = Math.atan2(c.y2, c.x2) * 180 / Math.PI;
       t = t.replace(/\\P/g, ' ').replace(/\\[AHWQTCfFpL][^;]*;/g, '').replace(/\\[LlOoKk~]/g, '').replace(/[{}]/g, ''); }
+    // \U+XXXX (Unicode) και \M+1XXXX (MBCS) → χαρακτήρες
+    t = t.replace(/\\U\+([0-9A-Fa-f]{4})/g, function (_, h) { return String.fromCharCode(parseInt(h, 16)); }).replace(/\\M\+1([0-9A-Fa-f]{4})/g, function (_, h) { var c = parseInt(h, 16); try { return new TextDecoder('windows-1253').decode(new Uint8Array(c > 255 ? [c >> 8, c & 255] : [c])); } catch (e) { return '?'; } });
     t = t.replace(/%%[cC]/g, 'Ø').replace(/%%[dD]/g, '°').replace(/%%[pP]/g, '±').replace(/%%[uUoO]/g, '').replace(/\s+/g, ' ').trim();
     return { layer: c.layer, x: x, y: y, text: t, h: c.h || 1, rot: rot, align: al, color: c.col || 0 };
   }
