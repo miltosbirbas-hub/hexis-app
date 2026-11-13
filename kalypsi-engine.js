@@ -277,14 +277,14 @@
     ['F', /FOTAG|ΦΩΤΑΓ|AITHRI|ΑΙΘΡΙ|FREATI|ΦΡΕΑΤ/],
     ['P', /STATHM|ΣΤΑΘΜ|PARKING|MHXANOST|ΜΗΧΑΝΟΣΤ|(^|_)H_?M($|_)/]
   ];
-  function layerCode(L) { for (var k = 0; k < SPL_LAYER.length; k++) if (SPL_LAYER[k][1].test(L)) return SPL_LAYER[k][0]; return null; }
-  function planDetect(D, c) {
+  function layerCode(L, map) { if (map && L != null && map.hasOwnProperty(String(L).toUpperCase())) { var m = map[String(L).toUpperCase()]; return m === '-' ? null : m; } for (var k = 0; k < SPL_LAYER.length; k++) if (SPL_LAYER[k][1].test(L)) return SPL_LAYER[k][0]; return null; }
+  function planDetect(D, c, map) {
     var all = closedIn(D, c).filter(function (e) { return e.area >= 0.3; });
     var res = { outline: [], spaces: [] };
     // α) δηλωμένα με layer
     var lout = [], lsp = [];
-    all.forEach(function (e) { var k = layerCode(e.L); if (k === 'O') lout.push(e.id); else if (k) lsp.push({ id: e.id, code: k, lbl: false, byLayer: true }); });
-    var cs = all.filter(function (e) { return e.area >= 1 && !layerCode(e.L); });
+    all.forEach(function (e) { var k = layerCode(e.L, map); if (k === 'O') lout.push(e.id); else if (k) lsp.push({ id: e.id, code: k, lbl: false, byLayer: true }); });
+    var cs = all.filter(function (e) { return e.area >= 1 && !layerCode(e.L, map) && !(map && map[String(e.L).toUpperCase()] === '-'); });
     if (lout.length) { res.outline = lout; res.spaces = lsp; return res; }
     res.spaces = lsp.slice();
     if (!cs.length) return res;

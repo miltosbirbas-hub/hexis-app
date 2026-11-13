@@ -197,7 +197,8 @@ const K = window.KalEngine, KS = window.KalSheet;
 const $ = s => document.querySelector(s);
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
-const APP_VERSION = '2.2';
+const APP_VERSION = '2.3';
+const WHATS_NEW = 'Νέο στην έκδοση 2.3: δήλωση Η/Χ, εξωστών, κλιμακοστασίων με κλικ ή από τη λίστα «Τα layers σου» στο βήμα Κατόψεις — το θυμάται για τα επόμενα αρχεία.';
 const STEPS = ['Όροι', 'DXF', 'Τοπογραφικό', 'Κατόψεις', 'Τομές · όψεις', 'Έλεγχος', 'Εξαγωγή'];
 const SPC = { H: '#f59e0b', X: '#38bdf8', E: '#0284c7', K: '#8b5cf6', I: '#a78bfa', A: '#c4b5fd', F: '#14b8a6', P: '#94a3b8', Y: '#cbd5e1' };
 const SPN = { H: 'Ημιυπαίθριος', X: 'Ανοικτός εξώστης', E: 'Κλειστός εξώστης', K: 'Κοιν. σκάλα', I: 'Ιδιωτ. σκάλα', A: 'Ανοικτή σκάλα', F: 'Φωταγωγός/αίθριο', P: 'Στάθμευση/Η-Μ', Y: 'Πυλωτή' };
@@ -219,7 +220,8 @@ const DEF = () => ({
 let S = DEF();
 const UI = { tool: 'sel', focus: null, tmode: 'plot', pmode: 'out', curPlan: null, draw: [], meas: [], hover: null, sheet: null, view: null, hist: [], redo: [] };
 // μόνιμες ρυθμίσεις (μένουν μετά από επανεκκίνηση)
-const PREF = (() => { try { return Object.assign({ panelW: 460, tb: null, theme: 'light' }, JSON.parse(localStorage.getItem('kalypsi_pref') || '{}')); } catch (e) { return { panelW: 460, tb: null, theme: 'light' }; } })();
+const PREF = (() => { try { return Object.assign({ panelW: 460, tb: null, theme: 'light', laymap: {} }, JSON.parse(localStorage.getItem('kalypsi_pref') || '{}')); } catch (e) { return { panelW: 460, tb: null, theme: 'light', laymap: {} }; } })();
+if (!PREF.laymap) PREF.laymap = {};
 const savePref = () => { try { localStorage.setItem('kalypsi_pref', JSON.stringify(PREF)); } catch (e) {} };
 
 /* ---------------- IndexedDB για την εργασία ---------------- */
@@ -427,8 +429,21 @@ function applyClick(e) {
     pl.spaces = pl.spaces.filter(s => s.id !== e.id);
     if (m === 'out') { const k = pl.outline.indexOf(e.id); if (k >= 0) pl.outline.splice(k, 1); else pl.outline.push(e.id); }
     else if (m !== 'del') { pl.outline = pl.outline.filter(i => i !== e.id); pl.spaces.push({ id: e.id, code: m }); }
+    UI.lastDecl = m !== 'del' ? { L: String(e.L || '0'), code: m === 'out' ? 'O' : m } : null;
     after(); return;
   }
+}
+/* δήλωση χώρων ανά layer — η αντιστοίχιση μένει μόνιμα (PREF.laymap) */
+function planEntsOnLayer(L) { const out = []; S.cls.forEach(c => { if (c.kind !== 'plan' && c.kind !== 'roof') return; c.ents.forEach(i => { const e = ent(i); if (e && e.closed && e.area >= .3 && String(e.L || '0').toUpperCase() === L) out.push([c.id, e]); }); }); return out; }
+function planLayers() { const m = {}; S.cls.forEach(c => { if (c.kind !== 'plan' && c.kind !== 'roof') return; c.ents.forEach(i => { const e = ent(i); if (!e || !e.closed || e.area < .3 || K.PLOTL.test(e.L || '')) return; const L = String(e.L || '0').toUpperCase(); m[L] = (m[L] || 0) + 1; }); }); return Object.keys(m).sort().map(L => ({ L, n: m[L] })); }
+function setLayerCode(L, code) {
+  L = String(L).toUpperCase(); snap();
+  if (code) PREF.laymap[L] = code; else delete PREF.laymap[L]; savePref();
+  const eff = code || K.layerCode(L);
+  planEntsOnLayer(L).forEach(([ci, e]) => { const pl = planOf(ci);
+    pl.spaces = pl.spaces.filter(s => s.id !== e.id); pl.outline = pl.outline.filter(i => i !== e.id);
+    if (eff === 'O') pl.outline.push(e.id); else if (eff && eff !== '-') pl.spaces.push({ id: e.id, code: eff }); });
+  UI.lastDecl = null; after();
 }
 function after() { compute(); render(); draw(); save(); }
 function setTool(t) { if (UI.view === 'sheet' && (t === 'poly' || t === 'meas')) t = 'sel'; UI.tool = t; document.querySelectorAll('#tb [data-tool=poly],#tb [data-tool=meas]').forEach(b => b.style.display = UI.view === 'sheet' ? 'none' : ''); UI.snapP = null; document.querySelectorAll('#tb [data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === t)); cv.style.cursor = t === 'pan' ? 'grab' : 'crosshair'; setHint(); draw(); }
@@ -477,7 +492,7 @@ async function loadDxf(file) {
 function autoDetect() {
   const topo = S.cls.find(c => c.kind === 'topo');
   if (topo) { const t = K.topoDetect(S.D, topo); S.topo = Object.assign({ cl: topo.id, fronts: [] }, t); }
-  S.cls.forEach(c => { if ((c.kind === 'plan' || c.kind === 'roof') && !S.plans[c.id]) { const r = K.planDetect(S.D, c); S.plans[c.id] = { outline: r.outline, spaces: r.spaces }; } if (c.kind === 'section' || c.kind === 'elev') c.use = c.use !== false; });
+  S.cls.forEach(c => { if ((c.kind === 'plan' || c.kind === 'roof') && !S.plans[c.id]) { const r = K.planDetect(S.D, c, PREF.laymap); S.plans[c.id] = { outline: r.outline, spaces: r.spaces }; } if (c.kind === 'section' || c.kind === 'elev') c.use = c.use !== false; });
   // πυλωτή: κλειστοί είναι μόνο οι χώροι μέσα στο περίγραμμα της πλάκας (πυρήνας, είσοδος)
   S.cls.forEach(c => { if (c.kind !== 'plan' || !c.level || !/Πυλωτή/.test(c.level.name)) return; const pl = S.plans[c.id], o = pl.outline.map(i => S.D.ents[i]); if (!o.length) return;
     const inner = c.ents.map(i => S.D.ents[i]).filter(e => e.closed && e.area >= 1 && !K.PLOTL.test(e.L) && pl.outline.indexOf(e.id) < 0 && o.some(oo => K.inside(e.pts, oo.pts)) && !pl.spaces.some(sp => sp.id === e.id));
@@ -507,7 +522,7 @@ function autoDetect() {
   if (topo && !(S.topo.cov || []).length && !UI.topoNote) UI.topoNote = 'Στο τοπογραφικό δεν βρέθηκε κτίριο και οι κατόψεις δεν έχουν αντίγραφο του οικοπέδου για να μεταφερθεί η κάλυψη — κάνε κλικ στο περίγραμμα του κτιρίου ή σχεδίασέ το με Polygon.';
 
 }
-function planOf(ci) { if (!S.plans[ci]) { const r = K.planDetect(S.D, S.cls[ci]); S.plans[ci] = { outline: r.outline, spaces: r.spaces }; } return S.plans[ci]; }
+function planOf(ci) { if (!S.plans[ci]) { const r = K.planDetect(S.D, S.cls[ci], PREF.laymap); S.plans[ci] = { outline: r.outline, spaces: r.spaces }; } return S.plans[ci]; }
 function planList() { return S.cls.filter(c => c.kind === 'plan' || c.kind === 'roof').sort((a, b) => ((a.level || {}).ord || 0) - ((b.level || {}).ord || 0)); }
 // προτεινόμενο Η: μέγιστη στάθμη «+x.xx» στις τομές/όψεις (πάνω από τη στέγη αφαιρείται όχι)
 function suggestH() { let mx = 0; S.cls.forEach(c => { if (c.kind !== 'section' && c.kind !== 'elev') return; c.texts.forEach(i => { const m = /^\+?\s*(\d{1,2}[.,]\d{2})$/.exec(S.D.texts[i].text.trim()); if (m) mx = Math.max(mx, num(m[1])); }); }); return mx > 2 && mx < 40 ? mx : 0; }
@@ -640,6 +655,7 @@ function render() {
     if (!pls.length) h += '<div class="card">Δεν αναγνωρίστηκαν κατόψεις. Γράψε κάτω από κάθε κάτοψη τον όροφο (π.χ. «ΚΑΤΟΨΗ ΙΣΟΓΕΙΟΥ») ή όρισέ τες στο βήμα 2.</div>';
     else {
       h += '<div class="chips">' + pls.map(c => '<span class="chip' + (UI.curPlan === c.id ? ' on' : '') + '" data-pl="' + c.id + '">' + esc(clName(c)) + '</span>').join('') + '</div>';
+      if (UI.curPlan == null || !pls.find(x => x.id === UI.curPlan)) UI.curPlan = pls[0].id;
       const c = S.cls[UI.curPlan], L = c.level || (c.level = { name: 'Κάτοψη', typ: 1, use: 0, h: 3.2 });
       if (c.kind === 'plan') {
         h += '<div class="row">' + inp('lvN', 'Όνομα', L.name) + '<label class="f"><span>Τύπος</span><select id="lvT">' + LTYP.map(t => '<option value="' + t[0] + '"' + (t[0] === L.typ ? ' selected' : '') + '>' + t[1] + '</option>').join('') + '</select></label></div>';
@@ -647,6 +663,10 @@ function render() {
         if (L.typ === 4) h += '<label class="f"><span>Χρήση υπόσκαφου</span><select id="lvU"><option value="1">Κατοικία</option><option value="2">Άλλη χρήση</option></select></label>';
         if (L.typ === 1 || L.typ === 3) h += inp('lvH', 'Ύψος επιπέδου για τον όγκο, μ.', L.h, 'number', 'step="0.05" min="0"');
         h += '<p class="small" style="margin-top:6px">Κλικ σε πολύγωνο ως:</p><div class="chips">' + [['out', 'Περίγραμμα', '#dc2626']].concat(Object.keys(SPN).map(k => [k, SPN[k], SPC[k]])).concat([['del', 'Αφαίρεση', '#6b7280']]).map(m => '<span class="chip' + (UI.pmode === m[0] ? ' on' : '') + '" data-pm="' + m[0] + '"><i style="background:' + m[2] + '"></i>' + m[1] + '</span>').join('') + '</div>';
+        const LD = UI.lastDecl, CN = k => k === 'O' ? 'Περίγραμμα' : k === '-' ? 'Τίποτα' : (SPN[k] || k);
+        if (LD && LD.L !== '0' && PREF.laymap[LD.L.toUpperCase()] !== LD.code) { const nn = planEntsOnLayer(LD.L.toUpperCase()).length; if (nn >= 1) h += '<div class="card"><p class="small">Το πολύγωνο είναι στο layer <b>' + esc(LD.L) + '</b> (' + nn + ' σε όλες τις κατόψεις).</p><button class="btn" id="ldAll" style="white-space:normal;height:auto;text-align:left">Όλα τα «' + esc(LD.L) + '» = ' + esc(CN(LD.code)) + ' — και να το θυμάται</button></div>'; }
+        const PLY = planLayers();
+        if (PLY.length) h += '<details class="card"' + (UI.layOpen ? ' open' : '') + ' id="layDet"><summary><b>Τα layers σου</b> — δήλωσε μία φορά, το θυμάται για όλα τα αρχεία</summary>' + PLY.map(o => { const cur = PREF.laymap[o.L] || ''; const auto = K.layerCode(o.L); return '<label class="f lay"><span>' + esc(o.L) + ' <small>(' + o.n + ')</small></span><select data-lay="' + esc(o.L) + '"><option value="">' + (auto ? 'Αυτόματα: ' + esc(CN(auto)) : 'Αυτόματα') + '</option><option value="O"' + (cur === 'O' ? ' selected' : '') + '>Περίγραμμα</option>' + Object.keys(SPN).map(k => '<option value="' + k + '"' + (cur === k ? ' selected' : '') + '>' + SPN[k] + '</option>').join('') + '<option value="-"' + (cur === '-' ? ' selected' : '') + '>Τίποτα (αγνόησε)</option></select></label>'; }).join('') + '</details>';
         const R = UI.R, idx = planList().filter(x => x.kind === 'plan').findIndex(x => x.id === c.id), lv = R && R.lv[idx];
         if (lv) {
           h += '<div class="card"><div class="kv"><span>Μικτό περίγραμμα</span><b>' + gr(lv.G) + ' τ.μ.</b></div>';
@@ -732,6 +752,9 @@ function render() {
   if (s === 3) {
     document.querySelectorAll('[data-pl]').forEach(el => el.onclick = () => { UI.curPlan = +el.dataset.pl; UI.focus = UI.curPlan; render(); fit(focusBB()); });
     document.querySelectorAll('[data-pm]').forEach(el => el.onclick = () => { UI.pmode = el.dataset.pm; render(); });
+    if ($('#ldAll')) $('#ldAll').onclick = () => { const d = UI.lastDecl; setLayerCode(d.L, d.code); toast('Όλα τα πολύγωνα του «' + d.L + '» δηλώθηκαν. Θα ισχύει και στα επόμενα αρχεία.'); };
+    if ($('#layDet')) $('#layDet').ontoggle = e => { UI.layOpen = e.target.open; };
+    document.querySelectorAll('[data-lay]').forEach(el => el.onchange = () => { UI.layOpen = true; setLayerCode(el.dataset.lay, el.value); });
     const c = S.cls[UI.curPlan];
     if (c && c.level) { bind('lvN', c.level, 'name', false, () => { const L = K.levelFromText(K.norm(c.level.name)); if (L) c.level.ord = L.ord; });
       if ($('#lvT')) $('#lvT').onchange = e => { c.level.typ = +e.target.value; c.level.use = (c.level.typ === 2 || c.level.typ === 4) ? 1 : 0; after(); };
@@ -916,7 +939,7 @@ function help() {
   '<li>Αν οι κατόψεις είναι σχεδιασμένες μέσα σε αντίγραφα του γεωτεμαχίου ΚΑΕΚ (layer KAEK_MAIN), η εφαρμογή τις χωρίζει από τους τίτλους τους («ΚΑΤΟΨΗ ΥΠΟΓΕΙΟΥ», «ΚΑΤΟΨΗ PILOTIS», «ΚΑΤΟΨΗ Α ΟΡΟΦΟΥ» …) και, αν δεν υπάρχει τοπογραφικό, παίρνει το οικόπεδο από το όριο ΚΑΕΚ και την κάλυψη από τον μεγαλύτερο όροφο. Στην πυλωτή μετρά μόνο ό,τι είναι κλειστό μέσα στο περίγραμμα της πλάκας.</li>' +
   '<li><b>Τομές / όψεις</b> σε μέτρα 1:1: γραμμή <b>φυσικού εδάφους</b> σε layer FYSIKO_EDAFOS (ή κείμενο «ΦΥΣΙΚΟ ΕΔΑΦΟΣ» δίπλα της) και γραμμή <b>διαμορφωμένου εδάφους</b> σε layer DIAMORFOMENO_EDAFOS (ή «ΔΙΑΜΟΡΦΩΜΕΝΟ ΕΔΑΦΟΣ»). Στάθμες ως κείμενα πάνω στη στάθμη: «±0.00», «+3.20», «+6.40», «-3.00». Η εφαρμογή βγάζει από εκεί ύψος σε κάθε όψη, στέγη, κορφιά, οροφή υπογείου και εκσκαφές / επιχώσεις στον ακάλυπτο.</li>' +
   '<li>Ό,τι δεν αναγνωριστεί το ορίζεις με κλικ — ή το σχεδιάζεις με το εργαλείο Polygon.</li></ul>' +
-  '<h3>Δήλωση χώρων στο DXF</h3><p>Δύο τρόποι — όποιον βολεύει: <b>(α)</b> κλειστή πολυγραμμή στο αντίστοιχο layer, ή <b>(β)</b> κλειστή πολυγραμμή σε οποιοδήποτε layer με κείμενο μέσα της («Η/Χ», «ΕΞΩΣΤΗΣ», «ΕΡΚΕΡ», «ΚΛΙΜΑΚΟΣΤΑΣΙΟ», «ΦΩΤΑΓΩΓΟΣ», «ΠΥΛΩΤΗ», «ΘΕΣΗ ΣΤΑΘΜΕΥΣΗΣ»). Το κουμπί «Πρότυπο DXF» στο βήμα 2 δίνει έτοιμο αρχείο με όλα τα layers και παράδειγμα.</p><table style="border-collapse:collapse;font-size:14.5px;width:100%">' + LAYERS_STD.map(l => '<tr><td style="border:1px solid var(--line);padding:4px 8px;font-family:monospace">' + l[0] + '</td><td style="border:1px solid var(--line);padding:4px 8px">' + l[2] + '</td></tr>').join('') + '</table><p class="small">Δεκτά και ελληνικά ή παρόμοια ονόματα layer (π.χ. «ΗΜΙΥΠΑΙΘΡΙΟΙ», «ΕΞΩΣΤΕΣ», «ΚΛΙΜΑΚΑ_ΚΟΙΝΟΧΡ»). Οι κατόψεις μπορούν να είναι και μέσα σε αντίγραφα του γεωτεμαχίου ΚΑΕΚ.</p>' +
+  '<h3>Δήλωση χώρων (Η/Χ, εξώστες, κλιμακοστάσια κ.λπ.)</h3><p>Δεν χρειάζεται να θυμάσαι ονόματα layers. Τρόποι, από τον ευκολότερο:</p><ol><li><b>Κλικ στην εφαρμογή</b>: βήμα «Κατόψεις» → διάλεξε τύπο (π.χ. «Ημιυπαίθριος») → κλικ μέσα στο πολύγωνο. Αμέσως εμφανίζεται κουμπί «Όλα τα «layer» = Ημιυπαίθριος — και να το θυμάται»: όλα τα πολύγωνα του ίδιου layer, σε όλες τις κατόψεις, δηλώνονται μαζί.</li><li><b>Τα layers σου</b>: στο ίδιο βήμα, λίστα με τα layers του αρχείου σου· δίπλα σε κάθε ένα διαλέγεις τι είναι. Η αντιστοίχιση μένει μόνιμα — στο επόμενο αρχείο με τα ίδια layers οι χώροι αναγνωρίζονται μόνοι τους.</li><li><b>Κείμενο μέσα στο πολύγωνο</b> («Η/Χ», «ΕΞΩΣΤΗΣ», «ΕΡΚΕΡ», «ΚΛΙΜΑΚΟΣΤΑΣΙΟ», «ΦΩΤΑΓΩΓΟΣ», «ΠΥΛΩΤΗ», «ΘΕΣΗ ΣΤΑΘΜΕΥΣΗΣ»).</li><li><b>Έτοιμα ονόματα layers</b> (προαιρετικά) — αναγνωρίζονται αυτόματα. Το κουμπί «Πρότυπο DXF» στο βήμα 2 δίνει έτοιμο αρχείο.</li></ol><table style="border-collapse:collapse;font-size:14.5px;width:100%">' + LAYERS_STD.map(l => '<tr><td style="border:1px solid var(--line);padding:4px 8px;font-family:monospace">' + l[0] + '</td><td style="border:1px solid var(--line);padding:4px 8px">' + l[2] + '</td></tr>').join('') + '</table><p class="small">Δεκτά και ελληνικά ή παρόμοια ονόματα layer (π.χ. «ΗΜΙΥΠΑΙΘΡΙΟΙ», «ΕΞΩΣΤΕΣ», «ΚΛΙΜΑΚΑ_ΚΟΙΝΟΧΡ»). Οι κατόψεις μπορούν να είναι και μέσα σε αντίγραφα του γεωτεμαχίου ΚΑΕΚ.</p>' +
   '<h3>Φύλλο κατά τα υποδείγματα ΥΠΕΝ</h3><p>Εντός σχεδίου και οικισμοί: Υπόδειγμα 1 (ιδεατό στερεό, όψεις, έλεγχος έρκερ, διαμόρφωση περιβάλλοντος χώρου με πίνακες συντεταγμένων, κατόψεις, 3D, τομές, όροι / εμβαδομέτρηση / γενικά στοιχεία / υπεύθυνη δήλωση, πινακίδα). Εκτός σχεδίου: Υπόδειγμα 2. Κάθε σχέδιο μπαίνει στη θέση του· αν δεν χωρά σε 1:100, η περιοχή του περνά σε 1:200 / 1:500 και η κλίμακα γράφεται στην κεφαλίδα. Το τοπογραφικό κόβεται γύρω από το οικόπεδο.</p>' +
   '<h3>Καθεστώς περιοχής</h3><ul><li><b>Εντός σχεδίου</b>: άρθ. 197-225 — κάλυψη 207, ΣΔ 206, όγκος 208, Δ/δ 198-209, ύψος 210, χαμηλά κτίρια 221, διαμόρφωση ±1,50 μ. (210 παρ. 4).</li>' +
   '<li><b>Οικισμός</b>: άρθ. 237-242 — δόμηση κατά ζώνη (238), ύψος 7,50 μ. από το ψηλότερο σημείο εδάφους και έως 10 μ. σε κάθε σημείο (239), 2,50 μ. από πλάγια/πίσω όρια (240), υπόγειο έως 1,20 μ.· δεν εφαρμόζονται τα 209, 210, 221 (196 παρ. 3).</li>' +
@@ -953,7 +976,8 @@ $('#btnTheme').onclick = () => applyTheme(document.documentElement.dataset.theme
   try { const st = JSON.parse(localStorage.getItem('kalypsi_settings') || 'null'); if (st) { Object.assign(S.proj, st.proj || {}); Object.assign(S.rules, st.rules || {}); Object.assign(S.ext, st.ext || {}); } } catch (e) {}
   try { const w = await IDB.get('work'); if (w && w.v === 1) { S = Object.assign(DEF(), w); rebuildExtra(); } } catch (e) {}
   resize(); compute(); render(); go(S.step || 0);
-  if (S.D) toast('Συνέχεια εργασίας: ' + (S.dxfName || 'DXF'));
+  if (PREF.seenVer !== APP_VERSION) { toast(WHATS_NEW, 8000); PREF.seenVer = APP_VERSION; savePref(); }
+  else if (S.D) toast('Συνέχεια εργασίας: ' + (S.dxfName || 'DXF'));
 })();
 window.__KAL = { S: () => S, UI, loadDxf, go, buildSheet, compute, w2s };
 </script>
