@@ -9,8 +9,8 @@
   var SC = 10; // 1:100 → 10 mm χαρτιού ανά μέτρο
   var HEAD = 17, MG = 6;
   var COL = { line: '#1f2937', plot: '#1d4ed8', cov: '#c81e1e', fyt: '#16a34a', pras: '#65a30d', pool: '#0891b2', dist: '#b45309', frame: '#111827' };
-  var SPC = { H: '#f59e0b', X: '#38bdf8', K: '#8b5cf6', I: '#a78bfa', A: '#c4b5fd', F: '#14b8a6', P: '#94a3b8' };
-  var SPL = { H: 'Η/Χ', X: 'ΕΞΩΣΤΗΣ', K: 'ΚΛΙΜ/ΣΙΟ', I: 'ΚΛΙΜ/ΣΙΟ', A: 'ΑΝ. ΚΛΙΜ.', F: 'ΦΩΤ/ΓΟΣ', P: 'Η-Μ/ΣΤΑΘΜ.' };
+  var SPC = { H: '#f59e0b', X: '#38bdf8', K: '#8b5cf6', I: '#a78bfa', A: '#c4b5fd', F: '#14b8a6', P: '#94a3b8', E: '#0284c7', Y: '#cbd5e1' };
+  var SPL = { H: 'Η/Χ', X: 'ΕΞΩΣΤΗΣ', K: 'ΚΛΙΜ/ΣΙΟ', I: 'ΚΛΙΜ/ΣΙΟ', A: 'ΑΝ. ΚΛΙΜ.', F: 'ΦΩΤ/ΓΟΣ', P: 'Η-Μ/ΣΤΑΘΜ.', E: 'ΕΡΚΕΡ', Y: 'ΠΥΛΩΤΗ' };
 
   function hatchLines(pts, sp, angDeg) {
     var a = (angDeg == null ? 45 : angDeg) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);

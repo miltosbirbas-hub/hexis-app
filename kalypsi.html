@@ -197,10 +197,10 @@ const K = window.KalEngine, KS = window.KalSheet;
 const $ = s => document.querySelector(s);
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
-const APP_VERSION = '1.1';
+const APP_VERSION = '2.0';
 const STEPS = ['Όροι', 'DXF', 'Τοπογραφικό', 'Κατόψεις', 'Τομές · όψεις', 'Έλεγχος', 'Εξαγωγή'];
-const SPC = { H: '#f59e0b', X: '#38bdf8', K: '#8b5cf6', I: '#a78bfa', A: '#c4b5fd', F: '#14b8a6', P: '#94a3b8' };
-const SPN = { H: 'Ημιυπαίθριος', X: 'Εξώστης', K: 'Κοιν. σκάλα', I: 'Ιδιωτ. σκάλα', A: 'Ανοικτή σκάλα', F: 'Φωταγωγός/αίθριο', P: 'Στάθμευση/Η-Μ' };
+const SPC = { H: '#f59e0b', X: '#38bdf8', E: '#0284c7', K: '#8b5cf6', I: '#a78bfa', A: '#c4b5fd', F: '#14b8a6', P: '#94a3b8', Y: '#cbd5e1' };
+const SPN = { H: 'Ημιυπαίθριος', X: 'Ανοικτός εξώστης', E: 'Κλειστός εξώστης', K: 'Κοιν. σκάλα', I: 'Ιδιωτ. σκάλα', A: 'Ανοικτή σκάλα', F: 'Φωταγωγός/αίθριο', P: 'Στάθμευση/Η-Μ', Y: 'Πυλωτή' };
 const KINDS = [['topo', 'Τοπογραφικό'], ['plan', 'Κάτοψη'], ['roof', 'Δώμα / στέγη'], ['section', 'Τομή'], ['elev', 'Όψη'], ['other', 'Άλλο (όχι στο φύλλο)'], ['ignore', 'Αγνόηση']];
 const LTYP = [[1, 'Υπέργειο'], [2, 'Υπόγειο'], [3, 'Σοφίτα'], [4, 'Υπόσκαφο'], [5, 'Πατάρι']];
 
@@ -208,8 +208,8 @@ const LTYP = [[1, 'Υπέργειο'], [2, 'Υπόγειο'], [3, 'Σοφίτα'
 const DEF = () => ({
   v: 1, step: 0,
   proj: { kaek: '', ergodotis: '', ergo: '', thesi: '', meletitis: '', arSxediou: 'Δ_01' },
-  rules: { mode: 1, sd: 0, kp: 60, maxd: 0, hmax: 0, roofmax: 2, so: 5, cap: false, rows: '', src: '', oikismos: '', dimos: '', artemb: 0, artpros: 0, front: 0 },
-  ext: { H: 0, roof: 0, units: 1, m2per: 0, prov: 1, akal: 0 },
+  rules: { mode: 1, sd: 0, kp: 60, maxd: 0, hmax: 0, roofmax: 2, so: 5, cap: false, rows: '', src: '', oikismos: '', dimos: '', artemb: 0, artpros: 0, front: 0, zone: 'B', plain: false, resid: true, P: 0 },
+  ext: { H: 0, roof: 0, Hman: false, units: 1, m2per: 0, prov: 1, akal: 0 },
   dxfName: '', D: null, cls: [],
   topo: { cl: null, plot: null, cov: [], fyt: [], pras: [], pool: [], fronts: [] },
   plans: {}, // cl → { outline:[], spaces:[{id,code,lbl}] }
@@ -308,6 +308,15 @@ function drawNow() {
     const pl = S.plans[k], ci = +k; if (UI.focus != null && UI.focus !== ci) return; if (!S.cls[ci] || S.cls[ci].kind !== 'plan' && S.cls[ci].kind !== 'roof') return;
     pl.spaces.forEach(s => fillP(s.id, SPC[s.code] || '#999', .38));
     pl.outline.forEach(i => strokeP(i, '#dc2626', 2.5));
+  });
+  // τομές: φυσικό (καφέ διακεκομμένο) και διαμορφωμένο (πράσινο) έδαφος, ύψη στις όψεις
+  if (S.step === 4 && UI.secA) show.forEach(c => { const a = UI.secA[c.id]; if (!a || !a.ok) return;
+    const ln = (list, col, w, dash) => { list.forEach(e => { poly(e.pts, false); cx.strokeStyle = col; cx.lineWidth = w; cx.setLineDash(dash || []); cx.stroke(); }); cx.setLineDash([]); };
+    if (!a.assumed) ln(a.nat, '#92400e', 2, [7, 4]); ln(a.fin, '#16a34a', 3);
+    const yTop = a.topLv - a.b; cx.font = '700 13px HxSans, sans-serif';
+    a.bx.forEach((x, k) => { const g = a.gFac[k]; if (g == null) return; const p0 = w2s([x, g - a.b]), p1 = w2s([x, yTop]); cx.strokeStyle = '#dc2626'; cx.lineWidth = 1.5; cx.beginPath(); cx.moveTo(p0[0], p0[1]); cx.lineTo(p1[0], p1[1]); cx.stroke();
+      cx.fillStyle = '#dc2626'; cx.textAlign = k ? 'left' : 'right'; cx.fillText('Η ' + gr(a.Hfac[k]), p1[0] + (k ? 8 : -8), (p0[1] + p1[1]) / 2 + (k ? 22 : 0)); cx.textAlign = 'left'; });
+    if (a.pitched) { const q = w2s([a.bx[1], a.ridgeY]); cx.fillStyle = '#9f1239'; cx.fillText('στέγη ' + gr(a.roof), q[0] + 8, q[1]); }
   });
   if (UI.hover != null && ent(UI.hover)) { const e = ent(UI.hover); poly(e.pts, e.closed); cx.strokeStyle = '#f97316'; cx.lineWidth = 3; cx.stroke(); }
   // σχεδίαση πολυγώνου / μέτρηση
@@ -469,7 +478,7 @@ function autoDetect() {
   const topo = S.cls.find(c => c.kind === 'topo');
   if (topo) { const t = K.topoDetect(S.D, topo); S.topo = Object.assign({ cl: topo.id, fronts: [] }, t); }
   S.cls.forEach(c => { if ((c.kind === 'plan' || c.kind === 'roof') && !S.plans[c.id]) { const r = K.planDetect(S.D, c); S.plans[c.id] = { outline: r.outline, spaces: r.spaces }; } if (c.kind === 'section' || c.kind === 'elev') c.use = c.use !== false; });
-  if (!S.ext.H) { const h = suggestH(); if (h) S.ext.H = h; }
+
 }
 function planOf(ci) { if (!S.plans[ci]) { const r = K.planDetect(S.D, S.cls[ci]); S.plans[ci] = { outline: r.outline, spaces: r.spaces }; } return S.plans[ci]; }
 function planList() { return S.cls.filter(c => c.kind === 'plan' || c.kind === 'roof').sort((a, b) => ((a.level || {}).ord || 0) - ((b.level || {}).ord || 0)); }
@@ -484,10 +493,12 @@ function buildA() {
     return { name: L.name, typ: L.typ, use: L.use || (L.typ === 2 || L.typ === 4 ? 1 : 0), h: L.h || 0, outlines: pl.outline.filter(i => ent(i)).map(i => ent(i).pts), spaces: pl.spaces.filter(s => ent(s.id)).map(s => ({ code: s.code, pts: ent(s.id).pts })) }; });
   const sum = a => a.filter(i => ent(i)).reduce((s, i) => s + ent(i).area, 0);
   return { E: plot ? K.area(plot) : 0, mode: +r.mode, sd: num(r.sd), kp: num(r.kp), cap: !!r.cap, maxd: num(r.maxd), hmax: num(r.hmax) || null, roofmax: num(r.roofmax) || null, so: num(r.so),
-    cov: T.cov.filter(i => ent(i)).map(i => ent(i).pts), levels, H: num(S.ext.H), roof: num(S.ext.roof), fytA: sum(T.fyt), prasA: sum(T.pras), units: num(S.ext.units, 1), m2per: num(S.ext.m2per),
+    cov: T.cov.filter(i => ent(i)).map(i => ent(i).pts), levels, H: S.ext.Hman ? num(S.ext.H) : 0, roof: S.ext.Hman ? num(S.ext.roof) : 0, secs: secAll(true), zone: r.zone, plain: !!r.plain, resid: r.resid !== false, P: num(r.P), poolA: sum(T.pool), fytA: sum(T.fyt), prasA: sum(T.pras), units: num(S.ext.units, 1), m2per: num(S.ext.m2per),
     prov: Math.round(num(S.ext.prov)), akal: Math.round(num(S.ext.akal)), fronts: T.fronts.slice(), plotPts: plot };
 }
-function compute() { if (!S.D || S.topo.plot == null) { UI.R = null; UI.A = null; return; } UI.A = buildA(); UI.R = K.compute(UI.A); UI.C = K.checks(UI.A, UI.R); UI.SG = K.suggest(UI.A, UI.R); UI.sheet = null; }
+// ανάλυση τομών / όψεων (στάθμες, έδαφος, ύψη)
+function secAll(onlyUsed) { if (!S.D) return []; UI.secA = UI.secA || {}; return S.cls.filter(c => (c.kind === 'section' || c.kind === 'elev') && (!onlyUsed || c.use !== false)).map(c => { if (!UI.secA[c.id]) UI.secA[c.id] = K.sectionAnalyze(S.D, c); return UI.secA[c.id]; }); }
+function compute() { UI.secA = {}; if (!S.D || S.topo.plot == null) { UI.R = null; UI.A = null; return; } UI.A = buildA(); UI.R = K.compute(UI.A); UI.C = K.checks(UI.A, UI.R); UI.V = K.verdict(UI.C); UI.SG = K.suggest(UI.A, UI.R); UI.sheet = null; }
 function rowsArr() { return String(S.rules.rows || '').split('\n').map(s => s.trim()).filter(Boolean).map(s => { const i = s.indexOf(':'); return i > 0 ? [s.slice(0, i).trim(), s.slice(i + 1).trim()] : [s, '']; }); }
 function plotLabels() {
   const T = S.topo; if (T.plot == null) return [];
@@ -552,7 +563,11 @@ function render() {
     h += '<div class="row">' + inp('kaek', 'ΚΑΕΚ', S.proj.kaek) + '<div style="flex:none;align-self:end;margin-bottom:8px"><button class="btn" id="bOroi">Όροι από HEXIS-APP</button></div></div>';
     if (R.src) h += '<p class="small">Πηγή: ' + esc(R.src) + '</p>';
     h += '<label class="f"><span>Περιοχή</span><select id="mode"><option value="1">Εντός εγκεκριμένου σχεδίου</option><option value="3">Εντός ορίων οικισμού</option><option value="2">Εκτός σχεδίου</option></select></label>';
-    h += '<div class="row">' + inp('sd', 'Συντελεστής δόμησης', R.sd, 'number', 'step="0.01" min="0"') + inp('kp', 'Κάλυψη %', R.kp, 'number', 'step="1" min="0"') + '</div>';
+    if (R.mode == 3) h += '<div class="row"><label class="f"><span>Ζώνη οικισμού</span><select id="zone"><option value="A">Ζώνη Α</option><option value="B">Ζώνη Β / Β1</option></select></label><label class="f" style="display:flex;gap:8px;align-items:end;padding-bottom:10px"><input type="checkbox" id="plain" ' + (R.plain ? 'checked' : '') + ' style="width:auto"> <span style="margin:0">Πεδινός (ύψος 8 μ.)</span></label></div>';
+    h += '<div class="row"><label class="f"><span>Χρήση</span><select id="resid"><option value="1">Κατοικία</option><option value="0">Άλλη χρήση</option></select></label>' + (R.mode == 1 ? inp('Pw', 'Πλάτος δρόμου Π, μ.', R.P, 'number', 'step="0.1" min="0"') : '<div></div>') + '</div>';
+    if (R.mode != 2) h += '<div class="row">' + inp('sd', R.mode == 3 ? 'Σ.Δ. (για τον όγκο)' : 'Συντελεστής δόμησης', R.sd, 'number', 'step="0.01" min="0"') + inp('kp', 'Κάλυψη %', R.kp, 'number', 'step="1" min="0"') + '</div>';
+    else h += '<div class="row">' + inp('kp', 'Κάλυψη % (έως 10)', R.kp, 'number', 'step="1" min="0" max="10"') + '<div></div></div>';
+    h += '<p class="small">' + (R.mode == 1 ? 'Εφαρμόζονται τα άρθ. 197-225 ν.5306/2026 (ΝΟΚ).' : R.mode == 3 ? 'Εφαρμόζονται τα άρθ. 237-242 και όσα ορίζει το άρθ. 196 παρ. 3 — όχι Δ/δ (209), ύψος κατά ΣΔ (210), χαμηλά κτίρια (221). Το π.δ. οριοθέτησης κατισχύει. Η δόμηση βγαίνει από το άρθ. 238 κατά ζώνη.' : 'Εφαρμόζονται τα άρθ. 250-256 και όσα ορίζει το άρθ. 196 παρ. 2 — αποστάσεις 15 μ., ύψος 7,50 + 1,20 μ., υπόγειο έως 0,80 μ.') + '</p>';
     h += '<div class="row">' + inp('hmax', 'Μέγιστο ύψος μ. (0 = από ΣΔ)', R.hmax, 'number', 'step="0.05" min="0"') + inp('roofmax', 'Στέγη έως μ.', R.roofmax, 'number', 'step="0.05" min="0"') + '</div>';
     h += '<div class="row">' + inp('so', R.mode == 2 ? 'Συντ. όγκου (0 = δεν ορίζεται)' : 'Σ.Ο. συντελεστής (5,00 ή 5,50)', R.so, 'number', 'step="0.5" min="0"') + inp('maxd', 'Ειδικό όριο δόμησης τ.μ. (0 = όχι)', R.maxd, 'number', 'step="1" min="0"') + '</div>';
     if (R.mode == 1) h += '<label class="f" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="cap" ' + (R.cap ? 'checked' : '') + ' style="width:auto"> <span style="margin:0">Όριο οικισμού κάτω των 2.000 κατοίκων (240 / 400 τ.μ.)</span></label>';
@@ -613,12 +628,16 @@ function render() {
     }
   }
   if (s === 4) {
-    const secs = S.cls.filter(c => c.kind === 'section' || c.kind === 'elev'), H0 = suggestH();
-    h += '<h2>Τομές, όψεις, εικόνες</h2>';
-    h += '<div class="row">' + inp('H', 'Ύψος Η (εξάντληση ΣΔ), μ.', S.ext.H, 'number', 'step="0.05" min="0"') + inp('roof', 'Στέγη πάνω από το Η, μ.', S.ext.roof, 'number', 'step="0.05" min="0"') + '</div>';
-    if (H0) h += '<p class="small">Από τις στάθμες των τομών: μέγιστη +' + gr(H0) + ' μ.</p>';
+    const secs = S.cls.filter(c => c.kind === 'section' || c.kind === 'elev'), RR = UI.R;
+    h += '<h2>Τομές, όψεις, εικόνες</h2><p class="lead">Από τις τομές μετριούνται ύψος, στέγη, οροφή υπογείου και εκσκαφές / επιχώσεις. Κλικ σε τομή για να τη δεις.</p>';
+    if (RR && RR.sx.n) h += '<div class="card"><div class="kv"><span>Ύψος κτιρίου (μετρημένο)</span><b>' + gr(RR.Hm) + ' μ.</b></div><div class="kv"><span>Στέγη · κορφιάς</span><b>' + gr(RR.sx.roof) + ' · ' + gr(RR.ridge) + ' μ.</b></div><div class="kv"><span>Επίχωση / εκσκαφή (μέγ.)</span><b>' + gr(RR.sx.fill) + ' / ' + gr(RR.sx.dig) + ' μ.</b></div>' + (RR.sx.baseRoof != null ? '<div class="kv"><span>Οροφή υπογείου πάνω από έδαφος</span><b>' + gr(RR.sx.baseRoof) + ' μ.</b></div>' : '') + '</div>';
+    h += '<label class="f" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="Hman" ' + (S.ext.Hman ? 'checked' : '') + ' style="width:auto"> <span style="margin:0;color:var(--txt)">Δίνω το ύψος χειροκίνητα (αντί για μέτρηση από τις τομές)</span></label>';
+    if (S.ext.Hman) h += '<div class="row">' + inp('H', 'Ύψος Η (εξάντληση ΣΔ), μ.', S.ext.H, 'number', 'step="0.05" min="0"') + inp('roof', 'Στέγη πάνω από το Η, μ.', S.ext.roof, 'number', 'step="0.05" min="0"') + '</div>';
     h += '<p class="small">Το Η για τα Δ / δ είναι το ύψος στην πλήρη εξάντληση του ΣΔ, όπως στο διάγραμμα — όχι αναγκαστικά αυτό που χτίζεις τώρα (άρθ. 198 ν.5306/2026).</p>';
-    h += '<h3>Στο φύλλο</h3>' + (secs.length ? secs.map(c => '<label class="f" style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="checkbox" data-su="' + c.id + '" ' + (c.use !== false ? 'checked' : '') + ' style="width:auto"> <span style="margin:0;color:var(--txt)">' + esc(clName(c)) + '</span></label>').join('') : '<p class="small">Δεν αναγνωρίστηκαν τομές ή όψεις — γράψε από κάτω «ΤΟΜΗ Α-Α», «ΝΟΤΙΑ ΟΨΗ» κ.λπ.</p>');
+    h += '<h3>Τομές και όψεις</h3>' + (secs.length ? secs.map(c => { const a = (UI.secA || {})[c.id] || K.sectionAnalyze(S.D, c);
+      return '<div class="chk" data-sc="' + c.id + '" style="cursor:pointer"><div class="h"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-su="' + c.id + '" ' + (c.use !== false ? 'checked' : '') + ' style="width:auto"> ' + esc(clName(c)) + '</label><span class="badge ' + (a.ok ? 'b-ok' : 'b-warn') + '">' + (a.ok ? 'ΑΝΑΛΥΘΗΚΕ' : 'ΕΛΕΓΞΕ') + '</span></div>' +
+        (a.ok ? '<div class="v">Η όψεων ' + a.Hfac.map(v => gr(v)).join(' / ') + ' μ. · στέγη ' + gr(a.roof) + ' μ. · στάθμες ' + a.marks.length + (a.fill || a.dig ? ' · επίχωση ' + gr(a.fill) + ' / εκσκαφή ' + gr(a.dig) + ' μ.' : '') + (a.baseRoof != null ? ' · οροφή υπογείου +' + gr(a.baseRoof) + ' μ.' : '') + '</div>' : '') +
+        (a.notes.length ? '<div class="w">' + a.notes.map(esc).join('<br>') + '</div>' : '') + '</div>'; }).join('') : '<p class="small">Δεν αναγνωρίστηκαν τομές ή όψεις — γράψε από κάτω «ΤΟΜΗ Α-Α», «ΝΟΤΙΑ ΟΨΗ» κ.λπ.</p>');
     if (S.rules.mode != 2) {
       h += '<h3>Στάθμευση</h3><div class="row">' + inp('units', 'Κατοικίες / μονάδες', S.ext.units, 'number', 'step="1" min="0"') + inp('m2per', 'τ.μ. ανά θέση (0 = μία ανά κατοικία)', S.ext.m2per, 'number', 'step="1" min="0"') + '</div>';
       h += '<div class="row">' + inp('prov', 'Θέσεις που δεσμεύονται', S.ext.prov, 'number', 'step="1" min="0"') + inp('akal', 'από αυτές στον ακάλυπτο', S.ext.akal, 'number', 'step="1" min="0"') + '</div>';
@@ -628,11 +647,14 @@ function render() {
   if (s === 5) {
     if (!UI.R) h += '<h2>Έλεγχος</h2><div class="card">Χρειάζεται οικόπεδο από το τοπογραφικό (βήμα 3).</div>';
     else {
-      const C = UI.C, fails = C.filter(c => c.st === 'fail').length, warns = C.filter(c => c.st === 'warn').length;
-      h += '<h2>Έλεγχος</h2><div class="big ' + (fails ? 'b-fail' : 'b-ok') + '">' + (fails ? fails + ' ΥΠΕΡΒΑΣΕΙΣ' : 'ΕΝΤΑΞΕΙ') + (warns ? ' · ' + warns + ' προς έλεγχο' : '') + '</div>';
-      h += '<button class="btn or" id="bAi" style="width:100%">Ρώτα το AI: λάθη και εξοικονόμηση δόμησης</button>';
+      const C = UI.C, V = UI.V;
+      h += '<h2>Έλεγχος</h2><div class="big b-' + V.st + '">' + esc(V.text) + '</div>';
+      h += '<div class="row"><button class="btn" id="bRep">Έκθεση ελέγχου</button><button class="btn or" id="bAi">Ρώτα το AI</button></div>';
       const grp = [['ydom', 'Γενικά στοιχεία — ελέγχονται από την ΥΔΟΜ'], ['dilosi', 'Υπεύθυνη δήλωση μηχανικού (μεγέθη ΣΔ)'], ['ktirio', 'Κτιριοδομικός — στη μελέτη'], ['amea', 'Προσβασιμότητα ΑμεΑ']];
-      grp.forEach(g => { h += '<h3>' + g[1] + '</h3>'; C.filter(c => c.grp === g[0]).forEach(c => { h += '<div class="chk"><div class="h"><span>' + esc(c.title) + '</span><span class="badge b-' + c.st + '">' + ({ ok: 'ΕΝΤΑΞΕΙ', fail: 'ΥΠΕΡΒΑΣΗ', warn: 'ΕΛΕΓΞΕ', info: 'ΟΔΗΓΙΑ' })[c.st] + '</span></div><div class="v">' + esc(c.val) + '</div><div class="a">' + esc(c.art) + '</div>' + (c.why ? '<div class="w">' + esc(c.why) + '</div>' : '') + '</div>'; }); });
+      const ORD = { fail: 0, warn: 1, ok: 2, info: 3 };
+      const bad = C.filter(c => (c.st === 'fail' || c.st === 'warn') && (c.grp === 'ydom' || c.grp === 'dilosi'));
+      if (bad.length) h += '<div class="card">' + bad.map(c => '<div class="kv"><span>' + esc(c.title) + '</span><span class="badge b-' + c.st + '">' + (c.st === 'fail' ? 'ΥΠΕΡΒΑΣΗ' : 'ΕΛΕΓΞΕ') + '</span></div>').join('') + '</div>';
+      grp.forEach(g => { h += '<h3>' + g[1] + '</h3>'; C.filter(c => c.grp === g[0]).sort((a, b) => ORD[a.st] - ORD[b.st]).forEach(c => { h += '<div class="chk"><div class="h"><span>' + esc(c.title) + '</span><span class="badge b-' + c.st + '">' + ({ ok: 'ΕΝΤΑΞΕΙ', fail: 'ΥΠΕΡΒΑΣΗ', warn: 'ΕΛΕΓΞΕ', info: 'ΟΔΗΓΙΑ' })[c.st] + '</span></div><div class="v">' + esc(c.val) + '</div><div class="a">' + esc(c.art) + '</div>' + (c.rule ? '<details class="w"><summary>Τι λέει ο νόμος</summary>' + esc(c.rule) + '</details>' : '') + (c.why ? '<div class="w" style="color:var(--txt)">' + esc(c.why) + '</div>' : '') + '</div>'; }); });
       h += '<h3>Προτάσεις εξοικονόμησης δόμησης</h3>' + UI.SG.map(x => '<div class="sug">' + (x.gain > 0.5 ? '<span class="g">έως ' + gr(x.gain) + ' τ.μ.</span>' : '') + esc(x.t) + '<div class="a">' + esc(x.art) + '</div></div>').join('');
       h += '<p class="small" style="margin-top:10px">Κατά την εγκύκλιο ΥΠΕΝ/ΔΑΟΚΑ/135179/4495/2022 η ΥΔΟΜ ελέγχει κάλυψη, ύψος, όγκο, αποστάσεις, στάθμευση και (εντός σχεδίου) φύτευση· τα μεγέθη του ΣΔ είναι αντικείμενο της υπεύθυνης δήλωσης.</p>';
     }
@@ -648,7 +670,11 @@ function render() {
   b.innerHTML = h;
   // σύνδεση πεδίων
   if (s === 0) {
-    const R = S.rules; $('#mode').value = String(R.mode); $('#mode').onchange = e => { R.mode = +e.target.value; if (R.mode === 2) { R.kp = R.kp || 10; R.roofmax = 1.2; } compute(); render(); save(); };
+    const R = S.rules; $('#mode').value = String(R.mode); $('#mode').onchange = e => { R.mode = +e.target.value; if (R.mode === 2) { R.kp = 10; R.roofmax = 1.2; R.so = 0; } else { if (R.kp === 10) R.kp = 60; R.roofmax = 2; } compute(); render(); save(); };
+    if ($('#zone')) { $('#zone').value = R.zone || 'B'; $('#zone').onchange = e => { R.zone = e.target.value; compute(); render(); save(); }; }
+    if ($('#plain')) $('#plain').onchange = e => { R.plain = e.target.checked; compute(); save(); };
+    $('#resid').value = R.resid === false ? '0' : '1'; $('#resid').onchange = e => { R.resid = e.target.value === '1'; compute(); save(); };
+    bind('Pw', R, 'P', true);
     bind('kaek', S.proj, 'kaek'); $('#bOroi').onclick = fetchOroi;
     ['sd', 'kp', 'hmax', 'roofmax', 'so', 'maxd'].forEach(k => bind(k, R, k, true)); bind('rows', R, 'rows');
     if ($('#cap')) $('#cap').onchange = e => { R.cap = e.target.checked; compute(); save(); };
@@ -681,11 +707,13 @@ function render() {
   }
   if (s === 4) {
     ['H', 'roof', 'units', 'm2per', 'prov', 'akal'].forEach(k => bind(k, S.ext, k, true));
-    document.querySelectorAll('[data-su]').forEach(el => el.onchange = () => { S.cls[+el.dataset.su].use = el.checked; save(); });
+    $('#Hman').onchange = e => { S.ext.Hman = e.target.checked; compute(); render(); save(); };
+    document.querySelectorAll('[data-su]').forEach(el => { el.onclick = ev => ev.stopPropagation(); el.onchange = () => { S.cls[+el.dataset.su].use = el.checked; compute(); render(); save(); }; });
+    document.querySelectorAll('[data-sc]').forEach(el => el.onclick = () => { const c = S.cls[+el.dataset.sc]; UI.focus = c.id; fit(K.bbGrow(c.bb, 2)); });
     $('#bImg').onclick = () => $('#fImg').click();
     document.querySelectorAll('[data-rm]').forEach(el => el.onclick = () => { S.photos.splice(+el.dataset.rm, 1); render(); save(); });
   }
-  if (s === 5 && $('#bAi')) $('#bAi').onclick = askAi;
+  if (s === 5 && $('#bAi')) { $('#bAi').onclick = askAi; $('#bRep').onclick = exportReport; }
   if (s === 6) { $('#shH').value = String(S.sheetH); $('#shH').onchange = e => { S.sheetH = e.target.value; buildSheet(); render(); fit(focusBB()); save(); }; $('#bPdf').onclick = exportPdf; $('#bDxf').onclick = exportDxf; }
 }
 function thumb(c, cl) { const g = c.getContext('2d'), b = cl.bb, w = c.width, h = c.height, s = Math.min((w - 10) / Math.max(1e-6, b[2] - b[0]), (h - 10) / Math.max(1e-6, b[3] - b[1]));
@@ -749,6 +777,47 @@ async function exportPdf() {
   finally { busy(false); }
 }
 
+/* ---------------- έκθεση ελέγχου (A4) ---------------- */
+async function exportReport() {
+  if (!UI.R) return; busy(true, 'Δημιουργία έκθεσης ελέγχου…');
+  try {
+    if (!window.jspdf) await loadScript('jspdf.umd.min.js');
+    const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
+    doc.addFileToVFS('LS-R.ttf', await fontB64('fonts/LiberationSans-Regular.ttf')); doc.addFont('LS-R.ttf', 'LS', 'normal');
+    doc.addFileToVFS('LS-B.ttf', await fontB64('fonts/LiberationSans-Bold.ttf')); doc.addFont('LS-B.ttf', 'LS', 'bold');
+    const W = 210, M = 16, CW = W - 2 * M; let y = 18, page = 1;
+    const foot = () => { doc.setFont('LS', 'normal'); doc.setFontSize(8); doc.setTextColor(110); doc.text('HEXIS-APP Διάγραμμα Κάλυψης · Έκθεση ελέγχου · powered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε. · ' + today() + ' · σελ. ' + page, W / 2, 289, { align: 'center' }); };
+    const need = hgt => { if (y + hgt > 280) { foot(); doc.addPage(); page++; y = 18; } };
+    const para = (t, size, bold, col, ind) => { doc.setFont('LS', bold ? 'bold' : 'normal'); doc.setFontSize(size); doc.setTextColor(...(col || [20, 28, 45])); const L = doc.splitTextToSize(String(t), CW - (ind || 0)); const lh = size * 0.42; need(L.length * lh + 1); L.forEach(l => { doc.text(l, M + (ind || 0), y); y += lh; }); };
+    const R = UI.R, A = UI.A, V = UI.V, P = S.proj;
+    para('ΕΚΘΕΣΗ ΠΟΛΕΟΔΟΜΙΚΟΥ ΕΛΕΓΧΟΥ ΔΙΑΓΡΑΜΜΑΤΟΣ ΚΑΛΥΨΗΣ', 15, true); y += 1;
+    para([P.ergo, P.thesi, P.kaek ? 'ΚΑΕΚ ' + P.kaek : '', P.ergodotis ? 'Εργοδότης: ' + P.ergodotis : ''].filter(Boolean).join(' · ') || '—', 10, false, [75, 88, 113]);
+    para('Αρχείο σχεδίων: ' + (S.dxfName || '—') + ' · Περιοχή: ' + ['', 'εντός εγκεκριμένου σχεδίου', 'εκτός σχεδίου', 'εντός ορίων οικισμού'][A.mode] + ' · Εμβαδόν οικοπέδου (τοπογραφικό): ' + gr(A.E) + ' τ.μ.', 10, false, [75, 88, 113]); y += 3;
+    const vc = V.st === 'ok' ? [19, 128, 75] : V.st === 'fail' ? [180, 35, 24] : [154, 91, 0];
+    need(16); doc.setFillColor(...vc); doc.roundedRect(M, y - 6, CW, 13, 2, 2, 'F'); doc.setFont('LS', 'bold'); doc.setFontSize(14); doc.setTextColor(255); doc.text(V.text, W / 2, y + 2.3, { align: 'center' }); y += 14;
+    const bad = UI.C.filter(c => (c.st === 'fail' || c.st === 'warn') && (c.grp === 'ydom' || c.grp === 'dilosi'));
+    if (bad.length) { para('Σημεία που χρειάζονται διόρθωση ή στοιχεία:', 10.5, true); bad.forEach(c => para((c.st === 'fail' ? 'ΥΠΕΡΒΑΣΗ — ' : 'ΕΛΕΓΞΕ — ') + c.title + ': ' + c.val + ' (' + c.art + ')', 9.5, false, c.st === 'fail' ? [180, 35, 24] : [154, 91, 0], 3)); y += 2; }
+    para('Η απόφαση αφορά όσα ελέγχει η Υ.ΔΟΜ (εγκύκλιος ΥΠΕΝ/ΔΑΟΚΑ/135179/4495/2022) και τα μεγέθη της υπεύθυνης δήλωσης του μηχανικού. Ελέγχθηκαν με τα δεδομένα του DXF και τις διατάξεις του ν.5306/2026.', 9, false, [75, 88, 113]); y += 3;
+    const G = [['ydom', 'Α. Γενικά στοιχεία — ελέγχονται από την Υ.ΔΟΜ'], ['dilosi', 'Β. Υπεύθυνη δήλωση μηχανικού (μεγέθη ΣΔ)'], ['ktirio', 'Γ. Κτιριοδομικός Κανονισμός'], ['amea', 'Δ. Προσβασιμότητα ΑμεΑ']];
+    const lab = { ok: 'ΕΝΤΑΞΕΙ', fail: 'ΥΠΕΡΒΑΣΗ', warn: 'ΕΛΕΓΞΕ', info: 'ΟΔΗΓΙΑ' }, col = { ok: [19, 128, 75], fail: [180, 35, 24], warn: [154, 91, 0], info: [75, 88, 113] };
+    G.forEach(g => {
+      const L = UI.C.filter(c => c.grp === g[0]).sort((a, b) => ({ fail: 0, warn: 1, ok: 2, info: 3 })[a.st] - ({ fail: 0, warn: 1, ok: 2, info: 3 })[b.st]); if (!L.length) return;
+      y += 2; para(g[1], 12, true, [31, 78, 156]); y += 1;
+      L.forEach(c => {
+        need(14); doc.setFont('LS', 'bold'); doc.setFontSize(10); doc.setTextColor(...col[c.st]); doc.text(lab[c.st], W - M, y, { align: 'right' });
+        para(c.title, 10.5, true); para(c.val, 9.5, false, null, 3);
+        if (c.why) para(c.why, 9, false, [20, 28, 45], 3);
+        if (c.rule) para('Κανόνας: ' + c.rule, 8.5, false, [90, 100, 120], 3);
+        para(c.art, 8.5, true, [31, 78, 156], 3); y += 2.2;
+      });
+    });
+    if (UI.SG && UI.SG.length) { y += 2; para('Ε. Προτάσεις εξοικονόμησης δόμησης', 12, true, [31, 78, 156]); UI.SG.forEach(x => { para('• ' + x.t + (x.gain > 0.5 ? ' (έως ' + gr(x.gain) + ' τ.μ.)' : ''), 9.5, false, null, 2); para(x.art, 8.5, true, [31, 78, 156], 5); y += 1; }); }
+    y += 3; para('Πηγές: ν.5306/2026 «Κώδικας Χωροταξίας - Πολεοδομίας "Νικόλαος Ταγαράς"» (ΦΕΚ Α΄ 88/08.06.2026) · εγκύκλιος ΥΠΕΝ/ΔΑΟΚΑ/135179/4495/2022 και Υποδείγματα 1-2 · Κτιριοδομικός Κανονισμός (ΦΕΚ Β΄ 3985/2023). Η έκθεση είναι εργαλείο προελέγχου του μελετητή και δεν υποκαθιστά τον έλεγχο της Υ.ΔΟΜ.', 8, false, [110, 110, 110]);
+    foot(); download(doc.output('blob'), fname('pdf').replace('DIAGRAMMA_KALYPSIS', 'EKTHESI_ELEGXOU')); toast('Έτοιμη η έκθεση ελέγχου (' + page + ' σελ.).');
+  } catch (e) { toast('Έκθεση: ' + (e.message || e), 6000); }
+  finally { busy(false); }
+}
+
 /* ---------------- AI ---------------- */
 const AI_SYS = 'Είσαι έμπειρος ελεγκτής διαγραμμάτων κάλυψης στην Ελλάδα. Απαντάς στα ελληνικά, σύντομα και πρακτικά, με παραπομπή σε άρθρο για ΚΑΘΕ ισχυρισμό.\n' +
  'Πλαίσιο: ν.5306/2026 «Κώδικας Χωροταξίας και Πολεοδομίας» (ΦΕΚ Α\' 88/08.06.2026) — ο ΝΟΚ ν.4067/2012 κωδικοποιήθηκε στα άρθ. 195-225 (206↔ΝΟΚ 11 ΣΔ, 207↔12 κάλυψη, 208↔13 όγκος, 209↔14 θέση, 210↔15 ύψος, 211↔16 εξώστες, 212↔17 ακάλυπτοι, 214↔19, 221↔24 χαμηλά, 222↔25, 223↔26 ΑμεΑ). Εκτός σχεδίου: άρθ. 250-251 (4.000 τ.μ., 10%, 7,50 μ.+1,20 στέγη, 2 όροφοι, 15 μ. αποστάσεις, 186+0,018(Ε-4000) τ.μ. για κατοικία). Διάγραμμα κάλυψης: άρθ. 325 (πρώην 39 §3 ν.4495/17) και εγκύκλιος ΥΠΕΝ/ΔΑΟΚΑ/135179/4495/2022.\n' +
@@ -759,7 +828,7 @@ async function askAi() {
   const data = { περιοχή: ['', 'εντός σχεδίου', 'εκτός σχεδίου', 'οικισμός'][A.mode], εμβαδόν: +A.E.toFixed(2), ΣΔ: A.sd, κάλυψη_επιτρ_pct: R.kpe, κάλυψη: +R.Sk.toFixed(2), επιτρ_δόμηση: R.allow && +R.allow.toFixed(2), δόμηση: +R.Dom.toFixed(2),
     εξώστες_ημιυπ: +R.HX.toFixed(2), ημιυπαίθριοι: +R.Hh.toFixed(2), όγκος: +R.Vr.toFixed(1), επιτρ_όγκος: R.Va && +R.Va.toFixed(1), Η: A.H, στέγη: A.roof, Δπραγμ: R.Drear.v, δπραγμ: R.dside.v, ελάχ_απόσταση: R.dmin,
     επίπεδα: R.lv.map(l => ({ όνομα: l.name, τύπος: K.typText(l.typ, l.use), μικτό: +l.G.toFixed(2), μετρά: +l.cnt.toFixed(2), χώροι: l.sp.map(s => K.CODE[s.code] + ' ' + s.a.toFixed(2)) })),
-    φύτευση: A.fytA, πρασιά: A.prasA, θέσεις: { απαιτούνται: R.req, δεσμεύονται: A.prov }, έλεγχοι: UI.C.filter(c => c.st !== 'info').map(c => c.st + ': ' + c.title + ' — ' + c.val) };
+    φύτευση: R.fytA, πρασιά: A.prasA, απόφαση: UI.V && UI.V.text, τομές: R.sx, καθεστώς_ζώνη: A.zone, θέσεις: { απαιτούνται: R.req, δεσμεύονται: A.prov }, έλεγχοι: UI.C.filter(c => c.st !== 'info').map(c => c.st + ': ' + c.title + ' — ' + c.val) };
   try {
     const r = await fetch(SB_URL + '/functions/v1/nomothesia-ai', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY },
       body: JSON.stringify({ system: AI_SYS, max_tokens: 1500, messages: [{ role: 'user', content: 'Δεδομένα διαγράμματος κάλυψης (JSON):\n' + JSON.stringify(data) + '\n\nΔώσε:\n1. ΛΑΘΗ / ΚΙΝΔΥΝΟΙ στη μελέτη, με άρθρο.\n2. ΠΡΟΤΑΣΕΙΣ για να γλιτώσει τετραγωνικά δόμησης (με εκτίμηση τ.μ.), με άρθρο.\n3. Τι να ελέγξει πριν την υποβολή στο e-Άδειες.' }] }) });
@@ -777,7 +846,13 @@ function help() {
   '<li>Οικόπεδο: κλειστή πολυγραμμή στο layer TOPO_PROP. Κτίριο στο τοπογραφικό: κλειστή πολυγραμμή (layer με «KTIRIO» ή κείμενο «ΚΑΤΟΙΚΙΑ» μέσα).</li>' +
   '<li>Φύτευση / πρασιά / πισίνα: κλειστές πολυγραμμές σε layer με FYTEYSH, PRASIA, POOL — ή γράψε «ΦΥΤΕΥΣΗ», «ΠΡΑΣΙΑ», «ΠΙΣΙΝΑ» μέσα τους.</li>' +
   '<li>Κάθε κάτοψη: το εξωτερικό περίγραμμα ως κλειστή πολυγραμμή. Χώροι με κείμενο μέσα: «Η/Χ» ή «ΗΜΙΥΠΑΙΘΡΙΟΣ», «ΕΞΩΣΤΗΣ», «ΚΛΙΜΑΚΟΣΤΑΣΙΟ», «ΦΩΤΑΓΩΓΟΣ», «ΑΙΘΡΙΟ», «ΘΕΣΗ ΣΤΑΘΜΕΥΣΗΣ», «ΜΗΧΑΝΟΣΤΑΣΙΟ».</li>' +
+  '<li>Κλειστός εξώστης: «ΕΡΚΕΡ» · πυλωτή: «ΠΥΛΩΤΗ» μέσα στο πολύγωνο.</li>' +
+  '<li><b>Τομές / όψεις</b> σε μέτρα 1:1: γραμμή <b>φυσικού εδάφους</b> σε layer FYSIKO_EDAFOS (ή κείμενο «ΦΥΣΙΚΟ ΕΔΑΦΟΣ» δίπλα της) και γραμμή <b>διαμορφωμένου εδάφους</b> σε layer DIAMORFOMENO_EDAFOS (ή «ΔΙΑΜΟΡΦΩΜΕΝΟ ΕΔΑΦΟΣ»). Στάθμες ως κείμενα πάνω στη στάθμη: «±0.00», «+3.20», «+6.40», «-3.00». Η εφαρμογή βγάζει από εκεί ύψος σε κάθε όψη, στέγη, κορφιά, οροφή υπογείου και εκσκαφές / επιχώσεις στον ακάλυπτο.</li>' +
   '<li>Ό,τι δεν αναγνωριστεί το ορίζεις με κλικ — ή το σχεδιάζεις με το εργαλείο Polygon.</li></ul>' +
+  '<h3>Καθεστώς περιοχής</h3><ul><li><b>Εντός σχεδίου</b>: άρθ. 197-225 — κάλυψη 207, ΣΔ 206, όγκος 208, Δ/δ 198-209, ύψος 210, χαμηλά κτίρια 221, διαμόρφωση ±1,50 μ. (210 παρ. 4).</li>' +
+  '<li><b>Οικισμός</b>: άρθ. 237-242 — δόμηση κατά ζώνη (238), ύψος 7,50 μ. από το ψηλότερο σημείο εδάφους και έως 10 μ. σε κάθε σημείο (239), 2,50 μ. από πλάγια/πίσω όρια (240), υπόγειο έως 1,20 μ.· δεν εφαρμόζονται τα 209, 210, 221 (196 παρ. 3).</li>' +
+  '<li><b>Εκτός σχεδίου</b>: άρθ. 250-256 — 4.000 τ.μ., κάλυψη 10%, 186 τ.μ. + 0,018(Ε-4.000) για κατοικία, ύψος 7,50 + 1,20 μ., αποστάσεις 15 μ., υπόγειο έως 0,80 μ. και εντός ισογείου.</li></ul>' +
+  '<h3>Απόφαση & έκθεση</h3><p>Στο βήμα «Έλεγχος» βγαίνει ΠΕΡΝΑ / ΠΕΡΝΑ ΥΠΟ ΠΡΟΫΠΟΘΕΣΕΙΣ / ΔΕΝ ΠΕΡΝΑ. Κάθε σημείο έχει τον υπολογισμό, το άρθρο και «Τι λέει ο νόμος». Η «Έκθεση ελέγχου (PDF)» τα συγκεντρώνει για τον φάκελο.</p>' +
   '<h3>Βήματα</h3><ol><li><b>Έργο & όροι</b>: ΚΑΕΚ → «Όροι από HEXIS-APP» (καθεστώς, ΣΔ, κάλυψη, ύψος). Η μέγιστη δόμηση υπολογίζεται πάντα από το εμβαδόν του τοπογραφικού σου.</li>' +
   '<li><b>Σχέδιο DXF</b>: ανέβασμα και έλεγχος της αναγνώρισης (είδος σχεδίου, όροφος).</li>' +
   '<li><b>Τοπογραφικό</b>: οικόπεδο, κάλυψη, φύτευση, πρασιά, πισίνα, πλευρές σε δρόμο.</li>' +
@@ -788,7 +863,7 @@ function help() {
   '<h3>Εργαλεία</h3><ul><li><b>Select</b>: κλικ σε πολύγωνο · σύρσιμο μετακινεί · ροδέλα zoom (και με δύο δάχτυλα).</li><li><b>Polygon</b>: νέο κλειστό πολύγωνο με έλξη στις κορυφές του σχεδίου (Backspace: αναίρεση κορυφής, Enter / διπλό κλικ: κλείσιμο).</li><li><b>Measure</b>: απόσταση δύο σημείων. <b>Undo / Redo</b>: Ctrl+Z / Ctrl+Y.</li></ul>' +
   '<p class="small">Η εργασία αποθηκεύεται αυτόματα στη συσκευή και συνεχίζεται όταν ξανανοίξεις την εφαρμογή.</p>' +
   '<h3>Πηγές</h3><ul class="src">' +
-  '<li>ν. 5306/2026 «Κώδικας Χωροταξίας και Πολεοδομίας» (ΦΕΚ Α΄ 88/08.06.2026) — άρθ. 197, 198, 204, 206-212, 214, 221-223, 250-251, 325</li>' +
+  '<li>ν. 5306/2026 «Κώδικας Χωροταξίας και Πολεοδομίας» (ΦΕΚ Α΄ 88/08.06.2026) — άρθ. 196-198, 204, 206-214, 221-223, 237-240, 250-251, 256, 273, 325</li>' +
   '<li>Εγκύκλιος ΥΠΕΝ/ΔΑΟΚΑ/135179/4495/20.12.2022 (ΑΔΑ 6ΧΩΞ4653Π8-ΠΦ7) «Έγκριση διαγράμματος κάλυψης σύμφωνα με τις προδιαγραφές του άρθρου 157 του ν.4951/2022» και Υποδείγματα 1 (εντός σχεδίου) και 2 (εκτός σχεδίου)</li>' +
   '<li>ν. 4951/2022 άρθ. 157 — τροποποίηση άρθ. 39 παρ. 3 ν. 4495/2017 (περιεχόμενο διαγράμματος κάλυψης)</li>' +
   '<li>Κτιριοδομικός Κανονισμός — ΥΑ ΥΠΕΝ/ΔΑΟΚΑ/66006/2360 (ΦΕΚ Β΄ 3985/2023), τροπ. ΦΕΚ Β΄ 6995/2025</li>' +
