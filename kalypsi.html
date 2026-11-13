@@ -197,7 +197,7 @@ const K = window.KalEngine, KS = window.KalSheet;
 const $ = s => document.querySelector(s);
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
-const APP_VERSION = '2.0';
+const APP_VERSION = '2.1';
 const STEPS = ['Όροι', 'DXF', 'Τοπογραφικό', 'Κατόψεις', 'Τομές · όψεις', 'Έλεγχος', 'Εξαγωγή'];
 const SPC = { H: '#f59e0b', X: '#38bdf8', E: '#0284c7', K: '#8b5cf6', I: '#a78bfa', A: '#c4b5fd', F: '#14b8a6', P: '#94a3b8', Y: '#cbd5e1' };
 const SPN = { H: 'Ημιυπαίθριος', X: 'Ανοικτός εξώστης', E: 'Κλειστός εξώστης', K: 'Κοιν. σκάλα', I: 'Ιδιωτ. σκάλα', A: 'Ανοικτή σκάλα', F: 'Φωταγωγός/αίθριο', P: 'Στάθμευση/Η-Μ', Y: 'Πυλωτή' };
@@ -465,12 +465,12 @@ async function loadDxf(file) {
     if (!/SECTION/.test(txt.slice(0, 5000))) throw new Error('Το αρχείο δεν είναι DXF σε μορφή κειμένου (ASCII). Αποθήκευσέ το από το CAD ως DXF.');
     const P = Dxf2000.parse(txt), D = K.prepare(P);
     if (!D.ents.length) throw new Error('Το DXF δεν έχει γραμμές ή πολυγραμμές στο μοντέλο.');
-    const cls = K.recognize(D, K.cluster(D));
+    const cls = K.recognize(D, K.split(D, K.cluster(D)));
     S.D = D; S.cls = cls; S.dxfName = file.name; S.extra = []; S.plans = {}; S.topo = { cl: null, plot: null, cov: [], fyt: [], pras: [], pool: [], fronts: [] };
     autoDetect(); UI.hist = []; UI.redo = []; updUndo(); UI.focus = null; UI.sheet = null;
     compute(); render(); fit(focusBB()); save();
     const n = c => cls.filter(x => x.kind === c).length;
-    toast('Αναγνωρίστηκαν: ' + (n('topo') ? 'τοπογραφικό, ' : '') + n('plan') + ' κατόψεις, ' + n('section') + ' τομές, ' + n('elev') + ' όψεις', 4200);
+    toast('Αναγνωρίστηκαν: ' + (n('topo') ? 'τοπογραφικό, ' : S.topo.fromPlans ? 'οικόπεδο από το ΚΑΕΚ, ' : '') + n('plan') + ' κατόψεις, ' + n('section') + ' τομές, ' + n('elev') + ' όψεις', 4200);
   } catch (e) { toast(e.message || String(e), 5000); }
   finally { busy(false); }
 }
@@ -478,6 +478,25 @@ function autoDetect() {
   const topo = S.cls.find(c => c.kind === 'topo');
   if (topo) { const t = K.topoDetect(S.D, topo); S.topo = Object.assign({ cl: topo.id, fronts: [] }, t); }
   S.cls.forEach(c => { if ((c.kind === 'plan' || c.kind === 'roof') && !S.plans[c.id]) { const r = K.planDetect(S.D, c); S.plans[c.id] = { outline: r.outline, spaces: r.spaces }; } if (c.kind === 'section' || c.kind === 'elev') c.use = c.use !== false; });
+  // πυλωτή: κλειστοί είναι μόνο οι χώροι μέσα στο περίγραμμα της πλάκας (πυρήνας, είσοδος)
+  S.cls.forEach(c => { if (c.kind !== 'plan' || !c.level || !/Πυλωτή/.test(c.level.name)) return; const pl = S.plans[c.id], o = pl.outline.map(i => S.D.ents[i]); if (!o.length) return;
+    const inner = c.ents.map(i => S.D.ents[i]).filter(e => e.closed && e.area >= 1 && !K.PLOTL.test(e.L) && pl.outline.indexOf(e.id) < 0 && o.some(oo => K.inside(e.pts, oo.pts)) && !pl.spaces.some(sp => sp.id === e.id));
+    if (inner.length) { pl.slab = pl.outline.slice(); pl.outline = inner.map(e => e.id); } });
+  // χωρίς τοπογραφικό: οικόπεδο από το όριο ΚΑΕΚ μέσα στις κατόψεις, κάλυψη = προβολή του μεγαλύτερου ορόφου
+  if (!topo) {
+    const plotOf = c => c.ents.map(i => S.D.ents[i]).filter(e => e.closed && K.PLOTL.test(e.L)).sort((a, b) => b.area - a.area)[0];
+    const pls = S.cls.filter(c => c.kind === 'plan' && plotOf(c));
+    if (pls.length) {
+      const up = pls.filter(c => !c.level || c.level.typ === 1);
+      const ref = (up.length ? up : pls).slice().sort((a, b) => Math.abs((a.level || {}).ord || 0) - Math.abs((b.level || {}).ord || 0))[0], rp = plotOf(ref), rc = K.cent(rp.pts);
+      let big = null, bigA = -1;
+      up.forEach(c => { const pl = S.plans[c.id], ids = (pl.slab || pl.outline); const a = ids.reduce((s, i) => s + S.D.ents[i].area, 0); if (a > bigA) { bigA = a; big = c; } });
+      if (big) { const bp = plotOf(big), bc = K.cent(bp.pts), dx = rc[0] - bc[0], dy = rc[1] - bc[1];
+        (S.plans[big.id].slab || S.plans[big.id].outline).forEach(i => S.extra.push({ cl: ref.id, pts: S.D.ents[i].pts.map(p => [p[0] + dx, p[1] + dy]), cov: true })); rebuildExtra(); }
+      S.topo = { cl: ref.id, plot: rp.id, cov: S.extra.filter(x => x.cov).map(x => x.id), fyt: [], pras: [], pool: [], fronts: [], fromPlans: true };
+      UI.topoNote = 'Δεν βρέθηκε τοπογραφικό: το οικόπεδο πάρθηκε από το όριο ΚΑΕΚ της κάτοψης «' + clName(ref) + '» και η κάλυψη από την προβολή του ορόφου «' + (big ? clName(big) : '') + '».';
+    }
+  }
 
 }
 function planOf(ci) { if (!S.plans[ci]) { const r = K.planDetect(S.D, S.cls[ci]); S.plans[ci] = { outline: r.outline, spaces: r.spaces }; } return S.plans[ci]; }
@@ -592,6 +611,7 @@ function render() {
     const T = S.topo, A = UI.A, R = UI.R;
     h += '<h2>Τοπογραφικό</h2>';
     if (T.cl == null) h += '<div class="card">Δεν αναγνωρίστηκε τοπογραφικό. Στο βήμα 2 όρισε ποιο σχέδιο είναι το «Τοπογραφικό».</div>';
+    else if (T.fromPlans && UI.topoNote) h += '<div class="card small">' + esc(UI.topoNote) + ' Για αποστάσεις, φύτευση και πρασιά χρειάζεται τοπογραφικό — πρόσθεσέ το στο DXF ή σχεδίασε τις επιφάνειες εδώ με Polygon.</div>';
     else {
       h += '<p class="lead">Διάλεξε τι ορίζεις και κάνε κλικ στο πολύγωνο. Δεύτερο κλικ το αφαιρεί.</p><div class="chips">' + [['plot', 'Οικόπεδο', '#1d4ed8'], ['cov', 'Κάλυψη', '#dc2626'], ['fyt', 'Φύτευση', '#16a34a'], ['pras', 'Πρασιά', '#84cc16'], ['pool', 'Πισίνα', '#0891b2'], ['front', 'Πλευρά σε δρόμο', '#f97316']].map(m => '<span class="chip' + (UI.tmode === m[0] ? ' on' : '') + '" data-tm="' + m[0] + '"><i style="background:' + m[2] + '"></i>' + m[1] + '</span>').join('') + '</div>';
       h += '<div class="card">';
@@ -847,6 +867,7 @@ function help() {
   '<li>Φύτευση / πρασιά / πισίνα: κλειστές πολυγραμμές σε layer με FYTEYSH, PRASIA, POOL — ή γράψε «ΦΥΤΕΥΣΗ», «ΠΡΑΣΙΑ», «ΠΙΣΙΝΑ» μέσα τους.</li>' +
   '<li>Κάθε κάτοψη: το εξωτερικό περίγραμμα ως κλειστή πολυγραμμή. Χώροι με κείμενο μέσα: «Η/Χ» ή «ΗΜΙΥΠΑΙΘΡΙΟΣ», «ΕΞΩΣΤΗΣ», «ΚΛΙΜΑΚΟΣΤΑΣΙΟ», «ΦΩΤΑΓΩΓΟΣ», «ΑΙΘΡΙΟ», «ΘΕΣΗ ΣΤΑΘΜΕΥΣΗΣ», «ΜΗΧΑΝΟΣΤΑΣΙΟ».</li>' +
   '<li>Κλειστός εξώστης: «ΕΡΚΕΡ» · πυλωτή: «ΠΥΛΩΤΗ» μέσα στο πολύγωνο.</li>' +
+  '<li>Αν οι κατόψεις είναι σχεδιασμένες μέσα σε αντίγραφα του γεωτεμαχίου ΚΑΕΚ (layer KAEK_MAIN), η εφαρμογή τις χωρίζει από τους τίτλους τους («ΚΑΤΟΨΗ ΥΠΟΓΕΙΟΥ», «ΚΑΤΟΨΗ PILOTIS», «ΚΑΤΟΨΗ Α ΟΡΟΦΟΥ» …) και, αν δεν υπάρχει τοπογραφικό, παίρνει το οικόπεδο από το όριο ΚΑΕΚ και την κάλυψη από τον μεγαλύτερο όροφο. Στην πυλωτή μετρά μόνο ό,τι είναι κλειστό μέσα στο περίγραμμα της πλάκας.</li>' +
   '<li><b>Τομές / όψεις</b> σε μέτρα 1:1: γραμμή <b>φυσικού εδάφους</b> σε layer FYSIKO_EDAFOS (ή κείμενο «ΦΥΣΙΚΟ ΕΔΑΦΟΣ» δίπλα της) και γραμμή <b>διαμορφωμένου εδάφους</b> σε layer DIAMORFOMENO_EDAFOS (ή «ΔΙΑΜΟΡΦΩΜΕΝΟ ΕΔΑΦΟΣ»). Στάθμες ως κείμενα πάνω στη στάθμη: «±0.00», «+3.20», «+6.40», «-3.00». Η εφαρμογή βγάζει από εκεί ύψος σε κάθε όψη, στέγη, κορφιά, οροφή υπογείου και εκσκαφές / επιχώσεις στον ακάλυπτο.</li>' +
   '<li>Ό,τι δεν αναγνωριστεί το ορίζεις με κλικ — ή το σχεδιάζεις με το εργαλείο Polygon.</li></ul>' +
   '<h3>Καθεστώς περιοχής</h3><ul><li><b>Εντός σχεδίου</b>: άρθ. 197-225 — κάλυψη 207, ΣΔ 206, όγκος 208, Δ/δ 198-209, ύψος 210, χαμηλά κτίρια 221, διαμόρφωση ±1,50 μ. (210 παρ. 4).</li>' +
