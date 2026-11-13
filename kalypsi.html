@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="el" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>HEXIS-APP · Διάγραμμα Κάλυψης</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#14213D">
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="10" fill="%2314213D"/><path d="M10 38V12h28v26z" fill="none" stroke="%238FB4EE" stroke-width="3"/><path d="M16 32V20h12v12z" fill="%23F26B21" opacity=".85"/><path d="M16 20l12 12M22 20l6 6M16 26l6 6" stroke="%23fff" stroke-width="1.6"/></svg>'>
+<style>
+:root{--bg:#f4f6fa;--surf:#fff;--surf2:#f8fafc;--line:#dfe4ec;--line2:#c9d1dd;--txt:#14213d;--muted:#4b5871;--faint:#7c879b;
+ --acc:#1f4e9c;--acc2:#163b78;--accbg:#e8f0fc;--ok:#13804b;--okbg:#e4f5ec;--err:#b42318;--errbg:#fdecea;--warn:#9a5b00;--warnbg:#fff4db;--info:#3b4a63;--infobg:#eef1f6;
+ --orange:#e2671c;--fb:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;--r:12px}
+:root[data-theme="dark"]{--bg:#0d1424;--surf:#141d31;--surf2:#18233b;--line:#263452;--line2:#34466b;--txt:#e7edf7;--muted:#aab6cb;--faint:#7d8aa3;--acc:#7fb0ff;--acc2:#a9c8ff;--accbg:#1c2d4d;
+ --ok:#45d28a;--okbg:#14301f;--err:#ff8a7a;--errbg:#3a1714;--warn:#ffc65c;--warnbg:#3a2a0c;--info:#c3cde0;--infobg:#1f2a40}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--txt);font-family:var(--fb);font-size:16.5px;line-height:1.45;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+header{height:58px;display:flex;align-items:center;gap:12px;padding:0 14px;background:var(--surf);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.02em;white-space:nowrap}
+.brand small{display:block;font-weight:600;color:var(--faint);font-size:11px;letter-spacing:.12em}
+.steps{display:flex;gap:4px;flex:1;overflow-x:auto;scrollbar-width:none;padding:0 6px}
+.steps::-webkit-scrollbar{display:none}
+.st{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surf2);border-radius:999px;padding:6px 12px 6px 6px;cursor:pointer;white-space:nowrap;font-weight:600;font-size:15px;color:var(--muted)}
+.st b{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--line);color:var(--txt);font-size:13px}
+.st.on{border-color:var(--acc);color:var(--txt);background:var(--accbg)}
+.st.on b{background:var(--acc);color:#fff}
+.st.done b{background:var(--ok);color:#fff}
+.hbtn{flex:none;border:1px solid var(--line);background:var(--surf2);border-radius:10px;padding:7px 12px;cursor:pointer;font-weight:600;white-space:nowrap}
+.hbtn:hover{border-color:var(--line2)}
+main{position:absolute;top:58px;left:0;right:0;bottom:0;display:flex}
+#view{position:relative;flex:1;min-width:200px;background:#fff;overflow:hidden;touch-action:none}
+:root[data-theme="dark"] #view{background:#0a0f1c}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+#split{width:8px;cursor:col-resize;background:var(--line);flex:none}
+#split:hover{background:var(--line2)}
+#panel{width:460px;flex:none;background:var(--surf);display:flex;flex-direction:column;min-width:320px;max-width:70vw}
+#pbody{flex:1;overflow:auto;padding:16px 18px 10px}
+#pfoot{display:flex;gap:10px;padding:10px 16px;border-top:1px solid var(--line);background:var(--surf2)}
+#pfoot .btn{flex:1}
+h2{font-size:21px;margin:0 0 4px}
+h3{font-size:17px;margin:16px 0 8px}
+.lead{color:var(--muted);margin-bottom:12px}
+.btn{border:0;border-radius:10px;padding:11px 16px;font-weight:700;cursor:pointer;background:var(--acc);color:#fff;font-size:16px}
+.btn:hover{background:var(--acc2)}
+.btn.sec{background:var(--surf2);color:var(--txt);border:1px solid var(--line2)}
+.btn.sec:hover{border-color:var(--acc)}
+.btn.or{background:var(--orange)}
+.btn:disabled{opacity:.45;cursor:default}
+label.f{display:block;margin:8px 0}
+label.f span{display:block;font-size:14px;color:var(--muted);font-weight:600;margin-bottom:3px}
+input[type=text],input[type=number],select,textarea{width:100%;border:1px solid var(--line2);border-radius:9px;padding:9px 10px;background:var(--surf);font-size:16px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--acc);outline-offset:0;border-color:var(--acc)}
+textarea{min-height:90px;resize:vertical;font-size:15px}
+.row{display:flex;gap:10px}.row>*{flex:1}
+.card{border:1px solid var(--line);border-radius:var(--r);padding:12px;background:var(--surf2);margin:10px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.chip{border:1px solid var(--line2);background:var(--surf);border-radius:999px;padding:7px 13px;cursor:pointer;font-weight:600;font-size:15px;display:inline-flex;align-items:center;gap:6px}
+.chip i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.kv{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.kv b{font-variant-numeric:tabular-nums}
+.drop{border:2px dashed var(--line2);border-radius:14px;padding:22px;text-align:center;cursor:pointer;background:var(--surf2)}
+.drop:hover{border-color:var(--acc)}
+.cl{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px;margin:8px 0;background:var(--surf);cursor:pointer}
+.cl.on{border-color:var(--acc);box-shadow:0 0 0 2px var(--accbg)}
+.cl canvas{width:96px;height:70px;background:#fff;border:1px solid var(--line);border-radius:8px}
+.cl .t{font-weight:700;font-size:15px;margin-bottom:4px}
+.cl select{padding:6px 8px;font-size:15px}
+.badge{display:inline-block;border-radius:7px;padding:2px 8px;font-size:13px;font-weight:800;letter-spacing:.02em;white-space:nowrap}
+.b-ok{background:var(--okbg);color:var(--ok)}.b-fail{background:var(--errbg);color:var(--err)}.b-warn{background:var(--warnbg);color:var(--warn)}.b-info{background:var(--infobg);color:var(--info)}
+.chk{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0;background:var(--surf)}
+.chk .h{display:flex;gap:8px;align-items:center;justify-content:space-between;font-weight:700}
+.chk .v{margin-top:4px}
+.chk .a{margin-top:4px;color:var(--acc);font-size:14px;font-weight:600}
+.chk .w{margin-top:4px;color:var(--muted);font-size:14.5px}
+.sug{border-left:4px solid var(--orange);background:var(--surf);border-radius:0 10px 10px 0;padding:9px 12px;margin:8px 0}
+.sug .a{color:var(--acc);font-size:14px;font-weight:600;margin-top:3px}
+.sug .g{float:right;font-weight:800;color:var(--ok)}
+.big{font-size:22px;font-weight:800;padding:12px 14px;border-radius:12px;text-align:center;margin:6px 0 10px}
+#tb{position:absolute;left:12px;top:12px;display:flex;gap:4px;background:var(--surf);border:1px solid var(--line2);border-radius:12px;padding:5px;box-shadow:0 6px 20px rgba(15,26,46,.12);z-index:5;user-select:none}
+#tb .grip{width:14px;cursor:move;display:grid;place-items:center;color:var(--faint);font-weight:900}
+#tb button{border:1px solid transparent;background:transparent;border-radius:8px;padding:7px 10px;cursor:pointer;font-weight:700;font-size:14.5px}
+#tb button:hover{background:var(--surf2);border-color:var(--line)}
+#tb button.on{background:var(--acc);color:#fff}
+#tb button:disabled{opacity:.35}
+#hint{position:absolute;left:12px;bottom:12px;right:12px;pointer-events:none;display:flex;justify-content:center;z-index:4}
+#hint span{background:rgba(20,33,61,.88);color:#fff;border-radius:10px;padding:8px 14px;font-size:15px;max-width:720px;text-align:center}
+#hint span:empty{display:none}
+#coord:empty{display:none}
+#coord{position:absolute;right:12px;top:12px;background:var(--surf);border:1px solid var(--line);border-radius:9px;padding:4px 10px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;z-index:4}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#14213d;color:#fff;padding:11px 18px;border-radius:12px;font-weight:600;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center}
+#toast.on{opacity:1}
+#busy{position:fixed;inset:0;background:rgba(15,26,46,.35);display:none;place-items:center;z-index:60}
+#busy div{background:var(--surf);padding:18px 24px;border-radius:14px;font-weight:700}
+.ovl{position:fixed;inset:0;background:rgba(15,26,46,.4);display:none;align-items:center;justify-content:center;z-index:40;padding:16px}
+.ovl.on{display:flex}
+.mbox{background:var(--surf);border-radius:16px;max-width:860px;width:100%;max-height:88vh;overflow:auto;padding:22px 24px;box-shadow:0 20px 50px rgba(15,26,46,.25)}
+.mbox h2{margin-bottom:10px}
+.mbox ol,.mbox ul{padding-left:22px}.mbox li{margin:6px 0}
+.mbox .src{font-size:14.5px;color:var(--muted)}
+#aiOut{white-space:pre-wrap;line-height:1.55}
+.ph{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0}
+.ph div{position:relative}.ph img{width:100%;height:84px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.ph button{position:absolute;top:4px;right:4px;border:0;border-radius:6px;background:rgba(0,0,0,.6);color:#fff;cursor:pointer;padding:1px 7px}
+.small{font-size:14.5px;color:var(--muted)}
+.sp{display:grid;grid-template-columns:auto 1fr auto auto;gap:4px 10px;align-items:center;font-size:15px;margin:6px 0}
+.sp i{width:14px;height:14px;border-radius:4px;display:inline-block}
+.sp b{font-variant-numeric:tabular-nums;text-align:right}
+@media (max-width:1350px){.st:not(.on) span{display:none}.st:not(.on){padding:6px}}
+@media (max-width:900px){
+ main{flex-direction:column}
+ #split{display:none}
+ #view{flex:none;height:46vh}
+ #panel{width:auto!important;max-width:none;flex:1;min-height:0}
+ .st span{display:none}.st{padding:6px}
+ .brand small{display:none}
+}
+</style>
+</head>
+<body>
+<script>
+/* ===== HEXIS HUB GATE — έλεγχος entitlement (kalypsi) ===== */
+(function(){
+  var MODULE = 'kalypsi';
+  var SB = 'https://oucqqudfdimccgowvpqp.supabase.co';
+  var KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
+  if (location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') return; // τοπικές δοκιμές
+  var CK = 'hx_gate_' + MODULE, TTL = 7 * 864e5;
+  document.documentElement.style.visibility = 'hidden';
+  var tok = '';
+  function allow(){
+    document.documentElement.style.visibility = '';
+    try{ localStorage.setItem(CK, String(Date.now())); }catch(e){}
+    try{
+      var pl = JSON.parse(atob(tok.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+      fetch(SB + '/rest/v1/user_activity', { method: 'POST', headers: { apikey: KEY, Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' },
+        body: JSON.stringify({ user_id: pl.sub, last_seen: new Date().toISOString(), last_app: MODULE }) }).catch(function(){});
+    }catch(e){}
+  }
+  function deny(u){ location.replace(u); }
+  function cachedOk(){ try{ var t = +localStorage.getItem(CK); return t && (Date.now() - t) < TTL; }catch(e){ return false; } }
+  function offlineMsg(){
+    document.documentElement.style.visibility = '';
+    document.body.innerHTML = '<div style="font-family:system-ui,sans-serif;padding:60px 20px;text-align:center;color:#1F2836"><h2 style="margin-bottom:8px">Χρειάζεται σύνδεση στο internet</h2><p style="color:#5B6675;margin-bottom:20px">για τον έλεγχο πρόσβασης του εργαλείου.</p><a href="hub.html" style="color:#E05A12;font-weight:700">&larr; Επιστροφή στο HEXIS Hub</a></div>';
+  }
+  var raw = null; try{ raw = localStorage.getItem('sb-oucqqudfdimccgowvpqp-auth-token'); }catch(e){}
+  if (raw) { try{ var s = JSON.parse(raw); tok = s.access_token || (s.currentSession && s.currentSession.access_token) || ''; }catch(e){} }
+  if (!tok) { deny('login.html'); return; }
+  fetch(SB + '/rest/v1/entitlements?select=module,active,expires_at&module=eq.' + MODULE, { headers: { apikey: KEY, Authorization: 'Bearer ' + tok } })
+  .then(function(r){ if (r.status === 401 || r.status === 403) { if (cachedOk()) allow(); else deny('hub.html'); return null; } return r.json(); })
+  .then(function(rows){ if (rows === null) return; var ok = (rows || []).some(function(e){ return e.active && (!e.expires_at || new Date(e.expires_at) > new Date()); }); if (ok) allow(); else deny('tool.html?id=' + MODULE); })
+  .catch(function(){ if (cachedOk()) allow(); else offlineMsg(); });
+})();
+</script>
+<header>
+  <a href="hub.html" class="hbtn" style="text-decoration:none" aria-label="Πίσω στο HEXIS-APP">←</a>
+  <div class="brand"><svg width="30" height="30" viewBox="0 0 48 48"><rect width="48" height="48" rx="10" fill="#14213D"/><path d="M10 38V12h28v26z" fill="none" stroke="#8FB4EE" stroke-width="3"/><path d="M16 32V20h12v12z" fill="#F26B21" opacity=".85"/><path d="M16 20l12 12M22 20l6 6M16 26l6 6" stroke="#fff" stroke-width="1.6"/></svg>
+    <div>ΔΙΑΓΡΑΜΜΑ ΚΑΛΥΨΗΣ<small>HEXIS-APP</small></div></div>
+  <nav class="steps" id="steps"></nav>
+  <button class="hbtn" id="btnHelp">Οδηγίες</button>
+  <button class="hbtn" id="btnTheme" title="Ανοιχτό / σκούρο θέμα">Θέμα</button>
+</header>
+<main>
+  <section id="view">
+    <canvas id="cv"></canvas>
+    <div id="tb">
+      <div class="grip" title="Μετακίνηση εργαλειοθήκης">⋮</div>
+      <button data-tool="sel" class="on" title="Επιλογή (κλικ σε πολύγωνο)">Select</button>
+      <button data-tool="pan" title="Μετακίνηση προβολής">Pan</button>
+      <button data-tool="poly" title="Σχεδίαση νέου κλειστού πολυγώνου με έλξη στις κορυφές">Polygon</button>
+      <button data-tool="meas" title="Μέτρηση απόστασης">Measure</button>
+      <button id="bFit" title="Όλο το σχέδιο">Extents</button>
+      <button id="bUndo" title="Αναίρεση">Undo</button>
+      <button id="bRedo" title="Επανάληψη">Redo</button>
+    </div>
+    <div id="coord"></div>
+    <div id="hint"><span id="hintT"></span></div>
+  </section>
+  <div id="split" title="Σύρε για να αλλάξεις πλάτος"></div>
+  <aside id="panel"><div id="pbody"></div><div id="pfoot"><button class="btn sec" id="bPrev">◂ Πίσω</button><button class="btn" id="bNext">Επόμενο ▸</button></div></aside>
+</main>
+<input type="file" id="fDxf" accept=".dxf" hidden>
+<input type="file" id="fImg" accept="image/jpeg,image/png" multiple hidden>
+<div id="toast"></div>
+<div id="busy"><div id="busyT">Παρακαλώ περίμενε…</div></div>
+<div class="ovl" id="ovHelp"><div class="mbox" id="helpBox"></div></div>
+<div class="ovl" id="ovAi"><div class="mbox"><h2>Ερώτηση στο AI</h2><div id="aiOut" class="small">…</div><div style="margin-top:14px;text-align:right"><button class="btn sec" onclick="document.getElementById('ovAi').classList.remove('on')">Κλείσιμο</button></div></div></div>
+
+<script src="dxf2000.js"></script>
+<script src="kalypsi-engine.js"></script>
+<script src="kalypsi-sheet.js"></script>
+<script>
+'use strict';
+const K = window.KalEngine, KS = window.KalSheet;
+const $ = s => document.querySelector(s);
+const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
+const APP_VERSION = '1.0';
+const STEPS = ['Όροι', 'DXF', 'Τοπογραφικό', 'Κατόψεις', 'Τομές · όψεις', 'Έλεγχος', 'Εξαγωγή'];
+const SPC = { H: '#f59e0b', X: '#38bdf8', K: '#8b5cf6', I: '#a78bfa', A: '#c4b5fd', F: '#14b8a6', P: '#94a3b8' };
+const SPN = { H: 'Ημιυπαίθριος', X: 'Εξώστης', K: 'Κοιν. σκάλα', I: 'Ιδιωτ. σκάλα', A: 'Ανοικτή σκάλα', F: 'Φωταγωγός/αίθριο', P: 'Στάθμευση/Η-Μ' };
+const KINDS = [['topo', 'Τοπογραφικό'], ['plan', 'Κάτοψη'], ['roof', 'Δώμα / στέγη'], ['section', 'Τομή'], ['elev', 'Όψη'], ['other', 'Άλλο (όχι στο φύλλο)'], ['ignore', 'Αγνόηση']];
+const LTYP = [[1, 'Υπέργειο'], [2, 'Υπόγειο'], [3, 'Σοφίτα'], [4, 'Υπόσκαφο'], [5, 'Πατάρι']];
+
+/* ---------------- κατάσταση ---------------- */
+const DEF = () => ({
+  v: 1, step: 0,
+  proj: { kaek: '', ergodotis: '', ergo: '', thesi: '', meletitis: '', arSxediou: 'Δ_01' },
+  rules: { mode: 1, sd: 0, kp: 60, maxd: 0, hmax: 0, roofmax: 2, so: 5, cap: false, rows: '', src: '', oikismos: '', dimos: '', artemb: 0, artpros: 0, front: 0 },
+  ext: { H: 0, roof: 0, units: 1, m2per: 0, prov: 1, akal: 0 },
+  dxfName: '', D: null, cls: [],
+  topo: { cl: null, plot: null, cov: [], fyt: [], pras: [], pool: [], fronts: [] },
+  plans: {}, // cl → { outline:[], spaces:[{id,code,lbl}] }
+  extra: [], // σχεδιασμένα πολύγωνα: {id, cl, pts}
+  photos: [], sheetH: 'auto'
+});
+let S = DEF();
+const UI = { tool: 'sel', focus: null, tmode: 'plot', pmode: 'out', curPlan: null, draw: [], meas: [], hover: null, sheet: null, view: null, hist: [], redo: [] };
+// μόνιμες ρυθμίσεις (μένουν μετά από επανεκκίνηση)
+const PREF = (() => { try { return Object.assign({ panelW: 460, tb: null, theme: 'light' }, JSON.parse(localStorage.getItem('kalypsi_pref') || '{}')); } catch (e) { return { panelW: 460, tb: null, theme: 'light' }; } })();
+const savePref = () => { try { localStorage.setItem('kalypsi_pref', JSON.stringify(PREF)); } catch (e) {} };
+
+/* ---------------- IndexedDB για την εργασία ---------------- */
+const IDB = { db: null,
+  open() { return new Promise((res, rej) => { if (this.db) return res(this.db); const r = indexedDB.open('hexis_kalypsi', 1); r.onupgradeneeded = () => r.result.createObjectStore('w'); r.onsuccess = () => { this.db = r.result; res(this.db); }; r.onerror = () => rej(r.error); }); },
+  async put(k, v) { const db = await this.open(); return new Promise((res, rej) => { const t = db.transaction('w', 'readwrite'); t.objectStore('w').put(v, k); t.oncomplete = res; t.onerror = () => rej(t.error); }); },
+  async get(k) { const db = await this.open(); return new Promise((res, rej) => { const t = db.transaction('w'); const q = t.objectStore('w').get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); }
+};
+let _svT = null;
+function save() { clearTimeout(_svT); _svT = setTimeout(() => { IDB.put('work', JSON.parse(JSON.stringify(S))).catch(() => {}); try { localStorage.setItem('kalypsi_settings', JSON.stringify({ proj: S.proj, rules: S.rules, ext: S.ext })); } catch (e) {} }, 400); }
+function snap() { UI.hist.push(JSON.stringify({ topo: S.topo, plans: S.plans, extra: S.extra, cls: S.cls.map(c => ({ kind: c.kind, level: c.level, use: c.use })) })); if (UI.hist.length > 80) UI.hist.shift(); UI.redo = []; updUndo(); }
+function restoreSnap(j) { const o = JSON.parse(j); S.topo = o.topo; S.plans = o.plans; S.extra = o.extra; o.cls.forEach((c, i) => { if (S.cls[i]) Object.assign(S.cls[i], c); }); rebuildExtra(); render(); draw(); save(); }
+function undo() { if (!UI.hist.length) return; UI.redo.push(JSON.stringify({ topo: S.topo, plans: S.plans, extra: S.extra, cls: S.cls.map(c => ({ kind: c.kind, level: c.level, use: c.use })) })); restoreSnap(UI.hist.pop()); updUndo(); }
+function redo() { if (!UI.redo.length) return; UI.hist.push(JSON.stringify({ topo: S.topo, plans: S.plans, extra: S.extra, cls: S.cls.map(c => ({ kind: c.kind, level: c.level, use: c.use })) })); restoreSnap(UI.redo.pop()); updUndo(); }
+function updUndo() { $('#bUndo').disabled = !UI.hist.length; $('#bRedo').disabled = !UI.redo.length; }
+
+/* ---------------- βοηθητικά ---------------- */
+const gr = K.gr, grz = K.grz;
+function toast(t, ms) { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(e._t); e._t = setTimeout(() => e.classList.remove('on'), ms || 2600); }
+function busy(on, t) { $('#busy').style.display = on ? 'grid' : 'none'; if (t) $('#busyT').textContent = t; }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function num(v, d) { const n = parseFloat(String(v).replace(',', '.')); return isFinite(n) ? n : (d || 0); }
+function today() { const d = new Date(); return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + d.getFullYear(); }
+function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('Δεν φορτώθηκε απαραίτητη βιβλιοθήκη — έλεγξε τη σύνδεση στο internet.')); document.head.appendChild(s); }); }
+function download(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
+function ent(id) { return S.D.ents[id]; }
+function rebuildExtra() { if (!S.D) return; S.D.ents = S.D.ents.filter(e => !e.extra); S.extra.forEach(x => { const e = { id: S.D.ents.length, layer: 'KAL_SXEDIO', L: 'KAL_SXEDIO', pts: x.pts, closed: true, bb: K.bbox(x.pts), area: K.area(x.pts), extra: true, cl: x.cl }; x.id = e.id; S.D.ents.push(e); if (S.cls[x.cl] && S.cls[x.cl].ents.indexOf(e.id) < 0) S.cls[x.cl].ents.push(e.id); }); S.cls.forEach(c => { c.ents = c.ents.filter(i => S.D.ents[i]); }); }
+
+/* ---------------- γραμματοσειρά (ίδια σε προεπισκόπηση & PDF) ---------------- */
+let FONT_OK = false;
+(async () => { try { const r = new FontFace('HxSans', 'url(fonts/LiberationSans-Regular.ttf)'), b = new FontFace('HxSans', 'url(fonts/LiberationSans-Bold.ttf)', { weight: '700' }); await Promise.all([r.load(), b.load()]); document.fonts.add(r); document.fonts.add(b); FONT_OK = true; UI.sheet = null; draw(); } catch (e) {} })();
+const MC = document.createElement('canvas').getContext('2d');
+function measure(t, h, b) { MC.font = (b ? '700 ' : '') + (h / 0.716).toFixed(3) + 'px HxSans, Arial, sans-serif'; return MC.measureText(String(t)).width; }
+
+/* ---------------- προβολή (καμβάς) ---------------- */
+const cv = $('#cv'), cx = cv.getContext('2d');
+let V = { x: 0, y: 0, s: 1 }; // κέντρο & px/μ.
+function resize() { const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1; cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d); draw(); }
+window.addEventListener('resize', resize);
+function w2s(p) { const r = cv.width / (window.devicePixelRatio || 1), h = cv.height / (window.devicePixelRatio || 1); return [(p[0] - V.x) * V.s + r / 2, h / 2 - (p[1] - V.y) * V.s]; }
+function s2w(x, y) { const r = cv.width / (window.devicePixelRatio || 1), h = cv.height / (window.devicePixelRatio || 1); return [(x - r / 2) / V.s + V.x, (h / 2 - y) / V.s + V.y]; }
+function fit(bb) { if (!bb) return; const r = cv.getBoundingClientRect(), w = Math.max(1e-6, bb[2] - bb[0]), h = Math.max(1e-6, bb[3] - bb[1]); V.x = (bb[0] + bb[2]) / 2; V.y = (bb[1] + bb[3]) / 2; V.s = Math.min(r.width / w, r.height / h) * 0.88; draw(); }
+function focusBB() {
+  if (UI.view === 'sheet' && UI.sheet) return [0, 0, UI.sheet.W, UI.sheet.H];
+  if (UI.focus != null && S.cls[UI.focus]) return K.bbGrow(S.cls[UI.focus].bb, 2);
+  if (!S.D) return null;
+  // ομάδες σχεδίων που απέχουν < 1 χλμ. (το τοπογραφικό σε ΕΓΣΑ87 είναι συνήθως μακριά από τις κατόψεις)
+  const cs = S.cls.filter(c => c.kind !== 'ignore'), gs = [];
+  cs.forEach(c => { const g = gs.find(g => { const b = g.bb; return Math.max(b[0] - c.bb[2], c.bb[0] - b[2], b[1] - c.bb[3], c.bb[1] - b[3]) < 1000; }); if (g) { g.bb = K.bbUnion(g.bb, c.bb); g.n++; } else gs.push({ bb: c.bb.slice(), n: 1 }); });
+  if (!gs.length) return null; gs.sort((a, b) => b.n - a.n); return K.bbGrow(gs[0].bb, 3);
+}
+function visibleCls() { if (UI.focus != null) return [S.cls[UI.focus]]; return S.cls.filter(c => c.kind !== 'ignore'); }
+let _raf = 0; function draw() { if (!_raf) _raf = requestAnimationFrame(() => { _raf = 0; drawNow(); }); }
+function poly(pts, closed) { cx.beginPath(); pts.forEach((p, i) => { const q = w2s(p); i ? cx.lineTo(q[0], q[1]) : cx.moveTo(q[0], q[1]); }); if (closed) cx.closePath(); }
+function drawNow() {
+  const d = window.devicePixelRatio || 1; cx.setTransform(d, 0, 0, d, 0, 0);
+  const W = cv.width / d, H = cv.height / d, dark = document.documentElement.dataset.theme === 'dark';
+  cx.fillStyle = dark ? '#0a0f1c' : '#ffffff'; cx.fillRect(0, 0, W, H);
+  if (UI.view === 'sheet') { drawSheet(W, H, dark); return; }
+  if (!S.D) { cx.fillStyle = '#7c879b'; cx.font = '600 18px HxSans, sans-serif'; cx.textAlign = 'center'; cx.fillText('Ανέβασε το DXF στο βήμα 2', W / 2, H / 2); cx.textAlign = 'left'; return; }
+  const tl = s2w(0, 0), br = s2w(W, H), vb = [tl[0], br[1], br[0], tl[1]];
+  const line = dark ? '#8796b3' : '#2b3446', ln2 = dark ? '#56617a' : '#9aa3b2';
+  const show = visibleCls();
+  cx.lineJoin = 'round';
+  show.forEach(c => {
+    if (c.bb[2] < vb[0] || c.bb[0] > vb[2] || c.bb[3] < vb[1] || c.bb[1] > vb[3]) return;
+    const dim = UI.focus == null && S.step >= 2 && !relevant(c);
+    cx.strokeStyle = dim ? ln2 : line; cx.lineWidth = 1;
+    c.ents.forEach(i => { const e = ent(i); if (!e || e.extra) return; poly(e.pts, e.closed); cx.stroke(); });
+    cx.fillStyle = dim ? ln2 : line;
+    c.texts.forEach(i => { const t = S.D.texts[i], fs = t.h * V.s / 0.716; if (fs < 4) return; const q = w2s([t.x, t.y]); cx.save(); cx.translate(q[0], q[1]); cx.rotate(-(t.rot || 0) * Math.PI / 180); cx.font = fs.toFixed(1) + 'px HxSans, Arial, sans-serif'; cx.fillText(t.text, 0, 0); cx.restore(); });
+    if (UI.focus == null && S.step === 1) { const a = w2s([c.bb[0], c.bb[3]]), b = w2s([c.bb[2], c.bb[1]]); cx.strokeStyle = kindCol(c.kind); cx.setLineDash([6, 4]); cx.lineWidth = 1.5; cx.strokeRect(a[0] - 6, a[1] - 6, b[0] - a[0] + 12, b[1] - a[1] + 12); cx.setLineDash([]);
+      cx.fillStyle = kindCol(c.kind); cx.font = '700 14px HxSans, sans-serif'; cx.fillText(clName(c), a[0] - 6, a[1] - 12); }
+  });
+  // επικαλύψεις
+  const fillP = (id, col, al) => { const e = ent(id); if (!e) return; poly(e.pts, true); cx.globalAlpha = al; cx.fillStyle = col; cx.fill(); cx.globalAlpha = 1; };
+  const strokeP = (id, col, w) => { const e = ent(id); if (!e) return; poly(e.pts, true); cx.strokeStyle = col; cx.lineWidth = w; cx.stroke(); };
+  const T = S.topo;
+  if (T.cl != null && (UI.focus == null || UI.focus === T.cl)) {
+    T.fyt.forEach(i => fillP(i, '#16a34a', .28)); T.pras.forEach(i => fillP(i, '#84cc16', .25)); T.pool.forEach(i => fillP(i, '#0891b2', .3));
+    T.cov.forEach(i => { fillP(i, '#dc2626', .18); strokeP(i, '#dc2626', 2.5); });
+    if (T.plot != null) { strokeP(T.plot, '#1d4ed8', 3); const P = ent(T.plot).pts; T.fronts.forEach(k => { const a = w2s(P[k]), b = w2s(P[(k + 1) % P.length]); cx.strokeStyle = '#f97316'; cx.lineWidth = 6; cx.beginPath(); cx.moveTo(a[0], a[1]); cx.lineTo(b[0], b[1]); cx.stroke(); }); }
+    const R = UI.R; if (R && R.edges && S.step >= 2) R.edges.forEach(e => { if (!e.seg || e.d < .05) return; const a = w2s(e.seg[0]), b = w2s(e.seg[1]); cx.strokeStyle = '#b45309'; cx.lineWidth = 1.5; cx.setLineDash([5, 3]); cx.beginPath(); cx.moveTo(a[0], a[1]); cx.lineTo(b[0], b[1]); cx.stroke(); cx.setLineDash([]); cx.fillStyle = '#b45309'; cx.font = '700 13px HxSans, sans-serif'; cx.fillText((e.kind === 'rear' ? 'Δ ' : e.kind === 'front' ? '' : 'δ ') + gr(e.d), (a[0] + b[0]) / 2 + 4, (a[1] + b[1]) / 2 - 4); });
+  }
+  Object.keys(S.plans).forEach(k => {
+    const pl = S.plans[k], ci = +k; if (UI.focus != null && UI.focus !== ci) return; if (!S.cls[ci] || S.cls[ci].kind !== 'plan' && S.cls[ci].kind !== 'roof') return;
+    pl.spaces.forEach(s => fillP(s.id, SPC[s.code] || '#999', .38));
+    pl.outline.forEach(i => strokeP(i, '#dc2626', 2.5));
+  });
+  if (UI.hover != null && ent(UI.hover)) { const e = ent(UI.hover); poly(e.pts, e.closed); cx.strokeStyle = '#f97316'; cx.lineWidth = 3; cx.stroke(); }
+  // σχεδίαση πολυγώνου / μέτρηση
+  if (UI.draw.length) { cx.strokeStyle = '#7c3aed'; cx.lineWidth = 2; poly(UI.draw.concat(UI.mouseW ? [UI.mouseW] : []), false); cx.stroke(); UI.draw.forEach(p => { const q = w2s(p); cx.fillStyle = '#7c3aed'; cx.fillRect(q[0] - 3, q[1] - 3, 6, 6); }); }
+  if (UI.snapP) { const q = w2s(UI.snapP); cx.strokeStyle = '#16a34a'; cx.lineWidth = 2; cx.strokeRect(q[0] - 6, q[1] - 6, 12, 12); }
+  if (UI.meas.length) { const pts = UI.meas.concat(UI.meas.length === 1 && UI.mouseW ? [UI.mouseW] : []); cx.strokeStyle = '#0ea5e9'; cx.lineWidth = 2; poly(pts, false); cx.stroke(); if (pts.length === 2) { const a = w2s(pts[0]), b = w2s(pts[1]); cx.fillStyle = '#0369a1'; cx.font = '700 15px HxSans, sans-serif'; cx.fillText(gr(K.dist(pts[0], pts[1])) + ' μ.', (a[0] + b[0]) / 2 + 6, (a[1] + b[1]) / 2 - 6); } }
+}
+function tmodeName(m) { return { plot: 'Οικόπεδο', cov: 'Κάλυψη', fyt: 'Φύτευση', pras: 'Πρασιά', pool: 'Πισίνα', front: 'Πλευρά σε δρόμο' }[m] || m; }
+function kindCol(k) { return { topo: '#1d4ed8', plan: '#dc2626', roof: '#9f1239', section: '#7c3aed', elev: '#0f766e', other: '#6b7280', ignore: '#9ca3af' }[k] || '#6b7280'; }
+function clName(c) { if (c.kind === 'plan' || c.kind === 'roof') return (c.level && c.level.name) || 'Κάτοψη'; const f = KINDS.find(k => k[0] === c.kind); return (c.label || (f ? f[1] : c.kind)).slice(0, 40); }
+function relevant(c) { if (S.step === 2) return c.id === S.topo.cl; if (S.step === 3) return c.kind === 'plan' || c.kind === 'roof'; if (S.step === 4) return c.kind === 'section' || c.kind === 'elev'; return true; }
+
+/* ---------------- φύλλο: σχεδίαση στον καμβά ---------------- */
+function drawSheet(W, H, dark) {
+  const sh = UI.sheet; if (!sh) return;
+  cx.fillStyle = dark ? '#1b2437' : '#e6eaf0'; cx.fillRect(0, 0, W, H);
+  const P = p => w2s([p[0], p[1]]);
+  const a = P([0, sh.H]), b = P([sh.W, 0]); cx.fillStyle = '#fff'; cx.fillRect(a[0], a[1], b[0] - a[0], b[1] - a[1]);
+  sh.prims.forEach(p => {
+    if (p.t === 'fill') { cx.beginPath(); p.pts.forEach((q, i) => { const s = P(q); i ? cx.lineTo(s[0], s[1]) : cx.moveTo(s[0], s[1]); }); cx.closePath(); cx.globalAlpha = p.a; cx.fillStyle = p.c; cx.fill(); cx.globalAlpha = 1; }
+    else if (p.t === 'hatch') { cx.strokeStyle = p.c; cx.lineWidth = Math.max(.5, .18 * V.s); (p._h || (p._h = KS.hatchLines(p.pts, p.sp))).forEach(s => { const u = P(s[0]), v = P(s[1]); cx.beginPath(); cx.moveTo(u[0], u[1]); cx.lineTo(v[0], v[1]); cx.stroke(); }); }
+  });
+  sh.prims.forEach(p => {
+    if (p.t === 'pl') { cx.beginPath(); p.pts.forEach((q, i) => { const s = P(q); i ? cx.lineTo(s[0], s[1]) : cx.moveTo(s[0], s[1]); }); if (p.closed) cx.closePath(); cx.strokeStyle = p.c; cx.lineWidth = Math.max(.5, p.w * V.s); cx.stroke(); }
+    else if (p.t === 'tx') { const fs = p.h * V.s / 0.716; if (fs < 2.2) return; const s = P([p.x, p.y]); cx.save(); cx.translate(s[0], s[1]); cx.rotate(-(p.rot || 0) * Math.PI / 180); cx.font = (p.b ? '700 ' : '') + fs.toFixed(1) + 'px HxSans, Arial, sans-serif'; cx.fillStyle = p.c; cx.textAlign = p.al === 'c' ? 'center' : p.al === 'r' ? 'right' : 'left'; cx.fillText(p.s, 0, 0); cx.restore(); }
+    else if (p.t === 'img') { const im = imgCache(p.src); const s = P([p.x, p.y + p.h]); if (im.complete && im.naturalWidth) cx.drawImage(im, s[0], s[1], p.w * V.s, p.h * V.s); else im.onload = draw; }
+  });
+}
+const _ic = {}; function imgCache(src) { if (!_ic[src]) { const i = new Image(); i.src = src; _ic[src] = i; } return _ic[src]; }
+
+/* ---------------- αλληλεπίδραση στον καμβά ---------------- */
+let drag = null; const ptrs = new Map();
+function pickEnt(w, onlyClosed) {
+  let cand = null; const tolW = 7 / V.s;
+  visibleCls().forEach(c => {
+    if (w[0] < c.bb[0] - tolW || w[0] > c.bb[2] + tolW || w[1] < c.bb[1] - tolW || w[1] > c.bb[3] + tolW) return;
+    c.ents.forEach(i => { const e = ent(i); if (!e || !e.closed || e.area < .05) return; if (K.pip(w, e.pts) && (!cand || e.area < cand.area)) cand = e; });
+  });
+  if (cand || onlyClosed) return cand;
+  return null;
+}
+function snapPt(w) { let best = null, bd = 10 / V.s; visibleCls().forEach(c => c.ents.forEach(i => { const e = ent(i); if (!e) return; e.pts.forEach(p => { const d = K.dist(p, w); if (d < bd) { bd = d; best = p; } }); })); return best; }
+cv.addEventListener('pointerdown', e => {
+  cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.offsetX, e.offsetY]);
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; drag = { pinch: true, d0: Math.hypot(a[0] - b[0], a[1] - b[1]), s0: V.s, c: s2w((a[0] + b[0]) / 2, (a[1] + b[1]) / 2) }; return; }
+  drag = { x: e.offsetX, y: e.offsetY, vx: V.x, vy: V.y, moved: false, btn: e.button };
+});
+cv.addEventListener('pointermove', e => {
+  if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, [e.offsetX, e.offsetY]);
+  const w = s2w(e.offsetX, e.offsetY); UI.mouseW = w;
+  $('#coord').textContent = UI.view === 'sheet' ? 'φύλλο ' + w[0].toFixed(0) + ' / ' + w[1].toFixed(0) + ' mm' : w[0].toFixed(3) + ' / ' + w[1].toFixed(3);
+  if (drag && drag.pinch && ptrs.size === 2) { const [a, b] = [...ptrs.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); V.s = drag.s0 * d / drag.d0; const m = s2w((a[0] + b[0]) / 2, (a[1] + b[1]) / 2); V.x += drag.c[0] - m[0]; V.y += drag.c[1] - m[1]; draw(); return; }
+  if (drag) { const dx = e.offsetX - drag.x, dy = e.offsetY - drag.y; if (Math.hypot(dx, dy) > 4) drag.moved = true;
+    if (drag.moved && (UI.tool === 'pan' || UI.tool === 'sel' || drag.btn === 1 || UI.view === 'sheet')) { V.x = drag.vx - dx / V.s; V.y = drag.vy + dy / V.s; draw(); } return; }
+  if (UI.view === 'sheet' || !S.D) return;
+  if (UI.tool === 'poly') { UI.snapP = snapPt(w); draw(); return; }
+  if (UI.tool === 'meas') { UI.snapP = snapPt(w); draw(); return; }
+  if (UI.tool === 'sel' && (S.step === 2 || S.step === 3)) { const h = pickEnt(w, true), id = h ? h.id : null; if (id !== UI.hover) { UI.hover = id; draw(); } }
+});
+cv.addEventListener('pointerup', e => {
+  ptrs.delete(e.pointerId);
+  const dd = drag; drag = null; if (!dd || dd.pinch || dd.moved) return;
+  if (UI.view === 'sheet' || !S.D) return;
+  const w = s2w(e.offsetX, e.offsetY);
+  if (UI.tool === 'poly') { const p = snapPt(w) || w; if (UI.draw.length >= 3 && K.dist(p, UI.draw[0]) < 10 / V.s) { finishPoly(); return; } UI.draw.push(p); setHint(); draw(); return; }
+  if (UI.tool === 'meas') { const p = snapPt(w) || w; if (UI.meas.length >= 2) UI.meas = []; UI.meas.push(p); draw(); return; }
+  if (UI.tool === 'sel') clickSel(w);
+});
+cv.addEventListener('dblclick', () => { if (UI.tool === 'poly' && UI.draw.length >= 3) finishPoly(); });
+cv.addEventListener('wheel', e => { e.preventDefault(); const w = s2w(e.offsetX, e.offsetY), f = Math.exp(-e.deltaY * 0.0015); V.s *= f; const m = s2w(e.offsetX, e.offsetY); V.x += w[0] - m[0]; V.y += w[1] - m[1]; draw(); }, { passive: false });
+window.addEventListener('keydown', e => {
+  if (e.target.closest('input,textarea,select')) return;
+  if (e.key === 'Escape') { UI.draw = []; UI.meas = []; setTool('sel'); draw(); }
+  if (e.key === 'Enter' && UI.tool === 'poly' && UI.draw.length >= 3) finishPoly();
+  if (e.key === 'Backspace' && UI.tool === 'poly' && UI.draw.length) { UI.draw.pop(); draw(); e.preventDefault(); }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+});
+function finishPoly() {
+  const pts = UI.draw.slice(); UI.draw = [];
+  if (pts.length < 3) return;
+  const cl = UI.focus != null ? UI.focus : nearestCl(pts[0]);
+  if (cl == null) { toast('Σχεδίασε μέσα σε ένα από τα σχέδια.'); return; }
+  snap(); S.extra.push({ cl: cl, pts: pts }); rebuildExtra();
+  const e = S.D.ents[S.extra[S.extra.length - 1].id];
+  applyClick(e); setTool('sel'); toast('Νέο πολύγωνο: Ε = ' + gr(e.area) + ' τ.μ.');
+}
+function nearestCl(p) { let best = null, bd = 1e30; S.cls.forEach(c => { const b = c.bb, d = Math.hypot(Math.max(b[0] - p[0], 0, p[0] - b[2]), Math.max(b[1] - p[1], 0, p[1] - b[3])); if (d < bd) { bd = d; best = c.id; } }); return best; }
+function clickSel(w) {
+  if (S.step === 1) { const c = nearestCl(w); if (c != null) { UI.selCl = c; render(); const el = document.querySelector('.cl[data-c="' + c + '"]'); if (el) el.scrollIntoView({ block: 'nearest' }); } return; }
+  if (S.step === 2 && S.topo.cl != null && UI.tmode === 'front') {
+    const P = S.topo.plot != null ? ent(S.topo.plot).pts : null; if (!P) return;
+    let bi = -1, bd = 1e30; P.forEach((p, i) => { const d = K.dist(w, K.ptseg(w, p, P[(i + 1) % P.length])); if (d < bd) { bd = d; bi = i; } });
+    if (bi < 0 || bd > 15 / V.s) return; snap(); const f = S.topo.fronts, k = f.indexOf(bi); if (k >= 0) f.splice(k, 1); else f.push(bi); after(); return;
+  }
+  const e = pickEnt(w, true); if (!e) return;
+  applyClick(e);
+}
+function applyClick(e) {
+  if (S.step === 2) {
+    const T = S.topo, m = UI.tmode; snap();
+    if (m === 'plot') { T.plot = e.id; T.fronts = []; }
+    else { ['cov', 'fyt', 'pras', 'pool'].forEach(k => { if (k !== m) T[k] = T[k].filter(i => i !== e.id); }); const a = T[m], k = a.indexOf(e.id); if (k >= 0) a.splice(k, 1); else a.push(e.id); }
+    after(); return;
+  }
+  if (S.step === 3 && UI.curPlan != null) {
+    const pl = planOf(UI.curPlan), m = UI.pmode; snap();
+    pl.spaces = pl.spaces.filter(s => s.id !== e.id);
+    if (m === 'out') { const k = pl.outline.indexOf(e.id); if (k >= 0) pl.outline.splice(k, 1); else pl.outline.push(e.id); }
+    else if (m !== 'del') { pl.outline = pl.outline.filter(i => i !== e.id); pl.spaces.push({ id: e.id, code: m }); }
+    after(); return;
+  }
+}
+function after() { compute(); render(); draw(); save(); }
+function setTool(t) { if (UI.view === 'sheet' && (t === 'poly' || t === 'meas')) t = 'sel'; UI.tool = t; document.querySelectorAll('#tb [data-tool=poly],#tb [data-tool=meas]').forEach(b => b.style.display = UI.view === 'sheet' ? 'none' : ''); UI.snapP = null; document.querySelectorAll('#tb [data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === t)); cv.style.cursor = t === 'pan' ? 'grab' : 'crosshair'; setHint(); draw(); }
+document.querySelectorAll('#tb [data-tool]').forEach(b => b.onclick = () => setTool(b.dataset.tool));
+$('#bFit').onclick = () => fit(focusBB());
+$('#bUndo').onclick = undo; $('#bRedo').onclick = redo;
+function setHint(t) {
+  if (t == null) {
+    if (UI.view === 'sheet') t = 'Ροδέλα: zoom · σύρσιμο: μετακίνηση';
+    else if (UI.tool === 'poly') t = UI.draw.length < 3 ? 'Κλικ στις κορυφές (έλξη στις κορυφές του σχεδίου) · Backspace: αναίρεση κορυφής · Esc: ακύρωση' : 'Κλικ στην πρώτη κορυφή, διπλό κλικ ή Enter για κλείσιμο';
+    else if (UI.tool === 'meas') t = 'Κλικ σε δύο σημεία για μέτρηση απόστασης';
+    else t = ({ 1: 'Κλικ σε σχέδιο για να το δεις στη λίστα', 2: UI.tmode === 'front' ? 'Κλικ κοντά σε πλευρά του οικοπέδου που βλέπει σε δρόμο' : 'Κλικ σε κλειστό πολύγωνο για «' + tmodeName(UI.tmode) + '» · δεν υπάρχει; Polygon', 3: 'Κλικ σε κλειστό πολύγωνο για «' + (UI.pmode === 'out' ? 'Περίγραμμα' : UI.pmode === 'del' ? 'Αφαίρεση' : SPN[UI.pmode]) + '» · δεν υπάρχει; Polygon' })[S.step] || '';
+  }
+  $('#hintT').textContent = t || '';
+}
+// μετακινούμενη εργαλειοθήκη
+(() => { const tb = $('#tb'), g = tb.querySelector('.grip'); if (PREF.tb) { tb.style.left = PREF.tb[0] + 'px'; tb.style.top = PREF.tb[1] + 'px'; }
+  let d = null; g.onpointerdown = e => { d = [e.clientX - tb.offsetLeft, e.clientY - tb.offsetTop]; g.setPointerCapture(e.pointerId); };
+  g.onpointermove = e => { if (!d) return; const r = $('#view').getBoundingClientRect(); const x = Math.max(0, Math.min(r.width - tb.offsetWidth, e.clientX - d[0])), y = Math.max(0, Math.min(r.height - tb.offsetHeight, e.clientY - d[1])); tb.style.left = x + 'px'; tb.style.top = y + 'px'; };
+  g.onpointerup = () => { if (d) { PREF.tb = [tb.offsetLeft, tb.offsetTop]; savePref(); } d = null; }; })();
+// αλλαγή πλάτους πάνελ
+(() => { const sp = $('#split'), pn = $('#panel'); pn.style.width = PREF.panelW + 'px'; let d = null;
+  sp.onpointerdown = e => { d = e.clientX; sp.setPointerCapture(e.pointerId); };
+  sp.onpointermove = e => { if (d == null) return; const w = Math.max(320, Math.min(window.innerWidth * 0.7, window.innerWidth - e.clientX)); pn.style.width = w + 'px'; resize(); };
+  sp.onpointerup = () => { if (d != null) { PREF.panelW = parseInt(pn.style.width, 10); savePref(); } d = null; }; })();
+
+/* ---------------- DXF ---------------- */
+function decodeDxf(buf) { const u8 = new Uint8Array(buf); let t = new TextDecoder('utf-8', { fatal: false }).decode(u8); if (/�/.test(t) || (/\$DWGCODEPAGE\r?\n\s*3\r?\n\s*ANSI_1253/i.test(t) && !/[Ͱ-Ͽ]/.test(t))) { try { t = new TextDecoder('windows-1253').decode(u8); } catch (e) {} } return t; }
+async function loadDxf(file) {
+  busy(true, 'Ανάγνωση DXF…');
+  try {
+    const buf = await file.arrayBuffer(); await new Promise(r => setTimeout(r, 20));
+    const txt = decodeDxf(buf);
+    if (!/SECTION/.test(txt.slice(0, 5000))) throw new Error('Το αρχείο δεν είναι DXF σε μορφή κειμένου (ASCII). Αποθήκευσέ το από το CAD ως DXF.');
+    const P = Dxf2000.parse(txt), D = K.prepare(P);
+    if (!D.ents.length) throw new Error('Το DXF δεν έχει γραμμές ή πολυγραμμές στο μοντέλο.');
+    const cls = K.recognize(D, K.cluster(D));
+    S.D = D; S.cls = cls; S.dxfName = file.name; S.extra = []; S.plans = {}; S.topo = { cl: null, plot: null, cov: [], fyt: [], pras: [], pool: [], fronts: [] };
+    autoDetect(); UI.hist = []; UI.redo = []; updUndo(); UI.focus = null; UI.sheet = null;
+    compute(); render(); fit(focusBB()); save();
+    const n = c => cls.filter(x => x.kind === c).length;
+    toast('Αναγνωρίστηκαν: ' + (n('topo') ? 'τοπογραφικό, ' : '') + n('plan') + ' κατόψεις, ' + n('section') + ' τομές, ' + n('elev') + ' όψεις', 4200);
+  } catch (e) { toast(e.message || String(e), 5000); }
+  finally { busy(false); }
+}
+function autoDetect() {
+  const topo = S.cls.find(c => c.kind === 'topo');
+  if (topo) { const t = K.topoDetect(S.D, topo); S.topo = Object.assign({ cl: topo.id, fronts: [] }, t); }
+  S.cls.forEach(c => { if ((c.kind === 'plan' || c.kind === 'roof') && !S.plans[c.id]) { const r = K.planDetect(S.D, c); S.plans[c.id] = { outline: r.outline, spaces: r.spaces }; } if (c.kind === 'section' || c.kind === 'elev') c.use = c.use !== false; });
+  if (!S.ext.H) { const h = suggestH(); if (h) S.ext.H = h; }
+}
+function planOf(ci) { if (!S.plans[ci]) { const r = K.planDetect(S.D, S.cls[ci]); S.plans[ci] = { outline: r.outline, spaces: r.spaces }; } return S.plans[ci]; }
+function planList() { return S.cls.filter(c => c.kind === 'plan' || c.kind === 'roof').sort((a, b) => ((a.level || {}).ord || 0) - ((b.level || {}).ord || 0)); }
+// προτεινόμενο Η: μέγιστη στάθμη «+x.xx» στις τομές/όψεις (πάνω από τη στέγη αφαιρείται όχι)
+function suggestH() { let mx = 0; S.cls.forEach(c => { if (c.kind !== 'section' && c.kind !== 'elev') return; c.texts.forEach(i => { const m = /^\+?\s*(\d{1,2}[.,]\d{2})$/.exec(S.D.texts[i].text.trim()); if (m) mx = Math.max(mx, num(m[1])); }); }); return mx > 2 && mx < 40 ? mx : 0; }
+
+/* ---------------- υπολογισμός ---------------- */
+function buildA() {
+  const r = S.rules, T = S.topo, D = S.D;
+  const plot = T.plot != null && D && ent(T.plot) ? ent(T.plot).pts : null;
+  const levels = planList().filter(c => c.kind === 'plan').map(c => { const pl = planOf(c.id), L = c.level || { name: 'Κάτοψη', typ: 1, use: 0, h: 3.2 };
+    return { name: L.name, typ: L.typ, use: L.use || (L.typ === 2 || L.typ === 4 ? 1 : 0), h: L.h || 0, outlines: pl.outline.filter(i => ent(i)).map(i => ent(i).pts), spaces: pl.spaces.filter(s => ent(s.id)).map(s => ({ code: s.code, pts: ent(s.id).pts })) }; });
+  const sum = a => a.filter(i => ent(i)).reduce((s, i) => s + ent(i).area, 0);
+  return { E: plot ? K.area(plot) : 0, mode: +r.mode, sd: num(r.sd), kp: num(r.kp), cap: !!r.cap, maxd: num(r.maxd), hmax: num(r.hmax) || null, roofmax: num(r.roofmax) || null, so: num(r.so),
+    cov: T.cov.filter(i => ent(i)).map(i => ent(i).pts), levels, H: num(S.ext.H), roof: num(S.ext.roof), fytA: sum(T.fyt), prasA: sum(T.pras), units: num(S.ext.units, 1), m2per: num(S.ext.m2per),
+    prov: Math.round(num(S.ext.prov)), akal: Math.round(num(S.ext.akal)), fronts: T.fronts.slice(), plotPts: plot };
+}
+function compute() { if (!S.D || S.topo.plot == null) { UI.R = null; UI.A = null; return; } UI.A = buildA(); UI.R = K.compute(UI.A); UI.C = K.checks(UI.A, UI.R); UI.SG = K.suggest(UI.A, UI.R); UI.sheet = null; }
+function rowsArr() { return String(S.rules.rows || '').split('\n').map(s => s.trim()).filter(Boolean).map(s => { const i = s.indexOf(':'); return i > 0 ? [s.slice(0, i).trim(), s.slice(i + 1).trim()] : [s, '']; }); }
+function plotLabels() {
+  const T = S.topo; if (T.plot == null) return [];
+  const P = ent(T.plot).pts, cl = S.cls[T.cl];
+  const labs = P.map(p => { let best = null, bd = 3.5; cl.texts.forEach(i => { const t = S.D.texts[i]; if (t.text.length > 3) return; const d = K.dist([t.x, t.y], p); if (d < bd) { bd = d; best = t.text; } }); return best; });
+  return labs.every(Boolean) && new Set(labs).size === labs.length ? labs : P.map((p, i) => String(i + 1));
+}
+function artioTxt() { const r = S.rules, A = UI.A; if (!A) return ''; if (r.artemb > 0 && A.E >= r.artemb && (!r.artpros || r.front >= r.artpros)) return 'κατά κανόνα'; if (r.artemb > 0 && A.E < r.artemb) return 'κατά παρέκκλιση'; return ''; }
+
+/* ---------------- όροι από HEXIS-APP (ΚΑΕΚ) ---------------- */
+let _sbP = null;
+async function sbClient() { if (!_sbP) _sbP = (async () => { if (!window.supabase) await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js'); return window.supabase.createClient(SB_URL, SB_KEY); })(); try { return await _sbP; } catch (e) { _sbP = null; throw e; } }
+async function token() { const sb = await sbClient(); const { data } = await sb.auth.getSession(); if (!data || !data.session) throw new Error('Η σύνδεσή σου στο HEXIS-APP έληξε — συνδέσου ξανά από το Hub.'); return data.session.access_token; }
+async function fetchOroi() {
+  const k = String(S.proj.kaek || '').replace(/\s+/g, '').toUpperCase(); if (!/^[0-9Α-ΩA-Z]{10,14}$/.test(k)) { toast('Γράψε έγκυρο ΚΑΕΚ.'); return; }
+  busy(true, 'Όροι δόμησης για ΚΑΕΚ ' + k + '…');
+  try {
+    const tk = await token();
+    const r = await fetch(SB_URL + '/functions/v1/oroi-domisis', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SB_KEY, Authorization: 'Bearer ' + tk }, body: JSON.stringify({ action: 'lisp', kaek: k }) });
+    const txt = await r.text(); const d = {}, rows = [];
+    txt.split(/\r?\n/).forEach(l => { const i = l.indexOf('='); if (i < 0) return; const a = l.slice(0, i), b = l.slice(i + 1); if (a === 'ROW') { const j = b.indexOf('|'); rows.push([b.slice(0, j), b.slice(j + 1)]); } else d[a] = b; });
+    if (d.OK !== '1') throw new Error(d.MSG || 'Δεν ήρθαν όροι.');
+    const R = S.rules, st = d.KATASTASI;
+    R.mode = st === 'sxedio' ? 1 : st === 'oikismos' ? 3 : 2;
+    R.sd = num(d.SD); R.kp = num(d.KALYPSI) || (R.mode === 2 ? 10 : 60); R.hmax = num(d.YPSOS) || 0; R.roofmax = R.mode === 2 ? 1.2 : R.mode === 1 ? 2 : 0;
+    R.cap = R.mode === 1 && num(d.SD) > 0 && num(d.MAX_DOMISI) > 0 && num(d.MAX_DOMISI) < num(d.SD) * num(d.EMBADON) - 0.5;
+    R.maxd = 0; R.oikismos = d.OIKISMOS || ''; R.dimos = d.DIMOS || ''; R.artemb = num(d.ART_EMB); R.artpros = num(d.ART_PROS); R.front = num(d.PROSOPO);
+    R.so = R.mode === 2 ? 0 : (R.so || 5);
+    // όροι για το κείμενο — όχι όσα βγαίνουν από το εμβαδόν του Κτηματολογίου
+    R.rows = rows.filter(x => !/^(ΚΑΕΚ|ΜΕΓΙΣΤΗ ΔΟΜΗΣΗ|Σ\.Α\.Ο\.|ΝΟΜΟΘΕΣΙΑ|ΠΡΑΞΕΙΣ ΠΕΡΙΟΧΗΣ)$/.test(x[0])).map(x => x[0] + ': ' + x[1].replace(/\s+—\s+(ΑΡΤΙΟ|ΜΗ ΑΡΤΙΟ).*$/, '')).join('\n');
+    R.src = 'Ενιαίος Ψηφιακός Χάρτης (ΤΕΕ/ΥΠΕΝ) μέσω HEXIS-APP';
+    if (!S.proj.thesi && (d.OIKISMOS || d.DIMOS)) S.proj.thesi = (d.OIKISMOS ? d.OIKISMOS + ', ' : '') + (d.DIMOS ? 'Δ. ' + d.DIMOS : '');
+    compute(); render(); save(); toast('Ήρθαν οι όροι: ' + (d.KATASTASI_TXT || ''), 3500);
+  } catch (e) { toast(e.message || String(e), 5000); }
+  finally { busy(false); }
+}
+
+/* ---------------- πάνελ βημάτων ---------------- */
+function renderSteps() {
+  $('#steps').innerHTML = STEPS.map((t, i) => '<div class="st' + (i === S.step ? ' on' : '') + (i < S.step ? ' done' : '') + '" data-i="' + i + '"><b>' + (i + 1) + '</b><span>' + t + '</span></div>').join('');
+  document.querySelectorAll('.st').forEach(e => e.onclick = () => go(+e.dataset.i));
+}
+function go(i) {
+  if (i > 1 && !S.D) { toast('Πρώτα ανέβασε το DXF (βήμα 2).'); i = 1; }
+  S.step = Math.max(0, Math.min(STEPS.length - 1, i)); UI.draw = []; UI.meas = []; UI.hover = null;
+  UI.view = S.step === 6 ? 'sheet' : null;
+  if (S.step === 2) UI.focus = S.topo.cl; else if (S.step === 3) { const pl = planList(); if (UI.curPlan == null || !pl.find(c => c.id === UI.curPlan)) UI.curPlan = pl.length ? pl[0].id : null; UI.focus = UI.curPlan; } else UI.focus = null;
+  if (S.step === 6) { buildSheet(); }
+  render(); setTool('sel'); fit(focusBB()); save();
+}
+$('#bPrev').onclick = () => go(S.step - 1);
+$('#bNext').onclick = () => go(S.step + 1);
+function inp(id, label, val, type, attrs) { return '<label class="f"><span>' + label + '</span><input id="' + id + '" type="' + (type || 'text') + '" value="' + esc(val) + '" ' + (attrs || '') + '></label>'; }
+function bind(id, obj, key, isNum, cb) { const e = document.getElementById(id); if (!e) return; e.oninput = e.onchange = () => { obj[key] = isNum ? num(e.value) : e.value; compute(); save(); if (cb) cb(); }; }
+function render() {
+  renderSteps(); setHint();
+  const b = $('#pbody'), s = S.step; let h = '';
+  $('#bPrev').disabled = s === 0; $('#bNext').style.display = s === STEPS.length - 1 ? 'none' : '';
+  if (s === 0) {
+    const R = S.rules;
+    h += '<h2>Έργο & όροι δόμησης</h2><p class="lead">Οι όροι έρχονται από το ΚΑΕΚ· οι υπολογισμοί γίνονται με το εμβαδόν του δικού σου τοπογραφικού.</p>';
+    h += '<div class="row">' + inp('kaek', 'ΚΑΕΚ', S.proj.kaek) + '<div style="flex:none;align-self:end;margin-bottom:8px"><button class="btn" id="bOroi">Όροι από HEXIS-APP</button></div></div>';
+    if (R.src) h += '<p class="small">Πηγή: ' + esc(R.src) + '</p>';
+    h += '<label class="f"><span>Περιοχή</span><select id="mode"><option value="1">Εντός εγκεκριμένου σχεδίου</option><option value="3">Εντός ορίων οικισμού</option><option value="2">Εκτός σχεδίου</option></select></label>';
+    h += '<div class="row">' + inp('sd', 'Συντελεστής δόμησης', R.sd, 'number', 'step="0.01" min="0"') + inp('kp', 'Κάλυψη %', R.kp, 'number', 'step="1" min="0"') + '</div>';
+    h += '<div class="row">' + inp('hmax', 'Μέγιστο ύψος μ. (0 = από ΣΔ)', R.hmax, 'number', 'step="0.05" min="0"') + inp('roofmax', 'Στέγη έως μ.', R.roofmax, 'number', 'step="0.05" min="0"') + '</div>';
+    h += '<div class="row">' + inp('so', R.mode == 2 ? 'Συντ. όγκου (0 = δεν ορίζεται)' : 'Σ.Ο. συντελεστής (5,00 ή 5,50)', R.so, 'number', 'step="0.5" min="0"') + inp('maxd', 'Ειδικό όριο δόμησης τ.μ. (0 = όχι)', R.maxd, 'number', 'step="1" min="0"') + '</div>';
+    if (R.mode == 1) h += '<label class="f" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="cap" ' + (R.cap ? 'checked' : '') + ' style="width:auto"> <span style="margin:0">Όριο οικισμού κάτω των 2.000 κατοίκων (240 / 400 τ.μ.)</span></label>';
+    h += '<label class="f"><span>Όροι όπως στο τοπογραφικό (μία γραμμή «ΛΕΞΗ: τιμή»)</span><textarea id="rows">' + esc(R.rows) + '</textarea></label>';
+    h += '<h3>Στοιχεία έργου (πινακίδα)</h3>' + inp('ergodotis', 'Εργοδότης', S.proj.ergodotis) + inp('ergo', 'Έργο', S.proj.ergo) + inp('thesi', 'Θέση (το ΚΑΕΚ μπαίνει από κάτω)', S.proj.thesi) + inp('meletitis', 'Αρχιτεκτονική μελέτη (μηχανικός)', S.proj.meletitis) + inp('arSx', 'Αριθμός σχεδίου', S.proj.arSxediou);
+  }
+  if (s === 1) {
+    h += '<h2>Σχέδιο DXF</h2><p class="lead">Ένα DXF με όλα: τοπογραφικό, κατόψεις, τομές, όψεις. Κάτω από κάθε σχέδιο γράψε τον τίτλο του (π.χ. «ΚΑΤΟΨΗ ΙΣΟΓΕΙΟΥ», «ΤΟΜΗ Α-Α», «ΝΟΤΙΑ ΟΨΗ»).</p>';
+    h += '<div class="drop" id="drop"><b>' + (S.dxfName ? esc(S.dxfName) + ' — αλλαγή αρχείου' : 'Ανέβασε DXF') + '</b><div class="small">ή σύρε το αρχείο εδώ</div></div>';
+    if (S.D) {
+      h += '<h3>Τι αναγνωρίστηκε</h3><p class="small">Διόρθωσε όπου χρειάζεται. Κλικ σε κάρτα για να το δεις.</p>';
+      S.cls.filter(c => c.kind !== 'ignore' || UI.showIgn).forEach(c => {
+        h += '<div class="cl' + (UI.selCl === c.id ? ' on' : '') + '" data-c="' + c.id + '"><canvas width="192" height="140"></canvas><div><div class="t" style="color:' + kindCol(c.kind) + '">' + esc(clName(c)) + '</div>';
+        h += '<select data-k="' + c.id + '">' + KINDS.map(k => '<option value="' + k[0] + '"' + (k[0] === c.kind ? ' selected' : '') + '>' + k[1] + '</option>').join('') + '</select>';
+        if (c.kind === 'plan') { const L = c.level || {}; h += '<div class="row" style="margin-top:6px"><input type="text" data-ln="' + c.id + '" value="' + esc(L.name || '') + '" placeholder="Όνομα ορόφου"><select data-lt="' + c.id + '">' + LTYP.map(t => '<option value="' + t[0] + '"' + (t[0] === L.typ ? ' selected' : '') + '>' + t[1] + '</option>').join('') + '</select></div>'; }
+        h += '</div></div>';
+      });
+      const ni = S.cls.filter(c => c.kind === 'ignore').length; if (ni) h += '<button class="btn sec" id="bIgn">' + (UI.showIgn ? 'Κρύψε' : 'Δείξε') + ' ' + ni + ' μικρά κομμάτια</button>';
+    }
+  }
+  if (s === 2) {
+    const T = S.topo, A = UI.A, R = UI.R;
+    h += '<h2>Τοπογραφικό</h2>';
+    if (T.cl == null) h += '<div class="card">Δεν αναγνωρίστηκε τοπογραφικό. Στο βήμα 2 όρισε ποιο σχέδιο είναι το «Τοπογραφικό».</div>';
+    else {
+      h += '<p class="lead">Διάλεξε τι ορίζεις και κάνε κλικ στο πολύγωνο. Δεύτερο κλικ το αφαιρεί.</p><div class="chips">' + [['plot', 'Οικόπεδο', '#1d4ed8'], ['cov', 'Κάλυψη', '#dc2626'], ['fyt', 'Φύτευση', '#16a34a'], ['pras', 'Πρασιά', '#84cc16'], ['pool', 'Πισίνα', '#0891b2'], ['front', 'Πλευρά σε δρόμο', '#f97316']].map(m => '<span class="chip' + (UI.tmode === m[0] ? ' on' : '') + '" data-tm="' + m[0] + '"><i style="background:' + m[2] + '"></i>' + m[1] + '</span>').join('') + '</div>';
+      h += '<div class="card">';
+      h += '<div class="kv"><span>Εμβαδόν οικοπέδου (τοπογραφικό)</span><b>' + (A ? gr(A.E) + ' τ.μ.' : '—') + '</b></div>';
+      h += '<div class="kv"><span>Κάλυψη (' + T.cov.length + ')</span><b>' + (R ? gr(R.Sk) + ' τ.μ. · ' + gr(R.pk) + '%' : '—') + '</b></div>';
+      if (S.rules.mode != 2) { h += '<div class="kv"><span>Φύτευση (' + T.fyt.length + ')</span><b>' + (A ? gr(A.fytA) + ' τ.μ.' : '—') + '</b></div><div class="kv"><span>Πρασιά (' + T.pras.length + ')</span><b>' + (A ? gr(A.prasA) + ' τ.μ.' : '—') + '</b></div>'; }
+      h += '<div class="kv"><span>Πισίνα</span><b>' + T.pool.length + '</b></div>';
+      h += '<div class="kv"><span>Πλευρές σε δρόμο</span><b>' + (T.fronts.length ? T.fronts.map(k => k + 1).join(', ') : '—') + '</b></div>';
+      if (R && R.edges.length) h += '<div class="kv"><span>Δπραγμ / δπραγμ</span><b>' + (R.Drear.v != null ? gr(R.Drear.v) : '—') + ' / ' + (R.dside.v != null ? gr(R.dside.v) : (R.dside.touch ? 'επαφή' : '—')) + ' μ.</b></div>';
+      h += '</div>';
+      if (S.rules.mode != 2 && !T.fronts.length) h += '<p class="small">Δείξε τις πλευρές σε δρόμο, για να ξεχωρίσουν οπίσθιο (Δ) και πλάγια (δ) όρια (άρθ. 198, 209 ν.5306/2026).</p>';
+    }
+  }
+  if (s === 3) {
+    const pls = planList();
+    h += '<h2>Κατόψεις</h2>';
+    if (!pls.length) h += '<div class="card">Δεν αναγνωρίστηκαν κατόψεις. Γράψε κάτω από κάθε κάτοψη τον όροφο (π.χ. «ΚΑΤΟΨΗ ΙΣΟΓΕΙΟΥ») ή όρισέ τες στο βήμα 2.</div>';
+    else {
+      h += '<div class="chips">' + pls.map(c => '<span class="chip' + (UI.curPlan === c.id ? ' on' : '') + '" data-pl="' + c.id + '">' + esc(clName(c)) + '</span>').join('') + '</div>';
+      const c = S.cls[UI.curPlan], L = c.level || (c.level = { name: 'Κάτοψη', typ: 1, use: 0, h: 3.2 });
+      if (c.kind === 'plan') {
+        h += '<div class="row">' + inp('lvN', 'Όνομα', L.name) + '<label class="f"><span>Τύπος</span><select id="lvT">' + LTYP.map(t => '<option value="' + t[0] + '"' + (t[0] === L.typ ? ' selected' : '') + '>' + t[1] + '</option>').join('') + '</select></label></div>';
+        if (L.typ === 2) h += '<label class="f"><span>Χρήση υπογείου</span><select id="lvU"><option value="1">Βοηθητική (αποθήκες κ.λπ.)</option><option value="2">Στάθμευση / Η-Μ / δεξαμενές / πισίνα</option><option value="3">Κύρια χρήση</option></select></label>';
+        if (L.typ === 4) h += '<label class="f"><span>Χρήση υπόσκαφου</span><select id="lvU"><option value="1">Κατοικία</option><option value="2">Άλλη χρήση</option></select></label>';
+        if (L.typ === 1 || L.typ === 3) h += inp('lvH', 'Ύψος επιπέδου για τον όγκο, μ.', L.h, 'number', 'step="0.05" min="0"');
+        h += '<p class="small" style="margin-top:6px">Κλικ σε πολύγωνο ως:</p><div class="chips">' + [['out', 'Περίγραμμα', '#dc2626']].concat(Object.keys(SPN).map(k => [k, SPN[k], SPC[k]])).concat([['del', 'Αφαίρεση', '#6b7280']]).map(m => '<span class="chip' + (UI.pmode === m[0] ? ' on' : '') + '" data-pm="' + m[0] + '"><i style="background:' + m[2] + '"></i>' + m[1] + '</span>').join('') + '</div>';
+        const R = UI.R, idx = planList().filter(x => x.kind === 'plan').findIndex(x => x.id === c.id), lv = R && R.lv[idx];
+        if (lv) {
+          h += '<div class="card"><div class="kv"><span>Μικτό περίγραμμα</span><b>' + gr(lv.G) + ' τ.μ.</b></div>';
+          h += lv.sp.map(sp => '<div class="sp"><i style="background:' + SPC[sp.code] + '"></i><span>' + SPN[sp.code] + '</span><b>' + gr(sp.a) + '</b><span class="small">' + (sp.code === 'H' || sp.code === 'X' ? '40%' : '−' + gr(sp.x)) + '</span></div>').join('');
+          h += '<div class="kv"><span><b>Μετρά στον ΣΔ</b></span><b>' + gr(lv.cnt) + ' τ.μ.</b></div>' + (lv.nt ? '<div class="small">' + esc(lv.nt) + '</div>' : '') + '</div>';
+        }
+      } else h += '<div class="card">Σχέδιο δώματος / στέγης — μπαίνει στις εμβαδομετρήσεις χωρίς να μετρά στον ΣΔ.</div>';
+    }
+  }
+  if (s === 4) {
+    const secs = S.cls.filter(c => c.kind === 'section' || c.kind === 'elev'), H0 = suggestH();
+    h += '<h2>Τομές, όψεις, εικόνες</h2>';
+    h += '<div class="row">' + inp('H', 'Ύψος Η (εξάντληση ΣΔ), μ.', S.ext.H, 'number', 'step="0.05" min="0"') + inp('roof', 'Στέγη πάνω από το Η, μ.', S.ext.roof, 'number', 'step="0.05" min="0"') + '</div>';
+    if (H0) h += '<p class="small">Από τις στάθμες των τομών: μέγιστη +' + gr(H0) + ' μ.</p>';
+    h += '<p class="small">Το Η για τα Δ / δ είναι το ύψος στην πλήρη εξάντληση του ΣΔ, όπως στο διάγραμμα — όχι αναγκαστικά αυτό που χτίζεις τώρα (άρθ. 198 ν.5306/2026).</p>';
+    h += '<h3>Στο φύλλο</h3>' + (secs.length ? secs.map(c => '<label class="f" style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="checkbox" data-su="' + c.id + '" ' + (c.use !== false ? 'checked' : '') + ' style="width:auto"> <span style="margin:0;color:var(--txt)">' + esc(clName(c)) + '</span></label>').join('') : '<p class="small">Δεν αναγνωρίστηκαν τομές ή όψεις — γράψε από κάτω «ΤΟΜΗ Α-Α», «ΝΟΤΙΑ ΟΨΗ» κ.λπ.</p>');
+    if (S.rules.mode != 2) {
+      h += '<h3>Στάθμευση</h3><div class="row">' + inp('units', 'Κατοικίες / μονάδες', S.ext.units, 'number', 'step="1" min="0"') + inp('m2per', 'τ.μ. ανά θέση (0 = μία ανά κατοικία)', S.ext.m2per, 'number', 'step="1" min="0"') + '</div>';
+      h += '<div class="row">' + inp('prov', 'Θέσεις που δεσμεύονται', S.ext.prov, 'number', 'step="1" min="0"') + inp('akal', 'από αυτές στον ακάλυπτο', S.ext.akal, 'number', 'step="1" min="0"') + '</div>';
+    }
+    h += '<h3>Φωτορεαλιστικές εικόνες</h3><button class="btn sec" id="bImg">Πρόσθεσε εικόνες (JPG / PNG)</button><div class="ph">' + S.photos.map((p, i) => '<div><img src="' + p.src + '"><button data-rm="' + i + '">✕</button></div>').join('') + '</div>';
+  }
+  if (s === 5) {
+    if (!UI.R) h += '<h2>Έλεγχος</h2><div class="card">Χρειάζεται οικόπεδο από το τοπογραφικό (βήμα 3).</div>';
+    else {
+      const C = UI.C, fails = C.filter(c => c.st === 'fail').length, warns = C.filter(c => c.st === 'warn').length;
+      h += '<h2>Έλεγχος</h2><div class="big ' + (fails ? 'b-fail' : 'b-ok') + '">' + (fails ? fails + ' ΥΠΕΡΒΑΣΕΙΣ' : 'ΕΝΤΑΞΕΙ') + (warns ? ' · ' + warns + ' προς έλεγχο' : '') + '</div>';
+      h += '<button class="btn or" id="bAi" style="width:100%">Ρώτα το AI: λάθη και εξοικονόμηση δόμησης</button>';
+      const grp = [['ydom', 'Γενικά στοιχεία — ελέγχονται από την ΥΔΟΜ'], ['dilosi', 'Υπεύθυνη δήλωση μηχανικού (μεγέθη ΣΔ)'], ['ktirio', 'Κτιριοδομικός — στη μελέτη'], ['amea', 'Προσβασιμότητα ΑμεΑ']];
+      grp.forEach(g => { h += '<h3>' + g[1] + '</h3>'; C.filter(c => c.grp === g[0]).forEach(c => { h += '<div class="chk"><div class="h"><span>' + esc(c.title) + '</span><span class="badge b-' + c.st + '">' + ({ ok: 'ΕΝΤΑΞΕΙ', fail: 'ΥΠΕΡΒΑΣΗ', warn: 'ΕΛΕΓΞΕ', info: 'ΟΔΗΓΙΑ' })[c.st] + '</span></div><div class="v">' + esc(c.val) + '</div><div class="a">' + esc(c.art) + '</div>' + (c.why ? '<div class="w">' + esc(c.why) + '</div>' : '') + '</div>'; }); });
+      h += '<h3>Προτάσεις εξοικονόμησης δόμησης</h3>' + UI.SG.map(x => '<div class="sug">' + (x.gain > 0.5 ? '<span class="g">έως ' + gr(x.gain) + ' τ.μ.</span>' : '') + esc(x.t) + '<div class="a">' + esc(x.art) + '</div></div>').join('');
+      h += '<p class="small" style="margin-top:10px">Κατά την εγκύκλιο ΥΠΕΝ/ΔΑΟΚΑ/135179/4495/2022 η ΥΔΟΜ ελέγχει κάλυψη, ύψος, όγκο, αποστάσεις, στάθμευση και (εντός σχεδίου) φύτευση· τα μεγέθη του ΣΔ είναι αντικείμενο της υπεύθυνης δήλωσης.</p>';
+    }
+  }
+  if (s === 6) {
+    const sh = UI.sheet;
+    h += '<h2>Φύλλο & εξαγωγή</h2><p class="lead">Όλα σε κλίμακα 1:100. Το τοπογραφικό μένει στις πραγματικές συντεταγμένες ΕΓΣΑ87 στο DXF.</p>';
+    h += '<label class="f"><span>Ύψος φύλλου</span><select id="shH"><option value="auto">Αυτόματο (594 / 841 / 1189 mm)</option><option value="594">594 mm (A1)</option><option value="841">841 mm (A0)</option></select></label>';
+    if (sh) { h += '<div class="card"><div class="kv"><span>Μέγεθος φύλλου</span><b>' + Math.round(sh.W) + ' x ' + sh.H + ' mm</b></div><div class="kv"><span>Στήλες</span><b>' + sh.cols.length + '</b></div></div>'; sh.warn.forEach(w => h += '<div class="card b-warn">' + esc(w) + '</div>'); }
+    h += '<div class="row" style="margin-top:8px"><button class="btn" id="bPdf">PDF</button><button class="btn" id="bDxf">DXF</button></div>';
+    h += '<p class="small" style="margin-top:10px">Το DXF (R2000) ανοίγει σε AutoCAD, progeCAD, ZWCAD· ελληνικά σωστά, μονάδες μέτρα. Οι εικόνες μπαίνουν μόνο στο PDF.</p>';
+  }
+  b.innerHTML = h;
+  // σύνδεση πεδίων
+  if (s === 0) {
+    const R = S.rules; $('#mode').value = String(R.mode); $('#mode').onchange = e => { R.mode = +e.target.value; if (R.mode === 2) { R.kp = R.kp || 10; R.roofmax = 1.2; } compute(); render(); save(); };
+    bind('kaek', S.proj, 'kaek'); $('#bOroi').onclick = fetchOroi;
+    ['sd', 'kp', 'hmax', 'roofmax', 'so', 'maxd'].forEach(k => bind(k, R, k, true)); bind('rows', R, 'rows');
+    if ($('#cap')) $('#cap').onchange = e => { R.cap = e.target.checked; compute(); save(); };
+    bind('ergodotis', S.proj, 'ergodotis'); bind('ergo', S.proj, 'ergo'); bind('thesi', S.proj, 'thesi'); bind('meletitis', S.proj, 'meletitis'); bind('arSx', S.proj, 'arSxediou');
+  }
+  if (s === 1) {
+    const dr = $('#drop'); dr.onclick = () => $('#fDxf').click();
+    dr.ondragover = e => { e.preventDefault(); dr.style.borderColor = 'var(--acc)'; }; dr.ondragleave = () => dr.style.borderColor = '';
+    dr.ondrop = e => { e.preventDefault(); dr.style.borderColor = ''; const f = e.dataTransfer.files[0]; if (f) loadDxf(f); };
+    document.querySelectorAll('.cl').forEach(el => { const c = S.cls[+el.dataset.c]; thumb(el.querySelector('canvas'), c); el.onclick = ev => { if (ev.target.closest('select,input')) return; UI.selCl = c.id; document.querySelectorAll('.cl').forEach(x => x.classList.toggle('on', x === el)); fit(K.bbGrow(c.bb, 2)); }; });
+    document.querySelectorAll('[data-k]').forEach(el => el.onchange = () => { snap(); const c = S.cls[+el.dataset.k]; c.kind = el.value;
+      if (el.value === 'topo') { S.cls.forEach(x => { if (x !== c && x.kind === 'topo') x.kind = 'other'; }); const t = K.topoDetect(S.D, c); S.topo = Object.assign({ cl: c.id, fronts: [] }, t); }
+      if ((el.value === 'plan' || el.value === 'roof') && !c.level) c.level = { name: 'Κάτοψη', typ: el.value === 'roof' ? 9 : 1, use: 0, h: 3.2, ord: 0 };
+      if (el.value === 'section' || el.value === 'elev') c.use = true;
+      if (S.topo.cl === c.id && el.value !== 'topo') S.topo = { cl: null, plot: null, cov: [], fyt: [], pras: [], pool: [], fronts: [] };
+      after(); });
+    document.querySelectorAll('[data-ln]').forEach(el => el.onchange = () => { const c = S.cls[+el.dataset.ln]; c.level.name = el.value; const L = K.levelFromText(K.norm(el.value)); if (L) { c.level.typ = L.typ === 9 ? 1 : L.typ; c.level.ord = L.ord; } after(); });
+    document.querySelectorAll('[data-lt]').forEach(el => el.onchange = () => { const c = S.cls[+el.dataset.lt]; c.level.typ = +el.value; after(); });
+    if ($('#bIgn')) $('#bIgn').onclick = () => { UI.showIgn = !UI.showIgn; render(); };
+  }
+  if (s === 2) document.querySelectorAll('[data-tm]').forEach(el => el.onclick = () => { UI.tmode = el.dataset.tm; render(); });
+  if (s === 3) {
+    document.querySelectorAll('[data-pl]').forEach(el => el.onclick = () => { UI.curPlan = +el.dataset.pl; UI.focus = UI.curPlan; render(); fit(focusBB()); });
+    document.querySelectorAll('[data-pm]').forEach(el => el.onclick = () => { UI.pmode = el.dataset.pm; render(); });
+    const c = S.cls[UI.curPlan];
+    if (c && c.level) { bind('lvN', c.level, 'name', false, () => { const L = K.levelFromText(K.norm(c.level.name)); if (L) c.level.ord = L.ord; });
+      if ($('#lvT')) $('#lvT').onchange = e => { c.level.typ = +e.target.value; c.level.use = (c.level.typ === 2 || c.level.typ === 4) ? 1 : 0; after(); };
+      if ($('#lvU')) { $('#lvU').value = String(c.level.use || 1); $('#lvU').onchange = e => { c.level.use = +e.target.value; after(); }; }
+      bind('lvH', c.level, 'h', true); }
+  }
+  if (s === 4) {
+    ['H', 'roof', 'units', 'm2per', 'prov', 'akal'].forEach(k => bind(k, S.ext, k, true));
+    document.querySelectorAll('[data-su]').forEach(el => el.onchange = () => { S.cls[+el.dataset.su].use = el.checked; save(); });
+    $('#bImg').onclick = () => $('#fImg').click();
+    document.querySelectorAll('[data-rm]').forEach(el => el.onclick = () => { S.photos.splice(+el.dataset.rm, 1); render(); save(); });
+  }
+  if (s === 5 && $('#bAi')) $('#bAi').onclick = askAi;
+  if (s === 6) { $('#shH').value = String(S.sheetH); $('#shH').onchange = e => { S.sheetH = e.target.value; buildSheet(); render(); fit(focusBB()); save(); }; $('#bPdf').onclick = exportPdf; $('#bDxf').onclick = exportDxf; }
+}
+function thumb(c, cl) { const g = c.getContext('2d'), b = cl.bb, w = c.width, h = c.height, s = Math.min((w - 10) / Math.max(1e-6, b[2] - b[0]), (h - 10) / Math.max(1e-6, b[3] - b[1]));
+  g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.strokeStyle = '#334155'; g.lineWidth = 1;
+  cl.ents.forEach(i => { const e = ent(i); if (!e) return; g.beginPath(); e.pts.forEach((p, k) => { const x = 5 + (p[0] - b[0]) * s, y = h - 5 - (p[1] - b[1]) * s; k ? g.lineTo(x, y) : g.moveTo(x, y); }); if (e.closed) g.closePath(); g.stroke(); }); }
+$('#fDxf').onchange = e => { const f = e.target.files[0]; if (f) loadDxf(f); e.target.value = ''; };
+$('#fImg').onchange = async e => {
+  for (const f of e.target.files) { const src = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
+    const im = await new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
+    // συμπίεση σε λογικό μέγεθος για το PDF
+    const mx = 1800, k = Math.min(1, mx / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+    S.photos.push({ src: c.toDataURL('image/jpeg', 0.86), w: c.width, h: c.height, fmt: 'JPEG' }); }
+  e.target.value = ''; UI.sheet = null; render(); save();
+};
+
+/* ---------------- φύλλο ---------------- */
+function buildSheet() {
+  if (!S.D || !UI.R) { UI.sheet = null; return; }
+  const R = UI.R, A = UI.A, pls = planList();
+  const planIdx = pls.filter(c => c.kind === 'plan');
+  const plans = pls.map(c => { const pl = planOf(c.id), k = planIdx.indexOf(c), lv = k >= 0 ? R.lv[k] : null;
+    return { cl: c.id, name: (c.level && c.level.name) || 'Δώμα', outline: pl.outline.filter(i => ent(i)), spaces: pl.spaces.filter(s => ent(s.id)), lines: lv ? K.levelBlock(lv, lv.typ === 1 && planIdx.filter(x => x.level && x.level.typ === 1)[0] === c, R.Sk) : [] }; });
+  const secs = S.cls.filter(c => (c.kind === 'section' || c.kind === 'elev') && c.use !== false).sort((a, b) => (a.kind === b.kind ? a.bb[0] - b.bb[0] : a.kind === 'section' ? -1 : 1)).map(c => c.id);
+  const P = Object.assign({}, S.proj, { date: today() });
+  const tpl = K.yTemplate(A, R, { rows: rowsArr(), rowsSrc: S.rules.src ? 'πηγή: ' + S.rules.src : '', vlabels: (() => { const l = plotLabels(); return l.length ? l.join('-') + '-' + l[0] : ''; })(), oikismos: S.rules.oikismos, dimos: S.rules.dimos, artio: artioTxt(), ergo: S.proj.ergo });
+  UI.sheet = KS.build({ D: S.D, cls: S.cls, topo: S.topo, plans, secs, R, A, tpl, P, photos: S.photos, measure, H0: S.sheetH, plotLabels: plotLabels(), extraEnts: [] });
+}
+async function exportDxf() {
+  if (!UI.sheet) buildSheet(); if (!UI.sheet) return;
+  try { const txt = KS.toDxf(UI.sheet, Dxf2000); download(new Blob([txt], { type: 'application/dxf' }), fname('dxf')); toast('Έτοιμο το DXF.'); } catch (e) { toast('DXF: ' + e.message, 5000); }
+}
+function fname(ext) { const b = (S.proj.ergo || S.dxfName || 'diagramma').replace(/\.dxf$/i, ''); return 'DIAGRAMMA_KALYPSIS_' + b.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9Α-Ωα-ω_-]+/g, '_').slice(0, 40) + '.' + ext; }
+async function fontB64(u) { const b = new Uint8Array(await (await fetch(u)).arrayBuffer()); let s = ''; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(s); }
+async function exportPdf() {
+  if (!UI.sheet) buildSheet(); const sh = UI.sheet; if (!sh) return;
+  busy(true, 'Δημιουργία PDF…');
+  try {
+    if (!window.jspdf) await loadScript('jspdf.umd.min.js');
+    const { jsPDF } = window.jspdf, W = sh.W, H = sh.H;
+    const doc = new jsPDF({ orientation: W >= H ? 'landscape' : 'portrait', unit: 'mm', format: [W, H], compress: true });
+    doc.addFileToVFS('LS-R.ttf', await fontB64('fonts/LiberationSans-Regular.ttf')); doc.addFont('LS-R.ttf', 'LS', 'normal');
+    doc.addFileToVFS('LS-B.ttf', await fontB64('fonts/LiberationSans-Bold.ttf')); doc.addFont('LS-B.ttf', 'LS', 'bold');
+    const Y = y => H - y, hx = c => { const v = parseInt(c.slice(1), 16); return [(v >> 16) & 255, (v >> 8) & 255, v & 255]; };
+    const path = (pts, closed, style) => { const segs = []; for (let i = 1; i < pts.length; i++) segs.push([pts[i][0] - pts[i - 1][0], -(pts[i][1] - pts[i - 1][1])]); doc.lines(segs, pts[0][0], Y(pts[0][1]), [1, 1], style, closed); };
+    sh.prims.forEach(p => {
+      if (p.t === 'fill') { doc.saveGraphicsState(); doc.setGState(new doc.GState({ opacity: p.a })); doc.setFillColor(...hx(p.c)); path(p.pts, true, 'F'); doc.restoreGraphicsState(); }
+      else if (p.t === 'hatch') { doc.setDrawColor(...hx(p.c)); doc.setLineWidth(0.18); KS.hatchLines(p.pts, p.sp).forEach(s => doc.line(s[0][0], Y(s[0][1]), s[1][0], Y(s[1][1]))); }
+    });
+    sh.prims.forEach(p => {
+      if (p.t === 'pl' && p.pts.length >= 2) { doc.setDrawColor(...hx(p.c)); doc.setLineWidth(p.w); path(p.pts, !!p.closed, 'S'); }
+      else if (p.t === 'img') { try { doc.addImage(p.src, p.fmt || 'JPEG', p.x, Y(p.y + p.h), p.w, p.h); } catch (e) {} }
+    });
+    sh.prims.forEach(p => {
+      if (p.t !== 'tx') return;
+      doc.setFont('LS', p.b ? 'bold' : 'normal'); doc.setFontSize(p.h / 0.716 / 0.3528); doc.setTextColor(...hx(p.c));
+      doc.text(p.s, p.x, Y(p.y), { angle: p.rot || 0, align: p.al === 'c' ? 'center' : p.al === 'r' ? 'right' : 'left', baseline: 'alphabetic' });
+    });
+    doc.setProperties({ title: 'Διάγραμμα κάλυψης — ' + (S.proj.ergo || ''), creator: 'HEXIS-APP Διάγραμμα Κάλυψης · BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.' });
+    download(doc.output('blob'), fname('pdf')); toast('Έτοιμο το PDF (' + Math.round(W) + ' x ' + H + ' mm, 1:100).');
+  } catch (e) { toast('PDF: ' + (e.message || e), 6000); }
+  finally { busy(false); }
+}
+
+/* ---------------- AI ---------------- */
+const AI_SYS = 'Είσαι έμπειρος ελεγκτής διαγραμμάτων κάλυψης στην Ελλάδα. Απαντάς στα ελληνικά, σύντομα και πρακτικά, με παραπομπή σε άρθρο για ΚΑΘΕ ισχυρισμό.\n' +
+ 'Πλαίσιο: ν.5306/2026 «Κώδικας Χωροταξίας και Πολεοδομίας» (ΦΕΚ Α\' 88/08.06.2026) — ο ΝΟΚ ν.4067/2012 κωδικοποιήθηκε στα άρθ. 195-225 (206↔ΝΟΚ 11 ΣΔ, 207↔12 κάλυψη, 208↔13 όγκος, 209↔14 θέση, 210↔15 ύψος, 211↔16 εξώστες, 212↔17 ακάλυπτοι, 214↔19, 221↔24 χαμηλά, 222↔25, 223↔26 ΑμεΑ). Εκτός σχεδίου: άρθ. 250-251 (4.000 τ.μ., 10%, 7,50 μ.+1,20 στέγη, 2 όροφοι, 15 μ. αποστάσεις, 186+0,018(Ε-4000) τ.μ. για κατοικία). Διάγραμμα κάλυψης: άρθ. 325 (πρώην 39 §3 ν.4495/17) και εγκύκλιος ΥΠΕΝ/ΔΑΟΚΑ/135179/4495/2022.\n' +
+ 'Άρθ. 206 παρ. 6: δεν μετρούν α) ανοικτοί εξώστες και ημιυπαίθριοι έως 40% της επιτρεπόμενης δόμησης, ημιυπαίθριοι έως 20% (η υπέρβαση μετρά), γ) εσοχές, δ) κοινόχρηστα κλιμακοστάσια έως 30 τ.μ./επίπεδο και 40 στην είσοδο, ε) ιδιωτικό έως 25 τ.μ./επίπεδο, στ) έως 2 ανοικτά κλιμακοστάσια για στάθμη έως 7,50 μ., ζ) κλίμακες κινδύνου, η) φωταγωγοί ≥1,50 τ.μ., φρεάτια Η/Μ, αίθρια, θ) υπόγεια για στάθμευση/Η-Μ/νερό/ΑΠΕ/πισίνα, ι) ένας βοηθητικός υπόγειος έως την κάλυψη με οροφή ≤1,20 μ., ιδ) σοφίτα ≤1/2 υποκείμενου ορόφου, πατάρι ≤25% επιτρεπόμενης, κβ) πλατφόρμα ανελκυστήρα οχήματος 25 τ.μ., κγ) υπόσκαφα 50% κατοικία / 20% άλλες. Άρθ. 198: Δ=3+0,10Η, δ=2,50+0,05Η με Η το ύψος εξάντλησης ΣΔ. Άρθ. 207: κάλυψη 60%, προσαύξηση έως 120 τ.μ. χωρίς υπέρβαση 70%. Άρθ. 221: χαμηλά κτίρια Δ=2,50. Κτιριοδομικός 2023 (ΦΕΚ Β\' 3985/2023): ύψη 2,50/2,20, κλίμακες 1,20/0,90/0,60, φωτισμός 10%, αερισμός 5%, φύτευση 1 δέντρο/200 τ.μ.\n' +
+ 'Μη εφευρίσκεις αριθμούς που δεν προκύπτουν από τα δεδομένα· όπου δεν είσαι βέβαιος για τρέχουσα διάταξη, πες «έλεγξε την ισχύουσα διάταξη».';
+async function askAi() {
+  const A = UI.A, R = UI.R; $('#ovAi').classList.add('on'); $('#aiOut').textContent = 'Περιμένω απάντηση…';
+  const data = { περιοχή: ['', 'εντός σχεδίου', 'εκτός σχεδίου', 'οικισμός'][A.mode], εμβαδόν: +A.E.toFixed(2), ΣΔ: A.sd, κάλυψη_επιτρ_pct: R.kpe, κάλυψη: +R.Sk.toFixed(2), επιτρ_δόμηση: R.allow && +R.allow.toFixed(2), δόμηση: +R.Dom.toFixed(2),
+    εξώστες_ημιυπ: +R.HX.toFixed(2), ημιυπαίθριοι: +R.Hh.toFixed(2), όγκος: +R.Vr.toFixed(1), επιτρ_όγκος: R.Va && +R.Va.toFixed(1), Η: A.H, στέγη: A.roof, Δπραγμ: R.Drear.v, δπραγμ: R.dside.v, ελάχ_απόσταση: R.dmin,
+    επίπεδα: R.lv.map(l => ({ όνομα: l.name, τύπος: K.typText(l.typ, l.use), μικτό: +l.G.toFixed(2), μετρά: +l.cnt.toFixed(2), χώροι: l.sp.map(s => K.CODE[s.code] + ' ' + s.a.toFixed(2)) })),
+    φύτευση: A.fytA, πρασιά: A.prasA, θέσεις: { απαιτούνται: R.req, δεσμεύονται: A.prov }, έλεγχοι: UI.C.filter(c => c.st !== 'info').map(c => c.st + ': ' + c.title + ' — ' + c.val) };
+  try {
+    const r = await fetch(SB_URL + '/functions/v1/nomothesia-ai', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY },
+      body: JSON.stringify({ system: AI_SYS, max_tokens: 1500, messages: [{ role: 'user', content: 'Δεδομένα διαγράμματος κάλυψης (JSON):\n' + JSON.stringify(data) + '\n\nΔώσε:\n1. ΛΑΘΗ / ΚΙΝΔΥΝΟΙ στη μελέτη, με άρθρο.\n2. ΠΡΟΤΑΣΕΙΣ για να γλιτώσει τετραγωνικά δόμησης (με εκτίμηση τ.μ.), με άρθρο.\n3. Τι να ελέγξει πριν την υποβολή στο e-Άδειες.' }] }) });
+    const j = await r.json(); if (!r.ok) throw new Error((j && j.error && (j.error.message || j.error)) || ('HTTP ' + r.status));
+    $('#aiOut').textContent = (j.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n').replace(/\*\*/g, '') || '—';
+  } catch (e) { $('#aiOut').textContent = 'Το AI δεν απάντησε αυτή τη στιγμή (' + (e.message || e) + '). Οι έλεγχοι και οι προτάσεις παραπάνω δεν χρειάζονται AI.'; }
+}
+
+/* ---------------- οδηγίες ---------------- */
+function help() {
+  $('#helpBox').innerHTML = '<h2>Οδηγίες — Διάγραμμα κάλυψης</h2>' +
+  '<h3>Πριν: τι σχεδιάζεις στο DXF</h3><ul>' +
+  '<li>Όλα σε <b>ένα DXF</b>, σε μέτρα: τοπογραφικό (στο ΕΓΣΑ87), κατόψεις, τομές, όψεις — με κενό ανάμεσά τους.</li>' +
+  '<li>Κάτω από κάθε σχέδιο γράψε τον τίτλο του: «ΚΑΤΟΨΗ ΥΠΟΓΕΙΟΥ», «ΚΑΤΟΨΗ ΙΣΟΓΕΙΟΥ», «ΚΑΤΟΨΗ Α΄ ΟΡΟΦΟΥ», «ΚΑΤΟΨΗ ΣΟΦΙΤΑΣ», «ΤΟΜΗ Α-Α», «ΝΟΤΙΑ ΟΨΗ».</li>' +
+  '<li>Οικόπεδο: κλειστή πολυγραμμή στο layer TOPO_PROP. Κτίριο στο τοπογραφικό: κλειστή πολυγραμμή (layer με «KTIRIO» ή κείμενο «ΚΑΤΟΙΚΙΑ» μέσα).</li>' +
+  '<li>Φύτευση / πρασιά / πισίνα: κλειστές πολυγραμμές σε layer με FYTEYSH, PRASIA, POOL — ή γράψε «ΦΥΤΕΥΣΗ», «ΠΡΑΣΙΑ», «ΠΙΣΙΝΑ» μέσα τους.</li>' +
+  '<li>Κάθε κάτοψη: το εξωτερικό περίγραμμα ως κλειστή πολυγραμμή. Χώροι με κείμενο μέσα: «Η/Χ» ή «ΗΜΙΥΠΑΙΘΡΙΟΣ», «ΕΞΩΣΤΗΣ», «ΚΛΙΜΑΚΟΣΤΑΣΙΟ», «ΦΩΤΑΓΩΓΟΣ», «ΑΙΘΡΙΟ», «ΘΕΣΗ ΣΤΑΘΜΕΥΣΗΣ», «ΜΗΧΑΝΟΣΤΑΣΙΟ».</li>' +
+  '<li>Ό,τι δεν αναγνωριστεί το ορίζεις με κλικ — ή το σχεδιάζεις με το εργαλείο Polygon.</li></ul>' +
+  '<h3>Βήματα</h3><ol><li><b>Έργο & όροι</b>: ΚΑΕΚ → «Όροι από HEXIS-APP» (καθεστώς, ΣΔ, κάλυψη, ύψος). Η μέγιστη δόμηση υπολογίζεται πάντα από το εμβαδόν του τοπογραφικού σου.</li>' +
+  '<li><b>Σχέδιο DXF</b>: ανέβασμα και έλεγχος της αναγνώρισης (είδος σχεδίου, όροφος).</li>' +
+  '<li><b>Τοπογραφικό</b>: οικόπεδο, κάλυψη, φύτευση, πρασιά, πισίνα, πλευρές σε δρόμο.</li>' +
+  '<li><b>Κατόψεις</b>: περίγραμμα και χώροι ανά όροφο, τύπος επιπέδου, ύψος για τον όγκο.</li>' +
+  '<li><b>Τομές · όψεις · εικόνες</b>: Η, στέγη, στάθμευση, φωτορεαλιστικά.</li>' +
+  '<li><b>Έλεγχος</b>: κάθε μέγεθος με το άρθρο του, προτάσεις εξοικονόμησης δόμησης, «Ρώτα το AI».</li>' +
+  '<li><b>Φύλλο & εξαγωγή</b>: φύλλο 1:100 όπως τα υποδείγματα ΥΠΕΝ → PDF και DXF.</li></ol>' +
+  '<h3>Εργαλεία</h3><ul><li><b>Select</b>: κλικ σε πολύγωνο · σύρσιμο μετακινεί · ροδέλα zoom (και με δύο δάχτυλα).</li><li><b>Polygon</b>: νέο κλειστό πολύγωνο με έλξη στις κορυφές του σχεδίου (Backspace: αναίρεση κορυφής, Enter / διπλό κλικ: κλείσιμο).</li><li><b>Measure</b>: απόσταση δύο σημείων. <b>Undo / Redo</b>: Ctrl+Z / Ctrl+Y.</li></ul>' +
+  '<p class="small">Η εργασία αποθηκεύεται αυτόματα στη συσκευή και συνεχίζεται όταν ξανανοίξεις την εφαρμογή.</p>' +
+  '<h3>Πηγές</h3><ul class="src">' +
+  '<li>ν. 5306/2026 «Κώδικας Χωροταξίας και Πολεοδομίας» (ΦΕΚ Α΄ 88/08.06.2026) — άρθ. 197, 198, 204, 206-212, 214, 221-223, 250-251, 325</li>' +
+  '<li>Εγκύκλιος ΥΠΕΝ/ΔΑΟΚΑ/135179/4495/20.12.2022 (ΑΔΑ 6ΧΩΞ4653Π8-ΠΦ7) «Έγκριση διαγράμματος κάλυψης σύμφωνα με τις προδιαγραφές του άρθρου 157 του ν.4951/2022» και Υποδείγματα 1 (εντός σχεδίου) και 2 (εκτός σχεδίου)</li>' +
+  '<li>ν. 4951/2022 άρθ. 157 — τροποποίηση άρθ. 39 παρ. 3 ν. 4495/2017 (περιεχόμενο διαγράμματος κάλυψης)</li>' +
+  '<li>Κτιριοδομικός Κανονισμός — ΥΑ ΥΠΕΝ/ΔΑΟΚΑ/66006/2360 (ΦΕΚ Β΄ 3985/2023), τροπ. ΦΕΚ Β΄ 6995/2025</li>' +
+  '<li>Προδιαγραφές προσβασιμότητας — ΥΑ ΥΠΕΝ/ΔΜΕΑΑΠ/124964/1561/2022 · «Σχεδιάζοντας για Όλους»</li>' +
+  '<li>Όροι δόμησης από ΚΑΕΚ: Ενιαίος Ψηφιακός Χάρτης (ΤΕΕ/ΥΠΕΝ), Ελληνικό Κτηματολόγιο — μέσω HEXIS-APP</li></ul>' +
+  '<p class="small">HEXIS-APP · hexis-app.gr · powered by BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε. · έκδοση ' + APP_VERSION + ' — ενημερωτικό εργαλείο μελέτης, δεν υποκαθιστά τον έλεγχο της ΥΔΟΜ.</p>' +
+  '<div style="text-align:right;margin-top:12px"><button class="btn" onclick="document.getElementById(\'ovHelp\').classList.remove(\'on\')">Κλείσιμο</button></div>';
+  $('#ovHelp').classList.add('on');
+}
+$('#btnHelp').onclick = help;
+$('#ovHelp').onclick = e => { if (e.target.id === 'ovHelp') e.target.classList.remove('on'); };
+function applyTheme(t) { document.documentElement.dataset.theme = t; PREF.theme = t; savePref(); draw(); }
+$('#btnTheme').onclick = () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+
+/* ---------------- εκκίνηση ---------------- */
+(async () => {
+  document.documentElement.dataset.theme = PREF.theme || 'light';
+  try { const st = JSON.parse(localStorage.getItem('kalypsi_settings') || 'null'); if (st) { Object.assign(S.proj, st.proj || {}); Object.assign(S.rules, st.rules || {}); Object.assign(S.ext, st.ext || {}); } } catch (e) {}
+  try { const w = await IDB.get('work'); if (w && w.v === 1) { S = Object.assign(DEF(), w); rebuildExtra(); } } catch (e) {}
+  resize(); compute(); render(); go(S.step || 0);
+  if (S.D) toast('Συνέχεια εργασίας: ' + (S.dxfName || 'DXF'));
+})();
+window.__KAL = { S: () => S, UI, loadDxf, go, buildSheet, compute, w2s };
+</script>
+</body>
+</html>

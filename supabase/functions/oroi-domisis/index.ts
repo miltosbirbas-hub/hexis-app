@@ -228,7 +228,7 @@ const clean = (v: unknown) => String(v ?? "").replace(/[\r\n]+/g, " ").replace(/
 const gr = (n: number | null, d = 2) => n == null ? "—" : n.toLocaleString("el-GR", { minimumFractionDigits: d, maximumFractionDigits: d });
 
 async function entitled(auth: string): Promise<boolean> {
-  const r = await fetch(SB + "/rest/v1/entitlements?select=module,active,expires_at&module=in.(nomothesia,dxf)", { headers: { apikey: Deno.env.get("SUPABASE_ANON_KEY") || ANON, Authorization: auth } });
+  const r = await fetch(SB + "/rest/v1/entitlements?select=module,active,expires_at&module=in.(nomothesia,dxf,kalypsi)", { headers: { apikey: Deno.env.get("SUPABASE_ANON_KEY") || ANON, Authorization: auth } });
   if (!r.ok) return false;
   const rows = await r.json().catch(() => []);
   return (rows || []).some((e: HxAttr) => e.active && (!e.expires_at || new Date(String(e.expires_at)) > new Date()));
@@ -452,7 +452,7 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
   const text = (lines: string[]) => new Response(ansi(lines.join("\r\n")) + "\r\n", { status: 200, headers: { ...C, "Content-Type": "text/plain; charset=utf-8" } });
   const st = Deno.env.get("SELFTEST_KEY");
   const selftest = !!st && req.headers.get("x-hx-selftest") === st;
-  if (!selftest && !(await entitled(req.headers.get("authorization") || ""))) return text(["ERR=no_access", "MSG=Ο λογαριασμός δεν έχει ενεργή συνδρομή στη Νομοθεσία ή στη LISP Βιβλιοθήκη του HEXIS-APP."]);
+  if (!selftest && !(await entitled(req.headers.get("authorization") || ""))) return text(["ERR=no_access", "MSG=Ο λογαριασμός δεν έχει ενεργή συνδρομή στη Νομοθεσία, στη LISP Βιβλιοθήκη ή στο Διάγραμμα Κάλυψης του HEXIS-APP."]);
   const kaek = String(b.kaek || "").replace(/\s+/g, "").toUpperCase();
   if (!/^[0-9Α-ΩA-Z]{10,14}$/.test(kaek)) return text(["ERR=bad_kaek", "MSG=Μη έγκυρο ΚΑΕΚ: " + kaek]);
   let hits: Parcel[];
@@ -607,7 +607,7 @@ async function lispExtract(req: Request, b: HxAttr, C: Record<string, string>) {
   const text = (lines: string[]) => new Response(lines.join("\r\n") + "\r\n", { status: 200, headers: { ...C, "Content-Type": "text/plain; charset=utf-8" } });
   const st = Deno.env.get("SELFTEST_KEY");
   const selftest = !!st && req.headers.get("x-hx-selftest") === st;
-  if (!selftest && !(await entitled(req.headers.get("authorization") || ""))) return text(["ERR=no_access", "MSG=Ο λογαριασμός δεν έχει ενεργή συνδρομή στη Νομοθεσία ή στη LISP Βιβλιοθήκη του HEXIS-APP."]);
+  if (!selftest && !(await entitled(req.headers.get("authorization") || ""))) return text(["ERR=no_access", "MSG=Ο λογαριασμός δεν έχει ενεργή συνδρομή στη Νομοθεσία, στη LISP Βιβλιοθήκη ή στο Διάγραμμα Κάλυψης του HEXIS-APP."]);
   const kaek = String(b.kaek || "").replace(/\s+/g, "").toUpperCase();
   if (!/^[0-9Α-ΩA-Z]{10,14}$/.test(kaek)) return text(["ERR=bad_kaek", "MSG=Μη έγκυρο ΚΑΕΚ: " + kaek]);
   let hits: Parcel[];
