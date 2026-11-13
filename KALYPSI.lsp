@@ -1,5 +1,5 @@
 ;;; ===================================================================
-;;; KALYPSI.LSP v2.0 - Διάγραμμα Κάλυψης, Ανάλυση Δόμησης & Προτάσεις
+;;; KALYPSI.LSP v2.1 - Διάγραμμα Κάλυψης, Ανάλυση Δόμησης, Προτάσεις & Φύλλο 1:100
 ;;; HEXIS-APP | hexis-app.gr | BRB Development ΚΑΤΑΣΚΕΥΑΣΤΙΚΗ ΜΟΝ. Ι.Κ.Ε.
 ;;; -------------------------------------------------------------------
 ;;; Εντολή: KALYPSI          (μονάδες σχεδίου: μέτρα)
@@ -224,13 +224,18 @@
 (defun kal:setup ()
   (foreach x (list (list "KAL_KALYPSI" 8) (list "KAL_KEIMENA" 7) (list "KAL_APOSTASEIS" 1)
                    (list "KAL_PINAKAS" 7) (list "KAL_PERIGRAMMATA" 5) (list "KAL_EKTOS_SD" 3) (list "KAL_XOROI" 3)
-                   (list "KAL_KTIMATOLOGIO" 30))
+                   (list "KAL_KTIMATOLOGIO" 30) (list "KAL_KORYFES" 7))
     (kal:layer (car x) (cadr x)))
   (if (not (tblsearch "STYLE" "HEXIS_KAL"))
     (entmake (list (cons 0 "STYLE") (cons 100 "AcDbSymbolTableRecord") (cons 100 "AcDbTextStyleTableRecord")
                    (cons 2 "HEXIS_KAL") (cons 70 0) (cons 40 0.0) (cons 41 1.0) (cons 50 0.0)
                    (cons 71 0) (cons 42 2.5) (cons 3 "arial.ttf") (cons 4 ""))))
-  (setq *kal-sty* (if (tblsearch "STYLE" "HEXIS_KAL") "HEXIS_KAL" (getvar "TEXTSTYLE"))))
+  (if (not (tblsearch "STYLE" "HEXIS_KAL_B"))
+    (entmake (list (cons 0 "STYLE") (cons 100 "AcDbSymbolTableRecord") (cons 100 "AcDbTextStyleTableRecord")
+                   (cons 2 "HEXIS_KAL_B") (cons 70 0) (cons 40 0.0) (cons 41 1.0) (cons 50 0.0)
+                   (cons 71 0) (cons 42 2.5) (cons 3 "arialbd.ttf") (cons 4 ""))))
+  (setq *kal-sty* (if (tblsearch "STYLE" "HEXIS_KAL") "HEXIS_KAL" (getvar "TEXTSTYLE"))
+        *kal-styb* (if (tblsearch "STYLE" "HEXIS_KAL_B") "HEXIS_KAL_B" *kal-sty*)))
 (defun kal:allpl (/ ss i l e)
   (if (setq ss (ssget "_X" (list (cons 0 "LWPOLYLINE") (cons 410 "Model"))))
     (progn
@@ -239,24 +244,25 @@
         (setq e (ssname ss i) i (1+ i))
         (if (kal:closedp (entget e)) (setq l (cons e l))))))
   l)
+(defun kal:psx () (if *kal-ps* (list (cons 67 1) (cons 410 *kal-ps*))))
 (defun kal:mkpl (vl lay / l)
   (foreach v vl
     (setq l (cons (list 10 (car v) (cadr v)) l))
     (if (/= (caddr v) 0.0) (setq l (cons (cons 42 (caddr v)) l))))
-  (entmake (append (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 lay) (cons 100 "AcDbPolyline")
-                         (cons 90 (length vl)) (cons 70 1))
+  (entmake (append (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 lay)) (kal:psx)
+                   (list (cons 100 "AcDbPolyline") (cons 90 (length vl)) (cons 70 1))
                    (reverse l)))
   (entlast))
 (defun kal:setlay (e lay / ed)
   (setq ed (entget e))
   (entmod (subst (cons 8 lay) (assoc 8 ed) ed)))
 (defun kal:line (p q lay)
-  (entmake (list (cons 0 "LINE") (cons 8 lay) (list 10 (car p) (cadr p) 0.0) (list 11 (car q) (cadr q) 0.0))))
+  (entmake (append (list (cons 0 "LINE") (cons 8 lay) (list 10 (car p) (cadr p) 0.0) (list 11 (car q) (cadr q) 0.0)) (kal:psx))))
 (defun kal:txt (p h s ang ctr lay)
   (if (/= s "")
-    (entmake (list (cons 0 "TEXT") (cons 8 lay) (cons 7 *kal-sty*)
+    (entmake (append (list (cons 0 "TEXT") (cons 8 lay) (cons 7 (if *kal-bold* *kal-styb* *kal-sty*))
                    (list 10 (car p) (cadr p) 0.0) (list 11 (car p) (cadr p) 0.0)
-                   (cons 40 h) (cons 1 s) (cons 50 ang) (cons 72 (if ctr 1 0)) (cons 73 2)))))
+                   (cons 40 h) (cons 1 s) (cons 50 ang) (cons 72 (if ctr 1 0)) (cons 73 2)) (kal:psx)))))
 (defun kal:hatch (vl d / hasb l a)
   (foreach v vl (if (/= (caddr v) 0.0) (setq hasb T)))
   (foreach v vl
@@ -367,30 +373,30 @@
       (setq c (kal:split p ","))
       (if (= (length c) 2) (setq l (cons (list (atof (car c)) (atof (cadr c)) 0.0) l)))))
   (if (> (length l) 2) (reverse l)))
+;; \U+03A4\U+03BF \U+03BF\U+03B9\U+03BA\U+03CC\U+03C0\U+03B5\U+03B4\U+03BF \U+03B5\U+03AF\U+03BD\U+03B1\U+03B9 \U+03A0\U+0391\U+039D\U+03A4\U+0391 \U+03C4\U+03BF \U+03B4\U+03B9\U+03BA\U+03CC \U+03C3\U+03BF\U+03C5 \U+03C4\U+03BF\U+03C0\U+03BF\U+03B3\U+03C1\U+03B1\U+03C6\U+03B9\U+03BA\U+03CC. \U+03A4\U+03BF \U+03C0\U+03B5\U+03C1\U+03AF\U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03B1 \U+03C4\U+03BF\U+03C5 \U+039A\U+03C4\U+03B7\U+03BC\U+03B1\U+03C4\U+03BF\U+03BB\U+03BF\U+03B3\U+03AF\U+03BF\U+03C5
+;; \U+03C7\U+03C1\U+03B7\U+03C3\U+03B9\U+03BC\U+03BF\U+03C0\U+03BF\U+03B9\U+03B5\U+03AF\U+03C4\U+03B1\U+03B9 \U+03BC\U+03CC\U+03BD\U+03BF \U+03B3\U+03B9\U+03B1 \U+03BD\U+03B1 \U+03B2\U+03C1\U+03B5\U+03B8\U+03B5\U+03AF \U+03B7 \U+03B4\U+03B9\U+03BA\U+03AE \U+03C3\U+03BF\U+03C5 \U+03C0\U+03BF\U+03BB\U+03C5\U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03AE \U+03C3\U+03C4\U+03BF \U+03AF\U+03B4\U+03B9\U+03BF \U+03C3\U+03B7\U+03BC\U+03B5\U+03AF\U+03BF.
 (defun kal:findplot (ring / best ba ra rc vl a lay)
-  (if ring
+  (foreach e (kal:allpl)
+    (setq lay (strcase (cdr (assoc 8 (entget e)))))
+    (if (and (wcmatch lay "TOPO_PROP,BOUND_IMPL,BOUND_UNIMPL,KAL_OIKOPEDO,*OIKOP*,*GHPED*,*PLOT*,*\U+039F\U+0399\U+039A\U+039F\U+03A0*,*\U+0393\U+0397\U+03A0\U+0395\U+0394*")
+             (not (wcmatch lay "HX_*,KAL_KTIMATOLOGIO")))
+      (progn
+        (setq a (kal:area (kal:verts e)))
+        (if (or (null best) (> a ba)) (setq best e ba a)))))
+  (if (and (null best) ring)
     (progn
       (setq ra (kal:area ring) rc (kal:cent ring))
       (foreach e (kal:allpl)
-        (setq vl (kal:verts e) a (kal:area vl))
-        (if (and (< (abs (- a ra)) (* 0.03 ra)) (< (distance (kal:cent vl) rc) 5.0)) (setq best e)))))
-  (if (null best)
-    (foreach e (kal:allpl)
-      (setq lay (strcase (cdr (assoc 8 (entget e)))))
-      (if (wcmatch lay "TOPO_PROP,BOUND_IMPL,BOUND_UNIMPL,KAL_OIKOPEDO,KAL_KTIMATOLOGIO,*OIKOP*,*GHPED*,*PLOT*,*\U+039F\U+0399\U+039A\U+039F\U+03A0*,*\U+0393\U+0397\U+03A0\U+0395\U+0394*")
-        (progn
-          (setq a (kal:area (kal:verts e)))
-          (if (or (null best) (> a ba)) (setq best e ba a))))))
+        (setq lay (strcase (cdr (assoc 8 (entget e)))))
+        (if (not (wcmatch lay "HX_*,KAL_*"))
+          (progn
+            (setq vl (kal:verts e) a (kal:area vl))
+            (if (and (< (abs (- a ra)) (* 0.05 ra)) (< (distance (kal:cent vl) rc) 10.0)) (setq best e)))))))
   best)
 (defun kal:askplot (ring / p ss vl a best ba)
-  (if ring (initget "K"))
-  (setq p (getpoint (strcat "\n\U+039A\U+03BB\U+03B9\U+03BA \U+03C0\U+03AC\U+03BD\U+03C9 \U+03C3\U+03C4\U+03BF \U+03CC\U+03C1\U+03B9\U+03BF \U+03AE \U+03BC\U+03AD\U+03C3\U+03B1 \U+03C3\U+03C4\U+03BF \U+03BF\U+03B9\U+03BA\U+03CC\U+03C0\U+03B5\U+03B4\U+03BF"
-                            (if ring " [K = \U+03CC\U+03C1\U+03B9\U+03BF \U+03B1\U+03C0\U+03CC \U+039A\U+03C4\U+03B7\U+03BC\U+03B1\U+03C4\U+03BF\U+03BB\U+03CC\U+03B3\U+03B9\U+03BF]" "") ": ")))
-  (cond
-    ((= p "K")
-      (princ "\n\U+03A3\U+03C7\U+03B5\U+03B4\U+03B9\U+03AC\U+03C3\U+03C4\U+03B7\U+03BA\U+03B5 \U+03C4\U+03BF \U+03CC\U+03C1\U+03B9\U+03BF \U+03C4\U+03BF\U+03C5 \U+039A\U+03C4\U+03B7\U+03BC\U+03B1\U+03C4\U+03BF\U+03BB\U+03BF\U+03B3\U+03AF\U+03BF\U+03C5 (layer KAL_KTIMATOLOGIO, \U+0395\U+0393\U+03A3\U+039187).")
-      (kal:mkpl ring "KAL_KTIMATOLOGIO"))
-    ((and p (listp p))
+  (setq p (getpoint "\n\U+039F\U+03B9\U+03BA\U+03CC\U+03C0\U+03B5\U+03B4\U+03BF \U+03C4\U+03BF\U+03C5 \U+03C4\U+03BF\U+03C0\U+03BF\U+03B3\U+03C1\U+03B1\U+03C6\U+03B9\U+03BA\U+03BF\U+03CD: \U+03BA\U+03BB\U+03B9\U+03BA \U+03C0\U+03AC\U+03BD\U+03C9 \U+03C3\U+03C4\U+03BF \U+03CC\U+03C1\U+03B9\U+03BF \U+03AE \U+03BC\U+03AD\U+03C3\U+03B1 \U+03C3\U+03C4\U+03BF \U+03BF\U+03B9\U+03BA\U+03CC\U+03C0\U+03B5\U+03B4\U+03BF: "))
+  (if (and p (listp p))
+    (progn
       (setq ss (ssget p (list (cons 0 "LWPOLYLINE"))))
       (if (and ss (kal:closedp (entget (ssname ss 0))))
         (ssname ss 0)
@@ -401,6 +407,12 @@
               (progn (setq a (kal:area vl)) (if (or (null best) (< a ba)) (setq best e ba a)))))
           (if (null best) (princ "\n\U+0394\U+03B5\U+03BD \U+03B2\U+03C1\U+03AD\U+03B8\U+03B7\U+03BA\U+03B5 \U+03BA\U+03BB\U+03B5\U+03B9\U+03C3\U+03C4\U+03AE \U+03C0\U+03BF\U+03BB\U+03C5\U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03AE \U+03B5\U+03BA\U+03B5\U+03AF."))
           best)))))
+;; \U+03BC\U+03AD\U+03B3\U+03B9\U+03C3\U+03C4\U+03B7 \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7 \U+03B1\U+03C0\U+03CC \U+03C4\U+03BF \U+03B5\U+03BC\U+03B2\U+03B1\U+03B4\U+03CC\U+03BD \U+03C4\U+03BF\U+03C5 \U+03C4\U+03BF\U+03C0\U+03BF\U+03B3\U+03C1\U+03B1\U+03C6\U+03B9\U+03BA\U+03BF\U+03CD - \U+03AF\U+03B4\U+03B9\U+03BF\U+03B9 \U+03BA\U+03B1\U+03BD\U+03CC\U+03BD\U+03B5\U+03C2 \U+03BC\U+03B5 \U+03C4\U+03BF HEXIS-APP
+(defun kal:oikmax (E) (cond ((<= E 200.0) E) ((< E 700.0) 240.0) (T 400.0)))
+(defun kal:ektmax (E)
+  (cond ((< E 4000.0) nil)
+        ((<= E 8000.0) (+ 186.0 (* (- E 4000.0) 0.018)))
+        (T (min 360.0 (+ 258.0 (* (- E 8000.0) 0.009))))))
 
 ;; ---------------- \U+03B1\U+03BD\U+03B1\U+03B3\U+03BD\U+03CE\U+03C1\U+03B9\U+03C3\U+03B7 \U+03BA\U+03AC\U+03BB\U+03C5\U+03C8\U+03B7\U+03C2 ----------------
 (defun kal:findcov (plot pv / Ep l pref out lay vl a ok)
@@ -670,7 +682,7 @@
 
 ;; ---------------- \U+03C0\U+03B5\U+03C1\U+03B9\U+03B2\U+03AC\U+03BB\U+03BB\U+03BF\U+03BD ----------------
 (defun kal:begin ()
-  (setq *kal-old* (mapcar 'getvar (list "CMDECHO" "DIMZIN" "OSMODE" "PLINETYPE")))
+  (setq *kal-old* (mapcar 'getvar (list "CMDECHO" "DIMZIN" "OSMODE" "PLINETYPE" "CLAYER")))
   (setvar "CMDECHO" 0) (setvar "DIMZIN" 0) (setvar "OSMODE" 0) (setvar "PLINETYPE" 2)
   (command "_.UNDO" "_BEGIN")
   (setq *kal-undo* T))
@@ -678,7 +690,8 @@
   (if *kal-undo* (progn (command "_.UNDO" "_END") (setq *kal-undo* nil)))
   (if *kal-old*
     (progn
-      (mapcar 'setvar (list "CMDECHO" "DIMZIN" "OSMODE" "PLINETYPE") *kal-old*)
+      (mapcar 'setvar (list "CMDECHO" "DIMZIN" "OSMODE" "PLINETYPE" "CLAYER") *kal-old*)
+      (setq *kal-ps* nil *kal-bold* nil)
       (setq *kal-old* nil))))
 (defun kal:fetch (k / f)
   (if (null hx:oroi)
@@ -910,6 +923,7 @@
   (kal:r "<li>\U+039A\U+03C4\U+03B9\U+03C1\U+03B9\U+03BF\U+03B4\U+03BF\U+03BC\U+03B9\U+03BA\U+03CC\U+03C2 \U+039A\U+03B1\U+03BD\U+03BF\U+03BD\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2 \U+2014 \U+03A5\U+0391 \U+03A5\U+03A0\U+0395\U+039D/\U+0394\U+0391\U+039F\U+039A\U+0391/66006/2360 (\U+03A6\U+0395\U+039A \U+0392' 3985/2023), \U+03CC\U+03C0\U+03C9\U+03C2 \U+03C4\U+03C1\U+03BF\U+03C0\U+03BF\U+03C0\U+03BF\U+03B9\U+03AE\U+03B8\U+03B7\U+03BA\U+03B5 (\U+03A6\U+0395\U+039A \U+0392' 6995/2025) \U+2014 \U+03AC\U+03C1\U+03B8. 7, 11, 13, 18, 19, 20, 21, 25, 30</li>")
   (kal:r "<li>\U+03A0\U+03C1\U+03BF\U+03B4\U+03B9\U+03B1\U+03B3\U+03C1\U+03B1\U+03C6\U+03AD\U+03C2 \U+03C0\U+03C1\U+03BF\U+03C3\U+03B2\U+03B1\U+03C3\U+03B9\U+03BC\U+03CC\U+03C4\U+03B7\U+03C4\U+03B1\U+03C2 \U+2014 \U+03A5\U+0391 \U+03A5\U+03A0\U+0395\U+039D/\U+0394\U+039C\U+0395\U+0391\U+0391\U+03A0/124964/1561/2022 \U+00B7 \U+039F\U+03B4\U+03B7\U+03B3\U+03AF\U+03B5\U+03C2 \U+00AB\U+03A3\U+03C7\U+03B5\U+03B4\U+03B9\U+03AC\U+03B6\U+03BF\U+03BD\U+03C4\U+03B1\U+03C2 \U+03B3\U+03B9\U+03B1 \U+038C\U+03BB\U+03BF\U+03C5\U+03C2\U+00BB</li>")
   (kal:r (strcat "<li>" (if d "\U+0395\U+03C0\U+03B9\U+03C4\U+03C1\U+03B5\U+03C0\U+03CC\U+03BC\U+03B5\U+03BD\U+03BF\U+03B9 \U+03CC\U+03C1\U+03BF\U+03B9 \U+03B1\U+03C0\U+03CC \U+03C4\U+03BF HEXIS-APP: \U+0395\U+03BD\U+03B9\U+03B1\U+03AF\U+03BF\U+03C2 \U+03A8\U+03B7\U+03C6\U+03B9\U+03B1\U+03BA\U+03CC\U+03C2 \U+03A7\U+03AC\U+03C1\U+03C4\U+03B7\U+03C2 (\U+03A4\U+0395\U+0395/\U+03A5\U+03A0\U+0395\U+039D), \U+0395\U+03BB\U+03BB\U+03B7\U+03BD\U+03B9\U+03BA\U+03CC \U+039A\U+03C4\U+03B7\U+03BC\U+03B1\U+03C4\U+03BF\U+03BB\U+03CC\U+03B3\U+03B9\U+03BF" "\U+0395\U+03C0\U+03B9\U+03C4\U+03C1\U+03B5\U+03C0\U+03CC\U+03BC\U+03B5\U+03BD\U+03BF\U+03B9 \U+03CC\U+03C1\U+03BF\U+03B9: \U+03C7\U+03B5\U+03B9\U+03C1\U+03BF\U+03BA\U+03AF\U+03BD\U+03B7\U+03C4\U+03B7 \U+03BA\U+03B1\U+03C4\U+03B1\U+03C7\U+03CE\U+03C1\U+03B9\U+03C3\U+03B7") "</li>"))
+  (kal:r "<li>\U+0395\U+03BC\U+03B2\U+03B1\U+03B4\U+03AC \U+03BF\U+03B9\U+03BA\U+03BF\U+03C0\U+03AD\U+03B4\U+03BF\U+03C5, \U+03BA\U+03AC\U+03BB\U+03C5\U+03C8\U+03B7\U+03C2 \U+03BA\U+03B1\U+03B9 \U+03B5\U+03C0\U+03B9\U+03C0\U+03AD\U+03B4\U+03C9\U+03BD: \U+03B1\U+03C0\U+03CC \U+03C4\U+03BF \U+03C4\U+03BF\U+03C0\U+03BF\U+03B3\U+03C1\U+03B1\U+03C6\U+03B9\U+03BA\U+03CC \U+03BA\U+03B1\U+03B9 \U+03C4\U+03B9\U+03C2 \U+03BA\U+03B1\U+03C4\U+03CC\U+03C8\U+03B5\U+03B9\U+03C2 \U+03C4\U+03BF\U+03C5 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5\U+00B7 \U+03B7 \U+03B5\U+03C0\U+03B9\U+03C4\U+03C1\U+03B5\U+03C0\U+03CC\U+03BC\U+03B5\U+03BD\U+03B7 \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7 \U+03C5\U+03C0\U+03BF\U+03BB\U+03BF\U+03B3\U+03AF\U+03B6\U+03B5\U+03C4\U+03B1\U+03B9 \U+03B1\U+03C0\U+03CC \U+03C4\U+03BF \U+03B5\U+03BC\U+03B2\U+03B1\U+03B4\U+03CC\U+03BD \U+03C4\U+03BF\U+03C5 \U+03C4\U+03BF\U+03C0\U+03BF\U+03B3\U+03C1\U+03B1\U+03C6\U+03B9\U+03BA\U+03BF\U+03CD</li>")
   (kal:r "<li>\U+039F\U+03B9 \U+03AF\U+03B4\U+03B9\U+03BF\U+03B9 \U+03BA\U+03B1\U+03BD\U+03CC\U+03BD\U+03B5\U+03C2 \U+03BC\U+03B5 \U+03C4\U+03B7\U+03BD \U+03B5\U+03C6\U+03B1\U+03C1\U+03BC\U+03BF\U+03B3\U+03AE \U+039D\U+03BF\U+03BC\U+03BF\U+03B8\U+03B5\U+03C3\U+03AF\U+03B1 \U+03C4\U+03BF\U+03C5 HEXIS-APP (hexis-app.gr/nomothesia.html)</li></ul>")
   (kal:r "<p class=sub>HEXIS-APP \U+00B7 hexis-app.gr \U+00B7 powered by BRB Development \U+039A\U+0391\U+03A4\U+0391\U+03A3\U+039A\U+0395\U+03A5\U+0391\U+03A3\U+03A4\U+0399\U+039A\U+0397 \U+039C\U+039F\U+039D. \U+0399.\U+039A.\U+0395. \U+2014 \U+0395\U+03BD\U+03B7\U+03BC\U+03B5\U+03C1\U+03C9\U+03C4\U+03B9\U+03BA\U+03CC \U+03B5\U+03C1\U+03B3\U+03B1\U+03BB\U+03B5\U+03AF\U+03BF \U+03BC\U+03B5\U+03BB\U+03AD\U+03C4\U+03B7\U+03C2\U+00B7 \U+03B4\U+03B5\U+03BD \U+03C5\U+03C0\U+03BF\U+03BA\U+03B1\U+03B8\U+03B9\U+03C3\U+03C4\U+03AC \U+03C4\U+03BF\U+03BD \U+03AD\U+03BB\U+03B5\U+03B3\U+03C7\U+03BF \U+03C4\U+03B7\U+03C2 \U+03A5\U+0394\U+039F\U+039C.</p></body></html>"))
 
@@ -917,7 +931,7 @@
 (defun c:KALYPSI (/ *error* cfg sc mode kp sd maxd dmin v th st kaek d ring Ekt sa plot pv E
                     cov covv covin Sk pk levels cr Dom rl HX Hh allow lim40 limH HXc kpe hmax hg nab
                     low dreq Dbig dres dmn dnw trees okK okD okKD okA okHt okY okHH fails res rows p0 y
-                    rp path k tt)
+                    rp path k tt cap man)
   (defun *error* (msg)
     (kal:end)
     (if (and msg (not (wcmatch (strcase msg) "*CANCEL*,*EXIT*,*BREAK*")))
@@ -940,21 +954,24 @@
     (progn
       (setq sa (hx:v d "KATASTASI"))
       (setq mode (cond ((= sa "sxedio") 1) ((= sa "oikismos") 3) (T 2)))
-      (setq kp (atof (hx:v d "KALYPSI")) sd (atof (hx:v d "SD")) maxd (atof (hx:v d "MAX_DOMISI"))
+      (setq kp (atof (hx:v d "KALYPSI")) sd (atof (hx:v d "SD")) maxd 0.0
             Ekt (atof (hx:v d "EMBADON")) dmin (if (= mode 2) 15.0 0.0)
-            ring (kal:ring (hx:v d "RING"))))
+            ring (kal:ring (hx:v d "RING")))
+      ;; \U+03CC\U+03C1\U+03B9\U+03BF \U+03BF\U+03B9\U+03BA\U+03B9\U+03C3\U+03BC\U+03BF\U+03CD <2.000 \U+03BA\U+03B1\U+03C4. \U+03BC\U+03AD\U+03C3\U+03B1 \U+03C3\U+03B5 \U+03C3\U+03C7\U+03AD\U+03B4\U+03B9\U+03BF (\U+03C4\U+03BF HEXIS-APP \U+03AD\U+03BA\U+03BF\U+03C8\U+03B5 \U+03C4\U+03B7 \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7)
+      (setq cap (and (= mode 1) (> sd 0.0) (> (atof (hx:v d "MAX_DOMISI")) 0.0)
+                     (< (atof (hx:v d "MAX_DOMISI")) (- (* sd Ekt) 0.5))))
+      (if (and (= mode 3) (< Ekt 200.0) (= kp 70.0)) (setq kp 60.0)))
     (if (/= kaek "") (progn (princ "\n\U+039F\U+03B9 \U+03CC\U+03C1\U+03BF\U+03B9 \U+03B4\U+03B5\U+03BD \U+03AE\U+03C1\U+03B8\U+03B1\U+03BD - \U+03C3\U+03C5\U+03BD\U+03B5\U+03C7\U+03AF\U+03B6\U+03B5\U+03B9\U+03C2 \U+03BC\U+03B5 \U+03C7\U+03B5\U+03B9\U+03C1\U+03BF\U+03BA\U+03AF\U+03BD\U+03B7\U+03C4\U+03BF\U+03C5\U+03C2 \U+03CC\U+03C1\U+03BF\U+03C5\U+03C2.") (setq kaek ""))))
   (princ (strcat "\n" (if d "\U+038C\U+03C1\U+03BF\U+03B9 HEXIS-APP" "\U+038C\U+03C1\U+03BF\U+03B9") ":  " (kal:modetxt mode)
                  "  |  \U+039A\U+03AC\U+03BB\U+03C5\U+03C8\U+03B7 " (if (> kp 0.0) (strcat (kal:fz kp) " %") "-")
                  "  |  \U+03A3.\U+0394. " (if (> sd 0.0) (kal:fz sd) "-")
-                 "  |  \U+039C\U+03AD\U+03B3. \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7 " (if (> maxd 0.0) (strcat (kal:fmt maxd 2) " \U+03C4.\U+03BC.") "-")
+                 "  |  \U+039C\U+03AD\U+03B3. \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7 " (cond ((> maxd 0.0) (strcat (kal:fmt maxd 2) " \U+03C4.\U+03BC.")) (d "\U+03B1\U+03C0\U+03CC \U+03C4\U+03BF \U+03B5\U+03BC\U+03B2\U+03B1\U+03B4\U+03CC\U+03BD \U+03C4\U+03BF\U+03C5 \U+03C4\U+03BF\U+03C0\U+03BF\U+03B3\U+03C1\U+03B1\U+03C6\U+03B9\U+03BA\U+03BF\U+03CD") (T "-"))
                  "  |  \U+0391\U+03C0\U+03CC\U+03C3\U+03C4\U+03B1\U+03C3\U+03B7 \U+03B1\U+03C0\U+03CC \U+03CC\U+03C1\U+03B9\U+03B1 " (if (> dmin 0.0) (strcat (kal:fz dmin) " \U+03BC.") "-")
-                 "  |  \U+039A\U+03BB\U+03AF\U+03BC\U+03B1\U+03BA\U+03B1 1:" (itoa (fix sc))))
+                 "  |  \U+039A\U+03BB\U+03AF\U+03BC\U+03B1\U+03BA\U+03B1 1:100"))
   (initget 6)
   (if (= (getint "\n\U+0391\U+03BB\U+03BB\U+03B1\U+03B3\U+03AE;  1 = \U+039D\U+03B1\U+03B9,  Enter = \U+038C\U+03C7\U+03B9: ") 1)
     (progn
-      (initget 6)
-      (if (setq v (getint (strcat "\n\U+039A\U+03BB\U+03AF\U+03BC\U+03B1\U+03BA\U+03B1 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5 1:<" (itoa (fix sc)) ">: "))) (setq sc (float v)))
+      (setq man T)
       (initget 6)
       (setq v (getint (strcat "\n\U+03A0\U+03B5\U+03C1\U+03B9\U+03BF\U+03C7\U+03AE:  1 = \U+0395\U+03BD\U+03C4\U+03CC\U+03C2 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5,  2 = \U+0395\U+03BA\U+03C4\U+03CC\U+03C2 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5,  3 = \U+039F\U+03B9\U+03BA\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2 <" (itoa mode) ">: ")))
       (if (member v (list 1 2 3)) (setq mode v))
@@ -962,6 +979,7 @@
             sd (kal:askr "\U+03A3\U+03C5\U+03BD\U+03C4\U+03B5\U+03BB\U+03B5\U+03C3\U+03C4\U+03AE\U+03C2 \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7\U+03C2 (0 = \U+03C7\U+03C9\U+03C1\U+03AF\U+03C2)" sd)
             maxd (kal:askr "\U+039C\U+03AD\U+03B3\U+03B9\U+03C3\U+03C4\U+03B7 \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7 \U+03C4.\U+03BC. (0 = \U+03C7\U+03C9\U+03C1\U+03AF\U+03C2 \U+03CC\U+03C1\U+03B9\U+03BF)" maxd)
             dmin (kal:askr "\U+0395\U+03BB\U+03AC\U+03C7\U+03B9\U+03C3\U+03C4\U+03B7 \U+03B1\U+03C0\U+03CC\U+03C3\U+03C4\U+03B1\U+03C3\U+03B7 \U+03B1\U+03C0\U+03CC \U+03C4\U+03B1 \U+03CC\U+03C1\U+03B9\U+03B1 \U+03BC. (0 = \U+03C7\U+03C9\U+03C1\U+03AF\U+03C2 \U+03AD\U+03BB\U+03B5\U+03B3\U+03C7\U+03BF)" dmin))))
+  (setq sc 100.0)
   (kal:save (list sc (float mode) kp sd maxd dmin))
   (setq th (/ (* 2.5 sc) 1000.0))
 
@@ -1017,8 +1035,17 @@
 
   ;; ---- 6. \U+03BA\U+03B1\U+03BD\U+03CC\U+03BD\U+03B5\U+03C2 ----
   (setq cr (kal:calc levels Sk) Dom (nth 0 cr) rl (nth 1 cr) HX (nth 2 cr) Hh (nth 3 cr))
-  (if (> sd 0.0) (setq allow (* E sd)))
-  (if (> maxd 0.0) (setq allow (if allow (min allow maxd) maxd)))
+  ;; \U+03B5\U+03C0\U+03B9\U+03C4\U+03C1\U+03B5\U+03C0\U+03CC\U+03BC\U+03B5\U+03BD\U+03B7 \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7: \U+03A0\U+0391\U+039D\U+03A4\U+0391 \U+03B1\U+03C0\U+03CC \U+03C4\U+03BF \U+03B5\U+03BC\U+03B2\U+03B1\U+03B4\U+03CC\U+03BD \U+0395 \U+03C4\U+03BF\U+03C5 \U+03C4\U+03BF\U+03C0\U+03BF\U+03B3\U+03C1\U+03B1\U+03C6\U+03B9\U+03BA\U+03BF\U+03CD
+  (cond
+    ((and d (not man))
+      (cond
+        ((= mode 1) (if (> sd 0.0) (setq allow (* E sd))) (if (and allow cap) (setq allow (min allow (kal:oikmax E)))))
+        ((= mode 3) (setq allow (kal:oikmax E)) (if (< E 200.0) (setq kp (max kp 70.0))))
+        (T (setq allow (kal:ektmax E))
+           (if (null allow) (princ "\n\U+0395\U+03BA\U+03C4\U+03CC\U+03C2 \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03BF\U+03C5: \U+03B3\U+03AE\U+03C0\U+03B5\U+03B4\U+03BF \U+03BA\U+03AC\U+03C4\U+03C9 \U+03B1\U+03C0\U+03CC 4.000 \U+03C4.\U+03BC. - \U+03BC\U+03B7 \U+03AC\U+03C1\U+03C4\U+03B9\U+03BF \U+03BA\U+03B1\U+03C4\U+03AC \U+03BA\U+03B1\U+03BD\U+03CC\U+03BD\U+03B1 (\U+03AD\U+03BB\U+03B5\U+03B3\U+03C7\U+03BF\U+03C2 \U+03C0\U+03B1\U+03C1\U+03B5\U+03BA\U+03BA\U+03BB\U+03AF\U+03C3\U+03B5\U+03C9\U+03BD \U+03AC\U+03C1\U+03B8. 273).")))))
+    (T
+      (if (> sd 0.0) (setq allow (* E sd)))
+      (if (> maxd 0.0) (setq allow (if allow (min allow maxd) maxd)))))
   (setq HXc 0.0)
   (if allow (setq lim40 (* 0.4 allow) limH (* 0.2 allow) HXc (max 0.0 (- HX lim40) (- Hh limH))))
   (setq Dom (+ Dom HXc))
@@ -1036,6 +1063,16 @@
 
   ;; ---- 7. \U+03C3\U+03C7\U+03B5\U+03B4\U+03AF\U+03B1\U+03C3\U+03B7 ----
   (kal:clearout)
+  ;; \U+03B5\U+03BC\U+03B2\U+03B1\U+03B4\U+03BF\U+03BC\U+03B5\U+03C4\U+03C1\U+03AE\U+03C3\U+03B5\U+03B9\U+03C2 \U+03C3\U+03C4\U+03B9\U+03C2 \U+03BA\U+03B1\U+03C4\U+03CC\U+03C8\U+03B5\U+03B9\U+03C2
+  (foreach lv levels
+    (foreach ee (nth 3 lv)
+      (setq v (kal:cent (kal:verts ee)))
+      (kal:txt (list (car v) (+ (cadr v) (* th 0.8))) th (strcat (car lv) " - " (kal:typetxt (nth 1 lv) (nth 2 lv))) 0.0 T "KAL_KEIMENA")
+      (kal:txt (list (car v) (- (cadr v) (* th 0.8))) th (strcat "\U+03BC\U+03B9\U+03BA\U+03C4\U+03CC \U+0395=" (kal:fmt (kal:area (kal:verts ee)) 2) " \U+03C4.\U+03BC.") 0.0 T "KAL_KEIMENA"))
+    (foreach sp (nth 4 lv)
+      (setq v (kal:cent (kal:verts (cdr sp))))
+      (kal:txt (list (car v) (+ (cadr v) (* th 0.5))) (* th 0.8) (kal:codetxt (car sp)) 0.0 T "KAL_KEIMENA")
+      (kal:txt (list (car v) (- (cadr v) (* th 0.5))) (* th 0.8) (strcat "\U+0395=" (kal:fmt (kal:area (kal:verts (cdr sp))) 2) " \U+03C4.\U+03BC.") 0.0 T "KAL_KEIMENA")))
   (foreach x covv
     (kal:hatch x (/ (* 2.0 sc) 1000.0))
     (setq v (kal:cent x))
@@ -1073,8 +1110,7 @@
                     (if (and d (/= (hx:v d "OT") "")) (strcat "  -  \U+039F.\U+03A4. " (hx:v d "OT")) ""))
             nil nil 0.9)
       (list "" "\U+0395\U+03A0\U+0399\U+03A4\U+03A1\U+0395\U+03A0\U+039F\U+039C\U+0395\U+039D\U+0391" "\U+03A0\U+03A1\U+0391\U+0393\U+039C\U+0391\U+03A4\U+039F\U+03A0\U+039F\U+0399\U+039F\U+03A5\U+039C\U+0395\U+039D\U+0391" 1.0)
-      (list "\U+0395\U+03BC\U+03B2\U+03B1\U+03B4\U+03CC\U+03BD \U+03BF\U+03B9\U+03BA\U+03BF\U+03C0\U+03AD\U+03B4\U+03BF\U+03C5" (if (and Ekt (> Ekt 0.0)) (strcat "\U+039A\U+03C4\U+03B7\U+03BC\U+03B1\U+03C4\U+03BF\U+03BB\U+03CC\U+03B3\U+03B9\U+03BF " (kal:fmt Ekt 2) " \U+03C4.\U+03BC.") "-")
-            (strcat (kal:fmt E 2) " \U+03C4.\U+03BC.") 1.0)
+      (list "\U+0395\U+03BC\U+03B2\U+03B1\U+03B4\U+03CC\U+03BD \U+03BF\U+03B9\U+03BA\U+03BF\U+03C0\U+03AD\U+03B4\U+03BF\U+03C5 (\U+03C4\U+03BF\U+03C0\U+03BF\U+03B3\U+03C1\U+03B1\U+03C6\U+03B9\U+03BA\U+03CC)" "-" (strcat (kal:fmt E 2) " \U+03C4.\U+03BC.") 1.0)
       (list "\U+039A\U+03AC\U+03BB\U+03C5\U+03C8\U+03B7" (if (> kpe 0.0) (strcat (kal:fz kpe) " %" (if (> kpe (+ kp 0.001)) " (\U+03AC\U+03C1\U+03B8. 207)" "")) "-")
             (strcat (kal:fmt Sk 2) " \U+03C4.\U+03BC.  (" (kal:fmt pk 2) " %)") 1.0)
       (list "\U+03A3\U+03C5\U+03BD\U+03C4\U+03B5\U+03BB\U+03B5\U+03C3\U+03C4\U+03AE\U+03C2 \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7\U+03C2" (if (> sd 0.0) (kal:fz sd) "-") (kal:fmt (/ Dom E) 3) 1.0)
@@ -1135,8 +1171,305 @@
     (progn
       (princ (strcat "\n\U+0391\U+03BD\U+03B1\U+03C6\U+03BF\U+03C1\U+03AC \U+03BC\U+03B5 \U+03CC\U+03BB\U+03B5\U+03C2 \U+03C4\U+03B9\U+03C2 \U+03C0\U+03C1\U+03BF\U+03C4\U+03AC\U+03C3\U+03B5\U+03B9\U+03C2 (" (itoa (length *kal-sug*)) "): " path))
       (kal:open path)))
+  (princ "\n\U+0393\U+03B9\U+03B1 \U+03C4\U+03BF \U+03C6\U+03CD\U+03BB\U+03BB\U+03BF \U+03C3\U+03B5 1:100 (\U+03C3\U+03C4\U+03AE\U+03C3\U+03B9\U+03BC\U+03BF \U+03C3\U+03B5\U+03BB\U+03AF\U+03B4\U+03B1\U+03C2): KALSELIDA")
   (kal:end)
   (princ))
 
-(princ "\nKALYPSI v2.0 - HEXIS-APP: \U+03C6\U+03BF\U+03C1\U+03C4\U+03CE\U+03B8\U+03B7\U+03BA\U+03B5. \U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AE: KALYPSI")
+;; ===================================================================
+;; KALSELIDA - \U+03C3\U+03C4\U+03AE\U+03C3\U+03B9\U+03BC\U+03BF \U+03C3\U+03B5\U+03BB\U+03AF\U+03B4\U+03B1\U+03C2 \U+03C4\U+03BF\U+03C5 \U+03B4\U+03B9\U+03B1\U+03B3\U+03C1\U+03AC\U+03BC\U+03BC\U+03B1\U+03C4\U+03BF\U+03C2 \U+03BA\U+03AC\U+03BB\U+03C5\U+03C8\U+03B7\U+03C2, \U+03C0\U+03AC\U+03BD\U+03C4\U+03B1 1:100
+;; \U+03A0\U+03B5\U+03C1\U+03B9\U+03B5\U+03C7\U+03CC\U+03BC\U+03B5\U+03BD\U+03BF \U+03BA\U+03B1\U+03C4\U+03AC \U+03AC\U+03C1\U+03B8. 325 \U+03BD.5306/2026 (\U+03C0\U+03C1\U+03CE\U+03B7\U+03BD \U+03AC\U+03C1\U+03B8. 39 \U+03C0\U+03B1\U+03C1. 3 \U+03BD.4495/2017):
+;;   \U+03B1) \U+03BF\U+03B9\U+03BA\U+03CC\U+03C0\U+03B5\U+03B4\U+03BF + \U+03C0\U+03B5\U+03C1\U+03AF\U+03B3\U+03C1\U+03B1\U+03BC\U+03BC\U+03B1 \U+03BA\U+03C4\U+03B9\U+03C1\U+03AF\U+03BF\U+03C5 \U+03BC\U+03B5 \U+03C3\U+03C5\U+03BD\U+03C4\U+03B5\U+03C4\U+03B1\U+03B3\U+03BC\U+03AD\U+03BD\U+03B5\U+03C2 \U+0395\U+0393\U+03A3\U+039187
+;;   \U+03B2) \U+03C5\U+03C0\U+03BF\U+03BB\U+03BF\U+03B3\U+03B9\U+03C3\U+03BC\U+03BF\U+03AF \U+03BA\U+03AC\U+03BB\U+03C5\U+03C8\U+03B7\U+03C2, \U+03CD\U+03C8\U+03BF\U+03C5\U+03C2, \U+03B1\U+03C0\U+03BF\U+03C3\U+03C4\U+03AC\U+03C3\U+03B5\U+03C9\U+03BD (+ \U+03CC\U+03B3\U+03BA\U+03BF\U+03C2, \U+03A3\U+039F, \U+03C3\U+03C4\U+03AC\U+03B8\U+03BC\U+03B5\U+03C5\U+03C3\U+03B7 \U+03B1\U+03C0\U+03CC \U+03C4\U+03B7 \U+03BC\U+03B5\U+03BB\U+03AD\U+03C4\U+03B7)
+;;   \U+03B3) \U+03C0\U+03B5\U+03C1\U+03B9\U+03B3\U+03C1\U+03AC\U+03BC\U+03BC\U+03B1\U+03C4\U+03B1 \U+03C5\U+03C0\U+03CC\U+03B3\U+03B5\U+03B9\U+03C9\U+03BD / \U+03C5\U+03C0\U+03AD\U+03C1\U+03B3\U+03B5\U+03B9\U+03C9\U+03BD \U+03B5\U+03C0\U+03B9\U+03C0\U+03AD\U+03B4\U+03C9\U+03BD
+;;   \U+03B5-\U+03C3\U+03C4) \U+03C3\U+03C7\U+03B7\U+03BC\U+03B1\U+03C4\U+03B9\U+03BA\U+03AE \U+03C4\U+03BF\U+03BC\U+03AE \U+03BC\U+03B5 \U+03B9\U+03B4\U+03B5\U+03B1\U+03C4\U+03CC \U+03C3\U+03C4\U+03B5\U+03C1\U+03B5\U+03CC, \U+03CC\U+03C8\U+03B5\U+03B9\U+03C2 \U+00B7 \U+03B6) \U+03B4\U+03B9\U+03B1\U+03BC\U+03CC\U+03C1\U+03C6\U+03C9\U+03C3\U+03B7, \U+03C6\U+03CD\U+03C4\U+03B5\U+03C5\U+03C3\U+03B7
+;;   \U+03B7) \U+03C4\U+03C1\U+03B9\U+03C3\U+03B4\U+03B9\U+03AC\U+03C3\U+03C4\U+03B1\U+03C4\U+03B7 \U+03B1\U+03C0\U+03B5\U+03B9\U+03BA\U+03CC\U+03BD\U+03B9\U+03C3\U+03B7 / \U+03C6\U+03C9\U+03C4\U+03BF\U+03B3\U+03C1\U+03B1\U+03C6\U+03AF\U+03B5\U+03C2 \U+00B7 \U+03C5\U+03C0\U+03B5\U+03CD\U+03B8\U+03C5\U+03BD\U+03B7 \U+03B4\U+03AE\U+03BB\U+03C9\U+03C3\U+03B7 \U+03BD.1599/86
+;; \U+03A3\U+03C4\U+03AE\U+03BB\U+03B5\U+03C2 \U+03CC\U+03C0\U+03C9\U+03C2 \U+03C3\U+03C4\U+03BF \U+03C0\U+03C1\U+03CC\U+03C4\U+03C5\U+03C0\U+03BF: \U+03A6\U+03A9\U+03A4\U+039F\U+03A1\U+0395\U+0391\U+039B\U+0399\U+03A3\U+03A4\U+0399\U+039A\U+0395\U+03A3 \U+0395\U+0399\U+039A\U+039F\U+039D\U+0395\U+03A3 | \U+039F\U+03A8\U+0395\U+0399\U+03A3-\U+03A4\U+039F\U+039C\U+0395\U+03A3 | \U+039F\U+03A1\U+039F\U+0399 \U+0394\U+039F\U+039C\U+0397\U+03A3\U+0397\U+03A3 |
+;;   \U+0395\U+039C\U+0392\U+0391\U+0394\U+039F\U+039C\U+0395\U+03A4\U+03A1\U+0397\U+03A3\U+0395\U+0399\U+03A3 | \U+03A4\U+039F\U+03A0\U+039F\U+0393\U+03A1\U+0391\U+03A6\U+0399\U+039A\U+039F \U+0394\U+0399\U+0391\U+0393\U+03A1\U+0391\U+039C\U+039C\U+0391 | \U+03A0\U+0399\U+039D\U+0391\U+039A\U+0395\U+03A3 \U+03A3\U+03A5\U+039D\U+03A4\U+0395\U+03A4\U+0391\U+0393\U+039C\U+0395\U+039D\U+03A9\U+039D + \U+03C0\U+03B9\U+03BD\U+03B1\U+03BA\U+03AF\U+03B4\U+03B1
+;; \U+038E\U+03C8\U+03BF\U+03C2 \U+03C6\U+03CD\U+03BB\U+03BB\U+03BF\U+03C5 594 mm (A1) - 841 mm (A0) \U+03B1\U+03BD \U+03B4\U+03B5\U+03BD \U+03C7\U+03C9\U+03C1\U+03AC\U+03B5\U+03B9 \U+03C3\U+03B5 1:100. \U+03A0\U+03BB\U+03AC\U+03C4\U+03BF\U+03C2 \U+03CC\U+03C3\U+03BF \U+03C7\U+03C1\U+03B5\U+03B9\U+03AC\U+03B6\U+03B5\U+03C4\U+03B1\U+03B9.
+;; ===================================================================
+(defun kal:bbl (l / x1 y1 x2 y2)
+  (foreach v l
+    (setq x1 (if x1 (min x1 (car v)) (car v)) y1 (if y1 (min y1 (cadr v)) (cadr v))
+          x2 (if x2 (max x2 (car v)) (car v)) y2 (if y2 (max y2 (cadr v)) (cadr v))))
+  (if x1 (list x1 y1 x2 y2)))
+(defun kal:bbe (es / l) (foreach e es (setq l (append l (kal:verts e)))) (kal:bbl l))
+(defun kal:bbgrow (b m) (list (- (nth 0 b) m) (- (nth 1 b) m) (+ (nth 2 b) m) (+ (nth 3 b) m)))
+(defun kal:bw (b) (- (nth 2 b) (nth 0 b)))
+(defun kal:bh (b) (- (nth 3 b) (nth 1 b)))
+(defun kal:bc (b) (list (/ (+ (nth 0 b) (nth 2 b)) 2.0) (/ (+ (nth 1 b) (nth 3 b)) 2.0)))
+(defun kal:rect (x1 y1 x2 y2 lay w)
+  (entmake (append (list (cons 0 "LWPOLYLINE") (cons 100 "AcDbEntity") (cons 8 lay)) (kal:psx)
+                   (list (cons 100 "AcDbPolyline") (cons 90 4) (cons 70 1) (cons 43 w)
+                         (list 10 x1 y1) (list 10 x2 y1) (list 10 x2 y2) (list 10 x1 y2)))))
+(defun kal:nums (s / i ch cur l)
+  (setq i 1 cur "")
+  (while (<= i (strlen s))
+    (setq ch (substr s i 1))
+    (if (or (wcmatch ch "#") (and (= ch ".") (/= cur "")))
+      (setq cur (strcat cur ch))
+      (progn (if (/= cur "") (setq l (cons (atof cur) l))) (setq cur "")))
+    (setq i (1+ i)))
+  (if (/= cur "") (setq l (cons (atof cur) l)))
+  (reverse l))
+(defun kal:mediafits (n W H / l a b)
+  (setq l (kal:nums n))
+  (if (and (>= (length l) 2) (wcmatch (strcase n) "*MM*"))
+    (progn
+      (setq a (nth (- (length l) 2) l) b (last l))
+      (or (and (< (abs (- a W)) 1.0) (< (abs (- b H)) 1.0))
+          (and (< (abs (- b W)) 1.0) (< (abs (- a H)) 1.0))))))
+(defun kal:pagesetup (W H / lay r best ll ur)
+  (setq lay (vl-catch-all-apply 'vla-get-ActiveLayout (list (vla-get-ActiveDocument (vlax-get-acad-object)))))
+  (if (not (vl-catch-all-error-p lay))
+    (progn
+      (vl-catch-all-apply 'vla-put-ConfigName (list lay "DWG To PDF.pc3"))
+      (vl-catch-all-apply 'vla-RefreshPlotDeviceInfo (list lay))
+      (setq r (vl-catch-all-apply 'vla-GetCanonicalMediaNames (list lay)))
+      (if (not (vl-catch-all-error-p r))
+        (foreach n (vlax-safearray->list (vlax-variant-value r))
+          (if (kal:mediafits n W H) (setq best n))))
+      (if best (vl-catch-all-apply 'vla-put-CanonicalMediaName (list lay best)))
+      (vl-catch-all-apply 'vla-put-PaperUnits (list lay 1))
+      (setq ll (vlax-make-safearray vlax-vbDouble (cons 0 1)) ur (vlax-make-safearray vlax-vbDouble (cons 0 1)))
+      (vlax-safearray-fill ll (list 0.0 0.0))
+      (vlax-safearray-fill ur (list W H))
+      (vl-catch-all-apply 'vla-SetWindowToPlot (list lay ll ur))
+      (vl-catch-all-apply 'vla-put-PlotType (list lay 4))
+      (vl-catch-all-apply 'vla-put-StandardScale (list lay 16))
+      (vl-catch-all-apply 'vla-put-CenterPlot (list lay :vlax-true))))
+  best)
+;; \U+03C0\U+03B1\U+03C1\U+03AC\U+03B8\U+03C5\U+03C1\U+03BF \U+03C3\U+03C4\U+03BF \U+03C7\U+03B1\U+03C1\U+03C4\U+03AF: \U+03BA\U+03AD\U+03BD\U+03C4\U+03C1\U+03BF pc, \U+03B4\U+03B9\U+03B1\U+03C3\U+03C4\U+03AC\U+03C3\U+03B5\U+03B9\U+03C2 w h (mm), \U+03BA\U+03AD\U+03BD\U+03C4\U+03C1\U+03BF \U+03BC\U+03BF\U+03BD\U+03C4\U+03AD\U+03BB\U+03BF\U+03C5 mc, \U+03BA\U+03BB\U+03AF\U+03BC\U+03B1\U+03BA\U+03B1 1:100 (10 mm \U+03B1\U+03BD\U+03AC \U+03BC.)
+(defun kal:vport (pc w h mc / e0 e id)
+  (setvar "CLAYER" "KAL_SEL_VP")
+  (setq e0 (entlast))
+  (kal:cmd (list "_.MVIEW" (list (- (car pc) (/ w 2.0)) (- (cadr pc) (/ h 2.0)))
+                           (list (+ (car pc) (/ w 2.0)) (+ (cadr pc) (/ h 2.0)))))
+  (setq e (entlast))
+  (if (and e (not (equal e e0)) (= (cdr (assoc 0 (entget e))) "VIEWPORT"))
+    (progn
+      (setq id (cdr (assoc 69 (entget e))))
+      (kal:cmd (list "_.MSPACE"))
+      (if id (setvar "CVPORT" id))
+      (kal:cmd (list "_.ZOOM" "_C" (list (car mc) (cadr mc)) "10XP"))
+      (kal:cmd (list "_.PSPACE"))
+      (vl-catch-all-apply 'vla-put-DisplayLocked (list (vlax-ename->vla-object e) :vlax-true))
+      e)
+    (progn (princ "\n\U+0394\U+03B5\U+03BD \U+03B4\U+03B7\U+03BC\U+03B9\U+03BF\U+03C5\U+03C1\U+03B3\U+03AE\U+03B8\U+03B7\U+03BA\U+03B5 \U+03C0\U+03B1\U+03C1\U+03AC\U+03B8\U+03C5\U+03C1\U+03BF - \U+03C6\U+03C4\U+03B9\U+03AC\U+03BE' \U+03C4\U+03BF \U+03BC\U+03B5 MVIEW \U+03BA\U+03B1\U+03B9 ZOOM 10XP.") nil)))
+(defun kal:selclear (nm / ss i)
+  (if (setq ss (ssget "_X" (list (cons 410 nm) (cons 8 "KAL_SEL_*"))))
+    (progn (setq i 0) (repeat (sslength ss) (entdel (ssname ss i)) (setq i (1+ i))))))
+(defun kal:koryfes (cov th / ss i k vl n c a b u ang)
+  (if (setq ss (ssget "_X" (list (cons 8 "KAL_KORYFES"))))
+    (progn (setq i 0) (repeat (sslength ss) (entdel (ssname ss i)) (setq i (1+ i)))))
+  (setq k 0)
+  (foreach e cov
+    (setq vl (kal:verts e) n (length vl) c (kal:cent vl) i 0)
+    (repeat n
+      (setq k (1+ k) a (nth i vl))
+      (setq ang (angle c (kal:p2 a)))
+      (kal:txt (polar (kal:p2 a) ang (* th 1.6)) th (strcat "K" (itoa k)) 0.0 T "KAL_KORYFES")
+      (setq i (1+ i)))))
+;; \U+03C0\U+03AF\U+03BD\U+03B1\U+03BA\U+03B1\U+03C2 \U+03C3\U+03C5\U+03BD\U+03C4\U+03B5\U+03C4\U+03B1\U+03B3\U+03BC\U+03AD\U+03BD\U+03C9\U+03BD \U+03C3\U+03C4\U+03BF \U+03C7\U+03B1\U+03C1\U+03C4\U+03AF - \U+03C0\U+03AC\U+03BD\U+03C9 \U+03B1\U+03C0\U+03CC 30 \U+03C3\U+03B7\U+03BC\U+03B5\U+03AF\U+03B1 \U+03C3\U+03C0\U+03AC\U+03B5\U+03B9 \U+03C3\U+03B5 \U+03C3\U+03C4\U+03AE\U+03BB\U+03B5\U+03C2 \U+03B4\U+03AF\U+03C0\U+03BB\U+03B1-\U+03B4\U+03AF\U+03C0\U+03BB\U+03B1
+(defun kal:coordtab (x0 y0 title pts / hr hrow w1 w2 w3 bw nb b r y x i k blk)
+  (setq hr 5.85 w1 16.0 w2 36.0 w3 38.0 bw (+ w1 w2 w3) nb (1+ (/ (1- (length pts)) 30)) b 0 k 0)
+  (setq *kal-bold* T)
+  (kal:txt (list (+ x0 (/ (+ (* nb bw) (* (1- nb) 4.0)) 2.0)) (- y0 4.0)) 5.0 title 0.0 T "KAL_SEL_KEIMENA")
+  (setq *kal-bold* nil)
+  (repeat nb
+    (setq x (+ x0 (* b (+ bw 4.0))) y (- y0 9.0))
+    (setq blk nil i 0)
+    (foreach p pts (if (and (>= i (* b 30)) (< i (* (1+ b) 30))) (setq blk (append blk (list p)))) (setq i (1+ i)))
+    (kal:rect x (- y (* hr (1+ (length blk)))) (+ x bw) y "KAL_SEL_PLAISIO" 0.0)
+    (kal:line (list (+ x w1) y) (list (+ x w1) (- y (* hr (1+ (length blk))))) "KAL_SEL_PLAISIO")
+    (kal:line (list (+ x w1 w2) y) (list (+ x w1 w2) (- y (* hr (1+ (length blk))))) "KAL_SEL_PLAISIO")
+    (kal:line (list x (- y hr)) (list (+ x bw) (- y hr)) "KAL_SEL_PLAISIO")
+    (kal:txt (list (+ x (/ w1 2.0)) (- y (/ hr 2.0))) 4.2 "i" 0.0 T "KAL_SEL_KEIMENA")
+    (kal:txt (list (+ x w1 (/ w2 2.0)) (- y (/ hr 2.0))) 4.2 "X (m)" 0.0 T "KAL_SEL_KEIMENA")
+    (kal:txt (list (+ x w1 w2 (/ w3 2.0)) (- y (/ hr 2.0))) 4.2 "Y (m)" 0.0 T "KAL_SEL_KEIMENA")
+    (setq r 1)
+    (foreach p blk
+      (setq k (1+ k))
+      (kal:txt (list (+ x (/ w1 2.0)) (- y (* hr r) (/ hr 2.0))) 4.2 (car p) 0.0 T "KAL_SEL_KEIMENA")
+      (kal:txt (list (+ x w1 (/ w2 2.0)) (- y (* hr r) (/ hr 2.0))) 4.2 (rtos (cadr p) 2 4) 0.0 T "KAL_SEL_KEIMENA")
+      (kal:txt (list (+ x w1 w2 (/ w3 2.0)) (- y (* hr r) (/ hr 2.0))) 4.2 (rtos (caddr p) 2 4) 0.0 T "KAL_SEL_KEIMENA")
+      (setq r (1+ r)))
+    (setq b (1+ b)))
+  (- y0 9.0 (* hr 31.0 (if (> nb 1) 1.0 (/ (+ (length pts) 1.0) 31.0))) 8.0))
+(defun kal:selget (/ o s l)
+  (if (setq o (dictsearch (namedobjdict) "HEXIS_KALSEL"))
+    (progn
+      (foreach g o (if (= (car g) 1) (setq s (cdr g))))
+      (if s (setq l (mapcar 'atof (kal:split s ","))))
+      (if (= (length l) 4) l))))
+(defun kal:selput (b / d o)
+  (setq d (namedobjdict))
+  (if (setq o (dictsearch d "HEXIS_KALSEL")) (progn (dictremove d "HEXIS_KALSEL") (entdel (cdr (assoc -1 o)))))
+  (if b (dictadd d "HEXIS_KALSEL"
+          (entmakex (list (cons 0 "XRECORD") (cons 100 "AcDbXrecord")
+                          (cons 1 (kal:join (mapcar (function (lambda (x) (rtos x 2 3))) b) ",")))))))
+
+(defun c:KALSELIDA (/ *error* st plot cov levels kaek tb sec a b tpb lvl lb H0 head mg av need cols Wt x
+                      c w sub sx sy sh sw y pc nm best k pts e vl n i yb rows th)
+  (defun *error* (msg)
+    (kal:end)
+    (if (and msg (not (wcmatch (strcase msg) "*CANCEL*,*EXIT*,*BREAK*")))
+      (princ (strcat "\n\U+03A3\U+03C6\U+03AC\U+03BB\U+03BC\U+03B1: " msg)))
+    (princ))
+  (kal:begin)
+  (kal:setup)
+  (kal:layer "KAL_SEL_PLAISIO" 7)
+  (kal:layer "KAL_SEL_KEIMENA" 7)
+  (if (not (tblsearch "LAYER" "KAL_SEL_VP"))
+    (entmake (list (cons 0 "LAYER") (cons 100 "AcDbSymbolTableRecord") (cons 100 "AcDbLayerTableRecord")
+                   (cons 2 "KAL_SEL_VP") (cons 70 0) (cons 62 8) (cons 6 "Continuous") (cons 290 0))))
+  (setq st (kal:sget) th 0.25)
+  (if (null st) (progn (princ "\n\U+03A4\U+03C1\U+03AD\U+03BE\U+03B5 \U+03C0\U+03C1\U+03CE\U+03C4\U+03B1 \U+03C4\U+03BF KALYPSI \U+03C3\U+03C4\U+03BF \U+03C3\U+03C7\U+03AD\U+03B4\U+03B9\U+03BF.") (exit)))
+  (setq kaek (nth 0 st) plot (kal:ename (nth 1 st)) cov (kal:enames (nth 2 st)) levels (kal:lvalid (nth 4 st)))
+  (if (null plot) (progn (princ "\n\U+0394\U+03B5\U+03BD \U+03B2\U+03C1\U+03AD\U+03B8\U+03B7\U+03BA\U+03B5 \U+03C4\U+03BF \U+03BF\U+03B9\U+03BA\U+03CC\U+03C0\U+03B5\U+03B4\U+03BF - \U+03C4\U+03C1\U+03AD\U+03BE\U+03B5 \U+03BE\U+03B1\U+03BD\U+03AC \U+03C4\U+03BF KALYPSI.") (exit)))
+  (setvar "TILEMODE" 1)
+  ;; \U+03BA\U+03BF\U+03C1\U+03C5\U+03C6\U+03AD\U+03C2 \U+03BA\U+03C4\U+03B9\U+03C1\U+03AF\U+03BF\U+03C5 \U+03C3\U+03C4\U+03BF \U+03C4\U+03BF\U+03C0\U+03BF\U+03B3\U+03C1\U+03B1\U+03C6\U+03B9\U+03BA\U+03CC
+  (kal:koryfes cov th)
+  ;; \U+03CC\U+03C8\U+03B5\U+03B9\U+03C2 - \U+03C4\U+03BF\U+03BC\U+03AD\U+03C2: \U+03C0\U+03B1\U+03C1\U+03AC\U+03B8\U+03C5\U+03C1\U+03BF \U+03C3\U+03C4\U+03BF \U+03BC\U+03BF\U+03BD\U+03C4\U+03AD\U+03BB\U+03BF
+  (setq sec (kal:selget))
+  (setq a (getpoint (strcat "\n\U+038C\U+03C8\U+03B5\U+03B9\U+03C2-\U+03C4\U+03BF\U+03BC\U+03AD\U+03C2: \U+03C0\U+03C1\U+03CE\U+03C4\U+03B7 \U+03B3\U+03C9\U+03BD\U+03AF\U+03B1 \U+03C0\U+03B1\U+03C1\U+03B1\U+03B8\U+03CD\U+03C1\U+03BF\U+03C5 \U+03B3\U+03CD\U+03C1\U+03C9 \U+03C4\U+03BF\U+03C5\U+03C2 \U+03C3\U+03C4\U+03BF \U+03BC\U+03BF\U+03BD\U+03C4\U+03AD\U+03BB\U+03BF"
+                            (if sec " (Enter = \U+03AF\U+03B4\U+03B9\U+03BF \U+03BC\U+03B5 \U+03C0\U+03C1\U+03B9\U+03BD)" " (Enter = \U+03BA\U+03B5\U+03BD\U+03AE \U+03C3\U+03C4\U+03AE\U+03BB\U+03B7)") ": ")))
+  (if a
+    (progn
+      (setq b (getcorner a "\n\U+0394\U+03B5\U+03CD\U+03C4\U+03B5\U+03C1\U+03B7 \U+03B3\U+03C9\U+03BD\U+03AF\U+03B1: "))
+      (if b (setq sec (list (min (car a) (car b)) (min (cadr a) (cadr b)) (max (car a) (car b)) (max (cadr a) (cadr b)))))))
+  (kal:selput sec)
+  ;; \U+03C0\U+03B5\U+03C1\U+03B9\U+03BF\U+03C7\U+03AD\U+03C2 \U+03BC\U+03BF\U+03BD\U+03C4\U+03AD\U+03BB\U+03BF\U+03C5 (\U+03BC.)
+  (setq tpb (kal:bbgrow (kal:bbe (list plot)) 6.0))
+  (setq lvl nil)
+  (foreach lv levels
+    (setq lb (kal:bbe (append (nth 3 lv) (mapcar 'cdr (nth 4 lv)))))
+    (if lb (setq lvl (append lvl (list (list (car lv) (kal:bbgrow lb 2.0)))))))
+  (if (setq tb (ssget "_X" (list (cons 8 "KAL_PINAKAS") (cons 410 "Model"))))
+    (setq tb (kal:bbox tb)))
+  (if tb (setq tb (kal:bbgrow tb 0.5)))
+  ;; \U+03CD\U+03C8\U+03BF\U+03C2 \U+03C6\U+03CD\U+03BB\U+03BB\U+03BF\U+03C5
+  (setq H0 594.0 head 17.0 mg 6.0 av (- H0 head mg mg))
+  (setq need (max (* 10.0 (kal:bh tpb)) (if sec (* 10.0 (kal:bh sec)) 0.0)))
+  (foreach l lvl (setq need (max need (+ 10.0 (* 10.0 (kal:bh (cadr l)))))))
+  (if (> need av) (setq H0 841.0 av (- H0 head mg mg)))
+  (if (> need av) (princ "\n\U+03A0\U+03C1\U+03BF\U+03C3\U+03BF\U+03C7\U+03AE: \U+03C3\U+03B5 1:100 \U+03BA\U+03AC\U+03C0\U+03BF\U+03B9\U+03BF \U+03C3\U+03C7\U+03AD\U+03B4\U+03B9\U+03BF \U+03B5\U+03AF\U+03BD\U+03B1\U+03B9 \U+03C8\U+03B7\U+03BB\U+03CC\U+03C4\U+03B5\U+03C1\U+03BF \U+03B1\U+03C0\U+03CC \U+03C4\U+03BF A0 - \U+03B8\U+03B1 \U+03B2\U+03B3\U+03B5\U+03B9 \U+03AD\U+03BE\U+03C9 \U+03B1\U+03C0\U+03CC \U+03C4\U+03BF \U+03C0\U+03BB\U+03B1\U+03AF\U+03C3\U+03B9\U+03BF."))
+  ;; \U+03C3\U+03C4\U+03AE\U+03BB\U+03B5\U+03C2: (\U+03C4\U+03AF\U+03C4\U+03BB\U+03BF\U+03C2 \U+03BA\U+03BB\U+03AF\U+03BC\U+03B1\U+03BA\U+03B1 \U+03C0\U+03BB\U+03AC\U+03C4\U+03BF\U+03C2 \U+03B5\U+03AF\U+03B4\U+03BF\U+03C2)
+  (setq sub nil sx nil sh 0.0 sw 0.0)
+  (foreach l lvl
+    (setq w (* 10.0 (kal:bw (cadr l))) c (+ (* 10.0 (kal:bh (cadr l))) 10.0))
+    (if (and sub (> (+ sh c) av)) (setq sx (append sx (list (list sw sub))) sub nil sh 0.0 sw 0.0))
+    (setq sub (append sub (list (list l c))) sh (+ sh c) sw (max sw w)))
+  (if sub (setq sx (append sx (list (list sw sub)))))
+  (setq w 0.0)
+  (foreach s sx (setq w (+ w (car s) 10.0)))
+  (setq cols
+    (list (list "\U+03A6\U+03A9\U+03A4\U+039F\U+03A1\U+0395\U+0391\U+039B\U+0399\U+03A3\U+03A4\U+0399\U+039A\U+0395\U+03A3 \U+0395\U+0399\U+039A\U+039F\U+039D\U+0395\U+03A3" nil 200.0 'foto)
+          (list "\U+039F\U+03A8\U+0395\U+0399\U+03A3-\U+03A4\U+039F\U+039C\U+0395\U+03A3" T (if sec (max 300.0 (+ (* 10.0 (kal:bw sec)) mg mg)) 300.0) 'sec)
+          (list "\U+039F\U+03A1\U+039F\U+0399 \U+0394\U+039F\U+039C\U+0397\U+03A3\U+0397\U+03A3" nil (if tb (max 155.0 (+ (* 10.0 (kal:bw tb)) mg mg)) 155.0) 'oroi)
+          (list "\U+0395\U+039C\U+0392\U+0391\U+0394\U+039F\U+039C\U+0395\U+03A4\U+03A1\U+0397\U+03A3\U+0395\U+0399\U+03A3" T (max 200.0 (+ w mg)) 'emb)
+          (list "\U+03A4\U+039F\U+03A0\U+039F\U+0393\U+03A1\U+0391\U+03A6\U+0399\U+039A\U+039F \U+0394\U+0399\U+0391\U+0393\U+03A1\U+0391\U+039C\U+039C\U+0391 \U+0394\U+0399\U+0391\U+039C\U+039F\U+03A1\U+03A6\U+03A9\U+03A3\U+0395\U+03A9\U+039D \U+039A\U+0391\U+0399 \U+03A6\U+03A5\U+03A4\U+0395\U+03A5\U+03A3\U+0395\U+03A9\U+039D" T (max 250.0 (+ (* 10.0 (kal:bw tpb)) mg mg)) 'topo)
+          (list "\U+03A0\U+0399\U+039D\U+0391\U+039A\U+0395\U+03A3 \U+03A3\U+03A5\U+039D\U+03A4\U+0395\U+03A4\U+0391\U+0393\U+039C\U+0395\U+039D\U+03A9\U+039D" nil 195.0 'syn)))
+  (setq Wt 0.0)
+  (foreach c cols (setq Wt (+ Wt (nth 2 c))))
+  ;; \U+03B4\U+03B9\U+03AC\U+03C4\U+03B1\U+03BE\U+03B7 (layout)
+  (setq nm "KALYPSI 1-100")
+  (if (not (member nm (layoutlist)))
+    (progn
+      (kal:cmd (list "_.LAYOUT" "_N" nm))
+      (setvar "CTAB" nm)
+      (if (setq a (ssget "_X" (list (cons 0 "VIEWPORT") (cons 410 nm))))
+        (progn (setq i 0)
+               (repeat (sslength a)
+                 (if (> (cdr (assoc 69 (entget (ssname a i)))) 1) (entdel (ssname a i)))
+                 (setq i (1+ i))))))
+    (setvar "CTAB" nm))
+  (kal:cmd (list "_.PSPACE"))
+  (kal:selclear nm)
+  (setq *kal-ps* nm)
+  ;; \U+03C0\U+03BB\U+03B1\U+03AF\U+03C3\U+03B9\U+03BF, \U+03C3\U+03C4\U+03AE\U+03BB\U+03B5\U+03C2, \U+03BA\U+03B5\U+03C6\U+03B1\U+03BB\U+03AF\U+03B4\U+03B5\U+03C2
+  (kal:rect 0.0 0.0 Wt H0 "KAL_SEL_PLAISIO" 0.5)
+  (kal:line (list 0.0 (- H0 head)) (list Wt (- H0 head)) "KAL_SEL_PLAISIO")
+  (setq x 0.0)
+  (foreach c cols
+    (if (> x 0.0) (kal:line (list x 0.0) (list x H0) "KAL_SEL_PLAISIO"))
+    (setq *kal-bold* T)
+    (kal:txt (list (+ x 4.0) (- H0 (if (cadr c) 5.6 8.5))) 5.6 (car c) 0.0 nil "KAL_SEL_KEIMENA")
+    (setq *kal-bold* nil)
+    (if (cadr c) (kal:txt (list (+ x 4.0) (- H0 12.4)) 5.6 "\U+03BA\U+03BB\U+03AF\U+03BC\U+03B1\U+03BA\U+03B1 1/100" 0.0 nil "KAL_SEL_KEIMENA"))
+    (setq w (nth 2 c) y (- H0 head mg))
+    (cond
+      ((= (nth 3 c) 'sec)
+        (if sec (kal:vport (list (+ x (/ w 2.0)) (- y (/ (* 10.0 (kal:bh sec)) 2.0)))
+                           (* 10.0 (kal:bw sec)) (* 10.0 (kal:bh sec)) (kal:bc sec))))
+      ((= (nth 3 c) 'oroi)
+        (if tb
+          (progn
+            (kal:vport (list (+ x (/ w 2.0)) (- y (/ (* 10.0 (kal:bh tb)) 2.0))) (* 10.0 (kal:bw tb)) (* 10.0 (kal:bh tb)) (kal:bc tb))
+            (setq y (- y (* 10.0 (kal:bh tb)) 12.0))))
+        (setq *kal-bold* T)
+        (kal:txt (list (+ x mg) y) 3.4 "\U+03A5\U+03A0\U+0395\U+03A5\U+0398\U+03A5\U+039D\U+0397 \U+0394\U+0397\U+039B\U+03A9\U+03A3\U+0397 [\U+0391\U+03A1\U+0398. 8 \U+03A4\U+039F\U+03A5 \U+039D. 1599/86 (\U+0391' 75)]" 0.0 nil "KAL_SEL_KEIMENA")
+        (setq *kal-bold* nil k 1)
+        (foreach t1 (list "\U+039F/\U+0397 \U+03C5\U+03C0\U+03BF\U+03B3\U+03C1\U+03AC\U+03C6\U+03C9\U+03BD/\U+03BF\U+03C5\U+03C3\U+03B1 \U+03BC\U+03B5\U+03BB\U+03B5\U+03C4\U+03B7\U+03C4\U+03AE\U+03C2 \U+03BC\U+03B7\U+03C7\U+03B1\U+03BD\U+03B9\U+03BA\U+03CC\U+03C2 \U+03B4\U+03B7\U+03BB\U+03CE\U+03BD\U+03C9 \U+03C5\U+03C0\U+03B5\U+03CD\U+03B8\U+03C5\U+03BD\U+03B1 \U+03CC\U+03C4\U+03B9:"
+                          "\U+03B1) \U+03BF \U+03C5\U+03C0\U+03BF\U+03BB\U+03BF\U+03B3\U+03B9\U+03C3\U+03BC\U+03CC\U+03C2 \U+03C4\U+03B7\U+03C2 \U+03B5\U+03C0\U+03B9\U+03C4\U+03C1\U+03B5\U+03C0\U+03CC\U+03BC\U+03B5\U+03BD\U+03B7\U+03C2 \U+03BA\U+03B1\U+03B9 \U+03C4\U+03B7\U+03C2 \U+03C0\U+03C1\U+03B1\U+03B3\U+03BC\U+03B1\U+03C4\U+03BF\U+03C0\U+03BF\U+03B9\U+03BF\U+03CD\U+03BC\U+03B5\U+03BD\U+03B7\U+03C2"
+                          "    \U+03B4\U+03CC\U+03BC\U+03B7\U+03C3\U+03B7\U+03C2 \U+03B5\U+03AF\U+03BD\U+03B1\U+03B9 \U+03BF\U+03C1\U+03B8\U+03CC\U+03C2,"
+                          "\U+03B2) \U+03AD\U+03C7\U+03BF\U+03C5\U+03BD \U+03C5\U+03C0\U+03BF\U+03BB\U+03BF\U+03B3\U+03B9\U+03C3\U+03C4\U+03B5\U+03AF \U+03CC\U+03BB\U+03B5\U+03C2 \U+03BF\U+03B9 \U+03BA\U+03B1\U+03C4\U+03B1\U+03C3\U+03BA\U+03B5\U+03C5\U+03AD\U+03C2 \U+03BA\U+03B1\U+03C4\U+03AC \U+03C4\U+03BF \U+03AC\U+03C1\U+03B8. 206"
+                          "    \U+03BD. 5306/2026 (\U+03C0\U+03C1\U+03CE\U+03B7\U+03BD \U+03AC\U+03C1\U+03B8. 11 \U+03BD. 4067/2012),"
+                          "\U+03B3) \U+03BF\U+03B9 \U+03B5\U+03C0\U+03B9\U+03C6\U+03AC\U+03BD\U+03B5\U+03B9\U+03B5\U+03C2 \U+03B3\U+03B9\U+03B1 \U+03C4\U+03B9\U+03C2 \U+03B1\U+03C0\U+03B1\U+03B9\U+03C4\U+03BF\U+03CD\U+03BC\U+03B5\U+03BD\U+03B5\U+03C2 \U+03B8\U+03AD\U+03C3\U+03B5\U+03B9\U+03C2 \U+03C3\U+03C4\U+03AC\U+03B8\U+03BC\U+03B5\U+03C5\U+03C3\U+03B7\U+03C2"
+                          "    \U+03B5\U+03AF\U+03BD\U+03B1\U+03B9 \U+03BF\U+03C1\U+03B8\U+03AD\U+03C2."
+                          "" "\U+039F \U+0394\U+0397\U+039B\U+03A9\U+039D")
+          (kal:txt (list (+ x mg) (- y (* 4.6 k))) 2.8 t1 0.0 nil "KAL_SEL_KEIMENA")
+          (setq k (1+ k))))
+      ((= (nth 3 c) 'emb)
+        (setq sw (+ x mg))
+        (foreach s sx
+          (setq sy y)
+          (foreach it (cadr s)
+            (setq lb (cadr (car it)))
+            (kal:vport (list (+ sw (/ (car s) 2.0)) (- sy (/ (* 10.0 (kal:bh lb)) 2.0)))
+                       (* 10.0 (kal:bw lb)) (* 10.0 (kal:bh lb)) (kal:bc lb))
+            (setq *kal-bold* T)
+            (kal:txt (list (+ sw (/ (car s) 2.0)) (- sy (* 10.0 (kal:bh lb)) 4.0)) 3.1
+                     (strcat "\U+039A\U+0391\U+03A4\U+039F\U+03A8\U+0397 " (car (car it))) 0.0 T "KAL_SEL_KEIMENA")
+            (setq *kal-bold* nil)
+            (setq sy (- sy (cadr it))))
+          (setq sw (+ sw (car s) 10.0))))
+      ((= (nth 3 c) 'topo)
+        (kal:vport (list (+ x (/ w 2.0)) (- H0 head (/ (- H0 head) 2.0)))
+                   (* 10.0 (kal:bw tpb)) (* 10.0 (kal:bh tpb)) (kal:bc tpb)))
+      ((= (nth 3 c) 'syn)
+        (setq k 0 yb y)
+        (foreach e cov
+          (setq vl (kal:verts e) pts nil)
+          (foreach v vl (setq k (1+ k) pts (append pts (list (list (strcat "K" (itoa k)) (car v) (cadr v))))))
+          (setq yb (kal:coordtab (+ x mg) yb
+                                 (if (> (length cov) 1) "\U+03A3\U+03A5\U+039D\U+03A4/\U+039D\U+0395\U+03A3 \U+039A\U+039F\U+03A1\U+03A5\U+03A6\U+03A9\U+039D \U+03A0\U+0395\U+03A1\U+0399\U+0393\U+03A1\U+0391\U+039C\U+039C\U+0391\U+03A4\U+039F\U+03A3 \U+039A\U+03A4\U+0399\U+03A1\U+0399\U+039F\U+03A5" "\U+03A3\U+03A5\U+039D\U+03A4/\U+039D\U+0395\U+03A3 \U+039A\U+039F\U+03A1\U+03A5\U+03A6\U+03A9\U+039D \U+039A\U+03A4\U+0399\U+03A1\U+0399\U+039F\U+03A5") pts)))
+        ;; \U+03C0\U+03B9\U+03BD\U+03B1\U+03BA\U+03AF\U+03B4\U+03B1
+        (setq yb (min yb 300.0))
+        (kal:rect (+ x mg) mg (- (+ x w) mg) yb "KAL_SEL_PLAISIO" 0.0)
+        (setq rows (list (list "\U+0395\U+03A1\U+0393\U+039F:" "") (list "\U+0398\U+0395\U+03A3\U+0397:" "") (list "\U+039A\U+0391\U+0395\U+039A:" kaek) (list "\U+0399\U+0394\U+0399\U+039F\U+039A\U+03A4\U+0397\U+03A4\U+0397\U+03A3:" "")
+                         (list "\U+03A3\U+03A7\U+0395\U+0394\U+0399\U+039F:" "\U+0394\U+0399\U+0391\U+0393\U+03A1\U+0391\U+039C\U+039C\U+0391 \U+039A\U+0391\U+039B\U+03A5\U+03A8\U+0397\U+03A3") (list "\U+039A\U+039B\U+0399\U+039C\U+0391\U+039A\U+0391:" "1:100")
+                         (list "\U+0397\U+039C\U+0395\U+03A1\U+039F\U+039C\U+0397\U+039D\U+0399\U+0391:" (kal:today)) (list "\U+0391\U+03A1. \U+03A3\U+03A7\U+0395\U+0394\U+0399\U+039F\U+03A5:" "\U+0394-01")
+                         (list "\U+039C\U+0395\U+039B\U+0395\U+03A4\U+0397\U+03A4\U+0397\U+03A3 / \U+03A5\U+03A0\U+039F\U+0393\U+03A1\U+0391\U+03A6\U+0397 - \U+03A3\U+03A6\U+03A1\U+0391\U+0393\U+0399\U+0394\U+0391:" "")))
+        (setq sy yb k 0)
+        (foreach r rows
+          (setq k (1+ k) sy (- sy (if (= k (length rows)) 0.0 11.0)))
+          (if (< k (length rows)) (kal:line (list (+ x mg) sy) (list (- (+ x w) mg) sy) "KAL_SEL_PLAISIO"))
+          (kal:txt (list (+ x mg 3.0) (+ sy (if (< k (length rows)) 5.5 -6.0))) 3.4 (car r) 0.0 nil "KAL_SEL_KEIMENA")
+          (setq *kal-bold* T)
+          (kal:txt (list (+ x mg 48.0) (+ sy (if (< k (length rows)) 5.5 -6.0))) 3.6 (cadr r) 0.0 nil "KAL_SEL_KEIMENA")
+          (setq *kal-bold* nil))))
+    (setq x (+ x w)))
+  (setq *kal-ps* nil)
+  (setq best (kal:pagesetup Wt H0))
+  (kal:cmd (list "_.ZOOM" "_E"))
+  (princ (strcat "\n\U+03A6\U+03CD\U+03BB\U+03BB\U+03BF " (rtos Wt 2 0) " x " (rtos H0 2 0) " mm, \U+03CC\U+03BB\U+03B1 \U+03C4\U+03B1 \U+03C0\U+03B1\U+03C1\U+03AC\U+03B8\U+03C5\U+03C1\U+03B1 \U+03C3\U+03B5 1:100 \U+03BA\U+03BB\U+03B5\U+03B9\U+03B4\U+03C9\U+03BC\U+03AD\U+03BD\U+03B1 (layout \U+00AB" nm "\U+00BB)."))
+  (princ (if best
+           (strcat "\n\U+03A3\U+03B5\U+03BB\U+03AF\U+03B4\U+03B1: DWG To PDF, \U+03C7\U+03B1\U+03C1\U+03C4\U+03AF " best ", Window 1:1.")
+           (strcat "\n\U+03A3\U+03B5\U+03BB\U+03AF\U+03B4\U+03B1: Window 1:1. \U+0393\U+03B9\U+03B1 \U+03B5\U+03BA\U+03C4\U+03CD\U+03C0\U+03C9\U+03C3\U+03B7 \U+03C0\U+03C1\U+03CC\U+03C3\U+03B8\U+03B5\U+03C3\U+03B5 \U+03BC\U+03AF\U+03B1 \U+03C6\U+03BF\U+03C1\U+03AC custom \U+03C7\U+03B1\U+03C1\U+03C4\U+03AF " (rtos Wt 2 0) " x " (rtos H0 2 0)
+                   " mm \U+03C3\U+03C4\U+03BF DWG To PDF (Page Setup > Properties > Custom Paper Sizes) \U+03BA\U+03B1\U+03B9 \U+03C4\U+03C1\U+03AD\U+03BE\U+03B5 \U+03BE\U+03B1\U+03BD\U+03AC KALSELIDA.")))
+  (princ "\n\U+03A3\U+03C5\U+03BC\U+03C0\U+03BB\U+03AE\U+03C1\U+03C9\U+03C3\U+03B5 \U+03B5\U+03C3\U+03CD: \U+03C6\U+03C9\U+03C4\U+03BF\U+03C1\U+03B5\U+03B1\U+03BB\U+03B9\U+03C3\U+03C4\U+03B9\U+03BA\U+03AD\U+03C2 \U+03B5\U+03B9\U+03BA\U+03CC\U+03BD\U+03B5\U+03C2 (\U+03C3\U+03C4\U+03AE\U+03BB\U+03B7 1), \U+03CC\U+03B3\U+03BA\U+03BF\U+03C2 / \U+03A3\U+039F / \U+03B8\U+03AD\U+03C3\U+03B5\U+03B9\U+03C2 \U+03C3\U+03C4\U+03AC\U+03B8\U+03BC\U+03B5\U+03C5\U+03C3\U+03B7\U+03C2 \U+03BA\U+03B1\U+03B9 \U+03C3\U+03C7\U+03B7\U+03BC\U+03B1\U+03C4\U+03B9\U+03BA\U+03AE \U+03C4\U+03BF\U+03BC\U+03AE \U+03BC\U+03B5 \U+03B9\U+03B4\U+03B5\U+03B1\U+03C4\U+03CC \U+03C3\U+03C4\U+03B5\U+03C1\U+03B5\U+03CC (\U+03AC\U+03C1\U+03B8. 325 \U+03BD.5306/2026).")
+  (kal:end)
+  (princ))
+
+(princ "\nKALYPSI v2.1 - HEXIS-APP: \U+03C6\U+03BF\U+03C1\U+03C4\U+03CE\U+03B8\U+03B7\U+03BA\U+03B5. \U+0395\U+03BD\U+03C4\U+03BF\U+03BB\U+03AD\U+03C2: KALYPSI, KALSELIDA (\U+03C6\U+03CD\U+03BB\U+03BB\U+03BF 1:100)")
 (princ)
