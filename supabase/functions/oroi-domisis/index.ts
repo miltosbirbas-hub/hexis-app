@@ -518,6 +518,8 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
   // νομοθεσία που διέπει την περιοχή — γενικό πλαίσιο (νέα κωδικοποίηση ν.5306/2026) + οι ειδικές πράξεις της περιοχής από τον ΕΨΧ
   row("ΝΟΜΟΘΕΣΙΑ", LEGAL[stt] || "");
   row("ΠΡΑΞΕΙΣ ΠΕΡΙΟΧΗΣ", areaActs(L));
+  // περίγραμμα γεωτεμαχίου σε ΕΓΣΑ87 (για KALYPSI: αναγνώριση/σχεδίαση ορίου οικοπέδου στο CAD)
+  out.push("RING=" + outer.map((p) => p[0].toFixed(3) + "," + p[1].toFixed(3)).join(";"));
   out.push("NOTE=Πηγές: Ενιαίος Ψηφιακός Χάρτης (ΤΕΕ/ΥΠΕΝ), Ελληνικό Κτηματολόγιο — ενημερωτικό, δεν υποκαθιστά βεβαίωση ΥΔΟΜ. HEXIS-APP " + new Date().toLocaleDateString("el-GR"));
   return text(out);
 }
