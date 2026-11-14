@@ -88,11 +88,16 @@
       out.push('100', 'AcDbPolyline', '90', String(pts.length), '70', p.closed ? '1' : '0', '43', '0.0');
       pts.forEach(function (q, i) { out.push('10', f(q[0]), '20', f(q[1])); if (bul && bul[i]) out.push('42', (Math.round(bul[i] * 1e9) / 1e9).toString()); ext(q[0], q[1]); });
     });
+    var arialW = function (t) { var w = 0; t = String(t || ''); for (var i = 0; i < t.length; i++) { var c = t[i]; w += /[0-9]/.test(c) ? 0.556 : /[\s.,:;'|!ιίϊΐ]/.test(c) ? 0.278 : /[-()\/]/.test(c) ? 0.333 : /[ΜΩWMmw]/.test(c) ? 0.833 : c === c.toUpperCase() && c !== c.toLowerCase() ? 0.667 : 0.52; } return w; };
     (spec.texts || []).forEach(function (t) {
       var h = t.h || 0.5;
       out.push('0', 'TEXT', '5', next(), '330', owner, '100', 'AcDbEntity', '8', U(t.layer));
       if (t.color) out.push('62', String(t.color));
-      out.push('100', 'AcDbText', '10', f(t.x), '20', f(t.y), '30', '0.0', '40', f(h), '1', clean(t.text));
+      // κεντραρισμένο / δεξιά: το 10/20 είναι η ΑΡΧΗ του κειμένου (υπολογισμένη από το πλάτος Arial) και το 11/21 το σημείο στοίχισης —
+      // έτσι το κείμενο κάθεται σωστά και σε CAD που δεν ξαναϋπολογίζουν τη θέση (ProgeCAD, IntelliCAD κ.ά.), όχι μετατοπισμένο δεξιά
+      var x10 = t.x, y10 = t.y;
+      if (t.align === 'center' || t.align === 'right') { var tw0 = arialW(String(t.text == null ? "" : t.text).replace(/\\[A-Za-z][^;]*;/g, "")) * h * (t.align === 'center' ? 0.5 : 1), ra = (t.rot || 0) * Math.PI / 180; x10 = t.x - tw0 * Math.cos(ra); y10 = t.y - tw0 * Math.sin(ra); }
+      out.push('100', 'AcDbText', '10', f(x10), '20', f(y10), '30', '0.0', '40', f(h), '1', clean(t.text));
       if (t.rot) out.push('50', f(t.rot));
       out.push('7', FONT);
       if (t.align === 'center' || t.align === 'right') out.push('72', t.align === 'center' ? '1' : '2', '11', f(t.x), '21', f(t.y), '31', '0.0');

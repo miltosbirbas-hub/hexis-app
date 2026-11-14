@@ -248,7 +248,8 @@
         });
         (Tp.fronts || []).forEach(function (q) { var P = D.ents[Tp.plot].pts, a = xf(P[q]), b = xf(P[(q + 1) % P.length]); pl([a, b], { w: 0.9, c: '#f97316', ly: 'KAL_PROSOPO', pdfOnly: true }); });
         // αντίγραφο στις πραγματικές συντεταγμένες για το DXF
-        cl.ents.forEach(function (i) { var e = D.ents[i]; if (!e.extra) egsa.push({ layer: e.layer, pts: e.pts, closed: e.closed }); });
+        // μόνο ό,τι φαίνεται στο παράθυρο του τοπογραφικού — όχι όλη η περιοχή του αρχείου (Ο.Τ., ΚΑΕΚ κ.λπ. κόβονται στο ίδιο πλαίσιο)
+        cl.ents.forEach(function (i) { var e = D.ents[i]; if (e.extra) return; clipPoly(e.pts, e.closed, clip).forEach(function (q) { egsa.push({ layer: e.layer, pts: q.pts, closed: q.closed }); }); });
         (Tp.cov || []).forEach(function (id) { if (D.ents[id]) egsa.push({ layer: 'KAL_KALYPSI', pts: D.ents[id].pts, closed: true }); });
       } else tx((dr.x0 + dr.x1) / 2, (dr.y0 + dr.y1) / 2, 'Δεν ορίστηκε τοπογραφικό', 3, { al: 'c', c: '#6b7280' });
       // σχεδίαση πινάκων
