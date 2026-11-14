@@ -108,6 +108,8 @@ textarea{min-height:90px;resize:vertical;font-size:15px}
 .gnotes li b.n{flex:0 0 28px;height:28px;border-radius:50%;background:#1f4e9c;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px}
 .gnotes li b.d{flex:0 0 10px;height:10px;border-radius:50%;background:#1f4e9c;margin-top:8px}
 .gnav{display:flex;gap:8px;justify-content:space-between;margin-top:12px;flex-wrap:wrap}
+.pcard.cur{border:2px solid var(--acc)}.pcard .ph{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:17px}
+.pb{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}.pb .btn{padding:9px 14px;font-size:15px}.btn.warnb{background:var(--errbg);color:var(--err);border-color:var(--err)}
 .gbtn{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--acc);color:var(--acc);background:var(--accbg);border-radius:999px;padding:6px 14px;font-weight:700;font-size:15px;cursor:pointer;margin:4px 6px 6px 0}
 .gbtn svg{width:18px;height:18px}
 .mbox ol,.mbox ul{padding-left:22px}.mbox li{margin:6px 0}
@@ -172,6 +174,7 @@ textarea{min-height:90px;resize:vertical;font-size:15px}
   <div class="brand"><svg width="30" height="30" viewBox="0 0 48 48"><rect width="48" height="48" rx="10" fill="#14213D"/><path d="M10 38V12h28v26z" fill="none" stroke="#8FB4EE" stroke-width="3"/><path d="M16 32V20h12v12z" fill="#F26B21" opacity=".85"/><path d="M16 20l12 12M22 20l6 6M16 26l6 6" stroke="#fff" stroke-width="1.6"/></svg>
     <div>ΔΙΑΓΡΑΜΜΑ ΚΑΛΥΨΗΣ<small>HEXIS-APP</small></div></div>
   <nav class="steps" id="steps"></nav>
+  <button class="hbtn" id="btnProj">Έργα</button>
   <button class="hbtn" id="btnHelp">Οδηγίες</button>
   <button class="hbtn" id="btnTheme" title="Ανοιχτό / σκούρο θέμα">Θέμα</button>
 </header>
@@ -199,6 +202,8 @@ textarea{min-height:90px;resize:vertical;font-size:15px}
 <div id="toast"></div>
 <div id="busy"><div id="busyT">Παρακαλώ περίμενε…</div></div>
 <div class="ovl" id="ovGuide"><div class="mbox gbox"><div class="ghead"><h2 id="gTitle"></h2><div class="gzoom"><button class="btn sec" id="gZo" aria-label="Zoom out">−</button><button class="btn sec" id="gZi" aria-label="Zoom in">+</button><button class="btn sec" id="gZf">Όλο</button></div></div><div class="gview" id="gView"></div><ol class="gnotes" id="gNotes"></ol><div class="gnav"><button class="btn sec" id="gPrev">◂ Προηγούμενο</button><button class="btn" id="gClose">Κλείσιμο</button><button class="btn sec" id="gNext">Επόμενο ▸</button></div></div></div>
+<div class="ovl" id="ovProj"><div class="mbox gbox" id="projBox"></div></div>
+<input type="file" id="fProj" accept=".json,application/json" hidden>
 <div class="ovl" id="ovHelp"><div class="mbox" id="helpBox"></div></div>
 <div class="ovl" id="ovAi"><div class="mbox"><h2>Ερώτηση στο AI</h2><div id="aiOut" class="small">…</div><div style="margin-top:14px;text-align:right"><button class="btn sec" onclick="document.getElementById('ovAi').classList.remove('on')">Κλείσιμο</button></div></div></div>
 
@@ -212,8 +217,8 @@ const K = window.KalEngine, KS = window.KalSheet;
 const $ = s => document.querySelector(s);
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
-const APP_VERSION = '2.6';
-const WHATS_NEW = 'Νέο στην έκδοση 2.6: κουμπιά «Δες υπόδειγμα» σε κάθε βήμα — σχήματα για το τι πρέπει να έχει το DXF και τι μετρά / δεν μετρά στη δόμηση και την κάλυψη, με τα άρθρα του ν.5306/2026.';
+const APP_VERSION = '2.7';
+const WHATS_NEW = 'Νέο στην έκδοση 2.7: «Έργα» — κάθε έργο φυλάγεται χωριστά. Νέο έργο, άνοιγμα παλιών διαγραμμάτων, αντίγραφο για νέα έκδοση, αρχείο έργου για αντίγραφο ασφαλείας. Η εργασία σου μεταφέρθηκε αυτόματα στα «Έργα».';
 const STEPS = ['Όροι', 'DXF', 'Τοπογραφικό', 'Κατόψεις', 'Τομές · όψεις', 'Έλεγχος', 'Εξαγωγή'];
 const SPC = { H: '#f59e0b', X: '#38bdf8', E: '#0284c7', K: '#8b5cf6', I: '#a78bfa', A: '#c4b5fd', F: '#14b8a6', P: '#94a3b8', Y: '#cbd5e1', L: '#6366f1' };
 const SPN = { H: 'Ημιυπαίθριος', X: 'Ανοικτός εξώστης', E: 'Κλειστός εξώστης', K: 'Κοιν. σκάλα', I: 'Ιδιωτ. σκάλα', A: 'Ανοικτή σκάλα', F: 'Φωταγωγός/αίθριο', P: 'Στάθμευση/Η-Μ', Y: 'Πυλωτή', L: 'Ανελκυστήρας' };
@@ -243,10 +248,88 @@ const savePref = () => { try { localStorage.setItem('kalypsi_pref', JSON.stringi
 const IDB = { db: null,
   open() { return new Promise((res, rej) => { if (this.db) return res(this.db); const r = indexedDB.open('hexis_kalypsi', 1); r.onupgradeneeded = () => r.result.createObjectStore('w'); r.onsuccess = () => { this.db = r.result; res(this.db); }; r.onerror = () => rej(r.error); }); },
   async put(k, v) { const db = await this.open(); return new Promise((res, rej) => { const t = db.transaction('w', 'readwrite'); t.objectStore('w').put(v, k); t.oncomplete = res; t.onerror = () => rej(t.error); }); },
-  async get(k) { const db = await this.open(); return new Promise((res, rej) => { const t = db.transaction('w'); const q = t.objectStore('w').get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); }
+  async get(k) { const db = await this.open(); return new Promise((res, rej) => { const t = db.transaction('w'); const q = t.objectStore('w').get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); },
+  async del(k) { const db = await this.open(); return new Promise((res, rej) => { const t = db.transaction('w', 'readwrite'); t.objectStore('w').delete(k); t.oncomplete = res; t.onerror = () => rej(t.error); }); },
+  async keys() { const db = await this.open(); return new Promise((res, rej) => { const t = db.transaction('w'); const q = t.objectStore('w').getAllKeys(); q.onsuccess = () => res(q.result || []); q.onerror = () => rej(q.error); }); }
 };
 let _svT = null;
-function save() { clearTimeout(_svT); _svT = setTimeout(() => { IDB.put('work', JSON.parse(JSON.stringify(S))).catch(() => {}); try { localStorage.setItem('kalypsi_settings', JSON.stringify({ proj: S.proj, rules: S.rules, ext: S.ext })); } catch (e) {} }, 400); }
+/* ---------------- έργα: κάθε έργο αποθηκεύεται χωριστά (p:<id> πλήρες, m:<id> στοιχεία λίστας) ---------------- */
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+function projMeta() { return { id: S.id, name: S.proj.ergo || S.dxfName || 'Χωρίς τίτλο', kaek: S.proj.kaek || '', thesi: S.proj.thesi || '', ergodotis: S.proj.ergodotis || '', dxf: S.dxfName || '', created: S.created, updated: S.updated, dom: UI.R ? UI.R.Dom : null, sk: UI.R ? UI.R.Sk : null, verdict: UI.V ? UI.V.st : '', vtext: UI.V ? UI.V.text : '' }; }
+async function saveNow() { clearTimeout(_svT); if (!S.id) { S.id = newId(); S.created = Date.now(); } S.updated = Date.now();
+  try { await IDB.put('p:' + S.id, JSON.parse(JSON.stringify(S))); await IDB.put('m:' + S.id, projMeta()); localStorage.setItem('kalypsi_cur', S.id); localStorage.setItem('kalypsi_settings', JSON.stringify({ meletitis: S.proj.meletitis || '' })); } catch (e) {} }
+function save() { clearTimeout(_svT); _svT = setTimeout(saveNow, 400); }
+function resetUI() { Object.assign(UI, { hist: [], redo: [], curPlan: null, sheet: null, focus: null, lastDecl: null, topoNote: '', draw: [], meas: [], hover: null, secA: {}, view: null }); updUndo(); }
+async function newProject(keepDxf) {
+  await saveNow(); const mel = S.proj.meletitis || '';
+  S = DEF(); S.id = newId(); S.created = Date.now(); S.proj.meletitis = mel; resetUI(); compute();
+  if (!keepDxf) { render(); go(0); } await saveNow();
+  if (!keepDxf) toast('Νέο έργο. Το προηγούμενο φυλάχτηκε στα «Έργα».', 4000);
+}
+async function openProject(id, noSave) {
+  if (id === S.id) { $('#ovProj').classList.remove('on'); return; }
+  if (!noSave) await saveNow(); const w = await IDB.get('p:' + id); if (!w) { toast('Το έργο δεν βρέθηκε.'); return; }
+  S = Object.assign(DEF(), w); rebuildExtra(); resetUI(); compute(); render(); go(S.step || 0); fit(focusBB());
+  localStorage.setItem('kalypsi_cur', S.id); $('#ovProj').classList.remove('on'); toast('Άνοιξε: ' + (S.proj.ergo || S.dxfName || 'έργο'));
+}
+async function copyProject(id) {
+  await saveNow(); const w = await IDB.get('p:' + id); if (!w) return;
+  const c = Object.assign(DEF(), JSON.parse(JSON.stringify(w))); c.id = newId(); c.created = c.updated = Date.now(); c.proj.ergo = (c.proj.ergo || c.dxfName || 'Έργο') + ' (αντίγραφο)';
+  const n = (c.proj.arSxediou || 'Δ_01').match(/^(.*?)(\d+)$/); if (n) c.proj.arSxediou = n[1] + String(+n[2] + 1).padStart(n[2].length, '0');
+  await IDB.put('p:' + c.id, c); await IDB.put('m:' + c.id, Object.assign({}, (await IDB.get('m:' + id)) || {}, { id: c.id, name: c.proj.ergo, created: c.created, updated: c.updated }));
+  await openProject(c.id); toast('Δημιουργήθηκε αντίγραφο — νέα έκδοση διαγράμματος. Το αρχικό μένει όπως ήταν.', 4500);
+}
+async function deleteProject(id) {
+  await IDB.del('p:' + id); await IDB.del('m:' + id);
+  if (id === S.id) { S = DEF(); S.id = null; resetUI(); const ms = await listProjects(); if (ms.length) await openProject(ms[0].id, true); else { S.id = newId(); S.created = Date.now(); compute(); render(); go(0); await saveNow(); } }
+  showProjects();
+}
+async function listProjects() { const ks = await IDB.keys(), out = []; for (const k of ks) if (String(k).startsWith('m:')) { const m = await IDB.get(k); if (m) out.push(m); } return out.sort((a, b) => (b.updated || 0) - (a.updated || 0)); }
+function exportProject() { saveNow().then(() => { const nm = (S.proj.ergo || S.dxfName || 'ergo').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 60); download(new Blob([JSON.stringify({ hexis: 'kalypsi', v: 1, S })], { type: 'application/json' }), nm + '.kalypsi.json'); toast('Κατέβηκε το αρχείο έργου — ανοίγει από «Έργα» → «Άνοιγμα αρχείου έργου».', 4500); }); }
+async function importProject(file) {
+  try { const j = JSON.parse(await file.text()); const w = j && j.S; if (!w || !w.v) throw 0;
+    const c = Object.assign(DEF(), w); c.id = newId(); c.created = c.created || Date.now(); c.updated = Date.now();
+    await IDB.put('p:' + c.id, c); await IDB.put('m:' + c.id, { id: c.id, name: c.proj.ergo || c.dxfName || 'Έργο', kaek: c.proj.kaek || '', thesi: c.proj.thesi || '', ergodotis: c.proj.ergodotis || '', dxf: c.dxfName || '', created: c.created, updated: c.updated });
+    await openProject(c.id);
+  } catch (e) { toast('Το αρχείο δεν είναι αρχείο έργου Διαγράμματος Κάλυψης.', 4000); }
+}
+const fmtD = t => { if (!t) return ''; const d = new Date(t), z = n => String(n).padStart(2, '0'); return z(d.getDate()) + '/' + z(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()); };
+async function showProjects() {
+  await saveNow(); const ms = await listProjects(), q = (UI.pq || '').toLowerCase();
+  const L = ms.filter(m => !q || [m.name, m.kaek, m.thesi, m.ergodotis, m.dxf].join(' ').toLowerCase().includes(q));
+  const VB = { ok: ['ΠΕΡΝΑ', 'ok'], warn: ['ΘΕΛΕΙ ΣΤΟΙΧΕΙΑ', 'warn'], fail: ['ΔΕΝ ΠΕΡΝΑ', 'fail'] };
+  $('#projBox').innerHTML = '<div class="ghead"><h2>Τα έργα μου</h2><button class="btn" id="pNew">+ Νέο έργο</button></div>' +
+    '<p class="small">Κάθε έργο φυλάγεται χωριστά σε αυτόν τον υπολογιστή, με το DXF, τις εικόνες και όλες τις ρυθμίσεις. Το διάγραμμα ξαναβγαίνει όπως ήταν όταν ανοίξεις το έργο.</p>' +
+    (ms.length > 4 ? '<label class="f"><span>Αναζήτηση</span><input id="pQ" value="' + esc(UI.pq || '') + '" placeholder="όνομα, ΚΑΕΚ, θέση, εργοδότης"></label>' : '') +
+    (L.length ? L.map(m => { const cur = m.id === S.id, vb = VB[m.verdict];
+      return '<div class="card pcard' + (cur ? ' cur' : '') + '"><div class="ph"><b>' + esc(m.name) + '</b>' + (vb ? '<span class="badge b-' + vb[1] + '">' + vb[0] + '</span>' : '') + '</div>' +
+        '<div class="small">' + [m.kaek && 'ΚΑΕΚ ' + esc(m.kaek), m.thesi && esc(m.thesi), m.ergodotis && esc(m.ergodotis)].filter(Boolean).join(' · ') + '</div>' +
+        '<div class="small">' + (m.dxf ? esc(m.dxf) + ' · ' : '') + (m.dom != null ? 'δόμηση ' + gr(m.dom) + ' τ.μ. · ' : '') + 'αλλαγή ' + fmtD(m.updated) + '</div>' +
+        '<div class="pb">' + (cur ? '<span class="small" style="font-weight:700;color:var(--acc)">Ανοιχτό τώρα</span>' : '<button class="btn" data-po="' + m.id + '">Άνοιγμα</button>') +
+        '<button class="btn sec" data-pc="' + m.id + '">Αντίγραφο (νέα έκδοση)</button>' + (cur ? '<button class="btn sec" id="pExp">Αρχείο έργου</button>' : '') +
+        '<button class="btn sec pdel" data-pd="' + m.id + '">Διαγραφή</button></div></div>'; }).join('') : '<div class="card">Δεν βρέθηκαν έργα.</div>') +
+    '<div class="gnav"><button class="btn sec" id="pImp">Άνοιγμα αρχείου έργου</button><button class="btn" id="pClose">Κλείσιμο</button></div>';
+  $('#ovProj').classList.add('on');
+  $('#pNew').onclick = async () => { $('#ovProj').classList.remove('on'); await newProject(); };
+  $('#pClose').onclick = () => $('#ovProj').classList.remove('on');
+  $('#pImp').onclick = () => $('#fProj').click();
+  if ($('#pExp')) $('#pExp').onclick = exportProject;
+  if ($('#pQ')) { $('#pQ').oninput = e => { UI.pq = e.target.value; clearTimeout(UI._pqT); UI._pqT = setTimeout(() => { showProjects().then(() => { const i = $('#pQ'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }); }, 250); }; }
+  document.querySelectorAll('[data-po]').forEach(b => b.onclick = () => openProject(b.dataset.po));
+  document.querySelectorAll('[data-pc]').forEach(b => b.onclick = () => copyProject(b.dataset.pc));
+  document.querySelectorAll('[data-pd]').forEach(b => b.onclick = () => { if (b.dataset.sure) { deleteProject(b.dataset.pd); return; } b.dataset.sure = 1; b.textContent = 'Πάτα ξανά για διαγραφή'; b.classList.add('warnb'); setTimeout(() => { if (b.isConnected) { delete b.dataset.sure; b.textContent = 'Διαγραφή'; b.classList.remove('warnb'); } }, 3500); });
+}
+// νέο DXF σε έργο που έχει ήδη: ρώτα — νέο έργο ή νέα έκδοση του ίδιου
+function pickDxf(file) {
+  if (!S.D) { loadDxf(file); return; }
+  $('#projBox').innerHTML = '<h2>Νέο DXF</h2><p>Το έργο «' + esc(S.proj.ergo || S.dxfName) + '» έχει ήδη DXF. Τι είναι το «' + esc(file.name) + '»;</p>' +
+    '<div class="pb" style="flex-direction:column;align-items:stretch"><button class="btn" id="dNew">Νέο έργο — το τρέχον μένει στα «Έργα»</button><button class="btn sec" id="dCopy">Νέα έκδοση του ίδιου έργου — κρατά τους όρους, το παλιό μένει</button><button class="btn sec" id="dRep">Αντικατάσταση στο τρέχον έργο</button><button class="btn sec" id="dCan">Άκυρο</button></div>';
+  $('#ovProj').classList.add('on');
+  $('#dNew').onclick = async () => { $('#ovProj').classList.remove('on'); await newProject(true); S.step = 1; await loadDxf(file); go(1); };
+  $('#dCopy').onclick = async () => { $('#ovProj').classList.remove('on'); await copyProject(S.id); await loadDxf(file); go(1); };
+  $('#dRep').onclick = () => { $('#ovProj').classList.remove('on'); loadDxf(file); };
+  $('#dCan').onclick = () => $('#ovProj').classList.remove('on');
+}
 function snap() { UI.hist.push(JSON.stringify({ topo: S.topo, plans: S.plans, extra: S.extra, cls: S.cls.map(c => ({ kind: c.kind, level: c.level, use: c.use })) })); if (UI.hist.length > 80) UI.hist.shift(); UI.redo = []; updUndo(); }
 function restoreSnap(j) { const o = JSON.parse(j); S.topo = o.topo; S.plans = o.plans; S.extra = o.extra; o.cls.forEach((c, i) => { if (S.cls[i]) Object.assign(S.cls[i], c); }); rebuildExtra(); render(); draw(); save(); }
 function undo() { if (!UI.hist.length) return; UI.redo.push(JSON.stringify({ topo: S.topo, plans: S.plans, extra: S.extra, cls: S.cls.map(c => ({ kind: c.kind, level: c.level, use: c.use })) })); restoreSnap(UI.hist.pop()); updUndo(); }
@@ -801,7 +884,7 @@ function render() {
     $('#bTpl').onclick = downloadTemplate;
     const dr = $('#drop'); dr.onclick = () => $('#fDxf').click();
     dr.ondragover = e => { e.preventDefault(); dr.style.borderColor = 'var(--acc)'; }; dr.ondragleave = () => dr.style.borderColor = '';
-    dr.ondrop = e => { e.preventDefault(); dr.style.borderColor = ''; const f = e.dataTransfer.files[0]; if (f) loadDxf(f); };
+    dr.ondrop = e => { e.preventDefault(); dr.style.borderColor = ''; const f = e.dataTransfer.files[0]; if (f) pickDxf(f); };
     document.querySelectorAll('.cl').forEach(el => { const c = S.cls[+el.dataset.c]; thumb(el.querySelector('canvas'), c); el.onclick = ev => { if (ev.target.closest('select,input')) return; UI.selCl = c.id; document.querySelectorAll('.cl').forEach(x => x.classList.toggle('on', x === el)); fit(K.bbGrow(c.bb, 2)); }; });
     document.querySelectorAll('[data-k]').forEach(el => el.onchange = () => { snap(); const c = S.cls[+el.dataset.k]; c.kind = el.value;
       if (el.value === 'topo') { S.cls.forEach(x => { if (x !== c && x.kind === 'topo') x.kind = 'other'; }); const t = K.topoDetect(S.D, c); S.topo = Object.assign({ cl: c.id, fronts: [] }, t); }
@@ -844,7 +927,9 @@ function render() {
 function thumb(c, cl) { const g = c.getContext('2d'), b = cl.bb, w = c.width, h = c.height, s = Math.min((w - 10) / Math.max(1e-6, b[2] - b[0]), (h - 10) / Math.max(1e-6, b[3] - b[1]));
   g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.strokeStyle = '#334155'; g.lineWidth = 1;
   cl.ents.forEach(i => { const e = ent(i); if (!e) return; g.beginPath(); e.pts.forEach((p, k) => { const x = 5 + (p[0] - b[0]) * s, y = h - 5 - (p[1] - b[1]) * s; k ? g.lineTo(x, y) : g.moveTo(x, y); }); if (e.closed) g.closePath(); g.stroke(); }); }
-$('#fDxf').onchange = e => { const f = e.target.files[0]; if (f) loadDxf(f); e.target.value = ''; };
+$('#fDxf').onchange = e => { const f = e.target.files[0]; if (f) pickDxf(f); e.target.value = ''; };
+document.getElementById('fProj').onchange = e => { const f = e.target.files[0]; if (f) importProject(f); e.target.value = ''; };
+$('#btnProj').onclick = showProjects;
 $('#fImg').onchange = async e => {
   for (const f of e.target.files) { const src = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
     const im = await new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
@@ -997,6 +1082,7 @@ async function askAi() {
 /* ---------------- οδηγίες ---------------- */
 function help() {
   $('#helpBox').innerHTML = '<h2>Οδηγίες — Διάγραμμα κάλυψης</h2>' +
+    '<h3>Έργα — παλιά και νέα διαγράμματα</h3><ul><li>Κουμπί <b>«Έργα»</b> πάνω δεξιά: λίστα με όλα τα έργα (όνομα, ΚΑΕΚ, θέση, εργοδότης, δόμηση, αποτέλεσμα ελέγχου, ημερομηνία). Κάθε έργο φυλάγεται χωριστά και αυτόματα, με το DXF, τις εικόνες και όλες τις ρυθμίσεις.</li><li><b>«+ Νέο έργο»</b>: ξεκινά κενό έργο· το τρέχον μένει στη λίστα. Ο μελετητής μεταφέρεται.</li><li><b>«Άνοιγμα»</b>: ανοίγει παλιό έργο και το διάγραμμα ξαναβγαίνει όπως ήταν.</li><li><b>«Αντίγραφο (νέα έκδοση)»</b>: για νέα έκδοση του ίδιου διαγράμματος (π.χ. μετά από αλλαγές της ΥΔΟΜ) — το αρχικό μένει ανέπαφο, ο αριθμός σχεδίου ανεβαίνει (Δ_01 → Δ_02).</li><li>Όταν ανεβάζεις νέο DXF σε έργο που έχει ήδη, ρωτά: νέο έργο, νέα έκδοση του ίδιου, ή αντικατάσταση.</li><li><b>«Αρχείο έργου»</b>: κατεβάζει το έργο σε ένα αρχείο (.kalypsi.json) — για αντίγραφο ασφαλείας ή για να το ανοίξεις σε άλλο υπολογιστή με «Άνοιγμα αρχείου έργου». Τα έργα φυλάγονται στον browser αυτού του υπολογιστή· αν καθαρίσεις τα δεδομένα του browser χάνονται, γι αυτό κράτα αρχείο έργου για τα σημαντικά.</li><li><b>«Διαγραφή»</b>: θέλει δεύτερο πάτημα για επιβεβαίωση.</li></ul>' +
     '<h3>Υποδείγματα με σχήματα</h3><p class="small">Τι πρέπει να έχει το DXF και τι μετρά ή δεν μετρά, με τα άρθρα. Zoom με τη ροδέλα ή με δύο δάχτυλα.</p><div>' + GORD.map(k => gb(k, KG[k].title)).join('') + '</div>' +
   '<h3>Πριν: τι σχεδιάζεις στο DXF</h3><ul>' +
   '<li>Όλα σε <b>ένα DXF</b>, σε μέτρα: τοπογραφικό (στο ΕΓΣΑ87), κατόψεις, τομές, όψεις — με κενό ανάμεσά τους.</li>' +
@@ -1037,6 +1123,7 @@ function help() {
   $('#ovHelp').classList.add('on');
 }
 $('#btnHelp').onclick = help;
+$('#ovProj').onclick = e => { if (e.target.id === 'ovProj') e.target.classList.remove('on'); };
 $('#ovHelp').onclick = e => { if (e.target.id === 'ovHelp') e.target.classList.remove('on'); };
 function applyTheme(t) { document.documentElement.dataset.theme = t; PREF.theme = t; savePref(); draw(); }
 $('#btnTheme').onclick = () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
@@ -1044,9 +1131,15 @@ $('#btnTheme').onclick = () => applyTheme(document.documentElement.dataset.theme
 /* ---------------- εκκίνηση ---------------- */
 (async () => {
   document.documentElement.dataset.theme = PREF.theme || 'light';
-  try { const st = JSON.parse(localStorage.getItem('kalypsi_settings') || 'null'); if (st) { Object.assign(S.proj, st.proj || {}); Object.assign(S.rules, st.rules || {}); Object.assign(S.ext, st.ext || {}); } } catch (e) {}
-  try { const w = await IDB.get('work'); if (w && w.v === 1) { S = Object.assign(DEF(), w); rebuildExtra(); } } catch (e) {}
+  try {
+    let cur = localStorage.getItem('kalypsi_cur'), w = cur ? await IDB.get('p:' + cur) : null;
+    if (!w) { const old = await IDB.get('work'); if (old && old.v === 1) { w = old; if (!w.id) { w.id = newId(); w.created = Date.now(); } } }   // μεταφορά της παλιάς εργασίας σε έργο
+    if (!w) { const ms = await listProjects(); if (ms.length) w = await IDB.get('p:' + ms[0].id); }
+    if (w && w.v === 1) { S = Object.assign(DEF(), w); rebuildExtra(); }
+    else { const st = JSON.parse(localStorage.getItem('kalypsi_settings') || 'null'); if (st) S.proj.meletitis = st.meletitis || (st.proj && st.proj.meletitis) || ''; }
+  } catch (e) {}
   resize(); compute(); render(); go(S.step || 0);
+  await saveNow(); IDB.del('work').catch(() => {});
   if (PREF.seenVer !== APP_VERSION) { toast(WHATS_NEW, 8000); PREF.seenVer = APP_VERSION; savePref(); }
   else if (S.D) toast('Συνέχεια εργασίας: ' + (S.dxfName || 'DXF'));
 })();
