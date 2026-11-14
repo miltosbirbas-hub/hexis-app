@@ -4,12 +4,12 @@
 <script>if(/type=recovery/.test(location.hash))location.replace('login.html?mode=reset'+location.hash);</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>HEXIS Hub</title>
+<title>HEXIS-APP Hub</title>
 <meta name="theme-color" content="#FFFFFF">
 <link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="HEXIS">
+<meta name="apple-mobile-web-app-title" content="HEXIS-APP">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,9 +27,9 @@
   --font-m:'JetBrains Mono',monospace;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--bg);color:var(--text);font-family:var(--font-b);font-size:15px;line-height:1.6;min-height:100vh}
+body{background:var(--bg);color:var(--text);font-family:var(--font-b);font-size:16px;line-height:1.6;min-height:100vh}
 ::selection{background:rgba(242,107,33,.18)}
-.bggrid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.8}
+.bggrid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5}
 .wrap{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:0 22px 70px}
 
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 0;gap:14px;flex-wrap:wrap}
@@ -44,58 +44,90 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-b);font-size:
 .logout{font-family:var(--font-d);font-weight:600;font-size:13px;color:var(--muted);background:#fff;border:1px solid var(--border);border-radius:9px;padding:8px 14px;cursor:pointer}
 .logout:hover{border-color:var(--border-strong);color:var(--text)}
 
-.hero{padding:26px 0 8px}
-.eyebrow{font-family:var(--font-m);font-size:11.5px;color:var(--orange);letter-spacing:.18em;text-transform:uppercase;font-weight:600;display:flex;align-items:center;gap:10px}
-.eyebrow::before{content:"";width:22px;height:2px;background:var(--orange)}
-.hero h1{font-family:var(--font-d);font-weight:900;font-size:clamp(25px,4.2vw,38px);letter-spacing:-.01em;line-height:1.2;margin-top:6px}
+.hero{padding:18px 0 4px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.hero h1{font-family:var(--font-d);font-weight:900;font-size:clamp(24px,3.6vw,32px);letter-spacing:-.01em;line-height:1.2}
 .hero h1 span{color:var(--orange)}
-.hero p{color:var(--muted);font-size:14px;margin-top:6px}
+.hero p{color:var(--muted);font-size:15px;margin-top:2px}
 
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:13px;margin-top:26px}
-.grid.sub{margin-top:12px}
-.cats{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;align-items:center}
-.chip{font-family:var(--font-d);font-weight:600;font-size:13px;color:var(--muted);background:#fff;border:1px solid var(--border);border-radius:99px;padding:7px 13px;cursor:pointer;white-space:nowrap}
-.chip:hover{border-color:var(--border-strong);color:var(--text)}
-.chip.on{background:#FFF3E8;border-color:rgba(242,107,33,.45);color:#E05A12}
-.chip b{font-family:var(--font-m);font-weight:600;font-size:11px;color:var(--faint);margin-left:4px}
-.search{flex:1 1 200px;min-width:180px;max-width:300px;margin-left:auto;font:inherit;font-size:13.5px;border:1px solid var(--border);border-radius:99px;padding:7px 14px;background:#fff;color:var(--text)}
-.search:focus{outline:none;border-color:rgba(242,107,33,.55)}
-.cat-hd{display:flex;align-items:baseline;gap:10px;margin-top:30px;padding-bottom:8px;border-bottom:1px solid var(--border)}
-.cat-hd h2{font-family:var(--font-d);font-size:17px;font-weight:800}
-.cat-hd span{font-size:12.5px;color:var(--faint)}
-.empty-s{color:var(--faint);font-size:13.5px;margin-top:22px}
-@media(max-width:600px){.search{max-width:none;margin-left:0}}
-.tile{
-  position:relative;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-  padding:18px 16px 15px;cursor:pointer;text-align:left;color:var(--text);text-decoration:none;display:block;
-  box-shadow:0 1px 2px rgba(16,40,70,.05);
-  transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;
+/* Αναζήτηση */
+.sbox{position:relative;margin-top:16px}
+.sbox svg{position:absolute;left:16px;top:50%;transform:translateY(-50%);width:22px;height:22px;color:var(--faint);pointer-events:none}
+.search{width:100%;font:inherit;font-size:17px;border:1.5px solid var(--border-strong);border-radius:14px;padding:14px 46px 14px 50px;background:#fff;color:var(--text);box-shadow:0 2px 8px rgba(16,40,70,.05)}
+.search:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 4px rgba(242,107,33,.12)}
+.search::placeholder{color:var(--faint)}
+.kbd{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-family:var(--font-m);font-size:12px;color:var(--faint);border:1px solid var(--border-strong);border-radius:6px;padding:1px 7px;background:#FAFBFC}
+#q:focus ~ .kbd,#q:not(:placeholder-shown) ~ .kbd{display:none}
+@media(max-width:700px){.kbd{display:none}.search{padding-right:16px}}
+
+/* Ενότητες */
+.sec{margin-top:26px}
+.sec-hd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:12px}
+.sec-hd h2{font-family:var(--font-d);font-size:19px;font-weight:800}
+.sec-hd span{font-size:14px;color:var(--muted)}
+.empty-s{color:var(--muted);font-size:15px;padding:6px 2px}
+
+/* Πρόσφατα */
+.recent{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.recent .lbl{font-size:14px;color:var(--muted);font-weight:600;margin-right:2px}
+.rpill{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border-strong);border-radius:99px;padding:6px 14px 6px 7px;font-family:var(--font-d);font-weight:700;font-size:14.5px;color:var(--text);text-decoration:none}
+.rpill:hover{border-color:var(--orange);color:var(--orange-deep)}
+.rpill .ico{width:26px;height:26px;display:inline-block;flex:none}
+.rpill .ico svg,.rpill .ico img{width:100%;height:100%;display:block}
+
+/* Κύρια κάρτα (Διαχείριση Έργων) */
+.primary{display:flex;align-items:center;gap:16px;padding:16px 18px;margin-top:16px;border-radius:var(--radius);text-decoration:none;color:var(--text);
+  background:linear-gradient(120deg,#FFF7EF,#FFFFFF 60%);border:1px solid rgba(242,107,33,.35);box-shadow:0 1px 2px rgba(16,40,70,.05);transition:box-shadow .16s,transform .16s}
+.primary:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(16,40,70,.10)}
+.primary .ico{width:48px;height:52px;flex:none}
+.primary .ico img,.primary .ico svg{width:100%;height:100%;display:block}
+.primary h3{font-family:var(--font-d);font-size:19px;font-weight:800}
+.primary p{font-size:14px;color:var(--muted);line-height:1.45}
+.primary-cta{margin-left:auto;font-family:var(--font-d);font-weight:700;font-size:15px;color:#fff;background:linear-gradient(135deg,#F7941D,#F15A24);border-radius:10px;padding:11px 20px;white-space:nowrap;box-shadow:0 6px 18px rgba(242,107,33,.30)}
+@media(max-width:600px){.primary{flex-wrap:wrap}.primary-cta{margin-left:0;width:100%;text-align:center}}
+
+/* Τα εργαλεία μου — εκκίνηση με ένα πάτημα */
+.mine{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:10px}
+.app{position:relative;display:flex;align-items:center;gap:13px;background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:12px 44px 12px 12px;text-decoration:none;color:var(--text);box-shadow:0 1px 2px rgba(16,40,70,.05);transition:transform .14s,border-color .14s,box-shadow .14s;min-height:74px}
+.app:hover{transform:translateY(-2px);border-color:var(--border-strong);box-shadow:0 8px 20px rgba(16,40,70,.09)}
+.app .ico{width:48px;height:48px;flex:none;display:block}
+.app .ico svg,.app .ico img{width:100%;height:100%;display:block}
+.app .tx{min-width:0}
+.app h3{font-family:var(--font-d);font-size:16.5px;font-weight:800;line-height:1.25}
+.app p{font-size:13.5px;color:var(--muted);line-height:1.4;margin-top:2px}
+.fav{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:9px;border:1px solid transparent;background:none;cursor:pointer;font-size:19px;line-height:1;color:#C3CAD4;display:flex;align-items:center;justify-content:center}
+.fav:hover{background:#FFF3E8;border-color:rgba(242,107,33,.3);color:var(--orange)}
+.fav.on{color:#F5A400}
+.tag{display:inline-block;white-space:nowrap;font-size:12px;font-weight:700;padding:2px 9px;border-radius:99px;margin-top:5px;background:rgba(31,160,92,.10);color:var(--green)}
+
+/* Περισσότερα εργαλεία */
+.cats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.chip{font-family:var(--font-d);font-weight:700;font-size:14.5px;color:var(--muted);background:#fff;border:1px solid var(--border-strong);border-radius:99px;padding:8px 15px;cursor:pointer;white-space:nowrap}
+.chip:hover{color:var(--text);border-color:#BFC6D0}
+.chip.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.chip b{font-family:var(--font-m);font-weight:600;font-size:12px;opacity:.7;margin-left:5px}
+.cat-hd{font-family:var(--font-d);font-size:16px;font-weight:800;margin:18px 0 8px;color:var(--text);display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.cat-hd span{font-family:var(--font-b);font-size:13.5px;font-weight:500;color:var(--muted)}
+.more{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.lk{display:flex;align-items:flex-start;gap:13px;background:#FBFCFD;border:1px dashed var(--border-strong);border-radius:var(--radius);padding:13px 14px;text-decoration:none;color:var(--text);transition:border-color .14s,background .14s}
+.lk:hover{background:#fff;border-style:solid;border-color:rgba(242,107,33,.45)}
+.lk .ico{width:40px;height:40px;flex:none;display:block;filter:grayscale(.35);opacity:.85}
+.lk .ico svg,.lk .ico img{width:100%;height:100%;display:block}
+.lk h3{font-family:var(--font-d);font-size:15.5px;font-weight:800;line-height:1.3}
+.lk p{font-size:13.5px;color:var(--muted);line-height:1.4;margin-top:2px}
+.lk .go{display:inline-block;margin-top:6px;font-family:var(--font-d);font-size:13.5px;font-weight:700;color:var(--orange-deep)}
+
+/* Νέα έκδοση */
+.news{display:flex;align-items:center;gap:12px;margin-top:14px;background:#EEF4FB;border:1px solid rgba(31,78,156,.25);color:#1F3F75;border-radius:12px;padding:10px 14px;font-size:14.5px}
+.news b{font-family:var(--font-d)}
+.news button{margin-left:auto;flex:none;font:inherit;font-weight:700;font-size:13.5px;background:#fff;border:1px solid rgba(31,78,156,.3);color:#1F3F75;border-radius:8px;padding:5px 12px;cursor:pointer}
+
+/* Πάνω μπάρα σε κινητό */
+@media(max-width:600px){
+  .topbar{padding:12px 0}
+  .tr{width:100%;justify-content:flex-start;flex-wrap:wrap;gap:8px}
+  .mine{grid-template-columns:1fr}
+  .more{grid-template-columns:1fr}
 }
-.tile:hover{transform:translateY(-3px);border-color:var(--border-strong);box-shadow:0 10px 24px rgba(16,40,70,.10)}
-.tile.primary{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:22px 20px;
-  background:linear-gradient(120deg,#FFF7EF, #FFFFFF 55%);border-color:rgba(242,107,33,.35)}
-.tile .ico{width:32px;height:32px;display:inline-block;margin-bottom:10px}
-.tile .ico svg{width:100%;height:100%;display:block}
-.tile.primary .ico{width:46px;height:50px;margin:0;flex:none}
-.tile.locked .ico{filter:grayscale(1);opacity:.65}
-.tile h3{font-family:var(--font-d);font-size:15.5px;font-weight:700;margin-bottom:2px}
-.tile.primary h3{font-size:19px}
-.tile p{font-size:12.5px;color:var(--muted);line-height:1.5}
-.tile .foot{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)}
-.tile.primary .foot{display:none}
-.badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px}
-.badge.on{background:rgba(31,160,92,.10);color:var(--green)}
-.badge.lock{background:#FFF3E8;color:#E05A12}
-.go{font-size:12px;color:var(--faint)}
-.tile:hover .go{color:var(--orange)}
-.tile.locked{opacity:.62}
-.tile.locked .ico{filter:grayscale(.5)}
-.tile.locked:hover{opacity:.85}
-.lockico{position:absolute;top:10px;right:12px;font-size:13px}
-.primary-cta{margin-left:auto;font-family:var(--font-d);font-weight:700;font-size:14px;color:#fff;
-  background:linear-gradient(135deg,#F7941D,#F15A24);border-radius:10px;padding:11px 20px;white-space:nowrap;
-  box-shadow:0 6px 18px rgba(242,107,33,.35)}
-
 footer{margin-top:50px;padding-top:18px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
 footer p{font-size:11.5px;color:var(--faint)}
 
@@ -117,10 +149,6 @@ footer p{font-size:11.5px;color:var(--faint)}
 .spin{width:34px;height:34px;border:3px solid #F0E4D8;border-top-color:var(--orange);border-radius:50%;animation:sp .8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 .loading p{font-family:var(--font-m);font-size:12px;color:var(--faint);letter-spacing:.12em;text-transform:uppercase}
-@media(max-width:600px){
-  .tile.primary{flex-direction:column;align-items:flex-start;gap:10px}
-  .primary-cta{margin-left:0}
-}
 .dev-chip{display:inline-flex;align-items:center;gap:7px;background:#EEF4FB;color:#1F4E9C;border:1px solid rgba(31,78,156,.3);font-size:12.5px;font-weight:700;padding:5px 12px;border-radius:99px;cursor:pointer;font-family:var(--font-b)}
 .dev-chip:hover{background:#E2EDF9}
 .dev-chip b{font-family:var(--font-m);font-weight:700}
@@ -143,7 +171,7 @@ footer p{font-size:11.5px;color:var(--faint)}
 </head>
 <body>
 
-<div class="loading" id="loading"><div class="spin"></div><p>HEXIS Hub</p></div>
+<div class="loading" id="loading"><div class="spin"></div><p>HEXIS-APP Hub</p></div>
 
 <svg class="bggrid" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
   <defs>
@@ -182,7 +210,7 @@ footer p{font-size:11.5px;color:var(--faint)}
         <circle cx="20" cy="22" r="2.6" fill="#F26B21"/>
       </svg>
       <div>
-        <div class="bname">HEXIS <em>Hub</em></div>
+        <div class="bname">HEXIS-APP <em>Hub</em></div>
         <div class="bsub">Site &amp; survey toolkit</div>
       </div>
     </div>
@@ -195,14 +223,33 @@ footer p{font-size:11.5px;color:var(--faint)}
   </header>
 
   <section class="hero">
-    <div class="eyebrow">HEXIS · Όλα τα εργαλεία σου</div>
-    <h1 id="hello">Καλώς ήρθες</h1>
-    <p>Επίλεξε εφαρμογή. Κάθε εργαλείο ενεργοποιείται ξεχωριστά στον λογαριασμό σου — κρατάς μόνο όσα χρειάζεσαι.</p>
+    <div>
+      <h1 id="hello">Καλώς ήρθες</h1>
+      <p>Βρες ένα εργαλείο, πάτα και ξεκίνα.</p>
+    </div>
   </section>
+  <div id="news"></div>
 
-  <div id="prim"></div>
-  <div class="cats" id="cats" role="toolbar" aria-label="Κατηγορίες"></div>
-  <div id="grid"></div>
+  <div class="sbox">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+    <input class="search" id="q" type="search" autocomplete="off" placeholder="Τι θέλεις να κάνεις; π.χ. συντεταγμένες, ΚΑΕΚ, στέγη, PDF, άδεια…" aria-label="Αναζήτηση εργαλείου">
+    <span class="kbd">/</span>
+  </div>
+  <div id="recent"></div>
+
+  <div id="results"></div>
+  <div id="home">
+    <div id="prim"></div>
+    <section class="sec" id="sec-mine">
+      <div class="sec-hd"><h2>Τα εργαλεία μου</h2><span id="mine-hint">Πάτα ☆ για να κρατήσεις ένα εργαλείο πρώτο στη λίστα.</span></div>
+      <div class="mine" id="mine"></div>
+    </section>
+    <section class="sec" id="sec-more">
+      <div class="sec-hd"><h2>Περισσότερα εργαλεία</h2><span>Ενεργοποιούνται ξεχωριστά — πάτα σε ένα για να δεις τι κάνει.</span></div>
+      <div class="cats" id="cats" role="toolbar" aria-label="Κατηγορίες"></div>
+      <div id="grid"></div>
+    </section>
+  </div>
 
   <footer>
     <p>© 2026 BRB Development ΜΟΝ. Ι.Κ.Ε. — hexis-app.gr · <a href="manual.html" style="color:var(--orange-deep);font-weight:600;text-decoration:none">Οδηγός χρήσης</a></p>
@@ -235,7 +282,7 @@ footer p{font-size:11.5px;color:var(--faint)}
 </div>
 
 <script>
-const HUB_VERSION = 'v1.10';
+const HUB_VERSION = 'v1.11';
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
@@ -253,65 +300,171 @@ let currentUser = null;
 let CUR_CAT = (function(){ try { return localStorage.getItem('hx_hub_cat') || 'all'; } catch(e) { return 'all'; } })();
 let QUERY = '';
 const CATS = window.HEXIS_CATEGORIES || [];
-const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ς/g, 'σ');
+const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-function tileHTML(t, isOwner) {
-  const has = !!t.free || myModules.has(t.mod || t.id);
-  const attrs = 'href="' + (t.free ? t.href : 'tool.html?id=' + t.id) + '"' + (t.free && t.external ? ' target="_blank" rel="noopener"' : '');
-  return '<a class="tile' + (has ? '' : ' locked') + '" ' + attrs + '>'
-    + (has ? '' : '<span class="lockico">🔒</span>')
-    + '<span class="ico">' + (ICONS[t.id] || '') + '</span>'
-    + '<h3>' + t.name + '</h3><p>' + t.desc + '</p>'
-    + '<span class="foot">'
-    + (t.badge ? '<span class="badge on">' + t.badge + '</span>' : t.ownerOnly ? (isOwner ? '<span class="badge on">Ιδιωτικό · τοπικά</span>' : '<span class="badge on">✓ Άδεια ενεργή</span>') : t.free ? '<span class="badge on">Δωρεάν</span>' : has ? '<span class="badge on">✓ Ενεργό</span>' : '<span class="badge lock">Add-on</span>')
-    + '<span class="go">' + (has ? (t.download ? 'Λήψη →' : 'Άνοιγμα →') : 'Ξεκλείδωμα →') + '</span>'
-    + '</span></a>';
+// Λέξεις που ψάχνει ο κόσμος — για να βρίσκει το σωστό εργαλείο ακόμα κι αν δεν ξέρει το όνομά του
+const KEYWORDS = {
+  app:'εργοταξιο εργο ημερολογιο φωτογραφιες αναφορα παρατηρηση επιβλεψη συνεργατες',
+  nomothesia:'νομος νομοθεσια νοκ ταγαρα 5306 4495 κτιριοδομικος αρθρο αυθαιρετα πολεοδομια',
+  ktima:'χαρτης καεκ κτηματολογιο εγσα gps θεση οριο γεωτεμαχιο',
+  syntetagmenes:'συντεταγμενες καεκ τοπογραφικο δγμ κατατμηση συνενωση διορθωση οριων πινακας εγσα pdf dxf',
+  paper2dxf:'χαρτι σαρωση scan παλιο σχεδιο jpg tiff pdf σε dxf ψηφιοποιηση',
+  kalypsi:'διαγραμμα καλυψης αδεια δομηση καλυψη σδ ογκος υπεν 1:100',
+  pdfdim:'μετρηση μετρησεις pdf κλιμακα αποσταση εμβαδον διασταση',
+  dxf:'dxf ελεγχος κτηματολογιο υποβολη πινακας ι',
+  kostos:'κοστος αδειας αμοιβη φοροι εφκα προυπολογισμος xml e-αδειες',
+  domisi:'ελεγκτης δομησης πορισμα 4495',
+  terrain:'kmz kml ισουψεις υψομετρα dem εδαφος',
+  asbuilt:'νεφος σημειων ογκοι χωματουργικα εκσκαφη επιχωση παχος slam σαρωση',
+  plan3d:'3d κτιριο κατοψη ξυλοτυπος τομη μοντελο',
+  toixos:'τοιχος αντιστηριξης ευρωκωδικας οπλισμος στατικα',
+  mpeton:'μπετον σκυροδεμα τουβλα σεναζ λασπη κονιαμα ποσοτητες',
+  stegh:'στεγη κεραμιδια ζευκτα ξυλεια μαρκιζα προμετρηση',
+  pad:'gnss rtk δεκτης χαραξη αποτυπωση android κινητο',
+  rtk:'gnss base rover δεκτης',
+  mapping:'drone ορθοφωτο φωτογραμμετρια dtm ισουψεις',
+  interior:'επιπλωση εσωτερικος χωρος κουζινα',
+  routeprep:'drone πτηση αποστολη dji kml',
+  kenak:'κενακ πεα ενεργειακη επιθεωρηση xml τεε',
+  lisp:'lisp autocad progecad εντολες cad ρουτινες'
+};
+
+// Αγαπημένα & πρόσφατα — μένουν αποθηκευμένα στη συσκευή
+function lsGet(k, d){ try { const v = JSON.parse(localStorage.getItem(k)); return Array.isArray(v) ? v : d; } catch(e) { return d; } }
+function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
+let FAVS = lsGet('hx_hub_fav', []);
+let RECENT = lsGet('hx_hub_recent', []);
+function touchRecent(id){ RECENT = [id].concat(RECENT.filter(x => x !== id)).slice(0, 6); lsSet('hx_hub_recent', RECENT); }
+function toggleFav(id){ FAVS = FAVS.includes(id) ? FAVS.filter(x => x !== id) : FAVS.concat(id); lsSet('hx_hub_fav', FAVS); render(); }
+
+let IS_OWNER = false;
+const hasTool = t => !!t.free || myModules.has(t.mod || t.id);
+const visibleTools = () => TOOLS.filter(t => !t.ownerOnly || IS_OWNER || myModules.has(t.mod || t.id));
+const hrefOf = t => t.primary ? t.href : (t.free ? t.href : 'tool.html?id=' + t.id);
+const extOf = t => (t.free && t.external) ? ' target="_blank" rel="noopener"' : '';
+// σύντομη περιγραφή: τα πρώτα κομμάτια της περιγραφής (ολόκληρη στο tooltip)
+function shortDesc(t, n){ const parts = String(t.desc || '').split(/\s+·\s+|\s+—\s+/); return parts.slice(0, n || 3).join(' · '); }
+const icoOf = t => t.primary ? (ICONS.app || '') : (ICONS[t.id] || '<span style="font-size:30px;line-height:48px">' + (t.ico || '•') + '</span>');
+
+function appHTML(t){
+  const fav = FAVS.includes(t.id);
+  const tag = t.badge ? t.badge : t.ownerOnly ? (IS_OWNER ? 'Ιδιωτικό' : '✓ Άδεια ενεργή') : t.download ? 'Λήψη' : '';
+  return '<a class="app" href="' + hrefOf(t) + '"' + extOf(t) + ' data-id="' + t.id + '" title="' + esc(t.desc) + '">'
+    + '<span class="ico">' + icoOf(t) + '</span>'
+    + '<span class="tx"><h3>' + t.name + '</h3><p>' + shortDesc(t, 1) + '</p>'
+    + (tag ? '<span class="tag">' + tag + '</span>' : '') + '</span>'
+    + '<button type="button" class="fav' + (fav ? ' on' : '') + '" data-fav="' + t.id + '" title="' + (fav ? 'Αφαίρεση από τα αγαπημένα' : 'Πρόσθεσε στα αγαπημένα') + '" aria-label="Αγαπημένο">' + (fav ? '★' : '☆') + '</button>'
+    + '</a>';
+}
+function lockedHTML(t){
+  return '<a class="lk" href="' + hrefOf(t) + '" data-id="' + t.id + '" title="' + esc(t.desc) + '">'
+    + '<span class="ico">' + icoOf(t) + '</span>'
+    + '<span><h3>' + t.name + '</h3><p>' + shortDesc(t, 3) + '</p><span class="go">Δες τι κάνει →</span></span></a>';
+}
+function primaryHTML(t){
+  return '<a class="primary" href="' + t.href + '" data-id="' + t.id + '">'
+    + '<span class="ico">' + (ICONS.app || '') + '</span>'
+    + '<span><h3>' + t.name + '</h3><p>' + t.desc + '</p></span>'
+    + '<span class="primary-cta">Άνοιγμα →</span></a>';
 }
 
 function render() {
-  const isOwner = !!(currentUser && (window.HEXIS_OWNER_EMAILS || []).includes((currentUser.email || '').toLowerCase()));
+  IS_OWNER = !!(currentUser && (window.HEXIS_OWNER_EMAILS || []).includes((currentUser.email || '').toLowerCase()));
   // ownerOnly: μόνο ο ιδιοκτήτης ή όποιος έχει δικαίωμα (π.χ. κλειδί άδειας HEXIS MAPPING → entitlement «mapping»)
-  const visible = TOOLS.filter(t => !t.ownerOnly || isOwner || myModules.has(t.mod || t.id));
+  const visible = visibleTools();
   const prim = visible.filter(t => t.primary), tools = visible.filter(t => !t.primary);
-  document.getElementById('prim').innerHTML = prim.map(t => '<div class="grid"><a class="tile primary" href="' + t.href + '">'
-      + '<span class="ico">' + ICONS.app + '</span>'
-      + '<span><h3>' + t.name + '</h3><p>' + t.desc + '</p></span>'
-      + '<span class="primary-cta">Άνοιγμα →</span></a></div>').join('');
+  const byId = id => visible.find(t => t.id === id);
+
+  // Πρόσφατα (μόνο όσα μπορεί να ανοίξει)
+  const rec = RECENT.map(byId).filter(t => t && (t.primary || hasTool(t))).slice(0, 5);
+  document.getElementById('recent').innerHTML = rec.length
+    ? '<div class="recent"><span class="lbl">Πρόσφατα:</span>' + rec.map(t => '<a class="rpill" href="' + hrefOf(t) + '"' + extOf(t) + ' data-id="' + t.id + '"><span class="ico">' + icoOf(t) + '</span>' + t.name + '</a>').join('') + '</div>'
+    : '';
+
+  // Διαχείριση Έργων
+  document.getElementById('prim').innerHTML = prim.map(primaryHTML).join('');
+
+  // Τα εργαλεία μου: αγαπημένα → πρόσφατα → σειρά καταλόγου
+  const mine = tools.filter(hasTool);
+  const rank = t => { const f = FAVS.indexOf(t.id), r = RECENT.indexOf(t.id); return f >= 0 ? f : r >= 0 ? 100 + r : 1000 + tools.indexOf(t); };
+  mine.sort((a, b) => rank(a) - rank(b));
+  document.getElementById('mine').innerHTML = mine.length ? mine.map(appHTML).join('')
+    : '<p class="empty-s">Δεν έχεις ενεργοποιήσει ακόμα κάποιο εργαλείο. Δες παρακάτω τι υπάρχει.</p>';
+
+  // Περισσότερα εργαλεία (κλειδωμένα) ανά κατηγορία
+  const locked = tools.filter(t => !hasTool(t));
+  document.getElementById('sec-more').style.display = locked.length ? '' : 'none';
   const inCat = (t, c) => (t.cat || []).includes(c);
-  const cats = CATS.filter(c => tools.some(t => inCat(t, c.id)));
+  const cats = CATS.filter(c => locked.some(t => inCat(t, c.id)));
   if (CUR_CAT !== 'all' && !cats.some(c => c.id === CUR_CAT)) CUR_CAT = 'all';
-  // πρώτα τα ενεργά/δωρεάν, μετά τα κλειδωμένα· μέσα σε κάθε ομάδα η σειρά του καταλόγου
-  const order = list => list.map((t, i) => [t, i]).sort((a, b) => {
-    const ha = !!a[0].free || myModules.has(a[0].mod || a[0].id), hb = !!b[0].free || myModules.has(b[0].mod || b[0].id);
-    return (hb - ha) || (a[1] - b[1]); }).map(x => x[0]);
   const chips = document.getElementById('cats');
-  chips.innerHTML = '<button class="chip' + (CUR_CAT === 'all' ? ' on' : '') + '" data-cat="all">Όλα<b>' + tools.length + '</b></button>'
-    + cats.map(c => '<button class="chip' + (CUR_CAT === c.id ? ' on' : '') + '" data-cat="' + c.id + '">' + c.ico + ' ' + c.name + '<b>' + tools.filter(t => inCat(t, c.id)).length + '</b></button>').join('')
-    + '<input class="search" id="q" type="search" placeholder="Αναζήτηση εργαλείου…" aria-label="Αναζήτηση εργαλείου" value="' + QUERY.replace(/"/g, '&quot;') + '">';
+  chips.innerHTML = '<button type="button" class="chip' + (CUR_CAT === 'all' ? ' on' : '') + '" data-cat="all">Όλα<b>' + locked.length + '</b></button>'
+    + cats.map(c => '<button type="button" class="chip' + (CUR_CAT === c.id ? ' on' : '') + '" data-cat="' + c.id + '">' + c.ico + ' ' + c.name + '<b>' + locked.filter(t => inCat(t, c.id)).length + '</b></button>').join('');
   chips.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { CUR_CAT = b.dataset.cat; try { localStorage.setItem('hx_hub_cat', CUR_CAT); } catch(e) {} render(); });
-  const qi = document.getElementById('q');
-  qi.oninput = () => { QUERY = qi.value; drawGrid(); };
-  function drawGrid() {
-    const g = document.getElementById('grid'), q = norm(QUERY.trim());
-    const match = t => !q || norm(t.name + ' ' + t.desc + ' ' + (t.tagline || '')).includes(q);
-    let html = '';
-    if (q) {                       // αναζήτηση: μία λίστα, χωρίς διπλά
-      const hits = order(tools.filter(match));
-      html = hits.length ? '<div class="grid sub">' + hits.map(t => tileHTML(t, isOwner)).join('') + '</div>' : '<p class="empty-s">Δεν βρέθηκε εργαλείο για «' + QUERY.replace(/</g, '&lt;') + '».</p>';
-    } else {
-      const show = CUR_CAT === 'all' ? cats : cats.filter(c => c.id === CUR_CAT);
-      html = show.map(c => {
-        const list = order(tools.filter(t => CUR_CAT === 'all' ? (t.cat || [])[0] === c.id : inCat(t, c.id)));   // «Όλα»: κάθε εργαλείο μία φορά
-        return '<div class="cat-hd"><h2>' + c.ico + ' ' + c.name + '</h2><span>' + c.desc + '</span></div>'
-          + '<div class="grid sub">' + list.map(t => tileHTML(t, isOwner)).join('') + '</div>';
-      }).join('');
-      const rest = tools.filter(t => !(t.cat || []).some(c => cats.some(x => x.id === c)));
-      if (CUR_CAT === 'all' && rest.length) html += '<div class="cat-hd"><h2>Άλλα</h2></div><div class="grid sub">' + rest.map(t => tileHTML(t, isOwner)).join('') + '</div>';
-    }
-    g.innerHTML = html;
-  }
-  drawGrid();
+  const show = CUR_CAT === 'all' ? cats : cats.filter(c => c.id === CUR_CAT);
+  let html = show.map(c => {
+    const list = locked.filter(t => CUR_CAT === 'all' ? (t.cat || [])[0] === c.id : inCat(t, c.id));
+    if (!list.length) return '';
+    return '<div class="cat-hd">' + c.ico + ' ' + c.name + '<span>' + c.desc + '</span></div><div class="more">' + list.map(lockedHTML).join('') + '</div>';
+  }).join('');
+  // εργαλεία που η κύρια κατηγορία τους δεν εμφανίζεται (στο «Όλα»)
+  const shown = new Set();
+  if (CUR_CAT === 'all') show.forEach(c => locked.forEach(t => { if ((t.cat || [])[0] === c.id) shown.add(t.id); }));
+  const rest = CUR_CAT === 'all' ? locked.filter(t => !shown.has(t.id)) : [];
+  if (rest.length) html += '<div class="cat-hd">Άλλα</div><div class="more">' + rest.map(lockedHTML).join('') + '</div>';
+  document.getElementById('grid').innerHTML = html;
+
+  drawResults();
 }
+
+// Αναζήτηση σε όνομα, περιγραφή, χαρακτηριστικά και λέξεις-κλειδιά
+function drawResults(){
+  const q = norm(QUERY.trim());
+  const home = document.getElementById('home'), res = document.getElementById('results');
+  if (!q) { res.innerHTML = ''; home.style.display = ''; return; }
+  home.style.display = 'none';
+  const words = q.split(/\s+/).filter(Boolean);
+  const hay = t => norm([t.name, t.name_en, t.desc, t.desc_en, t.tagline, (t.feats || []).join(' '), KEYWORDS[t.id]].join(' '));
+  const score = t => { const h = hay(t), n = norm(t.name); if (!words.every(w => h.includes(w))) return -1; return (n.includes(q) ? 10 : 0) + (n.startsWith(q) ? 5 : 0) + (norm(KEYWORDS[t.id]).includes(q) ? 4 : 0) + (hasTool(t) || t.primary ? 3 : 0); };
+  const hits = visibleTools().map(t => [t, score(t)]).filter(x => x[1] >= 0).sort((a, b) => b[1] - a[1]).map(x => x[0]);
+  const own = hits.filter(t => t.primary || hasTool(t)), lock = hits.filter(t => !t.primary && !hasTool(t));
+  let html = '';
+  if (!hits.length) html = '<section class="sec"><p class="empty-s">Δεν βρέθηκε εργαλείο για «' + esc(QUERY) + '». Δοκίμασε άλλη λέξη, π.χ. «χάρτης», «DXF», «στέγη».</p></section>';
+  if (own.length) html += '<section class="sec"><div class="sec-hd"><h2>Τα εργαλεία μου</h2><span>Enter: ανοίγει το πρώτο</span></div><div class="mine">' + own.map(appHTML).join('') + '</div></section>';
+  if (lock.length) html += '<section class="sec"><div class="sec-hd"><h2>Άλλα εργαλεία</h2></div><div class="more">' + lock.map(lockedHTML).join('') + '</div></section>';
+  res.innerHTML = html;
+}
+
+// Ένας listener για όλα τα κλικ: αγαπημένο ή καταγραφή πρόσφατου
+document.addEventListener('click', e => {
+  const f = e.target.closest('[data-fav]');
+  if (f) { e.preventDefault(); e.stopPropagation(); toggleFav(f.dataset.fav); return; }
+  const a = e.target.closest('a[data-id]');
+  if (a) touchRecent(a.dataset.id);
+});
+(function(){
+  const qi = document.getElementById('q');
+  if (window.innerWidth < 600) qi.placeholder = 'Αναζήτηση: π.χ. ΚΑΕΚ, στέγη, PDF…';
+  qi.addEventListener('input', () => { QUERY = qi.value; drawResults(); });
+  qi.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { const first = document.querySelector('#results a[data-id]'); if (first) first.click(); }
+    if (e.key === 'Escape') { qi.value = ''; QUERY = ''; drawResults(); }
+  });
+  document.addEventListener('keydown', e => {
+    const tag = ((document.activeElement || {}).tagName || '');
+    if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(tag)) { e.preventDefault(); qi.focus(); }
+  });
+})();
+
+// Τι άλλαξε — μία φορά ανά έκδοση του hub
+(function(){
+  let seen = ''; try { seen = localStorage.getItem('hx_hub_news') || ''; } catch(e) {}
+  if (seen === HUB_VERSION) return;
+  const el = document.getElementById('news');
+  el.innerHTML = '<div class="news"><span>✨ <b>Νέο Hub:</b> τα εργαλεία σου πρώτα, ☆ αγαπημένα, «Πρόσφατα» και αναζήτηση με ό,τι θέλεις να κάνεις.</span><button type="button">Εντάξει</button></div>';
+  el.querySelector('button').onclick = () => { try { localStorage.setItem('hx_hub_news', HUB_VERSION); } catch(e) {} el.innerHTML = ''; };
+})();
 
 function showModal(id) {
   const t = TOOLS.find(x => x.id === id);
@@ -404,7 +557,7 @@ function closeDevices(){ document.getElementById('dev-overlay').classList.remove
 document.getElementById('dev-overlay').addEventListener('click', e => { if (e.target.id === 'dev-overlay') closeDevices(); });
 
 function doLogout(){
-  if (confirm('Αποσύνδεση από το HEXIS;')) sb.auth.signOut().then(() => window.location.href = 'login.html');
+  if (confirm('Αποσύνδεση από το HEXIS-APP;')) sb.auth.signOut().then(() => window.location.href = 'login.html');
 }
 
 async function init() {
