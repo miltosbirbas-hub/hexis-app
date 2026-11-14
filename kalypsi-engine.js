@@ -439,6 +439,46 @@
 
   // A: { E, mode(1 σχέδιο, 2 εκτός, 3 οικισμός), sd, kp, cap, hmax, roofmax, so, plot, cov[{pts}], levels[{name,typ,use,h,outlines[pts],spaces[{code,pts}]}],
   //      H, roof, fytA, prasA, units, m2per, prov, akal, fronts[], plotPts, dists[] }
+
+  /* ---------- τοιχοποιία: τμήμα πάχους που δεν προσμετράται (206 παρ. 6 ιη, κα · 207 παρ. 4γ) ---------- */
+  function sarea(pts) { var s = 0, n = pts.length; for (var i = 0; i < n; i++) { var p = pts[i], q = pts[(i + 1) % n]; s += p[0] * q[1] - q[0] * p[1]; } return s / 2; }
+  // εσωτερικό offset κλειστού πολυγώνου κατά d (μ.) — τομή των μετατοπισμένων ακμών
+  function inset(pts, d) {
+    var P = pts.slice(); if (P.length > 2 && Math.hypot(P[0][0] - P[P.length - 1][0], P[0][1] - P[P.length - 1][1]) < 1e-6) P.pop();
+    P = P.filter(function (p, i) { var q = P[(i + 1) % P.length]; return Math.hypot(p[0] - q[0], p[1] - q[1]) > 1e-6; });
+    var n = P.length; if (n < 3) return null; if (sarea(P) < 0) P.reverse();
+    var L = []; for (var i = 0; i < n; i++) { var a = P[i], b = P[(i + 1) % n], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy), nx = -dy / l, ny = dx / l; L.push([a[0] + nx * d, a[1] + ny * d, dx, dy]); }
+    var out = [];
+    for (var j = 0; j < n; j++) { var A = L[(j + n - 1) % n], B = L[j], den = A[2] * B[3] - A[3] * B[2];
+      if (Math.abs(den) < 1e-9) { out.push([B[0], B[1]]); continue; }
+      var t = ((B[0] - A[0]) * B[3] - (B[1] - A[1]) * B[2]) / den; out.push([A[0] + A[2] * t, A[1] + A[3] * t]); }
+    return out;
+  }
+  function strip(pts, d) {
+    if (!(d > 0)) return 0; var a0 = area(pts), q = inset(pts, d), per = 0;
+    for (var i = 0; i < pts.length; i++) { var p = pts[i], r = pts[(i + 1) % pts.length]; per += Math.hypot(r[0] - p[0], r[1] - p[1]); }
+    var s = q ? a0 - Math.abs(sarea(q)) : NaN;
+    if (!(s > 0) || s > per * d * 1.05 + 1e-6 || (q && sarea(q) < 0)) s = Math.min(a0, Math.max(0, per * d - 4 * d * d));   // προσέγγιση για σύνθετα σχήματα
+    return s;
+  }
+  var WALLT = { none: 'Χωρίς αφαίρεση', ins: 'Σκελετός + τούβλα + εξωτερική θερμομόνωση', thermo: 'Σκελετός + θερμομονωτικά τούβλα', bear: 'Φέρουσα τοιχοποιία (πέτρα / λιθοδομή / τούβλα)', mixed: 'Μικτή: σκελετός μέσα + εξωτερική πέτρα', steel: 'Μεταλλικός / ελαφρύς σκελετός + θερμομονωτικά πάνελ' };
+  // επιστρέφει { f(pts) → τ.μ. που αφαιρούνται, d, txt, art, warn }
+  function wallRule(W) {
+    W = W || {}; var ty = W.typ || 'none', cm = function (v) { v = +v; return isFinite(v) && v > 0 ? v / 100 : 0; };
+    var t = cm(W.t), ins = cm(W.ins), cl = Math.min(cm(W.clad), 0.20), col = Math.max(0, Math.min(100, +W.col || 0)) / 100, st = cm(W.stone), warn = '', d = 0, txt = '', art = '';
+    var f = function () { return 0; };
+    if (ty === 'ins') { d = ins + cl; art = '206 παρ. 6 ιη'; txt = 'θερμομόνωση ' + gr(ins * 100, 0) + ' εκ.' + (cl ? ' + επένδυση/επίχρισμα ' + gr(cl * 100, 0) + ' εκ.' : ''); }
+    else if (ty === 'thermo') { d = t + cl; var dc = ins + cl; art = '206 παρ. 6 ιη (θερμομονωτικά λιθοσώματα, λ\' ≤ 0,30 W/mK)';
+      txt = 'θερμομονωτικό τούβλο ' + gr(t * 100, 0) + ' εκ.' + (cl ? ' + επένδυση/επίχρισμα ' + gr(cl * 100, 0) + ' εκ.' : '') + (col ? ' · υποστυλώματα ' + gr(col * 100, 0) + '% της περιμέτρου: μόνο η μόνωσή τους ' + gr(ins * 100, 0) + ' εκ.' : '');
+      f = function (p) { return (1 - col) * strip(p, d) + col * strip(p, dc); }; }
+    else if (ty === 'bear') { d = t + ins + cl; art = '206 παρ. 6 κα (καα/καβ) και ιη'; txt = 'περιμετρική φέρουσα τοιχοποιία ' + gr(t * 100, 0) + ' εκ.' + (ins ? ' + θερμομόνωση ' + gr(ins * 100, 0) + ' εκ.' : '') + (cl ? ' + επένδυση ' + gr(cl * 100, 0) + ' εκ.' : ''); }
+    else if (ty === 'mixed') { art = '206 παρ. 6 καγ'; if (st >= 0.50 - 1e-6) { d = st + ins; txt = 'εξωτερική λιθοδομή ' + gr(st * 100, 0) + ' εκ. + θερμομόνωση ' + gr(ins * 100, 0) + ' εκ.'; }
+      else { d = ins; art = '206 παρ. 6 ιη'; warn = 'η εξωτερική πέτρα είναι ' + gr(st * 100, 0) + ' εκ. < 50 εκ.: δεν εφαρμόζεται η περ. καγ — αφαιρείται μόνο η θερμομόνωση'; txt = 'μόνο θερμομόνωση ' + gr(ins * 100, 0) + ' εκ.'; } }
+    else if (ty === 'steel') { d = t + cl; art = '206 παρ. 6 ιη (λοιπά θερμομονωτικά στοιχεία πλήρωσης — πάνελ)'; txt = 'θερμομονωτικό πάνελ ' + gr(t * 100, 0) + ' εκ.' + (cl ? ' + επένδυση ' + gr(cl * 100, 0) + ' εκ.' : '') + ' · ο μεταλλικός σκελετός μετρά'; }
+    if (ty !== 'thermo') f = function (p) { return strip(p, d); };
+    if (+W.clad > 20) warn = (warn ? warn + ' · ' : '') + 'επένδυση ' + gr(+W.clad, 0) + ' εκ.: εξαιρούνται έως 20 εκ. πέραν της θερμομόνωσης';
+    return { typ: ty, name: WALLT[ty] || '', d: d, f: ty === 'none' ? function () { return 0; } : f, txt: txt, art: art, warn: warn };
+  }
   function compute(A) {
     var R = { items: [], sug: [], lv: [] };
     var E = A.E, mode = A.mode;
@@ -452,7 +492,11 @@
     if (A.maxd > 0) { allow = allow == null ? A.maxd : Math.min(allow, A.maxd); allowTxt += (allowTxt ? ' · ' : '') + 'μέγιστη ' + gr(A.maxd) + ' Μ2'; }
     R.allow = allow; R.allowTxt = allowTxt;
     // κάλυψη
+    var WR = wallRule(A.wall); R.wall = WR;
     var Sk = 0; A.cov.forEach(function (p) { Sk += area(p); });
+    // κάλυψη: αφαιρείται η λωρίδα τοιχοποιίας/θερμομόνωσης του μεγαλύτερου υπέργειου ορόφου (207 παρ. 4γ)
+    var Skx = 0; if (WR.typ !== 'none' && Sk > 0) A.levels.forEach(function (L) { if (L.typ !== 1) return; var w = 0; L.outlines.forEach(function (p) { w += WR.f(p); }); Skx = Math.max(Skx, w); });
+    Skx = Math.min(Skx, Sk); R.Sk0 = Sk; R.Skx = Skx; Sk -= Skx;
     var kp = A.kp; if (mode === 3 && R.oikKp) kp = Math.max(kp, R.oikKp); if (mode === 2) kp = Math.min(kp || 10, 10);
     var kpe = kp; if (mode === 1 && kp > 0 && kp * E / 100 < 120) kpe = Math.max(kp, 100 * Math.min(120, 0.7 * E) / E);
     var Ka = kpe > 0 ? E * kpe / 100 : null; if (mode === 2 && Ka != null && allow != null) Ka = Math.min(Ka, allow);
@@ -492,7 +536,8 @@
         if (s.code !== 'H' && s.code !== 'X') ex += x;
         sp.push({ code: s.code, a: a, x: x, nt: nt, inn: inn });
       });
-      var Lc = tot - ex - hx, cnt = Lc, nt = '';
+      var wx = (L.typ === 1 && WR.typ !== 'none') ? L.outlines.reduce(function (s0, p) { return s0 + WR.f(p); }, 0) : 0;
+      var Lc = tot - ex - hx - wx, cnt = Lc, nt = '';
       if (L.typ === 2 && baseBad) { cnt = Lc; nt = 'ΔΕΝ είναι υπόγειο: η οροφή του βγαίνει ' + gr(sx.baseRoof) + ' μ. πάνω από το έδαφος (> ' + gr(baseLim) + ' μ., ' + (mode === 2 ? '251 παρ. 8' : mode === 3 ? '239 Γ2' : '197 παρ. 87') + ') — μετρά όλο ως όροφος'; }
       else if (L.typ === 2) {
         if (L.use === 2) { cnt = 0; nt = 'στάθμευση / Η-Μ / νερό / ΑΠΕ / πισίνα: δεν μετρά (206 παρ. 6θ)'; }
@@ -511,7 +556,7 @@
       else if (L.typ === 9) { cnt = 0; nt = 'δώμα / στέγη: σχέδιο αναφοράς'; }
       if (L.typ === 1 || L.typ === 3) Vr += G * (L.h || 0);
       Dom += cnt; HX += hx; Hh += h;
-      R.lv.push({ name: L.name, typ: L.typ, use: L.use, G: G, tot: tot, ex: ex, hx: hx, h: h, Lc: Lc, cnt: cnt, nt: nt, sp: sp, hgt: L.h, ug: L._ug, ub: L._ub, z: zf[j] });
+      R.lv.push({ name: L.name, typ: L.typ, use: L.use, G: G, wx: wx, tot: tot, ex: ex, hx: hx, h: h, Lc: Lc, cnt: cnt, nt: nt, sp: sp, hgt: L.h, ug: L._ug, ub: L._ub, z: zf[j] });
     });
     var lim40 = allow != null ? 0.4 * allow : null, limH = allow != null ? 0.2 * allow : null;
     // χαμηλό κτίριο (221): κατοικία, ύψος ≤ 8,50 χωρίς τη στέγη, δόμηση ≤ 400 τ.μ., όχι όπου το επιτρεπόμενο ύψος < 11 μ.
@@ -522,7 +567,7 @@
     Dom += HXc;
     R.Dom = Dom; R.HX = HX; R.Hh = Hh; R.HXc = HXc; R.lim40 = lim40; R.limH = limH; R.Pat = Pat; R.okP = true;
     // κάλυψη που προκύπτει από τις κατόψεις (προβολή κλειστών + στεγασμένων + ημιυπαίθριων, χωρίς εξώστες) — 207 παρ. 3-4
-    var Kpl = null; R.lv.forEach(function (l) { if (l.typ !== 1) return; var k = l.G - 0; l.sp.forEach(function (sp) { if (sp.code === 'H' && !sp.inn) k += sp.a; if (sp.code === 'E' && sp.inn) k -= sp.a; }); Kpl = Kpl == null ? k : Math.max(Kpl, k); });
+    var Kpl = null; R.lv.forEach(function (l) { if (l.typ !== 1) return; var k = l.G - (l.wx || 0); l.sp.forEach(function (sp) { if (sp.code === 'H' && !sp.inn) k += sp.a; if (sp.code === 'E' && sp.inn) k -= sp.a; }); Kpl = Kpl == null ? k : Math.max(Kpl, k); });
     R.Kpl = Kpl;
     // όγκος
     var Va = null, SO = null;
@@ -700,6 +745,8 @@
       }
     }
     if (E1) add(Y, R.low ? 'ok' : 'info', 'Χαμηλό κτίριο', R.low ? 'ΝΑΙ — Δ = 2,50 μ., εξώστες/ημιυπαίθριοι δεν μετρούν, στέγη έως 1,50 μ.' : 'ΟΧΙ — ' + [!R.lowWhy.resid ? 'όχι κατοικία' : '', !R.lowWhy.h ? 'ύψος > 8,50 μ.' : '', !R.lowWhy.dom ? 'δόμηση > 400 τ.μ.' : '', !R.lowWhy.area ? 'επιτρεπόμενο ύψος περιοχής < 11 μ.' : ''].filter(Boolean).join(', '), N + 'άρθ. 221', 'Χαμηλό: κύρια χρήση κατοικία, ύψος ≤ 8,50 μ. χωρίς τη στέγη, συνολική επιφάνεια στον ΣΔ ≤ 400 τ.μ.· δεν εφαρμόζεται όπου το επιτρεπόμενο ύψος είναι < 11 μ.');
+    if (R.wall && R.wall.typ !== 'none') { var wsum = 0; R.lv.forEach(function (l) { wsum += l.wx || 0; });
+      add(Y, R.wall.warn ? 'warn' : 'ok', 'Τοιχοποιία / θερμομόνωση που δεν μετρά', R.wall.name + ': ' + R.wall.txt + ' — αφαιρούνται ' + gr(wsum) + ' τ.μ. από τη δόμηση και ' + gr(R.Skx) + ' τ.μ. από την κάλυψη' + (R.wall.warn ? ' · ' + R.wall.warn : ''), N + 'άρθ. ' + R.wall.art + ', 207 παρ. 4γ', 'Δεν προσμετρώνται στον Σ.Δ. και στην κάλυψη: η θερμομόνωση και τα θερμομονωτικά στοιχεία πλήρωσης (λιθοσώματα, πάνελ) στο σύνολό τους κατά ΚΕΝΑΚ, επενδύσεις/επιχρίσματα έως 20 εκ. πέραν της θερμομόνωσης (περ. ιη)· η περιμετρική φέρουσα τοιχοποιία και ο περιμετρικός φέρων οργανισμός από πέτρα, ξύλο, λάσπη (περ. κα)· σε μικτή κατασκευή η εξωτερική τοιχοποιία από φυσικά υλικά πάχους ≥ 50 εκ. και η θερμομόνωση (περ. καγ). Το περίγραμμα των κατόψεων πρέπει να είναι η εξωτερική παρειά. Τα υποστυλώματα του σκελετού μετρούν (η μόνωσή τους όχι).'); }
     R.lv.forEach(function (l) {
       add(Y, 'info', 'Επίπεδο «' + l.name + '»', 'μικτό ' + gr(l.G) + ' τ.μ. · μετρά ' + gr(l.cnt) + ' τ.μ.' + (l.nt ? ' — ' + l.nt : ''), N + 'άρθ. 206 παρ. 5-6', '');
       if (l.typ === 3) add(Y, l.cnt > 0.005 ? 'warn' : 'ok', 'Σοφίτα «' + l.name + '»', gr(l.Lc) + ' τ.μ. — ' + l.nt, N + 'άρθ. 206 περ. ιδ, 197 παρ. 81', 'Δεν μετρά έως το 1/2 του υποκείμενου ορόφου (μαζί με τους τοίχους) με τον οποίο συνδέεται λειτουργικά· η υπέρβαση μετρά· δεν είναι όροφος ούτε ανεξάρτητη ιδιοκτησία· η σκάλα προς τη σοφίτα δεν μετρά.');
@@ -731,6 +778,8 @@
     var S = [];
     function sg(t, art, gain) { S.push({ t: t, art: art, gain: gain || 0 }); }
     var n1 = 0, top = null, has2 = false, has3 = false, has4 = false, hasK = false, hasA = false;
+    if (!R.wall || R.wall.typ === 'none') { var gw = 0; A.levels.forEach(function (L) { if (L.typ === 1) L.outlines.forEach(function (p) { gw += strip(p, 0.10); }); });
+      if (gw > 0.5) sg('Δεν έχει δηλωθεί τοιχοποιία: η εξωτερική θερμομόνωση (π.χ. 10 εκ.) δεν μετρά ούτε στη δόμηση ούτε στην κάλυψη — περίπου ' + gr(gw) + ' τ.μ. Με θερμομονωτικά τούβλα ή πέτρα αφαιρείται όλο το πάχος του τοίχου. Ρύθμιση στο βήμα «Κατόψεις» → «Εξωτερική τοιχοποιία».', 'ν.5306/2026 άρθ. 206 παρ. 6 ιη, κα · 207 παρ. 4γ', gw); }
     R.lv.forEach(function (l) { if (l.typ === 1) { n1++; top = l.G; } if (l.typ === 2 && l.use === 1) has2 = true; if (l.typ === 3) has3 = true; if (l.typ === 4) has4 = true;
       l.sp.forEach(function (s) { if (s.code === 'K' || s.code === 'I') hasK = true; if (s.code === 'A') hasA = true; });
       if (l.typ === 2 && l.use === 1 && l.cnt > 0.005) sg('Το υπόγειο «' + l.name + '» ξεπερνά την κάλυψη κατά ' + gr(l.cnt) + ' τ.μ., που μετρούν. Αν το τμήμα αυτό γίνει στάθμευση, Η-Μ, δεξαμενή νερού ή πισίνα, δεν μετρά.', 'ν.5306/2026 άρθ. 206 παρ. 6θ-ι', l.cnt);
@@ -783,6 +832,7 @@
     h1('ΓΕΝΙΚΑ ΣΤΟΙΧΕΙΑ ' + Gh + ' - ΚΤΙΡΙΟΥ');
     h2('(που υπόκεινται σε έλεγχο της αρμόδιας Υ.ΔΟΜ)');
     n('ΕΠΙΤΡΕΠΟΜΕΝΗ ΚΑΛΥΨΗ: Ε=Ε' + oik + ' x Σ.Κ.= ' + gr(A.E) + ' x ' + grz(R.kpe) + '% = ' + gr(R.Ka) + ' Μ²' + (ekt && R.allow != null && R.Ka <= R.allow + 0.005 && A.E * R.kpe / 100 > R.allow ? ' (≤ μέγιστη δόμηση)' : ''));
+    if (R.Skx > 0.005) n('Κάλυψη περιγράμματος ' + gr(R.Sk0) + ' Μ² − τοιχοποιία/θερμομόνωση ' + gr(R.Skx) + ' Μ² (' + R.wall.txt + ' · άρθ. ' + R.wall.art + ', 207 παρ. 4γ ν.5306/26)');
     n('ΠΡΑΓΜΑΤΟΠΟΙΟΥΜΕΝΗ ΚΑΛΥΨΗ: Ε= ' + gr(R.Sk) + ' Μ² (' + gr(R.pk) + '%) <= επιτρεπ. κάλυψη ' + gr(R.Ka) + ' Μ²' + (R.Ka != null && A.E > 0 ? ' (' + gr(R.Ka / A.E * 100) + '%)' : '') + fl(R.Ka == null || R.Sk <= R.Ka + 0.005));
     if (ekt) {
       n('ΥΠΟΛΟΓΙΣΜΟΣ ΟΓΚΟΥ ΚΤΙΡΙΟΥ', true);
@@ -857,6 +907,7 @@
     l.sp.forEach(function (s) { sums[s.code] = (sums[s.code] || 0) + s.a; });
     var lab = { H: 'ΕΜΒΑΔΟΝ ΗΜΙΥΠΑΙΘΡΙΩΝ ΧΩΡΩΝ', X: 'ΕΜΒΑΔΟΝ ΕΞΩΣΤΩΝ', K: 'ΕΜΒΑΔΟΝ ΚΟΙΝΟΧΡΗΣΤΟΥ ΚΛΙΜΑΚΟΣΤΑΣΙΟΥ', I: 'ΕΜΒΑΔΟΝ ΚΛΙΜΑΚΟΣΤΑΣΙΟΥ', A: 'ΕΜΒΑΔΟΝ ΑΝΟΙΚΤΟΥ ΚΛΙΜΑΚΟΣΤΑΣΙΟΥ', F: 'ΕΜΒΑΔΟΝ ΦΩΤΑΓΩΓΩΝ / ΦΡΕΑΤΙΩΝ', P: 'ΕΜΒΑΔΟΝ ΣΤΑΘΜΕΥΣΗΣ / Η-Μ' };
     ['H', 'X', 'K', 'I', 'A', 'F', 'P'].forEach(function (k) { if (sums[k]) out.push(lab[k] + ': Ε= ' + gr(sums[k]) + ' Μ²'); });
+    if (l.wx > 0.005) out.push('ΤΟΙΧΟΠΟΙΙΑ / ΘΕΡΜΟΜΟΝΩΣΗ ΠΟΥ ΔΕΝ ΜΕΤΡΑ (206 παρ. 6): Ε= ' + gr(l.wx) + ' Μ²');
     out.push('ΕΜΒΑΔΟΝ ' + N + ' (ΕΝΤΟΣ Σ.Δ.): Ε= ' + gr(l.cnt) + ' Μ²' + (l.nt && l.cnt !== l.Lc ? ' — ' + l.nt : ''));
     return out;
   }
@@ -865,7 +916,7 @@
     area: area, cent: cent, bbox: bbox, bbUnion: bbUnion, bbGrow: bbGrow, pip: pip, ptseg: ptseg, dist: dist, inside: inside, edgeMin: edgeMin,
     norm: norm, prepare: prepare, cluster: cluster, recognize: recognize, levelFromText: levelFromText, topoDetect: topoDetect, planDetect: planDetect,
     compute: compute, checks: checks, suggest: suggest, yTemplate: yTemplate, levelBlock: levelBlock,
-    sectionAnalyze: sectionAnalyze, verdict: verdict, split: split, layerCode: layerCode, PLOTL: /KAEK|ΚΑΕΚ|TOPO_PROP|BOUND|OIKOPED|ΟΙΚΟΠΕΔ|PLOT|GEOTEM|ΓΕΩΤΕΜ/, oikMax: oikMax, ektMax: ektMax, hmax210: hmax210, gr: gr, grz: grz, CODE: CODE, typText: typText, EGSA: EGSA
+    sectionAnalyze: sectionAnalyze, verdict: verdict, wallRule: wallRule, strip: strip, inset: inset, WALLT: WALLT, split: split, layerCode: layerCode, PLOTL: /KAEK|ΚΑΕΚ|TOPO_PROP|BOUND|OIKOPED|ΟΙΚΟΠΕΔ|PLOT|GEOTEM|ΓΕΩΤΕΜ/, oikMax: oikMax, ektMax: ektMax, hmax210: hmax210, gr: gr, grz: grz, CODE: CODE, typText: typText, EGSA: EGSA
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.KalEngine = api;
