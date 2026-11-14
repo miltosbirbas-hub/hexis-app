@@ -259,6 +259,8 @@
   // ---------- ανάγνωση DXF (είσοδος χρήστη) ----------
   // Επιστρέφει { polys:[{layer, pts, closed}], texts:[{layer,x,y,text,h,rot}], layers:[...] }
   // TEXT/MTEXT: σωστή θέση (σημείο στοίχισης), στοίχιση, γωνία και καθαρό κείμενο χωρίς κωδικούς μορφοποίησης
+  // ονόματα layer: \U+XXXX / \M+1XXXX → χαρακτήρες (DXF R2000/R2004 με ελληνικά)
+  function decU(v) { return String(v).indexOf('\\') < 0 ? v : String(v).replace(/\\U\+([0-9A-Fa-f]{4})/g, function (_, h) { return String.fromCharCode(parseInt(h, 16)); }).replace(/\\M\+1([0-9A-Fa-f]{4})/g, function (_, h) { var c = parseInt(h, 16); try { return new TextDecoder('windows-1253').decode(new Uint8Array(c > 255 ? [c >> 8, c & 255] : [c])); } catch (e) { return '?'; } }); }
   function txtOut(c) {
     var x = c.x || 0, y = c.y || 0, al = 'left', rot = c.rot || 0, t = String(c.text || '');
     if (c.type === 'TEXT') { if ((c.h72 || c.v73) && isFinite(c.x2) && isFinite(c.y2)) { x = c.x2; y = c.y2; } al = c.h72 === 1 || c.h72 === 4 ? 'center' : c.h72 === 2 ? 'right' : 'left'; }
@@ -387,11 +389,11 @@
       }
       if (inPoly) {
         if (vtx) { if (code === '10') vtx.x = parseFloat(val); else if (code === '20') { vtx.y = parseFloat(val); if (vtx.x != null) { inPoly.pts.push([vtx.x, vtx.y]); } } }
-        else { if (code === '8') inPoly.layer = val; else if (code === '70') inPoly.flags = parseInt(val, 10) || 0; else if (code === '6') inPoly.lt = val; else if (code === '48') inPoly.lts = parseFloat(val) || 0; }
+        else { if (code === '8') inPoly.layer = decU(val); else if (code === '70') inPoly.flags = parseInt(val, 10) || 0; else if (code === '6') inPoly.lt = val; else if (code === '48') inPoly.lts = parseFloat(val) || 0; }
         continue;
       }
       if (!cur) continue;
-      if (code === '8') { cur.layer = val; layers[val] = 1; }
+      if (code === '8') { cur.layer = decU(val); layers[cur.layer] = 1; }
       else if (code === '6' && cur.type !== 'MTEXT') cur.lt = val;
       else if (code === '48' && cur.type !== 'MTEXT') cur.lts = parseFloat(val) || 0;
       else if (cur.type === 'LWPOLYLINE') { if (code === '70') cur.flags = parseInt(val, 10) || 0; else if (code === '10') cur._x = parseFloat(val); else if (code === '20') cur.pts.push([cur._x, parseFloat(val)]); else if (code === '42') { (cur.bul || (cur.bul = {}))[cur.pts.length - 1] = parseFloat(val) || 0; } }

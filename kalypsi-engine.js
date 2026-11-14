@@ -254,6 +254,7 @@
 
   /* ---------------- αναγνώριση σε κάτοψη ---------------- */
   var SP = [
+    ['L', /ΑΝΕΛΚΥΣΤ|ΑΣΑΝΣΕΡ/],
     ['A', /ΑΝΟΙΚΤ.{0,4}ΚΛΙΜ|ΕΞΩΤΕΡ.{0,6}ΚΛΙΜ|ΑΝΟΙΧΤ.{0,4}ΚΛΙΜ/],
     ['K', /ΚΟΙΝΟΧΡ.{0,10}ΚΛΙΜ|ΚΛΙΜ.{0,14}ΚΟΙΝΟΧΡ/],
     ['I', /ΚΛΙΜΑΚ|ΣΚΑΛΑ/],
@@ -267,6 +268,7 @@
   // δήλωση με layer (προτεινόμενα ονόματα KAL_…, δεκτά και ελληνικά / συνώνυμα)
   var SPL_LAYER = [
     ['O', /PERIGRAMMA|ΠΕΡΙΓΡΑΜΜΑ|OUTLINE/],
+    ['L', /ANELKYST|ΑΝΕΛΚΥΣΤ|(^|_)LIFT|ELEVATOR/],
     ['Y', /PILOT|ΠΥΛΩΤ/],
     ['A', /ANOIX?T.{0,3}KLIM|KLIM.{0,10}ANOIX?T|ΑΝΟΙΧΤ.{0,3}ΚΛΙΜ|ΚΛΙΜ.{0,10}ΑΝΟΙΧΤ/],
     ['K', /KLIM.{0,10}KOIN|ΚΛΙΜ.{0,10}ΚΟΙΝ/],
@@ -277,12 +279,17 @@
     ['F', /FOTAG|ΦΩΤΑΓ|AITHRI|ΑΙΘΡΙ|FREATI|ΦΡΕΑΤ/],
     ['P', /STATHM|ΣΤΑΘΜ|PARKING|MHXANOST|ΜΗΧΑΝΟΣΤ|(^|_)H_?M($|_)/]
   ];
+  var COLRX = /KOLON|ΚΟΛΩΝ|COLUMN|COLONN|ΥΠΟΣΤΥΛ|YPOSTYL|ΤΟΙΧΕΙ|TOIXEI|ΦΕΡΩΝ|FERON|(^|_)COL(S)?($|_)/;
+  function isColLayer(L, map) { var u = String(L == null ? '' : L).toUpperCase(); if (map && map.hasOwnProperty(u)) return map[u] === 'C'; return COLRX.test(u); }
+  // υποστυλώματα / τοιχία της κάτοψης: μικρά κλειστά πολύγωνα σε layer κολονών (ή δηλωμένο «Υποστύλωμα»)
+  function findCols(D, c, map) { return c.ents.map(function (i) { return D.ents[i]; }).filter(function (e) { return e && e.closed && e.area >= 0.02 && e.area <= 6 && isColLayer(e.L, map); }); }
   function layerCode(L, map) { if (map && L != null && map.hasOwnProperty(String(L).toUpperCase())) { var m = map[String(L).toUpperCase()]; return m === '-' ? null : m; } for (var k = 0; k < SPL_LAYER.length; k++) if (SPL_LAYER[k][1].test(L)) return SPL_LAYER[k][0]; return null; }
   function planDetect(D, c, map) {
     var all = closedIn(D, c).filter(function (e) { return e.area >= 0.3; });
     var res = { outline: [], spaces: [] };
     // α) δηλωμένα με layer
     var lout = [], lsp = [];
+    all = all.filter(function (e) { return !isColLayer(e.L, map); });
     all.forEach(function (e) { var k = layerCode(e.L, map); if (k === 'O') lout.push(e.id); else if (k) lsp.push({ id: e.id, code: k, lbl: false, byLayer: true }); });
     var cs = all.filter(function (e) { return e.area >= 1 && !layerCode(e.L, map) && !(map && map[String(e.L).toUpperCase()] === '-'); });
     if (lout.length) { res.outline = lout; res.spaces = lsp; return res; }
@@ -317,7 +324,7 @@
   /* ---------------- κανόνες (ν.5306/2026) ---------------- */
   var CODE = {
     H: 'Ανοικτός ημιυπαίθριος', X: 'Ανοικτός εξώστης', K: 'Κοινόχρηστο κλιμακοστάσιο', I: 'Ιδιωτικό κλιμακοστάσιο',
-    A: 'Ανοικτό κλιμακοστάσιο', F: 'Φωταγωγός / φρεάτιο / αίθριο', P: 'Στάθμευση / Η-Μ', E: 'Κλειστός εξώστης (έρκερ)', Y: 'Πυλωτή'
+    A: 'Ανοικτό κλιμακοστάσιο', F: 'Φωταγωγός / φρεάτιο / αίθριο', P: 'Στάθμευση / Η-Μ', E: 'Κλειστός εξώστης (έρκερ)', Y: 'Πυλωτή', L: 'Ανελκυστήρας (χωρίς υποχρέωση)'
   };
   var TYP = { 1: 'Υπέργειο', 2: 'Υπόγειο', 3: 'Σοφίτα', 4: 'Υπόσκαφο', 5: 'Πατάρι', 9: 'Δώμα / στέγη' };
   function typText(t, u) {
@@ -461,6 +468,18 @@
     if (!(s > 0) || s > per * d * 1.05 + 1e-6 || (q && sarea(q) < 0)) s = Math.min(a0, Math.max(0, per * d - 4 * d * d));   // προσέγγιση για σύνθετα σχήματα
     return s;
   }
+  // μήκος κάθε πλευράς του περιγράμματος που καλύπτεται από υποστυλώματα (μέσα στη ζώνη πάχους depth)
+  function colCover(pts, cols, depth) {
+    var P = pts.slice(); if (sarea(P) < 0) P.reverse(); var n = P.length, tot = 0, per = 0;
+    for (var i = 0; i < n; i++) { var a = P[i], b = P[(i + 1) % n], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy); if (l < 1e-6) continue; per += l;
+      var ux = dx / l, uy = dy / l, nx = -uy, ny = ux, iv = [];
+      cols.forEach(function (C) { var s0 = 1e9, s1 = -1e9, w0 = 1e9, w1 = -1e9;
+        C.forEach(function (v) { var vx = v[0] - a[0], vy = v[1] - a[1], s = vx * ux + vy * uy, w = vx * nx + vy * ny; if (s < s0) s0 = s; if (s > s1) s1 = s; if (w < w0) w0 = w; if (w > w1) w1 = w; });
+        if (w0 < depth + 0.05 && w1 > -0.10 && w0 < 0.05 + depth && w1 - Math.max(w0, 0) > 0.05) { var x0 = Math.max(0, s0), x1 = Math.min(l, s1); if (x1 - x0 > 0.02) iv.push([x0, x1]); } });
+      iv.sort(function (p, q) { return p[0] - q[0]; }); var cur = null;
+      iv.forEach(function (v) { if (!cur || v[0] > cur[1]) { if (cur) tot += cur[1] - cur[0]; cur = v.slice(); } else cur[1] = Math.max(cur[1], v[1]); }); if (cur) tot += cur[1] - cur[0]; }
+    return { len: tot, per: per };
+  }
   var WALLT = { none: 'Χωρίς αφαίρεση', ins: 'Σκελετός + τούβλα + εξωτερική θερμομόνωση', thermo: 'Σκελετός + θερμομονωτικά τούβλα', bear: 'Φέρουσα τοιχοποιία (πέτρα / λιθοδομή / τούβλα)', mixed: 'Μικτή: σκελετός μέσα + εξωτερική πέτρα', steel: 'Μεταλλικός / ελαφρύς σκελετός + θερμομονωτικά πάνελ' };
   // επιστρέφει { f(pts) → τ.μ. που αφαιρούνται, d, txt, art, warn }
   function wallRule(W) {
@@ -470,14 +489,29 @@
     if (ty === 'ins') { d = ins + cl; art = '206 παρ. 6 ιη'; txt = 'θερμομόνωση ' + gr(ins * 100, 0) + ' εκ.' + (cl ? ' + επένδυση/επίχρισμα ' + gr(cl * 100, 0) + ' εκ.' : ''); }
     else if (ty === 'thermo') { d = t + cl; var dc = ins + cl; art = '206 παρ. 6 ιη (θερμομονωτικά λιθοσώματα, λ\' ≤ 0,30 W/mK)';
       txt = 'θερμομονωτικό τούβλο ' + gr(t * 100, 0) + ' εκ.' + (cl ? ' + επένδυση/επίχρισμα ' + gr(cl * 100, 0) + ' εκ.' : '') + (col ? ' · υποστυλώματα ' + gr(col * 100, 0) + '% της περιμέτρου: μόνο η μόνωσή τους ' + gr(ins * 100, 0) + ' εκ.' : '');
-      f = function (p) { return (1 - col) * strip(p, d) + col * strip(p, dc); }; }
+      f = function (p, cols) { if (cols && cols.length) { var cv = colCover(p, cols, d); return Math.max(0, strip(p, d) - cv.len * (d - dc)); } return (1 - col) * strip(p, d) + col * strip(p, dc); }; }
     else if (ty === 'bear') { d = t + ins + cl; art = '206 παρ. 6 κα (καα/καβ) και ιη'; txt = 'περιμετρική φέρουσα τοιχοποιία ' + gr(t * 100, 0) + ' εκ.' + (ins ? ' + θερμομόνωση ' + gr(ins * 100, 0) + ' εκ.' : '') + (cl ? ' + επένδυση ' + gr(cl * 100, 0) + ' εκ.' : ''); }
     else if (ty === 'mixed') { art = '206 παρ. 6 καγ'; if (st >= 0.50 - 1e-6) { d = st + ins; txt = 'εξωτερική λιθοδομή ' + gr(st * 100, 0) + ' εκ. + θερμομόνωση ' + gr(ins * 100, 0) + ' εκ.'; }
       else { d = ins; art = '206 παρ. 6 ιη'; warn = 'η εξωτερική πέτρα είναι ' + gr(st * 100, 0) + ' εκ. < 50 εκ.: δεν εφαρμόζεται η περ. καγ — αφαιρείται μόνο η θερμομόνωση'; txt = 'μόνο θερμομόνωση ' + gr(ins * 100, 0) + ' εκ.'; } }
     else if (ty === 'steel') { d = t + cl; art = '206 παρ. 6 ιη (λοιπά θερμομονωτικά στοιχεία πλήρωσης — πάνελ)'; txt = 'θερμομονωτικό πάνελ ' + gr(t * 100, 0) + ' εκ.' + (cl ? ' + επένδυση ' + gr(cl * 100, 0) + ' εκ.' : '') + ' · ο μεταλλικός σκελετός μετρά'; }
     if (ty !== 'thermo') f = function (p) { return strip(p, d); };
     if (+W.clad > 20) warn = (warn ? warn + ' · ' : '') + 'επένδυση ' + gr(+W.clad, 0) + ' εκ.: εξαιρούνται έως 20 εκ. πέραν της θερμομόνωσης';
-    return { typ: ty, name: WALLT[ty] || '', d: d, f: ty === 'none' ? function () { return 0; } : f, txt: txt, art: art, warn: warn };
+    return { typ: ty, name: WALLT[ty] || '', d: d, dc: ty === 'thermo' ? ins + cl : d, colPct: col, f: ty === 'none' ? function () { return 0; } : f, txt: txt, art: art, warn: warn };
+  }
+
+  // δύο πολύγωνα «ακουμπούν» (κοινή ακμή/κορυφή ή επικάλυψη) — για ομαδοποίηση τμημάτων του ίδιου κλιμακοστασίου
+  function touch(P, Q, tol) {
+    tol = tol || 0.05; var a = bbox(P), b = bbox(Q);
+    if (a[0] > b[2] + tol || b[0] > a[2] + tol || a[1] > b[3] + tol || b[1] > a[3] + tol) return false;
+    if (pip(cent(P), Q) || pip(cent(Q), P)) return true;
+    function near(U, V) { for (var i = 0; i < U.length; i++) for (var j = 0; j < V.length; j++) { var c = ptseg(U[i], V[j], V[(j + 1) % V.length]); if (Math.hypot(c[0] - U[i][0], c[1] - U[i][1]) <= tol) return true; } return false; }
+    return near(P, Q) || near(Q, P);
+  }
+  function groups(list) {   // list: [{pts}] → πίνακας με αριθμό ομάδας για καθένα
+    var g = list.map(function (_, i) { return i; });
+    function f(i) { while (g[i] !== i) i = g[i] = g[g[i]]; return i; }
+    for (var i = 0; i < list.length; i++) for (var j = i + 1; j < list.length; j++) if (touch(list[i].pts, list[j].pts)) g[f(i)] = f(j);
+    return list.map(function (_, i) { return f(i); });
   }
   function compute(A) {
     var R = { items: [], sug: [], lv: [] };
@@ -495,7 +529,7 @@
     var WR = wallRule(A.wall); R.wall = WR;
     var Sk = 0; A.cov.forEach(function (p) { Sk += area(p); });
     // κάλυψη: αφαιρείται η λωρίδα τοιχοποιίας/θερμομόνωσης του μεγαλύτερου υπέργειου ορόφου (207 παρ. 4γ)
-    var Skx = 0; if (WR.typ !== 'none' && Sk > 0) A.levels.forEach(function (L) { if (L.typ !== 1) return; var w = 0; L.outlines.forEach(function (p) { w += WR.f(p); }); Skx = Math.max(Skx, w); });
+    var Skx = 0; if (WR.typ !== 'none' && Sk > 0) A.levels.forEach(function (L) { if (L.typ !== 1) return; var w = 0; L.outlines.forEach(function (p) { w += WR.f(p, L.cols); }); Skx = Math.max(Skx, w); });
     Skx = Math.min(Skx, Sk); R.Sk0 = Sk; R.Skx = Skx; Sk -= Skx;
     var kp = A.kp; if (mode === 3 && R.oikKp) kp = Math.max(kp, R.oikKp); if (mode === 2) kp = Math.min(kp || 10, 10);
     var kpe = kp; if (mode === 1 && kp > 0 && kp * E / 100 < 120) kpe = Math.max(kp, 100 * Math.min(120, 0.7 * E) / E);
@@ -522,12 +556,18 @@
     A.levels.forEach(function (L, j) {
       var G = 0; L.outlines.forEach(function (p) { G += area(p); });
       var tot = G, ex = 0, hx = 0, h = 0, sp = [];
-      L.spaces.forEach(function (s) {
+      // κλιμακοστάσια: το όριο ισχύει ανά επίπεδο ΚΑΙ ανά κλιμακοστάσιο — τα πολύγωνα που ακουμπούν (σκάλα + πλατύσκαλο + ανελκυστήρας) είναι ένα
+      var stIdx = [], stL = []; L.spaces.forEach(function (s, i) { if (s.code === 'K' || s.code === 'I') { stIdx.push(i); stL.push(s); } });
+      var stG = groups(stL), gOf = {}, gRem = {}, gCode = {}; stIdx.forEach(function (i, k) { gOf[i] = stG[k]; gCode[stG[k]] = gCode[stG[k]] || L.spaces[i].code; });
+      L._stg = {};
+      L.spaces.forEach(function (s, si) {
         var a = area(s.pts), inn = L.outlines.some(function (o) { return pip(cent(s.pts), o); }), x = 0, nt = '';
         if (!inn) tot += a;
         if (s.code === 'H' || s.code === 'X') { hx += a; if (s.code === 'H') h += a; nt = 'όριο 40% / 20% στο σύνολο (206 παρ. 6α)'; }
-        else if (s.code === 'K') { var lim = j === entr ? 40 : 30; x = Math.min(a, lim); nt = 'έως ' + lim + ' τ.μ. ανά επίπεδο (206 παρ. 6δ)'; }
-        else if (s.code === 'I') { x = Math.min(a, 25); nt = 'έως 25 τ.μ. ανά επίπεδο (206 παρ. 6ε)'; }
+        else if (s.code === 'K' || s.code === 'I') { var gk = gOf[si], lim = s.code === 'K' ? (j === entr ? 40 : 30) : 25; if (gRem[gk] == null) gRem[gk] = lim; x = Math.min(a, gRem[gk]); gRem[gk] -= x;
+          var gg = L._stg[gk] = L._stg[gk] || { code: s.code, a: 0, x: 0, lim: lim, n: 0 }; gg.a += a; gg.x += x; gg.n++;
+          nt = s.code === 'K' ? 'έως ' + lim + ' τ.μ. ανά επίπεδο και ανά κλιμακοστάσιο' + (j === entr ? ' (επίπεδο εισόδου)' : '') + ' (206 παρ. 6δ)' : 'έως 25 τ.μ. ανά επίπεδο και ανά κλιμακοστάσιο αυτοτελούς ιδιοκτησίας (206 παρ. 6ε)'; }
+        else if (s.code === 'L') { x = Math.min(a, 1.60 * 1.90); nt = 'ανελκυστήρας σε κτίριο χωρίς υποχρέωση ανελκυστήρα: έως 1,60 x 1,90 μ., ΕΛΟΤ EN 81-70 (206 παρ. 6κστ)'; }
         else if (s.code === 'A') { acount++; if (acount <= 2 && zf[j] <= 7.5 + 0.005) { x = a; nt = 'έως 2 ανοικτά, στάθμη ορόφου έως 7,50 μ. (206 παρ. 6στ)'; } else nt = acount > 2 ? '3ο ανοικτό κλιμακοστάσιο: μετρά' : 'εξυπηρετεί στάθμη ' + gr(zf[j]) + ' μ. > 7,50 μ.: μετρά (206 παρ. 6στ)'; }
         else if (s.code === 'F') { x = a; nt = a < 1.5 ? 'ως φρεάτιο Η/Μ· φωταγωγός θέλει 1,50 τ.μ. (206 παρ. 6η)' : 'δεν φωτίζει κύριους χώρους (206 παρ. 6η)'; }
         else if (s.code === 'P') { if (L.typ === 1) { x = 0; nt = 'υπέργεια στάθμευση μετρά — εξαιρείται μόνο σε κτίριο αμιγούς χρήσης στάθμευσης (206 παρ. 6β)'; } else { x = a; nt = 'υπόγεια στάθμευση / Η-Μ / νερό / πισίνα (206 παρ. 6θ)'; } }
@@ -536,7 +576,8 @@
         if (s.code !== 'H' && s.code !== 'X') ex += x;
         sp.push({ code: s.code, a: a, x: x, nt: nt, inn: inn });
       });
-      var wx = (L.typ === 1 && WR.typ !== 'none') ? L.outlines.reduce(function (s0, p) { return s0 + WR.f(p); }, 0) : 0;
+      var wx = (L.typ === 1 && WR.typ !== 'none') ? L.outlines.reduce(function (s0, p) { return s0 + WR.f(p, L.cols); }, 0) : 0;
+      var cvr = null; if (L.typ === 1 && WR.typ === 'thermo') { cvr = { len: 0, per: 0, n: (L.cols || []).length }; L.outlines.forEach(function (p) { var c0 = colCover(p, L.cols || [], WR.d); cvr.len += c0.len; cvr.per += c0.per; }); }
       var Lc = tot - ex - hx - wx, cnt = Lc, nt = '';
       if (L.typ === 2 && baseBad) { cnt = Lc; nt = 'ΔΕΝ είναι υπόγειο: η οροφή του βγαίνει ' + gr(sx.baseRoof) + ' μ. πάνω από το έδαφος (> ' + gr(baseLim) + ' μ., ' + (mode === 2 ? '251 παρ. 8' : mode === 3 ? '239 Γ2' : '197 παρ. 87') + ') — μετρά όλο ως όροφος'; }
       else if (L.typ === 2) {
@@ -556,8 +597,11 @@
       else if (L.typ === 9) { cnt = 0; nt = 'δώμα / στέγη: σχέδιο αναφοράς'; }
       if (L.typ === 1 || L.typ === 3) Vr += G * (L.h || 0);
       Dom += cnt; HX += hx; Hh += h;
-      R.lv.push({ name: L.name, typ: L.typ, use: L.use, G: G, wx: wx, tot: tot, ex: ex, hx: hx, h: h, Lc: Lc, cnt: cnt, nt: nt, sp: sp, hgt: L.h, ug: L._ug, ub: L._ub, z: zf[j] });
+      R.lv.push({ name: L.name, typ: L.typ, use: L.use, G: G, wx: wx, cvr: cvr, stg: Object.keys(L._stg).map(function (k) { return L._stg[k]; }), tot: tot, ex: ex, hx: hx, h: h, Lc: Lc, cnt: cnt, nt: nt, sp: sp, hgt: L.h, ug: L._ug, ub: L._ub, z: zf[j] });
     });
+    if (WR.typ === 'thermo') { var cl0 = 0, cp0 = 0, cn0 = 0, est = false; R.lv.forEach(function (l) { if (!l.cvr) return; if (l.cvr.n) { cl0 += l.cvr.len; cp0 += l.cvr.per; cn0 += l.cvr.n; } else est = true; });
+      WR.colInfo = { n: cn0, len: cl0, per: cp0, est: est };
+      WR.txt = WR.txt.replace(/ · υποστυλώματα .*$/, '') + (cn0 ? ' · υποστυλώματα από το σχέδιο: ' + gr(cl0) + ' μ. από ' + gr(cp0) + ' μ. περιμέτρου (' + gr(cp0 ? 100 * cl0 / cp0 : 0, 0) + '%) — εκεί μόνο η μόνωσή τους ' + gr(WR.dc * 100, 0) + ' εκ.' : '') + (est ? ' · ' + (cn0 ? 'σε όροφο χωρίς σχεδιασμένα υποστυλώματα: ' : '') + 'ΕΚΤΙΜΗΣΗ υποστυλωμάτων ' + gr(WR.colPct * 100, 0) + '% της περιμέτρου' : ''); }
     var lim40 = allow != null ? 0.4 * allow : null, limH = allow != null ? 0.2 * allow : null;
     // χαμηλό κτίριο (221): κατοικία, ύψος ≤ 8,50 χωρίς τη στέγη, δόμηση ≤ 400 τ.μ., όχι όπου το επιτρεπόμενο ύψος < 11 μ.
     var hmax0 = A.hmax || (mode === 1 ? hmax210(A.sd) : mode === 3 ? (A.zone !== 'A' && A.plain ? 8 : 7.5) : 7.5);
@@ -745,14 +789,19 @@
       }
     }
     if (E1) add(Y, R.low ? 'ok' : 'info', 'Χαμηλό κτίριο', R.low ? 'ΝΑΙ — Δ = 2,50 μ., εξώστες/ημιυπαίθριοι δεν μετρούν, στέγη έως 1,50 μ.' : 'ΟΧΙ — ' + [!R.lowWhy.resid ? 'όχι κατοικία' : '', !R.lowWhy.h ? 'ύψος > 8,50 μ.' : '', !R.lowWhy.dom ? 'δόμηση > 400 τ.μ.' : '', !R.lowWhy.area ? 'επιτρεπόμενο ύψος περιοχής < 11 μ.' : ''].filter(Boolean).join(', '), N + 'άρθ. 221', 'Χαμηλό: κύρια χρήση κατοικία, ύψος ≤ 8,50 μ. χωρίς τη στέγη, συνολική επιφάνεια στον ΣΔ ≤ 400 τ.μ.· δεν εφαρμόζεται όπου το επιτρεπόμενο ύψος είναι < 11 μ.');
+    var nK = 0, nI = 0, mI = 0; R.lv.forEach(function (l) { var li = 0; (l.stg || []).forEach(function (g) { if (g.code === 'K') nK++; else { nI++; li++; } }); mI = Math.max(mI, li); });
+    if ((A.units || 1) >= 2 && nI && !nK && mI < A.units) add(Y, 'warn', 'Κλιμακοστάσιο πολυκατοικίας', (A.units) + ' κατοικίες, αλλά ' + (mI === 1 ? 'μία σκάλα δηλωμένη ιδιωτική' : mI + ' σκάλες δηλωμένες ιδιωτικές') + ' (όριο 25 τ.μ.) — αν είναι κοινή, είναι κοινόχρηστο κλιμακοστάσιο', N + 'άρθ. 206 παρ. 6δ-ε', 'Σε κτίριο με περισσότερες ιδιοκτησίες το κλιμακοστάσιο που τις εξυπηρετεί είναι κοινόχρηστο: έως 30 τ.μ. ανά επίπεδο και 40 τ.μ. στην είσοδο. Δήλωσέ το ως «Κοιν. σκάλα». Ιδιωτική σκάλα (25 τ.μ.) είναι μόνο η εσωτερική σκάλα μέσα σε μεζονέτα.');
+    if ((A.units || 1) === 1 && nK && A.resid !== false) add(Y, 'warn', 'Κοινόχρηστο κλιμακοστάσιο σε μία κατοικία', 'έχει δηλωθεί κοινόχρηστο (30/40 τ.μ.) σε κτίριο με 1 κατοικία', N + 'άρθ. 206 παρ. 6δ-ε', 'Σε μονοκατοικία ή μεζονέτα η σκάλα είναι εσωτερική αυτοτελούς ιδιοκτησίας: έως 25 τ.μ. ανά επίπεδο. Αν το κτίριο έχει περισσότερες κατοικίες, διόρθωσε τον αριθμό κατοικιών.');
     if (R.wall && R.wall.typ !== 'none') { var wsum = 0; R.lv.forEach(function (l) { wsum += l.wx || 0; });
       add(Y, R.wall.warn ? 'warn' : 'ok', 'Τοιχοποιία / θερμομόνωση που δεν μετρά', R.wall.name + ': ' + R.wall.txt + ' — αφαιρούνται ' + gr(wsum) + ' τ.μ. από τη δόμηση και ' + gr(R.Skx) + ' τ.μ. από την κάλυψη' + (R.wall.warn ? ' · ' + R.wall.warn : ''), N + 'άρθ. ' + R.wall.art + ', 207 παρ. 4γ', 'Δεν προσμετρώνται στον Σ.Δ. και στην κάλυψη: η θερμομόνωση και τα θερμομονωτικά στοιχεία πλήρωσης (λιθοσώματα, πάνελ) στο σύνολό τους κατά ΚΕΝΑΚ, επενδύσεις/επιχρίσματα έως 20 εκ. πέραν της θερμομόνωσης (περ. ιη)· η περιμετρική φέρουσα τοιχοποιία και ο περιμετρικός φέρων οργανισμός από πέτρα, ξύλο, λάσπη (περ. κα)· σε μικτή κατασκευή η εξωτερική τοιχοποιία από φυσικά υλικά πάχους ≥ 50 εκ. και η θερμομόνωση (περ. καγ). Το περίγραμμα των κατόψεων πρέπει να είναι η εξωτερική παρειά. Τα υποστυλώματα του σκελετού μετρούν (η μόνωσή τους όχι).'); }
     R.lv.forEach(function (l) {
       add(Y, 'info', 'Επίπεδο «' + l.name + '»', 'μικτό ' + gr(l.G) + ' τ.μ. · μετρά ' + gr(l.cnt) + ' τ.μ.' + (l.nt ? ' — ' + l.nt : ''), N + 'άρθ. 206 παρ. 5-6', '');
+      (l.stg || []).forEach(function (g) { var K1 = g.code === 'K';
+        add(Y, g.a > g.x + 0.005 ? 'warn' : 'ok', (K1 ? 'Κοινόχρηστο' : 'Ιδιωτικό') + ' κλιμακοστάσιο «' + l.name + '»', gr(g.a) + ' τ.μ.' + (g.n > 1 ? ' (' + g.n + ' τμήματα = 1 κλιμακοστάσιο)' : '') + ' · όριο ' + gr(g.lim, 0) + ' · δεν μετρούν ' + gr(g.x) + (g.a > g.x + 0.005 ? ' · ΜΕΤΡΟΥΝ ' + gr(g.a - g.x) + ' τ.μ.' : ''), N + 'άρθ. 206 παρ. 6' + (K1 ? 'δ' : 'ε'), K1 ? 'Κοινόχρηστα κλιμακοστάσια, ανελκυστήρες, πλατύσκαλα, διάδρομοι και χώροι αναμονής ΑμεΑ υποχρεωτικοί κατά τον Κτιριοδομικό: έως 30 τ.μ. ανά επίπεδο (όροφο, πατάρι) και ανά κλιμακοστάσιο, 40 τ.μ. στο επίπεδο εισόδου. Ισχύει και σε ειδικά κτίρια (γραφεία, τουριστικά καταλύματα) ανεξάρτητα από σύσταση οριζόντιων ιδιοκτησιών.' : 'Κλιμακοστάσιο μέσα σε αυτοτελή ανεξάρτητη ιδιοκτησία (π.χ. μεζονέτα), με πλατύσκαλα, διαδρόμους, χώρους αναμονής ΑμεΑ: έως 25 τ.μ. ανά επίπεδο (όροφο, πατάρι, σοφίτα) και ανά κλιμακοστάσιο. Κάθε μεζονέτα έχει το δικό της όριο.'); });
       if (l.typ === 3) add(Y, l.cnt > 0.005 ? 'warn' : 'ok', 'Σοφίτα «' + l.name + '»', gr(l.Lc) + ' τ.μ. — ' + l.nt, N + 'άρθ. 206 περ. ιδ, 197 παρ. 81', 'Δεν μετρά έως το 1/2 του υποκείμενου ορόφου (μαζί με τους τοίχους) με τον οποίο συνδέεται λειτουργικά· η υπέρβαση μετρά· δεν είναι όροφος ούτε ανεξάρτητη ιδιοκτησία· η σκάλα προς τη σοφίτα δεν μετρά.');
       if (l.typ === 5 && l.ub) add(Y, l.Lc < 0.7 * l.ub ? 'ok' : 'fail', 'Πατάρι «' + l.name + '»', gr(l.Lc) + ' < 70% x ' + gr(l.ub) + ' = ' + gr(0.7 * l.ub) + ' τ.μ.', N + 'άρθ. 197 παρ. 28', 'Πατάρι: προσβάσιμος χώρος μέσα σε χώρο, καθαρό εμβαδόν μικρότερο του 70% του υποκείμενου· δεν είναι όροφος· μετρά στη δόμηση.');
       l.sp.forEach(function (sp) {
-        if ((sp.code === 'K' || sp.code === 'I') && sp.a > sp.x + 0.005) add(Y, 'warn', 'Κλιμακοστάσιο «' + l.name + '»', gr(sp.a) + ' τ.μ. — εξαιρούνται ' + gr(sp.x) + ', μετρούν ' + gr(sp.a - sp.x), N + 'άρθ. 206 παρ. 6δ-ε', 'Κοινόχρηστο έως 30 τ.μ. ανά επίπεδο (40 στην είσοδο)· ιδιωτικό έως 25 τ.μ. ανά επίπεδο και αυτοτελή ιδιοκτησία.');
+        if (sp.code === 'L') add(Y, sp.a > sp.x + 0.005 ? 'warn' : 'ok', 'Ανελκυστήρας «' + l.name + '»', gr(sp.a) + ' τ.μ.' + (sp.a > sp.x + 0.005 ? ' — εξαιρούνται ' + gr(sp.x) + ' (1,60 x 1,90), μετρούν ' + gr(sp.a - sp.x) : ' — δεν μετρά'), N + 'άρθ. 206 παρ. 6κστ', 'Ανελκυστήρας σε κτίρια χωρίς υποχρέωση ανελκυστήρα: δεν μετρά επιφάνεια έως 1,60 x 1,90 μ., εφόσον πληροί ΕΛΟΤ EN 81-70 (ΑμεΑ). Σε κτίριο με κοινόχρηστο κλιμακοστάσιο ο ανελκυστήρας μπαίνει μέσα στο πολύγωνο του κλιμακοστασίου (30/40 τ.μ.).');
         if (sp.code === 'F' && sp.a < 1.5) add(Y, 'warn', 'Φωταγωγός «' + l.name + '»', gr(sp.a) + ' τ.μ. < 1,50 τ.μ.', N + 'άρθ. 206 παρ. 6η', 'Φρεάτια Η/Μ εξαιρούνται ανεξαρτήτως διαστάσεων· ως φωταγωγός/αγωγός αέρα απαιτούνται τουλάχιστον 1,50 τ.μ. Δεν μετρούν για τον φωτισμό των κύριων χώρων.');
       });
     });
@@ -905,8 +954,8 @@
     if ((l.typ === 1 || l.typ === 3) && l.hgt) out.push('ΟΓΚΟΣ ' + N + ': V=Ε x ύψος= ' + gr(l.G) + ' x ' + gr(l.hgt) + ' = ' + gr(l.G * l.hgt) + ' M³');
     var sums = {};
     l.sp.forEach(function (s) { sums[s.code] = (sums[s.code] || 0) + s.a; });
-    var lab = { H: 'ΕΜΒΑΔΟΝ ΗΜΙΥΠΑΙΘΡΙΩΝ ΧΩΡΩΝ', X: 'ΕΜΒΑΔΟΝ ΕΞΩΣΤΩΝ', K: 'ΕΜΒΑΔΟΝ ΚΟΙΝΟΧΡΗΣΤΟΥ ΚΛΙΜΑΚΟΣΤΑΣΙΟΥ', I: 'ΕΜΒΑΔΟΝ ΚΛΙΜΑΚΟΣΤΑΣΙΟΥ', A: 'ΕΜΒΑΔΟΝ ΑΝΟΙΚΤΟΥ ΚΛΙΜΑΚΟΣΤΑΣΙΟΥ', F: 'ΕΜΒΑΔΟΝ ΦΩΤΑΓΩΓΩΝ / ΦΡΕΑΤΙΩΝ', P: 'ΕΜΒΑΔΟΝ ΣΤΑΘΜΕΥΣΗΣ / Η-Μ' };
-    ['H', 'X', 'K', 'I', 'A', 'F', 'P'].forEach(function (k) { if (sums[k]) out.push(lab[k] + ': Ε= ' + gr(sums[k]) + ' Μ²'); });
+    var lab = { H: 'ΕΜΒΑΔΟΝ ΗΜΙΥΠΑΙΘΡΙΩΝ ΧΩΡΩΝ', X: 'ΕΜΒΑΔΟΝ ΕΞΩΣΤΩΝ', K: 'ΕΜΒΑΔΟΝ ΚΟΙΝΟΧΡΗΣΤΟΥ ΚΛΙΜΑΚΟΣΤΑΣΙΟΥ', I: 'ΕΜΒΑΔΟΝ ΚΛΙΜΑΚΟΣΤΑΣΙΟΥ', L: 'ΕΜΒΑΔΟΝ ΑΝΕΛΚΥΣΤΗΡΑ', A: 'ΕΜΒΑΔΟΝ ΑΝΟΙΚΤΟΥ ΚΛΙΜΑΚΟΣΤΑΣΙΟΥ', F: 'ΕΜΒΑΔΟΝ ΦΩΤΑΓΩΓΩΝ / ΦΡΕΑΤΙΩΝ', P: 'ΕΜΒΑΔΟΝ ΣΤΑΘΜΕΥΣΗΣ / Η-Μ' };
+    ['H', 'X', 'K', 'I', 'L', 'A', 'F', 'P'].forEach(function (k) { if (sums[k]) out.push(lab[k] + ': Ε= ' + gr(sums[k]) + ' Μ²'); });
     if (l.wx > 0.005) out.push('ΤΟΙΧΟΠΟΙΙΑ / ΘΕΡΜΟΜΟΝΩΣΗ ΠΟΥ ΔΕΝ ΜΕΤΡΑ (206 παρ. 6): Ε= ' + gr(l.wx) + ' Μ²');
     out.push('ΕΜΒΑΔΟΝ ' + N + ' (ΕΝΤΟΣ Σ.Δ.): Ε= ' + gr(l.cnt) + ' Μ²' + (l.nt && l.cnt !== l.Lc ? ' — ' + l.nt : ''));
     return out;
@@ -916,7 +965,7 @@
     area: area, cent: cent, bbox: bbox, bbUnion: bbUnion, bbGrow: bbGrow, pip: pip, ptseg: ptseg, dist: dist, inside: inside, edgeMin: edgeMin,
     norm: norm, prepare: prepare, cluster: cluster, recognize: recognize, levelFromText: levelFromText, topoDetect: topoDetect, planDetect: planDetect,
     compute: compute, checks: checks, suggest: suggest, yTemplate: yTemplate, levelBlock: levelBlock,
-    sectionAnalyze: sectionAnalyze, verdict: verdict, wallRule: wallRule, strip: strip, inset: inset, WALLT: WALLT, split: split, layerCode: layerCode, PLOTL: /KAEK|ΚΑΕΚ|TOPO_PROP|BOUND|OIKOPED|ΟΙΚΟΠΕΔ|PLOT|GEOTEM|ΓΕΩΤΕΜ/, oikMax: oikMax, ektMax: ektMax, hmax210: hmax210, gr: gr, grz: grz, CODE: CODE, typText: typText, EGSA: EGSA
+    sectionAnalyze: sectionAnalyze, verdict: verdict, wallRule: wallRule, findCols: findCols, isColLayer: isColLayer, colCover: colCover, strip: strip, inset: inset, WALLT: WALLT, split: split, layerCode: layerCode, PLOTL: /KAEK|ΚΑΕΚ|TOPO_PROP|BOUND|OIKOPED|ΟΙΚΟΠΕΔ|PLOT|GEOTEM|ΓΕΩΤΕΜ/, oikMax: oikMax, ektMax: ektMax, hmax210: hmax210, gr: gr, grz: grz, CODE: CODE, typText: typText, EGSA: EGSA
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.KalEngine = api;
