@@ -20,7 +20,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 header{height:58px;display:flex;align-items:center;gap:12px;padding:0 14px;background:var(--surf);border-bottom:1px solid var(--line)}
 .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.02em;white-space:nowrap}
 .brand small{display:block;font-weight:600;color:var(--faint);font-size:11px;letter-spacing:.12em}
-.steps{display:flex;gap:4px;flex:1;overflow-x:auto;scrollbar-width:none;padding:0 6px}
+.steps{display:flex;gap:4px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none;padding:0 6px}
 .steps::-webkit-scrollbar{display:none}
 .st{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surf2);border-radius:999px;padding:6px 12px 6px 6px;cursor:pointer;white-space:nowrap;font-weight:600;font-size:15px;color:var(--muted)}
 .st b{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--line);color:var(--txt);font-size:13px}
@@ -79,7 +79,7 @@ textarea{min-height:90px;resize:vertical;font-size:15px}
 .sug .a{color:var(--acc);font-size:14px;font-weight:600;margin-top:3px}
 .sug .g{float:right;font-weight:800;color:var(--ok)}
 .big{font-size:22px;font-weight:800;padding:12px 14px;border-radius:12px;text-align:center;margin:6px 0 10px}
-#tb{position:absolute;left:12px;top:12px;display:flex;gap:4px;background:var(--surf);border:1px solid var(--line2);border-radius:12px;padding:5px;box-shadow:0 6px 20px rgba(15,26,46,.12);z-index:5;user-select:none}
+#tb{position:absolute;left:12px;top:12px;display:flex;flex-wrap:wrap;max-width:calc(100% - 24px);gap:4px;background:var(--surf);border:1px solid var(--line2);border-radius:12px;padding:5px;box-shadow:0 6px 20px rgba(15,26,46,.12);z-index:5;user-select:none}
 #tb .grip{width:14px;cursor:move;display:grid;place-items:center;color:var(--faint);font-weight:900}
 #tb button{border:1px solid transparent;background:transparent;border-radius:8px;padding:7px 10px;cursor:pointer;font-weight:700;font-size:14.5px}
 #tb button:hover{background:var(--surf2);border-color:var(--line)}
@@ -98,6 +98,18 @@ textarea{min-height:90px;resize:vertical;font-size:15px}
 .ovl.on{display:flex}
 .mbox{background:var(--surf);border-radius:16px;max-width:860px;width:100%;max-height:88vh;overflow:auto;padding:22px 24px;box-shadow:0 20px 50px rgba(15,26,46,.25)}
 .mbox h2{margin-bottom:10px}
+.gbox{max-width:980px;padding:16px 18px}
+.ghead{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}.ghead h2{margin:0;font-size:20px}
+.gzoom{display:flex;gap:6px}.gzoom .btn{padding:8px 14px;font-size:17px}
+.gview{border:1px solid var(--line);border-radius:12px;background:#fff;margin:10px 0;overflow:hidden;touch-action:none;cursor:grab;height:auto;max-height:60vh;width:100%}
+.gview svg{width:100%;height:100%;display:block}
+.gnotes{margin:0;padding:0;list-style:none;font-size:16.5px;line-height:1.45}
+.gnotes li{display:flex;gap:10px;align-items:flex-start;margin:7px 0}
+.gnotes li b.n{flex:0 0 28px;height:28px;border-radius:50%;background:#1f4e9c;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px}
+.gnotes li b.d{flex:0 0 10px;height:10px;border-radius:50%;background:#1f4e9c;margin-top:8px}
+.gnav{display:flex;gap:8px;justify-content:space-between;margin-top:12px;flex-wrap:wrap}
+.gbtn{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--acc);color:var(--acc);background:var(--accbg);border-radius:999px;padding:6px 14px;font-weight:700;font-size:15px;cursor:pointer;margin:4px 6px 6px 0}
+.gbtn svg{width:18px;height:18px}
 .mbox ol,.mbox ul{padding-left:22px}.mbox li{margin:6px 0}
 .mbox .src{font-size:14.5px;color:var(--muted)}
 #aiOut{white-space:pre-wrap;line-height:1.55}
@@ -117,6 +129,7 @@ textarea{min-height:90px;resize:vertical;font-size:15px}
  .st span{display:none}.st{padding:6px}
  .brand small{display:none}
 }
+@media (max-width:600px){header{gap:8px;padding:0 8px}.brand>div{display:none}header .hbtn{padding-left:10px;padding-right:10px}}
 </style>
 </head>
 <body>
@@ -185,20 +198,22 @@ textarea{min-height:90px;resize:vertical;font-size:15px}
 <input type="file" id="fImg" accept="image/jpeg,image/png" multiple hidden>
 <div id="toast"></div>
 <div id="busy"><div id="busyT">Παρακαλώ περίμενε…</div></div>
+<div class="ovl" id="ovGuide"><div class="mbox gbox"><div class="ghead"><h2 id="gTitle"></h2><div class="gzoom"><button class="btn sec" id="gZo" aria-label="Zoom out">−</button><button class="btn sec" id="gZi" aria-label="Zoom in">+</button><button class="btn sec" id="gZf">Όλο</button></div></div><div class="gview" id="gView"></div><ol class="gnotes" id="gNotes"></ol><div class="gnav"><button class="btn sec" id="gPrev">◂ Προηγούμενο</button><button class="btn" id="gClose">Κλείσιμο</button><button class="btn sec" id="gNext">Επόμενο ▸</button></div></div></div>
 <div class="ovl" id="ovHelp"><div class="mbox" id="helpBox"></div></div>
 <div class="ovl" id="ovAi"><div class="mbox"><h2>Ερώτηση στο AI</h2><div id="aiOut" class="small">…</div><div style="margin-top:14px;text-align:right"><button class="btn sec" onclick="document.getElementById('ovAi').classList.remove('on')">Κλείσιμο</button></div></div></div>
 
 <script src="dxf2000.js"></script>
 <script src="kalypsi-engine.js"></script>
 <script src="kalypsi-sheet.js"></script>
+<script src="kalypsi-guides.js"></script>
 <script>
 'use strict';
 const K = window.KalEngine, KS = window.KalSheet;
 const $ = s => document.querySelector(s);
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
-const APP_VERSION = '2.5';
-const WHATS_NEW = 'Νέο στην έκδοση 2.5: τα υποστυλώματα διαβάζονται από το DXF για ακριβή αφαίρεση θερμομονωτικών τούβλων · κλιμακοστάσια: όριο ανά κλιμακοστάσιο (τα τμήματα που ακουμπούν μετρούν μαζί), έλεγχος πολυκατοικίας/μεζονέτας, ανελκυστήρας έως 1,60 x 1,90.';
+const APP_VERSION = '2.6';
+const WHATS_NEW = 'Νέο στην έκδοση 2.6: κουμπιά «Δες υπόδειγμα» σε κάθε βήμα — σχήματα για το τι πρέπει να έχει το DXF και τι μετρά / δεν μετρά στη δόμηση και την κάλυψη, με τα άρθρα του ν.5306/2026.';
 const STEPS = ['Όροι', 'DXF', 'Τοπογραφικό', 'Κατόψεις', 'Τομές · όψεις', 'Έλεγχος', 'Εξαγωγή'];
 const SPC = { H: '#f59e0b', X: '#38bdf8', E: '#0284c7', K: '#8b5cf6', I: '#a78bfa', A: '#c4b5fd', F: '#14b8a6', P: '#94a3b8', Y: '#cbd5e1', L: '#6366f1' };
 const SPN = { H: 'Ημιυπαίθριος', X: 'Ανοικτός εξώστης', E: 'Κλειστός εξώστης', K: 'Κοιν. σκάλα', I: 'Ιδιωτ. σκάλα', A: 'Ανοικτή σκάλα', F: 'Φωταγωγός/αίθριο', P: 'Στάθμευση/Η-Μ', Y: 'Πυλωτή', L: 'Ανελκυστήρας' };
@@ -597,6 +612,40 @@ $('#bPrev').onclick = () => go(S.step - 1);
 $('#bNext').onclick = () => go(S.step + 1);
 function inp(id, label, val, type, attrs) { return '<label class="f"><span>' + label + '</span><input id="' + id + '" type="' + (type || 'text') + '" value="' + esc(val) + '" ' + (attrs || '') + '></label>'; }
 function bind(id, obj, key, isNum, cb) { const e = document.getElementById(id); if (!e) return; e.oninput = e.onchange = () => { obj[key] = isNum ? num(e.value) : e.value; compute(); save(); if (cb) cb(); }; }
+/* ---------------- εικονογραφημένα υποδείγματα ---------------- */
+const GORD = ['dxf', 'topo', 'plan', 'decl', 'wall', 'cols', 'stairs', 'section', 'domisi', 'kalypsi', 'sheet'];
+function gb(key, label) { return window.KG && KG[key] ? '<button class="gbtn" data-guide="' + key + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 14l3-4 3 3 2-2 3 3"/></svg>' + (label || 'Δες υπόδειγμα') + '</button>' : ''; }
+const GV = { key: null, vb: null, full: null, ptr: new Map(), last: null };
+function gSetVB() { const sv = $('#gView svg'); if (sv && GV.vb) sv.setAttribute('viewBox', GV.vb.join(' ')); }
+function openGuide(key) {
+  const g = KG[key]; if (!g) return; GV.key = key;
+  $('#gTitle').textContent = g.title;
+  $('#gView').innerHTML = g.svg(); const sv = $('#gView svg'); sv.removeAttribute('width'); sv.removeAttribute('height'); sv.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  GV.full = sv.getAttribute('viewBox').split(/\s+/).map(Number); GV.vb = GV.full.slice(); $('#gView').style.aspectRatio = GV.full[2] + ' / ' + GV.full[3];
+  const numbered = (g.svg().match(/<g><circle/g) || []).length >= g.notes.length;
+  $('#gNotes').innerHTML = g.notes.map((n, i) => '<li>' + (numbered ? '<b class="n">' + (i + 1) + '</b>' : '<b class="d"></b>') + '<span>' + esc(n) + '</span></li>').join('');
+  const i = GORD.indexOf(key); $('#gPrev').disabled = i <= 0; $('#gNext').disabled = i < 0 || i >= GORD.length - 1;
+  $('#ovGuide').classList.add('on');
+}
+function gZoom(f, cx, cy) { const v = GV.vb; if (!v) return; const nw = Math.min(GV.full[2] * 1.5, Math.max(GV.full[2] / 8, v[2] * f)), k = nw / v[2]; cx = cx == null ? v[0] + v[2] / 2 : cx; cy = cy == null ? v[1] + v[3] / 2 : cy; GV.vb = [cx - (cx - v[0]) * k, cy - (cy - v[1]) * k, v[2] * k, v[3] * k]; gSetVB(); }
+function gPt(e) { const sv = $('#gView svg'), r = sv.getBoundingClientRect(), v = GV.vb, s = Math.max(v[2] / r.width, v[3] / r.height), ox = (r.width - v[2] / s) / 2, oy = (r.height - v[3] / s) / 2; return [v[0] + (e.clientX - r.left - ox) * s, v[1] + (e.clientY - r.top - oy) * s, s]; }
+(function () {
+  const vw = document.getElementById('gView');
+  vw.addEventListener('wheel', e => { e.preventDefault(); const p = gPt(e); gZoom(e.deltaY > 0 ? 1.15 : 1 / 1.15, p[0], p[1]); }, { passive: false });
+  vw.addEventListener('pointerdown', e => { vw.setPointerCapture(e.pointerId); GV.ptr.set(e.pointerId, [e.clientX, e.clientY]); GV.last = null; vw.style.cursor = 'grabbing'; });
+  vw.addEventListener('pointermove', e => { if (!GV.ptr.has(e.pointerId)) return; const prev = GV.ptr.get(e.pointerId); GV.ptr.set(e.pointerId, [e.clientX, e.clientY]);
+    if (GV.ptr.size === 1) { const s = gPt(e)[2]; GV.vb[0] -= (e.clientX - prev[0]) * s; GV.vb[1] -= (e.clientY - prev[1]) * s; gSetVB(); }
+    else if (GV.ptr.size === 2) { const [a, b] = [...GV.ptr.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (GV.last) { const m = gPt({ clientX: (a[0] + b[0]) / 2, clientY: (a[1] + b[1]) / 2 }); gZoom(GV.last / d, m[0], m[1]); } GV.last = d; } });
+  const up = e => { GV.ptr.delete(e.pointerId); GV.last = null; if (!GV.ptr.size) vw.style.cursor = 'grab'; };
+  vw.addEventListener('pointerup', up); vw.addEventListener('pointercancel', up);
+  document.getElementById('gZi').onclick = () => gZoom(1 / 1.3); document.getElementById('gZo').onclick = () => gZoom(1.3); document.getElementById('gZf').onclick = () => { GV.vb = GV.full.slice(); gSetVB(); };
+  document.getElementById('gClose').onclick = () => document.getElementById('ovGuide').classList.remove('on');
+  document.getElementById('gPrev').onclick = () => { const i = GORD.indexOf(GV.key); if (i > 0) openGuide(GORD[i - 1]); };
+  document.getElementById('gNext').onclick = () => { const i = GORD.indexOf(GV.key); if (i < GORD.length - 1) openGuide(GORD[i + 1]); };
+  document.getElementById('ovGuide').onclick = e => { if (e.target.id === 'ovGuide') e.target.classList.remove('on'); };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('ovGuide').classList.remove('on'); });
+  document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-guide]'); if (b) { e.preventDefault(); e.stopPropagation(); openGuide(b.dataset.guide); } }, true);
+})();
 function render() {
   renderSteps(); setHint();
   const b = $('#pbody'), s = S.step; let h = '';
@@ -620,6 +669,7 @@ function render() {
   }
   if (s === 1) {
     h += '<h2>Σχέδιο DXF</h2><p class="lead">Ένα DXF με όλα: τοπογραφικό, κατόψεις, τομές, όψεις. Κάτω από κάθε σχέδιο γράψε τον τίτλο του (π.χ. «ΚΑΤΟΨΗ ΙΣΟΓΕΙΟΥ», «ΤΟΜΗ Α-Α», «ΝΟΤΙΑ ΟΨΗ»).</p>';
+    h += '<div>' + gb('dxf', 'Υπόδειγμα: τι έχει το DXF') + gb('section', 'Υπόδειγμα τομής') + '</div>';
     h += '<button class="btn sec" id="bTpl" style="width:100%;margin-bottom:10px">Πρότυπο DXF με τα layers δήλωσης</button>';
     h += '<div class="drop" id="drop"><b>' + (S.dxfName ? esc(S.dxfName) + ' — αλλαγή αρχείου' : 'Ανέβασε DXF') + '</b><div class="small">ή σύρε το αρχείο εδώ</div></div>';
     if (S.D) {
@@ -635,7 +685,7 @@ function render() {
   }
   if (s === 2) {
     const T = S.topo, A = UI.A, R = UI.R;
-    h += '<h2>Τοπογραφικό</h2>';
+    h += '<h2>Τοπογραφικό</h2><div>' + gb('topo') + gb('kalypsi', 'Τι μετρά στην κάλυψη') + '</div>';
     if (T.cl == null) h += '<div class="card">Δεν αναγνωρίστηκε τοπογραφικό. Στο βήμα 2 όρισε ποιο σχέδιο είναι το «Τοπογραφικό».</div>';
     else if (UI.topoNote) h += '<div class="card small">' + esc(UI.topoNote) + (T.fromPlans ? ' Για αποστάσεις, φύτευση και πρασιά χρειάζεται τοπογραφικό — πρόσθεσέ το στο DXF ή σχεδίασε τις επιφάνειες εδώ με Polygon.' : '') + '</div>';
     else {
@@ -653,7 +703,7 @@ function render() {
   }
   if (s === 3) {
     const pls = planList();
-    h += '<h2>Κατόψεις</h2>';
+    h += '<h2>Κατόψεις</h2><div>' + gb('plan') + gb('decl', 'Πώς δηλώνω χώρους') + gb('stairs', 'Κλιμακοστάσια') + gb('domisi', 'Τι μετρά στη δόμηση') + '</div>';
     if (!pls.length) h += '<div class="card">Δεν αναγνωρίστηκαν κατόψεις. Γράψε κάτω από κάθε κάτοψη τον όροφο (π.χ. «ΚΑΤΟΨΗ ΙΣΟΓΕΙΟΥ») ή όρισέ τες στο βήμα 2.</div>';
     else {
       h += '<div class="chips">' + pls.map(c => '<span class="chip' + (UI.curPlan === c.id ? ' on' : '') + '" data-pl="' + c.id + '">' + esc(clName(c)) + '</span>').join('') + '</div>';
@@ -674,6 +724,7 @@ function render() {
           const CI = R0 && R0.wall && R0.wall.colInfo;
           const FLD2 = (W.typ === 'thermo' && CI && CI.n && !CI.est) ? FLD.filter(f => f[0] !== 'col') : FLD;
           h += '<details class="card"' + (UI.wallOpen ? ' open' : '') + ' id="wallDet"><summary><b>Εξωτερική τοιχοποιία</b> — ' + esc(WT[W.typ]) + '</summary>' +
+            '<div>' + gb('wall', 'Τι δεν μετρά ανά τύπο') + (W.typ === 'thermo' ? gb('cols', 'Υποστυλώματα') : '') + '</div>' +
             '<label class="f"><span>Τύπος κατασκευής</span><select id="wTyp">' + Object.keys(WT).map(k => '<option value="' + k + '"' + (W.typ === k ? ' selected' : '') + '>' + WT[k] + '</option>').join('') + '</select></label>' +
             (FLD2.length ? '<div class="row" style="flex-wrap:wrap">' + FLD2.map(f => '<label class="f" style="flex:1 1 45%"><span>' + f[1] + '</span><input type="number" step="1" min="0" data-wall="' + f[0] + '" value="' + esc(W[f[0]]) + '"></label>').join('') + '</div>' : '') +
             (W.typ === 'thermo' && R0 ? (CI && CI.n ? '<p class="small" style="color:var(--ok)">Υποστυλώματα από το σχέδιο: ' + CI.n + ' · ' + gr(CI.len) + ' μ. από ' + gr(CI.per) + ' μ. περιμέτρου (' + gr(CI.per ? 100 * CI.len / CI.per : 0, 0) + '%)' + (CI.est ? ' — σε όροφους χωρίς υποστυλώματα: εκτίμηση με το ποσοστό' : '') + '</p>' : '<p class="small" style="color:var(--warn)">Δεν βρέθηκαν υποστυλώματα στις κατόψεις — χρησιμοποιείται εκτίμηση με το ποσοστό. Για ακριβή υπολογισμό: κολόνες/τοιχία ως κλειστές πολυγραμμές σε layer «ΚΟΛΩΝΕΣ» ή δήλωσέ τα στο «Τα layers σου» → «Υποστύλωμα / τοιχίο».</p>') : '') + (W.typ !== 'none' && R0 ? '<div class="kv"><span>Δεν μετρούν στη δόμηση</span><b>' + gr(wsum) + ' τ.μ.</b></div><div class="kv"><span>Δεν μετρούν στην κάλυψη</span><b>' + gr(R0.Skx || 0) + ' τ.μ.</b></div>' + (R0.wall.warn ? '<p class="small" style="color:var(--warn,#b45309)">' + esc(R0.wall.warn) + '</p>' : '') : '') +
@@ -691,7 +742,7 @@ function render() {
   }
   if (s === 4) {
     const secs = S.cls.filter(c => c.kind === 'section' || c.kind === 'elev'), RR = UI.R;
-    h += '<h2>Τομές, όψεις, εικόνες</h2><p class="lead">Από τις τομές μετριούνται ύψος, στέγη, οροφή υπογείου και εκσκαφές / επιχώσεις. Κλικ σε τομή για να τη δεις.</p>';
+    h += '<h2>Τομές, όψεις, εικόνες</h2><div>' + gb('section') + '</div><p class="lead">Από τις τομές μετριούνται ύψος, στέγη, οροφή υπογείου και εκσκαφές / επιχώσεις. Κλικ σε τομή για να τη δεις.</p>';
     if (RR && RR.sx.n) h += '<div class="card"><div class="kv"><span>Ύψος κτιρίου (μετρημένο)</span><b>' + gr(RR.Hm) + ' μ.</b></div><div class="kv"><span>Στέγη · κορφιάς</span><b>' + gr(RR.sx.roof) + ' · ' + gr(RR.ridge) + ' μ.</b></div><div class="kv"><span>Επίχωση / εκσκαφή (μέγ.)</span><b>' + gr(RR.sx.fill) + ' / ' + gr(RR.sx.dig) + ' μ.</b></div>' + (RR.sx.baseRoof != null ? '<div class="kv"><span>Οροφή υπογείου πάνω από έδαφος</span><b>' + gr(RR.sx.baseRoof) + ' μ.</b></div>' : '') + '</div>';
     h += '<label class="f" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="Hman" ' + (S.ext.Hman ? 'checked' : '') + ' style="width:auto"> <span style="margin:0;color:var(--txt)">Δίνω το ύψος χειροκίνητα (αντί για μέτρηση από τις τομές)</span></label>';
     if (S.ext.Hman) h += '<div class="row">' + inp('H', 'Ύψος Η (εξάντληση ΣΔ), μ.', S.ext.H, 'number', 'step="0.05" min="0"') + inp('roof', 'Στέγη πάνω από το Η, μ.', S.ext.roof, 'number', 'step="0.05" min="0"') + '</div>';
@@ -711,6 +762,7 @@ function render() {
     else {
       const C = UI.C, V = UI.V;
       h += '<h2>Έλεγχος</h2><div class="big b-' + V.st + '">' + esc(V.text) + '</div>';
+      h += '<div>' + gb('domisi', 'Τι μετρά στη δόμηση') + gb('kalypsi', 'Τι μετρά στην κάλυψη') + '</div>';
       h += '<div class="row"><button class="btn" id="bRep">Έκθεση ελέγχου</button><button class="btn or" id="bAi">Ρώτα το AI</button></div>';
       const grp = [['ydom', 'Γενικά στοιχεία — ελέγχονται από την ΥΔΟΜ'], ['dilosi', 'Υπεύθυνη δήλωση μηχανικού (μεγέθη ΣΔ)'], ['ktirio', 'Κτιριοδομικός — στη μελέτη'], ['amea', 'Προσβασιμότητα ΑμεΑ']];
       const ORD = { fail: 0, warn: 1, ok: 2, info: 3 };
@@ -723,7 +775,7 @@ function render() {
   }
   if (s === 6) {
     const sh = UI.sheet;
-    h += '<h2>Φύλλο & εξαγωγή</h2><p class="lead">Στο DXF το τοπογραφικό μένει στις πραγματικές συντεταγμένες ΕΓΣΑ87 (σε άλλη κλίμακα: επιπλέον αντίγραφο στο layer KAL_EGSA87).</p>';
+    h += '<h2>Φύλλο & εξαγωγή</h2><div>' + gb('sheet') + '</div><p class="lead">Στο DXF το τοπογραφικό μένει στις πραγματικές συντεταγμένες ΕΓΣΑ87 (σε άλλη κλίμακα: επιπλέον αντίγραφο στο layer KAL_EGSA87).</p>';
     const TP = KS.TPL[UI.A && UI.A.mode === 2 ? 2 : 1];
     h += '<p class="small">Διάταξη: <b>' + esc(TP.name.split(':')[0]) + '</b> της εγκυκλίου ΥΠΕΝ — κάθε σχέδιο στη θέση του υποδείγματος. Αν κάτι δεν χωρά σε 1:100, η περιοχή του περνά αυτόματα σε 1:200 / 1:500 και η κλίμακα γράφεται στην κεφαλίδα της.</p>';
     h += '<div class="row"><label class="f"><span>Μέγεθος φύλλου</span><select id="shH"><option value="auto">Αυτόματο</option>' + TP.sizes.map((z, i) => '<option value="' + i + '">' + z[0] + ' x ' + z[1] + ' mm</option>').join('') + '</select></label>';
@@ -945,6 +997,7 @@ async function askAi() {
 /* ---------------- οδηγίες ---------------- */
 function help() {
   $('#helpBox').innerHTML = '<h2>Οδηγίες — Διάγραμμα κάλυψης</h2>' +
+    '<h3>Υποδείγματα με σχήματα</h3><p class="small">Τι πρέπει να έχει το DXF και τι μετρά ή δεν μετρά, με τα άρθρα. Zoom με τη ροδέλα ή με δύο δάχτυλα.</p><div>' + GORD.map(k => gb(k, KG[k].title)).join('') + '</div>' +
   '<h3>Πριν: τι σχεδιάζεις στο DXF</h3><ul>' +
   '<li>Όλα σε <b>ένα DXF</b>, σε μέτρα: τοπογραφικό (στο ΕΓΣΑ87), κατόψεις, τομές, όψεις — με κενό ανάμεσά τους.</li>' +
   '<li>Κάτω από κάθε σχέδιο γράψε τον τίτλο του: «ΚΑΤΟΨΗ ΥΠΟΓΕΙΟΥ», «ΚΑΤΟΨΗ ΙΣΟΓΕΙΟΥ», «ΚΑΤΟΨΗ Α΄ ΟΡΟΦΟΥ», «ΚΑΤΟΨΗ ΣΟΦΙΤΑΣ», «ΤΟΜΗ Α-Α», «ΝΟΤΙΑ ΟΨΗ».</li>' +
