@@ -20,6 +20,7 @@ on:
       - "traverse-licenses.sql"
       - "traverse-stake.sql"
       - "traverse-sync.sql"
+      - "signup-notify.sql"
 permissions:
   contents: write
 jobs:
@@ -34,7 +35,7 @@ jobs:
         run: '[ -n "$SUPABASE_ACCESS_TOKEN" ] || { echo "::error::Λείπει το secret SUPABASE_ACCESS_TOKEN"; exit 1; }'
       - name: SQL (με τη σειρά)
         run: |
-          for f in interior-billing.sql hexis-payments.sql admin-users.sql ai-costs.sql mapping-audit.sql pad-licenses.sql geo-pro.sql interior-reports.sql interior-telemetry.sql traverse-licenses.sql traverse-stake.sql traverse-sync.sql; do
+          for f in interior-billing.sql hexis-payments.sql admin-users.sql ai-costs.sql mapping-audit.sql pad-licenses.sql geo-pro.sql interior-reports.sql interior-telemetry.sql traverse-licenses.sql traverse-stake.sql traverse-sync.sql signup-notify.sql; do
             echo "== $f"
             jq -Rs '{query: .}' "$f" > /tmp/q.json
             code=$(curl -sS -o /tmp/r.json -w '%{http_code}' -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
@@ -96,6 +97,16 @@ jobs:
           b=$(curl -sS -X POST "$U" -H "apikey: $K" -H "x-hx-selftest: $KEY" -H "Content-Type: application/json" -d '{}'); echo "αποκρυπτογράφηση: $b"
           echo "$b" | grep -q '"selftest":true' || { echo "::error::geo-pro: δεν απάντησε ο αυτοέλεγχος"; exit 1; }
           echo "$b" | grep -q '"ok":true' || echo "::warning::geo-pro: ο κώδικας Pro δεν είναι ακόμα έτοιμος (κενό bundle;)"
+      - name: Δοκιμή signup-notify (email νέας εγγραφής · μόνο με [mail-test] στο μήνυμα commit)
+        if: contains(github.event.head_commit.message, '[mail-test]')
+        run: |
+          U="https://$REF.supabase.co/functions/v1/signup-notify"; K="sb_publishable_AjcKB0okxSvA9SUBazKEHQ_-HR0FMHP"
+          KEY=$(openssl rand -hex 32); echo "::add-mask::$KEY"
+          supabase secrets set SELFTEST_KEY=$KEY --project-ref "$REF" --yes >/dev/null; sleep 25
+          r=$(curl -sS -X POST "$U" -H "apikey: $K" -H "x-hx-selftest: $KEY" -H "Content-Type: application/json" -d '{"test":true}')
+          # χωρίς διευθύνσεις στα logs: παραλήπτης 1 = brb.develop, 2 = miltos.birbas
+          msg=$(echo "$r" | jq -r '[.to // {} | to_entries | to_entries[] | "παραλήπτης \(.key+1): \(.value.value | gsub("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+";"<email>"))"] | join(" · ")' 2>/dev/null)
+          echo "::notice title=signup-notify::${msg:-$r}"
       - name: Δοκιμή pad-lic
         run: |
           U="https://$REF.supabase.co/functions/v1/pad-lic"; K="sb_publishable_AjcKB0okxSvA9SUBazKEHQ_-HR0FMHP"

@@ -94,7 +94,8 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 .su-nums b{font-family:var(--font-d);font-size:20px;font-weight:800;color:var(--text)}.su-nums b.g{color:#13804A}.su-last b{font-size:15px;padding-top:4px}
 .su-bars{display:flex;gap:4px;align-items:flex-end;flex:1;min-width:260px;height:74px}.su-b{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative}
 .su-b i{display:block;width:100%;max-width:22px;background:#B9DCC8;border-radius:4px 4px 0 0;min-height:2px}.su-b.cur i{background:#1FA05C}
-.su-b em{font-style:normal;font-size:11px;font-weight:700;color:var(--text);order:-1}.su-b span{font-size:10px;color:var(--faint);white-space:nowrap}
+.su-b em{font-style:normal;font-size:11px;font-weight:700;color:var(--text);order:-1}.su-test{align-self:center;font:600 12px var(--font-d);color:#13804A;background:#fff;border:1px solid rgba(31,160,92,.45);border-radius:99px;padding:6px 12px;cursor:pointer}
+.su-b span{font-size:10px;color:var(--faint);white-space:nowrap}
 .urow.banned .uemail{color:var(--red);text-decoration:line-through;text-decoration-thickness:1px}
 .acct{border:1px solid var(--border);border-radius:11px;padding:12px;margin-top:4px;background:#FCFCFD}
 .acct .row{display:flex;gap:8px;flex-wrap:wrap}
@@ -390,7 +391,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
 <div class="toast" id="toast"></div>
 
 <script>
-const ADMIN_VERSION = 'v2.9';
+const ADMIN_VERSION = 'v2.10';
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
@@ -560,6 +561,11 @@ async function loadUsers(){
 
 let USTAB='active',UEXP={},DEMO={},SIGN={},SIGN_OK=false,USERS_FIRST=false;
 const regT=u=>u.registered_at?new Date(u.registered_at).getTime():0;
+async function sigTest(b){b.disabled=true;b.textContent='Αποστολή…';
+  const {data,error}=await sb.functions.invoke('signup-notify',{body:{test:true}});b.disabled=false;b.textContent='✉ Δοκιμή email εγγραφής';
+  if(error){toast('Σφάλμα: '+error.message);return}
+  const to=(data&&data.to)||{};const ok=Object.keys(to).filter(k=>to[k]==='ok'),bad=Object.keys(to).filter(k=>to[k]!=='ok');
+  toast((ok.length?'Στάλθηκε σε: '+ok.join(', '):'Δεν στάλθηκε')+(bad.length?' · Όχι σε: '+bad.join(', '):''))}
 function isNewU(u,days){const t=regT(u);return t>0&&(Date.now()-t)<=days*864e5}
 // σύνοψη εγγραφών: σήμερα / 7 / 30 ημέρες + μπάρες ανά εβδομάδα (12 εβδομάδες)
 function renderSignups(){const el=document.getElementById('suBox');if(!el)return;
@@ -574,7 +580,7 @@ function renderSignups(){const el=document.getElementById('suBox');if(!el)return
     +'<div><small>Σήμερα</small><b>'+today+'</b></div><div><small>7 ημέρες</small><b class="g">'+w+'</b></div><div><small>30 ημέρες</small><b>'+m+'</b></div>'
     +'<div><small>Σύνολο λογαριασμών</small><b>'+real.length+'</b></div><div class="su-last"><small>Τελευταία εγγραφή</small><b>'+(last?fmtAgo(new Date(last).toISOString()):'—')+'</b></div></div>'
     +'<div class="su-bars" title="Εγγραφές ανά εβδομάδα (τελευταίες 12)">'+wk.map((v,k)=>'<div class="su-b'+(k===W-1?' cur':'')+'" title="Εβδ. από '+lbl(k)+': '+v+' εγγραφές"><i style="height:'+Math.round(v/mx*100)+'%"></i><em>'+(v||'')+'</em><span>'+lbl(k)+'</span></div>').join('')+'</div>'
-    +(SIGN_OK?'':'<div class="hint" style="margin-top:6px">Η συνάρτηση admin_signups δεν βρέθηκε ακόμη στη βάση — οι ημερομηνίες εγγραφής μπορεί να λείπουν.</div>')}
+    +'<button type="button" class="su-test" onclick="sigTest(this)" title="Στέλνει δοκιμαστικό email ειδοποίησης νέας εγγραφής">✉ Δοκιμή email εγγραφής</button>'+(SIGN_OK?'':'<div class="hint" style="margin-top:6px">Η συνάρτηση admin_signups δεν βρέθηκε ακόμη στη βάση — οι ημερομηνίες εγγραφής μπορεί να λείπουν.</div>')}
 // πραγματική λήξη: η τελευταία ενεργή άδεια εφαρμογής ή η δοκιμή · null = χωρίς λήξη
 function effExp(u){const dm=DEMO[u.uid];if(dm)return{t:dm.expires_at?new Date(dm.expires_at).getTime():null};const x=UEXP[u.uid]||{},now=Date.now();const le=x.last_exp?new Date(x.last_exp).getTime():null,tr=u.trial_ends_at?new Date(u.trial_ends_at).getTime():null;
   if(x.perm_mods>0)return{perm:true};const c=[le,tr].filter(v=>v);if(!c.length)return String(u.tier||'free').toLowerCase()!=='free'?{perm:true}:{t:null};return{t:Math.max(...c)}}
