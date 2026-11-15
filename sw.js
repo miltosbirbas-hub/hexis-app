@@ -89,7 +89,9 @@ self.addEventListener('fetch', (e) => {
     url.pathname.endsWith('.html') ||
     url.pathname.endsWith('sw.js') ||
     url.pathname.endsWith('.zip') ||          // πρόσθετο Κτηματολογίου: πάντα η τελευταία έκδοση
-    url.pathname.endsWith('hexis-catalog.js');
+    url.pathname.endsWith('hexis-catalog.js') ||
+    url.pathname.includes('/nomothesia-fulltext/') ||   // πλήρη κείμενα άρθρων: ενημερώνονται κάθε εβδομάδα
+    url.pathname.endsWith('nomothesia-updates.json');
 
   if (isAppShell) {
     // HTML + sw.js -> ΠΑΝΤΑ φρέσκα (network-first, cache μόνο ως fallback offline)
