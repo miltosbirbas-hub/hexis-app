@@ -224,8 +224,11 @@ function ektosKatoikia(E: number) {
   return { max: Math.min(360, 258 + (E - 8000) * 0.009), rule: "κατοικία, Ε > 8.000 τ.μ.: 258 + (Ε−8.000)×0,009 τ.μ., μέγιστο 360 τ.μ." };
 }
 const f2 = (n: number | null, d = 2) => n == null || !isFinite(n) ? "" : n.toFixed(d);
+// τιμές από ΦΕΚ/ΕΨΧ (ΣΔ, κάλυψη, αρτιότητα, πρόσωπο, ύψος): χωρίς στρογγυλοποίηση — όσα δεκαδικά έχει η πηγή
+const fx = (n: number | null) => n == null || !isFinite(n) ? "" : String(+n.toFixed(6));
 const clean = (v: unknown) => String(v ?? "").replace(/[\r\n]+/g, " ").replace(/\s{2,}/g, " ").trim();
 const gr = (n: number | null, d = 2) => n == null ? "—" : n.toLocaleString("el-GR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const grx = (n: number | null, d = 0) => n == null ? "—" : n.toLocaleString("el-GR", { minimumFractionDigits: d, maximumFractionDigits: 4 });
 
 async function entitled(auth: string): Promise<boolean> {
   const r = await fetch(SB + "/rest/v1/entitlements?select=module,active,expires_at&module=in.(nomothesia,dxf,kalypsi)", { headers: { apikey: Deno.env.get("SUPABASE_ANON_KEY") || ANON, Authorization: auth } });
@@ -480,8 +483,8 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
   else if (stt === "sxedio") {
     if (sd0 && /Μέσος/i.test(String(sd0.SD_COMMENT || ""))) {
       // Μέσος ΣΔ τομέα ΓΠΣ: δεν είναι ΣΔ οικοπέδου — δεν βγάζουμε μέγιστη δόμηση
-      rule = "Μέσος ΣΔ τομέα ΓΠΣ " + gr(num(sd0.SD_TIMH)) + " — ο ΣΔ του οικοπέδου προκύπτει από το ΦΕΚ του σχεδίου";
-    } else if (sd0) { const v = num(sd0.SD_TIMH)!; max = v * E; rule = "ΣΔ " + gr(v) + " × " + gr(E) + " τ.μ.";
+      rule = "Μέσος ΣΔ τομέα ΓΠΣ " + grx(num(sd0.SD_TIMH), 2) + " — ο ΣΔ του οικοπέδου προκύπτει από το ΦΕΚ του σχεδίου";
+    } else if (sd0) { const v = num(sd0.SD_TIMH)!; max = v * E; rule = "ΣΔ " + grx(v, 2) + " × " + gr(E) + " τ.μ.";
       if (smallSettlementRegime(L)) { const m = oikismosMax(E); if (m.max < max) { max = m.max; rule = m.rule + " (όριο οικισμού <2.000 κατ.)"; } } }
   } else { kalPct = 10; artMin = 4000; artPros = 25; const k = ektosKatoikia(E); if (k) { max = k.max; rule = k.rule; } else rule = "γήπεδο < 4.000 τ.μ.: μη άρτιο κατά κανόνα (έλεγχος παρεκκλίσεων άρ.273 ν.5306/2026)"; }
   const artio = artMin == null ? "?" : (E >= artMin && (artPros == null || (front != null && front >= artPros))) ? "1" : (E < artMin ? "0" : "?");
@@ -493,8 +496,8 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
     "GPS=" + (gps ? "1" : "0"), "FEK_GPS=" + clean(gps && gps.FEK), "XRISI=" + clean(gps && (gps.GEN_XRHSH_GPS || gps.GEN_XRHSH)),
     "ZOE=" + (zoe ? "1" : "0"), "FEK_ZOE=" + clean(zoe && zoe.FEK), "ARXAIO=" + (L.archaiol ? "1" : "0"), "REMA=" + (L.rema ? "1" : "0"),
     "APALLOTRIOSI=" + (L.apallotr ? "1" : "0"), "KOINOXRISTO=" + (L.koinox ? "1" : "0"),
-    "SD=" + f2(sd0 ? num(sd0.SD_TIMH) : null), "KALYPSI=" + f2(kalPct, 0), "YPSOS=" + f2(num(yp && yp.MAX_HEIGHT_M)), "OROFOI=" + clean(yp && yp.MAX_OROFOI),
-    "ART_EMB=" + f2(artMin, 0), "ART_PROS=" + f2(artPros, 1), "ARTIO=" + artio, "SYSTIMA=" + clean(sy && sy.OIK_SYSTHMA),
+    "SD=" + fx(sd0 ? num(sd0.SD_TIMH) : null), "KALYPSI=" + fx(kalPct), "YPSOS=" + fx(num(yp && yp.MAX_HEIGHT_M)), "OROFOI=" + clean(yp && yp.MAX_OROFOI),
+    "ART_EMB=" + fx(artMin), "ART_PROS=" + fx(artPros), "ARTIO=" + artio, "SYSTIMA=" + clean(sy && sy.OIK_SYSTHMA),
     "EK=" + (isEK(kaek) ? "1" : "0"), "MAX_DOMISI=" + f2(max), "SAO=" + f2(max != null && E ? max / E : null, 3), "KANONAS=" + clean(rule), "MAX_KALYPSI=" + f2(kalMax)];
   // πίνακας για OROIDOM
   const row = (l: string, v: string) => { if (v) out.push("ROW=" + l + "|" + clean(v)); };
@@ -502,10 +505,10 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
   row("ΚΑΤΑΣΤΑΣΗ", STATUS_TXT[stt] + (oik && oik.NAME ? " — " + clean(oik.NAME) : "") + (ot && ot.OT_NUM ? " — Ο.Τ. " + clean(ot.OT_NUM) : ""));
   row("ΜΕΓΙΣΤΗ ΔΟΜΗΣΗ", max != null ? gr(max) + " τ.μ. (" + rule + ")" : rule);
   row("Σ.Α.Ο.", max != null && E ? gr(max / E, 3) + " (μέγιστη δόμηση ÷ εμβαδόν)" : "");
-  row("ΣΔ", sd0 ? gr(num(sd0.SD_TIMH)) + (sd0.SD_KLIMAKOTOS === "ΝΑΙ" ? " (κλιμακωτός)" : "") + (sd0.FEK ? " — ΦΕΚ " + clean(sd0.FEK) : "") : (stt.startsWith("ektos") ? "0,18 (άρ.251 ν.5306/2026)" : ""));
-  row("ΚΑΛΥΨΗ", kalPct != null ? gr(kalPct, 0) + "%" : ""); // μόνο ποσοστό — όχι υπολογισμός τ.μ.
-  row("ΥΨΟΣ / ΟΡΟΦΟΙ", yp ? (num(yp.MAX_HEIGHT_M) != null ? gr(num(yp.MAX_HEIGHT_M)) + " μ." : clean(yp.OROR_MAX_HEIGHT_COMMENT).slice(0, 120)) + (yp.MAX_OROFOI ? " · " + clean(yp.MAX_OROFOI) + " όροφοι" : "") : (stt.startsWith("ektos") ? "7,50 μ. (+1,20 μ. στέγη) · 2 όροφοι" : ""));
-  row("ΑΡΤΙΟΤΗΤΑ", artMin != null ? gr(artMin, 0) + " τ.μ." + (artPros != null ? " · πρόσωπο " + gr(artPros, 1) + " μ." : "") + (artio === "1" ? " — ΑΡΤΙΟ κατά κανόνα" : artio === "0" ? " — ΜΗ ΑΡΤΙΟ κατά κανόνα" : "") : "");
+  row("ΣΔ", sd0 ? grx(num(sd0.SD_TIMH), 2) + (sd0.SD_KLIMAKOTOS === "ΝΑΙ" ? " (κλιμακωτός)" : "") + (sd0.FEK ? " — ΦΕΚ " + clean(sd0.FEK) : "") : (stt.startsWith("ektos") ? "0,18 (άρ.251 ν.5306/2026)" : ""));
+  row("ΚΑΛΥΨΗ", kalPct != null ? grx(kalPct) + "%" : ""); // μόνο ποσοστό — όχι υπολογισμός τ.μ.
+  row("ΥΨΟΣ / ΟΡΟΦΟΙ", yp ? (num(yp.MAX_HEIGHT_M) != null ? grx(num(yp.MAX_HEIGHT_M), 2) + " μ." : clean(yp.OROR_MAX_HEIGHT_COMMENT).slice(0, 120)) + (yp.MAX_OROFOI ? " · " + clean(yp.MAX_OROFOI) + " όροφοι" : "") : (stt.startsWith("ektos") ? "7,50 μ. (+1,20 μ. στέγη) · 2 όροφοι" : ""));
+  row("ΑΡΤΙΟΤΗΤΑ", artMin != null ? grx(artMin) + " τ.μ." + (artPros != null ? " · πρόσωπο " + grx(artPros, 1) + " μ." : "") + (artio === "1" ? " — ΑΡΤΙΟ κατά κανόνα" : artio === "0" ? " — ΜΗ ΑΡΤΙΟ κατά κανόνα" : "") : "");
   row("ΟΙΚΟΔ. ΣΥΣΤΗΜΑ", clean(sy && sy.OIK_SYSTHMA));
   row("ΧΡΗΣΗ ΓΗΣ", clean(gps && (gps.GEN_XRHSH_GPS || gps.GEN_XRHSH)) + (gps && gps.FEK ? " — ΦΕΚ " + clean(gps.FEK) : ""));
   row("ΖΟΕ", zoe ? "Ναι" + (zoe.FEK ? " — ΦΕΚ " + clean(zoe.FEK) : "") : "");

@@ -297,7 +297,7 @@ const SKIP = /^(OBJECTID|FEK_FILE_URL|GEOREF_DIAGRAM_URL|INITIAL_DIAGRAM_URL|EID
 function attrRows(a){
   const rows=[];
   Object.keys(a).forEach(k=>{ if(SKIP.test(k)) return; const v=a[k]; if(v==null||v==="") return;
-    rows.push([{text:FLAB[k]||k, style:"lab"}, {text:pdfText(typeof v==="number" ? fmt(v, Number.isInteger(v)?0:2) : v), style:"val"}]); });
+    rows.push([{text:FLAB[k]||k, style:"lab"}, {text:pdfText(typeof v==="number" ? Number(v).toLocaleString("el-GR",{minimumFractionDigits:0, maximumFractionDigits:4}) : v), style:"val"}]); });
   if(a.FEK_FILE_URL) rows.push([{text:"Κείμενο ΦΕΚ", style:"lab"}, {text:a.FEK_FILE_URL, link:a.FEK_FILE_URL, style:"link"}]);
   return rows;
 }

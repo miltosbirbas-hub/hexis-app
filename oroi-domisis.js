@@ -20,7 +20,9 @@ const CDN = {
 };
 const esc = s => (s==null?"":String(s)).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = (n, d=2) => (n==null || !isFinite(n)) ? "—" : Number(n).toLocaleString("el-GR",{minimumFractionDigits:d, maximumFractionDigits:d});
-const fmt0 = n => fmt(n, 0);
+// τιμές από ΦΕΚ/ΕΨΧ: ΚΑΜΙΑ στρογγυλοποίηση — όσα δεκαδικά έχει η πηγή (π.χ. 112,5 τ.μ., ΣΔ 0,875)
+const fmtE = (n, d=0) => (n==null || !isFinite(n)) ? "—" : Number(n).toLocaleString("el-GR",{minimumFractionDigits:d, maximumFractionDigits:4});
+const fmt0 = n => fmtE(n, 0);
 
 /* ---------- βιβλιοθήκες (μόνο όταν ανοίξει η ταμπέλα) ---------- */
 let libsP = null;
@@ -206,7 +208,7 @@ function computeCalc(st, E, L){
     if(!s0) return {kind:"sxedio", max:null, kalPct:kv, kalM2: kv!=null ? kv*E/100 : null};
     // Μέσος ΣΔ τομέα ΓΠΣ: δεν είναι ΣΔ οικοπέδου — δεν βγάζουμε μέγιστη δόμηση
     if(/Μέσος/i.test(s0.SD_COMMENT||"")) return {kind:"sxedio", max:null, msd:num(s0.SD_TIMH), kalPct:kv, kalM2: kv!=null ? kv*E/100 : null};
-    const v = num(s0.SD_TIMH); let mx = v*E, rule = `ΣΔ ${fmt(v,2)} × ${fmt(E)} τ.μ.`;
+    const v = num(s0.SD_TIMH); let mx = v*E, rule = `ΣΔ ${fmtE(v,2)} × ${fmt(E)} τ.μ.`;
     // ασφάλεια: ΣΔ με όρια οικισμού <2.000 κατ. → εφαρμόζονται τα όρια 200/240/400 τ.μ.
     if(smallSettlementRegime(L)){ const m = oikismosMax(E); if(m && m.max < mx){ mx = m.max; rule = m.rule + " (όριο οικισμού <2.000 κατ.)"; } }
     return {kind:"sxedio", max:mx, sao:mx/E, rule, sd:s0, kalPct:kv, kalM2: kv!=null ? kv*E/100 : null};
@@ -273,10 +275,10 @@ function renderResults(){
   const sd = L.sd || [], kal = first(L,"kalypsi"), yp = first(L,"ypsos"), ar = L.artiotita || [], sy = first(L,"systima");
   h += `<div class="od-card"><div class="od-h">Όροι δόμησης</div>`;
   let anyOroi = false;
-  sd.slice(0,3).forEach(a=>{ anyOroi=true; h += cardRow("Συντελεστής δόμησης", `<b>${a.SD_TIMH!=null?esc(fmt(a.SD_TIMH,2)):"—"}</b>${a.SD_KLIMAKOTOS==="ΝΑΙ"?" (κλιμακωτός)":""}${a.SD_TOMEAS?` · ${esc(a.SD_TOMEAS)}`:""}`, fekLink(a) + textBlock(a.SD_COMMENT)); });
-  if(kal){ anyOroi=true; h += cardRow("Κάλυψη", `<b>${kal.SYNT_KALYPSIS!=null?esc(fmt(kal.SYNT_KALYPSIS,0))+"%":"—"}</b>`, fekLink(kal) + textBlock(kal.REMARKS || kal.SYNTHIKI_TXT)); }
-  if(yp){ anyOroi=true; h += cardRow("Ύψος / όροφοι", `<b>${yp.MAX_HEIGHT_M!=null?esc(fmt(yp.MAX_HEIGHT_M,2))+" μ.":""}${yp.MAX_OROFOI!=null?` · ${esc(yp.MAX_OROFOI)} όροφοι`:""}${(yp.MAX_HEIGHT_M==null && yp.MAX_OROFOI==null)?"βλ. σχόλιο":""}</b>`, fekLink(yp) + textBlock(yp.OROR_MAX_HEIGHT_COMMENT || yp.REMARKS)); }
-  ar.slice(0,3).forEach(a=>{ anyOroi=true; h += cardRow("Αρτιότητα" + (a.OROS_TYPE?` <span class="od-tag">${esc(a.OROS_TYPE.toLowerCase())}</span>`:""), `<b>${a.ELAX_EMBADO_M2!=null?esc(fmt0(a.ELAX_EMBADO_M2))+" τ.μ.":"—"}${a.ELAX_PROSOP_M!=null?` · πρόσωπο ${esc(fmt(a.ELAX_PROSOP_M,1))} μ.`:""}</b>${a.DATE_PAREKLISIS?` · έως ${esc(a.DATE_PAREKLISIS)}`:""}`, fekLink(a) + textBlock([a.SYNTHIKI_TXT, a.REMARKS].filter(Boolean).join("\n"))); });
+  sd.slice(0,3).forEach(a=>{ anyOroi=true; h += cardRow("Συντελεστής δόμησης", `<b>${a.SD_TIMH!=null?esc(fmtE(a.SD_TIMH,2)):"—"}</b>${a.SD_KLIMAKOTOS==="ΝΑΙ"?" (κλιμακωτός)":""}${a.SD_TOMEAS?` · ${esc(a.SD_TOMEAS)}`:""}`, fekLink(a) + textBlock(a.SD_COMMENT)); });
+  if(kal){ anyOroi=true; h += cardRow("Κάλυψη", `<b>${kal.SYNT_KALYPSIS!=null?esc(fmtE(kal.SYNT_KALYPSIS))+"%":"—"}</b>`, fekLink(kal) + textBlock(kal.REMARKS || kal.SYNTHIKI_TXT)); }
+  if(yp){ anyOroi=true; h += cardRow("Ύψος / όροφοι", `<b>${yp.MAX_HEIGHT_M!=null?esc(fmtE(yp.MAX_HEIGHT_M,2))+" μ.":""}${yp.MAX_OROFOI!=null?` · ${esc(yp.MAX_OROFOI)} όροφοι`:""}${(yp.MAX_HEIGHT_M==null && yp.MAX_OROFOI==null)?"βλ. σχόλιο":""}</b>`, fekLink(yp) + textBlock(yp.OROR_MAX_HEIGHT_COMMENT || yp.REMARKS)); }
+  ar.slice(0,3).forEach(a=>{ anyOroi=true; h += cardRow("Αρτιότητα" + (a.OROS_TYPE?` <span class="od-tag">${esc(a.OROS_TYPE.toLowerCase())}</span>`:""), `<b>${a.ELAX_EMBADO_M2!=null?esc(fmt0(a.ELAX_EMBADO_M2))+" τ.μ.":"—"}${a.ELAX_PROSOP_M!=null?` · πρόσωπο ${esc(fmtE(a.ELAX_PROSOP_M,1))} μ.`:""}</b>${a.DATE_PAREKLISIS?` · έως ${esc(a.DATE_PAREKLISIS)}`:""}`, fekLink(a) + textBlock([a.SYNTHIKI_TXT, a.REMARKS].filter(Boolean).join("\n"))); });
   if(sy){ anyOroi=true; h += cardRow("Οικοδομικό σύστημα", `<b>${esc(sy.OIK_SYSTHMA||"—")}</b>`, fekLink(sy) + textBlock([sy.SYNTHIKI_TXT, sy.OROIKS_COMMENT].filter(Boolean).join("\n"))); }
   if(!anyOroi && st!=="ektos" && st!=="ektos?") h += `<div class="od-warn">Ο Ενιαίος Ψηφιακός Χάρτης δεν έχει ψηφιοποιημένους όρους για αυτό το σημείο. Δες τα ΦΕΚ της ενότητας «Πολεοδομικό καθεστώς» ή ρώτα την ΥΔΟΜ.</div>`;
   if(st==="ektos" || st==="ektos?"){
@@ -335,7 +337,7 @@ function renderResults(){
 }
 function artiCheck(E, front, minA, minF){
   const okA = E >= minA, okF = minF==null || (front!=null && front >= minF);
-  const fTxt = minF==null ? "" : (front==null ? ` · πρόσωπο ≥ ${fmt(minF,1)} μ.: <b>συμπλήρωσε πρόσωπο</b>` : ` · πρόσωπο ${fmt(front,2)} / ${fmt(minF,1)} μ. ${okF?"✅":"❌"}`);
+  const fTxt = minF==null ? "" : (front==null ? ` · πρόσωπο ≥ ${fmtE(minF,1)} μ.: <b>συμπλήρωσε πρόσωπο</b>` : ` · πρόσωπο ${fmt(front,2)} / ${fmtE(minF,1)} μ. ${okF?"✅":"❌"}`);
   return `<b>${okA && okF && front!=null ? "✅ Άρτιο κατά κανόνα" : (!okA ? "❌ Μη άρτιο κατά κανόνα" : "—")}</b><div class="od-sub">εμβαδόν ${fmt(E)} / ${fmt0(minA)} τ.μ. ${okA?"✅":"❌"}${fTxt}</div>`;
 }
 function printReport(){
