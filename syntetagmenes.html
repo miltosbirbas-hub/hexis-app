@@ -580,7 +580,7 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       <circle cx="10" cy="28" r="2.4" fill="#22d3ee"/><circle cx="16" cy="12" r="2.4" fill="#8b5cf6"/><circle cx="27" cy="15" r="2.4" fill="#8b5cf6"/><circle cx="31" cy="26" r="2.4" fill="#fb7185"/>
     </svg>
     <div>
-      <h1>HEXIS <span>GEOmetry</span> <b id="geoTier" style="display:none;font:800 12px var(--f-mono);letter-spacing:.06em;padding:2px 8px;border-radius:6px;vertical-align:3px"></b> <button id="geoRelease" type="button" data-pro="release" title="Αποδέσμευση («παρκάρισμα») του κλειδιού Pro από αυτή τη συσκευή, για να το ανοίξεις σε άλλη" style="display:none;font:700 11px var(--f-mono);padding:2px 8px;border-radius:6px;border:1px solid var(--line-2,#cbd5e1);background:var(--surface,#fff);color:var(--text,#111);cursor:pointer;vertical-align:3px">Αποδέσμευση</button> <small id="geoBuild" style="font:600 10px var(--f-mono);color:var(--faint);letter-spacing:0">build 15.11-19h35 · Basic/Pro</small></h1>
+      <h1>HEXIS <span>GEOmetry</span> <b id="geoTier" style="display:none;font:800 12px var(--f-mono);letter-spacing:.06em;padding:2px 8px;border-radius:6px;vertical-align:3px"></b> <button id="geoRelease" type="button" data-pro="release" title="Αποδέσμευση («παρκάρισμα») του κλειδιού Pro από αυτή τη συσκευή, για να το ανοίξεις σε άλλη" style="display:none;font:700 11px var(--f-mono);padding:2px 8px;border-radius:6px;border:1px solid var(--line-2,#cbd5e1);background:var(--surface,#fff);color:var(--text,#111);cursor:pointer;vertical-align:3px">Αποδέσμευση</button> <small id="geoBuild" style="font:600 10px var(--f-mono);color:var(--faint);letter-spacing:0">build 15.11-19h55 · Basic/Pro</small></h1>
       <small>Συντεταγμένες ΕΓΣΑ87 · ΚΑΕΚ Κτηματολογίου · Διαγράμματα Γεωμετρικών Μεταβολών</small>
     </div>
   </div>
@@ -1970,6 +1970,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     entries.forEach(function (e) {
       var m = /\n  2\n([^\n]*)\n/.exec('\n' + e); var name = m ? m[1] : '';
       have[name] = 1;
+      // χρώματα layer κατά τις προδιαγραφές που δουλεύει ο μηχανικός (υπερισχύουν του προτύπου όταν δίνονται με force)
+      if (defs[name] && defs[name].force && defs[name].color) e = e.replace(/\n 62\n-?\d+\n/, '\n 62\n' + defs[name].color + '\n');
       if (!prune || name === '0' || name === 'Defpoints' || used[name]) keep.push(e);
     });
     Object.keys(used).forEach(function (name) {
@@ -2063,10 +2065,17 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       if (h.color) out.push('62', String(h.color));
       if (h.transparency) out.push('440', String(0x02000000 + Math.max(0, Math.min(255, Math.round(255 * (1 - h.transparency / 100)))))); // ημιδιαφάνεια
       var solid = !h.pattern;
-      out.push('100', 'AcDbHatch', '10', '0.0', '20', '0.0', '30', '0.0', '210', '0.0', '220', '0.0', '230', '1.0', '2', solid ? 'SOLID' : 'ANSI31', '70', solid ? '1' : '0', '71', '0', '91', '1', '92', '3', '72', '0', '73', '1', '93', String(pts.length));
+      out.push('100', 'AcDbHatch', '10', '0.0', '20', '0.0', '30', '0.0', '210', '0.0', '220', '0.0', '230', '1.0', '2', solid ? 'SOLID' : h.pattern === 'grid' ? 'NET' : 'ANSI31', '70', solid ? '1' : '0', '71', '0', '91', '1', '92', '3', '72', '0', '73', '1', '93', String(pts.length));
       pts.forEach(function (q) { out.push('10', f(q[0]), '20', f(q[1])); ext(q[0], q[1]); });
       out.push('97', '0');
       if (solid) { out.push('75', '0', '76', '1', '98', '0'); }
+      else if (h.pattern === 'grid') {
+        // κάνναβος (NET): γραμμές 0° και 90° ανά h.spacing — Κτηματολόγιο: AREA_A hatch
+        var Dg = h.spacing || 1.0;
+        out.push('75', '1', '76', '1', '52', '0.0', '41', f(Dg / 3.175), '77', '0', '78', '2',
+          '53', '0.0', '43', '0.0', '44', '0.0', '45', '0.0', '46', f(Dg), '79', '0',
+          '53', '90.0', '43', '0.0', '44', '0.0', '45', f(-Dg), '46', '0.0', '79', '0', '98', '0');
+      }
       else {
         // pattern διαγώνιων γραμμών: γωνία h.angle, απόσταση h.spacing (μονάδες μοντέλου).
         // ANSI31 = γραμμές 45° ανά 3,175: η «γωνία» (52) είναι η στροφή ΠΑΝΩ από τις 45° και η «κλίμακα» (41) = απόσταση/3,175 — όπως τα γράφουν τα CAD,
@@ -3599,6 +3608,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     entries.forEach(function (e) {
       var m = /\n  2\n([^\n]*)\n/.exec('\n' + e); var name = m ? m[1] : '';
       have[name] = 1;
+      // χρώματα layer κατά τις προδιαγραφές που δουλεύει ο μηχανικός (υπερισχύουν του προτύπου όταν δίνονται με force)
+      if (defs[name] && defs[name].force && defs[name].color) e = e.replace(/\n 62\n-?\d+\n/, '\n 62\n' + defs[name].color + '\n');
       if (!prune || name === '0' || name === 'Defpoints' || used[name]) keep.push(e);
     });
     Object.keys(used).forEach(function (name) {
@@ -3687,10 +3698,17 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       if (h.color) out.push('62', String(h.color));
       if (h.transparency) out.push('440', String(0x02000000 + Math.max(0, Math.min(255, Math.round(255 * (1 - h.transparency / 100)))))); // ημιδιαφάνεια
       var solid = !h.pattern;
-      out.push('100', 'AcDbHatch', '10', '0.0', '20', '0.0', '30', '0.0', '210', '0.0', '220', '0.0', '230', '1.0', '2', solid ? 'SOLID' : 'ANSI31', '70', solid ? '1' : '0', '71', '0', '91', '1', '92', '3', '72', '0', '73', '1', '93', String(pts.length));
+      out.push('100', 'AcDbHatch', '10', '0.0', '20', '0.0', '30', '0.0', '210', '0.0', '220', '0.0', '230', '1.0', '2', solid ? 'SOLID' : h.pattern === 'grid' ? 'NET' : 'ANSI31', '70', solid ? '1' : '0', '71', '0', '91', '1', '92', '3', '72', '0', '73', '1', '93', String(pts.length));
       pts.forEach(function (q) { out.push('10', f(q[0]), '20', f(q[1])); ext(q[0], q[1]); });
       out.push('97', '0');
       if (solid) { out.push('75', '0', '76', '1', '98', '0'); }
+      else if (h.pattern === 'grid') {
+        // κάνναβος (NET): γραμμές 0° και 90° ανά h.spacing — Κτηματολόγιο: AREA_A hatch
+        var Dg = h.spacing || 1.0;
+        out.push('75', '1', '76', '1', '52', '0.0', '41', f(Dg / 3.175), '77', '0', '78', '2',
+          '53', '0.0', '43', '0.0', '44', '0.0', '45', '0.0', '46', f(Dg), '79', '0',
+          '53', '90.0', '43', '0.0', '44', '0.0', '45', f(-Dg), '46', '0.0', '79', '0', '98', '0');
+      }
       else {
         // pattern διαγώνιων γραμμών: γωνία h.angle, απόσταση h.spacing (μονάδες μοντέλου).
         // ANSI31 = γραμμές 45° ανά 3,175: η «γωνία» (52) είναι η στροφή ΠΑΝΩ από τις 45° και η «κλίμακα» (41) = απόσταση/3,175 — όπως τα γράφουν τα CAD,
@@ -3985,6 +4003,8 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
     entries.forEach(function (e) {
       var m = /\n  2\n([^\n]*)\n/.exec('\n' + e); var name = m ? m[1] : '';
       have[name] = 1;
+      // χρώματα layer κατά τις προδιαγραφές που δουλεύει ο μηχανικός (υπερισχύουν του προτύπου όταν δίνονται με force)
+      if (defs[name] && defs[name].force && defs[name].color) e = e.replace(/\n 62\n-?\d+\n/, '\n 62\n' + defs[name].color + '\n');
       if (!prune || name === '0' || name === 'Defpoints' || used[name]) keep.push(e);
     });
     Object.keys(used).forEach(function (name) {
@@ -4073,10 +4093,17 @@ body.busy::after { content: ""; position: fixed; left: 0; right: 0; top: 0; heig
       if (h.color) out.push('62', String(h.color));
       if (h.transparency) out.push('440', String(0x02000000 + Math.max(0, Math.min(255, Math.round(255 * (1 - h.transparency / 100)))))); // ημιδιαφάνεια
       var solid = !h.pattern;
-      out.push('100', 'AcDbHatch', '10', '0.0', '20', '0.0', '30', '0.0', '210', '0.0', '220', '0.0', '230', '1.0', '2', solid ? 'SOLID' : 'ANSI31', '70', solid ? '1' : '0', '71', '0', '91', '1', '92', '3', '72', '0', '73', '1', '93', String(pts.length));
+      out.push('100', 'AcDbHatch', '10', '0.0', '20', '0.0', '30', '0.0', '210', '0.0', '220', '0.0', '230', '1.0', '2', solid ? 'SOLID' : h.pattern === 'grid' ? 'NET' : 'ANSI31', '70', solid ? '1' : '0', '71', '0', '91', '1', '92', '3', '72', '0', '73', '1', '93', String(pts.length));
       pts.forEach(function (q) { out.push('10', f(q[0]), '20', f(q[1])); ext(q[0], q[1]); });
       out.push('97', '0');
       if (solid) { out.push('75', '0', '76', '1', '98', '0'); }
+      else if (h.pattern === 'grid') {
+        // κάνναβος (NET): γραμμές 0° και 90° ανά h.spacing — Κτηματολόγιο: AREA_A hatch
+        var Dg = h.spacing || 1.0;
+        out.push('75', '1', '76', '1', '52', '0.0', '41', f(Dg / 3.175), '77', '0', '78', '2',
+          '53', '0.0', '43', '0.0', '44', '0.0', '45', '0.0', '46', f(Dg), '79', '0',
+          '53', '90.0', '43', '0.0', '44', '0.0', '45', f(-Dg), '46', '0.0', '79', '0', '98', '0');
+      }
       else {
         // pattern διαγώνιων γραμμών: γωνία h.angle, απόσταση h.spacing (μονάδες μοντέλου).
         // ANSI31 = γραμμές 45° ανά 3,175: η «γωνία» (52) είναι η στροφή ΠΑΝΩ από τις 45° και η «κλίμακα» (41) = απόσταση/3,175 — όπως τα γράφουν τα CAD,
@@ -7167,10 +7194,9 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     (res.finals || []).forEach(function (f) { if (f.kaek === res.own && f.outer) bb(f.outer, ch); });
     if (!isFinite(ch[0])) return;
     var full = ch.slice(); (res.parcels || []).forEach(function (p) { (p.rings || []).forEach(function (r) { bb(r, full); }); });
-    // ΟΙΚΟΝΟΜΙΑ ΧΑΡΤΙΟΥ: τα όμορα κόβονται ΠΑΝΤΑ σε πλαίσιο γύρω από τη μεταβολή (όχι μόνο όταν δεν χωρούν σε Α0) —
-    // αλλιώς ένα μεγάλο όμορο «φουσκώνει» το σχέδιο και βγαίνει τεράστιο χαρτί με άδειο χώρο
-    var w = ch[2] - ch[0], h = ch[3] - ch[1], pad = Math.max(15, 0.3 * Math.max(w, h));
-    if (full[0] >= ch[0] - pad && full[1] >= ch[1] - pad && full[2] <= ch[2] + pad && full[3] <= ch[3] + pad) return;   // όλα ήδη κοντά: τίποτα να κοπεί
+    // τα ΚΑΕΚ που συμμετέχουν στη μεταβολή μένουν ΟΛΟΚΛΗΡΑ· κόβονται μόνο όταν δεν χωρούν σε Α0 / 1:1000
+    if (full[2] - full[0] <= DGM_MAX_W && full[3] - full[1] <= DGM_MAX_H) return;   // χωράει ολόκληρο
+    var w = ch[2] - ch[0], h = ch[3] - ch[1], pad = Math.max(25, 0.35 * Math.max(w, h));
     var box = [ch[0] - pad, ch[1] - pad, ch[2] + pad, ch[3] + pad];
     // όχι μεγαλύτερο από όσο χωράει (εκτός αν η ίδια η μεταβολή είναι μεγαλύτερη)
     var cx = (ch[0] + ch[2]) / 2, cy = (ch[1] + ch[3]) / 2, bw = Math.max(w + 10, Math.min(box[2] - box[0], DGM_MAX_W)), bh = Math.max(h + 10, Math.min(box[3] - box[1], DGM_MAX_H));
@@ -7401,7 +7427,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       texts.push({ layer: 'KORYFES', x: e.pt[0] + 0.25, y: e.pt[1] + 0.25, text: e.label, h: TH * 0.8, color: onM ? 5 : 1 });
       polys.push({ layer: onM ? 'SHMEIA_TOPO_PROP' : 'SHMEIA_PST_KAEK', pts: [[e.pt[0] - 0.12, e.pt[1]], [e.pt[0] + 0.12, e.pt[1]]], bulges: [1, 1], closed: true, color: onM ? 5 : 1 });
     });
-    return { polys: polys, texts: texts, points: [], hatches: [], layers: { BOUND_IMPL: { color: 42 }, BOUND_UNIMPL: { color: 61 }, TOPO_PROP_NEW: { color: 6 }, 'TOPO_PROP_NEW-labels': { color: 6 }, LINE_XM: { color: 1 }, 'DGM_PROP_FINAL-labels': { color: 4 }, VST: { color: 200 }, LINE_XM_VST: { color: 6 }, VST_FINAL: { color: 210 }, 'VST_FINAL-labels': { color: 210 }, SHMEIA_TOPO_PROP: { color: 5 }, SHMEIA_PST_KAEK: { color: 1 }, SHMEIA_TOPO_PROP_NEW: { color: 6 }, SHMEIA_VST: { color: 200 }, SHMEIA_DGM_PROP_FINAL: { color: 4 }, SHMEIA_VST_FINAL: { color: 210 }, IDIOKTHTES: { color: 7 }, KORYFES: { color: 7 }, KANNABOS: { color: 8 }, APOSTASEIS: { color: 7 }, PINAKES: { color: 7 }, PINAKIDA: { color: 7 } } };
+    return { polys: polys, texts: texts, points: [], hatches: [], layers: { BOUND_IMPL: { color: 42, force: true }, BOUND_UNIMPL: { color: 61, force: true }, TOPO_PROP: { color: 30, force: true }, PST_KAEK: { color: 7, force: true }, DGM_PROP_FINAL: { color: 4, force: true }, LINE_XM: { color: 1, force: true }, LINE_XM_VST: { color: 1, force: true }, TOPO_PROP_NEW: { color: 6, force: true }, VST: { color: 7, force: true }, VST_FINAL: { color: 4, force: true }, AREA_A: { color: 6, force: true }, AREA_D: { color: 4, force: true }, 'TOPO_PROP_NEW-labels': { color: 6 }, 'DGM_PROP_FINAL-labels': { color: 4 }, 'VST_FINAL-labels': { color: 4 }, SHMEIA_TOPO_PROP: { color: 5 }, SHMEIA_PST_KAEK: { color: 1 }, SHMEIA_TOPO_PROP_NEW: { color: 6 }, SHMEIA_VST: { color: 200 }, SHMEIA_DGM_PROP_FINAL: { color: 4 }, SHMEIA_VST_FINAL: { color: 210 }, IDIOKTHTES: { color: 7 }, KORYFES: { color: 7 }, KANNABOS: { color: 8 }, APOSTASEIS: { color: 7 }, PINAKES: { color: 7 }, PINAKIDA: { color: 7 } } };
   }
   async function runDgm() {
     if (!proReady()) { proAsk('dgm'); return; }
@@ -7724,11 +7750,12 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     d.pieces.forEach(function (x) {
       var layer = x.kind === 'cut' ? 'AREA_D' : x.kind === 'given' ? 'AREA_A' : x.kind === 'gap' ? 'AREA_EKTOS_KAEK' : null;
       if (!layer) return;
-      var col = x.kind === 'given' ? 1 : x.kind === 'cut' ? 3 : 30; // κόκκινο: αποκοπτόμενα από το δικό μας · πράσινο: προσαρτώμενα από όμορα
-      polys.push({ layer: layer, pts: x.ring, closed: true, color: col, lw: 50 }); (x.holes || []).forEach(function (hh) { polys.push({ layer: layer, pts: hh, closed: true, color: col }); });
+      // Κτηματολόγιο (υπόμνημα που δουλεύουμε): AREA_A γραμμή ματζέντα, γέμισμα πράσινος κάνναβος · AREA_D γραμμή κυανή, γέμισμα κόκκινες διαγώνιες
+      var col = x.kind === 'given' ? 3 : x.kind === 'cut' ? 1 : 30, lcol = x.kind === 'given' ? 6 : x.kind === 'cut' ? 4 : 30;
+      polys.push({ layer: layer, pts: x.ring, closed: true, color: lcol, lw: 50 }); (x.holes || []).forEach(function (hh) { polys.push({ layer: layer, pts: hh, closed: true, color: lcol }); });
       // χαρακτηρισμός «ΤΜΗΜΑ Δi/Αi» σε layer AREA_D-labels / AREA_A-labels και γέμισμα SOLID σε AREA_D-hatch / AREA_A-hatch (όπως στα υποδείγματα)
       var c = DGM.interior(x.ring, x.holes); texts.push({ layer: layer + '-labels', x: c[0], y: c[1], text: 'ΤΜΗΜΑ ' + x.id, h: TH, color: col, align: 'center' });
-      hatches.push({ layer: layer + '-hatch', pts: x.ring, color: col, transparency: 75, pattern: 'diagonal', angle: x.kind === 'cut' ? 45 : 135, spacing: 0.6 });
+      hatches.push({ layer: layer + '-hatch', pts: x.ring, color: col, transparency: 75, pattern: x.kind === 'given' ? 'grid' : 'diagonal', angle: 45, spacing: x.kind === 'given' ? 1.0 : 0.8 });
     });
     // DGM_PROP_FINAL: τελικά πολύγωνα όλων των εμπλεκόμενων γεωτεμαχίων
     (d.finals || []).forEach(function (fp) { polys.push({ layer: 'DGM_PROP_FINAL', pts: fp.outer, closed: true }); fp.holes.forEach(function (hh) { polys.push({ layer: 'DGM_PROP_FINAL', pts: hh, closed: true }); }); });
@@ -7746,7 +7773,7 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
       var c = DGM.interior(DGM.open(f.outer[0]), []); var lab = (d.forestParts || []).length ? (f.cat || '') : 'Δ' + (i + 1) + (f.cat ? ' · ' + f.cat : ''); // με δασικά τμήματα: μόνο ο χαρακτήρας (όχι «Δ1», που είναι τμήμα της ΔΓΜ)
       texts.push({ layer: 'DASOS-labels', x: c[0], y: c[1], text: lab, h: TH * 1.3, color: fcol, align: 'center' });
     });
-    return { polys: polys, texts: texts, points: [], hatches: hatches, layers: { BOUND_IMPL: { color: 42 }, BOUND_UNIMPL: { color: 61 }, BLD: { color: 8 }, DASOS: { color: 94 }, 'DASOS-labels': { color: 94 }, 'AREA_D-labels': { color: 3 }, 'AREA_A-labels': { color: 1 }, 'AREA_D-hatch': { color: 3 }, 'AREA_A-hatch': { color: 1 }, 'AREA_EKTOS_KAEK-labels': { color: 30 }, SHMEIA_TOPO_PROP: { color: 5 }, SHMEIA_PST_KAEK: { color: 1 }, IDIOKTHTES: { color: 7 }, KORYFES: { color: 7 }, KANNABOS: { color: 8 }, APOSTASEIS: { color: 7 }, PINAKES: { color: 7 }, PINAKIDA: { color: 7 } } };
+    return { polys: polys, texts: texts, points: [], hatches: hatches, layers: { BOUND_IMPL: { color: 42, force: true }, BOUND_UNIMPL: { color: 61, force: true }, TOPO_PROP: { color: 30, force: true }, PST_KAEK: { color: 7, force: true }, DGM_PROP_FINAL: { color: 4, force: true }, LINE_XM: { color: 1, force: true }, LINE_XM_VST: { color: 1, force: true }, TOPO_PROP_NEW: { color: 6, force: true }, VST: { color: 7, force: true }, VST_FINAL: { color: 4, force: true }, AREA_A: { color: 6, force: true }, AREA_D: { color: 4, force: true }, BLD: { color: 8 }, DASOS: { color: 94 }, 'DASOS-labels': { color: 94 }, 'AREA_D-labels': { color: 1, force: true }, 'AREA_A-labels': { color: 3, force: true }, 'AREA_D-hatch': { color: 1, force: true }, 'AREA_A-hatch': { color: 3, force: true }, 'AREA_EKTOS_KAEK-labels': { color: 30 }, SHMEIA_TOPO_PROP: { color: 5 }, SHMEIA_PST_KAEK: { color: 1 }, IDIOKTHTES: { color: 7 }, KORYFES: { color: 7 }, KANNABOS: { color: 8 }, APOSTASEIS: { color: 7 }, PINAKES: { color: 7 }, PINAKIDA: { color: 7 } } };
   }
   function ownerOf(kaek, isOwn) { var o = (S.owners || {})[kaek]; if (o) return o; if (isOwn) { var f = repInfo(); return f.client || ''; } return ''; }
   // Όρια ιδιοκτησίας: πάντα BOUND_UNIMPL (μη υλοποιημένα), εκτός αν ο χρήστης πει ότι είναι υλοποιημένα (επιλογή ή layer BOUND_IMPL στο DXF του)
@@ -8096,19 +8123,19 @@ var wi = (r.water || []).filter(function (w) { return w.inside; });
     if (kind === 'dgm-print-dxf' || kind === 'dgm-print-zip') {
       var lay = sheetLayout(d, parcels);
       var spec = dgmSpec(d, parcels);
-      // + πινακίδα, πίνακες, υπόμνημα (πρόσθετα layers) — τα χρώματα των τμημάτων είναι ήδη κόκκινο/πράσινο
+      // + πινακίδα, πίνακες, υπόμνημα (πρόσθετα layers) — χρώματα τμημάτων κατά το υπόμνημα (AREA_A ματζέντα/πράσινος κάνναβος, AREA_D κυανό/κόκκινες διαγώνιες)
       // τα σημεία/αριθμοί κορυφών υπάρχουν ήδη από το dgmSpec — από την πινακίδα παίρνουμε πίνακες, κάνναβο, αποστάσεις, ετικέτες, υπόμνημα
       // οι πίνακες γράφονται ως native ACAD_TABLE (R2018) — οι γραμμές/κείμενα του layer PINAKES παραλείπονται
       var skipL = { KORYFES: 1, SHMEIA_TOPO_PROP: 1, SHMEIA_PST_KAEK: 1, 'AREA_D-labels': 1, 'AREA_A-labels': 1, 'AREA_EKTOS_KAEK': 1, PINAKES: 1 };
       spec.tables = lay.elems.tables.map(function (t) { return Object.assign({ layer: 'PINAKES' }, t); });
       spec.mtexts = (spec.mtexts || []).concat((lay.elems.mtexts || []).filter(function (t) { return !skipL[t.layer]; }));
       lay.elems.polys.forEach(function (p) { if (skipL[p.layer]) return; spec.polys.push({ layer: p.layer, pts: p.pts, bulges: p.bulges, closed: p.closed, color: p.color || 7, lw: p.lw }); });
-      var lc = { PINAKES: 7, PINAKIDA: 7, KANNABOS: 8, AREA_A: 1, AREA_D: 3, AREA_EKTOS_KAEK: 30 };
+      var lc = { PINAKES: 7, PINAKIDA: 7, KANNABOS: 8, AREA_A: 6, AREA_D: 4, AREA_EKTOS_KAEK: 30 };
       spec.lines = lay.elems.lines.filter(function (l) { return !skipL[l.layer]; }).map(function (l) { return { layer: l.layer, a: l.a, b: l.b, color: l.color || lc[l.layer] || 256, lw: l.lw }; });
       if (lay.kaekLabels) spec.texts = spec.texts.filter(function (t) { return t.layer !== 'PST_KAEK' && t.layer !== 'IDIOKTHTES'; });   // οι ετικέτες ΚΑΕΚ έρχονται από το φύλλο (με τις μετακινήσεις σου)
       lay.elems.texts.forEach(function (t) { if (skipL[t.layer]) return; if (t.layer === 'PST_KAEK-labels') t = Object.assign({}, t, { layer: 'PST_KAEK' }); spec.texts.push({ layer: t.layer, x: t.x, y: t.y, text: t.text, h: t.h, rot: t.rot, align: t.align, fit: t.fit, color: t.color || 7 }); });
       // γεμίσματα υπομνήματος (τα τμήματα έχουν ήδη hatch από το dgmSpec)
-      lay.elems.hatches.forEach(function (h) { if (h.legend) spec.hatches.push({ layer: h.layer, pts: h.pts, color: h.color }); });
+      lay.elems.hatches.forEach(function (h) { if (h.legend) spec.hatches.push({ layer: h.layer, pts: h.pts, color: h.color, pattern: h.pattern, angle: h.angle, spacing: h.spacing }); });
       var txt2 = Dxf2000.build(spec, { prune: true, template: '2018' });
       var imsD = lay.elems.images || [];
       if (imsD.length && kind === 'dgm-print-zip') {
