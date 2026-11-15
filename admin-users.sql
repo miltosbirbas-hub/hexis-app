@@ -100,3 +100,24 @@ begin
 end $$;
 revoke all on function public.admin_set_module(text, text, boolean) from public, anon;
 grant execute on function public.admin_set_module(text, text, boolean) to authenticated;
+
+-- ── Admin: όλες οι εγγραφές (admin.html v2.9+) ───────────────────────────────
+-- Κάθε λογαριασμός του auth.users με ημερομηνία εγγραφής, τελευταία σύνδεση,
+-- επιβεβαίωση email και τρόπο εγγραφής — ώστε η λίστα να δείχνει ΟΛΟΥΣ
+-- (και όσους δεν έχουν ακόμη συνδρομή) και την καρτέλα «Νέες εγγραφές».
+create or replace function public.admin_signups()
+returns table(uid uuid, email text, created_at timestamptz, last_sign_in_at timestamptz,
+              email_confirmed boolean, provider text, is_demo boolean)
+language plpgsql security definer set search_path to 'public', 'auth' as $$
+begin
+  if not public.is_admin() then raise exception 'not admin'; end if;
+  return query
+  select u.id, u.email::text, u.created_at, u.last_sign_in_at,
+         (u.email_confirmed_at is not null),
+         coalesce(u.raw_app_meta_data->>'provider', 'email'),
+         public.is_demo_auth(u.email, u.raw_user_meta_data)
+  from auth.users u
+  order by u.created_at desc;
+end $$;
+revoke all on function public.admin_signups() from public, anon;
+grant execute on function public.admin_signups() to authenticated;
