@@ -1,0 +1,36 @@
+name: Νομοθεσία — πλήρη κείμενα άρθρων
+# Κατεβάζει το πλήρες (ενοποιημένο) κείμενο των άρθρων και το γράφει στη βάση nomothesia-fulltext/.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/nomo-fulltext/**"
+      - ".github/workflows/nomo-fulltext.yml"
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: sudo apt-get install -y poppler-utils >/dev/null && pip install beautifulsoup4 lxml requests
+      - name: Εκτέλεση
+        run: python3 -I scripts/nomo-fulltext/run.py
+      - name: Commit
+        run: |
+          git config user.name "hexis-bot"; git config user.email "bot@hexis-app.gr"
+          if [ -d out-raw ]; then
+            git fetch origin nomo-raw || true
+            git checkout -B nomo-raw
+            git add -f out-raw
+            git commit -qm "raw δείγματα" || true
+            git push -f origin nomo-raw
+            git checkout -q main
+          fi
+          git add nomothesia-fulltext 2>/dev/null || true
+          if git diff --cached --quiet; then echo "Καμία αλλαγή"; exit 0; fi
+          git commit -m "Νομοθεσία: ενημέρωση πλήρων κειμένων άρθρων"
+          for i in 1 2 3; do git pull --rebase && git push && exit 0; sleep 5; done; exit 1
