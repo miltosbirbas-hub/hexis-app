@@ -4,7 +4,7 @@
 // με range requests και δίνει διγραμμική παρεμβολή στο σημείο. Ο browser δεν μπορεί να
 // τα διαβάσει απευθείας (το bucket δεν στέλνει CORS) — γι' αυτό περνούν από εδώ.
 // Είσοδος (GET): ?p=lon,lat;lon,lat;…   (έως 12 σημεία, WGS84 δεκαδικές μοίρες)
-// Έξοδος: { z:[m|null,…], src:"Copernicus GLO-30" }   (υψόμετρα EGM2008, DSM)
+// Έξοδος: { z:[m|null,…], f:["s"=θάλασσα|"c"=ακτή|"",…], src:"Copernicus GLO-30" }   (υψόμετρα EGM2008, DSM)
 // Χρήση: ktimatologio.html (εκτίμηση Z). Verify JWT: OFF (δημόσια ανοιχτά δεδομένα).
 // Πηγή: Copernicus DEM — © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018,
 // provided under COPERNICUS by the European Union and ESA; all rights reserved.
@@ -34,21 +34,28 @@ function openTile(url: string) {
   return p;
 }
 
-async function zAt(lon: number, lat: number): Promise<number | null> {
+// → { z, f } · f: "s" = θάλασσα (το πλησιέστερο εικονοστοιχείο είναι θάλασσα, τιμή 0 στο GLO-30),
+//            "c" = ακτή (θάλασσα μέσα στο 3×3 γύρω από το σημείο), "" = ξηρά
+async function zAt(lon: number, lat: number): Promise<{ z: number | null; f: string }> {
   let img: any;
-  try { img = await openTile(tileUrl(lat, lon)); } catch { return null; } // χωρίς πλακίδιο = θάλασσα
+  try { img = await openTile(tileUrl(lat, lon)); } catch { return { z: 0, f: "s" }; } // χωρίς πλακίδιο = ανοιχτή θάλασσα
   const [x0, y0] = img.getOrigin(), [rx, ry] = img.getResolution();      // ry < 0
   const W = img.getWidth(), Hh = img.getHeight();
-  // κέντρα εικονοστοιχείων: (c+0.5)
-  const c = (lon - x0) / rx - 0.5, r = (lat - y0) / ry - 0.5;
+  const c = (lon - x0) / rx - 0.5, r = (lat - y0) / ry - 0.5;             // κέντρα εικονοστοιχείων
   let c0 = Math.floor(c), r0 = Math.floor(r);
-  c0 = Math.min(Math.max(c0, 0), W - 2); r0 = Math.min(Math.max(r0, 0), Hh - 2);
+  c0 = Math.min(Math.max(c0, 1), W - 3); r0 = Math.min(Math.max(r0, 1), Hh - 3);
   const fc = Math.min(Math.max(c - c0, 0), 1), fr = Math.min(Math.max(r - r0, 0), 1);
-  const ras: any = await img.readRasters({ window: [c0, r0, c0 + 2, r0 + 2], samples: [0], interleave: true });
-  const v = [ras[0], ras[1], ras[2], ras[3]].map(Number);
-  if (v.some((q) => !isFinite(q) || q < -1000)) return null;
+  // παράθυρο 4×4 (c0-1 … c0+2) για τον έλεγχο ακτής
+  const ras: any = await img.readRasters({ window: [c0 - 1, r0 - 1, c0 + 3, r0 + 3], samples: [0], interleave: true });
+  const at = (dc: number, dr: number) => Number(ras[(dr + 1) * 4 + (dc + 1)]);
+  const v = [at(0, 0), at(1, 0), at(0, 1), at(1, 1)];
+  if (v.some((q) => !isFinite(q) || q < -1000)) return { z: null, f: "" };
+  const near = v[(fr >= 0.5 ? 2 : 0) + (fc >= 0.5 ? 1 : 0)];
+  if (near === 0) return { z: 0, f: "s" };
+  let coast = false;
+  for (let dr = -1; dr <= 2; dr++) for (let dc = -1; dc <= 2; dc++) if (at(dc, dr) === 0) coast = true;
   const z = v[0] * (1 - fc) * (1 - fr) + v[1] * fc * (1 - fr) + v[2] * (1 - fc) * fr + v[3] * fc * fr;
-  return Math.round(z * 100) / 100;
+  return { z: Math.round(z * 100) / 100, f: coast ? "c" : "" };
 }
 
 // απλό όριο ανά IP: 600 αιτήματα / 10 λεπτά
@@ -69,6 +76,6 @@ Deno.serve(async (req) => {
   const pts = q.split(";").filter(Boolean).slice(0, 12).map((s) => s.split(",").map(Number));
   if (!pts.length || pts.some((p) => p.length !== 2 || !p.every(isFinite) || Math.abs(p[1]) > 89 || Math.abs(p[0]) > 180))
     return new Response(JSON.stringify({ error: "p=lon,lat;lon,lat" }), { status: 400, headers: h });
-  const z = await Promise.all(pts.map(([lo, la]) => zAt(lo, la).catch(() => null)));
-  return new Response(JSON.stringify({ z, src: "Copernicus GLO-30" }), { headers: { ...h, "Cache-Control": "public, max-age=86400" } });
+  const res = await Promise.all(pts.map(([lo, la]) => zAt(lo, la).catch(() => ({ z: null, f: "" }))));
+  return new Response(JSON.stringify({ z: res.map((q) => q.z), f: res.map((q) => q.f), src: "Copernicus GLO-30" }), { headers: { ...h, "Cache-Control": "public, max-age=86400" } });
 });
