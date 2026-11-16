@@ -100,13 +100,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-b);font-size:
 .tag{display:inline-block;white-space:nowrap;font-size:12px;font-weight:700;padding:2px 9px;border-radius:99px;margin-top:5px;background:rgba(31,160,92,.10);color:var(--green)}
 
 /* Περισσότερα εργαλεία */
-.cats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.cats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 0;border-bottom:1px solid var(--border)}
+@media(max-width:600px){.cats{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}.cats::-webkit-scrollbar{display:none}}
 .chip{font-family:var(--font-d);font-weight:700;font-size:14.5px;color:var(--muted);background:#fff;border:1px solid var(--border-strong);border-radius:99px;padding:8px 15px;cursor:pointer;white-space:nowrap}
 .chip:hover{color:var(--text);border-color:#BFC6D0}
 .chip.on{background:var(--navy);border-color:var(--navy);color:#fff}
 .chip b{font-family:var(--font-m);font-weight:600;font-size:12px;opacity:.7;margin-left:5px}
 .cat-hd{font-family:var(--font-d);font-size:16px;font-weight:800;margin:18px 0 8px;color:var(--text);display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
-.fam{margin-bottom:6px}
+.fam{margin-bottom:10px}
 .fam:first-child .cat-hd{margin-top:2px}
 .cat-hd span{font-family:var(--font-b);font-size:13.5px;font-weight:500;color:var(--muted)}
 .more{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
@@ -242,14 +243,10 @@ footer p{font-size:11.5px;color:var(--faint)}
   <div id="results"></div>
   <div id="home">
     <div id="prim"></div>
-    <section class="sec" id="sec-mine">
-      <div class="sec-hd"><h2>Τα εργαλεία μου</h2><span id="mine-hint">Ομαδοποιημένα ανά οικογένεια · πάτα ☆ για να μπει στα Αγαπημένα, πάνω-πάνω.</span></div>
+    <section class="sec" id="sec-tools">
+      <div class="sec-hd"><h2>Εργαλεία</h2><span>Διάλεξε οικογένεια · κανονικές κάρτες = τα έχεις, διακεκομμένες = πάτα να δεις τι κάνουν · ☆ = Αγαπημένα</span></div>
+      <div class="cats" id="cats" role="toolbar" aria-label="Οικογένειες εργαλείων"></div>
       <div id="mine"></div>
-    </section>
-    <section class="sec" id="sec-more">
-      <div class="sec-hd"><h2>Περισσότερα εργαλεία</h2><span>Ενεργοποιούνται ξεχωριστά — πάτα σε ένα για να δεις τι κάνει.</span></div>
-      <div class="cats" id="cats" role="toolbar" aria-label="Κατηγορίες"></div>
-      <div id="grid"></div>
     </section>
   </div>
 
@@ -284,7 +281,7 @@ footer p{font-size:11.5px;color:var(--faint)}
 </div>
 
 <script>
-const HUB_VERSION = 'v1.12';
+const HUB_VERSION = 'v1.13';
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
@@ -388,46 +385,40 @@ function render() {
   document.getElementById('prim').innerHTML = prim.map(primaryHTML).join('');
 
   // Τα εργαλεία μου: αγαπημένα → πρόσφατα → σειρά καταλόγου
-  // Τα εργαλεία μου ανά οικογένεια (Εργοτάξιο, Τοπογραφία & CAD, Νομοθεσία & Άδειες…) — τα αγαπημένα πρώτα, χωριστά
-  const mine = tools.filter(hasTool);
-  const favMine = FAVS.map(id => mine.find(t => t.id === id)).filter(Boolean);
-  const restMine = mine.filter(t => !FAVS.includes(t.id));
-  let mineHTML = '';
-  if (favMine.length) mineHTML += '<div class="fam"><div class="cat-hd">★ Αγαπημένα</div><div class="mine">' + favMine.map(appHTML).join('') + '</div></div>';
-  const placed = new Set();
-  CATS.forEach(c => {
-    const list = restMine.filter(t => (t.cat || [])[0] === c.id);
-    if (!list.length) return;
-    list.forEach(t => placed.add(t.id));
-    mineHTML += '<div class="fam"><div class="cat-hd">' + c.ico + ' ' + c.name + '<span>' + c.desc + '</span></div><div class="mine">' + list.map(appHTML).join('') + '</div></div>';
-  });
-  const other = restMine.filter(t => !placed.has(t.id));
-  if (other.length) mineHTML += '<div class="fam"><div class="cat-hd">Άλλα</div><div class="mine">' + other.map(appHTML).join('') + '</div></div>';
-  document.getElementById('mine').innerHTML = mine.length ? mineHTML
-    : '<p class="empty-s">Δεν έχεις ενεργοποιήσει ακόμα κάποιο εργαλείο. Δες παρακάτω τι υπάρχει.</p>';
-
-  // Περισσότερα εργαλεία (κλειδωμένα) ανά κατηγορία
-  const locked = tools.filter(t => !hasTool(t));
-  document.getElementById('sec-more').style.display = locked.length ? '' : 'none';
-  const inCat = (t, c) => (t.cat || []).includes(c);
-  const cats = CATS.filter(c => locked.some(t => inCat(t, c.id)));
-  if (CUR_CAT !== 'all' && !cats.some(c => c.id === CUR_CAT)) CUR_CAT = 'all';
+  // ΕΝΑ σημείο για όλα τα εργαλεία: καρτέλες οικογενειών → κάθε οικογένεια μία φορά,
+  // πρώτα όσα έχεις (κανονικές κάρτες), μετά όσα δεν έχεις (διακεκομμένες «Δες τι κάνει»).
+  const fam = t => { const c = (t.cat || [])[0]; return CATS.some(x => x.id === c) ? c : 'other'; };
+  const fams = CATS.concat([{ id:'other', ico:'•', name:'Άλλα', desc:'' }]).filter(c => tools.some(t => fam(t) === c.id));
+  const favs = FAVS.map(byId).filter(t => t && !t.primary && hasTool(t));
+  if (CUR_CAT === 'fav' && !favs.length) CUR_CAT = 'all';
+  if (CUR_CAT !== 'all' && CUR_CAT !== 'fav' && !fams.some(c => c.id === CUR_CAT)) CUR_CAT = 'all';
+  const own = list => list.filter(hasTool).length;
+  const chip = (id, label, n) => '<button type="button" class="chip' + (CUR_CAT === id ? ' on' : '') + '" data-cat="' + id + '">' + label + '<b>' + n + '</b></button>';
   const chips = document.getElementById('cats');
-  chips.innerHTML = '<button type="button" class="chip' + (CUR_CAT === 'all' ? ' on' : '') + '" data-cat="all">Όλα<b>' + locked.length + '</b></button>'
-    + cats.map(c => '<button type="button" class="chip' + (CUR_CAT === c.id ? ' on' : '') + '" data-cat="' + c.id + '">' + c.ico + ' ' + c.name + '<b>' + locked.filter(t => inCat(t, c.id)).length + '</b></button>').join('');
-  chips.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { CUR_CAT = b.dataset.cat; try { localStorage.setItem('hx_hub_cat', CUR_CAT); } catch(e) {} render(); });
-  const show = CUR_CAT === 'all' ? cats : cats.filter(c => c.id === CUR_CAT);
-  let html = show.map(c => {
-    const list = locked.filter(t => CUR_CAT === 'all' ? (t.cat || [])[0] === c.id : inCat(t, c.id));
-    if (!list.length) return '';
-    return '<div class="cat-hd">' + c.ico + ' ' + c.name + '<span>' + c.desc + '</span></div><div class="more">' + list.map(lockedHTML).join('') + '</div>';
-  }).join('');
-  // εργαλεία που η κύρια κατηγορία τους δεν εμφανίζεται (στο «Όλα»)
-  const shown = new Set();
-  if (CUR_CAT === 'all') show.forEach(c => locked.forEach(t => { if ((t.cat || [])[0] === c.id) shown.add(t.id); }));
-  const rest = CUR_CAT === 'all' ? locked.filter(t => !shown.has(t.id)) : [];
-  if (rest.length) html += '<div class="cat-hd">Άλλα</div><div class="more">' + rest.map(lockedHTML).join('') + '</div>';
-  document.getElementById('grid').innerHTML = html;
+  chips.innerHTML = chip('all', 'Όλα', tools.length)
+    + (favs.length ? chip('fav', '★ Αγαπημένα', favs.length) : '')
+    + fams.map(c => chip(c.id, c.ico + ' ' + c.name, tools.filter(t => fam(t) === c.id).length)).join('');
+  chips.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => {
+    CUR_CAT = b.dataset.cat; try { localStorage.setItem('hx_hub_cat', CUR_CAT); } catch(e) {}
+    render();
+    const sec = document.getElementById('sec-tools'); if (sec.getBoundingClientRect().top < 0) sec.scrollIntoView({ block:'start' });
+  });
+  const block = (title, sub, list) => {
+    const mineL = list.filter(hasTool), lockL = list.filter(t => !hasTool(t));
+    return '<div class="fam"><div class="cat-hd">' + title + (sub ? '<span>' + sub + '</span>' : '') + '</div>'
+      + '<div class="mine">' + mineL.map(appHTML).join('') + lockL.map(lockedHTML).join('') + '</div></div>';
+  };
+  let html = '';
+  if (CUR_CAT === 'fav') html = block('★ Αγαπημένα', '', favs);
+  else {
+    if (CUR_CAT === 'all' && favs.length) html += block('★ Αγαπημένα', '', favs);
+    (CUR_CAT === 'all' ? fams : fams.filter(c => c.id === CUR_CAT)).forEach(c => {
+      const list = tools.filter(t => fam(t) === c.id), n = own(list);
+      html += block(c.ico + ' ' + c.name, 'έχεις ' + n + ' από ' + list.length, list);
+    });
+  }
+  if (!tools.some(hasTool) && CUR_CAT === 'all') html = '<p class="empty-s">Δεν έχεις ενεργοποιήσει ακόμα κάποιο εργαλείο — πάτα σε ένα για να δεις τι κάνει.</p>' + html;
+  document.getElementById('mine').innerHTML = html;
 
   drawResults();
 }
@@ -476,7 +467,7 @@ document.addEventListener('click', e => {
   let seen = ''; try { seen = localStorage.getItem('hx_hub_news') || ''; } catch(e) {}
   if (seen === HUB_VERSION) return;
   const el = document.getElementById('news');
-  el.innerHTML = '<div class="news"><span>✨ <b>Νέο στο Hub:</b> τα εργαλεία σου είναι πλέον χωρισμένα σε οικογένειες — Εργοτάξιο, Τοπογραφία &amp; CAD, Νομοθεσία &amp; Άδειες κ.λπ. Τα ☆ αγαπημένα μένουν πάνω-πάνω.</span><button type="button">Εντάξει</button></div>';
+  el.innerHTML = '<div class="news"><span>✨ <b>Νέο στο Hub:</b> όλα τα εργαλεία σε μία λίστα ανά οικογένεια — διάλεξε πάνω Εργοτάξιο, Τοπογραφία &amp; CAD, Νομοθεσία &amp; Άδειες κ.λπ. Πρώτα όσα έχεις, μετά τα υπόλοιπα.</span><button type="button">Εντάξει</button></div>';
   el.querySelector('button').onclick = () => { try { localStorage.setItem('hx_hub_news', HUB_VERSION); } catch(e) {} el.innerHTML = ''; };
 })();
 
