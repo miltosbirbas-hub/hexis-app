@@ -4,13 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0e1f2e">
-<title>Hexis-app Cadastral v2.6.0 — ΚΑΕΚ, Χάραξη & Ασφάλεια πεδίου</title>
+<title>Hexis-app Cadastral v2.7.0 — ΚΑΕΚ, Χάραξη & Ασφάλεια πεδίου</title>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.11.0/proj4.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4leaflet/1.0.2/proj4leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/delaunator@5.0.1/delaunator.min.js"></script>
 
 <style>
   :root{
@@ -79,7 +80,8 @@
   }
   .grip{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 8px}
 
-  .kaek-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .kaek-head{display:flex;align-items:baseline;justify-content:space-between;gap:6px 10px;flex-wrap:wrap}
+  #egsaBig{word-break:normal;white-space:nowrap}
   .kaek-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:2px}
   .kaek-value{
     font-size:24px;font-weight:800;letter-spacing:1px;color:var(--olive-bright);
@@ -614,11 +616,13 @@ if('serviceWorker' in navigator){
   <div class="grip"></div>
 
   <div class="kaek-head">
-    <div style="flex:1">
+    <div style="flex:1 1 auto">
       <div class="kaek-label" style="font-size:9.5px">ΣΥΝΤΕΤΑΓΜΕΝΕΣ ΕΓΣΑ'87 (στόχος)</div>
       <div id="egsaBig" class="kaek-value" style="font-size:14px">Χ —  ·  Υ —</div>
     </div>
+    <button id="zBig" onclick="TZ.panel()" title="Υψόμετρο από τριγωνομετρικά" style="flex:0 0 auto;align-self:center;background:var(--panel2);border:1px solid #ffd166;color:#ffd166;border-radius:8px;padding:6px 10px;font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap;font-variant-numeric:tabular-nums">Z ▲</button>
   </div>
+  <div id="trigPanel" style="display:none;margin-top:6px;background:var(--panel2);border:1px solid #ffd166;border-radius:10px;padding:8px 10px;color:#d9f2fc"></div>
   <div class="copy-wrap">
   <div class="cap">ΕΓΣΑ'87 (για τοπογραφικά)</div>
   <div class="copy-row">
@@ -706,6 +710,13 @@ if('serviceWorker' in navigator){
       <b>Κλείσιμο πολυγώνου</b> — προσθέτει σκέλος επιστροφής από την τελευταία κορυφή στην πρώτη και εμφανίζει και το <b>εμβαδόν</b> (Shoelace σε ΕΓΣΑ'87), για χάραξη περιγράμματος.</p>
       <p style="margin-left:12px">Η λίστα δείχνει κάθε σκέλος όπως θα το περπατήσεις: <b>1 · 120 m ΒΒΔ (338°)</b>, <b>2 · 30 m Α (91°)</b>, <b>3 · 100 m Β (2°)</b> — μήκος, πυξίδα και αζιμούθιο, υπολογισμένα σε <b>ΕΓΣΑ'87</b> (επίπεδη γεωμετρία, ίδιες τιμές με το όργανο). Κάτω δεξιά το συνολικό μήκος.</p>
       <p style="margin-left:12px"><b>▶ Έναρξη</b> — ξεκινά η πλοήγηση. Αν είσαι μακριά από την πρώτη κορυφή, μπαίνει αυτόματα ένα σκέλος <b>Προσέγγιση (➜)</b> από τη θέση σου προς αυτήν. Το ενεργό σκέλος έχει τον διάδρομο ±10 μ, την εκτροπή και το ίχνος, ακριβώς όπως στην πλοήγηση ενός σημείου. <b>Μόλις φτάσεις σε κορυφή (&lt;5 μ) περνά μόνο του στο επόμενο σκέλος.</b> Με τα <b>‹ ›</b> παρακάμπτεις χειροκίνητα — χρήσιμο όταν το GPS χοροπηδάει ή δεν μπορείς να πατήσεις ακριβώς πάνω στην κορυφή. Πατώντας απευθείας μια γραμμή της λίστας πας σε εκείνο το σκέλος.</p>
+      <p><b style="color:#ffd166">Z ▲ Υψόμετρο από τριγωνομετρικά.</b> Το κουμπί <b>Z</b> δίπλα στις συντεταγμένες ανοίγει το πάνελ τριγωνομετρικών. Με <b>📂 Εισαγωγή αρχείου</b> φορτώνεις το δικό σου αρχείο (το ίδιο που φορτώνεις στο HEXIS PAD: <span style="font-variant-numeric:tabular-nums">κωδικός, X, Y, H</span> σε ΕΓΣΑ'87, CSV ή TXT)· μένει μόνο σε αυτή τη συσκευή και ξαναφορτώνεται μόνο του. Από εκεί και πέρα:<br>
+      • το κουμπί <b>Z</b> δείχνει συνεχώς το εκτιμώμενο υψόμετρο στον κόκκινο στόχο του κέντρου·<br>
+      • σε κάθε <b>κλικ στον χάρτη</b> εμφανίζεται «Z ≈ … m» στο σημείο, μαζί με το πορτοκαλί τρίγωνο των 3 τριγωνομετρικών που χρησιμοποιήθηκαν (πάνω σε κάθε κορυφή: κωδικός και H)·<br>
+      • με το «Εμφάνιση ▲ στον χάρτη» βλέπεις όλα τα τριγωνομετρικά της περιοχής (από zoom 11).<br>
+      Πώς υπολογίζεται: τριγωνισμός Delaunay (TIN) σε όλα τα τριγωνομετρικά και γραμμική παρεμβολή μέσα στο τρίγωνο που περιέχει το σημείο. Τρίγωνα με πλευρά πάνω από 15 km (π.χ. πάνω από θάλασσα) δεν χρησιμοποιούνται, εκεί βγαίνει «Z —».</p>
+      <p style="margin-left:12px;font-size:12.5px;opacity:.9"><b style="color:#f5a623">Ακρίβεια:</b> είναι <b>εκτίμηση</b>, όχι μέτρηση. Τα τριγωνομετρικά είναι κυρίως σε κορυφές, οπότε σε κοιλάδες και ρέματα το Z βγαίνει πιο ψηλά από το πραγματικό. Σε έλεγχο 1.500 τριγωνομετρικών (καθένα εκτιμημένο από τα γύρω του) το διάμεσο σφάλμα ήταν ~55 m και στο 90% κάτω από ~210 m. Μόνο για προσανατολισμό — ποτέ για μελέτη ή εκσκαφή.<br>
+      Πηγές: B. Delaunay, «Sur la sphère vide» (1934)· D. T. Lee &amp; B. J. Schachter, «Two algorithms for constructing a Delaunay triangulation» (1980)· βιβλιοθήκη Delaunator (Mapbox)· EPSG:2100 (ΕΓΣΑ'87)· Τριγωνομετρικό δίκτυο ΓΥΣ.</p>
       <p><b style="color:#22d3ee">EN — αλλαγή γλώσσας.</b> Το κουμπί <b>EN/ΕΛ</b> πάνω δεξιά αλλάζει όλο το περιβάλλον σε αγγλικά και πίσω. Η επιλογή θυμάται. Αλλάζουν και τα σημεία πυξίδας (Β→N, ΒΒΔ→NNW κ.λπ.).</p>
       <p><b style="color:#22d3ee">🌲 Εισηγμένα δασικά SHP.</b> Ένα SHP που φόρτωσες μένει αποθηκευμένο στη συσκευή και ξαναεμφανίζεται κάθε φορά που ανοίγεις το εργαλείο (μπαίνει και στο DXF όταν τέμνει το ακίνητο). Από το 🌲 Δασικά: <b>☐</b> το κρύβει (και το βγάζει από το DXF), <b>✕</b> το διαγράφει, «Καθαρισμός όλων» τα σβήνει όλα.</p>
       <p><b style="color:#22d3ee">🌲 · 🕐 ανοίγουν πάνω στο επιλεγμένο τεμάχιο.</b> Αν έχεις ήδη επιλέξει γεωτεμάχιο (κλικ ή αναζήτηση ΚΑΕΚ), ο <b>Κυρωμένος Δασικός Χάρτης</b> ανοίγει κεντραρισμένος σε σημείο μέσα στο τεμάχιο με πινέζα εκεί — όχι στην αρχική σελίδα. Χωρίς επιλογή, χρησιμοποιείται το σταυρόνημα. Σε κοίλα σχήματα (Γ ή Π με εσοχή) το σημείο υπολογίζεται ώστε να πέφτει πάντα <i>μέσα</i> στο τεμάχιο.</p>
@@ -750,6 +761,13 @@ if('serviceWorker' in navigator){
       <b>Close polygon</b> — adds a closing leg from the last vertex back to the first and also shows the <b>area</b> (shoelace in GGRS87), for staking out a boundary.</p>
       <p style="margin-left:12px">The list shows every leg the way you will walk it: <b>1 · 120 m NNW (338°)</b>, <b>2 · 30 m E (91°)</b>, <b>3 · 100 m N (2°)</b> — length, compass point and azimuth, computed in <b>GGRS87</b> (plane geometry, the same values your total station gives). Total length is shown at the bottom right.</p>
       <p style="margin-left:12px"><b>▶ Start</b> — navigation begins. If you are far from the first vertex, an <b>Approach (➜)</b> leg from your position to it is inserted automatically. The active leg gets the ±10 m corridor, the off-track reading and the trail, exactly as in single-point navigation. <b>On reaching a vertex (&lt;5 m) it advances to the next leg by itself.</b> Use <b>‹ ›</b> to skip manually — useful when GPS jitters or you cannot stand exactly on the vertex. Tapping a row in the list jumps straight to that leg.</p>
+      <p><b style="color:#ffd166">Z ▲ Height from trig points.</b> The <b>Z</b> button next to the coordinates opens the trig-point panel. With <b>📂 Import file</b> you load your own file (the same one you load in HEXIS PAD: <span style="font-variant-numeric:tabular-nums">code, X, Y, H</span> in GGRS87, CSV or TXT); it stays on this device only and reloads by itself. From then on:<br>
+      • the <b>Z</b> button always shows the estimated height at the red target in the centre;<br>
+      • every <b>tap on the map</b> shows "Z ≈ … m" at that point, together with the orange triangle of the 3 trig points used (each vertex shows code and H);<br>
+      • "Show ▲ on the map" displays all trig points of the area (from zoom 11).<br>
+      How it is computed: Delaunay triangulation (TIN) of all trig points and linear interpolation inside the triangle that contains the point. Triangles with a side over 15 km (e.g. across the sea) are not used; there you get "Z —".</p>
+      <p style="margin-left:12px;font-size:12.5px;opacity:.9"><b style="color:#f5a623">Accuracy:</b> this is an <b>estimate</b>, not a measurement. Trig points are mostly on hilltops, so in valleys and streams Z comes out higher than reality. In a check of 1,500 trig points (each estimated from its neighbours) the median error was ~55 m and 90% were below ~210 m. For orientation only — never for design or excavation.<br>
+      Sources: B. Delaunay, "Sur la sphère vide" (1934); D. T. Lee &amp; B. J. Schachter, "Two algorithms for constructing a Delaunay triangulation" (1980); Delaunator library (Mapbox); EPSG:2100 (GGRS87); HMGS trigonometric network.</p>
       <p><b style="color:#22d3ee">ΕΛ — language.</b> The <b>EN/ΕΛ</b> button at the top right switches the whole interface between Greek and English. The choice is remembered. Compass points switch too (N→Β, NNW→ΒΒΔ etc.).</p>
       <p><b style="color:#22d3ee">🌲 Imported forest SHP.</b> A SHP you loaded stays saved on the device and reappears every time you open the tool (it also goes into the DXF where it meets the parcel). From 🌲 Forest: <b>☐</b> hides it (and leaves it out of the DXF), <b>✕</b> deletes it, «Clear all» removes them all.</p>
       <p><b style="color:#22d3ee">🌲 · 🕐 open on the selected parcel.</b> If a parcel is already selected (by tap or KAEK search), the <b>ratified forest map</b> opens centred on a point inside that parcel with a marker on it — not on its home page. With no selection, the crosshair is used. For concave shapes (L or U with a recess) the point is computed so it always falls <i>inside</i> the parcel.</p>
@@ -1082,6 +1100,7 @@ function toggleLang(){
   try{ if(typeof renderRoute === "function") renderRoute(); }catch(e){}
   try{ if(typeof updateNav === "function") updateNav(); }catch(e){}
   try{ updateSrcBtn(); }catch(e){}
+  try{ TZ.refresh(); }catch(e){}
   try{ if(typeof renderForestList === "function" && $("forestPanel") && $("forestPanel").style.display === "block") renderForestList(); }catch(e){}
 }
 window.addEventListener("load", ()=>{ try{ applyLang(); }catch(e){} try{ updateSrcBtn(); }catch(e){} });
@@ -1159,6 +1178,7 @@ function updateCenterReadout(){
   $("cy").textContent = n.toFixed(1);
   const big = $("egsaBig");
   if(big) big.textContent = "Χ " + e.toFixed(2) + "  ·  Υ " + n.toFixed(2);
+  try{ TZ.center(e, n); }catch(_){}
   const xv = $("copyXval"), yv = $("copyYval");
   if(xv) xv.textContent = e.toFixed(1);
   if(yv) yv.textContent = n.toFixed(1);
@@ -2144,6 +2164,7 @@ function updateClearBtn(){
 function clearSelection(){
   clearParcel();
   map.closePopup();
+  try{ TZ.clear(); }catch(_){}
   const k = $("kaek"); if(k){ k.textContent = "—"; k.className = "kaek-value empty"; }
   const st = $("stats"); if(st) st.style.display = "none";
   setHint("Οι επιλογές καθαρίστηκαν.");
@@ -4513,14 +4534,189 @@ const KF = (function(){
 
   // Ενημέρωση έκδοσης — μία φορά
   window.addEventListener("load", () => setTimeout(() => {
-    if(LS.get("hexis_kt_seen", "") === "2.6.0") return;
-    LS.set("hexis_kt_seen", "2.6.0");
-    try{ setHint(T("Νέο v2.6: στη Γεωαναφορά πινακίδας το ✨ Αυτόματα βρίσκει τις 4 γωνίες, διαβάζει τα φ, λ και τα μετατρέπει σε ΕΓΣΑ'87 (και παλαιό datum ΓΥΣ, λ από Αθήνα)· οι σταυροί σέρνονται.", "New v2.6: in Sheet georeferencing, ✨ Automatic finds the 4 corners, reads φ, λ and converts them to GGRS87 (including the old HMGS datum, λ from Athens); crosses can be dragged."), "ok"); }catch(e){}
+    if(LS.get("hexis_kt_seen", "") === "2.7.0") return;
+    LS.set("hexis_kt_seen", "2.7.0");
+    try{ setHint(T("Νέο v2.7: κουμπί Z ▲ — φόρτωσε το αρχείο τριγωνομετρικών σου και σε κάθε κλικ βλέπεις εκτίμηση υψομέτρου (τριγωνισμός TIN) με το τρίγωνο των 3 τριγωνομετρικών που χρησιμοποιήθηκαν.", "New v2.7: Z ▲ button — load your trig-point file and every tap shows a height estimate (TIN) with the triangle of the 3 trig points used."), "ok"); }catch(e){}
   }, 1500));
 
   return { open, close, build, georef, grClose, grUndo, grClear, grSave, grAuto, _outline: null,
            _test: { geotiff, worldFile, fitAffine, parseXY, parseAng, toEgsa, fmtAng, docFolder, fekInfo, tfwFromTiff, isBlank, bboxOf } };
 })();
+
+
+// ═══════ Υψόμετρα από τριγωνομετρικά (TIN) ═══════
+// Το αρχείο τριγωνομετρικών το φορτώνει ο χρήστης (ίδια μορφή με το HEXIS PAD: κωδικός, X, Y, H [, όνομα…])
+// και μένει ΜΟΝΟ σε αυτή τη συσκευή (IndexedDB) — η εφαρμογή δεν περιέχει δεδομένα.
+// Τριγωνισμός Delaunay σε ΕΓΣΑ'87 και γραμμική παρεμβολή στο τρίγωνο → εκτίμηση Z.
+const TZ = (function(){
+  const T = (el, en) => (LANG === "en" ? en : el);
+  const MAXE = 15000;              // τρίγωνα με πλευρά > 15 km (π.χ. πάνω από θάλασσα) αγνοούνται
+  const G = 5000;                  // κελί χωρικού ευρετηρίου (m)
+  let X = null, Y = null, H = null, C = null, tri = null, grid = null, n = 0;
+  let showPts = false; try{ showPts = localStorage.getItem("hexis_trig_show") === "1"; }catch(e){}
+  let ptsLayer = null, clickLayer = null;
+  const fmt = v => v.toLocaleString(LOC(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+  // ---------- αποθήκευση στη συσκευή ----------
+  function db(){ return new Promise((res, rej) => { const r = indexedDB.open("hexis_trig", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("kv"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
+  async function kv(op, val){ const d = await db(); return new Promise((res, rej) => {
+    const tx = d.transaction("kv", op === "get" ? "readonly" : "readwrite"), s = tx.objectStore("kv");
+    const q = op === "get" ? s.get("pts") : op === "del" ? s.delete("pts") : s.put(val, "pts");
+    q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); }
+
+  // ---------- ανάγνωση αρχείου ----------
+  function parse(text){
+    const out = [], seen = new Set();
+    text.split(/\r?\n/).forEach(line => {
+      if(!line.trim() || /^\s*#/.test(line)) return;
+      const d = line.includes(";") ? ";" : line.includes("\t") ? "\t" : line.includes(",") ? "," : /\s+/;
+      const f = line.trim().split(d).map(s => s.trim().replace(/^"|"$/g, ""));
+      let E = parseFloat(f[1]), N = parseFloat(f[2]); const h = parseFloat(f[3]);
+      if(isNaN(E) || isNaN(N) || isNaN(h)) return;                 // επικεφαλίδα ή σημείο χωρίς υψόμετρο
+      if(E > 3e6 && N < 1e6){ const t = E; E = N; N = t; }          // Χ/Υ ανάποδα
+      if(E < 50000 || E > 1000000 || N < 3800000 || N > 4700000) return; // εκτός ΕΓΣΑ'87 Ελλάδας
+      if(h <= 0 && h > -1) return;                                  // κενό υψόμετρο ως 0
+      if(seen.has(f[0])) return; seen.add(f[0]);
+      out.push([f[0], E, N, h]);
+    });
+    return out;
+  }
+
+  // ---------- τριγωνισμός + ευρετήριο ----------
+  function build(rows){
+    n = rows.length; X = new Float64Array(n); Y = new Float64Array(n); H = new Float64Array(n); C = new Array(n);
+    const xy = new Float64Array(2 * n);
+    rows.forEach((r, i) => { C[i] = r[0]; X[i] = r[1]; Y[i] = r[2]; H[i] = r[3]; xy[2*i] = r[1]; xy[2*i+1] = r[2]; });
+    tri = null; grid = new Map();
+    if(n < 3 || typeof Delaunator === "undefined") return;
+    const t = new Delaunator(xy).triangles; tri = t;
+    const d = (a, b) => Math.hypot(X[a] - X[b], Y[a] - Y[b]);
+    for(let k = 0; k < t.length; k += 3){
+      const a = t[k], b = t[k+1], c = t[k+2];
+      if(d(a, b) > MAXE || d(b, c) > MAXE || d(c, a) > MAXE) continue;
+      const x0 = Math.floor(Math.min(X[a], X[b], X[c]) / G), x1 = Math.floor(Math.max(X[a], X[b], X[c]) / G);
+      const y0 = Math.floor(Math.min(Y[a], Y[b], Y[c]) / G), y1 = Math.floor(Math.max(Y[a], Y[b], Y[c]) / G);
+      for(let i = x0; i <= x1; i++) for(let j = y0; j <= y1; j++){
+        const key = i * 100000 + j; let L = grid.get(key); if(!L){ L = []; grid.set(key, L); } L.push(k);
+      }
+    }
+  }
+
+  // Z στο σημείο (ΕΓΣΑ'87) → { z, v:[a,b,c], emax } ή null αν είναι εκτός κάλυψης
+  function zAt(x, y){
+    if(!grid) return null;
+    const L = grid.get(Math.floor(x / G) * 100000 + Math.floor(y / G)); if(!L) return null;
+    for(const k of L){
+      const a = tri[k], b = tri[k+1], c = tri[k+2];
+      const det = (Y[b] - Y[c]) * (X[a] - X[c]) + (X[c] - X[b]) * (Y[a] - Y[c]);
+      if(!det) continue;
+      const l1 = ((Y[b] - Y[c]) * (x - X[c]) + (X[c] - X[b]) * (y - Y[c])) / det;
+      const l2 = ((Y[c] - Y[a]) * (x - X[c]) + (X[a] - X[c]) * (y - Y[c])) / det;
+      const l3 = 1 - l1 - l2, eps = -1e-9;
+      if(l1 >= eps && l2 >= eps && l3 >= eps){
+        const emax = Math.max(Math.hypot(X[a]-X[b], Y[a]-Y[b]), Math.hypot(X[b]-X[c], Y[b]-Y[c]), Math.hypot(X[c]-X[a], Y[c]-Y[a]));
+        return { z: l1 * H[a] + l2 * H[b] + l3 * H[c], v: [a, b, c], emax };
+      }
+    }
+    return null;
+  }
+
+  // ---------- ενδείξεις ----------
+  let _lastE = null, _lastN = null;
+  function center(e, nn){
+    _lastE = e; _lastN = nn;
+    const el = $("zBig"); if(!el) return;
+    if(!n){ el.textContent = "Z ▲"; el.title = T("Φόρτωσε τριγωνομετρικά για εκτίμηση υψομέτρου", "Load trig points for a height estimate"); return; }
+    const r = zAt(e, nn);
+    el.textContent = r ? "Z ≈ " + fmt(r.z) + " m" : "Z —";
+    el.title = r ? T("Εκτίμηση από τριγωνομετρικά (TIN) — όχι μέτρηση", "Estimate from trig points (TIN) — not a measurement")
+                 : T("Εκτός κάλυψης τριγωνομετρικών", "Outside trig-point coverage");
+  }
+  const lbl = (txt, col) => L.divIcon({ className: "", iconSize: [1, 1], html:
+    '<div style="transform:translate(-50%,-130%);white-space:nowrap;color:' + col + ';font-size:14px;font-weight:800;text-shadow:0 0 3px #000,0 0 3px #000,1px 1px 2px #000,-1px -1px 2px #000">' + txt + '</div>' });
+  const ll = (x, y) => { const [lng, lat] = proj4("EPSG:2100", "EPSG:4326", [x, y]); return [lat, lng]; };
+
+  function clearClick(){ if(clickLayer){ map.removeLayer(clickLayer); clickLayer = null; } }
+  function click(lat, lng){
+    clearClick(); if(!n) return;
+    const [e, nn] = toEGSA(lat, lng), r = zAt(e, nn);
+    clickLayer = L.layerGroup().addTo(map);
+    if(!r){ L.marker([lat, lng], { icon: lbl("Z — " + T("εκτός κάλυψης", "no coverage"), "#f5a623"), interactive: false }).addTo(clickLayer); return; }
+    const vs = r.v.map(i => ll(X[i], Y[i]));
+    L.polygon(vs, { color: "#f5a623", weight: 1.5, dashArray: "6 5", fill: false, interactive: false }).addTo(clickLayer);
+    r.v.forEach((i, j) => {
+      L.circleMarker(vs[j], { radius: 5, color: "#f5a623", fillColor: "#fff", fillOpacity: 1, weight: 2 })
+        .bindTooltip("▲ " + C[i] + " · H " + fmt(H[i]) + " m").addTo(clickLayer);
+    });
+    L.circleMarker([lat, lng], { radius: 4, color: "#f5a623", fillColor: "#f5a623", fillOpacity: 1, weight: 1, interactive: false }).addTo(clickLayer);
+    L.marker([lat, lng], { icon: lbl("Z ≈ " + fmt(r.z) + " m", "#ffd166"), interactive: false }).addTo(clickLayer);
+  }
+
+  function drawPts(){
+    if(ptsLayer){ map.removeLayer(ptsLayer); ptsLayer = null; }
+    if(!showPts || !n || map.getZoom() < 11) return;
+    const b = map.getBounds(), [x0, y0] = toEGSA(b.getSouth(), b.getWest()), [x1, y1] = toEGSA(b.getNorth(), b.getEast());
+    const xa = Math.min(x0, x1) - 500, xb = Math.max(x0, x1) + 500, ya = Math.min(y0, y1) - 500, yb = Math.max(y0, y1) + 500;
+    ptsLayer = L.layerGroup(); let c = 0;
+    for(let i = 0; i < n && c < 800; i++){
+      if(X[i] < xa || X[i] > xb || Y[i] < ya || Y[i] > yb) continue; c++;
+      L.marker(ll(X[i], Y[i]), { icon: L.divIcon({ className: "", iconSize: [16, 16], iconAnchor: [8, 12],
+        html: '<div style="color:#ffd166;font-size:15px;line-height:16px;text-shadow:0 0 3px #000,0 0 2px #000">▲</div>' }) })
+        .bindTooltip(C[i] + " · H " + fmt(H[i]) + " m").addTo(ptsLayer);
+    }
+    ptsLayer.addTo(map);
+  }
+
+  // ---------- πάνελ ----------
+  function render(){
+    const p = $("trigPanel"); if(!p) return;
+    const btn = 'style="width:100%;background:#0a1e35;border:1px solid var(--neon);color:var(--neon);border-radius:7px;padding:8px;cursor:pointer;font-size:13px;font-weight:700;margin-top:6px"';
+    p.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="color:#ffd166;font-size:14px;flex:1 1 auto;min-width:0">▲ ' + T("Υψόμετρα από τριγωνομετρικά", "Heights from trig points") + '</b>' +
+      '<button onclick="TZ.panel()" style="flex:0 0 auto;width:auto;background:none;border:1px solid var(--neon);color:var(--neon);border-radius:7px;padding:2px 9px;cursor:pointer;font-weight:800">✕</button></div>' +
+      '<div style="margin-top:6px;font-size:13px">' + (n
+        ? "✔ " + n.toLocaleString(LOC()) + T(" τριγωνομετρικά — μόνο σε αυτή τη συσκευή", " trig points — on this device only")
+        : T("Δεν έχουν φορτωθεί τριγωνομετρικά. Φόρτωσε το αρχείο σου (το ίδιο με του HEXIS PAD).", "No trig points loaded yet. Load your file (the same one as in HEXIS PAD).")) + '</div>' +
+      '<button ' + btn + ' onclick="TZ.importFile()">📂 ' + T("Εισαγωγή αρχείου (CSV/TXT: κωδικός, X, Y, H)", "Import file (CSV/TXT: code, X, Y, H)") + '</button>' +
+      (n ? '<label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;cursor:pointer"><input type="checkbox" ' + (showPts ? "checked" : "") + ' onchange="TZ.toggle(this.checked)"> ' +
+             T("Εμφάνιση ▲ στον χάρτη (από zoom 11)", "Show ▲ on the map (from zoom 11)") + '</label>' +
+           '<button style="width:100%;background:none;border:1px solid #ef4444;color:#ef4444;border-radius:7px;padding:6px;cursor:pointer;font-size:12.5px;margin-top:6px" onclick="TZ.wipe(this)">🗑 ' + T("Διαγραφή από τη συσκευή", "Delete from this device") + '</button>' : "") +
+      '<div style="margin-top:8px;font-size:12px;line-height:1.45;opacity:.85">' + T(
+        "Το Z είναι <b>εκτίμηση</b>: γραμμική παρεμβολή στο τρίγωνο των 3 γύρω τριγωνομετρικών (TIN). Τα τριγωνομετρικά είναι συνήθως σε κορυφές, άρα σε κοιλάδες και ρέματα το Z βγαίνει πιο ψηλά από το πραγματικό. Έλεγχος σε 1.500 τριγωνομετρικά (το καθένα εκτιμημένο από τα γύρω του): διάμεσο σφάλμα ~55 m, στο 90% κάτω από ~210 m. Μόνο για προσανατολισμό — όχι για μελέτη ή εκσκαφή.",
+        "Z is an <b>estimate</b>: linear interpolation in the triangle of the 3 surrounding trig points (TIN). Trig points usually sit on hilltops, so in valleys and streams Z comes out higher than reality. Check on 1,500 trig points (each estimated from its neighbours): median error ~55 m, 90% below ~210 m. For orientation only — not for design or excavation.") + '</div>';
+  }
+  function panel(){ const p = $("trigPanel"); if(!p) return; const open = p.style.display !== "block"; p.style.display = open ? "block" : "none"; if(open) render(); }
+  function toggle(v){ showPts = !!v; try{ localStorage.setItem("hexis_trig_show", showPts ? "1" : "0"); }catch(e){} drawPts(); }
+  function refresh(){ if(_lastE != null) center(_lastE, _lastN); else { try{ const c = centerEGSA(); center(c.e, c.n); }catch(e){} } drawPts(); render(); }
+  function importFile(){
+    const inp = document.createElement("input"); inp.type = "file"; inp.accept = ".csv,.txt,text/plain,text/csv";
+    inp.onchange = async () => {
+      const f = inp.files && inp.files[0]; if(!f) return;
+      try{
+        const rows = parse(await f.text());
+        if(rows.length < 3) throw new Error(T("Δεν βρέθηκαν σημεία με υψόμετρο. Μορφή: κωδικός, X, Y, H", "No points with height found. Format: code, X, Y, H"));
+        build(rows); await kv("put", rows).catch(() => {});
+        refresh(); setHint("✔ " + rows.length.toLocaleString(LOC()) + T(" τριγωνομετρικά φορτώθηκαν — πάτα στον χάρτη για Z", " trig points loaded — tap the map for Z"), "ok");
+      }catch(e){ setHint(e.message, "err"); }
+    };
+    inp.click();
+  }
+  async function wipe(b){
+    if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = T("Σίγουρα; Πάτα ξανά", "Sure? Tap again"); return; }
+    await kv("del").catch(() => {}); build([]); clearClick(); refresh();
+  }
+
+  // ---------- εκκίνηση ----------
+  (async () => {
+    try{ const rows = await kv("get"); if(Array.isArray(rows) && rows.length){ build(rows); } }catch(e){}
+    refresh();
+  })();
+  map.on("moveend", drawPts);
+
+  return { center, click, clear: clearClick, panel, toggle, importFile, wipe, refresh, _test: { parse, build, zAt } };
+})();
+map.on("click", (e) => { if((typeof measuring !== "undefined" && measuring) || (typeof drawing !== "undefined" && drawing)) return; TZ.click(e.latlng.lat, e.latlng.lng); });
 
 </script>
 </body>
