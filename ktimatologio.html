@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0e1f2e">
-<title>Hexis-app Cadastral v2.8.1 — ΚΑΕΚ, Χάραξη & Ασφάλεια πεδίου</title>
+<title>Hexis-app Cadastral v2.8.2 — ΚΑΕΚ, Χάραξη & Ασφάλεια πεδίου</title>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -620,7 +620,10 @@ if('serviceWorker' in navigator){
       <div class="kaek-label" style="font-size:9.5px">ΣΥΝΤΕΤΑΓΜΕΝΕΣ ΕΓΣΑ'87 (στόχος)</div>
       <div id="egsaBig" class="kaek-value" style="font-size:14px">Χ —  ·  Υ —</div>
     </div>
-    <button id="zBig" onclick="TZ.panel()" title="Υψόμετρο — εκτίμηση από τριγωνομετρικά" style="flex:0 0 auto;align-self:center;line-height:1.15;text-align:center;background:var(--panel2);border:1px solid #ffd166;color:#ffd166;border-radius:8px;padding:6px 10px;font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap;font-variant-numeric:tabular-nums">Z …</button>
+    <div style="flex:0 0 auto;align-self:center;display:flex;gap:5px;align-items:stretch">
+    <button id="zBig" onclick="TZ.zNow()" title="Πάτα για εκτίμηση υψομέτρου στον στόχο" style="line-height:1.15;text-align:center;background:var(--panel2);border:1px solid #ffd166;color:#ffd166;border-radius:8px;padding:6px 10px;font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap;font-variant-numeric:tabular-nums">Z</button>
+    <button id="zInfo" onclick="TZ.panel()" title="Πληροφορίες υψομέτρου" style="width:auto;background:none;border:1px solid #ffd166;color:#ffd166;border-radius:8px;padding:0 9px;font-weight:800;font-size:15px;cursor:pointer">ⓘ</button>
+    </div>
   </div>
   <div id="trigPanel" style="display:none;margin-top:6px;background:var(--panel2);border:1px solid #ffd166;border-radius:10px;padding:8px 10px;color:#d9f2fc"></div>
   <div class="copy-wrap">
@@ -710,7 +713,7 @@ if('serviceWorker' in navigator){
       <b>Κλείσιμο πολυγώνου</b> — προσθέτει σκέλος επιστροφής από την τελευταία κορυφή στην πρώτη και εμφανίζει και το <b>εμβαδόν</b> (Shoelace σε ΕΓΣΑ'87), για χάραξη περιγράμματος.</p>
       <p style="margin-left:12px">Η λίστα δείχνει κάθε σκέλος όπως θα το περπατήσεις: <b>1 · 120 m ΒΒΔ (338°)</b>, <b>2 · 30 m Α (91°)</b>, <b>3 · 100 m Β (2°)</b> — μήκος, πυξίδα και αζιμούθιο, υπολογισμένα σε <b>ΕΓΣΑ'87</b> (επίπεδη γεωμετρία, ίδιες τιμές με το όργανο). Κάτω δεξιά το συνολικό μήκος.</p>
       <p style="margin-left:12px"><b>▶ Έναρξη</b> — ξεκινά η πλοήγηση. Αν είσαι μακριά από την πρώτη κορυφή, μπαίνει αυτόματα ένα σκέλος <b>Προσέγγιση (➜)</b> από τη θέση σου προς αυτήν. Το ενεργό σκέλος έχει τον διάδρομο ±10 μ, την εκτροπή και το ίχνος, ακριβώς όπως στην πλοήγηση ενός σημείου. <b>Μόλις φτάσεις σε κορυφή (&lt;5 μ) περνά μόνο του στο επόμενο σκέλος.</b> Με τα <b>‹ ›</b> παρακάμπτεις χειροκίνητα — χρήσιμο όταν το GPS χοροπηδάει ή δεν μπορείς να πατήσεις ακριβώς πάνω στην κορυφή. Πατώντας απευθείας μια γραμμή της λίστας πας σε εκείνο το σκέλος.</p>
-      <p><b style="color:#ffd166">Z — Υψόμετρο (εκτίμηση).</b> Δίπλα στις συντεταγμένες το κουμπί <b>Z</b> (με την ένδειξη ΕΚΤΙΜΗΣΗ) δείχνει συνεχώς το εκτιμώμενο υψόμετρο στον κόκκινο στόχο. Σε κάθε <b>κλικ στον χάρτη</b> εμφανίζεται «Z ≈ … m (εκτίμηση)» στο σημείο, μαζί με το πορτοκαλί τρίγωνο των 3 τριγωνομετρικών που χρησιμοποιήθηκαν (πάνω σε κάθε κορυφή: κωδικός, H και η τιμή του μοντέλου εδάφους). Τα τριγωνομετρικά ΓΥΣ (~25.000, ΕΓΣΑ'87) φορτώνονται αυτόματα — δεν χρειάζεται αρχείο. Από το κουμπί Z ανοίγει το πάνελ, με επιλογή «Εμφάνιση ▲ στον χάρτη» (από zoom 11).<br>
+      <p><b style="color:#ffd166">Z — Υψόμετρο (εκτίμηση), μόνο όταν το ζητάς.</b> Το υψόμετρο δεν εμφανίζεται μόνο του. <b>Κλικ στον χάρτη</b> → δίπλα στο σημείο βγαίνει ένα μικρό κουμπί <b>Z</b>· πατώντας το εμφανίζεται «Z ≈ … m (εκτίμηση)» στο σημείο, μαζί με τα κοντινά τριγωνομετρικά (σε κάθε ένα: κωδικός, H και τιμή μοντέλου εδάφους). Δίπλα στις συντεταγμένες, το κουμπί <b>Z</b> δίνει το υψόμετρο στον κόκκινο στόχο όταν το πατήσεις (μόλις μετακινηθεί ο χάρτης ξαναγίνεται «Z»)· το <b>ⓘ</b> ανοίγει τις πληροφορίες, με επιλογή «Εμφάνιση ▲ στον χάρτη» (από zoom 11). Τα τριγωνομετρικά ΓΥΣ (~25.000, ΕΓΣΑ'87) φορτώνονται αυτόματα.<br>
       Πώς υπολογίζεται: υψόμετρο εδάφους από το <b>Copernicus DEM GLO-30</b> (κάναβος 1″ ≈ 30 m, διγραμμική παρεμβολή). Αν το σημείο είναι σε απόσταση έως 300 m από τριγωνομετρικό, το Z τραβιέται προς το υψόμετρο του τριγωνομετρικού (πλήρως πάνω του, καθόλου στα 300 m). Η διαφορά ενός τριγωνομετρικού δεν μεταφέρεται μακρύτερα: στα τριγωνομετρικά το μοντέλο βγαίνει συστηματικά ~3 m χαμηλότερα (θέση σε λόφο), κάτι που δεν ισχύει σε πεδινά και ακτές. Στη θάλασσα (τιμή 0 στο GLO-30) γράφει «Z 0 m (θάλασσα)»· όταν υπάρχει θάλασσα σε απόσταση ~30–60 m γράφει «ακτή». Χωρίς internet χρησιμοποιείται μόνο η γραμμική παρεμβολή στο τρίγωνο των τριγωνομετρικών και το κουμπί γράφει «ΕΚΤΙΜΗΣΗ (ΤΡΙΓ.)».</p>
       <p style="margin-left:12px;font-size:12.5px;opacity:.9"><b style="color:#f5a623">Ακρίβεια:</b> είναι <b>εκτίμηση</b>, όχι μέτρηση. Σε ανοιχτό έδαφος συνήθως λίγα μέτρα (διάμεσο ~5 m στα τριγωνομετρικά, που ως κορυφές είναι η δυσκολότερη περίπτωση). Το GLO-30 είναι μοντέλο <b>επιφάνειας</b>: σε δέντρα, κτίρια και στην ακτή το Z μπορεί να βγει 5–15 m ψηλότερα (σε έλεγχο 300 σημείων ακτογραμμής Ιονίου: συνήθως 0–3 m, αλλά έως ~13 m όπου υπάρχουν δέντρα ή κτίρια). Χωρίς internet (μόνο τριγωνομετρικά) σφάλμα δεκάδων μέτρων. Μόνο για προσανατολισμό — ποτέ για μελέτη ή εκσκαφή.<br>
       Πηγές: Copernicus DEM GLO-30 — Product Handbook (AIRBUS, ESA)· Copernicus DEM © DLR e.V. 2010-2014 και © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA· B. Delaunay, «Sur la sphère vide» (1934)· D. T. Lee &amp; B. J. Schachter (1980)· βιβλιοθήκη Delaunator (Mapbox)· EPSG:2100 (ΕΓΣΑ'87)· Τριγωνομετρικό δίκτυο ΓΥΣ.</p>
@@ -758,7 +761,7 @@ if('serviceWorker' in navigator){
       <b>Close polygon</b> — adds a closing leg from the last vertex back to the first and also shows the <b>area</b> (shoelace in GGRS87), for staking out a boundary.</p>
       <p style="margin-left:12px">The list shows every leg the way you will walk it: <b>1 · 120 m NNW (338°)</b>, <b>2 · 30 m E (91°)</b>, <b>3 · 100 m N (2°)</b> — length, compass point and azimuth, computed in <b>GGRS87</b> (plane geometry, the same values your total station gives). Total length is shown at the bottom right.</p>
       <p style="margin-left:12px"><b>▶ Start</b> — navigation begins. If you are far from the first vertex, an <b>Approach (➜)</b> leg from your position to it is inserted automatically. The active leg gets the ±10 m corridor, the off-track reading and the trail, exactly as in single-point navigation. <b>On reaching a vertex (&lt;5 m) it advances to the next leg by itself.</b> Use <b>‹ ›</b> to skip manually — useful when GPS jitters or you cannot stand exactly on the vertex. Tapping a row in the list jumps straight to that leg.</p>
-      <p><b style="color:#ffd166">Z — Height (estimate).</b> Next to the coordinates, the <b>Z</b> button (marked ESTIMATE) always shows the estimated height at the red target. Every <b>tap on the map</b> shows "Z ≈ … m (estimate)" at that point, together with the orange triangle of the 3 trig points used (each vertex shows code, H and the terrain-model value). The HMGS trig points (~25,000, GGRS87) load automatically — no file needed. The Z button opens the panel, with "Show ▲ on the map" (from zoom 11).<br>
+      <p><b style="color:#ffd166">Z — Height (estimate), only when you ask.</b> The height is not shown by itself. <b>Tap on the map</b> → a small <b>Z</b> button appears next to the point; tapping it shows "Z ≈ … m (estimate)" at the point, together with the nearby trig points (each: code, H and terrain-model value). Next to the coordinates, the <b>Z</b> button gives the height at the red target when you press it (it turns back to "Z" once the map moves); <b>ⓘ</b> opens the information, with "Show ▲ on the map" (from zoom 11). The HMGS trig points (~25,000, GGRS87) load automatically.<br>
       How it is computed: terrain height from the <b>Copernicus DEM GLO-30</b> (1″ ≈ 30 m grid, bilinear interpolation). Within 300 m of a trig point, Z is pulled towards the trig point's height (fully on it, not at all at 300 m). A trig point's difference is not carried further: at trig points the model comes out systematically ~3 m lower (hilltop sites), which does not hold on flat land and coasts. At sea (value 0 in GLO-30) it reads "Z 0 m (sea)"; with sea within ~30–60 m it reads "coast". Without internet only the linear interpolation in the trig-point triangle is used and the button reads "ESTIMATE (TRIG)".</p>
       <p style="margin-left:12px;font-size:12.5px;opacity:.9"><b style="color:#f5a623">Accuracy:</b> this is an <b>estimate</b>, not a measurement. On open ground usually a few metres (median ~5 m at the trig points, which as hilltops are the hardest case). GLO-30 is a <b>surface</b> model: on trees, buildings and at the coast Z can come out 5–15 m higher (in a check of 300 Ionian shoreline points: usually 0–3 m, but up to ~13 m where there are trees or buildings). Without internet (trig points only) errors of tens of metres. For orientation only — never for design or excavation.<br>
       Sources: Copernicus DEM GLO-30 — Product Handbook (AIRBUS, ESA); Copernicus DEM © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA; B. Delaunay, "Sur la sphère vide" (1934); D. T. Lee &amp; B. J. Schachter (1980); Delaunator library (Mapbox); EPSG:2100 (GGRS87); HMGS trigonometric network.</p>
@@ -4528,9 +4531,9 @@ const KF = (function(){
 
   // Ενημέρωση έκδοσης — μία φορά
   window.addEventListener("load", () => setTimeout(() => {
-    if(LS.get("hexis_kt_seen", "") === "2.8.1") return;
-    LS.set("hexis_kt_seen", "2.8.1");
-    try{ setHint(T("Διόρθωση v2.8.1: το Z δεν φουσκώνει πια σε πεδινά και ακτές — η διόρθωση από τριγωνομετρικό ισχύει μόνο έως 300 m από αυτό· στη θάλασσα γράφει 0, κοντά στη θάλασσα «ακτή». Εκτίμηση, όχι μέτρηση.", "Fix v2.8.1: Z no longer inflates on flat land and coasts — the trig-point correction applies only within 300 m of it; at sea it reads 0, near the sea \"coast\". An estimate, not a measurement."), "ok"); }catch(e){}
+    if(LS.get("hexis_kt_seen", "") === "2.8.2") return;
+    LS.set("hexis_kt_seen", "2.8.2");
+    try{ setHint(T("Νέο v2.8.2: το υψόμετρο βγαίνει μόνο όταν το ζητάς — κλικ στον χάρτη και μετά το κουμπί Z δίπλα στο σημείο· το Z δίπλα στις συντεταγμένες δίνει το υψόμετρο του στόχου. Εκτίμηση, όχι μέτρηση.", "New v2.8.2: height only when you ask — tap the map, then the Z button next to the point; Z next to the coordinates gives the height at the target. An estimate, not a measurement."), "ok"); }catch(e){}
   }, 1500));
 
   return { open, close, build, georef, grClose, grUndo, grClear, grSave, grAuto, _outline: null,
@@ -4669,27 +4672,38 @@ const TZ = (function(){
     (!r ? T("ΕΚΤΙΜΗΣΗ", "ESTIMATE") : r.kind === "sea" ? T("ΘΑΛΑΣΣΑ", "SEA") : r.kind === "tin" ? T("ΕΚΤΙΜΗΣΗ (ΤΡΙΓ.)", "ESTIMATE (TRIG)")
       : r.coast ? T("ΕΚΤΙΜΗΣΗ · ΑΚΤΗ", "ESTIMATE · COAST") : T("ΕΚΤΙΜΗΣΗ", "ESTIMATE")) + '</span>';
   const zTxt = r => r.kind === "sea" ? "Z 0 m" : "Z ≈ " + fmt(r.z) + " m";
+  // Το Z υπολογίζεται ΜΟΝΟ όταν το ζητήσει ο χρήστης (κουμπί Z) — όχι αυτόματα σε κάθε κίνηση/κλικ
+  const idleZ = () => 'Z<span style="display:block;font-size:10px;font-weight:600;letter-spacing:1px;opacity:.85">' + T("ΥΨΟΜΕΤΡΟ", "HEIGHT") + '</span>';
   function center(e, nn){
-    _lastE = e; _lastN = nn;
+    _lastE = e; _lastN = nn; ++_seq;
     const el = $("zBig"); if(!el) return;
-    el.style.opacity = ".55";
-    clearTimeout(_tmr);
-    _tmr = setTimeout(async () => {
-      const my = ++_seq, c = map.getCenter(), r = await estimate(c.lat, c.lng);
-      if(my !== _seq) return;
-      el.style.opacity = "";
-      el.innerHTML = (r ? zTxt(r) : "Z —") + estTag(r);
-      el.title = r ? T("Εκτίμηση υψομέτρου — όχι μέτρηση", "Height estimate — not a measurement") : T("Εκτός κάλυψης", "No coverage");
-    }, 450);
+    el.style.opacity = ""; el.innerHTML = idleZ();
+    el.title = T("Πάτα για εκτίμηση υψομέτρου στον στόχο", "Tap for a height estimate at the target");
+  }
+  async function zNow(){
+    const el = $("zBig"); if(!el) return;
+    const my = ++_seq, c = map.getCenter();
+    el.style.opacity = ".55"; el.innerHTML = "Z …" + estTag(null);
+    const r = await estimate(c.lat, c.lng);
+    if(my !== _seq) return;
+    el.style.opacity = "";
+    el.innerHTML = (r ? zTxt(r) : "Z —") + estTag(r);
+    el.title = r ? T("Εκτίμηση υψομέτρου — όχι μέτρηση", "Height estimate — not a measurement") : T("Εκτός κάλυψης", "No coverage");
   }
   const lbl = (txt, col) => L.divIcon({ className: "", iconSize: [1, 1], html:
     '<div style="transform:translate(-50%,-130%);white-space:nowrap;color:' + col + ';font-size:14px;font-weight:800;text-shadow:0 0 3px #000,0 0 3px #000,1px 1px 2px #000,-1px -1px 2px #000">' + txt + '</div>' });
   const ll = (x, y) => { const [lng, lat] = proj4("EPSG:2100", "EPSG:4326", [x, y]); return [lat, lng]; };
 
   function clearClick(){ if(clickLayer){ map.removeLayer(clickLayer); clickLayer = null; } }
-  async function click(lat, lng){
+  // Κλικ στον χάρτη: μόνο μικρό κουμπί «Z» δίπλα στο σημείο — το υψόμετρο βγαίνει όταν πατηθεί
+  function click(lat, lng){
     clearClick();
     const g = L.layerGroup().addTo(map); clickLayer = g;
+    const chip = L.marker([lat, lng], { title: T("Υψόμετρο σε αυτό το σημείο", "Height at this point"), icon: L.divIcon({ className: "", iconSize: [40, 32], iconAnchor: [-10, 16],
+      html: '<div style="width:40px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(5,16,32,.92);border:2px solid #ffd166;color:#ffd166;border-radius:8px;font-weight:800;font-size:16px;box-shadow:0 0 8px rgba(0,0,0,.6);cursor:pointer">Z</div>' }) }).addTo(g);
+    chip.on("click", (ev) => { try{ L.DomEvent.stop(ev); }catch(e){} g.removeLayer(chip); showZ(lat, lng, g); });
+  }
+  async function showZ(lat, lng, g){
     const dot = L.circleMarker([lat, lng], { radius: 4, color: "#f5a623", fillColor: "#f5a623", fillOpacity: 1, weight: 1, interactive: false }).addTo(g);
     const tag = L.marker([lat, lng], { icon: lbl("Z …", "#ffd166") }).addTo(g);
     const r = await estimate(lat, lng);
@@ -4755,7 +4769,7 @@ const TZ = (function(){
   })();
   map.on("moveend", drawPts);
 
-  return { center, click, clear: clearClick, panel, toggle, refresh, _test: { parse, build, zAt } };
+  return { center, zNow, click, clear: clearClick, panel, toggle, refresh, _test: { parse, build, zAt } };
 })();
 map.on("click", (e) => { if((typeof measuring !== "undefined" && measuring) || (typeof drawing !== "undefined" && drawing)) return; TZ.click(e.latlng.lat, e.latlng.lng); });
 
