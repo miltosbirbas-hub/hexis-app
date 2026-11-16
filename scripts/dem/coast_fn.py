@@ -25,3 +25,12 @@ for f in (0.25, 0.5, 0.75):
     print(f'θέση {f}: n={len(z)} διάμεσο Z={np.median(z):.2f} p90={np.percentile(z,90):.2f} · θάλασσα {fl.count("s")} ακτή {fl.count("c")} ξηρά {fl.count("")}')
 land = np.array([q[0][3] for q in out]); print('τιμή 1ου εικονοστοιχείου ξηράς: διάμεσο', np.median(land))
 j = call([(20.30, 38.70, 0, 0), (20.66, 38.70, 0, 0)]); print('ανοιχτή θάλασσα / βουνό Λευκάδας:', j)
+# ακριβώς στα κέντρα εικονοστοιχείων ξηράς: πρέπει να δίνει την ίδια τιμή με το GDAL
+k = rng.choice(len(rr), 60, replace=False); cen = []
+for q in k:
+    r, c = rr[q], cc[q] + 3
+    if A[r, c] != 0: lo, la = T * (c + 0.5, r + 0.5); cen.append((lo, la, A[r, c]))
+got = []
+for i in range(0, len(cen), 12):
+    jj = call(cen[i:i+12]); got += [(z, v[2]) for z, v in zip(jj['z'], cen[i:i+12])] if jj else []
+d = np.array([a - b for a, b in got if a is not None]); print('κέντρα εικονοστοιχείων: function − GDAL διάμεσο|d|', np.median(abs(d)), 'max', abs(d).max())

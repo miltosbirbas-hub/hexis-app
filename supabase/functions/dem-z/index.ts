@@ -41,7 +41,9 @@ async function zAt(lon: number, lat: number): Promise<{ z: number | null; f: str
   try { img = await openTile(tileUrl(lat, lon)); } catch { return { z: 0, f: "s" }; } // χωρίς πλακίδιο = ανοιχτή θάλασσα
   const [x0, y0] = img.getOrigin(), [rx, ry] = img.getResolution();      // ry < 0
   const W = img.getWidth(), Hh = img.getHeight();
-  const c = (lon - x0) / rx - 0.5, r = (lat - y0) / ry - 0.5;             // κέντρα εικονοστοιχείων
+  // PixelIsPoint (GTRasterTypeGeoKey = 2, όπως στο GLO-30): η αρχή είναι ήδη το κέντρο του 1ου εικονοστοιχείου
+  const isPoint = (img.getGeoKeys() || {}).GTRasterTypeGeoKey === 2, sh = isPoint ? 0 : 0.5;
+  const c = (lon - x0) / rx - sh, r = (lat - y0) / ry - sh;              // δείκτες με αναφορά στα κέντρα
   let c0 = Math.floor(c), r0 = Math.floor(r);
   c0 = Math.min(Math.max(c0, 1), W - 3); r0 = Math.min(Math.max(r0, 1), Hh - 3);
   const fc = Math.min(Math.max(c - c0, 0), 1), fr = Math.min(Math.max(r - r0, 0), 1);
