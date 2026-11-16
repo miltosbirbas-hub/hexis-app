@@ -622,6 +622,12 @@ async function lispExtract(req: Request, b: HxAttr, C: Record<string, string>) {
   const bb = [Infinity, Infinity, -Infinity, -Infinity];
   const grow = (r: Ring) => r.forEach(([x, y]) => { bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], y); bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], y); });
   Pm.outers.forEach(grow);
+  // GEOmetry: το απόσπασμα χωρά ΟΛΟ το όριο της ιδιοκτησίας (TOPO_PROP), όχι μόνο το γεωτεμάχιο του ΚΑΕΚ
+  if (Array.isArray(b.ring) && (b.ring as unknown[]).length >= 3 && (b.ring as unknown[]).length <= 2000) {
+    const pr = (b.ring as unknown[]).map((p) => Array.isArray(p) ? [Number(p[0]), Number(p[1])] : [NaN, NaN]).filter((p) => isFinite(p[0]) && isFinite(p[1]));
+    const cx = (bb[0] + bb[2]) / 2, cy = (bb[1] + bb[3]) / 2;
+    if (pr.length >= 3 && pr.every((p) => Math.abs(p[0] - cx) < 3000 && Math.abs(p[1] - cy) < 3000)) grow(pr as Ring);
+  }
   // ολόκληρο το Ο.Τ. του γεωτεμαχίου
   const ots = await geoQ(6, JSON.stringify({ x: ip[0], y: ip[1], spatialReference: { wkid: 2100 } }), "esriGeometryPoint", "OT_NUM,FEK");
   let otNum = "";
