@@ -5,6 +5,8 @@ on:
   push:
     branches: [main]
     paths: [".github/workflows/forest-probe.yml"]
+permissions:
+  contents: write
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -21,5 +23,8 @@ jobs:
             curl -s -m 90 "$MS/$L/query?where=1%3D1&outFields=*&returnGeometry=false&resultRecordCount=5&f=json" -o out/sample_$L.json
           done
           ls -la out
-      - uses: actions/upload-artifact@v4
-        with: { name: forest-probe, path: out }
+      - name: Αποτελέσματα στον κλάδο forest-probe-out
+        run: |
+          cd out && git init -q && git checkout -q -b forest-probe-out && git add -A
+          git -c user.name=probe -c user.email=probe@hexis-app.gr commit -q -m probe
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" forest-probe-out
