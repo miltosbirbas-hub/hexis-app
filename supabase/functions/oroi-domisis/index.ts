@@ -355,10 +355,11 @@ async function coastDistance(b: HxAttr) {
   return { dist: Math.round(best * 100) / 100, pt: bp ? [Math.round(bp[0] * 100) / 100, Math.round(bp[1] * 100) / 100] : null, segs: segs.length, radius: rad, src: src ? "OpenStreetMap (" + new URL(src).host + ")" : "OpenStreetMap (cache)" };
 }
 
-/* ---------- Δασικοί χάρτες (ΕΨΧ: αναρτημένοι 2022 + μερικώς κυρωμένοι 2021, ανά Περιφέρεια) + Natura 2000 — πολύγωνα που τέμνουν το γεωτεμάχιο ----------
-   Είσοδος { action:"forest", ring:[[x,y],...] }  Έξοδος { features:[{ layerId, layerName, set:'2022'|'2021', cat, cat1, cat2, ota, nomos, rings:[[[x,y],...]] }], natura:[{...}], src } */
+/* ---------- Δασικοί χάρτες (ΕΨΧ: μερικώς κυρωμένοι 02.06.21 + αναρτημένοι 14.06.21 + αναρτημένοι 2022, ανά Περιφέρεια) + Natura 2000 — πολύγωνα που τέμνουν το γεωτεμάχιο ----------
+   set: 'K' = κυρωμένος, 'A21' / 'A22' = αναρτημένος· ο πελάτης κρατά τον κυρωμένο και, όπου η έκταση εξαιρέθηκε από την κύρωση (αντιρρήσεις), τον αναρτημένο.
+   Είσοδος { action:"forest", ring:[[x,y],...] }  Έξοδος { features:[{ layerId, layerName, set:'K'|'A21'|'A22', cat, cat1, cat2, ota, nomos, rings:[[[x,y],...]] }], natura:[{...}], src } */
 const FOREST_MS = "https://sdigmap.tee.gov.gr/mapping/rest/services/UDM/UDM_SERVICE_NATURA_DASIKA/MapServer";
-const FOREST_2022 = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28], FOREST_2021 = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+const FOREST_2022 = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28], FOREST_2021 = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14], FOREST_A2021 = [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42];
 function ringOf(b: HxAttr): Ring | null { const ring: Ring = (Array.isArray(b.ring) ? b.ring : []).map((p: unknown) => Array.isArray(p) ? [Number(p[0]), Number(p[1])] : [NaN, NaN]).filter((p: number[]) => isFinite(p[0]) && isFinite(p[1])); if (ring.length < 3 || ring.length > 3000) return null; const bb = bboxOf(ring); if (!(bb[0] > 50000 && bb[2] < 1050000 && bb[1] > 3800000 && bb[3] < 4700000)) return null; return ring; }
 function bboxOf(ring: Ring) { const bb = [Infinity, Infinity, -Infinity, -Infinity]; ring.forEach(([x, y]) => { bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], y); bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], y); }); return bb; }
 async function identifyMS(ms: string, ring: Ring, layers: number[], buffer: number) {
@@ -372,16 +373,16 @@ async function identifyMS(ms: string, ring: Ring, layers: number[], buffer: numb
 async function forestPolys(b: HxAttr) {
   const ring = ringOf(b); if (!ring) return { error: "bad_ring" };
   let res: HxAttr[];
-  try { res = await identifyMS(FOREST_MS, ring, [0].concat(FOREST_2022, FOREST_2021), 0); } catch (e) { return { error: "forest_unreachable", msg: String(e).slice(0, 120) }; }
+  try { res = await identifyMS(FOREST_MS, ring, [0].concat(FOREST_2022, FOREST_2021, FOREST_A2021), 0); } catch (e) { return { error: "forest_unreachable", msg: String(e).slice(0, 120) }; }
   const feats: HxAttr[] = [], natura: HxAttr[] = [];
   for (const r of res) {
     const a = (r.attributes || {}) as HxAttr, g = (r.geometry || {}) as HxAttr, lid = Number(r.layerId);
     if (lid === 0) { natura.push({ name: String(a["Ονομασία"] ?? a["SITE_NAME"] ?? a["NAME"] ?? "").trim(), code: String(a["Κωδικός"] ?? a["SITE_CODE"] ?? a["CODE"] ?? "").trim(), type: String(a["Τύπος "] ?? a["Τύπος"] ?? a["SITE_TYPE"] ?? "").trim() }); continue; }
     const rings = ((g.rings || []) as number[][][]).map((rg) => rg.map((p) => [Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100]));
     if (!rings.length) continue;
-    feats.push({ layerId: lid, layerName: String(r.layerName || ""), set: FOREST_2022.includes(lid) ? "2022" : "2021", cat: String(a["Χαρακτηρισμός Έκτασης"] ?? a["KATHGORDX"] ?? "").trim(), cat1: String(a["Χαρακτηρισμός Έκτασης 1"] ?? a["KATHGORAL1"] ?? "").trim(), cat2: String(a["Χαρακτηρισμός Έκτασης 2"] ?? a["KATHGORAL2"] ?? "").trim(), ota: String(a["ΟΤΑ"] ?? a["OTA"] ?? ""), nomos: String(a["Νομός"] ?? a["NOMOS"] ?? ""), code: String(a["Κωδικός"] ?? a["CODE"] ?? ""), rings });
+    feats.push({ layerId: lid, layerName: String(r.layerName || ""), set: FOREST_2022.includes(lid) ? "A22" : FOREST_A2021.includes(lid) ? "A21" : "K", cat: String(a["Χαρακτηρισμός Έκτασης"] ?? a["KATHGORDX"] ?? "").trim(), cat1: String(a["Χαρακτηρισμός Έκτασης 1"] ?? a["KATHGORAL1"] ?? "").trim(), cat2: String(a["Χαρακτηρισμός Έκτασης 2"] ?? a["KATHGORAL2"] ?? "").trim(), ota: String(a["ΟΤΑ"] ?? a["OTA"] ?? ""), nomos: String(a["Νομός"] ?? a["NOMOS"] ?? ""), code: String(a["Κωδικός"] ?? a["CODE"] ?? ""), rings });
   }
-  return { features: feats, natura, n: feats.length, src: "Ενιαίος Ψηφιακός Χάρτης (ΤΕΕ/ΥΠΕΝ) — δασικοί χάρτες" };
+  return { features: feats, natura, n: feats.length, src: "Ενιαίος Ψηφιακός Χάρτης (ΤΕΕ/ΥΠΕΝ) — δασικοί χάρτες (κυρωμένοι και αναρτημένοι)" };
 }
 
 /* ---------- Αιγιαλός (Δημόσια Περιουσία, GSIS): καθορισμοί οριογραμμής αιγιαλού–παραλίας κοντά στο γεωτεμάχιο (ΥΥΝ, ΦΕΚ, τοπωνύμιο) ----------
