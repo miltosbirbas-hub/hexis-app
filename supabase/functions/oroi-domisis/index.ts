@@ -463,7 +463,9 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
   try { hits = await ktQuery({ where: "KAEK='" + kaek.replace(/'/g, "''") + "'", resultRecordCount: "5" }); }
   catch (e) { return text(["ERR=kt", "MSG=Το Κτηματολόγιο δεν απάντησε (" + clean(String(e)) + ")."]); }
   if (!hits.length) return text(["ERR=not_found", "MSG=Δεν βρέθηκε το ΚΑΕΚ " + kaek + " στο Κτηματολόγιο."]);
-  const P = hits[0], outer = mainOuter(P), E = P.area;
+  const P = hits[0], outer = mainOuter(P), Ek = P.area;
+  // GEOmetry: αν η αποτύπωση (TOPO_PROP) είναι μεγαλύτερη από το ΚΑΕΚ, οι όροι δόμησης υπολογίζονται με το εμβαδόν της αποτύπωσης
+  const Ep = Number(b.area), useP = isFinite(Ep) && Ep > Ek + 0.5 && Ep < Ek * 20, E = useP ? Ep : Ek;
   const bb = [Infinity, Infinity, -Infinity, -Infinity]; outer.forEach(([x, y]) => { bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], y); bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], y); });
   let nb: Parcel[] = [];
   try { nb = (await ktQuery({ where: "1=1", geometry: [bb[0] - 30, bb[1] - 30, bb[2] + 30, bb[3] + 30].map((v) => v.toFixed(2)).join(","), geometryType: "esriGeometryEnvelope", resultRecordCount: "600" })).filter((n) => n.kaek !== kaek); } catch (_e) { /* χωρίς όμορα */ }
@@ -491,7 +493,7 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
   const artio = artMin == null ? "?" : (E >= artMin && (artPros == null || (front != null && front >= artPros))) ? "1" : (E < artMin ? "0" : "?");
   // εκτός σχεδίου: η μέγιστη κάλυψη δεν υπερβαίνει τη μέγιστη δόμηση
   const kalMax = kalPct != null ? (stt.startsWith("ektos") && max != null ? Math.min(kalPct * E / 100, max) : kalPct * E / 100) : null;
-  const out: string[] = ["OK=1", "KAEK=" + kaek, "EMBADON=" + f2(E), "PROSOPO=" + f2(front), "KATASTASI=" + stt, "KATASTASI_TXT=" + STATUS_TXT[stt],
+  const out: string[] = ["OK=1", "KAEK=" + kaek, "EMBADON=" + f2(E), "EMBADON_KAEK=" + f2(Ek), "EMBADON_APOT=" + (useP ? "1" : "0"), "PROSOPO=" + f2(front), "KATASTASI=" + stt, "KATASTASI_TXT=" + STATUS_TXT[stt],
     "OIKISMOS=" + clean(oik && oik.NAME), "DIMOS=" + clean((oik && oik.KALL_DHM_NAME) || (ot && ot.KALL_DHM_NAME) || (sd0 && sd0.KALL_DHM_NAME) || (kal && kal.KALL_DHM_NAME)),
     "OT=" + clean(ot && ot.OT_NUM), "FEK_SXEDIO=" + clean(rymFek[0]), "FEK_OIKISMOU=" + clean(oik && oik.FEK), "FEK_OROI=" + clean((sd0 && sd0.FEK) || (kal && kal.FEK)),
     "GPS=" + (gps ? "1" : "0"), "FEK_GPS=" + clean(gps && gps.FEK), "XRISI=" + clean(gps && (gps.GEN_XRHSH_GPS || gps.GEN_XRHSH)),
@@ -502,7 +504,7 @@ async function lispAnswer(req: Request, b: HxAttr, C: Record<string, string>) {
     "EK=" + (isEK(kaek) ? "1" : "0"), "MAX_DOMISI=" + f2(max), "SAO=" + f2(max != null && E ? max / E : null, 3), "KANONAS=" + clean(rule), "MAX_KALYPSI=" + f2(kalMax)];
   // πίνακας για OROIDOM
   const row = (l: string, v: string) => { if (v) out.push("ROW=" + l + "|" + clean(v)); };
-  row("ΚΑΕΚ", kaek + " · Ε = " + gr(E) + " τ.μ." + (front != null ? " · πρόσωπο ≈ " + gr(front) + " μ." : ""));
+  row("ΚΑΕΚ", kaek + " · Ε = " + gr(E) + " τ.μ." + (useP ? " (εμβαδόν αποτύπωσης — ΚΑΕΚ " + gr(Ek) + " τ.μ.)" : "") + (front != null ? " · πρόσωπο ≈ " + gr(front) + " μ." : ""));
   row("ΚΑΤΑΣΤΑΣΗ", STATUS_TXT[stt] + (oik && oik.NAME ? " — " + clean(oik.NAME) : "") + (ot && ot.OT_NUM ? " — Ο.Τ. " + clean(ot.OT_NUM) : ""));
   row("ΜΕΓΙΣΤΗ ΔΟΜΗΣΗ", max != null ? gr(max) + " τ.μ. (" + rule + ")" : rule);
   row("Σ.Α.Ο.", max != null && E ? gr(max / E, 3) + " (μέγιστη δόμηση ÷ εμβαδόν)" : "");
