@@ -5,6 +5,7 @@
 // του πλαισίου (neatline) σε κάθε απόκομμα και διαβάζει τις τυπωμένες γεωγραφικές
 // συντεταγμένες φ, λ της γωνίας. Η μετατροπή σε ΕΓΣΑ'87 γίνεται στον browser.
 // Είσοδος (POST, JWT χρήστη): { crops:[{pos:"tl|tr|bl|br", data:"<base64 jpeg>"}], overview:"<base64 jpeg>" }
+// Δεύτερο πέρασμα: { mode:"zoom", crops:[{pos,data}] } (1–4 κοντινά γύρω από τις γωνίες) → { corners:[{pos,lat,lon,…}], meridian, notes }
 // Έξοδος: { corners:[{pos,x,y,lat,lon,lat_text,lon_text}], meridian, datum, sheet, scale, notes }
 // Verify JWT: OFF (ο χρήστης ελέγχεται εδώ). Όριο: 20 αιτήματα/ώρα ανά χρήστη.
 // ============================================================================
@@ -40,6 +41,12 @@ Also from all images: is longitude counted from the Athens meridian (Greek old s
 Answer with ONLY this JSON, no other text:
 {"corners":[{"pos":"tl","x":0.0,"y":0.0,"lat":null,"lon":null,"lat_text":"","lon_text":""},{"pos":"tr",...},{"pos":"bl",...},{"pos":"br",...}],"meridian":"athens|greenwich|unknown","datum":"bessel|ggrs87|ed50|wgs84|unknown","sheet":"","scale":"","notes":""}`;
 
+const ZOOM = `Each image above is a HIGH-RESOLUTION crop centred (approximately) on one corner of the MAP FRAME (neatline) of a scanned topographic sheet (e.g. Greek HMGS/ΓΥΣ 1:5000), labelled tl/tr/bl/br.
+For each crop read the geographic coordinates printed next to that frame corner: latitude φ (usually horizontal text, e.g. 38°48'00") and longitude λ (often VERTICAL text running along the frame line, e.g. 20°40'00" — rotate it mentally). Read digits very carefully (1 vs 4 vs 7, 3 vs 8). Give the printed text and decimal degrees (negative if printed negative). Use null if a value is not printed in that crop.
+Is λ counted from the Athens meridian (small values like -2°45') or from Greenwich (19°–30°)?
+Answer with ONLY this JSON, no other text:
+{"corners":[{"pos":"tl","lat":null,"lon":null,"lat_text":"","lon_text":""}],"meridian":"athens|greenwich|unknown","notes":""}`;
+
 Deno.serve(async (req) => {
   const C = cors(req.headers.get("origin"));
   const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...C, "Content-Type": "application/json" } });
@@ -53,13 +60,14 @@ Deno.serve(async (req) => {
     h.push(now); hits.set(uid, h);
     const b = await req.json().catch(() => ({}));
     const crops = Array.isArray(b.crops) ? b.crops.filter((c: { pos?: string; data?: string }) => c && /^(tl|tr|bl|br)$/.test(String(c.pos)) && typeof c.data === "string" && c.data.length < 4_000_000) : [];
-    if (crops.length !== 4 || typeof b.overview !== "string" || b.overview.length > 2_000_000) return json({ error: "bad_input" }, 400);
+    const zoom = b.mode === "zoom";
+    if (zoom ? (crops.length < 1 || crops.length > 4) : (crops.length !== 4 || typeof b.overview !== "string" || b.overview.length > 2_000_000)) return json({ error: "bad_input" }, 400);
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) return json({ error: "no_key" }, 500);
     const img = (d: string) => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: d } });
-    const content: unknown[] = [{ type: "text", text: "OVERVIEW:" }, img(b.overview)];
+    const content: unknown[] = zoom ? [] : [{ type: "text", text: "OVERVIEW:" }, img(b.overview)];
     for (const c of crops) { content.push({ type: "text", text: "CORNER " + c.pos + ":" }); content.push(img(c.data)); }
-    content.push({ type: "text", text: PROMPT });
+    content.push({ type: "text", text: zoom ? ZOOM : PROMPT });
     const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 120000);
     let d: { content?: { type: string; text?: string }[]; error?: { message?: string } };
     try {

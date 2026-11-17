@@ -905,9 +905,9 @@ function validate(doc, file, dgType, ktimaOn){
       if(empty.length)
         add('W','Πίν.Ι',`Layer PST_KAEK: ${empty.length} πολύγωνα χωρίς ΚΑΕΚ (TEXT) στο εσωτερικό τους.`,`Συστήνεται κάθε σχεδιασμένο γεωτεμάχιο του PST_KAEK να έχει το <b>ΚΑΕΚ του ως TEXT εντός του πολυγώνου</b> για τη σωστή αντιστοίχιση.`,
           empty.slice(0,5).map(p=>`• πολύγωνο ${p.area.toFixed(1)} m² @ (${centroid(p.ring)[0].toFixed(1)}, ${centroid(p.ring)[1].toFixed(1)})`).join('\n'));
-      const badKaek=txts.filter(t=>!/^\d{12}(\/\d+)*$/.test(t.text.trim()));
+      const badKaek=txts.filter(t=>{ const v=t.text.trim().replace(/\\U\+([0-9A-Fa-f]{4})/g,(m,h)=>String.fromCharCode(parseInt(h,16))); return !/^\d{12}(\/\d+)*$/.test(v) && !/^\d{5}(ΕΚ|EK)\d{5}$/i.test(v); }); // και κοινόχρηστα ΕΚ (π.χ. 34019ΕΚ00004)
       if(badKaek.length)
-        add('W','Πίν.Ι',`Layer PST_KAEK: ${badKaek.length} TEXT δεν έχουν μορφή ΚΑΕΚ (12 ψηφία).`,`Έλεγξε ότι τα TEXT περιέχουν μόνο τον 12ψήφιο ΚΑΕΚ (π.χ. 340551234567), χωρίς πρόθεμα «ΚΑΕΚ:» ή άλλα σύμβολα.`,
+        add('W','Πίν.Ι',`Layer PST_KAEK: ${badKaek.length} TEXT δεν έχουν μορφή ΚΑΕΚ (12 ψηφία ή ΕΚ).`,`Έλεγξε ότι τα TEXT περιέχουν μόνο τον 12ψήφιο ΚΑΕΚ (π.χ. 340551234567), χωρίς πρόθεμα «ΚΑΕΚ:» ή άλλα σύμβολα.`,
           badKaek.slice(0,6).map(t=>`• «${t.text}»`).join('\n'));
     }
   }
