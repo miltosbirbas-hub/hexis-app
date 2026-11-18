@@ -36,7 +36,9 @@
    Το sw.js (importScripts) και το app.html τη διαβάζουν από εδώ.
    ΔΕΝ γράφεται πουθενά αλλού.
    ============================================================ */
-var VERSION = 'v4.306';
+var VERSION = 'v4.307';
+// Σύντομο «τι αλλάζει» — εμφανίζεται στο banner ενημέρωσης
+var UPDATE_NOTE = 'Οι αναφορές βγαίνουν κατευθείαν σε αρχείο PDF (χωρίς την εκτύπωση του Chrome). Email και WhatsApp στέλνουν το ίδιο το PDF, όχι σύνοψη.';
 
 var BRB_TERRAIN_URL = 'https://miltosbirbas-hub.github.io/BRB-contour-live/';
 

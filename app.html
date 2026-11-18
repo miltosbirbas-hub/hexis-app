@@ -978,8 +978,8 @@ window.HX_I18N = {
 "Έργο": "Project",
 "Εξαγωγή ως": "Export as",
 "Εξαγωγή:": "Export:",
-"Email (PDF + σύνοψη)": "Email (summary + photos)",
-"WhatsApp (PDF + σύνοψη)": "WhatsApp (summary + photos)",
+"Email (PDF)": "Email (PDF)",
+"WhatsApp (PDF)": "WhatsApp (PDF)",
 "Αποστολή Email": "Send Email",
 "Αποστολή WhatsApp / Viber": "Send WhatsApp / Viber",
 "💬 Συμπερίληψη σχολίων μηχανικών στην εκτύπωση": "💬 Include engineer comments in the printout",
@@ -1841,8 +1841,8 @@ document.addEventListener('DOMContentLoaded', () => {
       <label class="form-label">Εξαγωγή ως</label>
       <div style="display:flex;gap:8px;flex-direction:column">
         <button class="btn btn-primary" id="rp-pdf-btn" onclick="generateReport(window._rPeriod||'day','pdf')" style="font-size:15px;padding:12px">📄 Δημιουργία PDF <span style="font-size:10px;opacity:.85;font-weight:400">(προεπιλογή — Enter)</span></button>
-        <button class="btn btn-ghost" onclick="generateReport(window._rPeriod||'day','email')" style="background:#5a7c8c;color:#fff"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg> Email (PDF + σύνοψη)</button>
-        <button class="btn btn-ghost" onclick="generateReport(window._rPeriod||'day','whatsapp')" style="background:#25d366;color:#fff"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="vertical-align:-3px"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.26-.46-2.39-1.47-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.5 0 1.47 1.07 2.89 1.22 3.09.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.42.25-.7.25-1.3.18-1.42-.08-.13-.28-.2-.57-.35z"/><path d="M12 2a10 10 0 0 0-8.6 15.07L2 22l5.05-1.32A10 10 0 1 0 12 2zm0 18.3a8.3 8.3 0 0 1-4.23-1.16l-.3-.18-3 .79.8-2.93-.2-.3A8.32 8.32 0 1 1 12 20.3z"/></svg> WhatsApp (PDF + σύνοψη)</button>
+        <button class="btn btn-ghost" onclick="generateReport(window._rPeriod||'day','email')" style="background:#5a7c8c;color:#fff"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg> Email (PDF)</button>
+        <button class="btn btn-ghost" onclick="generateReport(window._rPeriod||'day','whatsapp')" style="background:#25d366;color:#fff"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="vertical-align:-3px"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.26-.46-2.39-1.47-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.5 0 1.47 1.07 2.89 1.22 3.09.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2-1.42.25-.7.25-1.3.18-1.42-.08-.13-.28-.2-.57-.35z"/><path d="M12 2a10 10 0 0 0-8.6 15.07L2 22l5.05-1.32A10 10 0 1 0 12 2zm0 18.3a8.3 8.3 0 0 1-4.23-1.16l-.3-.18-3 .79.8-2.93-.2-.3A8.32 8.32 0 1 1 12 20.3z"/></svg> WhatsApp (PDF)</button>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:12px">
@@ -4847,16 +4847,17 @@ async function generateReport(period, action) {
   const AL = lang === 'al';
   const TRANS = EN || AL; // μεταφραζόμενη γλώσσα
   const tlCode = AL ? 'sq' : 'en'; // κωδικός Google Translate
-  const proj = getProj(state.proj);
-  // Άνοιγμα παραθύρου ΠΡΙΝ τη μετάφραση, αλλιώς το μπλοκάρει ο browser
-  const win = window.open('', '_blank');
-  if (win) win.document.write('<p style="font-family:Arial,sans-serif;padding:30px;color:#555">' + (AL ? '🌐 Përkthim &amp; përgatitje…' : EN ? '🌐 Translating &amp; preparing the report…' : '⏳ Προετοιμασία αναφοράς…') + '</p>');
+  const proj = getProj(state.proj) || {};
+  window._hxLastRpt = { period: period, action: action };
+  const L = (el, en, al) => AL ? al : EN ? en : el;
+  // Μία ενιαία διαδρομή για PDF / Email / WhatsApp: το PDF φτιάχνεται ΜΕΣΑ στην εφαρμογή (pdfmake)
+  // και κατεβαίνει/κοινοποιείται ως αρχείο — καμία εκτύπωση Chrome, καμία σύνοψη κειμένου.
+  hxPdfOverlay('<div style="font-size:15px;font-weight:700;margin-bottom:8px">⏳ ' + L('Δημιουργία PDF αναφοράς…','Creating PDF report…','Krijimi i raportit PDF…') + '</div><div style="font-size:11.5px;color:#93A5C4">' + (TRANS ? L('','Translating and preparing the photos…','Përkthim dhe përgatitje e fotove…') : 'Λίγα δευτερόλεπτα — ετοιμάζονται οι φωτογραφίες.') + '</div><div id="pdf-share-prog" style="font-size:12px;color:#FFB02E;margin-top:8px;font-weight:600"></div>');
   let trMap = null;
   if (TRANS) {
     try {
       const scope = getReportEntries(period);
       const blds = buildingsFor(state.proj);
-      // Συνολικό όριο 12 δευτ. για ΟΛΗ τη μετάφραση — αν αργήσει, βγάζει την αναφορά χωρίς μετάφραση
       trMap = await Promise.race([
         buildTranslationMap(scope, blds, tlCode),
         new Promise(res => setTimeout(() => res(null), 35000))
@@ -4864,97 +4865,49 @@ async function generateReport(period, action) {
       if (!trMap) console.warn('[TR] timeout — αναφορά χωρίς μετάφραση');
     } catch(e) { console.warn('[TR] map failed', e); trMap = null; }
   }
-  const L = (el, en, al) => AL ? al : EN ? en : el;
-  const T = s => (TRANS && trMap && trMap[s]) ? trMap[s] : s;
-
-  if (action === 'pdf') {
-    try { await prepVideoMedia(getReportEntries(period)); } catch(e) { console.warn('[VID] prep fail', e); }
-    try { await loadCustomLogo(); } catch(e) { console.warn('[LOGO] load fail', e); }
-    const html = buildReportHTML(period, lang, trMap);
-    // Script που τρέχει ΜΕΣΑ στο report window: γεμίζει τα PDF canvases ασύγχρονα.
-    // Η αναφορά εμφανίζεται ΑΜΕΣΩΣ· τα PDF σχέδια ζωγραφίζονται όταν είναι έτοιμα.
-    const pdfFillScript = '<scr'+'ipt src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></scr'+'ipt>'
-      + '<scr'+'ipt>'
-      + 'window.addEventListener("load",function(){'
-      + 'try{if(window.pdfjsLib){pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";}}catch(e){}'
-      + 'var cs=document.querySelectorAll(".fp-pdf-canvas");'
-      + 'cs.forEach(function(cv){'
-      + 'var url=decodeURIComponent(cv.getAttribute("data-pdf-url"));'
-      + 'if(!window.pdfjsLib){return;}'
-      + 'pdfjsLib.getDocument(url).promise.then(function(pdf){return pdf.getPage(1);}).then(function(page){'
-      + 'var vp=page.getViewport({scale:2});cv.width=vp.width;cv.height=vp.height;'
-      + 'return page.render({canvasContext:cv.getContext("2d"),viewport:vp}).promise;'
-      + '}).catch(function(err){console.warn("pdf fail",err);'
-      + 'var d=document.createElement("div");d.style.cssText="padding:10px;border:1px dashed #ccc;border-radius:6px;font-size:12px;text-align:center;color:#999";d.textContent="(PDF)";cv.parentNode.replaceChild(d,cv);});'
-      + '});});'
-      + '</scr'+'ipt>';
-    // ΚΡΙΣΙΜΟ: χωρίς print-color-adjust:exact, ο browser αφαιρεί τα χρώματα φόντου στην εκτύπωση
-    // → οι πορτοκαλί πινέζες/badges έβγαιναν άσπρες/αόρατες στο τελικό PDF.
-    const printFixCss = '<style>*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;color-adjust:exact !important}@media print{.no-print{display:none !important}}</style>';
-    const pdfBtn = '<button class="no-print" onclick="window.print()" style="position:fixed;bottom:16px;right:16px;background:#E8772E;border:none;color:#fff;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:700;font-size:14px;box-shadow:0 3px 10px rgba(0,0,0,.3);z-index:99">🖨️ ' + L('Λήψη PDF','Download PDF','Shkarko PDF') + '</button>';
-    win.document.open();
-    win.document.write('<html lang="' + (AL ? 'sq' : EN ? 'en' : 'el') + '"><head><meta charset="utf-8"><title>' + reportFileName(period, lang) + '</title>' + printFixCss + pdfFillScript + '</head><body style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:30px;color:#333">' + html + pdfBtn + '</body></html>');
-    win.document.close();
-    // δώσε χρόνο στις εικόνες/PDF canvases να φορτώσουν πριν το print (χωρίς να μπλοκάρει το άνοιγμα)
-    setTimeout(() => { try { win.print(); } catch(e){} }, 1800);
-  } else {
-    const allE = getReportEntries(period);
-    const buildings = buildingsFor(state.proj);
-    const tl = t => t==='order'?'🔧':t==='purchase'?'🛒':'⚠️';
-    let pn = 0;
-    const photoLines = e => {
-      let s = '';
-      (e.photos || []).forEach(p => {
-        pn++;
-        const vid = isVideoPath(p);
-        s += '     ' + (vid ? '\ud83c\udfac ' + (L('Βίντεο ','Video ','Video ')) : '\ud83d\udcf7 ' + (L('Φωτ. ','Photo ','Foto '))) + pn + ': ' + SB_URL + '/storage/v1/object/public/hexis-photos/' + p + '\n';
-      });
-      return s;
-    };
-    let txt = '🏗️ ' + proj.name + (L(' - Αναφορά ',' — Site Report: ',' — Raport Kantieri: '))
-      + (period==='day' ? (EN?'Daily':'Ημέρας') : period==='week' ? (EN?'Weekly':'Εβδομάδας') : (EN?'Cumulative':'Συνολική')) + '\n\n';
-    buildings.forEach(b => {
-      const list = allE.filter(e => (e.building||'')===b.id);
-      if (!list.length) return;
-      txt += '🏠 ' + T(b.name) + ':\n';
-      list.forEach(e => { txt += '  ' + tl(e.type) + ' ' + T(e.desc) + (e.status==='done'?' ✅':'') + '\n' + photoLines(e); });
-      txt += '\n';
-    });
-    const bIds2 = new Set(buildings.map(b => b.id));
-    const general = allE.filter(e => !e.building || !bIds2.has(e.building));
-    if (general.length) { txt += '📋 ' + (L('Γενικά:','General:','Të përgjithshme:')) + '\n'; general.forEach(e => { txt += '  ' + tl(e.type) + ' ' + T(e.desc) + '\n' + photoLines(e); }); }
-    const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(proj.name + (L(' - Αναφορά',' - Site Report',' - Raport Kantieri'))) + '&body=' + encodeURIComponent(txt + '\n\n' + (L('📎 Η αναλυτική αναφορά PDF επισυνάπτεται (κατέβηκε στη συσκευή σου).','📎 The detailed PDF report is attached (downloaded to your device).','📎 Raporti i detajuar PDF është bashkëngjitur (u shkarkua në pajisjen tënde).')));
-    const waUrl = 'https://wa.me/?text=' + encodeURIComponent(txt);
-    if (win) { try { win.close(); } catch(e) {} }
-    // Δημιουργία πραγματικού PDF και αποστολή ως αρχείο (share sheet σε κινητά)
-    hxPdfOverlay('<div style="font-size:15px;font-weight:700;margin-bottom:8px">⏳ ' + (L('Δημιουργία PDF αναφοράς…','Creating PDF report…','Krijimi i raportit PDF…')) + '</div><div style="font-size:11.5px;color:#93A5C4">' + (L('Λίγα δευτερόλεπτα — ετοιμάζονται οι φωτογραφίες.','A few seconds — preparing the photos.','Disa sekonda — po përgatiten fotot.')) + '</div><div id="pdf-share-prog" style="font-size:12px;color:#FFB02E;margin-top:8px;font-weight:600"></div>');
-    try {
-      const blob = await reportPdfBlob(period, lang, trMap);
-      _hxShareFile = new File([blob], reportFileName(period, lang) + '.pdf', { type: 'application/pdf' });
-      _hxShareTxt = txt.length > 400 ? txt.slice(0, 400) + '…' : txt;
-      _hxShareUrl = action === 'email' ? gmailUrl : waUrl;
-      const mb = (blob.size / 1048576).toFixed(1);
-      const canShare = !!(navigator.canShare && navigator.canShare({ files: [_hxShareFile] }));
+  const subj = (TRANS ? hxTranslit(String(proj.name || '')) : (proj.name || '')) + L(' - Αναφορά',' - Site Report',' - Raport Kantieri');
+  const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(subj);
+  const waUrl = 'https://wa.me/';
+  const btnMain = 'display:block;width:100%;padding:13px;background:#1F5FBF;color:#fff;border:none;border-radius:11px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px';
+  const btnSub = 'display:block;width:100%;padding:11px;background:none;color:#C9D6EA;border:1px solid #2d4a7a;border-radius:11px;font-size:13.5px;cursor:pointer;margin-bottom:8px';
+  try {
+    const blob = await reportPdfBlob(period, lang, trMap);
+    _hxShareFile = new File([blob], reportFileName(period, lang) + '.pdf', { type: 'application/pdf' });
+    _hxShareTxt = '';
+    const mb = (blob.size / 1048576).toFixed(1);
+    const canShare = !!(navigator.canShare && navigator.canShare({ files: [_hxShareFile] }));
+    const info = '<div style="font-size:11.5px;color:#93A5C4;margin-bottom:14px;word-break:break-word">' + _hxShareFile.name + ' · ' + mb + ' MB</div>';
+    const closeBtn = '<button onclick="hxPdfOverlayClose()" style="' + btnSub + ';margin-bottom:0">' + L('Κλείσιμο','Close','Mbyll') + '</button>';
+    if (action === 'pdf') {
+      _hxShareUrl = '';
+      hxSaveShareFile(); // αποθήκευση αμέσως στη συσκευή (Λήψεις)
+      hxPdfOverlay('<div style="font-size:15px;font-weight:700;margin-bottom:6px">✅ ' + L('Το PDF αποθηκεύτηκε','The PDF has been saved','PDF u ruajt') + '</div>' + info
+        + '<button onclick="hxSaveShareFile()" style="' + btnMain + '">⬇️ ' + L('Λήψη ξανά','Download again','Shkarko përsëri') + '</button>'
+        + (canShare ? '<button onclick="hxDoShare()" style="' + btnSub + '">📤 ' + L('Κοινοποίηση αρχείου','Share file','Ndaj skedarin') + '</button>' : '')
+        + closeBtn);
+    } else {
       const label = action === 'email' ? 'Email' : 'WhatsApp';
+      _hxShareUrl = action === 'email' ? gmailUrl : waUrl;
       if (canShare) {
-        hxPdfOverlay('<div style="font-size:15px;font-weight:700;margin-bottom:6px">✅ ' + (L('Η αναφορά PDF είναι έτοιμη','The PDF report is ready','Raporti PDF është gati')) + '</div>'
-          + '<div style="font-size:11.5px;color:#93A5C4;margin-bottom:14px">' + _hxShareFile.name + ' · ' + mb + ' MB</div>'
-          + '<button onclick="hxDoShare()" style="display:block;width:100%;padding:13px;background:#E8772E;color:#fff;border:none;border-radius:11px;font-size:14.5px;font-weight:700;cursor:pointer;margin-bottom:8px">📤 ' + (L('Αποστολή σε ','Send via ','Dërgo me ')) + label + '</button>'
-          + '<button onclick="hxDownloadShareFile()" style="display:block;width:100%;padding:10px;background:none;color:#93A5C4;border:1px solid var(--border,#253B63);border-radius:11px;font-size:12.5px;cursor:pointer">⬇️ ' + (L('Λήψη PDF','Download PDF','Shkarko PDF')) + '</button>');
+        // Κινητό: στέλνεται ΜΟΝΟ το αρχείο PDF (χωρίς κείμενο σύνοψης)
+        hxPdfOverlay('<div style="font-size:15px;font-weight:700;margin-bottom:6px">✅ ' + L('Η αναφορά PDF είναι έτοιμη','The PDF report is ready','Raporti PDF është gati') + '</div>' + info
+          + '<button onclick="hxDoShare()" style="' + btnMain + '">📤 ' + L('Αποστολή PDF σε ','Send PDF via ','Dërgo PDF me ') + label + '</button>'
+          + '<button onclick="hxSaveShareFile()" style="' + btnSub + '">⬇️ ' + L('Λήψη PDF','Download PDF','Shkarko PDF') + '</button>'
+          + closeBtn);
       } else {
-        // Desktop: λήψη PDF + άνοιγμα Gmail/WhatsApp Web με τη σύνοψη
-        hxPdfOverlay('<div style="font-size:15px;font-weight:700;margin-bottom:6px">✅ ' + (L('Η αναφορά PDF είναι έτοιμη','The PDF report is ready','Raporti PDF është gati')) + '</div>'
-          + '<div style="font-size:11.5px;color:#93A5C4;margin-bottom:14px">' + _hxShareFile.name + ' · ' + mb + ' MB<br>' + (L('Θα κατέβει το PDF και θα ανοίξει το ','The PDF will download and ','Do të shkarkohet PDF dhe do të hapet ')) + label + (L(' — επισύναψέ το στο μήνυμα.',' will open — attach it to the message.',' — bashkëngjite në mesazh.')) + '</div>'
-          + '<button onclick="hxDownloadShareFile()" style="display:block;width:100%;padding:13px;background:#E8772E;color:#fff;border:none;border-radius:11px;font-size:14.5px;font-weight:700;cursor:pointer">⬇️📤 ' + (L('Λήψη & άνοιγμα ','Download & open ','Shkarko & hap ')) + label + '</button>');
+        // Υπολογιστής: κατεβαίνει το PDF και ανοίγει το Gmail / WhatsApp Web για να το επισυνάψεις
+        hxPdfOverlay('<div style="font-size:15px;font-weight:700;margin-bottom:6px">✅ ' + L('Η αναφορά PDF είναι έτοιμη','The PDF report is ready','Raporti PDF është gati') + '</div>' + info
+          + '<div style="font-size:12px;color:#C9D6EA;margin:-6px 0 14px">' + L('Θα κατέβει το PDF και θα ανοίξει το ','The PDF will download and ','PDF do të shkarkohet dhe do të hapet ') + label + L(' — επισύναψέ το στο μήνυμα.',' will open — attach it to the message.',' — bashkëngjite në mesazh.') + '</div>'
+          + '<button onclick="hxDownloadShareFile()" style="' + btnMain + '">⬇️ ' + L('Λήψη PDF & άνοιγμα ','Download PDF & open ','Shkarko PDF & hap ') + label + '</button>'
+          + closeBtn);
       }
-    } catch(err) {
-      console.error('[SHAREPDF]', err);
-      hxPdfOverlay('<div style="font-size:14px;font-weight:700;margin-bottom:6px">⚠️ ' + (L('Το PDF δεν μπόρεσε να δημιουργηθεί σε αυτή τη συσκευή','The PDF could not be created on this device','PDF nuk u krijua në këtë pajisje')) + '</div>'
-        + '<div style="font-size:11.5px;color:#93A5C4;margin-bottom:12px">' + (L('Θα ανοίξει η σύνοψη κειμένου. Εναλλακτικά χρησιμοποίησε 🖨️ Λήψη PDF και μοιράσου το αρχείο.','Opening the text summary instead. Alternatively use 🖨️ Download PDF and share the file.','Do të hapet përmbledhja me tekst. Ose përdor 🖨️ Shkarko PDF dhe ndaje skedarin.')) + '</div>'
-        + '<button onclick="hxPdfOverlayClose();window.open(\'' + (action === 'email' ? 'GMAILURL' : 'WAURL') + '\',\'_blank\')" style="display:block;width:100%;padding:12px;background:#E8772E;color:#fff;border:none;border-radius:11px;font-size:14px;font-weight:700;cursor:pointer">' + (L('Συνέχεια με σύνοψη','Continue with summary','Vazhdo me përmbledhje')) + '</button>');
-      const ov = document.getElementById('pdf-share-ov');
-      if (ov) { const btn = ov.querySelector('button'); if (btn) btn.onclick = () => { hxPdfOverlayClose(); window.open(action === 'email' ? gmailUrl : waUrl, '_blank'); }; }
     }
+  } catch(err) {
+    console.error('[REPORTPDF]', err);
+    hxPdfOverlay('<div style="font-size:14.5px;font-weight:700;margin-bottom:6px">' + L('Το PDF δεν ολοκληρώθηκε','The PDF was not completed','PDF nuk u përfundua') + '</div>'
+      + '<div style="font-size:12px;color:#C9D6EA;margin-bottom:14px">' + L('Έλεγξε ότι υπάρχει σύνδεση στο internet και δοκίμασε ξανά.','Check your internet connection and try again.','Kontrollo lidhjen me internetin dhe provo përsëri.') + '</div>'
+      + '<button onclick="hxPdfOverlayClose();generateReport(window._hxLastRpt.period,window._hxLastRpt.action)" style="' + btnMain + '">🔄 ' + L('Δοκιμή ξανά','Try again','Provo përsëri') + '</button>'
+      + '<button onclick="hxPdfOverlayClose()" style="' + btnSub + ';margin-bottom:0">' + L('Κλείσιμο','Close','Mbyll') + '</button>');
   }
 }
 
@@ -5195,6 +5148,45 @@ async function _pdfCell(src, caption, opt) {
     return c.toDataURL('image/jpeg', 0.82);
   } catch(e) { console.warn('[SHAREPDF] cell', e); return null; }
 }
+// Τίτλος περιόδου για το PDF (ίδιος με την παλιά HTML αναφορά)
+function _pdfPeriodLabel(period, lang) {
+  const L3 = (a, b, c) => lang === 'en' ? b : lang === 'al' ? c : a;
+  const LOC = lang === 'al' ? 'sq-AL' : lang === 'en' ? 'en-GB' : 'el-GR';
+  const now = new Date();
+  if (period === 'day') return L3('Ημέρας (','Daily Report (','Raport Ditor (') + now.toLocaleDateString(LOC) + ')';
+  if (period === 'week') { const s = new Date(now); s.setDate(now.getDate() - now.getDay() + 1); return L3('Εβδομάδας (','Weekly Report (','Raport Javor (') + s.toLocaleDateString(LOC) + ' - ' + now.toLocaleDateString(LOC) + ')'; }
+  if (period && period.indexOf('date:') === 0) return L3('Ημέρας ','Daily Report — ','Raport Ditor — ') + new Date(period.slice(5)).toLocaleDateString(LOC);
+  return L3('Συνολική (όλες οι καταγραφές)','Cumulative Report (all records to date)','Raport Përmbledhës (të gjitha regjistrimet)');
+}
+// Δορυφορικός χάρτης θέσης έργου (πλακίδια ESRI World Imagery) ως εικόνα για το PDF
+async function _pdfCoverMap(lat, lng) {
+  lat = parseFloat(lat); lng = parseFloat(lng);
+  if (isNaN(lat) || isNaN(lng)) return null;
+  try {
+    const zoom = 17, w = 680, h = 440, TS = 256, n = Math.pow(2, zoom), latR = lat * Math.PI / 180;
+    const cx = ((lng + 180) / 360) * n * TS;
+    const cy = ((1 - Math.log(Math.tan(latR) + 1 / Math.cos(latR)) / Math.PI) / 2) * n * TS;
+    const left = cx - w / 2, top = cy - h / 2;
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const ctx = c.getContext('2d'); ctx.fillStyle = '#DDE5EF'; ctx.fillRect(0, 0, w, h);
+    const jobs = [];
+    for (let x = Math.floor(left / TS); x <= Math.floor((left + w) / TS); x++)
+      for (let y = Math.floor(top / TS); y <= Math.floor((top + h) / TS); y++)
+        jobs.push(_pdfDataURL('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/' + zoom + '/' + y + '/' + x, 8000)
+          .then(du => du ? _pdfLoadImg(du) : null)
+          .then(img => { if (img) ctx.drawImage(img, Math.round(x * TS - left), Math.round(y * TS - top), TS, TS); })
+          .catch(() => {}));
+    await Promise.all(jobs);
+    // πινέζα στο κέντρο
+    const px = w / 2, py = h / 2;
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.bezierCurveTo(px - 4, py - 14, px - 18, py - 22, px - 18, py - 36);
+    ctx.arc(px, py - 36, 18, Math.PI, 0); ctx.bezierCurveTo(px + 18, py - 22, px + 4, py - 14, px, py); ctx.closePath();
+    ctx.fillStyle = '#C2185B'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
+    ctx.beginPath(); ctx.arc(px, py - 36, 7, 0, 7); ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.font = '11px Arial'; ctx.textAlign = 'right'; ctx.fillText('Imagery © Esri', w - 6, h - 6);
+    return c.toDataURL('image/jpeg', 0.85);
+  } catch(e) { console.warn('[SHAREPDF] map', e); return null; }
+}
 async function buildReportDocDef(period, lang, trMap) {
   const L3 = (a, b, c) => lang === 'en' ? b : lang === 'al' ? c : a;
   const T = s => (lang === 'el' || !s) ? s : (trMap && trMap[s] && trMap[s] !== s) ? trMap[s] : hxTranslit(String(s));
@@ -5226,10 +5218,25 @@ async function buildReportDocDef(period, lang, trMap) {
   headCols.push({ stack: [
     { text: 'HEXIS-APP — ' + L3('Αναφορά Προόδου Εργοταξίου','Site Progress Report','Raport i Progresit të Kantierit'), style: 'h1' },
     { text: T(proj.name || ''), style: 'h2o' },
-    { text: (proj.client ? L3('Πελάτης: ','Client: ','Klienti: ') + NM(proj.client) + '   ·   ' : '') + L3('Έκδοση: ','Issued: ','Lëshuar: ') + new Date().toLocaleDateString(LOC3), style: 'meta' }
+    { text: _pdfPeriodLabel(period, lang), style: 'per' },
+    proj.address ? { text: T(proj.address), style: 'meta' } : { text: '' },
+    { text: ((proj.owner || proj.client) ? L3('Ιδιοκτήτης: ','Owner: ','Pronari: ') + NM(proj.owner || proj.client) + '   ·   ' : '') + L3('Έκδοση: ','Issued: ','Lëshuar: ') + new Date().toLocaleDateString(LOC3), style: 'meta' }
   ] });
   content.push({ columns: headCols, columnGap: 12 });
-  content.push({ canvas: [{ type: 'line', x1: 0, y1: 4, x2: CONTENT_W, y2: 4, lineWidth: 1.6, lineColor: '#0E7490' }], margin: [0, 4, 0, 8] });
+  content.push({ canvas: [{ type: 'line', x1: 0, y1: 4, x2: CONTENT_W, y2: 4, lineWidth: 1.6, lineColor: '#0E7490' }], margin: [0, 4, 0, 6] });
+  const engCount = [...new Set(entries.map(e => e.engineer).filter(Boolean))].length;
+  content.push({ text: L3('Κτίρια: ','Buildings: ','Ndërtesa: ') + buildings.length + L3(' · Καταγραφές: ',' · Records: ',' · Regjistrime: ') + entries.length + L3(' · Μηχανικοί: ',' · Engineers: ',' · Inxhinierë: ') + engCount, style: 'meta', margin: [0, 0, 0, 6] });
+  if (proj.lat && proj.lng) {
+    _pdfProg(L3('Χάρτης…','Map…','Harta…'));
+    const mapDu = await _pdfCoverMap(proj.lat, proj.lng);
+    if (mapDu) content.push({ image: mapDu, fit: [CONTENT_W, 300], alignment: 'center', margin: [0, 2, 0, 8] });
+  }
+  let phases = [];
+  try { phases = JSON.parse(localStorage.getItem('hexis_phases_' + state.proj) || '[]'); } catch(e) {}
+  if (phases.length) {
+    content.push({ text: L3('Πρόοδος Φάσεων','Phase Progress','Progresi i Fazave'), style: 'h2', margin: [0, 6, 0, 3] });
+    phases.forEach(ph => content.push({ text: [ { text: T(ph.name || '') + ' — ' }, { text: (ph.pct || 0) + '%', bold: true } ], margin: [0, 1, 0, 0] }));
+  }
   // ── Ομαδοποίηση ανά κτίριο ──
   const groups = {}; const order = [];
   entries.forEach(e => { const k = e.building || ''; if (!groups[k]) { groups[k] = []; order.push(k); } groups[k].push(e); });
@@ -5251,6 +5258,11 @@ async function buildReportDocDef(period, lang, trMap) {
       if (e.date) metaBits.push(new Date(e.date).toLocaleString(LOC3, { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }));
       const metaTxt = { text: [ { text: metaBits.join('  ·  ') + (metaBits.length ? '  ·  ' : '') },
         { text: statusLabel(e.status), color: statusColor(e.status), bold: true } ], style: 'meta' };
+      const cmts = [];
+      if (window._rComments !== false && !e.commentsOff && e.comments && e.comments.length) {
+        e.comments.forEach(cm => cmts.push({ text: [ { text: NM(cm.author || '') + ': ', bold: true }, { text: T(cm.text || '') } ],
+          fontSize: 8.5, color: '#3F4F69', margin: [8, 2, 0, 0] }));
+      }
       // ── Media grid: 2 στήλες, όλα τα κελιά ίδιου μεγέθους 4:3, διάκενο 6pt ──
       const cells = [];
       for (const p of (e.photos || [])) {
@@ -5278,10 +5290,11 @@ async function buildReportDocDef(period, lang, trMap) {
         ], columnGap: GAP, margin: [0, GAP, 0, 0], unbreakable: true });
       }
       // επικεφαλίδα + 1η σειρά φωτό μαζί (δεν χωρίζουν σε αλλαγή σελίδας)
-      content.push({ stack: [headTxt, metaTxt].concat(rows.length ? [rows[0]] : []), unbreakable: true, margin: [0, 0, 0, rows.length > 1 ? 0 : 4] });
+      content.push({ stack: [headTxt, metaTxt].concat(cmts).concat(rows.length ? [rows[0]] : []), unbreakable: true, margin: [0, 0, 0, rows.length > 1 ? 0 : 4] });
       rows.slice(1).forEach(r => content.push(r));
     }
   }
+  if (!entries.length) content.push({ text: L3('Καμία καταγραφή για αυτή την περίοδο.','No records for this period.','Asnjë regjistrim për këtë periudhë.'), color: '#999', alignment: 'center', margin: [0, 30, 0, 0] });
   // ── Συγκεντρωτικές κατόψεις ──
   const ids = [...new Set(entries.filter(e => e.floorplan_id && (e.pin_x != null || (e.photo_pins && e.photo_pins.length))).map(e => e.floorplan_id))];
   if (ids.length) {
@@ -5291,6 +5304,7 @@ async function buildReportDocDef(period, lang, trMap) {
       { text: '● ', color: '#1F5FBF' }, { text: L3('Καταγραφή','Entry','Regjistrim') + '      ' },
       { text: '● ', color: '#0E7490' }, { text: L3('Θέση λήψης φωτογραφίας','Photo location','Vendi i fotos') }
     ], style: 'meta', margin: [0, 2, 0, 4] });
+    try { await ensurePdfJs(); } catch(e) {}
     for (const fid of ids) {
       const f = projFiles.find(x => x.id === fid);
       if (!f) continue;
@@ -5314,6 +5328,7 @@ async function buildReportDocDef(period, lang, trMap) {
       h1: { fontSize: 15, bold: true, color: '#0B1426' },
       h2: { fontSize: 12.5, bold: true, color: '#1F5FBF' },
       h2o: { fontSize: 12, bold: true, color: '#333', margin: [0, 2, 0, 0] },
+      per: { fontSize: 9.5, bold: true, color: '#0B5E75', margin: [0, 2, 0, 1] },
       h3: { fontSize: 10.5, bold: true, color: '#0B5E75' },
       meta: { fontSize: 8, color: '#56677F' },
       cap: { fontSize: 7.5, color: '#56677F', margin: [0, 2, 0, 0] }
@@ -5346,20 +5361,24 @@ let _hxShareFile = null, _hxShareTxt = '', _hxShareUrl = '';
 async function hxDoShare() {
   if (!_hxShareFile) return;
   try {
-    await navigator.share({ files: [_hxShareFile], title: _hxShareFile.name, text: _hxShareTxt });
+    await navigator.share({ files: [_hxShareFile], title: _hxShareFile.name });
     hxPdfOverlayClose();
   } catch(e) {
     if (e && e.name === 'AbortError') return; // ο χρήστης ακύρωσε το share sheet — μένει ανοιχτό
     console.warn('[SHAREPDF] share fail, fallback', e);
-    hxDownloadShareFile();
+    hxSaveShareFile();
   }
 }
-function hxDownloadShareFile() {
+function hxSaveShareFile() {
   if (!_hxShareFile) return;
   const a = document.createElement('a');
   a.href = URL.createObjectURL(_hxShareFile); a.download = _hxShareFile.name;
   document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+}
+function hxDownloadShareFile() {
+  if (!_hxShareFile) return;
+  hxSaveShareFile();
   if (_hxShareUrl) window.open(_hxShareUrl, '_blank');
   hxPdfOverlayClose();
 }
@@ -5456,7 +5475,8 @@ async function hexisCheckUpdate(silent) {
     // (Αν ο server έχει παλιότερο sw.js — π.χ. ξεχασμένο bump ή stale CDN — δεν κολλάμε σε loop.)
     const verNum = v => { const mm = String(v).match(/(\d+)\.(\d+)/); return mm ? parseInt(mm[1]) * 10000 + parseInt(mm[2]) : 0; };
     if (verNum(remote) > verNum(APP_VERSION)) {
-      hexisShowUpdateBanner(remote);
+      const nm = txt.match(/UPDATE_NOTE\s*=\s*'([^']*)'/);
+      hexisShowUpdateBanner(remote, nm ? nm[1] : '');
     } else {
       _updBannerShown = false;
       const b = document.getElementById('upd-banner'); if (b) b.remove();
@@ -5469,7 +5489,7 @@ async function hexisCheckUpdate(silent) {
   }
 }
 
-function hexisShowUpdateBanner(newVer) {
+function hexisShowUpdateBanner(newVer, note) {
   if (_updBannerShown) return;
   _updBannerShown = true;
   const old = document.getElementById('upd-banner'); if (old) old.remove();
@@ -5479,7 +5499,7 @@ function hexisShowUpdateBanner(newVer) {
     + 'background:#0A1730;color:#fff;border:2px solid #E8772E;border-radius:14px;'
     + 'padding:12px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;box-shadow:0 6px 20px rgba(0,0,0,.45);'
     + 'font-size:13px;max-width:92vw';
-  d.innerHTML = '<span style="flex:1 1 160px;min-width:0">🔄 Διαθέσιμη νέα έκδοση <b>' + newVer + '</b> (έχεις ' + APP_VERSION + ')</span>'
+  d.innerHTML = '<span style="flex:1 1 160px;min-width:0">🔄 Διαθέσιμη νέα έκδοση <b>' + newVer + '</b> (έχεις ' + APP_VERSION + ')' + (note ? '<br><span style="font-size:12px;color:#C9D6EA">Τι αλλάζει: ' + String(note).replace(/</g, '&lt;') + '</span>' : '') + '</span>'
     + '<button onclick="hexisApplyUpdate()" style="background:#E8772E;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;white-space:nowrap">Ενημέρωση τώρα</button>'
     + '<button onclick="this.parentNode.remove()" style="background:none;border:none;color:#aaa;font-size:16px;cursor:pointer;padding:2px">✕</button>';
   document.body.appendChild(d);
@@ -6398,7 +6418,7 @@ function showHelpModal() {
       <div class="help-card">
         <h3><span class="help-ico">📊</span> Αναφορές</h3>
         <p>Πάτα <b>📊 Αναφορές</b> και διάλεξε περίοδο: <b>Ημέρας · Εβδομάδας · Συνολική · Συγκεκριμένη ημερομηνία</b>. Οι καταγραφές ομαδοποιούνται <b>ανά κτίριο</b>, με αριθμημένες φωτογραφίες σε ομοιόμορφο πλέγμα, δύο ανά σειρά.<br>
-        Εξαγωγή: <b>📄 PDF</b> (ελληνικά ή αγγλικά με αυτόματη μετάφραση) · <b>✉️ Email</b> μέσω Gmail με επιλογή παραλήπτη · <b>💬 WhatsApp</b> σύνοψη.</p>
+        Εξαγωγή: <b>📄 PDF</b> (ελληνικά ή αγγλικά με αυτόματη μετάφραση) · <b>✉️ Email</b> με το αρχείο PDF συνημμένο · <b>💬 WhatsApp</b> με το αρχείο PDF.</p>
       </div>
 
       <div class="help-grid2">
