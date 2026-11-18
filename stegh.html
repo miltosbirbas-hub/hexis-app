@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#16202B">
-<title>HEXIS APP — προμέτρηση πεδίου</title>
+<title>HEXIS-APP — προμέτρηση πεδίου</title>
 <link rel="manifest" href="stegh-manifest.json">
 <link rel="apple-touch-icon" href="stegh-icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -107,7 +107,7 @@ button.tg.on{background:var(--brb);border-color:var(--brb);color:#fff}
 
 <div class="hud">
   <a class="home" href="hub.html" title="Πίσω στα εργαλεία" aria-label="Πίσω στα εργαλεία HEXIS"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>Εργαλεία</a>
-  <div class="mark">HEXIS APP<small>προμέτρηση πεδίου</small></div>
+  <div class="mark">HEXIS-APP<small>προμέτρηση πεδίου</small></div>
   <div class="hint" id="hint">Πάτα για κορυφές</div>
 </div>
 
@@ -988,7 +988,14 @@ function quantities(){
   for(const arc of sol.arcs){
     const ia=vidx(arc[0]), ib=vidx(arc[1]);
     const A=(ia!==null&&gp)?gp[ia]:arc[0], B=(ib!==null&&gp)?gp[ib]:arc[1];
-    const L=dist(A,B);
+    let L=dist(A,B);
+    /* μαχιές/ντερέδες: πραγματικό (κεκλιμένο) μήκος — όχι μήκος κάτοψης */
+    if(rtype==='hip'&&(ia!==null||ib!==null)){
+      const tOf=pt=>{ if(vidx(pt)!==null) return 0; let best=0,bd=1e9;
+        for(const [Pn,tn] of sol.nodes){ const d=dist(Pn,pt); if(d<bd){bd=d;best=tn;} } return best; };
+      const Ls=dist(arc[0],arc[1]);
+      if(Ls>1e-9){ const s=Math.abs(tOf(arc[0])-tOf(arc[1]))*th/Ls; L*=Math.sqrt(1+s*s); }
+    }
     if(rtype!=='hip')lkr+=L;   /* δίρριχτη: το τόξο είναι ο κορφιάς */
     else if((ia!==null&&isReflex(sol.pts,ia))||(ib!==null&&isReflex(sol.pts,ib)))lnt+=L;
     else if(ia!==null||ib!==null)lmax+=L;else lkr+=L;
@@ -1238,8 +1245,8 @@ function report(){
     <tr><td>Επιφάνεια στέγης ÷ cos ${N(q.adeg,1)}°</td><td>${N(q.roof)} m²</td></tr>
     <tr><td>Περίμετρος υδρορροής</td><td>${N(q.per)} m</td></tr>
     <tr><td>Κορφιάδες</td><td>${N(q.lkr)} m</td></tr>
-    <tr><td>Μαχιές</td><td>${N(q.lmax)} m</td></tr>
-    <tr><td>Ντερέδες (λούκια)</td><td>${N(q.lnt)} m</td></tr>
+    <tr><td>Μαχιές (πραγματικό μήκος)</td><td>${N(q.lmax)} m</td></tr>
+    <tr><td>Ντερέδες (λούκια, πραγματικό μήκος)</td><td>${N(q.lnt)} m</td></tr>
     <tr><td>Υψόμετρο κορφιά (δομικό)</td><td>+${N(q.base+q.hmax)} m</td></tr>
     <tr><td>Κορφιάς τελειωμένος (με επικάλυψη)</td><td>+${N(q.hfin)} m</td></tr>
   </table>
@@ -1332,7 +1339,7 @@ function makePDF(){
   const F=(s,wt)=>`${wt||600} ${s*S}px -apple-system,Segoe UI,Roboto,sans-serif`;
   const M=(s)=>`600 ${s*S}px ui-monospace,Menlo,Consolas,monospace`;
   let y=46*S;
-  x.fillStyle='#1F4E9C';x.font=F(17,700);x.fillText('HEXIS APP — ΠΡΟΜΕΤΡΗΣΗ ΠΕΔΙΟΥ',40*S,y);
+  x.fillStyle='#1F4E9C';x.font=F(17,700);x.fillText('HEXIS-APP — ΠΡΟΜΕΤΡΗΣΗ ΠΕΔΙΟΥ',40*S,y);
   x.fillStyle='#16202B';x.font=F(9,600);y+=15*S;
   const uN=me('uName'), uC=me('uCont'), uP=me('uProj');
   x.fillText(uN||'Προμέτρηση στέγης',40*S,y);
@@ -1471,7 +1478,7 @@ function makePDF(){
   y2.fillText('Οι θέσεις των ξύλων είναι ενδεικτικές. Η μελέτη του φέροντος οργανισμού εκπονείται και',50*S,py+21*S);
   y2.fillText('υπογράφεται από εξουσιοδοτημένο Πολιτικό Μηχανικό, μέλος Τ.Ε.Ε., κατά EN 1995-1-1.',50*S,py+31*S);
   y2.fillStyle='#9AA7B2';y2.font=F(6.5,500);y2.textAlign='right';
-  y2.fillText('HEXIS APP',555*S,h-26*S);y2.textAlign='left';
+  y2.fillText('HEXIS-APP',555*S,h-26*S);y2.textAlign='left';
 
   /* ---- ΣΕΛΙΔΑ 3: τομή ζευκτού + πρόγραμμα δοκών ---- */
   const c3=document.createElement('canvas');c3.width=w;c3.height=h;
@@ -1508,7 +1515,7 @@ function makePDF(){
   y3.fillText('Οι κωδικοί A αντιστοιχούν στη σήμανση του ξυλοτύπου στη σελίδα 2.',44*S,qy);
   y3.fillText('Οι τεγίδες δίνονται σε τρέχοντα μέτρα γιατί ματίζονται πάνω στους αμείβοντες.',44*S,qy+10*S);
   y3.fillStyle='#9AA7B2';y3.font=F(6.5,500);y3.textAlign='right';
-  y3.fillText('HEXIS APP',555*S,h-26*S);y3.textAlign='left';
+  y3.fillText('HEXIS-APP',555*S,h-26*S);y3.textAlign='left';
 
   savePdf([c,c2,c3],595,842,'prometrisi-stegis.pdf');
 }

@@ -21166,6 +21166,7 @@ header .sub{font-size:11px;opacity:.7;font-weight:400}
 .lightToggle{margin-left:auto;display:flex;background:rgba(255,255,255,.1);border-radius:9px;padding:3px;gap:2px}
 .lightToggle button{border:none;background:none;color:#fff;font-size:12px;font-weight:600;padding:6px 9px;border-radius:7px;cursor:pointer;opacity:.6;white-space:nowrap}
 .lightToggle button.on{background:var(--accent);opacity:1}
+@media(max-width:480px){header{padding:12px 10px}header .hwrap{gap:8px;flex-wrap:wrap}header h1{font-size:15px}.lightToggle button{padding:6px 7px;font-size:11.5px}}
 .section{background:var(--surface);border:1px solid var(--line);border-radius:14px;margin-top:16px;box-shadow:var(--shadow);overflow:hidden}
 .section>.sh{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line);background:var(--surface2)}
 .sh .num{width:24px;height:24px;border-radius:7px;background:var(--accent);color:#fff;font-size:12px;display:grid;place-items:center;font-weight:700;flex:0 0 auto}
@@ -21683,7 +21684,7 @@ function feeCalc(){
   } else if(stage==='initial'){if(!area)return{fee:null,rate:'Απαιτείται επιφάνεια',need:1};fee=small?200:300;rate='Κατ’ αποκοπή';}
   else if(stage==='mid'){if(!area)return{fee:null,rate:'Απαιτείται επιφάνεια',need:1};rate='0,30 €/τ.μ. (max 2.000)';fee=Math.min(2000,area*0.3);}
   else{if(!area)return{fee:null,rate:'Απαιτείται επιφάνεια',need:1};if(small){rate='0,50 €/τ.μ. (min 200)';fee=Math.max(200,area*0.5);}else{rate='0,40 €/τ.μ. (600–3.000)';fee=Math.min(3000,Math.max(600,area*0.4));}}
-  fee=Math.round(fee*100)/100;let need=1;if(fee>=1001&&fee<=2000)need=2;else if(fee>=2001)need=3;
+  fee=Math.round(fee*100)/100;let need=1;if(fee>2000)need=3;else if(fee>1000)need=2; // 1.001–2.000 € → 2, >2.000 € → 3 (χωρίς κενά στις δεκαδικές τιμές)
   return{fee,rate,need};
 }
 function eur(n){return n.toLocaleString('el-GR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';}

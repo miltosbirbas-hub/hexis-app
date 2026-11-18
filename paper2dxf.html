@@ -468,7 +468,7 @@ input[type=range]{width:100%;accent-color:var(--violet)}
       <section>
         <h3>5. Κλίμακα 1:1 και ΕΓΣΑ87 (βήμα 4)</h3>
         <ul>
-          <li><b>Κλίμακα</b>: για γρήγορη μετατροπή, από dpi και κλίμακα σχεδίου. Ακρίβεια ίση με τη σάρωση (±0,3 mm χαρτιού).</li>
+          <li><b>Κλίμακα</b>: για γρήγορη μετατροπή, από dpi και κλίμακα σχεδίου. Αν στο φύλλο είναι γραμμένη κλίμακα (π.χ. «ΚΛΙΜΑΚΑ 1:200»), μετά την ψηφιοποίηση εφαρμόζεται αυτόματα — αλλάζει μόνο αν δεν την έχετε ορίσει εσείς. Ακρίβεια ίση με τη σάρωση (±0,3 mm χαρτιού).</li>
           <li><b>Απόσταση</b>: δύο σημεία με γνωστή απόσταση. Διορθώνει τη συρρίκνωση του χαρτιού.</li>
           <li><b>Χ &amp; Υ</b>: μια οριζόντια και μια κατακόρυφη γνωστή απόσταση. Προτιμήστε το σε παλιές φωτοτυπίες.</li>
           <li><b>ΕΓΣΑ87</b>: 4 ή περισσότερα σημεία με συντεταγμένες (κορυφές οικοπέδου, σταυροί καννάβου). Το DXF βγαίνει στο σύστημα, διορθώνοντας κλίμακα, στροφή και παραμόρφωση. Η «Μέγ. απόκλιση σημείων» δείχνει πόσο καλά ταιριάζουν· με 5+ σημεία ένα σημείο με μεγάλη απόκλιση είναι πιθανότατα λάθος πληκτρολόγησης.</li>
@@ -2273,6 +2273,8 @@ var OCR = {
       // language data shipped next to the page (repo: tessdata/*.gz, artifact: ocr-*.wasm); otherwise the public CDN
       // Prefer data shipped next to the page: repo layout tessdata/<lang>.traineddata.gz, artifact layout ocr-<lang>.wasm (same bytes).
       try { var r0 = await fetch('tessdata/ell.traineddata.gz', { method: 'HEAD' }); if (r0.ok && /gzip|octet/.test(r0.headers.get('content-type') || 'octet')) self.langPath = new URL('tessdata', location.href).href; } catch (e) { }
+      // ίδια αρχεία και στη ρίζα του site (ell/eng.traineddata.gz δίπλα στη σελίδα) — χωρίς εξάρτηση από CDN
+      if (!self.langPath) { try { var r0b = await fetch('ell.traineddata.gz', { method: 'HEAD' }); if (r0b.ok && !/html/.test(r0b.headers.get('content-type') || '')) self.langPath = new URL('.', location.href).href.replace(/\/$/, ''); } catch (e) { } }
       if (!self.langPath) {
         try {
           var r1 = await fetch('ocr-ell.wasm'), r2 = r1.ok ? await fetch('ocr-eng.wasm') : null;
@@ -2426,7 +2428,7 @@ async function openFile(file) {
     else await openImage(file, buf);
     afterOpen();
   } catch (e) { console.error(e); toast('Δεν άνοιξε το αρχείο: ' + (e.message || e), 'err', 7000); resetAll(); }
-  finally { S.busy = false; P.hide(); }
+  finally { S.busy = false; P.hide(); updateUI(); }
 }
 async function openPdf(buf) {
   if (!window.pdfjsLib) throw new Error('Η βιβλιοθήκη PDF δεν φορτώθηκε');
@@ -2672,7 +2674,15 @@ async function ocrGroups(groups, kind, base, span) {
   groups = patternFilter(groups, kind);
   if (!groups.length) return [];
   P.set('Φόρτωση ελληνικού OCR', base);
-  await OCR.init(function (l, p) { P.set(l, base + p * span * 0.15); });
+  try {
+    await Promise.race([OCR.init(function (l, p) { P.set(l, base + p * span * 0.15); }),
+      new Promise(function (_, rej) { setTimeout(function () { rej(new Error('timeout')); }, 90000); })]);
+  } catch (e) {
+    // το OCR δεν είναι απαραίτητο για τις γραμμές: συνεχίζουμε χωρίς κείμενα αντί να κολλήσει η ψηφιοποίηση
+    console.warn('OCR', e); OCR.ready = null;
+    toast('Η αναγνώριση κειμένων δεν φορτώθηκε (σύνδεση). Οι γραμμές βγαίνουν κανονικά — τα κείμενα παραλείφθηκαν.', 'warn', 7000);
+    return [];
+  }
   checkCancel();
   var out = [], done = 0, N = groups.length, B = OCR.nw * 3;
   for (var i = 0; i < N; i += B) {
@@ -2738,9 +2748,10 @@ async function runProcess() {
     if (S.mode === 'raster') await processRaster(); else await processVector();
     S.layerOn = {}; S.ext = null; S.tin = null; S.contours = null; $('#tinOpts').hidden = true; V3D.ready() && V3D.clearTIN(); layersOf().forEach(function (l) { S.layerOn[l.name] = true; });
     buildPaths(); renderLayers(); renderTexts(); updateUI(); fit();
+    var autoSc = autoScaleFromTexts();
     openStep(4); markDone(3);
     var nT = S.texts.filter(function (t) { return t.on; }).length;
-    toast('Έτοιμο σε ' + Math.round((performance.now() - t0) / 100) / 10 + ' s · ' + statsText() + (nT ? '' : ''), 'ok');
+    toast('Έτοιμο σε ' + Math.round((performance.now() - t0) / 100) / 10 + ' s · ' + statsText() + (autoSc ? ' · κλίμακα 1:' + autoSc + ' από το φύλλο (έλεγξέ τη στο βήμα 4)' : ''), 'ok', autoSc ? 7000 : 4200);
   } catch (e) {
     if (e && e.cancel) toast('Η επεξεργασία ακυρώθηκε.'); else { console.error(e); toast('Η επεξεργασία σταμάτησε: ' + (e.message || e) + '. Δοκιμάστε μικρότερη περιοχή εργασίας.', 'err', 8000); }
   } finally { S.busy = false; S.cancel = false; P.hide(); updateUI(); }
@@ -2906,6 +2917,19 @@ function calib() {
   info.push(['1 px', fmt(Math.hypot(b[0] - a[0], b[1] - a[1]) / 100 * 1000, 3) + ' mm']);
   info.push(['Μέγ. απόκλιση σημείων', pts.length > 4 ? fmt(res * 100, 1) + ' cm' : 'ακριβής (4 σημεία)']);
   return { W: Hm, ok: true, k: Math.hypot(b[0] - a[0], b[1] - a[1]) / 100, info: info, geo: true };
+}
+/* κλίμακα γραμμένη στο φύλλο («ΚΛΙΜΑΚΑ 1:200», «Κλ. 1:500») → προτείνεται αυτόματα, μόνο αν ο χρήστης δεν την έχει αλλάξει */
+function autoScaleFromTexts() {
+  if (S.cal.mode !== 'scale' || S.cal.userSet || S.demo) return;
+  var STD = [20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000], found = {}, best = 0, bestN = 0;
+  (S.texts || []).forEach(function (t) {
+    var s = String(t.str || '').replace(/\s+/g, ' '), m, re = /(?:^|[^0-9.,])1\s*[:：\/]\s*([0-9]{2,4})(?![0-9.,])/g;
+    var w = /ΚΛΙΜ|Κλ\.|SCALE/i.test(s) ? 3 : 1;
+    while ((m = re.exec(s))) { var d = +m[1]; if (STD.indexOf(d) >= 0) found[d] = (found[d] || 0) + w; }
+  });
+  Object.keys(found).forEach(function (k) { if (found[k] > bestN) { bestN = found[k]; best = +k; } });
+  if (best && best !== S.cal.den) { S.cal.den = best; $('#scaleDen').value = best; renderCal(); draw(); return best; }
+  return 0;
 }
 function renderCal() {
   var c = calib();
@@ -3401,7 +3425,7 @@ $('#dpi').addEventListener('change', async function (e) {
 async function applyRotation(d) {
   if (S.busy || !(S.work || S.vec)) return;
   S.rot = ((S.rot + d) % 360 + 360) % 360; S.region = null; S.res = null; S.texts = []; S.rgray = null; S.cal.A = []; S.cal.XY = []; S.cal.P.forEach(function (p) { p.x = p.y = null; });
-  if (S.mode === 'vector') { S.busy = true; P.show('Περιστροφή'); try { S.vec = await VPDF.extract(S.page, WS, S.rot, function (p) { P.set(null, p * 0.7); }); await renderPdfPreview(); buildDisplay(); } finally { S.busy = false; P.hide(); } }
+  if (S.mode === 'vector') { S.busy = true; P.show('Περιστροφή'); try { S.vec = await VPDF.extract(S.page, WS, S.rot, function (p) { P.set(null, p * 0.7); }); await renderPdfPreview(); buildDisplay(); } finally { S.busy = false; P.hide(); updateUI(); } }
   else { buildWork(); buildDisplay(); }
   buildPaths(); renderTexts(); renderLayers(); renderPicks(); fit(); updateUI();
 }
@@ -3442,7 +3466,7 @@ document.querySelectorAll('#calSeg button').forEach(function (b) {
     renderPicks(); draw();
   });
 });
-$('#scaleDen').addEventListener('input', function (e) { S.cal.den = parseFloat(e.target.value) || 50; renderCal(); draw(); });
+$('#scaleDen').addEventListener('input', function (e) { S.cal.userSet = true; S.cal.den = parseFloat(e.target.value) || 50; renderCal(); draw(); });
 ['#distVal', '#xyX', '#xyY'].forEach(function (s) { $(s).addEventListener('input', function () { renderCal(); draw(); }); });
 $('#addPt').addEventListener('click', function () { S.cal.P.push({ x: null, y: null, E: NaN, N: NaN }); renderPicks(); });
 $('#measureBtn').addEventListener('click', function () { if (!(S.work || S.vec)) return; S.measure = []; setTool(S.tool === 'measure' ? 'pan' : 'measure'); if (S.tool === 'measure') toast('Κάντε κλικ σε δύο σημεία. Η απόσταση δείχνεται με την τρέχουσα κλίμακα.', '', 3200); });

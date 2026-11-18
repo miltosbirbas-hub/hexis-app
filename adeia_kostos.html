@@ -209,6 +209,147 @@ h2::before{content:"";width:5px;height:18px;border-radius:3px;background:linear-
 nav button{background:#fff;color:var(--navy);border:1px solid var(--line)}
 nav button:hover{border-color:var(--acc1);color:var(--acc2)}
 nav button.active{background:linear-gradient(135deg,var(--acc1),var(--acc2));color:#fff;border-color:transparent}
+
+/* ===================================================================
+   v1.50 — LAYOUT "CONST-STYLE": σκούρα πλαϊνή στήλη + πλαίσιο εργασίας
+   Χρώματα HEXIS/BRB: navy #14213D-#3D4E6D · μπλε #5B84B8 · ανοιχτό #8FB4EE
+   · πορτοκαλί accent #E08A2E (BRB) για ενεργά/επιλεγμένα
+   =================================================================== */
+:root{
+ --sideBg1:#26324A;--sideBg2:#1B2439;--sideItem:#2E3B55;--sideItemOn:#3B4C6E;
+ --gold:#E0A22E;--goldDim:#B4801F;--brbBlue:#1F4E9C;
+ --workHead1:#4A5B7C;--workHead2:#3A4966;
+ --sideW:236px;
+}
+/* --- υφασμάτινο φόντο (όπως το πρότυπο) --- */
+body{
+ background:
+  url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="6" height="6"><path d="M0 0h6v6H0z" fill="%23e9ebef"/><path d="M0 0h3v3H0zM3 3h3v3H3z" fill="%23e3e6ec"/></svg>') repeat fixed,
+  linear-gradient(180deg,#EDEFF3,#E4E7ED) fixed !important;
+}
+/* --- κέλυφος --- */
+#shell{display:flex;align-items:stretch;gap:0;min-height:100vh}
+#side{flex:0 0 var(--sideW);width:var(--sideW);background:linear-gradient(180deg,var(--sideBg1),var(--sideBg2));
+ display:flex;flex-direction:column;gap:0;padding:12px 12px 14px;box-shadow:3px 0 14px rgba(20,33,61,.22);z-index:200}
+#work{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;padding:12px 14px 0}
+
+/* --- λογότυπο πλαϊνής --- */
+.sbrand{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);
+ border-radius:11px;padding:9px 10px;margin-bottom:9px}
+.sbrand svg{width:31px;height:31px;flex:0 0 auto}
+.sbrand .st{min-width:0}
+.sbrand .st b{display:block;color:#fff;font-size:13px;letter-spacing:.9px;line-height:1.15}
+.sbrand .st b i{font-style:normal;color:var(--lt)}
+.sbrand .st small{display:block;color:#8695B4;font-size:9.5px;letter-spacing:.04em;margin-top:1px}
+
+/* --- κουμπί «Έργα» με counter (όπως «Αρχεία 64») --- */
+.sfiles{display:flex;align-items:center;gap:9px;width:100%;background:rgba(255,255,255,.06);
+ border:1px solid rgba(255,255,255,.12);border-radius:11px;padding:10px 11px;margin-bottom:11px;
+ color:#EAF0FA;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .16s}
+.sfiles:hover{background:rgba(255,255,255,.13);border-color:rgba(255,255,255,.3)}
+.sfiles .sf-ico{font-size:15px}
+.sfiles .badge{margin-left:auto;background:var(--gold);color:#25190A;border-radius:999px;
+ padding:1px 9px;font-size:11.5px;font-weight:800;font-variant-numeric:tabular-nums}
+
+/* --- μενού --- */
+#tabs{display:flex;flex-direction:column;gap:3px;background:none;border:0;padding:0;margin:0;
+ position:static;backdrop-filter:none;overflow-y:auto;flex:1 1 auto;min-height:0;scrollbar-width:thin}
+#tabs::-webkit-scrollbar{width:5px}
+#tabs::-webkit-scrollbar-thumb{background:rgba(255,255,255,.16);border-radius:4px}
+#tabs .sgrp{color:#7286A8;font-size:9.5px;font-weight:800;letter-spacing:.11em;padding:11px 4px 4px}
+nav#tabs button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;
+ background:var(--sideItem);border:1px solid rgba(255,255,255,.05);border-radius:9px;
+ color:#C9D5EA;font-family:inherit;font-size:12.5px;font-weight:600;padding:0;padding-right:10px;
+ overflow:hidden;cursor:pointer;transition:all .15s;box-shadow:none;transform:none;position:relative}
+nav#tabs button .mi{flex:0 0 auto;width:31px;align-self:stretch;display:flex;align-items:center;justify-content:center;
+ background:rgba(0,0,0,.19);font-size:13px;padding:8px 0}
+nav#tabs button .ml{padding:8px 0;line-height:1.2}
+nav#tabs button:hover{background:var(--sideItemOn);color:#fff;border-color:rgba(255,255,255,.14);transform:none;box-shadow:none}
+nav#tabs button.active{background:var(--sideItemOn);color:#fff;border-color:rgba(224,162,46,.55);box-shadow:inset 3px 0 0 var(--gold)}
+nav#tabs button.active .mi{background:rgba(224,162,46,.20);color:var(--gold)}
+nav#tabs button.done::after{content:"";position:absolute;right:9px;width:7px;height:7px;border-radius:50%;background:var(--gold)}
+
+/* --- κάρτα έργου κάτω αριστερά --- */
+.sproj{margin-top:10px;background:#F7F8FA;border:1px solid rgba(255,255,255,.14);border-radius:11px;
+ padding:9px 10px;font-size:11px;color:#4A5670;box-shadow:0 3px 12px rgba(0,0,0,.22)}
+.sproj .sp-top{display:flex;align-items:flex-start;gap:6px}
+.sproj .sp-name{font-weight:800;color:var(--navy);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sproj .sp-logo{margin-left:auto;font-size:13px;font-weight:900;color:var(--brbBlue);letter-spacing:-.5px}
+.sproj .sp-logo i{font-style:normal;color:var(--gold)}
+.sproj .sp-row{display:flex;gap:5px;align-items:baseline;margin-top:4px;overflow:hidden}
+.sproj .sp-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sproj .sp-foot{display:flex;justify-content:space-between;margin-top:6px;padding-top:5px;
+ border-top:1px dashed #D5DBE6;color:#7A8598;font-size:10px}
+.sproj .sp-tot{font-weight:800;color:var(--brbBlue);font-variant-numeric:tabular-nums}
+
+/* --- μπάρα τίτλου περιοχής εργασίας --- */
+#workhead{display:flex;align-items:center;gap:10px;flex:0 0 auto;
+ background:linear-gradient(160deg,var(--workHead1),var(--workHead2));color:#fff;
+ border-radius:11px 11px 0 0;padding:10px 14px;box-shadow:0 2px 8px rgba(20,33,61,.16)}
+#workhead .wh-ico{font-size:16px;opacity:.92}
+#workhead h1{margin:0;font-size:15.5px;font-weight:700;letter-spacing:.2px;
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 auto;min-width:0}
+#workhead h1 em{font-style:normal;color:#B9CCEA;font-weight:400}
+#workhead .hdrtools{display:flex;gap:6px;flex:0 0 auto}
+#workhead .hdrtools .btn{padding:6px 10px;font-size:12px}
+
+/* --- σώμα περιοχής εργασίας --- */
+#workbody{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;
+ background:#FBFCFD;border:1px solid #D9DEE8;border-top:0;border-radius:0 0 11px 11px;
+ box-shadow:0 4px 16px rgba(20,33,61,.09);overflow:hidden}
+main#main{max-width:none;margin:0;padding:12px 14px 12px;flex:1 1 auto;min-height:0;overflow-y:auto}
+main#main.cols2:not(.haswide){overflow:hidden}
+footer{position:static;flex:0 0 auto;border-radius:0;background:linear-gradient(160deg,#3F4F6D,#33405A);
+ border-top:1px solid rgba(255,255,255,.08);padding:8px 14px;margin:0}
+#work > .wfoot{flex:0 0 auto;padding:6px 2px 8px;color:#8A93A4;font-size:10.5px;text-align:center}
+
+/* --- κάρτες/πίνακες στο ύφος του προτύπου --- */
+.card{background:#fff;border:1px solid #E1E6EE;border-radius:10px;box-shadow:0 1px 3px rgba(20,33,61,.05)}
+.card:hover{box-shadow:0 3px 12px rgba(20,33,61,.08)}
+h2{font-size:14.5px;color:var(--navy);border-bottom:1px solid #E1E6EE;padding-bottom:5px}
+h2::before{background:linear-gradient(180deg,var(--gold),var(--goldDim));width:4px;height:15px}
+th{background:#EDF0F5;color:#4E5B72;font-size:11.5px;font-weight:700;letter-spacing:.02em}
+tr.total td{background:#EFF3F9}
+.btn{background:linear-gradient(160deg,#54739E,#3F5A82)}
+.btn.sec{background:#fff;color:#41597E;border:1px solid #C7D2E2}
+.btn.sec:hover{background:#F2F5FA}
+
+/* --- διακόπτες ΝΑΙ/ΟΧΙ όπως στο πρότυπο --- */
+input[type=checkbox]{appearance:none;-webkit-appearance:none;width:46px;min-width:46px;height:21px;border-radius:999px;
+ background:#DFE3EA;border:1px solid #C8CFDA;position:relative;cursor:pointer;vertical-align:-5px;
+ transition:all .18s;padding:0;flex:0 0 auto}
+input[type=checkbox]::before{content:"ΟΧΙ";position:absolute;right:6px;top:50%;transform:translateY(-50%);
+ font-size:8.5px;font-weight:800;color:#8A94A6;letter-spacing:.03em}
+input[type=checkbox]::after{content:"";position:absolute;left:2px;top:1.5px;width:16px;height:16px;border-radius:50%;
+ background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28);transition:all .18s}
+input[type=checkbox]:checked{background:var(--gold);border-color:var(--goldDim)}
+input[type=checkbox]:checked::before{content:"ΝΑΙ";left:6px;right:auto;color:#4A3208}
+input[type=checkbox]:checked::after{left:calc(100% - 18px)}
+input[type=checkbox]:focus{outline:none;box-shadow:0 0 0 3px rgba(224,162,46,.25)}
+td input[type=checkbox]{margin:0 auto;display:block}
+label > input[type=checkbox]{width:46px!important;margin-right:9px!important}
+
+/* --- responsive: η πλαϊνή γίνεται οριζόντια σε μικρές οθόνες --- */
+@media(max-width:1049px){
+ #shell{flex-direction:column;min-height:0}
+ #side{flex:0 0 auto;width:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:7px;padding:9px 10px}
+ .sbrand{margin:0;flex:1 1 190px}
+ .sfiles{width:auto;margin:0;flex:0 0 auto}
+ #tabs{flex-direction:row;flex-wrap:wrap;gap:5px;order:9;width:100%;overflow:visible;flex:1 1 100%}
+ #tabs .sgrp{display:none}
+ nav#tabs button{width:auto;font-size:11.5px}
+ nav#tabs button .mi{width:26px;padding:6px 0}
+ nav#tabs button .ml{padding:6px 0}
+ .sproj{display:none}
+ #work{padding:10px}
+ main#main{overflow:visible}
+}
+@media(min-width:1050px){
+ html,body{height:100%;overflow:hidden}
+ body{display:block}
+ #shell{height:100vh;overflow:hidden}
+ #work{height:100vh;overflow:hidden}
+}
 </style>
 </head>
 <body>
@@ -284,42 +425,57 @@ nav button.active{background:linear-gradient(135deg,var(--acc1),var(--acc2));col
 })();
 </script>
 
-<header>
-  <div class="brand">
-    <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" rx="9" fill="#14213D"/><polygon points="24,4.5 40.9,14.2 40.9,33.8 24,43.5 7.1,33.8 7.1,14.2" fill="none" stroke="#8FB4EE" stroke-width="3" stroke-linejoin="round"/><text x="24" y="32" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="21" font-weight="800" fill="#FFFFFF">€</text></svg>
-    <div>
-      <h1>HEXIS <span>ΚΟΣΤΟΣ ΑΔΕΙΑΣ</span> <sup id="ver" style="font-size:10px;color:#5B6B85"></sup></h1>
-      <small>Προϋπολογισμός · Αμοιβές · Φορολογικά · ΕΦΚΑ · Έγγραφα · XML — hexis-app.gr</small>
-    </div>
+<div id="shell">
+ <aside id="side">
+  <div class="sbrand">
+   <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" rx="9" fill="#14213D"/><polygon points="24,4.5 40.9,14.2 40.9,33.8 24,43.5 7.1,33.8 7.1,14.2" fill="none" stroke="#8FB4EE" stroke-width="3" stroke-linejoin="round"/><text x="24" y="32" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="21" font-weight="800" fill="#FFFFFF">€</text></svg>
+   <div class="st"><b>HEXIS <i>ΚΟΣΤΟΣ</i></b><small>ΑΔΕΙΑΣ ΔΟΜΗΣΗΣ <span id="ver"></span></small></div>
   </div>
-  <div class="hdrtools">
+  <button type="button" class="sfiles" id="projBtn" title="Αποθήκευση / φόρτωση έργων">
+   <span class="sf-ico">📁</span><span>Έργα</span><span class="badge" id="projCount">0</span>
+  </button>
+  <nav id="tabs">
+   <div class="sgrp">ΣΤΟΙΧΕΙΑ</div>
+    <button data-tab="ergo"><span class="mi">🏠</span><span class="ml">Έργο</span></button>
+   <div class="sgrp">ΔΕΔΟΜΕΝΑ</div>
+    <button data-tab="proyp"><span class="mi">🧮</span><span class="ml">Προϋπολογισμός</span></button>
+    <button data-tab="amoives"><span class="mi">💶</span><span class="ml">Αμοιβές μηχανικών</span></button>
+    <button data-tab="efka"><span class="mi">🛡️</span><span class="ml">ΕΦΚΑ</span></button>
+    <button data-tab="aekk"><span class="mi">♻️</span><span class="ml">ΑΕΚΚ / ΣΔΑ</span></button>
+   <div class="sgrp">ΑΠΟΤΕΛΕΣΜΑΤΑ</div>
+    <button data-tab="foro"><span class="mi">🧾</span><span class="ml">Φορολογικά</span></button>
+    <button data-tab="xrono"><span class="mi">📅</span><span class="ml">Χρονοδιάγραμμα</span></button>
+    <button data-tab="docs"><span class="mi">📄</span><span class="ml">Έγγραφα</span></button>
+    <button data-tab="export"><span class="mi">⬇️</span><span class="ml">Εξαγωγή / XML</span></button>
+  </nav>
+  <div class="sproj" id="sproj"></div>
+ </aside>
+
+ <section id="work">
+  <div id="workhead">
+   <span class="wh-ico" id="whIco">🏠</span>
+   <h1 id="whTitle">Έργο</h1>
+   <div class="hdrtools">
     <button type="button" class="btn sm sec" id="undoBtn" title="Αναίρεση τελευταίας αλλαγής">↩️ Αναίρεση</button>
     <button type="button" class="btn sm sec" id="clrBtn" title="Μηδενισμός όλων των ποσοτήτων (μ², ΑΕΚΚ)">🧹 Μηδενισμός</button>
     <button type="button" class="btn sm sec" id="wizBtn" title="Οδηγός συμπλήρωσης βήμα-βήμα">🧭 Οδηγός</button>
-    <button type="button" class="btn sm sec" id="projBtn" title="Αποθήκευση / φόρτωση έργων">📁 Έργα</button>
+   </div>
   </div>
-  <nav id="tabs">
-    <button data-tab="ergo" class="active">🏠 Έργο</button>
-    <button data-tab="proyp">🧮 Προϋπ/σμός</button>
-    <button data-tab="amoives">💶 Αμοιβές</button>
-    <button data-tab="foro">🧾 Φόροι</button>
-    <button data-tab="efka">🛡️ ΕΦΚΑ</button>
-    <button data-tab="aekk">♻️ ΑΕΚΚ/ΣΔΑ</button>
-    <button data-tab="xrono">📅 Χρονοδ/μα</button>
-    <button data-tab="docs">📄 Έγγραφα</button>
-    <button data-tab="export">⬇️ Εξαγωγή</button>
-  </nav>
-</header>
-<main id="main"></main>
-<footer>
-  <span>ΣΥΝΟΛΙΚΟ ΕΚΤΙΜΩΜΕΝΟ ΚΟΣΤΟΣ ΑΔΕΙΑΣ</span>
-  <b id="grand">—</b>
-</footer>
+  <div id="workbody">
+   <main id="main"></main>
+   <footer>
+    <span>ΣΥΝΟΛΙΚΟ ΕΚΤΙΜΩΜΕΝΟ ΚΟΣΤΟΣ ΑΔΕΙΑΣ</span>
+    <b id="grand">—</b>
+   </footer>
+  </div>
+  <div class="wfoot">BRB DEVELOPMENT MON. I.K.E. · hexis-app.gr</div>
+ </section>
+</div>
 <div id="printarea"></div>
 
 <script>
 "use strict";
-const VER = "v1.47";
+const VER = "v1.50";
 function defStat(){ return { dimos:"", tk:"", oikopedo:0, ogkos:0, orofoi:0, katoik:0, domatia:0, parking:0, ydreysi:"Δημοτικό δίκτυο", apoxeteysi:"Δημοτικό δίκτυο", thermansi:"Αντλία θερμότητας", energeia:"ΔΕΔΔΗΕ (ρεύμα)" };}
 function defAekk(){ return {
  newOn:true,
@@ -339,34 +495,42 @@ document.getElementById("ver").textContent = VER;
 const DEF = {
  lambda: 0.23368,         // Συντελεστής λ ΤΕΕ (κωδ. 20121 — σταθερός από το 2012)
  eta: 118.00,             // Ενιαία Τιμή Αφετηρίας ΤΕΕ €/μ² (ΥΑ ΦΕΚ 56/25-01-2012)
- tekmHm: 60.00,           // Ημερομίσθιο βάσης ΕΦΚΑ (ΣΣΕ οικοδόμων/τεκμαρτό — ΔΙΟΡΘΩΣΕ)
- efkaPct: 60.84,          // Συνολικό ποσοστό εισφορών οικοδομικών % (εργοδ.+ασφ. — ΔΙΟΡΘΩΣΕ με τρέχουσα εγκύκλιο)
+ // v1.49 — τιμές 2026:
+ tekmHm: 41.09,           // Ημερομίσθιο βάσης. Νόμιμο κατώτατο εργατοτεχνιτών από 01.04.2026 = 41,09 € (ΚΥΑ 8934/2026, ΕΦΚΑ εγκ.12/2026).
+                          // Εναλλακτικά ΣΣΕ οικοδόμων 28.04.2022: τεχνίτης 41,00 · βοηθός 38,00 · εργάτης 35,00 (άγαμοι, χωρίς τριετίες).
+ efkaPct: 74.247,         // ΚΠΚ 781 — σύνολο εργαζ. 16,820% + εργοδ. 57,427% (ΕΦΚΑ εγκ.38/2024· επιβεβαίωση στο ΕΦΚΑ 612126/29-03-2026)
+ efkaProkTH: 34.20,       // ΤΗ 8ης ασφαλιστικής κλάσης — βάση προκαταβολής 1% (ΕΦΚΑ 612126/2026)
  fpa: 24, parakr: 10, parakrTopo: 4, teeKrat: 0,  // ΦΠΑ% · ΦΕΜ 10% μελ./επιβλ. + 4% τοπογραφικά (ν.4172/13 άρθ.69§4, ΠΟΛ 1025/14) · κράτηση ΤΕΕ ‰
  dimosFee: 0,             // τέλη δήμου/κατάληψης (χειροκίνητα)
  // Χρήσεις: συμβατική τιμή €/μ² (για συμβατικό προϋπ/σμό ΤΕΕ) — προεπιλογές, διορθώνονται
  // Μελέτες κατά ΤΕΕ (κωδικοί task/κ/μ/κατηγορία από πραγματική υποβολή e-Άδειες)
  // Αμοιβή = Βάση(Σ×%Σ)·β/100·bf, β=κ+μ/∛(Βάση/λ) — π.δ.696/74 όπως στο σύστημα ΤΕΕ
+ // v1.48: %Σ βαθμονομημένα σε 4 πραγματικές υποβολές e-Άδειες (xml2tee): βάση κλάδου = %Σ επί ΟΛΟΥ του Σ.
+ // Αρχιτεκτονικά 100%, Στατικά 30%, Θερμομόνωση 5%, Παθ.πυρ. 2%, Ηλεκτρ. 6%, Ύδρ./Αποχ. 3%, Θέρμ. 7%, Κλιμ. 12%, Εν.πυρ. 4%.
+ // noEpim: χωρίς προσαύξηση Επιμέτρησης (12000) · noInc: χωρίς increment 500 προσθήκης (όπως στις πραγματικές υποβολές).
  studies: [
-  {s:"Αρχιτεκτονικά",          tM:101, tE:102, share:59.50, mk:1.8, mm:48, mc:3, ek:1.3, em:25, ec:3, bf:1, on:true, mEng:1, eEng:2},
-  {s:"Στατικά",                tM:201, tE:202, share:17.85, mk:3.7, mm:35, mc:4, ek:2.0, em:28, ec:4, bf:1, on:true, aseismic:true, mEng:1, eEng:2},
-  {s:"Θερμομόνωση",            tM:401, tE:402, share:2.97,  mk:2.0, mm:35, mc:2, ek:1.3, em:25, ec:2, bf:1, on:true, mEng:1, eEng:2},
-  {s:"Παθητική πυροπροστασία", tM:501, tE:502, share:1.19,  mk:2.0, mm:35, mc:2, ek:1.3, em:25, ec:2, bf:1, on:true, mEng:1, eEng:2},
-  {s:"Ηλεκτρικές εγκ/σεις",    tM:301, tE:302, share:3.57,  mk:2.3, mm:45, mc:3, ek:1.3, em:25, ec:3, bf:1, on:true, mEng:1, eEng:2},
-  {s:"Ύδρευση",                tM:601, tE:602, share:1.78,  mk:2.0, mm:35, mc:2, ek:1.3, em:25, ec:2, bf:1, on:true, mEng:1, eEng:2},
-  {s:"Αποχέτευση",             tM:701, tE:702, share:1.78,  mk:2.0, mm:35, mc:2, ek:1.3, em:25, ec:2, bf:1, on:true, mEng:1, eEng:2},
-  {s:"Θέρμανση",               tM:1101,tE:1102,share:4.16,  mk:2.3, mm:45, mc:3, ek:1.3, em:25, ec:3, bf:1, on:true, mEng:1, eEng:2},
-  {s:"Κλιματισμός",            tM:1201,tE:1202,share:7.14,  mk:2.5, mm:45, mc:4, ek:2.0, em:28, ec:4, bf:1, on:false, mEng:1, eEng:2},
-  {s:"Ενεργητική πυροπροστασία",tM:1001,tE:1002,share:2.38, mk:2.3, mm:45, mc:3, ek:1.3, em:25, ec:3, bf:1, on:false, mEng:1, eEng:2},
-  {s:"Χρονικός προγραμματισμός",tM:1601,tE:1609,share:100,  mk:2.3, mm:45, mc:0, ek:2.3, em:45, ec:0, bf:0.2, on:true, mEng:1, eEng:2},
-  {s:"Αποτύπωση υφισταμένου",   tM:103, tE:103, share:59.50, mk:1.8, mm:48, mc:3, ek:0,   em:0,  ec:0, bf:0.75,on:false},
-  {s:"Τεύχη δημοπράτησης",      tM:104, tE:104, share:59.50, mk:0.5, mm:10, mc:0, ek:0,   em:0,  ec:0, bf:1, on:false, mEng:1, eEng:2},
-  {s:"Ανελκυστήρας",            tM:801, tE:802, share:2.50,  mk:2.5, mm:45, mc:4, ek:2.0, em:28, ec:4, bf:1, on:false, mEng:1, eEng:2},
-  {s:"Καύσιμα αέρια",           tM:901, tE:902, share:1.50,  mk:2.3, mm:45, mc:3, ek:1.3, em:25, ec:3, bf:1, on:false, mEng:1, eEng:2},
-  {s:"Διαμόρφωση περιβ. χώρου", tM:1301,tE:1302,share:5.00,  mk:2.0, mm:35, mc:2, ek:1.3, em:25, ec:2, bf:1, on:false, mEng:1, eEng:2},
-  {s:"Αποχέτευση ομβρίων",      tM:1501,tE:1502,share:1.00,  mk:2.0, mm:35, mc:2, ek:1.3, em:25, ec:2, bf:1, on:false, mEng:1, eEng:2},
+  {s:"Αρχιτεκτονικά",          tM:101, tE:102, share:100,  mk:1.8, mm:48, mc:3, ek:1.3, em:25, ec:3, bf:1, on:true, mEng:1, eEng:2},
+  {s:"Στατικά",                tM:201, tE:202, share:30,   mk:3.7, mm:35, mc:4, ek:2.0, em:28, ec:4, bf:1, on:true, aseismic:true, mEng:1, eEng:2},
+  {s:"Θερμομόνωση",            tM:401, tE:402, share:5,    mk:2.0, mm:35, mc:2, ek:1.3, em:25, ec:2, bf:1, on:true, mEng:1, eEng:2},
+  {s:"Παθητική πυροπροστασία", tM:501, tE:502, share:2,    mk:2.0, mm:35, mc:2, ek:1.3, em:25, ec:2, bf:1, on:true, mEng:1, eEng:2},
+  {s:"Ηλεκτρικές εγκ/σεις",    tM:301, tE:302, share:6,    mk:2.3, mm:45, mc:3, ek:1.3, em:25, ec:3, bf:1, on:true, mEng:1, eEng:2},
+  {s:"Ύδρευση",                tM:601, tE:602, share:3,    mk:2.0, mm:35, mc:2, ek:1.3, em:25, ec:2, bf:1, on:true, mEng:1, eEng:2},
+  {s:"Αποχέτευση",             tM:701, tE:702, share:3,    mk:2.0, mm:35, mc:2, ek:1.3, em:25, ec:2, bf:1, on:true, mEng:1, eEng:2},
+  {s:"Θέρμανση",               tM:1101,tE:1102,share:7,    mk:2.3, mm:45, mc:3, ek:1.3, em:25, ec:3, bf:1, on:true, mEng:1, eEng:2},
+  {s:"Κλιματισμός",            tM:1201,tE:1202,share:12,   mk:2.5, mm:45, mc:4, ek:2.0, em:28, ec:4, bf:1, on:false, mEng:1, eEng:2},
+  {s:"Ενεργητική πυροπροστασία",tM:1001,tE:1002,share:4,   mk:2.3, mm:45, mc:3, ek:1.3, em:25, ec:3, bf:1, on:false, mEng:1, eEng:2},
+  {s:"Χρονικός προγραμματισμός",tM:1601,tE:1609,share:100, mk:2.3, mm:45, mc:0, ek:2.3, em:45, ec:0, bf:0.2, on:true, noEpim:true, noInc:true, mEng:1, eEng:2},
+  {s:"Αποτύπωση υφισταμένου",   tM:103, tE:103, share:100, mk:1.8, mm:48, mc:3, ek:0,   em:0,  ec:0, bf:0.75,on:false, noEpim:true, noInc:true}, // βάση: Σ ΥΦΙΣΤΑΜΕΝΟΥ — προσάρμοσε το %Σ αν το υφιστάμενο ≠ Σ έργου
+  {s:"Τεύχη δημοπράτησης",      tM:104, tE:104, share:100, mk:0.5, mm:10, mc:0, ek:0,   em:0,  ec:0, bf:0.10, on:false, noEpim:true, noInc:true, mEng:1, eEng:2}, // 2 subtasks × factor 0,05
+  {s:"Διοίκηση έργου",          tM:1711,tE:1711,share:100, mk:2.3, mm:45, mc:0, ek:0,   em:0,  ec:0, bf:0.7, on:false, noEpim:true, noInc:true, mEng:1, eEng:2},
+  {s:"Ανελκυστήρας",            tM:801, tE:802, share:4.2, mk:2.5, mm:45, mc:4, ek:2.0, em:28, ec:4, bf:1, on:false, mEng:1, eEng:2},
+  {s:"Καύσιμα αέρια",           tM:901, tE:902, share:2.5, mk:2.3, mm:45, mc:3, ek:1.3, em:25, ec:3, bf:1, on:false, mEng:1, eEng:2},
+  {s:"Διαμόρφωση περιβ. χώρου", tM:1401,tE:1402,share:2,   mk:2.9, mm:63, mc:2, ek:1.5, em:38, ec:2, bf:1, on:false, mEng:1, eEng:2}, // κ/μ κατά υποβολή 5412 (2,12% Σ)
+  {s:"Αποχέτευση ομβρίων",      tM:1501,tE:1502,share:1.7, mk:2.0, mm:35, mc:2, ek:1.3, em:25, ec:2, bf:1, on:false, mEng:1, eEng:2},
  ],
+ epimPct: 40,         // Προσαύξηση Επιμέτρησης (increment ΤΕΕ 12000) — 40% σε ΟΛΕΣ τις επιβλέψεις (πλην noEpim)
  kenakPct: 20,        // ΚΕΝΑΚ 5601 = 20% επί των αμοιβών μελετών των κλάδων (όπως στο ΤΕΕ)
- topoFlat: 450,       // Τοπογραφικό 2001 — κατ' αποκοπή/μονάδες (method 2)
+ topoFlat: 0,         // Τοπογραφικό 2001 — κατ' αποκοπή/μονάδες (method 2). v1.49: 0 by default ώστε κενό έργο = 0 € (υπολόγισέ το αναλυτικά ή βάλε ποσό)
  agreedFee: 0,        // Συμφωνηθείσα αμοιβή (ελεύθερη διαπραγμάτευση ν.3919/2011) — 0 = χρήση νόμιμης
  topo: null,          // αναλυτικός υπολογισμός τοπογραφικού (ΠΔ 696/74 άρθ.5-18)
  incProsthiki: false, // Increment 500: Προσθήκη/Επέκταση/Επισκευή +30%
@@ -506,8 +670,8 @@ let D = load() || {
   {id:2, name:"", eid:"Πολιτικός Μηχανικός", am:"", afm:""},
  ],
  docEng:1,
- lambda:DEF.lambda, tekmHm:DEF.tekmHm, efkaPct:DEF.efkaPct,
- fpa:DEF.fpa, parakr:DEF.parakr, teeKrat:DEF.teeKrat, dimosFee:DEF.dimosFee, eadeiesFee:0,
+ lambda:DEF.lambda, tekmHm:DEF.tekmHm, efkaPct:DEF.efkaPct, efkaProkTH:DEF.efkaProkTH,
+ fpa:DEF.fpa, parakr:DEF.parakr, parakrTopo:DEF.parakrTopo, teeKrat:DEF.teeKrat, dimosFee:DEF.dimosFee, eadeiesFee:0, epimPct:DEF.epimPct,
  ektosSxediou:false, prasMode:"p5", analytP:0, aekkKg:50, aekkEur:9, aekkEgy:0, aekk: defAekk(), stat: defStat(), allagi:false, scen:[],
  uses: [ {...USES_CATALOG[1], m2:0}, {...USES_CATALOG[12], m2:0}, {...USES_CATALOG[11], m2:0} ],
  eta: DEF.eta, studies: JSON.parse(JSON.stringify(DEF.studies)), kenakPct: DEF.kenakPct, topoFlat: DEF.topoFlat, incProsthiki: false, agreedFee: 0, topo: defTopo(),
@@ -580,6 +744,17 @@ function load(){
   const d = JSON.parse(localStorage.getItem(KEY_MAIN));
   if(!d) return null;
   if(!d._v2){ d.works = JSON.parse(JSON.stringify(DEF.works)); d.studies = JSON.parse(JSON.stringify(DEF.studies)); d._v2 = 1; }
+  if(!d._v3){ // v1.48: νέα %Σ βαθμονομημένα σε πραγματικές υποβολές e-Άδειες (τα παλιά ×0,595 υποεκτιμούσαν όλες τις αμοιβές ~30%)
+   const oldOn = Array.isArray(d.studies) ? d.studies.filter(s=>s.on).map(s=>s.tM) : null;
+   d.studies = JSON.parse(JSON.stringify(DEF.studies));
+   if(oldOn) d.studies.forEach(s=>{ s.on = oldOn.includes(s.tM) || (s.tM===1401 && oldOn.includes(1301)); });
+   d.epimPct = DEF.epimPct; d._v3 = 1;
+  }
+  if(!d._v4){ // v1.49: επικαιροποίηση παραμέτρων ΕΦΚΑ 2026 — μόνο αν ο χρήστης δεν τις είχε αλλάξει από τις παλιές προεπιλογές
+   if(+d.efkaPct===60.84 || !isFinite(+d.efkaPct)) d.efkaPct = DEF.efkaPct;
+   if(+d.tekmHm===60 || !isFinite(+d.tekmHm)) d.tekmHm = DEF.tekmHm;
+   d._v4 = 1;
+  }
   if(d.ektosSxediou===undefined){ d.ektosSxediou=false; d.aekkKg=50; d.aekkEur=9; d.aekkEgy=0; }
   if(d.prasMode===undefined){ d.prasMode="p5"; d.analytP=0; }
   if(d.parakrTopo===undefined){ d.parakrTopo=4; if(+d.parakr===20) d.parakr=10; } // ΦΕΜ αντί γενικής παρακράτησης 20%
@@ -625,12 +800,13 @@ const esc = (s)=> String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").repla
 /* ============================================================
    ΥΠΟΛΟΓΙΣΜΟΙ
    ============================================================ */
-function totM2(){ return D.uses.reduce((a,x)=> a + (+x.m2||0), 0); }
+const m2of = (x)=> Math.max(0, +x.m2||0);   // v1.49: αρνητικά εμβαδά αγνοούνται σε όλους τους υπολογισμούς
+function totM2(){ return D.uses.reduce((a,x)=> a + m2of(x), 0); }
 function useBudget(x){
- const nv = (+x.m2||0) * (+D.eta||118) * (+x.se||1);
+ const nv = m2of(x) * (+D.eta||118) * Math.max(0, +x.se||1);
  if(x.kind!=="chg") return nv;                      // ΝΕΟ ή ΠΡΟΣΘΗΚΗ: πλήρης αξία
  const oldSe = (x.oldIdx!=null && x.oldIdx>=0 && USES_CATALOG[x.oldIdx]) ? +USES_CATALOG[x.oldIdx].se : 0;
- const ov = (+x.m2||0) * (+D.eta||118) * oldSe;
+ const ov = m2of(x) * (+D.eta||118) * oldSe;
  return Math.max(0, nv - ov); // ΑΛΛΑΓΗ ΧΡΗΣΗΣ: διαφορά νέας − παλαιάς, ελάχιστο 0
 }
 function usesTotal(which){
@@ -638,10 +814,11 @@ function usesTotal(which){
   const se = which==="old"
    ? (x.kind==="chg" ? ((x.oldIdx!=null && x.oldIdx>=0 && USES_CATALOG[x.oldIdx]) ? +USES_CATALOG[x.oldIdx].se : 0) : (+x.se||1))
    : (+x.se||1);
-  return a + (+x.m2||0) * (+D.eta||118) * se;
+  return a + m2of(x) * (+D.eta||118) * Math.max(0, se);
  }, 0);
 }
 function symbatikos(){ if(+D.eadeiesS > 0) return +D.eadeiesS; return D.uses.reduce((a,x)=> a + useBudget(x), 0); }
+function negM2(){ return D.uses.some(x=> (+x.m2||0) < 0); }   // για προειδοποίηση στην οθόνη
 
 function beta(base, l, k, m){ if(base<=0||l<=0) return 0; return k + m/Math.cbrt(base/(1000*l)); } // ΤΕΕ: β = κ + μ/³√(Σ/233,68), 233,68 = 1000·λ
 function feePart(base, l, k, m, bf){ return base * beta(base,l,k,m) / 100 * (bf||1); }
@@ -661,16 +838,19 @@ function topoCalc(){
  const rows = []; let sum = 0;
  const add = (per, qty, mon, drx, extra)=>{ if(qty<=0||drx<=0) return; const e = qty*drx*l*(extra||1); rows.push({per, qty, mon, drx, e}); sum += e; };
  // Αποτύπωση
- const tab = TOPO_APOT[t.mode]||{}; const kl = tab[t.klim] || tab[Object.keys(tab)[0]] || {};
+ const tab = TOPO_APOT[t.mode]||{};
+ const klimOk = Object.prototype.hasOwnProperty.call(tab, t.klim);   // v1.49: εντοπισμός μη έγκυρης κλίμακας για τη συγκεκριμένη περιοχή
+ const klimUsed = klimOk ? t.klim : Object.keys(tab)[0];
+ const kl = tab[klimUsed] || {};
  let base = t.mode==="ektos" ? (kl[t.klisi]||0) : (kl[t.kal]||0);
  let extra = 1;
  if(t.mode==="entos"){ extra += ({A:0,B:.10,G:.40,D:.75,E:1.00})[t.klisi]||0; }              // άρθ.9§2
  if(t.mode==="astiko"){ extra += (({A:0,B:.10,G:.40,D:.75,E:1.00})[t.klisi]||0)*0.5; }       // άρθ.10§2 (50%)
- add(`Αποτύπωση ${t.mode==="ektos"?"υπαίθρου (άρθ.8)":t.mode==="entos"?"κατοικημένης (άρθ.9)":"αστική ορθογ. (άρθ.10)"} 1:${t.klim}`, +t.strem, "στρ", base, extra);
- if(t.ypsom && +t.strem>0 && base>0) add("Υψομέτρηση (60% αποτύπωσης — άρθ.8§2)", +t.strem, "στρ", base*0.60, extra);
+ add(`Αποτύπωση ${t.mode==="ektos"?"υπαίθρου (άρθ.8)":t.mode==="entos"?"κατοικημένης (άρθ.9)":"αστική ορθογ. (άρθ.10)"} 1:${klimUsed}`, Math.max(0,+t.strem||0), "στρ", base, extra);
+ if(t.ypsom && +t.strem>0 && base>0) add("Υψομέτρηση (60% αποτύπωσης — άρθ.8§2)", Math.max(0,+t.strem||0), "στρ", base*0.60, extra);
  // Όμορα — κτηματογραφική
  const om = (TOPO_OMORA[t.mode]||{})[t.klim] || (TOPO_OMORA[t.mode]||{})["500"] || 0;
- add("Κτηματογραφική αποτύπωση ομόρων (άρθ.13/14/15)", +t.omora, "στρ", om);
+ add("Κτηματογραφική αποτύπωση ομόρων (άρθ.13/14/15)", Math.max(0,+t.omora||0), "στρ", om);
  // Εξάρτηση — τριγωνισμοί (άρθ.5)
  add("Τριγωνομετρικό σημείο IV τάξης", +t.trigIV, "τεμ", 4550);
  add("Εμπροσθοτομία/Οπισθοτομία", +t.trigTomi, "τεμ", 1950);
@@ -680,7 +860,7 @@ function topoCalc(){
  // Εφαρμογή ρυμοτομικών (άρθ.18)
  add("Εφαρμογή γραμμών — σημεία αξόνων οδών", +t.rymN, "τεμ", 390);
  add("Κορυφές Ο.Τ. / πολυγώνων", +t.otN, "τεμ", 104);
- return { rows, sum, min: 5000*l };
+ return { rows, sum, min: 5000*l, klimUsed, klimOk };
 }
 
 /* ===== Εισαγωγή μηχανικών από το HEXIS Hub (Supabase) ===== */
@@ -735,19 +915,21 @@ function amoivesCalc(){
  const _bT = D.uses.reduce((a,x)=>a+useBudget(x),0);
  const incP = _bT>0 ? D.uses.reduce((a,x)=>a+useBudget(x)*((x.kind==="pros"||x.kind==="episk")?1.30:1.00),0)/_bT : (D.incProsthiki?1.30:1.00);
  let mel=0, epi=0; const rows=[];
+ const epim = 1 + ((+D.epimPct||0)/100);   // v1.48: increment 12000 «Επιμέτρησης» +40% — σε ΟΛΕΣ τις επιβλέψεις (πραγμ. υποβολές e-Άδειες)
  for(const st of D.studies){
   if(!st.on){ rows.push({...st, melF:0, epiF:0}); continue; }
   const base = S * ((+st.share||0)/100);
-  let melF = feePart(base, l, +st.mk, +st.mm, +st.bf) * incP;
-  if(st.aseismic) melF *= 1.80;            // αντισεισμικός: μελέτη στατικών +80% (τκ ΤΕΕ)
-  let epiF = feePart(base, l, +st.ek, +st.em, +st.bf) * incP;
-  if(st.aseismic) epiF *= 1.40;            // αντισεισμικός: επίβλεψη στατικών +40% (ανάλυση ΤΕΕ)
+  const inc = st.noInc ? 1 : incP;         // v1.48: χρονικός/αποτύπωση/τεύχη/διοίκηση ΧΩΡΙΣ increment 500 (όπως στις πραγμ. υποβολές)
+  let melF = feePart(base, l, +st.mk, +st.mm, +st.bf) * inc;
+  if(st.aseismic) melF *= 1.80;            // αντισεισμικός (increment 30): ΜΟΝΟ μελέτη στατικών +80%
+  let epiF = feePart(base, l, +st.ek, +st.em, +st.bf) * inc;
+  if(!st.noEpim) epiF *= epim;             // v1.48: το ×1,40 της επίβλεψης στατικών ήταν στην πραγματικότητα η καθολική Επιμέτρηση (12000)
   mel += melF; epi += epiF;
   rows.push({...st, base, melF, epiF});
  }
- // ΚΕΝΑΚ (5601): όπως στο ΤΕΕ — ανά κλάδο, με τα κ/μ του 5601 (2.3/45) επί της βάσης του κλάδου, σε factor %
+ // ΚΕΝΑΚ (5601): όπως στο ΤΕΕ — ανά κλάδο, με τα κ/μ ΤΟΥ ΚΛΑΔΟΥ επί της βάσης του (v1.48, βλ. subtasks 5601 πραγμ. υποβολών)
  const kenak = rows.filter(r=>r.on && [101,301,601,701,1101,1201,1001].includes(r.tM))
-   .reduce((a,r)=> a + feePart(r.base, l, 2.3, 45, 1), 0) * ((+D.kenakPct||0)/100) * incP;
+   .reduce((a,r)=> a + feePart(r.base, l, +r.mk, +r.mm, 1), 0) * ((+D.kenakPct||0)/100) * incP;
  mel += kenak;
  rows.push({s:"ΚΕΝΑΚ (Μελ. Ενεργειακής Απόδοσης)", tM:5601, on:true, melF:kenak, epiF:0, isKenak:true});
  // Τοπογραφικό (2001) — κατ' αποκοπή
@@ -780,15 +962,16 @@ function aekkCalc(){
   if(r) r.t += t; else rows.push({eka, per, t});
  };
  // Εκσκαφές: όγκος × πυκνότητα, μείον επιτόπου αξιοποίηση (αυτοδιαχείριση χωμάτων)
- const excGross = A.excOn ? (+A.excM3||0) * (+A.excDens||0) : 0;
- const excReuse = A.excOn ? Math.min((+A.excReuseM3||0) * (+A.excDens||0), excGross) : 0;
+ const nn = (v)=> Math.max(0, +v||0);   // v1.49: αρνητικές ποσότητες αγνοούνται
+ const excGross = A.excOn ? nn(A.excM3) * nn(A.excDens) : 0;
+ const excReuse = A.excOn ? Math.min(nn(A.excReuseM3) * nn(A.excDens), excGross) : 0;
  if(A.excOn) add("17 05 04", "Χώματα και πέτρες (εκτός 17 05 03)", excGross - excReuse);
  // Νέα κατασκευή: συνολικά μ² × kg/μ²
- if(A.newOn){ const t = totM2() * ((+D.aekkKg||0)/1000); EKA_NEW.forEach(([e,p,f]) => add(e, p, t*f)); }
+ if(A.newOn){ const t = totM2() * (nn(D.aekkKg)/1000); EKA_NEW.forEach(([e,p,f]) => add(e, p, t*f)); }
  // Κατεδάφιση: μ² × t/μ²
- if(A.demOn){ const t = (+A.demM2||0) * (+A.demT||0); EKA_DEM.forEach(([e,p,f]) => add(e, p, t*f)); }
+ if(A.demOn){ const t = nn(A.demM2) * nn(A.demT); EKA_DEM.forEach(([e,p,f]) => add(e, p, t*f)); }
  // Ανακαίνιση: μ² × t/μ²
- if(A.renOn){ const t = (+A.renM2||0) * (+A.renT||0); EKA_REN.forEach(([e,p,f]) => add(e, p, t*f)); }
+ if(A.renOn){ const t = nn(A.renM2) * nn(A.renT); EKA_REN.forEach(([e,p,f]) => add(e, p, t*f)); }
 
  const excT  = rows.filter(r => r.eka.startsWith("17 05")).reduce((a,r)=>a+r.t, 0);
  const restT = rows.reduce((a,r)=>a+r.t, 0) - excT;
@@ -812,11 +995,26 @@ function foroCalc(){
  const other = (+D.dimosFee||0) + (+D.eadeiesFee||0);
  return {a, billed, fpa, parakr, tee, prasino, aekk, other, cash: billed + fpa + tee + prasino + aekk.cost + other};
 }
-function mzms(days){ // Μέσος Ζυγισμένος Μειωτικός Συντελεστής (εγκ. 13/99)
- if(days<=3000) return 1.00;
- if(days<=10000) return 0.90;
- if(days<=30000) return 0.85;
+/* Μέσος Ζυγισμένος Μειωτικός Συντελεστής — ΕΝΙΑΙΟΣ επί του συνόλου (ΟΧΙ κλιμακωτός).
+   Πίνακας ΕΦΚΑ 612126/29-03-2026 (νέο Μητρώο Οικοδομοτεχνικών Έργων):
+     1–3.000 → 1,00 · 3.001–10.000 → 0,90 · 10.001–30.000 → 0,85 · 30.001+ → 0,80
+   Εφαρμόζεται μόνο όταν τα ημερομίσθια Πίνακα Ι ή/και ΙΙ ΥΠΕΡΒΑΙΝΟΥΝ τις 3.000, και μετά
+   την αφαίρεση τυχόν μειώσεων (μείωση κατά φάση / εφαπτόμενη μείωση).
+   v1.49: επαναφορά σε ενιαίο συντελεστή — η κλιμακωτή εκδοχή του v1.48 ήταν λανθασμένη. */
+function mzms(days){
+ if(days <= 3000)  return 1.00;
+ if(days <= 10000) return 0.90;
+ if(days <= 30000) return 0.85;
  return 0.80;
+}
+/* Ο ενιαίος συντελεστής δημιουργεί ασυνέχειες: λίγο πάνω από κάθε όριο, τα μειωμένα ημερομίσθια
+   βγαίνουν ΛΙΓΟΤΕΡΑ από ό,τι λίγο κάτω. Επιστρέφει το «παράθυρο» ανωμαλίας για προειδοποίηση. */
+function mzmsCliff(raw){
+ const B = [[3000,0.90],[10000,0.85],[30000,0.80]];
+ for(const [lim, k] of B){
+  if(raw > lim && raw * k < lim) return {lim, k, upTo: Math.ceil(lim/k), loss: lim - raw*k};
+ }
+ return null;
 }
 function efkaMatFor(mode){
  if(mode==="2a"){ if(!D.efkaMat2a) D.efkaMat2a = JSON.parse(JSON.stringify(DEF.efkaMat2a)); return D.efkaMat2a; }
@@ -827,25 +1025,28 @@ function efkaMatFor(mode){
 function efkaCalc(){
  const mode = D.efkaMode || "1";
  if(!D.efkaCols) D.efkaCols = DEF.efkaCols.slice();
+ // Προκαταβολή εισφορών (άρθ.39 Κ.Α. — ΕΦΚΑ 612126/2026): 1% των ημερομισθίων × ΤΗ 8ης ασφ. κλάσης × ΚΠΚ 781.
+ // Καταβάλλεται ΠΡΙΝ την έκδοση της άδειας και συμψηφίζεται με την 1η ΑΠΔ.
+ const prok = (d)=> d * 0.01 * (+D.efkaProkTH||0) * ((+D.efkaPct||0)/100);
  if(mode==="3"){
   if(!D.efka3) D.efka3 = JSON.parse(JSON.stringify(DEF.efka3));
-  const rows = D.efka3.map(r=>{ const lab = (+r.b||0)*(+r.p||0)/100; return {w:r.w, b:+r.b||0, p:+r.p||0, lab}; });
+  const rows = D.efka3.map(r=>{ const lab = Math.max(0,+r.b||0)*Math.max(0,+r.p||0)/100; return {w:r.w, b:Math.max(0,+r.b||0), p:Math.max(0,+r.p||0), lab}; });
   const labor = rows.reduce((a,r)=>a+r.lab,0);
   const days = (+D.tekmHm>0)? labor/(+D.tekmHm) : 0;
   const cost = labor * ((+D.efkaPct||0)/100);
-  return {mode, rows3:rows, labor, days, k:1, raw:days, cost};
+  return {mode, rows3:rows, labor, days, k:1, raw:days, cost, cliff:null, prok:prok(days)};
  }
  const mat = efkaMatFor(mode);
  const rows=[]; let raw=0;
  for(const r of mat){
-  const m2 = +r.m2||0;
-  const d = (r.c||[]).reduce((a,c)=> a + m2*(+c||0), 0);
+  const m2 = Math.max(0, +r.m2||0);                       // v1.49: αρνητικά μ² αγνοούνται
+  const d = (r.c||[]).reduce((a,c)=> a + m2*Math.max(0,+c||0), 0);
   raw += d; rows.push({x:r.x, m2, d});
  }
  const k = mzms(raw);
  const days = raw * k;
  const cost = days * (+D.tekmHm||0) * ((+D.efkaPct||0)/100);
- return {mode, rows, raw, k, days, cost};
+ return {mode, rows, raw, k, days, cost, cliff: mzmsCliff(raw), prok: prok(days)};
 }
 function grandTotal(){
  const f = foroCalc(); const e = efkaCalc();
@@ -885,6 +1086,9 @@ function fixD(){ // v1.31: συμπλήρωση πεδίων που λείπου
  if(!D.stat) D.stat = defStat();
  if(!D.aekk) D.aekk = defAekk();
  if(D.agreedFee===undefined) D.agreedFee = 0;
+ if(D.parakrTopo===undefined || !isFinite(+D.parakrTopo)) D.parakrTopo = 4;   // v1.48: ΦΕΜ τοπογραφικών 4% έλειπε σε καθαρή εγκατάσταση
+ if(D.epimPct===undefined || !isFinite(+D.epimPct)) D.epimPct = DEF.epimPct;  // v1.48
+ if(D.efkaProkTH===undefined || !isFinite(+D.efkaProkTH)) D.efkaProkTH = DEF.efkaProkTH; // v1.49
  if(!D.ergo) D.ergo = {titlos:"", eidos:"Νέα οικοδομή", dieuth:"", kaek:"", ydom:"", eaAA:"", months:18, lat:null, lon:null, zoom:null};
  if(D.ergo.ydom===undefined) D.ergo.ydom="";
  if(D.ergo.lat===undefined){ D.ergo.lat=null; D.ergo.lon=null; D.ergo.zoom=null; }
@@ -907,6 +1111,54 @@ function render(){
  markFilled(main);
  refreshTotals();
  compactCols();
+ paintShell();
+}
+/* v1.50 — μπάρα τίτλου, κάρτα έργου και δείκτες συμπλήρωσης στην πλαϊνή στήλη */
+const TABMETA = {
+ ergo:["🏠","Έργο","στοιχεία, ιδιοκτήτες, μηχανικοί"],
+ proyp:["🧮","Προϋπολογισμός","επιφάνειες ανά χρήση · συμβατικός & αναλυτικός"],
+ amoives:["💶","Αμοιβές μηχανικών","νόμιμες ΤΕΕ · τοπογραφικό · ΚΕΝΑΚ"],
+ efka:["🛡️","ΕΦΚΑ","ελάχιστη εργατική δαπάνη · πίνακες 1/2Α/2Β/3"],
+ aekk:["♻️","ΑΕΚΚ / ΣΔΑ","απόβλητα κατασκευών & κατεδαφίσεων"],
+ foro:["🧾","Φορολογικά","ΦΠΑ · ΦΕΜ · κρατήσεις · ταμειακό"],
+ xrono:["📅","Χρονοδιάγραμμα","φάσεις κατασκευής"],
+ docs:["📄","Έγγραφα","συμφωνητικά · ΥΔ · ΣΑΥ/ΦΑΥ"],
+ export:["⬇️","Εξαγωγή / XML","αρχείο e-Άδειες · εκτυπώσεις"]
+};
+function paintShell(){
+ const m = TABMETA[tab] || ["","",""];
+ const t = document.getElementById("whTitle"), ic = document.getElementById("whIco");
+ if(ic) ic.textContent = m[0];
+ if(t) t.innerHTML = esc(m[1]) + (m[2] ? ` <em>— ${esc(m[2])}</em>` : "");
+ // δείκτης «έχει δεδομένα» σε κάθε καρτέλα
+ const S = symbatikos(), ef = efkaCalc(), ak = aekkCalc();
+ const filled = {
+  ergo: !!(D.ergo && (D.ergo.titlos || D.ergo.dieuth || D.ergo.kaek)),
+  proyp: S > 0,
+  amoives: amoivesCalc().sum > 0,
+  efka: ef.raw > 0,
+  aekk: ak.tons > 0,
+  foro: S > 0, xrono: (D.sched||[]).some(x=>+x.d>0), docs: false, export: S > 0
+ };
+ document.querySelectorAll("nav#tabs button").forEach(b=>b.classList.toggle("done", !!filled[b.dataset.tab]));
+ // κάρτα έργου
+ const sp = document.getElementById("sproj");
+ if(sp){
+  const e = D.ergo||{}, own = (D.owners||[]).find(o=>o.name);
+  sp.innerHTML = `<div class="sp-top">
+    <div style="min-width:0">
+     <div class="sp-name" title="${esc(e.titlos||"")}">${esc(e.titlos || "Έργο χωρίς τίτλο")}</div>
+     <div style="font-size:10px;color:#8A94A6">${esc(e.eidos||"—")}</div>
+    </div>
+    <div class="sp-logo">BR<i>B</i></div>
+   </div>
+   ${e.dieuth?`<div class="sp-row">📍 <span title="${esc(e.dieuth)}">${esc(e.dieuth)}</span></div>`:""}
+   ${own?`<div class="sp-row">👤 <span>${esc(own.name)}</span></div>`:""}
+   <div class="sp-row">📐 <span>${num(totM2())} μ² · Σ ${eur(S)}</span></div>
+   <div class="sp-foot"><span>${esc(VER)}</span><span class="sp-tot">${eur(grandTotal())}</span></div>`;
+ }
+ const pc = document.getElementById("projCount");
+ if(pc){ try{ pc.textContent = projStore().length; }catch(_){ pc.textContent = "0"; } }
 }
 /* v1.32 — «όλα στο πιάτο»: μοιράζει τα sections της καρτέλας σε 2 στήλες (desktop),
    ισορροπημένα κατά ύψος και με τη σειρά ανάγνωσης· κάθε στήλη κάνει δικό της scroll μόνο αν χρειαστεί. */
@@ -960,7 +1212,7 @@ document.addEventListener("click", e=>{
 /* ===== ΔΙΑΧΕΙΡΙΣΗ ΕΡΓΩΝ (αποθήκευση/φόρτωση) ===== */
 function projStore(){ try{ return JSON.parse(localStorage.getItem(KEY_PROJ)) || []; }catch(e){ return []; } }
 function projPersist(list){ try{ localStorage.setItem(KEY_PROJ, JSON.stringify(list)); }catch(e){ alert("Ο χώρος αποθήκευσης γέμισε — διάγραψε παλιά έργα."); } }
-function updProjBtn(){ const b = document.getElementById("projBtn"); if(b) b.textContent = "📁 " + (D.projName ? D.projName : "Έργα"); }
+function updProjBtn(){ const b = document.getElementById("projBtn"); if(!b) return; const l = b.querySelector("span:nth-child(2)"); if(l) l.textContent = D.projName || "Έργα"; else b.textContent = "📁 " + (D.projName || "Έργα"); }
 function projSaveCurrent(name){
  name = (name||"").trim(); if(!name){ alert("Δώσε όνομα έργου."); return false; }
  D.projName = name; save();
@@ -1388,7 +1640,7 @@ function initErgoMap(){
  }).catch(()=>{ el.innerHTML = '<div class="note warn" style="margin:8px">Ο χάρτης απαιτεί σύνδεση στο διαδίκτυο — οι συντεταγμένες που έχεις ήδη ορίσει διατηρούνται.</div>'; });
 }
 const YDOM_LIST = ["ΥΔΟΜ Δήμου Αθηναίων","ΥΔΟΜ Δήμου Αγίας Βαρβάρας","ΥΔΟΜ Δήμου Αγίας Παρασκευής","ΥΔΟΜ Δήμου Αγίου Δημητρίου","ΥΔΟΜ Δήμου Αγίων Αναργύρων-Καματερού","ΥΔΟΜ Δήμου Αγκιστρίου","ΥΔΟΜ Δήμου Αιγάλεω","ΥΔΟΜ Δήμου Αίγινας","ΥΔΟΜ Δήμου Αλίμου","ΥΔΟΜ Δήμου Αμαρουσίου","ΥΔΟΜ Δήμου Ασπροπύργου","ΥΔΟΜ Δήμου Αχαρνών","ΥΔΟΜ Δήμου Βάρης-Βούλας-Βουλιαγμένης","ΥΔΟΜ Δήμου Βριλησσίων","ΥΔΟΜ Δήμου Βύρωνος","ΥΔΟΜ Δήμου Γαλατσίου","ΥΔΟΜ Δήμου Γλυφάδας","ΥΔΟΜ Δήμου Δάφνης-Υμηττού","ΥΔΟΜ Δήμου Διονύσου","ΥΔΟΜ Δήμου Ελευσίνας","ΥΔΟΜ Δήμου Ελληνικού-Αργυρούπολης","ΥΔΟΜ Δήμου Ζωγράφου","ΥΔΟΜ Δήμου Ηλιούπολης","ΥΔΟΜ Δήμου Ηρακλείου Αττικής","ΥΔΟΜ Δήμου Ιλίου","ΥΔΟΜ Δήμου Καισαριανής","ΥΔΟΜ Δήμου Καλλιθέας","ΥΔΟΜ Δήμου Κερατσινίου-Δραπετσώνας","ΥΔΟΜ Δήμου Κηφισιάς","ΥΔΟΜ Δήμου Κορυδαλλού","ΥΔΟΜ Δήμου Κρωπίας","ΥΔΟΜ Δήμου Κυθήρων","ΥΔΟΜ Δήμου Λαυρεωτικής","ΥΔΟΜ Δήμου Λυκόβρυσης-Πεύκης","ΥΔΟΜ Δήμου Μάνδρας-Ειδυλλίας","ΥΔΟΜ Δήμου Μαραθώνος","ΥΔΟΜ Δήμου Μαρκοπούλου Μεσογαίας","ΥΔΟΜ Δήμου Μεγαρέων","ΥΔΟΜ Δήμου Μεταμορφώσεως","ΥΔΟΜ Δήμου Μοσχάτου-Ταύρου","ΥΔΟΜ Δήμου Νέας Ιωνίας","ΥΔΟΜ Δήμου Νέας Σμύρνης","ΥΔΟΜ Δήμου Νίκαιας-Αγ. Ιωάννη Ρέντη","ΥΔΟΜ Δήμου Παιανίας","ΥΔΟΜ Δήμου Παλαιού Φαλήρου","ΥΔΟΜ Δήμου Παλλήνης","ΥΔΟΜ Δήμου Παπάγου-Χολαργού","ΥΔΟΜ Δήμου Πειραιώς","ΥΔΟΜ Δήμου Πεντέλης","ΥΔΟΜ Δήμου Περάματος","ΥΔΟΜ Δήμου Περιστερίου","ΥΔΟΜ Δήμου Πετρούπολης","ΥΔΟΜ Δήμου Πόρου","ΥΔΟΜ Δήμου Ραφήνας-Πικερμίου","ΥΔΟΜ Δήμου Σαλαμίνας","ΥΔΟΜ Δήμου Σαρωνικού","ΥΔΟΜ Δήμου Σπάτων-Αρτέμιδος","ΥΔΟΜ Δήμου Σπετσών","ΥΔΟΜ Δήμου Τροιζηνίας-Μεθάνων","ΥΔΟΜ Δήμου Ύδρας","ΥΔΟΜ Δήμου Φιλαδέλφειας-Χαλκηδόνος","ΥΔΟΜ Δήμου Φιλοθέης-Ψυχικού","ΥΔΟΜ Δήμου Φυλής","ΥΔΟΜ Δήμου Χαϊδαρίου","ΥΔΟΜ Δήμου Χαλανδρίου","ΥΔΟΜ Δήμου Ωρωπού","ΥΔΟΜ Δήμου Θεσσαλονίκης","ΥΔΟΜ Δήμου Αμπελοκήπων-Μενεμένης","ΥΔΟΜ Δήμου Καλαμαριάς","ΥΔΟΜ Δήμου Κορδελιού-Ευόσμου","ΥΔΟΜ Δήμου Νεάπολης-Συκεών","ΥΔΟΜ Δήμου Παύλου Μελά","ΥΔΟΜ Δήμου Πυλαίας-Χορτιάτη","ΥΔΟΜ Δήμου Δέλτα","ΥΔΟΜ Δήμου Χαλκηδόνος","ΥΔΟΜ Δήμου Ωραιοκάστρου","ΥΔΟΜ Δήμου Θερμαϊκού","ΥΔΟΜ Δήμου Θέρμης","ΥΔΟΜ Δήμου Λαγκαδά","ΥΔΟΜ Δήμου Βόλβης","ΥΔΟΜ Δήμου Αλεξάνδρειας","ΥΔΟΜ Δήμου Βέροιας","ΥΔΟΜ Δήμου Νάουσας","ΥΔΟΜ Δήμου Έδεσσας","ΥΔΟΜ Δήμου Πέλλας","ΥΔΟΜ Δήμου Αλμωπίας","ΥΔΟΜ Δήμου Σκύδρας","ΥΔΟΜ Δήμου Κατερίνης","ΥΔΟΜ Δήμου Δίου-Ολύμπου","ΥΔΟΜ Δήμου Πύδνας-Κολινδρού","ΥΔΟΜ Δήμου Κιλκίς","ΥΔΟΜ Δήμου Παιονίας","ΥΔΟΜ Δήμου Σερρών","ΥΔΟΜ Δήμου Αμφίπολης","ΥΔΟΜ Δήμου Βισαλτίας","ΥΔΟΜ Δήμου Εμμανουήλ Παππά","ΥΔΟΜ Δήμου Ηράκλειας","ΥΔΟΜ Δήμου Νέας Ζίχνης","ΥΔΟΜ Δήμου Σιντικής","ΥΔΟΜ Δήμου Πολυγύρου","ΥΔΟΜ Δήμου Αριστοτέλη","ΥΔΟΜ Δήμου Κασσάνδρας","ΥΔΟΜ Δήμου Νέας Προποντίδας","ΥΔΟΜ Δήμου Σιθωνίας","ΥΔΟΜ Δήμου Κοζάνης","ΥΔΟΜ Δήμου Εορδαίας","ΥΔΟΜ Δήμου Σερβίων","ΥΔΟΜ Δήμου Βελβεντού","ΥΔΟΜ Δήμου Βοΐου","ΥΔΟΜ Δήμου Γρεβενών","ΥΔΟΜ Δήμου Δεσκάτης","ΥΔΟΜ Δήμου Καστοριάς","ΥΔΟΜ Δήμου Νεστορίου","ΥΔΟΜ Δήμου Άργους Ορεστικού","ΥΔΟΜ Δήμου Φλώρινας","ΥΔΟΜ Δήμου Αμυνταίου","ΥΔΟΜ Δήμου Πρεσπών","ΥΔΟΜ Δήμου Δράμας","ΥΔΟΜ Δήμου Δοξάτου","ΥΔΟΜ Δήμου Κάτω Νευροκοπίου","ΥΔΟΜ Δήμου Παρανεστίου","ΥΔΟΜ Δήμου Προσοτσάνης","ΥΔΟΜ Δήμου Καβάλας","ΥΔΟΜ Δήμου Νέστου","ΥΔΟΜ Δήμου Παγγαίου","ΥΔΟΜ Δήμου Θάσου","ΥΔΟΜ Δήμου Ξάνθης","ΥΔΟΜ Δήμου Αβδήρων","ΥΔΟΜ Δήμου Μύκης","ΥΔΟΜ Δήμου Τοπείρου","ΥΔΟΜ Δήμου Κομοτηνής","ΥΔΟΜ Δήμου Αρριανών","ΥΔΟΜ Δήμου Ιάσμου","ΥΔΟΜ Δήμου Μαρωνείας-Σαπών","ΥΔΟΜ Δήμου Αλεξανδρούπολης","ΥΔΟΜ Δήμου Διδυμοτείχου","ΥΔΟΜ Δήμου Ορεστιάδας","ΥΔΟΜ Δήμου Σουφλίου","ΥΔΟΜ Δήμου Σαμοθράκης","ΥΔΟΜ Δήμου Ιωαννιτών","ΥΔΟΜ Δήμου Βορείων Τζουμέρκων","ΥΔΟΜ Δήμου Δωδώνης","ΥΔΟΜ Δήμου Ζαγορίου","ΥΔΟΜ Δήμου Ζίτσας","ΥΔΟΜ Δήμου Κόνιτσας","ΥΔΟΜ Δήμου Μετσόβου","ΥΔΟΜ Δήμου Πωγωνίου","ΥΔΟΜ Δήμου Αρταίων","ΥΔΟΜ Δήμου Γεωργίου Καραϊσκάκη","ΥΔΟΜ Δήμου Κεντρικών Τζουμέρκων","ΥΔΟΜ Δήμου Νικολάου Σκουφά","ΥΔΟΜ Δήμου Ηγουμενίτσας","ΥΔΟΜ Δήμου Σουλίου","ΥΔΟΜ Δήμου Φιλιατών","ΥΔΟΜ Δήμου Πρέβεζας","ΥΔΟΜ Δήμου Ζηρού","ΥΔΟΜ Δήμου Πάργας","ΥΔΟΜ Δήμου Λαρισαίων","ΥΔΟΜ Δήμου Αγιάς","ΥΔΟΜ Δήμου Ελασσόνας","ΥΔΟΜ Δήμου Κιλελέρ","ΥΔΟΜ Δήμου Τεμπών","ΥΔΟΜ Δήμου Τυρνάβου","ΥΔΟΜ Δήμου Φαρσάλων","ΥΔΟΜ Δήμου Βόλου","ΥΔΟΜ Δήμου Αλμυρού","ΥΔΟΜ Δήμου Ζαγοράς-Μουρεσίου","ΥΔΟΜ Δήμου Νοτίου Πηλίου","ΥΔΟΜ Δήμου Ρήγα Φεραίου","ΥΔΟΜ Δήμου Σκιάθου","ΥΔΟΜ Δήμου Σκοπέλου","ΥΔΟΜ Δήμου Αλοννήσου","ΥΔΟΜ Δήμου Τρικκαίων","ΥΔΟΜ Δήμου Μετεώρων (Καλαμπάκας)","ΥΔΟΜ Δήμου Πύλης","ΥΔΟΜ Δήμου Φαρκαδόνας","ΥΔΟΜ Δήμου Καρδίτσας","ΥΔΟΜ Δήμου Αργιθέας","ΥΔΟΜ Δήμου Λίμνης Πλαστήρα","ΥΔΟΜ Δήμου Μουζακίου","ΥΔΟΜ Δήμου Παλαμά","ΥΔΟΜ Δήμου Σοφάδων","ΥΔΟΜ Δήμου Λαμιέων","ΥΔΟΜ Δήμου Αμφίκλειας-Ελάτειας","ΥΔΟΜ Δήμου Δομοκού","ΥΔΟΜ Δήμου Λοκρών","ΥΔΟΜ Δήμου Μακρακώμης","ΥΔΟΜ Δήμου Καμένων Βούρλων","ΥΔΟΜ Δήμου Στυλίδας","ΥΔΟΜ Δήμου Χαλκιδέων","ΥΔΟΜ Δήμου Διρφύων-Μεσσαπίων","ΥΔΟΜ Δήμου Ερέτριας","ΥΔΟΜ Δήμου Ιστιαίας-Αιδηψού","ΥΔΟΜ Δήμου Καρύστου","ΥΔΟΜ Δήμου Κύμης-Αλιβερίου","ΥΔΟΜ Δήμου Μαντουδίου-Λίμνης-Αγ. Άννας","ΥΔΟΜ Δήμου Σκύρου","ΥΔΟΜ Δήμου Λεβαδέων","ΥΔΟΜ Δήμου Αλιάρτου-Θεσπιέων","ΥΔΟΜ Δήμου Διστόμου-Αράχοβας-Αντίκυρας","ΥΔΟΜ Δήμου Ορχομενού","ΥΔΟΜ Δήμου Τανάγρας","ΥΔΟΜ Δήμου Θηβαίων","ΥΔΟΜ Δήμου Δελφών","ΥΔΟΜ Δήμου Δωρίδος","ΥΔΟΜ Δήμου Καρπενησίου","ΥΔΟΜ Δήμου Αγράφων","ΥΔΟΜ Δήμου Πατρέων","ΥΔΟΜ Δήμου Αιγιαλείας","ΥΔΟΜ Δήμου Δυτικής Αχαΐας","ΥΔΟΜ Δήμου Ερυμάνθου","ΥΔΟΜ Δήμου Καλαβρύτων","ΥΔΟΜ Δήμου Πύργου","ΥΔΟΜ Δήμου Ανδρίτσαινας-Κρεστένων","ΥΔΟΜ Δήμου Αρχαίας Ολυμπίας","ΥΔΟΜ Δήμου Ζαχάρως","ΥΔΟΜ Δήμου Ήλιδας","ΥΔΟΜ Δήμου Ανδραβίδας-Κυλλήνης","ΥΔΟΜ Δήμου Πηνειού","ΥΔΟΜ Δήμου Αγρινίου","ΥΔΟΜ Δήμου Ακτίου-Βόνιτσας","ΥΔΟΜ Δήμου Αμφιλοχίας","ΥΔΟΜ Δήμου Θέρμου","ΥΔΟΜ Δήμου Ι.Π. Μεσολογγίου","ΥΔΟΜ Δήμου Ναυπακτίας","ΥΔΟΜ Δήμου Ξηρομέρου","ΥΔΟΜ Δήμου Τρίπολης","ΥΔΟΜ Δήμου Βόρειας Κυνουρίας","ΥΔΟΜ Δήμου Νότιας Κυνουρίας","ΥΔΟΜ Δήμου Γορτυνίας","ΥΔΟΜ Δήμου Μεγαλόπολης","ΥΔΟΜ Δήμου Άργους-Μυκηνών","ΥΔΟΜ Δήμου Επιδαύρου","ΥΔΟΜ Δήμου Ερμιονίδας","ΥΔΟΜ Δήμου Ναυπλιέων","ΥΔΟΜ Δήμου Κορινθίων","ΥΔΟΜ Δήμου Βέλου-Βόχας","ΥΔΟΜ Δήμου Λουτρακίου-Περαχώρας-Αγ. Θεοδώρων","ΥΔΟΜ Δήμου Νεμέας","ΥΔΟΜ Δήμου Ξυλοκάστρου-Ευρωστίνης","ΥΔΟΜ Δήμου Σικυωνίων","ΥΔΟΜ Δήμου Σπάρτης","ΥΔΟΜ Δήμου Ανατολικής Μάνης","ΥΔΟΜ Δήμου Ελαφονήσου","ΥΔΟΜ Δήμου Ευρώτα","ΥΔΟΜ Δήμου Μονεμβασίας","ΥΔΟΜ Δήμου Καλαμάτας","ΥΔΟΜ Δήμου Δυτικής Μάνης","ΥΔΟΜ Δήμου Μεσσήνης","ΥΔΟΜ Δήμου Οιχαλίας","ΥΔΟΜ Δήμου Πύλου-Νέστορος","ΥΔΟΜ Δήμου Τριφυλίας","ΥΔΟΜ Δήμου Κεντρικής Κέρκυρας & Διαποντίων Νήσων","ΥΔΟΜ Δήμου Βόρειας Κέρκυρας","ΥΔΟΜ Δήμου Νότιας Κέρκυρας","ΥΔΟΜ Δήμου Παξών","ΥΔΟΜ Δήμου Λευκάδας","ΥΔΟΜ Δήμου Μεγανησίου","ΥΔΟΜ Δήμου Αργοστολίου","ΥΔΟΜ Δήμου Ληξουρίου","ΥΔΟΜ Δήμου Σάμης","ΥΔΟΜ Δήμου Ιθάκης","ΥΔΟΜ Δήμου Ζακύνθου","ΥΔΟΜ Δήμου Μυτιλήνης","ΥΔΟΜ Δήμου Δυτικής Λέσβου","ΥΔΟΜ Δήμου Λήμνου","ΥΔΟΜ Δήμου Αγίου Ευστρατίου","ΥΔΟΜ Δήμου Χίου","ΥΔΟΜ Δήμου Οινουσσών","ΥΔΟΜ Δήμου Ψαρών","ΥΔΟΜ Δήμου Ανατολικής Σάμου","ΥΔΟΜ Δήμου Δυτικής Σάμου","ΥΔΟΜ Δήμου Ικαρίας","ΥΔΟΜ Δήμου Φούρνων Κορσεών","ΥΔΟΜ Δήμου Ρόδου","ΥΔΟΜ Δήμου Κω","ΥΔΟΜ Δήμου Καλυμνίων","ΥΔΟΜ Δήμου Καρπάθου","ΥΔΟΜ Δήμου Ηρωικής Νήσου Κάσου","ΥΔΟΜ Δήμου Αστυπάλαιας","ΥΔΟΜ Δήμου Λέρου","ΥΔΟΜ Δήμου Λειψών","ΥΔΟΜ Δήμου Πάτμου","ΥΔΟΜ Δήμου Νισύρου","ΥΔΟΜ Δήμου Σύμης","ΥΔΟΜ Δήμου Τήλου","ΥΔΟΜ Δήμου Χάλκης","ΥΔΟΜ Δήμου Μεγίστης","ΥΔΟΜ Δήμου Αγαθονησίου","ΥΔΟΜ Δήμου Σύρου-Ερμούπολης","ΥΔΟΜ Δήμου Άνδρου","ΥΔΟΜ Δήμου Τήνου","ΥΔΟΜ Δήμου Μυκόνου","ΥΔΟΜ Δήμου Πάρου","ΥΔΟΜ Δήμου Αντιπάρου","ΥΔΟΜ Δήμου Νάξου & Μικρών Κυκλάδων","ΥΔΟΜ Δήμου Αμοργού","ΥΔΟΜ Δήμου Ιητών (Ίου)","ΥΔΟΜ Δήμου Θήρας","ΥΔΟΜ Δήμου Ανάφης","ΥΔΟΜ Δήμου Σικίνου","ΥΔΟΜ Δήμου Φολεγάνδρου","ΥΔΟΜ Δήμου Μήλου","ΥΔΟΜ Δήμου Κιμώλου","ΥΔΟΜ Δήμου Σερίφου","ΥΔΟΜ Δήμου Σίφνου","ΥΔΟΜ Δήμου Κύθνου","ΥΔΟΜ Δήμου Κέας","ΥΔΟΜ Δήμου Ηρακλείου Κρήτης","ΥΔΟΜ Δήμου Αρχανών-Αστερουσίων","ΥΔΟΜ Δήμου Βιάννου","ΥΔΟΜ Δήμου Γόρτυνας","ΥΔΟΜ Δήμου Μαλεβιζίου","ΥΔΟΜ Δήμου Μινώα Πεδιάδας","ΥΔΟΜ Δήμου Φαιστού","ΥΔΟΜ Δήμου Χερσονήσου","ΥΔΟΜ Δήμου Χανίων","ΥΔΟΜ Δήμου Αποκορώνου","ΥΔΟΜ Δήμου Γαύδου","ΥΔΟΜ Δήμου Καντάνου-Σελίνου","ΥΔΟΜ Δήμου Κισσάμου","ΥΔΟΜ Δήμου Πλατανιά","ΥΔΟΜ Δήμου Σφακίων","ΥΔΟΜ Δήμου Ρεθύμνης","ΥΔΟΜ Δήμου Αγίου Βασιλείου","ΥΔΟΜ Δήμου Αμαρίου","ΥΔΟΜ Δήμου Ανωγείων","ΥΔΟΜ Δήμου Μυλοποτάμου","ΥΔΟΜ Δήμου Αγίου Νικολάου","ΥΔΟΜ Δήμου Ιεράπετρας","ΥΔΟΜ Δήμου Οροπεδίου Λασιθίου","ΥΔΟΜ Δήμου Σητείας"]; // πανελλαδικά — όλοι οι δήμοι (v1.31)
-const ERGO_EIDH = ["Νέα οικοδομή","Προσθήκη καθ' ύψος / κατ' επέκταση","Αλλαγή χρήσης","Νομιμοποίηση (άρθ. 366–447 Κώδικα 5306/2026 · πρώην ν.4495/2017 άρθ.106)","Ανακαίνιση / Επισκευή","Κατεδάφιση","Περιτοίχιση / Περιβάλλων χώρος","Εργασίες μικρής κλίμακας","Συνδυασμός πράξεων"];
+const ERGO_EIDH = ["Νέα οικοδομή","Προσθήκη καθ' ύψος / κατ' επέκταση","Αλλαγή χρήσης","Νομιμοποίηση (ν.4495/2017 άρθ.106)","Ανακαίνιση / Επισκευή","Κατεδάφιση","Περιτοίχιση / Περιβάλλων χώρος","Εργασίες μικρής κλίμακας","Συνδυασμός πράξεων"];
 function kindLabel(k){ return k==="pros" ? "ΠΡΟΣΘΗΚΗ" : k==="chg" ? "ΑΛΛΑΓΗ ΧΡΗΣΗΣ" : k==="nomim" ? "ΝΟΜΙΜΟΠΟΙΗΣΗ" : k==="episk" ? "ΕΠΙΣΚΕΥΗ" : "ΝΕΟ"; }
 
 function rErgo(){
@@ -1522,6 +1774,7 @@ function rProyp(){
  window._anyChg = D.uses.some(u=>u.kind==="chg");
  main.innerHTML = `
  <h2>Επιφάνειες ανά χρήση — Συμβατικός προϋπολογισμός</h2>
+ ${negM2()?`<div class="note warn">⚠ Υπάρχει γραμμή με <b>αρνητικά μ²</b>. Οι αρνητικές τιμές αγνοούνται (λαμβάνονται ως 0) σε προϋπολογισμό, αμοιβές και ΑΕΚΚ. Για αφαίρεση επιφάνειας χρησιμοποίησε «ΑΛΛΑΓΗ ΧΡΗΣΗΣ» ή διόρθωσε τα εμβαδά.</div>`:""}
  <div class="card">
   <div class="grid2">
    <div><label>ΕΤΑ — Ενιαία Τιμή Αφετηρίας ΤΕΕ €/μ² (ΥΑ ΦΕΚ 56/2012)</label>${ninp("eta", D.eta, "0.01", 1)}</div>
@@ -1626,10 +1879,11 @@ function rAmoives(){
   <div class="grid3">
    <div><label>Συντελεστής λ (κωδ. 20121)</label>${ninp("lambda", D.lambda, "0.00001", 1)}</div>
    <div><label>ΚΕΝΑΚ % επί μελετών κλάδων</label>${ninp("kenakPct", D.kenakPct, "1", 1)}</div>
+   <div><label>Επιμέτρηση % επιβλέψεων (incr. 12000)</label>${ninp("epimPct", D.epimPct, "1", 1)}</div>
    <div><label>Τοπογραφικό € (κατ' αποκοπή — ή υπολόγισέ το αναλυτικά παρακάτω)</label>${ninp("topoFlat", D.topoFlat, "1", 1)}</div>
   </div>
-  <div class="note">Η προσαύξηση προσθήκης +30% (ΠΔ 696/74 άρθ.88 — increment ΤΕΕ 500) εφαρμόζεται <b>αυτόματα και σταθμισμένα</b> από τη στήλη «Είδος» των χρήσεων (γραμμές ΠΡΟΣΘΗΚΗ).</div>
-  <div class="note">Βάση κάθε μελέτης = Σ×%Σ (Σ=${eur(S)}). β=κ+μ/∛(Βάση/λ), Αμοιβή=Βάση·β/100. Στατικά: +80% αντισεισμικού (increment 30). Οι %Σ και τα κ/μ προέρχονται από πραγματική υποβολή ΤΕΕ — επεξεργάσιμα.</div>
+  <div class="note">Η προσαύξηση προσθήκης +30% (ΠΔ 696/74 άρθ.88 — increment ΤΕΕ 500) εφαρμόζεται <b>αυτόματα και σταθμισμένα</b> από τη στήλη «Είδος» των χρήσεων (γραμμές ΠΡΟΣΘΗΚΗ). Δεν εφαρμόζεται σε Χρονικό/Αποτύπωση/Τεύχη/Διοίκηση (όπως στις υποβολές ΤΕΕ).</div>
+  <div class="note">Βάση κάθε μελέτης = Σ×%Σ (Σ=${eur(S)}). β=κ+μ/∛(Βάση/λ), Αμοιβή=Βάση·β/100. Στατικά: +80% αντισεισμικού (increment 30) στη μελέτη. Επιβλέψεις: +${num(D.epimPct)}% Επιμέτρησης (increment 12000) αυτόματα. Τα %Σ και τα κ/μ είναι βαθμονομημένα σε 4 πραγματικές υποβολές e-Άδειες (v1.48) — επεξεργάσιμα.</div>
   <div style="overflow-x:auto"><table><tr><th>✓</th><th>Μελέτη (κωδ. ΤΕΕ)</th><th class="num">%Σ</th><th class="num">κ/μ μελ.</th><th class="num">κ/μ επίβλ.</th><th>Συντελεστής μελέτης</th><th>Συντελεστής επίβλεψης</th><th class="num">Αμ. μελέτης</th><th class="num">Αμ. επίβλεψης</th></tr>
   ${D.studies.map((st,i)=>`<tr>
     <td><input type="checkbox" data-chk="${i}" ${st.on?"checked":""}></td>
@@ -1681,7 +1935,7 @@ function rAmoives(){
     <div><label>Εφαρμογή γραμμών — σημεία αξόνων (τεμ)</label>${ninp("topo.rymN", D.topo.rymN, "1", 1)}</div>
     <div><label>Κορυφές Ο.Τ./πολυγώνων (τεμ)</label>${ninp("topo.otN", D.topo.otN, "1", 1)}</div>
    </div>
-   ${(()=>{ const tc = topoCalc(); return tc.rows.length ? `
+   ${(()=>{ const tc = topoCalc(); return tc.rows.length ? `${tc.klimOk?"":`<div class="note warn">⚠ Η κλίμακα 1:${esc(D.topo.klim)} δεν προβλέπεται για την επιλεγμένη περιοχή — χρησιμοποιήθηκε η 1:${tc.klimUsed}. Διόρθωσε την κλίμακα.</div>`}
    <div style="overflow-x:auto;margin-top:8px"><table>
     <tr><th>Εργασία</th><th class="num">Ποσότητα</th><th class="num">Τιμή (δρχ)</th><th class="num">Αμοιβή €</th></tr>
     ${tc.rows.map(r=>`<tr><td>${r.per}</td><td class="num">${num(r.qty)} ${r.mon}</td><td class="num">${num(r.drx)}</td><td class="num">${eur(r.e)}</td></tr>`).join("")}
@@ -1781,7 +2035,7 @@ function rForo(){
    <div><label>Τέλη e-Άδειες / ΤΕΕ €</label>${ninp("eadeiesFee", D.eadeiesFee, "1", 1)}</div>
    <div><label>Δημοτικά τέλη / λοιπά €</label>${ninp("dimosFee", D.dimosFee, "1", 1)}</div>
   </div>
-  <label style="margin-top:8px"><input type="checkbox" id="ektos" ${D.ektosSxediou?"checked":""} style="width:auto;margin-right:6px"><b>Εκτός σχεδίου</b> — τέλος Πράσινου Ταμείου (άρθ. 250 Κώδικα 5306/2026, πρώην άρθ. 32 §1 ν.4759/2020): <b>5% επί συμβατικού</b> ή <b>5‰ επί αναλυτικού</b> προϋπολογισμού, min 250 € / max 5.000 €</label>
+  <label style="margin-top:8px"><input type="checkbox" id="ektos" ${D.ektosSxediou?"checked":""} style="width:auto;margin-right:6px"><b>Εκτός σχεδίου</b> — τέλος Πράσινου Ταμείου (άρθ.32 §1 ν.4759/20): <b>5% επί συμβατικού</b> ή <b>5‰ επί αναλυτικού</b> προϋπολογισμού, min 250 € / max 5.000 €</label>
   ${D.ektosSxediou?`<div style="margin:6px 0 0 22px">
    <label style="display:inline-flex;align-items:center;gap:6px;width:auto"><input type="radio" name="prasM" id="prasP5" ${(D.prasMode||"p5")==="p5"?"checked":""} style="width:auto">5% επί συμβατικού (${eur(symbatikos())})</label>
    <label style="display:inline-flex;align-items:center;gap:6px;width:auto;margin-left:14px"><input type="radio" name="prasM" id="prasM5" ${D.prasMode==="m5"?"checked":""} style="width:auto">5‰ επί αναλυτικού</label>
@@ -1826,17 +2080,21 @@ function rEfka(){
    ${tabsBtn("2b","Πίνακας 2Β — Πλήρης προκατ.")}
    ${tabsBtn("3","Πίνακας 3 — % εργ. δαπάνης")}
   </div>
-  <div class="grid2">
-   <div><label>Ημερομίσθιο βάσης € (ΣΣΕ οικοδόμων / τεκμαρτό)</label>${ninp("tekmHm", D.tekmHm, "0.01", 1)}</div>
-   <div><label>Συνολικό ποσοστό εισφορών % (εργοδ.+ασφ.)</label>${ninp("efkaPct", D.efkaPct, "0.01", 1)}</div>
+  <div class="grid3">
+   <div><label>Ημερομίσθιο βάσης €</label>${ninp("tekmHm", D.tekmHm, "0.01", 1)}</div>
+   <div><label>Συνολικό ποσοστό εισφορών % (ΚΠΚ 781)</label>${ninp("efkaPct", D.efkaPct, "0.001", 1)}</div>
+   <div><label>ΤΗ 8ης ασφ. κλάσης € (προκαταβολή)</label>${ninp("efkaProkTH", D.efkaProkTH, "0.01", 1)}</div>
   </div>
+  <div class="note">Προεπιλογές 2026: ημερομίσθιο <b>41,09 €</b> (νόμιμο κατώτατο εργατοτεχνιτών από 01.04.2026 — ΚΥΑ 8934/2026, ΕΦΚΑ εγκ. 12/2026)· εισφορές <b>74,247 %</b> = 16,820 % εργαζ. + 57,427 % εργοδ. (ΚΠΚ 781)· ΤΗ 8ης κλάσης <b>34,20 €</b>. Εναλλακτικά ημερομίσθια ΣΣΕ οικοδόμων (28.04.2022, άγαμοι χωρίς τριετίες): τεχνίτης 41,00 · βοηθός 38,00 · εργάτης 35,00 €.</div>
   ${mode!=="3" ? `
   <div style="overflow-x:auto"><table style="margin-top:8px"><tr><th>Χώρος</th><th class="num">μ²</th>${D.efkaCols.map(c=>`<th class="num">${esc(c)}</th>`).join("")}<th class="num">Ημερομίσθια</th></tr>
   ${mat.map((r,i)=>`<tr><td>${inp(`${matKey}.${i}.x`, r.x)}</td><td class="num">${ninp(`${matKey}.${i}.m2`, r.m2, "0.01", 1)}</td>${r.c.map((c,j)=>`<td class="num">${ninp(`${matKey}.${i}.c.${j}`, c, "0.01", 1)}</td>`).join("")}<td class="num">${num((r.c||[]).reduce((a,c)=>a+(+r.m2||0)*(+c||0),0))}</td></tr>`).join("")}
   <tr class="total"><td>ΣΥΝΟΛΟ (προ ΜΖΜΣ)</td><td></td><td colspan="${D.efkaCols.length}"></td><td class="num">${num(e.raw)}</td></tr>
-  <tr class="total"><td colspan="${D.efkaCols.length+2}">× ΜΖΜΣ ${num(e.k)} (1,00 έως 3.000 · 0,90 έως 10.000 · 0,85 έως 30.000 · 0,80 άνω)</td><td class="num">${num(e.days)} ΗΕ</td></tr>
+  <tr class="total"><td colspan="${D.efkaCols.length+2}">× ΜΖΜΣ ${num(e.k)} — ενιαίος επί του συνόλου (1,00 έως 3.000 · 0,90 έως 10.000 · 0,85 έως 30.000 · 0,80 άνω)</td><td class="num">${num(e.days)} ΗΕ</td></tr>
   <tr class="total"><td colspan="${D.efkaCols.length+2}">ΕΙΣΦΟΡΕΣ = ${num(e.days)} × ${eur(D.tekmHm)} × ${num(D.efkaPct)}%</td><td class="num">${eur(e.cost)}</td></tr>
+  <tr><td colspan="${D.efkaCols.length+2}" style="color:var(--mut)">Προκαταβολή πριν την έκδοση της άδειας = 1% × ${num(e.days)} ΗΕ × ${eur(D.efkaProkTH)} × ${num(D.efkaPct)}% (συμψηφίζεται με την 1η ΑΠΔ)</td><td class="num" style="color:var(--mut)">${eur(e.prok)}</td></tr>
   </table></div>
+  ${e.cliff?`<div class="note warn">⚠ <b>Ασυνέχεια ΜΖΜΣ.</b> Με ${num(e.raw)} ημερομίσθια εφαρμόζεται συντελεστής ${num(e.cliff.k)} και προκύπτουν ${num(e.raw*e.cliff.k)} ΗΕ — <b>λιγότερα</b> από τα ${num(e.cliff.lim)} ΗΕ ενός έργου ακριβώς στο όριο. Η ανωμαλία υπάρχει στον ίδιο τον πίνακα του ΕΦΚΑ (ενιαίος συντελεστής, όχι κλιμακωτός) και ισχύει για ${num(e.cliff.lim+1)}–${num(e.cliff.upTo)} ημερομίσθια. Επιβεβαίωσε το αποτέλεσμα με το «Σημείωμα για Ημέρες Εργασίας Έργου» του e-ΕΦΚΑ.</div>`:""}
   ${mode==="2a"?`<div class="note">Πίν. 2Α: όταν ο φέρων οργανισμός κατασκευάζεται από συνεργεία στεγασμένων επαγγελμάτων (προκατασκευή, μεταλλικός) — η φάση Εκσκαφών+Σκελετού λαμβάνεται μειωμένη κατά τα 2/3.</div>`:""}
   ${mode==="2b"?`<div class="note warn">Πίν. 2Β (πλήρης προκατασκευή): οι συντελεστές είναι ΕΝΔΕΙΚΤΙΚΟΙ — αντικατάστησέ τους με τον επίσημο πίνακα για το είδος κατασκευής.</div>`:""}
   ${mode==="1"?`<div class="note warn">Προεπιλογές κατοικίας συμβατικής κατασκευής — αντικατάστησε με τον επίσημο Πίνακα 1 για το είδος κτιρίου σου. Σε εφαπτόμενα κτίρια αφαιρούνται τα 2/3 των ημερομισθίων εκσκαφών-σκελετού.</div>`:""}
@@ -1846,6 +2104,7 @@ function rEfka(){
   <tr class="total"><td colspan="3">ΣΥΝΟΛΟ ΕΡΓΑΤΙΚΗΣ ΔΑΠΑΝΗΣ</td><td class="num">${eur(e.labor)}</td><td></td></tr>
   <tr class="total"><td colspan="3">Ισοδύναμα ημερομίσθια (÷ ${eur(D.tekmHm)})</td><td class="num">${num(e.days)} ΗΕ</td><td></td></tr>
   <tr class="total"><td colspan="3">ΕΙΣΦΟΡΕΣ = εργατ. δαπάνη × ${num(D.efkaPct)}%</td><td class="num">${eur(e.cost)}</td><td></td></tr>
+  <tr><td colspan="3" style="color:var(--mut)">Προκαταβολή πριν την άδεια = 1% × ${num(e.days)} ΗΕ × ${eur(D.efkaProkTH)} × ${num(D.efkaPct)}%</td><td class="num" style="color:var(--mut)">${eur(e.prok)}</td><td></td></tr>
   </table></div>
   <div class="btnrow"><button type="button" class="btn sm" id="add3">➕ Προσθήκη εργασίας</button></div>
   <div class="note">Πίν. 3: για οικοδομοτεχνικές εργασίες που δεν εμπίπτουν στους Πίνακες 1-2 (ειδικά τεχνικά έργα, διαμορφώσεις κ.λπ.) — η ελάχιστη εργατική δαπάνη ορίζεται ως ποσοστό επί του προϋπολογισμού κάθε εργασίας, κατά τον επίσημο πίνακα ποσοστών.</div>
@@ -2161,7 +2420,7 @@ function printYD(kind){
  doPrint(phead("Υπεύθυνη Δήλωση")+`<div class="doc"><h1>ΥΠΕΥΘΥΝΗ ΔΗΛΩΣΗ (άρθρο 8 ν.1599/1986)</h1>
  <p>Ο/Η υπογράφων/ουσα <b>${esc(who||"[___]")}</b>, ${esc(eid)}, Α.Μ. ΤΕΕ ${esc(am||"[___]")}, με ατομική μου ευθύνη και γνωρίζοντας τις κυρώσεις που προβλέπονται από τις διατάξεις της παρ. 6 του άρθρου 22 του ν.1599/1986, δηλώνω ότι:</p>
  ${isMel?`<p>1. Ανέλαβα και εκπόνησα τις μελέτες για την έκδοση οικοδομικής άδειας του έργου «${esc(D.ergo.titlos||"[___]")}» στη θέση ${esc(D.ergo.dieuth||"[___]")}, ΚΑΕΚ ${esc(D.ergo.kaek||"[___]")}.<br>
- 2. Οι μελέτες συντάχθηκαν σύμφωνα με τις ισχύουσες διατάξεις (Κώδικας Χωροταξίας-Πολεοδομίας ν.5306/2026 — πρώην ΝΟΚ ν.4067/2012 και ν.4495/2017 — και Κτιριοδομικό Κανονισμό 2023) και τις εγκεκριμένες προδιαγραφές, τα δε στοιχεία που υποβάλλονται είναι αληθή.<br>
+ 2. Οι μελέτες συντάχθηκαν σύμφωνα με τις ισχύουσες διατάξεις (ΝΟΚ ν.4067/2012, ν.4495/2017, Κτιριοδομικό Κανονισμό) και τις εγκεκριμένες προδιαγραφές, τα δε στοιχεία που υποβάλλονται είναι αληθή.<br>
  3. Έχω τα νόμιμα προσόντα για τη σύνταξη των ανωτέρω μελετών.</p>`
  :`<p>1. Αναλαμβάνω την επίβλεψη των οικοδομικών εργασιών του έργου «${esc(D.ergo.titlos||"[___]")}» στη θέση ${esc(D.ergo.dieuth||"[___]")}, ΚΑΕΚ ${esc(D.ergo.kaek||"[___]")}.<br>
  2. Θα επιβλέπω την εκτέλεση σύμφωνα με τις εγκεκριμένες μελέτες και την ισχύουσα νομοθεσία (ν.4495/2017, π.δ. 305/1996 περί ασφάλειας) και θα ενημερώνω την αρμόδια ΥΔΟΜ κατά νόμο.<br>
@@ -2341,7 +2600,7 @@ function payCalc(){
   {to:"ΔΟΥ — ΦΕΜ", ti:`Προκαταβλητέος φόρος μηχανικών ${num(D.parakr)}% μελ./επιβλ. + ${num(D.parakrTopo)}% τοπογρ. (ν.4172/13 άρθ.69§4) — καταβάλλεται από τους μηχανικούς πριν την έκδοση, ΔΕΝ προστίθεται στο ταμειακό σύνολο`, amt:f.parakr, info:true},
   {to:"e-ΕΦΚΑ", ti:`Εισφορές οικοδομικών ενσήμων (${num(ef.days)} ημερομίσθια × ${eur(D.tekmHm)} × ${num(D.efkaPct)}%)`, amt:ef.cost},
  ];
- if(f.prasino>0) rows.push({to:"Πράσινο Ταμείο (e-Παράβολο)", ti:"Αντισταθμιστικό περιβαλλοντικό τέλος εκτός σχεδίου — άρθ. 250 Κώδικα 5306/2026 (πρώην άρθ. 32 §1 ν.4759/2020) — min 250 € / max 5.000 €", amt:f.prasino});
+ if(f.prasino>0) rows.push({to:"Πράσινο Ταμείο (e-Παράβολο)", ti:"Αντισταθμιστικό περιβαλλοντικό τέλος εκτός σχεδίου — άρθ.32 §1 ν.4759/2020 (min 250 € / max 5.000 €)", amt:f.prasino});
  if(f.aekk.cost>0) rows.push({to:"ΣΣΕΔ ΑΕΚΚ / Διαχειριστής", ti:`Διαχείριση αποβλήτων ΑΕΚΚ (${num(f.aekk.tons)} τν)` + (f.aekk.egy>0?` — επιπλέον εγγυητική ${eur(f.aekk.egy)} προς τον Δήμο (ΚΥΑ 36259/2010)`:""), amt:f.aekk.cost});
  if((+D.eadeiesFee||0)>0) rows.push({to:"ΤΕΕ / e-Άδειες", ti:"Αντάλλαγμα χρήσης πληροφοριακού συστήματος", amt:+D.eadeiesFee});
  if((+D.dimosFee||0)>0) rows.push({to:"Δημοτικό Ταμείο", ti:"Δημοτικά τέλη / τέλος κατάληψης κοινόχρηστου χώρου", amt:+D.dimosFee});
@@ -2424,7 +2683,7 @@ function printTefxos(){
   ${f.tee>0?`<tr><td>Λοιπές κρατήσεις ${num(D.teeKrat)}‰</td><td class="num">${eur(f.tee)}</td></tr>`:""}
  </table>
  <h2>${(t.rows&&t.rows.length)?"9":"8"}. Περιβαλλοντικό τέλος — Πράσινο Ταμείο</h2>
- ${D.ektosSxediou?`<p>Εκτός σχεδίου (άρθ. 250 Κώδικα 5306/2026 — πρώην άρθ. 32 §1 ν.4759/2020): ${D.prasMode==="m5"?"5‰ επί αναλυτικού":"5% επί συμβατικού"} προϋπολογισμού, όριο 250–5.000 € → <b>${eur(f.prasino)}</b></p>`:`<p>Το έργο δεν δηλώθηκε εκτός σχεδίου — δεν οφείλεται τέλος.</p>`}
+ ${D.ektosSxediou?`<p>Εκτός σχεδίου (άρθ.32 §1 ν.4759/2020): ${D.prasMode==="m5"?"5‰ επί αναλυτικού":"5% επί συμβατικού"} προϋπολογισμού, όριο 250–5.000 € → <b>${eur(f.prasino)}</b></p>`:`<p>Το έργο δεν δηλώθηκε εκτός σχεδίου — δεν οφείλεται τέλος.</p>`}
  <h2>${(t.rows&&t.rows.length)?"10":"9"}. ΑΕΚΚ — Διαχείριση αποβλήτων</h2>
  ${ak.tons>0?`<table><tr><th>Κωδ. ΕΚΑ</th><th>Περιγραφή</th><th class="num">Τόνοι</th></tr>
  ${ak.rows.map(r=>`<tr><td>${esc(r.eka)}</td><td>${esc(r.per)}</td><td class="num">${num(r.t)}</td></tr>`).join("")}
@@ -2539,9 +2798,10 @@ ${inner}    <sigma>${sigma}</sigma>
  for(const st of D.studies){
   if(!st.on) continue;
   const base = S * ((+st.share||0)/100);
-  const incsMel = (D.incProsthiki? incXml(500,"Προσθήκη / Επέκταση / Επισκευή Κτιρίου",30,1,1,0):"")
+  const incsMel = ((D.incProsthiki && !st.noInc)? incXml(500,"Προσθήκη / Επέκταση / Επισκευή Κτιρίου",30,1,1,0):"")
                 + (st.aseismic? incXml(30,"Αντισεισμικού Υπολογισμού",80,1,0,1):"");
-  const incsEpi = D.incProsthiki? incXml(500,"Προσθήκη / Επέκταση / Επισκευή Κτιρίου",30,1,1,0):"";
+  const incsEpi = ((D.incProsthiki && !st.noInc)? incXml(500,"Προσθήκη / Επέκταση / Επισκευή Κτιρίου",30,1,1,0):"")
+                + ((!st.noEpim && +D.epimPct>0)? incXml(12000,"Επιμέτρησης",+D.epimPct,1,0,0):"");
   const bT = (st.tM===1601)?3:0;
   const me = +st.mEng||1, ee = +st.eEng||2;
   tasks += taskXml(st.tM, st.s.toUpperCase(), "ΜΕΛΕΤΗ", me, 1, st.mc, st.mk, st.mm, st.bf,
@@ -2549,10 +2809,16 @@ ${inner}    <sigma>${sigma}</sigma>
   tasks += taskXml(st.tE, st.s.toUpperCase(), (st.tE===1609)?"ΕΦΑΡΜΟΓΗ":"ΕΠΙΒΛΕΨΗ", ee, 1, st.ec, st.ek, st.em, st.bf,
     subXml(st.tE*100+1, 2, "ΕΠΙΒΛΕΨΗ "+st.s.toUpperCase(), base, st.bf, ee, incsEpi, bT).replace("      <participating_engineer>", subTail+"      <participating_engineer>"));
  }
- // ΚΕΝΑΚ 5601 (μία εγγραφή, factor 0.2, βάση Σ)
+ // ΚΕΝΑΚ 5601 — v1.48: ανά κλάδο, με τα κ/μ του κλάδου και factor kenakPct (subtask ids όπως στις πραγματικές υποβολές: {tM}10)
  if(+D.kenakPct>0){
-  tasks += taskXml(5601, "ΜΕΛΕΤΗ ΕΝΕΡΓΕΙΑΚΗΣ ΑΠΟΔΟΣΗΣ ΓΙΑ ΚΤΙΡΙΑ <=5000 τμ".replace("<","&lt;"), "ΜΕΛΕΤΗ", (D.studies.find(s=>s.tM===101)||{}).mEng||1, 1, 3, 2.3, 45, (+D.kenakPct/100).toFixed(2),
-    subXml(560101, 1, "ΚΕΝΑΚ - Μελέτη Ενεργειακής Απόδοσης", S, (+D.kenakPct/100).toFixed(2), (D.studies.find(s=>s.tM===101)||{}).mEng||1, "", 0).replace("      <participating_engineer>", subTail+"      <participating_engineer>"));
+  const kf = (+D.kenakPct/100).toFixed(2);
+  for(const st of D.studies){
+   if(!st.on || ![101,301,601,701,1101,1201,1001].includes(st.tM)) continue;
+   const kbase = S * ((+st.share||0)/100);
+   const kincs = (D.incProsthiki && !st.noInc)? incXml(500,"Προσθήκη / Επέκταση / Επισκευή Κτιρίου",30,1,1,0):"";
+   tasks += taskXml(5601, "ΜΕΛΕΤΗ ΕΝΕΡΓΕΙΑΚΗΣ ΑΠΟΔΟΣΗΣ ΓΙΑ ΚΤΙΡΙΑ <=5000 τμ".replace("<","&lt;"), "ΜΕΛΕΤΗ", +st.mEng||1, 1, st.mc||3, st.mk, st.mm, kf,
+     subXml(st.tM*100+10, 1, "ΚΕΝΑΚ - "+st.s.toUpperCase(), kbase, kf, +st.mEng||1, kincs, 0).replace("      <participating_engineer>", subTail+"      <participating_engineer>"));
+  }
  }
  // Τοπογραφικό 2001 (method 2 — μονάδες)
  if(+D.topoFlat>0){
