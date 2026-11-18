@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.11.0/proj4.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/polygon-clipping@0.15.7/dist/polygon-clipping.umd.min.js"></script>
 <title>HEXIS — Check My DXF · Έλεγχος Ηλεκτρονικών Διαγραμμάτων ΕΚ</title>
 <style>
 :root{
@@ -953,6 +954,45 @@ function validate(doc, file, dgType, ktimaOn){
       add('W','§4.5.3',`ΔΓΜ διόρθωσης: ΣΕμβαδόν DGM_PROP_FINAL (${aDGM.toFixed(1)} m²) ≠ ΣΕμβαδόν PST_KAEK (${aPST.toFixed(1)} m²) — διαφορά ${diff.toFixed(1)} m².`,`Τα περιμετρικά όρια του <b>DGM_PROP_FINAL</b> πρέπει να ΤΑΥΤΙΖΟΝΤΑΙ με του <b>PST_KAEK</b> (η διόρθωση ανακατανέμει εσωτερικά, δεν αλλάζει το συνολικό περίγραμμα, εκτός ειδικών περιπτώσεων). Έλεγξε snap στις εξωτερικές κορυφές.`);
     else
       add('I','§4.5.3',`Έλεγχος εμβαδών διόρθωσης ✓ — ΣPST_KAEK ${aPST.toFixed(1)} m² ≈ ΣDGM_PROP_FINAL ${aDGM.toFixed(1)} m².`);
+  }
+
+  /* --- Όπως ο έλεγχος της πλατφόρμας του Κτηματολογίου (μετά την υποβολή): ανοιχτές γραμμικές οντότητες, επικαλύψεις PST_KAEK,
+         περιμετρικά όρια DGM_PROP_FINAL ≡ PST_KAEK. Είναι ΣΦΑΛΜΑΤΑ: με αυτά το αρχείο απορρίπτεται. --- */
+  {
+    const OPENL=['TOPO_PROP','TOPO_PROP_NEW','PST_KAEK','DGM_PROP_FINAL','AREA_A','AREA_D','BOUND_IMPL','BOUND_UNIMPL','VST_FINAL'];
+    const openLay=[], openDet=[];
+    for(const std of OPENL){
+      if(!has(std)) continue;
+      const ents=entByLayer[layerMap[std]]||[];
+      const bad=ents.filter(e=>e.type==='LINE' || ((e.type==='LWPOLYLINE'||e.type==='POLYLINE') && !isRingClosed(e)));
+      if(bad.length){ openLay.push(std); const e=bad[0]; const p0=e.type==='LINE'?[e.x,e.y]:(e.pts&&e.pts[0])||[0,0]; openDet.push(`• ${std}: ${bad.length} ανοιχτή/ές — π.χ. στο (${(+p0[0]).toFixed(2)}, ${(+p0[1]).toFixed(2)})`); }
+    }
+    if(openLay.length)
+      add('E','Έλεγχος πλατφόρμας',`Το περιεχόμενο των επιπέδων ${openLay.join(', ')} έχει ανοιχτή γραμμική οντότητα — το αρχείο θα απορριφθεί.`,'Στα layers υποβολής μόνο <b>κλειστές LWPOLYLINE</b> (όχι LINE, όχι ανοιχτές πολυγραμμές). Για υποβολή χρησιμοποίησε το «DXF (ΠΙΝΑΚΑΣ Α)», όχι το DXF εκτύπωσης.',openDet.join('\n'));
+    const pcl=window.polygonClipping||null;
+    const pst=polyInfo['PST_KAEK']||[], fin=polyInfo['DGM_PROP_FINAL']||[];
+    const geo=(L)=>L.map(p=>[[p.ring.concat([p.ring[0]])]]);
+    if(pcl && pst.length>1){
+      const ov=[];
+      for(let a=0;a<pst.length;a++) for(let b=a+1;b<pst.length;b++){
+        const A=pst[a].ring,B=pst[b].ring; let x0=Math.max(Math.min(...A.map(q=>q[0])),Math.min(...B.map(q=>q[0]))),x1=Math.min(Math.max(...A.map(q=>q[0])),Math.max(...B.map(q=>q[0])));
+        if(x0>x1) continue;
+        let ar=0; try{ ar=pcl.intersection([[A.concat([A[0]])]],[[B.concat([B[0]])]]).reduce((s,poly)=>s+poly.reduce((t,r,i)=>t+(i?-1:1)*area(r.slice(0,-1)),0),0); }catch(_){}
+        // ίδιο ΚΑΕΚ σε δύο δακτυλίους (εξωτερικός + οπή) δεν είναι επικάλυψη: αφαιρείται αν ο ένας είναι ολόκληρος μέσα στον άλλο
+        const inside = Math.abs(ar-Math.min(pst[a].area,pst[b].area))<0.01;
+        if(ar>0.05 && !inside) ov.push(`• ${ar.toFixed(2)} m² επικάλυψη @ (${centroid(A)[0].toFixed(2)}, ${centroid(A)[1].toFixed(2)})`);
+      }
+      if(ov.length) add('E','Έλεγχος πλατφόρμας','Το layer PST_KAEK έχει επικαλύψεις — το αρχείο θα απορριφθεί.','Στο PST_KAEK μπαίνουν <b>μόνο τα εμπλεκόμενα γεωτεμάχια</b>, όπως είναι στο Κτηματολόγιο, χωρίς διπλά πολύγωνα. Αν οι επικαλύψεις υπάρχουν στην ίδια την κτηματολογική βάση, χρειάζεται διόρθωση από το Κτηματολόγιο.',ov.slice(0,6).join('\n'));
+    }
+    if(pcl && dgType==='DGM_DIORTH' && pst.length && fin.length){
+      let dpts=[], dA=0;
+      try{
+        const U1=pcl.union(...geo(pst)), U2=pcl.union(...geo(fin)), X=pcl.xor(U1,U2);
+        X.forEach(poly=>poly.forEach((r,i)=>{ const a=area(r.slice(0,-1)); if(!i){ dA+=a; if(a>0.01) dpts.push(r[0]); } else dA-=a; }));
+      }catch(_){}
+      if(dA>0.05)
+        add('E','Έλεγχος πλατφόρμας',`Τα περιμετρικά όρια του DGM_PROP_FINAL δεν ταυτίζονται με τα περιμετρικά όρια του PST_KAEK (διαφορά ${dA.toFixed(2)} m²) — το αρχείο θα απορριφθεί.`,'Το σύνολο των τελικών γεωτεμαχίων (<b>DGM_PROP_FINAL</b>) πρέπει να καλύπτει ακριβώς την ίδια έκταση με τα αρχικά (<b>PST_KAEK</b>): ό,τι παίρνει το ένα ΚΑΕΚ το δίνει άλλο ΚΑΕΚ του σχεδίου.',dpts.slice(0,6).map(q=>`• (${q[0].toFixed(2)}, ${q[1].toFixed(2)})`).join('\n'));
+    }
   }
 
   /* --- Τοπογραφικό: αποδεκτή απόκλιση εμβαδού από την κτηματολογική βάση (άρθ. 13α ν.2664/98 — ΟΚΧΕ 461/03 & 462/03/2008) --- */
