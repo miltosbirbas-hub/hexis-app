@@ -532,6 +532,113 @@
   function hmax210(s) { if (!(s > 0)) return null; if (s <= 0.4) return 10.75; if (s <= 0.8) return 14; if (s <= 1.2) return 17.25; if (s <= 1.6) return 19.5; if (s <= 2.0) return 22.75; if (s <= 2.6) return 26; return null; }
   function rnd(x) { return Math.floor(x + 0.5); }
   function gr(v, d) { if (v == null || !isFinite(v)) return '....'; d = d == null ? 2 : d; return v.toFixed(d).replace('.', ','); }
+
+  /* ---------------- αναλυτική εμβαδομέτρηση: ορθογώνια, τραπέζια, τρίγωνα, κύκλος ---------------- */
+  // πολύγωνο → κομμάτια γνωστών σχημάτων με διαστάσεις στρογγυλεμένες στο εκατοστό· το εμβαδόν κάθε κομματιού βγαίνει από αυτές τις διαστάσεις
+  function r2(v) { return Math.round(v * 100) / 100; }
+  function cleanPoly(pts) {
+    var P = pts.filter(function (p, i) { var q = pts[(i + 1) % pts.length]; return Math.hypot(p[0] - q[0], p[1] - q[1]) > 0.005; });
+    for (var it = 0, ch = true; ch && it < 4 && P.length > 3; it++) { ch = false;
+      P = P.filter(function (p, i) { var a = P[(i - 1 + P.length) % P.length], b = P[(i + 1) % P.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L < 1e-9) return true;
+        var d = Math.abs((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])) / L; if (d < 0.005) { ch = true; return false; } return true; }); }
+    return P;
+  }
+  function sweep(P, comp) {   // P σε τοπικούς άξονες· λωρίδες κατά y → τραπέζια (comp=[xmin,xmax]: τα κενά μέσα στο περιβάλλον ορθογώνιο)
+    var ys = P.map(function (p) { return p[1]; }).sort(function (a, b) { return a - b; }), Y = [];
+    ys.forEach(function (y) { if (!Y.length || y - Y[Y.length - 1] > 0.005) Y.push(y); });
+    var n = P.length, pieces = [], prev = [];
+    for (var k = 0; k + 1 < Y.length; k++) {
+      var y0 = Y[k], y1 = Y[k + 1], ym = (y0 + y1) / 2, cr = [];
+      for (var i = 0; i < n; i++) { var a = P[i], b = P[(i + 1) % n]; if ((a[1] - ym) * (b[1] - ym) >= 0) continue;
+        var sl = (b[0] - a[0]) / (b[1] - a[1]), x = function (y) { return a[0] + sl * (y - a[1]); }; cr.push({ x0: x(y0), x1: x(y1), xm: x(ym), sl: sl }); }
+      cr.sort(function (u, v) { return u.xm - v.xm; });
+      if (comp) cr = [{ x0: comp[0], x1: comp[0], xm: comp[0], sl: 0 }].concat(cr, [{ x0: comp[1], x1: comp[1], xm: comp[1], sl: 0 }]);
+      var cur = [];
+      for (var j = 0; j + 1 < cr.length; j += 2) {
+        if (comp && cr[j + 1].x0 - cr[j].x0 < 0.005 && cr[j + 1].x1 - cr[j].x1 < 0.005) continue;
+        var L = cr[j], R = cr[j + 1], pc = { y0: y0, y1: y1, xl0: L.x0, xl1: L.x1, xr0: R.x0, xr1: R.x1, sl: L.sl, sr: R.sl };
+        var m = prev.find(function (q) { return Math.abs(q.y1 - y0) < 1e-6 && Math.abs(q.xl1 - pc.xl0) < 0.005 && Math.abs(q.xr1 - pc.xr0) < 0.005 && Math.abs(q.sl - pc.sl) < 1e-3 && Math.abs(q.sr - pc.sr) < 1e-3; });
+        if (m) { m.y1 = y1; m.xl1 = pc.xl1; m.xr1 = pc.xr1; cur.push(m); } else { pieces.push(pc); cur.push(pc); }
+      }
+      prev = cur;
+    }
+    return pieces;
+  }
+  function areaParts(pts) {
+    var P = cleanPoly(pts || []), A = area(P);
+    if (P.length < 3 || A < 1e-6) return { method: 'none', pieces: [], total: 0 };
+    // κύκλος
+    if (P.length >= 16) { var c = cent(P), rr = P.map(function (p) { return Math.hypot(p[0] - c[0], p[1] - c[1]); }), rm = rr.reduce(function (s, v) { return s + v; }, 0) / rr.length;
+      if (rr.every(function (v) { return Math.abs(v - rm) < 0.015 * rm; })) { var R0 = r2(rm), ac = r2(Math.PI * R0 * R0); return { method: 'shapes', total: ac, exact: A, pieces: [{ type: 'circle', R: R0, a: ac, c: c }] }; } }
+    // άξονες: η διεύθυνση της μεγαλύτερης πλευράς
+    var best = null, bl = 0; P.forEach(function (p, i) { var q = P[(i + 1) % P.length], l = Math.hypot(q[0] - p[0], q[1] - p[1]); if (l > bl) { bl = l; best = Math.atan2(q[1] - p[1], q[0] - p[0]); } });
+    var th = ((best % (Math.PI / 2)) + Math.PI / 2) % (Math.PI / 2), o = P[0], res = null;
+    [th, th + Math.PI / 2].forEach(function (t) {
+      var cs = Math.cos(t), sn = Math.sin(t);
+      var Q = P.map(function (p) { var x = p[0] - o[0], y = p[1] - o[1]; return [x * cs + y * sn, -x * sn + y * cs]; });
+      var W = function (x, y) { return [o[0] + x * cs - y * sn, o[1] + x * sn + y * cs]; };
+      var badN = function (L) { return L.filter(function (q) { return Math.abs(q.sl) > 1e-3 || Math.abs(q.sr) > 1e-3; }).length; };
+      var thin = function (L) { return L.filter(function (q) { return Math.min(Math.max(q.xr0 - q.xl0, q.xr1 - q.xl1), q.y1 - q.y0) < 0.8; }).length; };
+      var cost = function (L) { return L.length + 0.5 * thin(L) + 0.1 * badN(L); };
+      var pcs = sweep(Q);
+      if (!res || cost(pcs) < res.cost) res = { pcs: pcs, W: W, u: [cs, sn], v: [-sn, cs], cost: cost(pcs), sub: null };
+      // αφαιρετικά: περιβάλλον ορθογώνιο μείον τα κενά
+      var x0 = 1e30, x1 = -1e30, y0 = 1e30, y1 = -1e30; Q.forEach(function (p) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
+      var gaps = sweep(Q, [x0, x1]), box = { y0: y0, y1: y1, xl0: x0, xl1: x0, xr0: x1, xr1: x1, sl: 0, sr: 0 };
+      var cs2 = gaps.length ? 1 + cost(gaps) - 0.3 : 1e9;   // όπως στα σχέδια: περιβάλλον ορθογώνιο μείον τα κενά, όταν ισοβαθμεί
+      if (cs2 < res.cost) res = { pcs: [box].concat(gaps), W: W, u: [cs, sn], v: [-sn, cs], cost: cs2, sub: true };
+    });
+    if (!res.pcs.length || res.pcs.length > 16) return { method: 'gauss', pieces: [], total: r2(A), exact: A };
+    var tot = 0, pieces = res.pcs.map(function (q, qi) {
+      var sgn = res.sub && qi > 0 ? -1 : 1;
+      var wb = r2(q.xr0 - q.xl0), wt = r2(q.xr1 - q.xl1), h = r2(q.y1 - q.y0), pc = { BL: res.W(q.xl0, q.y0), BR: res.W(q.xr0, q.y0), TR: res.W(q.xr1, q.y1), TL: res.W(q.xl1, q.y1), u: res.u, v: res.v, h: h, q: q, W: res.W };
+      if (wb < 0.005 || wt < 0.005) { pc.type = 'tri'; pc.b = Math.max(wb, wt); pc.a = r2(pc.b * h / 2); pc.apexTop = wt < 0.005; }
+      else if (Math.abs(wb - wt) < 0.005) { pc.type = Math.abs(q.sl) < 1e-3 ? 'rect' : 'par'; pc.b = wb; pc.a = r2(wb * h); }
+      else { pc.type = 'trap'; pc.b = wb; pc.t = wt; pc.a = r2((wb + wt) / 2 * h); }
+      pc.sgn = sgn; tot += sgn * pc.a; return pc;
+    });
+    return { method: 'shapes', pieces: pieces, total: r2(tot), exact: A };
+  }
+
+  // ένωση πολυγώνων που εφάπτονται (διαμερίσματα + κλιμακοστάσιο) σε ένα περίγραμμα· αν κάτι δεν κλείνει καθαρά, επιστρέφει τα αρχικά
+  function unionTiles(polys) {
+    if (!polys || polys.length < 2) return polys || [];
+    var U = [], key = function (p) { for (var i = 0; i < U.length; i++) if (Math.abs(U[i][0] - p[0]) < 0.01 && Math.abs(U[i][1] - p[1]) < 0.01) return i; U.push([p[0], p[1]]); return U.length - 1; };
+    var sg = function (P) { var a = 0; P.forEach(function (p, i) { var q = P[(i + 1) % P.length]; a += p[0] * q[1] - q[0] * p[1]; }); return a; };
+    var PP = polys.map(function (P) { P = cleanPoly(P); return sg(P) < 0 ? P.slice().reverse() : P; });
+    PP.forEach(function (P) { P.forEach(key); });
+    var segs = {};
+    PP.forEach(function (P) { P.forEach(function (a, i) { var b = P[(i + 1) % P.length], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy; if (L2 < 1e-6) return;
+      var on = [0, 1]; U.forEach(function (v) { var t = ((v[0] - a[0]) * dx + (v[1] - a[1]) * dy) / L2; if (t <= 1e-4 || t >= 1 - 1e-4) return; var px = a[0] + t * dx, py = a[1] + t * dy; if (Math.hypot(px - v[0], py - v[1]) < 0.01) on.push(t); });
+      on.sort(function (x, y) { return x - y; });
+      for (var j = 0; j + 1 < on.length; j++) { var ka = key([a[0] + on[j] * dx, a[1] + on[j] * dy]), kb = key([a[0] + on[j + 1] * dx, a[1] + on[j + 1] * dy]); if (ka === kb) continue;
+        if (segs[kb + '>' + ka]) delete segs[kb + '>' + ka]; else segs[ka + '>' + kb] = [ka, kb]; } }); });
+    var nx = {}, n = 0; Object.keys(segs).forEach(function (k) { var e = segs[k]; (nx[e[0]] = nx[e[0]] || []).push(e[1]); n++; });
+    if (Object.keys(nx).some(function (k) { return nx[k].length !== 1; })) return polys;
+    var loops = [], used = {};
+    Object.keys(nx).forEach(function (k0) { if (used[k0]) return; var L = [], k = +k0, g = 0; while (!used[k] && g++ < 5000) { used[k] = 1; L.push(U[k]); k = nx[k][0]; } if (k !== +k0) return; loops.push(L); });
+    if (!loops.length || loops.some(function (L) { return sg(L) < 0; })) return polys;   // τρύπες: κρατάμε τα κομμάτια
+    var a0 = polys.reduce(function (s0, P) { return s0 + area(P); }, 0), a1 = loops.reduce(function (s0, L) { return s0 + area(L); }, 0);
+    return Math.abs(a0 - a1) < 0.02 ? loops.map(cleanPoly) : polys;
+  }
+  function partExpr(pc) {
+    if (pc.type === 'circle') return 'π x ' + gr(pc.R) + '²';
+    if (pc.type === 'tri') return gr(pc.b) + ' x ' + gr(pc.h) + ' / 2';
+    if (pc.type === 'trap') return '(' + gr(pc.b) + ' + ' + gr(pc.t) + ') / 2 x ' + gr(pc.h);
+    return gr(pc.b) + ' x ' + gr(pc.h);
+  }
+  // «Ε = ε1 + ε2 = 12,00 x 8,00 + (5,00 + 3,00) / 2 x 4,00 = 96,00 + 16,00 = 112,00»· polys = πολύγωνα του ίδιου μεγέθους, αρίθμηση από start
+  function areaExpr(polys, pre, start) {
+    var all = [], gauss = 0, n = start || 1, ex = 0;
+    polys.forEach(function (pts) { var r = areaParts(pts); ex += r.exact || 0; if (r.method === 'shapes') r.pieces.forEach(function (pc) { all.push(pc); }); else if (r.method === 'gauss') gauss += r.total; });
+    var tot = all.reduce(function (s, pc) { return s + (pc.sgn || 1) * pc.a; }, 0) + gauss;
+    if (!all.length) return { text: gr(r2(tot)), total: r2(tot), exact: ex, n: 0 };
+    var J = function (arr) { return arr.map(function (x, i) { return i === 0 ? x : ((all[i] && all[i].sgn < 0) ? ' − ' : ' + ') + x; }).join(''); };
+    var names = all.map(function (_, i) { return pre + (n + i); }), parts = all.map(function (pc) { var e = partExpr(pc); return all.length > 1 && pc.type !== 'rect' && pc.type !== 'par' ? '[' + e + ']' : e; }), vals = all.map(function (pc) { return gr(pc.a); });
+    if (gauss) { names.push('Ε(Gauss)'); parts.push(gr(r2(gauss))); vals.push(gr(r2(gauss))); }
+    var t = names.length > 1 ? J(names) + ' = ' + J(parts) + ' = ' + J(vals) + ' = ' + gr(r2(tot)) : names[0] + ' = ' + parts[0] + ' = ' + gr(r2(tot));
+    return { text: t, total: r2(tot), exact: ex, n: all.length };
+  }
   function grz(v) { if (v == null || !isFinite(v)) return '....'; var s = gr(v, 2); return s.replace(/,?0+$/, ''); }
 
   /* ---------------- ανάλυση τομών / όψεων: στάθμες, έδαφος, ύψη ---------------- */
@@ -761,7 +868,7 @@
         else if (s.code === 'Y') { x = inn ? a : 0; nt = 'πυλωτή: δεν μετρά εφόσον ≥ 50% της κάλυψης, δάπεδο ±0,50 μ. από το έδαφος, ελεύθερο ύψος κύριας χρήσης (206 παρ. 6ιστ)'; }
         else if (s.code === 'E') { if (L.typ === 1 && inn) Ein += a; else if (L.typ === 1) Ein += 0; nt = 'μετρά στη δόμηση· δεν μετρά στην κάλυψη (207 παρ. 4β)'; }
         if (s.code !== 'H' && s.code !== 'X') ex += x;
-        sp.push({ code: s.code, a: a, x: x, nt: nt, inn: inn });
+        sp.push({ code: s.code, a: a, x: x, nt: nt, inn: inn, pts: s.pts });
       });
       var wx = ((L.typ === 1 || L.typ === 4) && WR.typ !== 'none') ? L.outlines.reduce(function (s0, p) { return s0 + WR.f(p, L.cols); }, 0) : 0;
       var cvr = null; if (L.typ === 1 && WR.typ === 'thermo') { cvr = { len: 0, per: 0, n: (L.cols || []).length }; L.outlines.forEach(function (p) { var c0 = colCover(p, L.cols || [], WR.d); cvr.len += c0.len; cvr.per += c0.per; }); }
@@ -784,7 +891,7 @@
       else if (L.typ === 9) { cnt = 0; nt = 'δώμα / στέγη: σχέδιο αναφοράς'; }
       if (L.typ === 1 || L.typ === 3) Vr += G * (L.h || 0);
       Dom += cnt; HX += hx; Hh += h;
-      R.lv.push({ name: L.name, typ: L.typ, use: L.use, G: G, wx: wx, cvr: cvr, stg: Object.keys(L._stg).map(function (k) { return L._stg[k]; }), tot: tot, ex: ex, hx: hx, h: h, Lc: Lc, cnt: cnt, nt: nt, sp: sp, hgt: L.h, ug: L._ug, ub: L._ub, z: zf[j] });
+      R.lv.push({ ol: L.outlines, name: L.name, typ: L.typ, use: L.use, G: G, wx: wx, cvr: cvr, stg: Object.keys(L._stg).map(function (k) { return L._stg[k]; }), tot: tot, ex: ex, hx: hx, h: h, Lc: Lc, cnt: cnt, nt: nt, sp: sp, hgt: L.h, ug: L._ug, ub: L._ub, z: zf[j] });
     });
     if (WR.typ === 'thermo') { var cl0 = 0, cp0 = 0, cn0 = 0, est = false; R.lv.forEach(function (l) { if (!l.cvr) return; if (l.cvr.n) { cl0 += l.cvr.len; cp0 += l.cvr.per; cn0 += l.cvr.n; } else est = true; });
       WR.colInfo = { n: cn0, len: cl0, per: cp0, est: est };
@@ -1137,14 +1244,18 @@
     return L;
   }
   // κείμενο εμβαδομέτρησης κάτω από κάθε κάτοψη (τελικά εμβαδά, χωρίς τριγωνισμούς — εγκύκλιος 2022)
-  function levelBlock(l, isGround, Sk) {
+  function levelBlock(l, isGround, Sk, analytic) {
     var N = String(l.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase(), out = [];
-    out.push('ΕΜΒΑΔΟΝ ' + N + (isGround ? ' = ΠΡΑΓΜΑΤ. ΚΑΛΥΨΗ' : '') + ': Ε= ' + gr(l.G) + ' Μ²');
+    var AN = analytic && l.ol && l.ol.length ? areaExpr(unionTiles(l.ol), 'ε', 1) : null;
+    out.push('ΕΜΒΑΔΟΝ ' + N + (isGround ? ' = ΠΡΑΓΜΑΤ. ΚΑΛΥΨΗ' : '') + ': Ε= ' + (AN && AN.n ? AN.text + (Math.abs(AN.total - l.G) >= 0.015 ? ' (από συντεταγμένες ' + gr(l.G) + ')' : '') : gr(l.G)) + ' Μ²');
     if ((l.typ === 1 || l.typ === 3) && l.hgt) out.push('ΟΓΚΟΣ ' + N + ': V=Ε x ύψος= ' + gr(l.G) + ' x ' + gr(l.hgt) + ' = ' + gr(l.G * l.hgt) + ' M³');
     var sums = {};
     l.sp.forEach(function (s) { sums[s.code] = (sums[s.code] || 0) + s.a; });
     var lab = { H: 'ΕΜΒΑΔΟΝ ΗΜΙΥΠΑΙΘΡΙΩΝ ΧΩΡΩΝ', X: 'ΕΜΒΑΔΟΝ ΕΞΩΣΤΩΝ', K: 'ΕΜΒΑΔΟΝ ΚΟΙΝΟΧΡΗΣΤΟΥ ΚΛΙΜΑΚΟΣΤΑΣΙΟΥ', I: 'ΕΜΒΑΔΟΝ ΚΛΙΜΑΚΟΣΤΑΣΙΟΥ', L: 'ΕΜΒΑΔΟΝ ΑΝΕΛΚΥΣΤΗΡΑ', A: 'ΕΜΒΑΔΟΝ ΑΝΟΙΚΤΟΥ ΚΛΙΜΑΚΟΣΤΑΣΙΟΥ', F: 'ΕΜΒΑΔΟΝ ΦΩΤΑΓΩΓΩΝ / ΦΡΕΑΤΙΩΝ', P: 'ΕΜΒΑΔΟΝ ΣΤΑΘΜΕΥΣΗΣ / Η-Μ' };
-    ['H', 'X', 'K', 'I', 'L', 'A', 'F', 'P'].forEach(function (k) { if (sums[k]) out.push(lab[k] + ': Ε= ' + gr(sums[k]) + ' Μ²'); });
+    var sn = 1;
+    ['H', 'X', 'K', 'I', 'L', 'A', 'F', 'P'].forEach(function (k) { if (!sums[k]) return;
+      var ps = l.sp.filter(function (s) { return s.code === k && s.pts; }).map(function (s) { return s.pts; }), E = analytic && ps.length ? areaExpr(ps, 'σ', sn) : null;
+      if (E && E.n) { sn += E.n; out.push(lab[k] + ': Ε= ' + E.text + ' Μ²'); } else out.push(lab[k] + ': Ε= ' + gr(sums[k]) + ' Μ²'); });
     if (l.wx > 0.005) out.push('ΤΟΙΧΟΠΟΙΙΑ / ΘΕΡΜΟΜΟΝΩΣΗ ΠΟΥ ΔΕΝ ΜΕΤΡΑ (206 παρ. 6): Ε= ' + gr(l.wx) + ' Μ²');
     out.push('ΕΜΒΑΔΟΝ ' + N + ' (ΕΝΤΟΣ Σ.Δ.): Ε= ' + gr(l.cnt) + ' Μ²' + (l.nt && l.cnt !== l.Lc ? ' — ' + l.nt : ''));
     return out;
@@ -1153,7 +1264,7 @@
   var api = {
     area: area, cent: cent, bbox: bbox, bbUnion: bbUnion, bbGrow: bbGrow, pip: pip, ptseg: ptseg, dist: dist, inside: inside, edgeMin: edgeMin,
     norm: norm, prepare: prepare, cluster: cluster, recognize: recognize, levelFromText: levelFromText, rescale: rescale, bldTag: bldTag, bldList: bldList, topoDetect: topoDetect, planDetect: planDetect,
-    compute: compute, checks: checks, suggest: suggest, yTemplate: yTemplate, levelBlock: levelBlock,
+    compute: compute, checks: checks, suggest: suggest, yTemplate: yTemplate, levelBlock: levelBlock, areaParts: areaParts, areaExpr: areaExpr, unionTiles: unionTiles,
     sectionAnalyze: sectionAnalyze, verdict: verdict, wallRule: wallRule, findCols: findCols, isColLayer: isColLayer, colCover: colCover, strip: strip, inset: inset, WALLT: WALLT, split: split, layerCode: layerCode, PLOTL: /KAEK|ΚΑΕΚ|TOPO_PROP|BOUND|OIKOPED|ΟΙΚΟΠΕΔ|PLOT|GEOTEM|ΓΕΩΤΕΜ/, oikMax: oikMax, ektMax: ektMax, hmax210: hmax210, gr: gr, grz: grz, CODE: CODE, typText: typText, EGSA: EGSA
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

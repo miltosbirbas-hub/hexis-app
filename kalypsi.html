@@ -217,8 +217,8 @@ const K = window.KalEngine, KS = window.KalSheet;
 const $ = s => document.querySelector(s);
 const SB_URL = 'https://oucqqudfdimccgowvpqp.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im91Y3FxdWRmZGltY2Nnb3d2cHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQyNjIsImV4cCI6MjA5Njg1MDI2Mn0.7Am1tSulJrkWlsm_Vv9xz5RlvpxoYGYSL3237UaQ8S8';
-const APP_VERSION = '2.8';
-const WHATS_NEW = 'Νέο στην έκδοση 2.8: συγκροτήματα και υπόσκαφα («ΚΑΤΟΨΗ ΥΠΟΣΚΑΦΟΥ 1», «ΤΥΠΙΚΗ ΚΑΤΟΨΗ ΥΠΟΣΚΑΦΩΝ 1-4») με κάλυψη και δόμηση ανά κτίριο. Διαβάζει ολόκληρα φύλλα με θυρίδες, μπλοκ και κατόψεις σε άλλη κλίμακα («κλ. 1:100») — και επιλογή κλίμακας ανά κάτοψη. Διαμερίσματα και κλιμακοστάσιο σε χωριστά κομμάτια ενώνονται σε ένα περίγραμμα.';
+const APP_VERSION = '2.9';
+const WHATS_NEW = 'Νέο στην έκδοση 2.9: αναλυτική εμβαδομέτρηση — κάθε περίγραμμα σε ορθογώνια, τραπέζια, τρίγωνα (ε1, ε2…), με διακριτικές διαστάσεις μέσα, μήκη πλευρών απ\' έξω και τις πράξεις στα κείμενα (Ε = 12,00 x 8,00 − 5,00 x 3,00 = 81,00). Το DXF γράφει όλα τα κείμενα ως MTEXT.';
 const STEPS = ['Όροι', 'DXF', 'Τοπογραφικό', 'Κατόψεις', 'Τομές · όψεις', 'Έλεγχος', 'Εξαγωγή'];
 const SPC = { H: '#f59e0b', X: '#38bdf8', E: '#0284c7', K: '#8b5cf6', I: '#a78bfa', A: '#c4b5fd', F: '#14b8a6', P: '#94a3b8', Y: '#cbd5e1', L: '#6366f1' };
 const SPN = { H: 'Ημιυπαίθριος', X: 'Ανοικτός εξώστης', E: 'Κλειστός εξώστης', K: 'Κοιν. σκάλα', I: 'Ιδιωτ. σκάλα', A: 'Ανοικτή σκάλα', F: 'Φωταγωγός/αίθριο', P: 'Στάθμευση/Η-Μ', Y: 'Πυλωτή', L: 'Ανελκυστήρας' };
@@ -908,6 +908,7 @@ function render() {
     h += '<p class="small">Διάταξη: <b>' + esc(TP.name.split(':')[0]) + '</b> της εγκυκλίου ΥΠΕΝ — κάθε σχέδιο στη θέση του υποδείγματος. Αν κάτι δεν χωρά σε 1:100, η περιοχή του περνά αυτόματα σε 1:200 / 1:500 και η κλίμακα γράφεται στην κεφαλίδα της.</p>';
     h += '<div class="row"><label class="f"><span>Μέγεθος φύλλου</span><select id="shH"><option value="auto">Αυτόματο</option>' + TP.sizes.map((z, i) => '<option value="' + i + '">' + z[0] + ' x ' + z[1] + ' mm</option>').join('') + '</select></label>';
     h += '<label class="f"><span>Κλίμακα τοπογραφικού</span><select id="tpS"><option value="auto">Αυτόματη</option><option value="100">1/100</option><option value="200">1/200</option><option value="250">1/250</option><option value="500">1/500</option><option value="1000">1/1000</option></select></label></div>';
+    h += '<label class="ck" style="display:flex;gap:10px;align-items:flex-start;margin:8px 0"><input type="checkbox" id="shAn"' + (S.ext.analytic !== false ? ' checked' : '') + ' style="width:22px;height:22px;flex:none"><span>Αναλυτική εμβαδομέτρηση: κάθε περίγραμμα σε ορθογώνια, τραπέζια, τρίγωνα (ε1, ε2…), με διακριτικές διαστάσεις μέσα, μήκη πλευρών απ\' έξω και τις πράξεις στα κείμενα</span></label>';
     if (sh) { h += '<div class="card"><div class="kv"><span>Μέγεθος φύλλου</span><b>' + Math.round(sh.W) + ' x ' + Math.round(sh.H) + ' mm</b></div>' + (sh.topoXf ? '<div class="kv"><span>Τοπογραφικό</span><b>1/' + sh.topoXf.den + '</b></div>' : '') + '</div>'; sh.warn.forEach(w => h += '<div class="card b-warn">' + esc(w) + '</div>'); }
     h += '<div class="row" style="margin-top:8px"><button class="btn" id="bPdf">PDF</button><button class="btn" id="bDxf">DXF</button></div>';
     h += '<p class="small" style="margin-top:10px">Το DXF (R2000) ανοίγει σε AutoCAD, progeCAD, ZWCAD· ελληνικά σωστά, μονάδες μέτρα. Οι εικόνες μπαίνουν μόνο στο PDF.</p>';
@@ -968,7 +969,7 @@ function render() {
     document.querySelectorAll('[data-rm]').forEach(el => el.onclick = () => { S.photos.splice(+el.dataset.rm, 1); render(); save(); });
   }
   if (s === 5 && $('#bAi')) { $('#bAi').onclick = askAi; $('#bRep').onclick = exportReport; }
-  if (s === 6) { $('#shH').value = String(S.sheetH === 594 || S.sheetH === 841 || S.sheetH === '594' || S.sheetH === '841' ? 'auto' : S.sheetH); $('#shH').onchange = e => { S.sheetH = e.target.value; buildSheet(); render(); fit(focusBB()); save(); };
+  if (s === 6) { $('#shH').value = String(S.sheetH === 594 || S.sheetH === 841 || S.sheetH === '594' || S.sheetH === '841' ? 'auto' : S.sheetH); $('#shH').onchange = e => { S.sheetH = e.target.value; buildSheet(); render(); fit(focusBB()); save(); }; $('#shAn').onchange = e => { S.ext.analytic = e.target.checked; buildSheet(); render(); save(); };
     $('#tpS').value = String(S.topoScale || 'auto'); $('#tpS').onchange = e => { S.topoScale = e.target.value; buildSheet(); render(); fit(focusBB()); save(); }; $('#bPdf').onclick = exportPdf; $('#bDxf').onclick = exportDxf; }
 }
 function thumb(c, cl) { const g = c.getContext('2d'), b = cl.bb, w = c.width, h = c.height, s = Math.min((w - 10) / Math.max(1e-6, b[2] - b[0]), (h - 10) / Math.max(1e-6, b[3] - b[1]));
@@ -1024,11 +1025,11 @@ function buildSheet() {
   const R = UI.R, A = UI.A, pls = planList();
   const planIdx = pls.filter(c => c.kind === 'plan');
   const plans = pls.map(c => { const pl = planOf(c.id), k = planIdx.indexOf(c), lv = k >= 0 ? R.lv[k] : null;
-    return { cl: c.id, name: (c.level && c.level.name) || 'Δώμα', outline: pl.outline.filter(i => ent(i)), spaces: pl.spaces.filter(s => ent(s.id)), lines: lv ? K.levelBlock(lv, lv.typ === 1 && planIdx.filter(x => x.level && x.level.typ === 1)[0] === c, R.Sk) : [] }; });
+    return { cl: c.id, name: (c.level && c.level.name) || 'Δώμα', outline: pl.outline.filter(i => ent(i)), spaces: pl.spaces.filter(s => ent(s.id)), lines: lv ? K.levelBlock(lv, lv.typ === 1 && planIdx.filter(x => x.level && x.level.typ === 1)[0] === c, R.Sk, S.ext.analytic !== false) : [] }; });
   const used = S.cls.filter(c => (c.kind === 'section' || c.kind === 'elev') && c.use !== false).sort((a, b) => a.bb[0] - b.bb[0]);
   const P = Object.assign({}, S.proj, { date: today() });
   const tpl = K.yTemplate(A, R, { rows: rowsArr(), rowsSrc: S.rules.src ? 'πηγή: ' + S.rules.src : '', vlabels: (() => { const l = plotLabels(); return l.length ? l.join('-') + '-' + l[0] : ''; })(), oikismos: S.rules.oikismos, dimos: S.rules.dimos, artio: artioTxt(), ergo: S.proj.ergo });
-  UI.sheet = KS.build({ D: S.D, cls: S.cls, topo: S.topo, plans, secs: used.filter(c => c.kind === 'section').map(c => c.id), elevs: used.filter(c => c.kind === 'elev').map(c => c.id), R, A, tpl, P, photos: S.photos, measure, H0: S.sheetH, topoScale: S.topoScale || 'auto', plotLabels: plotLabels(), tplNo: A.mode === 2 ? 2 : 1 });
+  UI.sheet = KS.build({ analytic: S.ext.analytic !== false, D: S.D, cls: S.cls, topo: S.topo, plans, secs: used.filter(c => c.kind === 'section').map(c => c.id), elevs: used.filter(c => c.kind === 'elev').map(c => c.id), R, A, tpl, P, photos: S.photos, measure, H0: S.sheetH, topoScale: S.topoScale || 'auto', plotLabels: plotLabels(), tplNo: A.mode === 2 ? 2 : 1 });
 }
 async function exportDxf() {
   if (!UI.sheet) buildSheet(); if (!UI.sheet) return;
@@ -1147,6 +1148,13 @@ function help() {
   '<li>Τίτλος χωρίς αριθμό («σχεδιάγραμμα ΙΣΟΓΕΙΟΥ»): η εφαρμογή παίρνει τον αριθμό από ετικέτα μέσα στο σχέδιο, π.χ. «ΥΠΟΣΚΑΦΗ ΚΑΤΟΙΚΙΑ (1)».</li>' +
   '<li>Στο τοπογραφικό: κείμενο «ΚΤΙΡΙΟ 1», «ΥΠΟΣΚΑΦΟ 2» μέσα σε κάθε περίγραμμα. Ανοιχτά κομμάτια περιγράμματος που ακουμπούν ενώνονται μόνα τους.</li>' +
   '<li>Υπόσκαφο κατοικίας: εξαιρείται το 50% στη δόμηση (206 παρ. 6κγ) και το 50% στην κάλυψη (207 παρ. 4στ)· άλλης χρήσης 20%.</li></ul>' +
+  '<h3>Αναλυτική εμβαδομέτρηση</h3><ul>' +
+  '<li>Βήμα «Εξαγωγή» → «Αναλυτική εμβαδομέτρηση» (ενεργή από προεπιλογή). Κάθε περίγραμμα σπάει σε γνωστά σχήματα: ορθογώνιο β x υ, τρίγωνο β x υ / 2, τραπέζιο (Β + β) / 2 x υ, κύκλος π x R².</li>' +
+  '<li>Η εφαρμογή διαλέγει τον τρόπο με τα λιγότερα κομμάτια: άθροισμα (ε1 + ε2 + …) ή περιβάλλον ορθογώνιο μείον τα κενά (ε1 − ε2 − …). Διαμερίσματα και κλιμακοστάσιο που εφάπτονται μετρώνται ως ένα περίγραμμα ορόφου.</li>' +
+  '<li>Στο σχέδιο: αριθμός κάθε κομματιού (ε1, ε2… για τον όροφο, σ1, σ2… για Η/Χ, εξώστες, κλιμακοστάσια κ.λπ.), λεπτές γκρι διαστάσεις μέσα του, και έξω από το περίγραμμα μόνο το μήκος κάθε πλευράς, χωρίς γραμμές. Όλα στο layer KAL_DIASTASEIS.</li>' +
+  '<li>Στα κείμενα κάτω από κάθε κάτοψη: οι πράξεις, π.χ. «Ε = ε1 − ε2 = 12,00 x 8,00 − 5,00 x 3,00 = 96,00 − 15,00 = 81,00 Μ²». Οι διαστάσεις στρογγυλεύονται στο εκατοστό· αν το αποτέλεσμα διαφέρει από το εμβαδόν των συντεταγμένων πάνω από 0,01, γράφεται και αυτό.</li>' +
+  '<li>Πολύ σύνθετο περίγραμμα (καμπύλες, πάνω από 16 κομμάτια): εμβαδόν από τις συντεταγμένες των κορυφών (τύπος Gauss).</li>' +
+  '<li>Αν η υπηρεσία θέλει μόνο τελικά εμβαδά, κλείσε την επιλογή.</li></ul>' +
   '<h3>Φύλλο με θυρίδες, μπλοκ και κλίμακες</h3><ul>' +
   '<li>Το DXF μπορεί να είναι όλο το φύλλο: πλαίσια θυρίδων, διαχωριστικές γραμμές, πινακίδα. Η εφαρμογή χωρίζει κάθε σχέδιο από τον τίτλο του, πάνω ή κάτω από το σχέδιο. Τα «ΟΨΗ Α/Β» μέσα στις κατόψεις μένουν σημάδια.</li>' +
   '<li>Μπλοκ (INSERT) αναπτύσσονται με θέση, κλίμακα και στροφή.</li>' +

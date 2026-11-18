@@ -165,6 +165,82 @@
       return null;
     }
 
+    // ---- αναλυτική εμβαδομέτρηση στο σχέδιο: διακριτικές διαστάσεις μέσα στα κομμάτια, μήκη πλευρών απ' έξω ----
+    var DC = '#6b7280', DH = 1.5, DLY = 'KAL_DIASTASEIS';
+    function angOf(a, b) { var g = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI; if (g > 90.01) g -= 180; if (g <= -89.99) g += 180; return g; }
+    var OCC = [];   // θέσεις κειμένων της τρέχουσας κάτοψης (για να μην πέφτουν το ένα πάνω στο άλλο)
+    function tbox(x, y, str, h, rot, al) { var w = measure(str, h, false), g = (rot || 0) * Math.PI / 180, c = Math.cos(g), sn = Math.sin(g), x0 = al === 'c' ? -w / 2 : al === 'r' ? -w : 0;
+      var P = [[x0, -0.2 * h], [x0 + w, -0.2 * h], [x0 + w, h], [x0, h]].map(function (q) { return [x + q[0] * c - q[1] * sn, y + q[0] * sn + q[1] * c]; });
+      return [Math.min.apply(null, P.map(function (q) { return q[0]; })), Math.min.apply(null, P.map(function (q) { return q[1]; })), Math.max.apply(null, P.map(function (q) { return q[0]; })), Math.max.apply(null, P.map(function (q) { return q[1]; }))]; }
+    function free(b) { return !OCC.some(function (o) { return b[0] < o[2] - 0.15 && b[2] > o[0] + 0.15 && b[1] < o[3] - 0.15 && b[3] > o[1] + 0.15; }); }
+    function dimTxtPos(a, b, txt, side) { var g = angOf(a, b) * Math.PI / 180, nx = -Math.sin(g), ny = Math.cos(g), d = side ? -(0.6 + DH) : 0.6; return [(a[0] + b[0]) / 2 + nx * d, (a[1] + b[1]) / 2 + ny * d, angOf(a, b)]; }
+    // διάσταση σε μία από τις υποψήφιες θέσεις [[a,b],…]: η πρώτη όπου το κείμενο δεν πέφτει πάνω σε άλλο
+    function dimBest(cands, txt, side) {
+      var pick = null;
+      for (var i = 0; i < cands.length && !pick; i++) { var a = cands[i][0], b = cands[i][1], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L < 1 || measure(txt, DH, false) + 1.5 > L) continue;
+        var q = dimTxtPos(a, b, txt, side); if (free(tbox(q[0], q[1], txt, DH, q[2], 'c'))) pick = cands[i]; }
+      if (!pick) pick = cands[0];
+      dimLine(pick[0], pick[1], txt, side);
+    }
+    function dimLine(a, b, txt, side) {   // λεπτή γραμμή με λοξές παύλες στα άκρα, κείμενο πάνω της
+      var L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L < 1) return;
+      pl([a, b], { w: 0.09, c: DC, ly: DLY });
+      var ux = (b[0] - a[0]) / L, uy = (b[1] - a[1]) / L, t = 0.55;
+      [a, b].forEach(function (p) { pl([[p[0] - t * (ux - uy), p[1] - t * (uy + ux)], [p[0] + t * (ux - uy), p[1] + t * (uy + ux)]], { w: 0.12, c: DC, ly: DLY }); });
+      if (txt && measure(txt, DH, false) + 1.5 < L) { var q = dimTxtPos(a, b, txt, side); OCC.push(tbox(q[0], q[1], txt, DH, q[2], 'c'));
+        tx(q[0], q[1], txt, DH, { al: 'c', rot: q[2], c: DC, ly: DLY }); }
+    }
+    function lab(p, s, alt) {   // αριθμός κομματιού: πρώτη ελεύθερη θέση
+      var C = [p].concat(alt || []), q = C.find(function (c) { return free(tbox(c[0], c[1] - 0.7, s, 1.8, 0, 'c')); }) || p;
+      OCC.push(tbox(q[0], q[1] - 0.7, s, 1.8, 0, 'c')); tx(q[0], q[1] - 0.7, s, 1.8, { al: 'c', b: true, c: '#374151', ly: DLY }); }
+    function dimParts(polys, pre, start, xf, k, noDraw) {
+      var n = start;
+      polys.forEach(function (P) {
+        var r = K.areaParts(P); if (r.method !== 'shapes') return;
+        r.pieces.forEach(function (pc) {
+          var name = pre + n; n++; if (noDraw) return;
+          if (pc.type === 'circle') { var c = xf(pc.c), e = xf([pc.c[0] + pc.R, pc.c[1]]); dimLine(c, e, 'R=' + K.gr(pc.R)); lab([c[0], c[1] - 2.4], name); return; }
+          var q = pc.q, W = pc.W, S = function (x, y) { return xf(W(x, y)); };
+          var B = [S(q.xl0, q.y0), S(q.xr0, q.y0), S(q.xr1, q.y1), S(q.xl1, q.y1)];
+          pl(B, { closed: true, w: 0.07, c: '#9ca3af', ly: DLY });   // όρια κομματιών
+          var w0 = Math.max(q.xl0, q.xl1), w1 = Math.min(q.xr0, q.xr1), ym = (q.y0 + q.y1) / 2;
+          var FR = [0.5, 0.3, 0.7, 0.18, 0.82, 0.4, 0.6], XL = function (y) { var t = (y - q.y0) / (q.y1 - q.y0 || 1); return q.xl0 + t * (q.xl1 - q.xl0); }, XR = function (y) { var t = (y - q.y0) / (q.y1 - q.y0 || 1); return q.xr0 + t * (q.xr1 - q.xr0); };
+          if (pc.type === 'rect' || pc.type === 'par') {
+            dimBest(FR.map(function (fy) { var y = q.y0 + fy * (q.y1 - q.y0); return [S(XL(y), y), S(XR(y), y)]; }), K.gr(pc.b));
+            dimBest([0.78, 0.6, 0.9, 0.4, 0.22, 0.1].map(function (fx) { var x = w0 + fx * (w1 - w0); return [S(x, q.y0), S(x, q.y1)]; }), K.gr(pc.h), true);
+            lab(S(w0 + 0.25 * (w1 - w0), q.y0 + 0.72 * (q.y1 - q.y0)), name, [[0.25, 0.3], [0.6, 0.85], [0.6, 0.15], [0.12, 0.5], [0.88, 0.5], [0.4, 0.6]].map(function (f2) { return S(w0 + f2[0] * (w1 - w0), q.y0 + f2[1] * (q.y1 - q.y0)); }));
+          } else if (pc.type === 'trap') {
+            var xh2 = (w0 + w1) / 2; dimLine(S(xh2, q.y0), S(xh2, q.y1), K.gr(pc.h), true);
+            var dy = Math.min(0.18 * (q.y1 - q.y0), 2.2 / k);
+            dimLine(S(q.xl0 + (q.xl1 - q.xl0) * 0.18, q.y0 + dy), S(q.xr0 + (q.xr1 - q.xr0) * 0.18, q.y0 + dy), K.gr(pc.b));
+            dimLine(S(q.xl1 - (q.xl1 - q.xl0) * 0.18, q.y1 - dy), S(q.xr1 - (q.xr1 - q.xr0) * 0.18, q.y1 - dy), K.gr(pc.t), true);
+            lab(S(w0 + 0.25 * (w1 - w0), ym), name, [[0.75, 0.5], [0.5, 0.35], [0.5, 0.65]].map(function (f2) { return S(w0 + f2[0] * (w1 - w0), q.y0 + f2[1] * (q.y1 - q.y0)); }));
+          } else {   // τρίγωνο: βάση + ύψος από την κορυφή
+            var top = pc.apexTop, ax = top ? q.xl1 : q.xl0, yb = top ? q.y0 : q.y1, ya = top ? q.y1 : q.y0, x0 = top ? q.xl0 : q.xl1, x1 = top ? q.xr0 : q.xr1;
+            var dyb = Math.min(0.15 * Math.abs(ya - yb), 2.0 / k) * (top ? 1 : -1);
+            dimLine(S(x0 + (ax - x0) * 0.15, yb + dyb), S(x1 + (ax - x1) * 0.15, yb + dyb), K.gr(pc.b), !top);
+            dimLine(S(ax, yb), S(ax, ya), K.gr(pc.h), true);
+            lab(S((x0 + x1 + ax) / 3, (2 * yb + ya) / 3), name);
+          }
+        });
+      });
+      return n - start;
+    }
+    function sideLens(polys, xf, k) {   // μήκος κάθε εξωτερικής πλευράς, απ' έξω, χωρίς γραμμές
+      polys.forEach(function (P0, pi) {
+        var P = P0, sg = 0; P.forEach(function (p, i) { var q = P[(i + 1) % P.length]; sg += p[0] * q[1] - q[0] * p[1]; });
+        P.forEach(function (p, i) {
+          var q = P[(i + 1) % P.length], L = Math.hypot(q[0] - p[0], q[1] - p[1]); if (L < 0.2 || L * k < measure(K.gr(L), DH, false) + 1) return;
+          var nx = (q[1] - p[1]) / L, ny = -(q[0] - p[0]) / L; if (sg < 0) { nx = -nx; ny = -ny; }
+          var m = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2], mo = [m[0] + nx * 0.08, m[1] + ny * 0.08];
+          if (polys.some(function (o, oi) { return oi !== pi && K.pip(mo, o); })) return;   // κοινή πλευρά με άλλο κομμάτι
+          var a = xf(p), b = xf(q), g = angOf(a, b) * Math.PI / 180, ux = -Math.sin(g), uy = Math.cos(g), sx = nx, sy = ny;   // κατεύθυνση προς τα έξω στο φύλλο (ίδια με τον κόσμο)
+          var up = ux * sx + uy * sy > 0, off = up ? 0.9 : 0.9 + DH, M = xf(m);
+          OCC.push(tbox(M[0] + sx * off, M[1] + sy * off, K.gr(L), DH, angOf(a, b), 'c'));
+          tx(M[0] + sx * off, M[1] + sy * off, K.gr(L), DH, { al: 'c', rot: angOf(a, b), c: '#374151', ly: DLY });
+        });
+      });
+    }
     var R = I.R, A = I.A, KS = 'KAL_KEIMENA';
     // ---------- ΚΑΤΟΨΕΙΣ ----------
     if (RG.plans) {
@@ -182,12 +258,20 @@
           scaleLabel(g, f.den);
           items.forEach(function (it) {
             var ox = it._ox + (it._w - it.mw * f.k) / 2, oy = it._top - it.mh * f.k;
-            var xf = drawCl(it.cl, it.bb, ox, oy, f.k, { noTitle: true });
+            var pStart = prims.length, xf = drawCl(it.cl, it.bb, ox, oy, f.k, { noTitle: true });
             (it.p.spaces || []).forEach(function (s) {
               var wp = s.pts || D.ents[s.id].pts, pts = wp.map(xf); fill(pts, SPC[s.code] || '#cbd5e1', 0.35, 'KAL_XOROI');
               var cc = K.cent(pts); tx(cc[0], cc[1] - 0.8, (SPL[s.code] || s.code) + ' Ε=' + K.gr(K.area(wp)), Math.max(1.4, 1.8 * f.k / 10), { al: 'c', b: true, ly: 'KAL_XOROI' });
             });
             (it.p.outline || []).forEach(function (i) { pl(D.ents[i].pts.map(xf), { closed: true, w: 0.45, c: COL.cov, ly: 'KAL_PERIGRAMMATA', pdfOnly: true }); });
+            if (I.analytic) {
+              OCC = []; for (var pi0 = pStart; pi0 < prims.length; pi0++) { var pp = prims[pi0]; if (pp.t === 'tx') OCC.push(tbox(pp.x, pp.y, pp.s, pp.h, pp.rot, pp.al)); }
+              var olP = K.unionTiles((it.p.outline || []).map(function (i) { return D.ents[i].pts; })), olIds = it.p.outline || [];
+              sideLens(olP, xf, f.k);
+              var sn = 1; ['H', 'X', 'K', 'I', 'L', 'A', 'F', 'P'].forEach(function (cd) { (it.p.spaces || []).filter(function (sp) { return sp.code === cd; }).forEach(function (sp) {
+                var P = sp.pts || D.ents[sp.id].pts; sn += dimParts([P], 'σ', sn, xf, f.k); }); });
+              dimParts(olP, 'ε', 1, xf, f.k);
+            }
             var tx0 = it._ox, ty = oy - 4.5;
             tx(tx0, ty, planTitle(it.p.name), 2.8, { b: true, ly: 'KAL_EMBADA' }); ty -= 4.2;
             it.lines.forEach(function (s) { tx(tx0, ty, s, 2.1, { ly: 'KAL_EMBADA' }); ty -= 3.5; });
@@ -363,16 +447,16 @@
     var align = t && Math.abs(t.k - SC) < 1e-9;
     if (align) { dx = t.bb[0] - t.ox / SC; dy = t.bb[1] - t.oy / SC; }
     var M = function (p) { return [p[0] / kk + dx, p[1] / kk + dy]; };
-    var spec = { polys: [], texts: [], hatches: [], layers: {} };
-    var LC = { KAL_PLAISIO: 7, KAL_KEIMENA: 7, KAL_OROI: 7, KAL_KALYPSI: 1, KAL_XOROI: 30, KAL_FYTEYSH: 3, KAL_PRASIA: 82, KAL_PISINA: 4, KAL_APOSTASEIS: 30, KAL_KORYFES: 1, KAL_PINAKES: 7, KAL_PINAKIDA: 7, KAL_EMBADA: 7, KAL_EIKONES: 8, KAL_SXEDIO: 6, KAL_PERIGRAMMATA: 1, KAL_PROSOPO: 30, KAL_IDEATO: 1, KAL_ERKER: 7, KAL_EGSA87: 5 };
+    var spec = { polys: [], texts: [], mtexts: [], hatches: [], layers: {} };
+    var LC = { KAL_PLAISIO: 7, KAL_KEIMENA: 7, KAL_OROI: 7, KAL_KALYPSI: 1, KAL_XOROI: 30, KAL_FYTEYSH: 3, KAL_PRASIA: 82, KAL_PISINA: 4, KAL_APOSTASEIS: 30, KAL_KORYFES: 1, KAL_PINAKES: 7, KAL_PINAKIDA: 7, KAL_EMBADA: 7, KAL_EIKONES: 8, KAL_SXEDIO: 6, KAL_PERIGRAMMATA: 1, KAL_PROSOPO: 30, KAL_IDEATO: 1, KAL_ERKER: 7, KAL_EGSA87: 5, KAL_DIASTASEIS: 8 };
     function L(n) { n = String(n || '0').replace(/[<>\/\\":;?*|=,]/g, '_'); if (!spec.layers[n]) spec.layers[n] = { color: LC[n] || 7 }; return n; }
     sheet.prims.forEach(function (p) {
       if (p.pdfOnly) return;
       if (p.t === 'pl') { var o = { layer: L(p.ly), pts: p.pts.map(M), closed: !!p.closed }; if (p.w >= 0.35) o.lw = Math.round(p.w * 100); spec.polys.push(o); }
-      else if (p.t === 'tx') { var q = M([p.x, p.y]); spec.texts.push({ layer: L(p.ly), x: q[0], y: q[1], text: p.s, h: p.h / kk, rot: p.rot || 0, align: p.al === 'c' ? 'center' : p.al === 'r' ? 'right' : undefined }); }
+      else if (p.t === 'tx') { var q = M([p.x, p.y]); spec.mtexts.push({ layer: L(p.ly), x: q[0], y: q[1], text: p.s, h: p.h / kk, rot: p.rot || 0, attach: p.al === 'c' ? 8 : p.al === 'r' ? 9 : 7 }); }   // όλα τα κείμενα ως MTEXT
       else if (p.t === 'hatch') spec.hatches.push({ layer: L(p.ly), pts: p.pts.map(M), pattern: true, angle: 45, spacing: p.sp / kk });
       else if (p.t === 'fill') spec.hatches.push({ layer: L(p.ly), pts: p.pts.map(M), transparency: 70 });
-      else if (p.t === 'img') { var a = M([p.x, p.y]), b = M([p.x + p.w, p.y + p.h]); spec.polys.push({ layer: L('KAL_EIKONES'), pts: [a, [b[0], a[1]], b, [a[0], b[1]]], closed: true }); spec.texts.push({ layer: L('KAL_EIKONES'), x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2, text: 'Εικόνα (στο PDF)', h: 0.4, align: 'center' }); }
+      else if (p.t === 'img') { var a = M([p.x, p.y]), b = M([p.x + p.w, p.y + p.h]); spec.polys.push({ layer: L('KAL_EIKONES'), pts: [a, [b[0], a[1]], b, [a[0], b[1]]], closed: true }); spec.mtexts.push({ layer: L('KAL_EIKONES'), x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2, text: 'Εικόνα (στο PDF)', h: 0.4, attach: 8 }); }
     });
     // τοπογραφικό σε άλλη κλίμακα: επιπλέον αντίγραφο στις πραγματικές συντεταγμένες ΕΓΣΑ87
     if (!align && sheet.egsa && sheet.egsa.length) sheet.egsa.forEach(function (e) { spec.polys.push({ layer: L(e.layer === 'KAL_KALYPSI' ? 'KAL_KALYPSI' : 'KAL_EGSA87'), pts: e.pts, closed: e.closed }); });
