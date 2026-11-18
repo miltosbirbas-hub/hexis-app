@@ -90,19 +90,30 @@
     });
     var arialW = function (t) { var w = 0; t = String(t || ''); for (var i = 0; i < t.length; i++) { var c = t[i]; w += /[0-9]/.test(c) ? 0.556 : /[\s.,:;'|!ιίϊΐ]/.test(c) ? 0.278 : /[-()\/]/.test(c) ? 0.333 : /[ΜΩWMmw]/.test(c) ? 0.833 : c === c.toUpperCase() && c !== c.toLowerCase() ? 0.667 : 0.52; } return w; };
     (spec.texts || []).forEach(function (t) {
-      var h = t.h || 0.5;
-      out.push('0', 'TEXT', '5', next(), '330', owner, '100', 'AcDbEntity', '8', U(t.layer));
+      // ΟΛΑ τα κείμενα ως MTEXT: μία γραμμή, στοίχιση με σημείο προσάρτησης 7/8/9 (κάτω αριστερά/κέντρο/δεξιά).
+      // Εξαίρεση ΜΟΝΟ τα layers όπου το Τεύχος Προδιαγραφών του Κτηματολογίου ζητά TEXT (§4.4.2) — αλλιώς ο έλεγχος της υποβολής το σημειώνει
+      var h = t.h || 0.5, r = (t.rot || 0) * Math.PI / 180, al = t.align, x = t.x, y = t.y;
+      if (/^(PST_KAEK|ROAD|OT|BLD|VST|EAS|DBOUND_(AIG|PRL|PAIG|REM|APAL|PROP))$/.test(U(t.layer))) {
+        out.push('0', 'TEXT', '5', next(), '330', owner, '100', 'AcDbEntity', '8', U(t.layer));
+        if (t.color) out.push('62', String(t.color));
+        var x10 = t.x, y10 = t.y; // κεντραρισμένο/δεξιά: 10/20 = αρχή του κειμένου (για CAD που δεν ξαναϋπολογίζουν τη θέση)
+        if ((al === 'center' || al === 'right') && U(t.layer) !== 'PST_KAEK') { var tw0 = 0.62 * h * String(t.text == null ? '' : t.text).length * (al === 'center' ? 0.5 : 1); x10 = t.x - tw0 * Math.cos(r); y10 = t.y - tw0 * Math.sin(r); }
+        out.push('100', 'AcDbText', '10', f(x10), '20', f(y10), '30', '0.0', '40', f(h), '1', clean(t.text));
+        if (t.rot) out.push('50', f(t.rot));
+        out.push('7', FONT);
+        if (al === 'center' || al === 'right') out.push('72', al === 'center' ? '1' : '2', '11', f(t.x), '21', f(t.y), '31', '0.0');
+        out.push('100', 'AcDbText'); ext(t.x, t.y); return;
+      }
+      if (al === 'fit' && t.fit) { x = (t.x + t.fit[0]) / 2; y = (t.y + t.fit[1]) / 2; al = 'center'; }
+      var attach = al === 'center' ? 8 : al === 'right' ? 9 : 7;
+      // η βάση γραμμής του TEXT είναι ~0,25h πάνω από το κάτω όριο του MTEXT
+      x = x + Math.sin(r) * 0.25 * h; y = y - Math.cos(r) * 0.25 * h;
+      out.push('0', 'MTEXT', '5', next(), '330', owner, '100', 'AcDbEntity', '8', U(t.layer));
       if (t.color) out.push('62', String(t.color));
-      // κεντραρισμένο / δεξιά: το 10/20 είναι η ΑΡΧΗ του κειμένου (υπολογισμένη από το πλάτος Arial) και το 11/21 το σημείο στοίχισης —
-      // έτσι το κείμενο κάθεται σωστά και σε CAD που δεν ξαναϋπολογίζουν τη θέση (ProgeCAD, IntelliCAD κ.ά.), όχι μετατοπισμένο δεξιά
-      var x10 = t.x, y10 = t.y;
-      if (t.align === 'center' || t.align === 'right') { var tw0 = arialW(String(t.text == null ? "" : t.text).replace(/\\[A-Za-z][^;]*;/g, "")) * h * (t.align === 'center' ? 0.5 : 1), ra = (t.rot || 0) * Math.PI / 180; x10 = t.x - tw0 * Math.cos(ra); y10 = t.y - tw0 * Math.sin(ra); }
-      out.push('100', 'AcDbText', '10', f(x10), '20', f(y10), '30', '0.0', '40', f(h), '1', clean(t.text));
-      if (t.rot) out.push('50', f(t.rot));
-      out.push('7', FONT);
-      if (t.align === 'center' || t.align === 'right') out.push('72', t.align === 'center' ? '1' : '2', '11', f(t.x), '21', f(t.y), '31', '0.0');
-      else if (t.align === 'fit' && t.fit) out.push('72', '5', '11', f(t.fit[0]), '21', f(t.fit[1]), '31', '0.0'); // Fit: συμπίεση πλάτους ανάμεσα στα δύο σημεία
-      out.push('100', 'AcDbText');
+      out.push('100', 'AcDbMText', '10', f(x), '20', f(y), '30', '0.0', '40', f(h), '41', '0.0', '71', String(attach), '72', '1');
+      var esc = mtxt(String(t.text == null ? '' : t.text));
+      while (esc.length > 250) { out.push('3', esc.slice(0, 250)); esc = esc.slice(250); }
+      out.push('1', esc, '7', FONT, '11', (Math.round(Math.cos(r) * 1e9) / 1e9).toString(), '21', (Math.round(Math.sin(r) * 1e9) / 1e9).toString(), '31', '0.0');
       ext(t.x, t.y);
     });
     (spec.mtexts || []).forEach(function (t) {
@@ -450,7 +461,43 @@
     return { polys: polys, texts: texts, layers: Object.keys(layers) };
   }
 
-  var api = { build: build, parse: parse, ltExpand: ltExpand, markStrokes: markStrokes };
+  // Παλιός «επίπεδος» πίνακας κωδικών R12 (0,TYPE,8,layer,…) → DXF R2000 μέσω build: ΟΛΑ τα κείμενα βγαίνουν MTEXT.
+  // Υποστηρίζει LAYER (2/62), LINE, POINT, TEXT, CIRCLE, POLYLINE/VERTEX/SEQEND, LWPOLYLINE.
+  function fromR12(arr, opts) {
+    var a = arr.map(String), i = 0, sec = null, spec = { polys: [], texts: [], lines: [], points: [], layers: {} };
+    function grp() { var o = { type: a[i + 1] }; i += 2; var L = []; while (i < a.length - 1 && a[i].trim() !== '0') { L.push([+a[i], a[i + 1]]); i += 2; } o.g = L; return o; }
+    function v(g, c) { for (var k = 0; k < g.length; k++) if (g[k][0] === c) return g[k][1]; return null; }
+    while (i < a.length - 1) {
+      if (a[i].trim() !== '0') { i += 2; continue; }
+      var t = a[i + 1].trim();
+      if (t === 'SECTION') { sec = a[i + 3]; i += 4; continue; }
+      if (t === 'ENDSEC' || t === 'EOF') { sec = null; i += 2; continue; }
+      var e = grp(), g = e.g, lay = v(g, 8) || '0';
+      if (sec === 'TABLES') { if (e.type === 'LAYER' && v(g, 2)) spec.layers[v(g, 2)] = { color: +(v(g, 62) || 7) }; continue; }
+      if (sec !== 'ENTITIES') continue;
+      if (e.type === 'LINE') spec.lines.push({ layer: lay, a: [+v(g, 10), +v(g, 20)], b: [+v(g, 11), +v(g, 21)] });
+      else if (e.type === 'POINT') spec.points.push({ layer: lay, x: +v(g, 10), y: +v(g, 20) });
+      else if (e.type === 'TEXT') {
+        var al = v(g, 72), cen = al === '1' || al === '4', rgt = al === '2';
+        var x = (cen || rgt) && v(g, 11) != null ? +v(g, 11) : +v(g, 10), y = (cen || rgt) && v(g, 21) != null ? +v(g, 21) : +v(g, 20);
+        spec.texts.push({ layer: lay, x: x, y: y, h: +(v(g, 40) || 0.5), rot: +(v(g, 50) || 0), text: v(g, 1) || '', align: cen ? 'center' : rgt ? 'right' : null });
+      } else if (e.type === 'CIRCLE') {
+        var cx = +v(g, 10), cy = +v(g, 20), r = +v(g, 40);
+        spec.polys.push({ layer: lay, pts: [[cx - r, cy], [cx + r, cy]], bulges: [1, 1], closed: true });
+      } else if (e.type === 'POLYLINE') {
+        var cl = (+(v(g, 70) || 0) & 1) === 1, pts = [];
+        while (i < a.length - 1 && a[i].trim() === '0' && a[i + 1].trim() === 'VERTEX') { var vx = grp(); pts.push([+v(vx.g, 10), +v(vx.g, 20)]); }
+        if (i < a.length - 1 && a[i + 1].trim() === 'SEQEND') grp();
+        if (pts.length >= 2) spec.polys.push({ layer: lay, pts: pts, closed: cl });
+      } else if (e.type === 'LWPOLYLINE') {
+        var cl2 = (+(v(g, 70) || 0) & 1) === 1, P = [], B = [], has = false;
+        g.forEach(function (q) { if (q[0] === 10) { P.push([+q[1], 0]); B.push(0); } else if (q[0] === 20 && P.length) P[P.length - 1][1] = +q[1]; else if (q[0] === 42 && B.length) { B[B.length - 1] = +q[1]; has = true; } });
+        if (P.length >= 2) spec.polys.push({ layer: lay, pts: P, bulges: has ? B : null, closed: cl2 });
+      }
+    }
+    return build(spec, Object.assign({ insunits: 6, prune: true }, opts || {}));
+  }
+  var api = { build: build, parse: parse, ltExpand: ltExpand, markStrokes: markStrokes, fromR12: fromR12 };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.Dxf2000 = api;
 })(typeof window !== 'undefined' ? window : globalThis);

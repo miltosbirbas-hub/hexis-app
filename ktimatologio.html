@@ -12,6 +12,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.11.0/proj4.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4leaflet/1.0.2/proj4leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/delaunator@5.0.1/delaunator.min.js"></script>
+<script src="dxf2000.js"></script>
 
 <style>
   :root{
@@ -1528,8 +1529,9 @@ function downloadDXF(asText){
   }
 
   out.push("0","ENDSEC","0","EOF");
-  if(asText === true) return out.join("\r\n");   // Φάκελος ΚΑΕΚ: επιστρέφει το DXF χωρίς κατέβασμα
-  const blob = new Blob([out.join("\r\n")], {type:"application/dxf"});
+  const dxfTxt = window.Dxf2000 ? Dxf2000.fromR12(out) : out.join("\r\n");   // R2000 · όλα τα κείμενα MTEXT
+  if(asText === true) return dxfTxt;   // Φάκελος ΚΑΕΚ: επιστρέφει το DXF χωρίς κατέβασμα
+  const blob = new Blob([dxfTxt], {type:"application/dxf"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "KAEK_" + LASTP.main.kaek + ".dxf";
@@ -3545,7 +3547,7 @@ function exportMeasureDXF(){
     }
   }
   out.push("0","ENDSEC","0","EOF");
-  saveBlob(out.join("\r\n"), "application/dxf", "hexis_" + s.kind + "_" + stamp() + ".dxf");
+  saveBlob(window.Dxf2000 ? Dxf2000.fromR12(out) : out.join("\r\n"), "application/dxf", "hexis_" + s.kind + "_" + stamp() + ".dxf");
   setHint("Κατέβηκε DXF με " + P.length + " σημεία (ΕΓΣΑ'87).", "ok");
 }
 

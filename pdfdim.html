@@ -614,6 +614,7 @@ body.inproj #btnSave{background:var(--grad);border-color:transparent;color:#0610
 <div id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="dxf2000.js"></script>
 <script>
 'use strict';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1450,7 +1451,7 @@ function exportDXF(){
   w(0,'SECTION',2,'HEADER',9,'$ACADVER',1,'AC1009',9,'$INSUNITS',70,6,0,'ENDSEC');
   w(0,'SECTION',2,'TABLES',0,'TABLE',2,'LAYER',70,layers.length);layers.forEach(([n,c])=>w(0,'LAYER',2,n,70,0,62,c,6,'CONTINUOUS'));w(0,'ENDTAB',0,'ENDSEC');
   w(0,'SECTION',2,'ENTITIES');
-  const ascii=s=>String(s).replace(/²/g,'2').replace(/°/g,'%%d').replace(/[^\x20-\x7e%]/g,'');
+  const ascii=s=>String(s).replace(/²/g,'2').replace(/°/g,'%%d');
   for(const m of ms){const f=m.f,lay=LY[m.type][0],T=p=>{const q=coordOf(p,f,m.page);return [q.X,q.Y];},th=0.0025*(f/PT_M),GD=(a,b)=>{const p=gpt(m,a),q=gpt(m,b);return Math.hypot(q.x-p.x,q.y-p.y);};
     const text=(p,t)=>{const a=T(p);w(0,'TEXT',8,'MET_KEIMENA',10,F(a[0]),20,F(a[1]),30,0,40,F(th),1,ascii(t));};
     const line=(a,b)=>{const p=T(a),q=T(b);w(0,'LINE',8,lay,10,F(p[0]),20,F(p[1]),30,0,11,F(q[0]),21,F(q[1]),31,0);};
@@ -1462,7 +1463,7 @@ function exportDXF(){
     else if(m.type==='angle'){line(P[1],P[0]);line(P[1],P[2]);const a=angAt(P[0],P[1],P[2]);text(P[1],S.angU==='grad'?(a*200/Math.PI).toFixed(4)+'g':(a*180/Math.PI).toFixed(2)+'%%d');}
     else if(m.type==='ccr'||m.type==='arc3'){let c,r;if(m.type==='ccr'){c=P[0];r=Math.hypot(P[1].x-P[0].x,P[1].y-P[0].y);}else{const k=circ(P[0].x,P[0].y,P[1].x,P[1].y,P[2].x,P[2].y);if(!k)continue;c={x:k[0],y:k[1]};r=Math.hypot(P[0].x-k[0],P[0].y-k[1]);}
       const rp=m.type==='ccr'?P[1]:P[0],rr=GD(c,rp),a=T(c);w(0,'CIRCLE',8,lay,10,F(a[0]),20,F(a[1]),30,0,40,F(rr));text(c,'R='+rr.toFixed(dec)+'m');}
-    else if(m.type==='point'){const a=T(P[0]);w(0,'POINT',8,lay,10,F(a[0]),20,F(a[1]),30,0);text(P[0],ascii(m.name.replace('Σ','S'))+' '+a[0].toFixed(3)+','+a[1].toFixed(3));}
+    else if(m.type==='point'){const a=T(P[0]);w(0,'POINT',8,lay,10,F(a[0]),20,F(a[1]),30,0);text(P[0],ascii(m.name)+' '+a[0].toFixed(3)+','+a[1].toFixed(3));}
     else if(m.type==='note'){const a=T(P[0]);w(0,'POINT',8,lay,10,F(a[0]),20,F(a[1]),30,0);}
   }
   const gk=S.gref[S.pageNum],kk=S.kov[S.pageNum];
@@ -1470,7 +1471,7 @@ function exportDXF(){
     w(0,'TEXT',8,'MET_KAEK',10,F(kk.ring[0][0]),20,F(kk.ring[0][1]),30,0,40,F(0.0025*S.scaleN),1,'KAEK '+kk.kaek);}
   if(gk&&gk.pts)gk.pts.forEach(q=>{w(0,'POINT',8,'MET_GEOANAFORA',10,F(q.E),20,F(q.N),30,0);w(0,'TEXT',8,'MET_GEOANAFORA',10,F(q.E),20,F(q.N),30,0,40,F(0.002*S.scaleN),1,latin(q.name));});
   w(0,'ENDSEC',0,'EOF');
-  download(L.join('\r\n'),baseName()+'_pdfdim_sel'+S.pageNum+(gk?'_EGSA87':'')+'.dxf','application/dxf');
+  download(window.Dxf2000?Dxf2000.fromR12(L):L.join('\r\n'),baseName()+'_pdfdim_sel'+S.pageNum+(gk?'_EGSA87':'')+'.dxf','application/dxf');
   if(ms.some(m=>m.type==='note'))toast('Οι σημειώσεις εξάγονται ως σημεία (κείμενα στο CSV)');}
 $('#btnCSV').onclick=exportCSV;$('#btnDXF').onclick=exportDXF;
 

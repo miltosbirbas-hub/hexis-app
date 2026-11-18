@@ -607,15 +607,30 @@ const GEO = (() => {
       pts.forEach(function (q, i) { out.push('10', f(q[0]), '20', f(q[1])); if (bul && bul[i]) out.push('42', (Math.round(bul[i] * 1e9) / 1e9).toString()); ext(q[0], q[1]); });
     });
     (spec.texts || []).forEach(function (t) {
-      var h = t.h || 0.5;
-      out.push('0', 'TEXT', '5', next(), '330', owner, '100', 'AcDbEntity', '8', U(t.layer));
+      // ΟΛΑ τα κείμενα ως MTEXT: μία γραμμή, στοίχιση με σημείο προσάρτησης 7/8/9 (κάτω αριστερά/κέντρο/δεξιά).
+      // Εξαίρεση ΜΟΝΟ τα layers όπου το Τεύχος Προδιαγραφών του Κτηματολογίου ζητά TEXT (§4.4.2) — αλλιώς ο έλεγχος της υποβολής το σημειώνει
+      var h = t.h || 0.5, r = (t.rot || 0) * Math.PI / 180, al = t.align, x = t.x, y = t.y;
+      if (/^(PST_KAEK|ROAD|OT|BLD|VST|EAS|DBOUND_(AIG|PRL|PAIG|REM|APAL|PROP))$/.test(U(t.layer))) {
+        out.push('0', 'TEXT', '5', next(), '330', owner, '100', 'AcDbEntity', '8', U(t.layer));
+        if (t.color) out.push('62', String(t.color));
+        var x10 = t.x, y10 = t.y; // κεντραρισμένο/δεξιά: 10/20 = αρχή του κειμένου (για CAD που δεν ξαναϋπολογίζουν τη θέση)
+        if ((al === 'center' || al === 'right') && U(t.layer) !== 'PST_KAEK') { var tw0 = 0.62 * h * String(t.text == null ? '' : t.text).length * (al === 'center' ? 0.5 : 1); x10 = t.x - tw0 * Math.cos(r); y10 = t.y - tw0 * Math.sin(r); }
+        out.push('100', 'AcDbText', '10', f(x10), '20', f(y10), '30', '0.0', '40', f(h), '1', clean(t.text));
+        if (t.rot) out.push('50', f(t.rot));
+        out.push('7', FONT);
+        if (al === 'center' || al === 'right') out.push('72', al === 'center' ? '1' : '2', '11', f(t.x), '21', f(t.y), '31', '0.0');
+        out.push('100', 'AcDbText'); ext(t.x, t.y); return;
+      }
+      if (al === 'fit' && t.fit) { x = (t.x + t.fit[0]) / 2; y = (t.y + t.fit[1]) / 2; al = 'center'; }
+      var attach = al === 'center' ? 8 : al === 'right' ? 9 : 7;
+      // η βάση γραμμής του TEXT είναι ~0,25h πάνω από το κάτω όριο του MTEXT
+      x = x + Math.sin(r) * 0.25 * h; y = y - Math.cos(r) * 0.25 * h;
+      out.push('0', 'MTEXT', '5', next(), '330', owner, '100', 'AcDbEntity', '8', U(t.layer));
       if (t.color) out.push('62', String(t.color));
-      out.push('100', 'AcDbText', '10', f(t.x), '20', f(t.y), '30', '0.0', '40', f(h), '1', clean(t.text));
-      if (t.rot) out.push('50', f(t.rot));
-      out.push('7', FONT);
-      if (t.align === 'center' || t.align === 'right') out.push('72', t.align === 'center' ? '1' : '2', '11', f(t.x), '21', f(t.y), '31', '0.0');
-      else if (t.align === 'fit' && t.fit) out.push('72', '5', '11', f(t.fit[0]), '21', f(t.fit[1]), '31', '0.0'); // Fit: συμπίεση πλάτους ανάμεσα στα δύο σημεία
-      out.push('100', 'AcDbText');
+      out.push('100', 'AcDbMText', '10', f(x), '20', f(y), '30', '0.0', '40', f(h), '41', '0.0', '71', String(attach), '72', '1');
+      var esc = mtxt(String(t.text == null ? '' : t.text));
+      while (esc.length > 250) { out.push('3', esc.slice(0, 250)); esc = esc.slice(250); }
+      out.push('1', esc, '7', FONT, '11', (Math.round(Math.cos(r) * 1e9) / 1e9).toString(), '21', (Math.round(Math.sin(r) * 1e9) / 1e9).toString(), '31', '0.0');
       ext(t.x, t.y);
     });
     (spec.mtexts || []).forEach(function (t) {
