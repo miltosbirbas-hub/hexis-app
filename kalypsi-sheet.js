@@ -94,12 +94,16 @@
     var no = I.tplNo || (I.A && I.A.mode === 2 ? 2 : 1), T = TPL[no];
     var sizes = T.sizes, best = null;
     var forced = I.H0 != null && I.H0 !== 'auto' ? Math.min(+I.H0, sizes.length - 1) : null;
+    // αυτόματο μέγεθος: από τα φύλλα που χωρούν όλα, αυτό που δίνει τη μεγαλύτερη κλίμακα τοπογραφικού (μετά το μικρότερο φύλλο)
+    var oks = [];
     for (var si = 0; si < sizes.length; si++) {
       if (forced != null && si !== forced) continue;
-      var r = compose(I, T, no, sizes[si][0], sizes[si][1], measure);
-      if (forced != null || r.ok || si === sizes.length - 1) { best = r; break; }
+      var r = compose(I, T, no, sizes[si][0], sizes[si][1], measure); r.si = si;
+      if (forced != null) return r;
+      if (r.ok) oks.push(r);
       if (!best || r.score < best.score) best = r;
     }
+    if (oks.length) { oks.sort(function (a, b) { return ((a.topoXf && a.topoXf.den) || 0) - ((b.topoXf && b.topoXf.den) || 0) || a.si - b.si; }); return oks[0]; }
     return best;
   }
   function compose(I, T, no, W, H, measure) {
@@ -112,6 +116,12 @@
     var M0 = 8, FX = M0, FY = M0, FW = W - 2 * M0, FH = H - 2 * M0;
     var RG = {};
     Object.keys(T.R).forEach(function (k) { var f = T.R[k]; RG[k] = { x0: FX + f[0] * FW, x1: FX + f[2] * FW, y1: FY + (1 - f[1]) * FH, y0: FY + (1 - f[3]) * FH, t: f[4] }; });
+    // χωρίς κατόψεις (π.χ. ισόγεια υπόσκαφα με κάλυψη από το τοπογραφικό): ο χώρος των κατόψεων πάει στο τοπογραφικό
+    if (!(I.plans || []).length && RG.plans && RG.topo) {
+      if (Math.abs(RG.plans.y0 - RG.topo.y0) < 0.5 && Math.abs(RG.plans.y1 - RG.topo.y1) < 0.5 && Math.abs(RG.plans.x0 - RG.topo.x1) < 0.5) { RG.topo.x1 = RG.plans.x1; delete RG.plans; }
+      else { var tp0 = I.topo && I.topo.plot != null && D.ents[I.topo.plot] ? D.ents[I.topo.plot].bb : null, wide = tp0 && (tp0[2] - tp0[0]) > 1.2 * (tp0[3] - tp0[1]);
+        if (wide) { var t0 = RG.topo.t; RG.topo = Object.assign({}, RG.plans, { t: t0 }); delete RG.plans; } }
+    }
     rect(0, 0, W, H, { w: 0.35, c: '#9ca3af' });
     rect(FX, FY, FX + FW, FY + FH, { w: 0.6, c: COL.frame });
     // πλαίσια & κεφαλίδες περιοχών
@@ -206,8 +216,16 @@
       var tabs = [];
       function ptsOf(id) { return D.ents[id] ? D.ents[id].pts : []; }
       if (cl && Tp.plot != null) { var labs = I.plotLabels || []; tabs.push({ t: ['ΣΥΝΤΕΤΑΓΜΕΝΕΣ ΚΟΡΥΦΩΝ', (A.mode === 2 ? 'ΓΗΠΕΔΟΥ' : 'ΟΙΚΟΠΕΔΟΥ') + ' ΕΓΣΑ87'], rows: ptsOf(Tp.plot).map(function (p, i) { return [labs[i] || String(i + 1), p[0], p[1]]; }) }); }
-      var kk = 0, rk = []; (Tp.cov || []).forEach(function (id) { ptsOf(id).forEach(function (p) { kk++; rk.push(['K' + kk, p[0], p[1]]); }); }); if (rk.length) tabs.push({ t: ['ΣΥΝΤΕΤΑΓΜΕΝΕΣ ΚΟΡΥΦΩΝ', 'ΚΤΙΡΙΟΥ ΕΓΣΑ87'], rows: rk });
-      var kp = 0, rp = []; (Tp.pool || []).forEach(function (id) { ptsOf(id).forEach(function (p) { kp++; rp.push(['Π' + kp, p[0], p[1]]); }); }); if (rp.length) tabs.push({ t: ['ΣΥΝΤΕΤΑΓΜΕΝΕΣ ΚΟΡΥΦΩΝ', 'ΚΟΛΥΜΒ. ΔΕΞΑΜΕΝΗΣ ΕΓΣΑ87'], rows: rp });
+      // συγκρότημα: ένας πίνακας ανά κτίριο και ανά πισίνα (αρίθμηση κορυφών συνεχής, όπως στο σχέδιο)
+      var CMs = (A.covMeta || []), covIds = (Tp.cov || []).filter(function (id) { return D.ents[id]; }), poolIds = (Tp.pool || []).filter(function (id) { return D.ents[id]; });
+      var kk = 0, rk = [];
+      covIds.forEach(function (id, ci) { var rows = []; ptsOf(id).forEach(function (p) { kk++; rows.push(['K' + kk, p[0], p[1]]); });
+        if (covIds.length > 1) tabs.push({ t: ['ΣΥΝΤΕΤΑΓΜΕΝΕΣ ΚΟΡΥΦΩΝ', K.norm((CMs[ci] && CMs[ci].name) || ('Κτίριο ' + (ci + 1))).replace(/^ΚΤΙΡΙΟ /, 'ΚΤΙΡΙΟΥ ').replace(/^ΚΑΤΟΙΚΙΑ /, 'ΚΑΤΟΙΚΙΑΣ ') + ' ΕΓΣΑ87'], rows: rows }); else rk = rk.concat(rows); });
+      if (rk.length) tabs.push({ t: ['ΣΥΝΤΕΤΑΓΜΕΝΕΣ ΚΟΡΥΦΩΝ', 'ΚΤΙΡΙΟΥ ΕΓΣΑ87'], rows: rk });
+      var kp = 0, rp = [];
+      poolIds.forEach(function (id, pi) { var rows = []; ptsOf(id).forEach(function (p) { kp++; rows.push(['Π' + kp, p[0], p[1]]); });
+        if (poolIds.length > 1) tabs.push({ t: ['ΣΥΝΤΕΤΑΓΜΕΝΕΣ ΚΟΡΥΦΩΝ', 'ΚΟΛΥΜΒ. ΔΕΞΑΜΕΝΗΣ ' + (pi + 1) + ' ΕΓΣΑ87'], rows: rows }); else rp = rp.concat(rows); });
+      if (rp.length) tabs.push({ t: ['ΣΥΝΤΕΤΑΓΜΕΝΕΣ ΚΟΡΥΦΩΝ', 'ΚΟΛΥΜΒ. ΔΕΞΑΜΕΝΗΣ ΕΓΣΑ87'], rows: rp });
       var TBW = 66, hr = 3.6, blocks = [];
       tabs.forEach(function (t) { for (var b = 0; b * 30 < t.rows.length; b++) blocks.push({ t: b ? null : t.t, rows: t.rows.slice(b * 30, b * 30 + 30) }); });
       var tabH = 0, tabsBox = null;

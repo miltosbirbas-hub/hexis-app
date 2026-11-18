@@ -374,38 +374,79 @@
       var d = LT.defs[nm]; if (d) { o.lt = nm; o.ltdef = d; o.ltk = LT.ltscale * (src.lts > 0 ? src.lts : 1); }
       return o;
     }
-    // βρες ENTITIES
-    while (i < n && !(at(i) === '2' && at(i + 1) === 'ENTITIES')) i += 2;
-    i += 2;
-    var cur = null, vtx = null, inPoly = null, blockDepth = 0;
-    function flush() { if (cur) { if (cur.type === 'LWPOLYLINE' && cur.pts.length >= 2) polys.push(withLt({ layer: cur.layer, pts: expandBulges(cur.pts, cur.bul, !!(cur.flags & 1)), closed: !!(cur.flags & 1) }, cur)); else if (cur.type === 'LINE' && cur.a && cur.b) polys.push(withLt({ layer: cur.layer, pts: [cur.a, cur.b], closed: false }, cur)); else if ((cur.type === 'TEXT' || cur.type === 'MTEXT') && cur.text) texts.push(txtOut(cur)); else if ((cur.type === 'CIRCLE' || cur.type === 'ARC') && cur.r > 0 && cur.c) polys.push(withLt(arcPoly(cur), cur)); } cur = null; }
-    while (i < n) {
-      var code = at(i), val = at(i + 1); i += 2;
-      if (code === '0') {
-        if (val === 'ENDSEC') { flush(); if (inPoly) { polys.push(inPoly); inPoly = null; } break; }
-        if (inPoly) {
-          if (val === 'VERTEX') { vtx = {}; continue; }
-          if (val === 'SEQEND') { if (inPoly.pts.length >= 2) polys.push(withLt({ layer: inPoly.layer, pts: inPoly.pts, closed: !!(inPoly.flags & 1) }, inPoly)); inPoly = null; vtx = null; continue; }
+    // ροή οντοτήτων (ENTITIES ή ένα BLOCK) από τη γραμμή i μέχρι ENDSEC / ENDBLK
+    function stream(out) {
+      var cur = null, vtx = null, inPoly = null, polys = out.polys, texts = out.texts, inserts = out.inserts;
+      function flush() { if (cur) { if (cur.type === 'LWPOLYLINE' && cur.pts.length >= 2) polys.push(withLt({ layer: cur.layer, pts: expandBulges(cur.pts, cur.bul, !!(cur.flags & 1)), closed: !!(cur.flags & 1) }, cur)); else if (cur.type === 'LINE' && cur.a && cur.b) polys.push(withLt({ layer: cur.layer, pts: [cur.a, cur.b], closed: false }, cur)); else if ((cur.type === 'TEXT' || cur.type === 'MTEXT' || cur.type === 'ATTRIB') && cur.text) { if (cur.type === 'ATTRIB') cur.type = 'TEXT'; texts.push(txtOut(cur)); } else if (cur.type === 'INSERT' && cur.name) inserts.push(cur); else if ((cur.type === 'CIRCLE' || cur.type === 'ARC') && cur.r > 0 && cur.c) polys.push(withLt(arcPoly(cur), cur)); } cur = null; }
+      while (i < n) {
+        var code = at(i), val = at(i + 1); i += 2;
+        if (code === '0') {
+          if (val === 'ENDSEC' || val === 'ENDBLK') { flush(); if (inPoly) { polys.push(inPoly); inPoly = null; } break; }
+          if (inPoly) {
+            if (val === 'VERTEX') { vtx = {}; continue; }
+            if (val === 'SEQEND') { if (inPoly.pts.length >= 2) polys.push(withLt({ layer: inPoly.layer, pts: inPoly.pts, closed: !!(inPoly.flags & 1) }, inPoly)); inPoly = null; vtx = null; continue; }
+          }
+          flush();
+          if (val === 'POLYLINE') { inPoly = { layer: '0', pts: [], flags: 0 }; vtx = null; continue; }
+          cur = { type: val, layer: '0', pts: [], flags: 0 };
+          continue;
         }
-        flush();
-        if (val === 'POLYLINE') { inPoly = { layer: '0', pts: [], flags: 0 }; vtx = null; continue; }
-        cur = { type: val, layer: '0', pts: [], flags: 0 };
-        continue;
+        if (inPoly) {
+          if (vtx) { if (code === '10') vtx.x = parseFloat(val); else if (code === '20') { vtx.y = parseFloat(val); if (vtx.x != null) { inPoly.pts.push([vtx.x, vtx.y]); } } }
+          else { if (code === '8') inPoly.layer = decU(val); else if (code === '70') inPoly.flags = parseInt(val, 10) || 0; else if (code === '6') inPoly.lt = val; else if (code === '48') inPoly.lts = parseFloat(val) || 0; }
+          continue;
+        }
+        if (!cur) continue;
+        if (code === '8') { cur.layer = decU(val); layers[cur.layer] = 1; }
+        else if (code === '6' && cur.type !== 'MTEXT') cur.lt = val;
+        else if (code === '48' && cur.type !== 'MTEXT') cur.lts = parseFloat(val) || 0;
+        else if (cur.type === 'LWPOLYLINE') { if (code === '70') cur.flags = parseInt(val, 10) || 0; else if (code === '10') cur._x = parseFloat(val); else if (code === '20') cur.pts.push([cur._x, parseFloat(val)]); else if (code === '42') { (cur.bul || (cur.bul = {}))[cur.pts.length - 1] = parseFloat(val) || 0; } }
+        else if (cur.type === 'LINE') { if (code === '10') cur._ax = parseFloat(val); else if (code === '20') cur.a = [cur._ax, parseFloat(val)]; else if (code === '11') cur._bx = parseFloat(val); else if (code === '21') cur.b = [cur._bx, parseFloat(val)]; }
+        else if (cur.type === 'INSERT') { if (code === '2') cur.name = val; else if (code === '10') cur.x = parseFloat(val); else if (code === '20') cur.y = parseFloat(val); else if (code === '41') cur.sx = parseFloat(val); else if (code === '42') cur.sy = parseFloat(val); else if (code === '50') cur.rot = parseFloat(val); else if (code === '70') cur.nc = parseInt(val, 10) || 1; else if (code === '71') cur.nr = parseInt(val, 10) || 1; else if (code === '44') cur.dc = parseFloat(val); else if (code === '45') cur.dr = parseFloat(val); }
+        else if (cur.type === 'TEXT' || cur.type === 'MTEXT' || cur.type === 'ATTRIB') { if (code === '10') cur.x = parseFloat(val); else if (code === '20') cur.y = parseFloat(val); else if (code === '40') cur.h = parseFloat(val); else if (code === '1') cur.text = (cur.text || '') + val; else if (code === '3') cur.text = (cur.text || '') + val; else if (code === '50') cur.rot = parseFloat(val); else if (code === '11') cur.x2 = parseFloat(val); else if (code === '21') cur.y2 = parseFloat(val); else if (code === '72') cur.h72 = parseInt(val, 10) || 0; else if (code === '73') cur.v73 = parseInt(val, 10) || 0; else if (code === '71') cur.att = parseInt(val, 10) || 0; else if (code === '62') cur.col = parseInt(val, 10) || 0; }
+        else if (cur.type === 'CIRCLE' || cur.type === 'ARC') { if (code === '10') cur._cx = parseFloat(val); else if (code === '20') cur.c = [cur._cx, parseFloat(val)]; else if (code === '40') cur.r = parseFloat(val); else if (code === '50') cur.a0 = parseFloat(val); else if (code === '51') cur.a1 = parseFloat(val); }
       }
-      if (inPoly) {
-        if (vtx) { if (code === '10') vtx.x = parseFloat(val); else if (code === '20') { vtx.y = parseFloat(val); if (vtx.x != null) { inPoly.pts.push([vtx.x, vtx.y]); } } }
-        else { if (code === '8') inPoly.layer = decU(val); else if (code === '70') inPoly.flags = parseInt(val, 10) || 0; else if (code === '6') inPoly.lt = val; else if (code === '48') inPoly.lts = parseFloat(val) || 0; }
-        continue;
-      }
-      if (!cur) continue;
-      if (code === '8') { cur.layer = decU(val); layers[cur.layer] = 1; }
-      else if (code === '6' && cur.type !== 'MTEXT') cur.lt = val;
-      else if (code === '48' && cur.type !== 'MTEXT') cur.lts = parseFloat(val) || 0;
-      else if (cur.type === 'LWPOLYLINE') { if (code === '70') cur.flags = parseInt(val, 10) || 0; else if (code === '10') cur._x = parseFloat(val); else if (code === '20') cur.pts.push([cur._x, parseFloat(val)]); else if (code === '42') { (cur.bul || (cur.bul = {}))[cur.pts.length - 1] = parseFloat(val) || 0; } }
-      else if (cur.type === 'LINE') { if (code === '10') cur._ax = parseFloat(val); else if (code === '20') cur.a = [cur._ax, parseFloat(val)]; else if (code === '11') cur._bx = parseFloat(val); else if (code === '21') cur.b = [cur._bx, parseFloat(val)]; }
-      else if (cur.type === 'TEXT' || cur.type === 'MTEXT') { if (code === '10') cur.x = parseFloat(val); else if (code === '20') cur.y = parseFloat(val); else if (code === '40') cur.h = parseFloat(val); else if (code === '1') cur.text = (cur.text || '') + val; else if (code === '3') cur.text = (cur.text || '') + val; else if (code === '50') cur.rot = parseFloat(val); else if (code === '11') cur.x2 = parseFloat(val); else if (code === '21') cur.y2 = parseFloat(val); else if (code === '72') cur.h72 = parseInt(val, 10) || 0; else if (code === '73') cur.v73 = parseInt(val, 10) || 0; else if (code === '71') cur.att = parseInt(val, 10) || 0; else if (code === '62') cur.col = parseInt(val, 10) || 0; }
-      else if (cur.type === 'CIRCLE' || cur.type === 'ARC') { if (code === '10') cur._cx = parseFloat(val); else if (code === '20') cur.c = [cur._cx, parseFloat(val)]; else if (code === '40') cur.r = parseFloat(val); else if (code === '50') cur.a0 = parseFloat(val); else if (code === '51') cur.a1 = parseFloat(val); }
     }
+    // BLOCKS: ορισμοί μπλοκ (όνομα, σημείο βάσης, περιεχόμενο)
+    var blocks = {};
+    var bs = 0; while (bs < n && !(at(bs) === '2' && at(bs + 1) === 'BLOCKS')) bs += 2;
+    if (bs < n) {
+      i = bs + 2;
+      while (i < n) {
+        if (at(i) === '0' && at(i + 1) === 'ENDSEC') break;
+        if (at(i) === '0' && at(i + 1) === 'BLOCK') {
+          i += 2; var bname = '', bx = 0, by = 0;
+          while (i < n && at(i) !== '0') { var c0 = at(i), v0 = at(i + 1); if (c0 === '2') bname = v0; else if (c0 === '10') bx = parseFloat(v0) || 0; else if (c0 === '20') by = parseFloat(v0) || 0; i += 2; }
+          var bo = { polys: [], texts: [], inserts: [], base: [bx, by] };
+          stream(bo);
+          if (bname && !/^\*(MODEL|PAPER)_SPACE/i.test(bname)) blocks[bname] = bo;
+          continue;
+        }
+        i += 2;
+      }
+    }
+    // ENTITIES
+    i = 0; while (i < n && !(at(i) === '2' && at(i + 1) === 'ENTITIES')) i += 2;
+    i += 2;
+    var top = { polys: polys, texts: texts, inserts: [] };
+    stream(top);
+    // ανάπτυξη των INSERT (κλίμακα, στροφή, σημείο βάσης, εμφωλευμένα μπλοκ, MINSERT) — layer «0» μέσα στο μπλοκ παίρνει το layer του INSERT
+    var budget = 400000;
+    function explode(ins, depth, xf, layer0) {
+      var B = blocks[ins.name]; if (!B || depth > 8 || budget <= 0) return;
+      var sx = isFinite(ins.sx) && ins.sx !== 0 ? ins.sx : 1, sy = isFinite(ins.sy) && ins.sy !== 0 ? ins.sy : sx, r = (ins.rot || 0) * Math.PI / 180, cr = Math.cos(r), sr = Math.sin(r);
+      var nc = Math.max(1, Math.min(ins.nc || 1, 200)), nr = Math.max(1, Math.min(ins.nr || 1, 200));
+      for (var ic = 0; ic < nc; ic++) for (var ir = 0; ir < nr; ir++) {
+        var ox = (ins.x || 0) + (ic * (ins.dc || 0)) * cr - (ir * (ins.dr || 0)) * sr, oy = (ins.y || 0) + (ic * (ins.dc || 0)) * sr + (ir * (ins.dr || 0)) * cr;
+        var f = (function (ox, oy) { return function (p) { var x = (p[0] - B.base[0]) * sx, y = (p[1] - B.base[1]) * sy; return xf([ox + x * cr - y * sr, oy + x * sr + y * cr]); }; })(ox, oy);
+        var lay = function (L) { return L === '0' ? layer0 : L; };
+        B.polys.forEach(function (q) { if (budget-- <= 0) return; var o = Object.assign({}, q, { layer: lay(q.layer), pts: q.pts.map(f) }); polys.push(o); layers[o.layer] = 1; });
+        B.texts.forEach(function (t) { if (budget-- <= 0) return; var p = f([t.x, t.y]), p0 = f([t.x + Math.cos((t.rot || 0) * Math.PI / 180), t.y + Math.sin((t.rot || 0) * Math.PI / 180)]);
+          texts.push(Object.assign({}, t, { layer: lay(t.layer), x: p[0], y: p[1], h: (t.h || 0.25) * Math.abs(sy), rot: Math.atan2(p0[1] - p[1], p0[0] - p[0]) * 180 / Math.PI })); });
+        B.inserts.forEach(function (sub) { explode(sub, depth + 1, f, lay(sub.layer)); });
+      }
+    }
+    top.inserts.forEach(function (ins) { layers[ins.layer] = 1; explode(ins, 0, function (p) { return p; }, ins.layer); });
     return { polys: polys, texts: texts, layers: Object.keys(layers) };
   }
 

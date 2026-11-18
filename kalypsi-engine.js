@@ -50,7 +50,10 @@
   }
 
   /* ---------------- κείμενα ---------------- */
-  function norm(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[΄`´’']/g, "'").replace(/\s+/g, ' ').trim(); }
+  var LAT2GR = { A: 'Α', B: 'Β', E: 'Ε', Z: 'Ζ', H: 'Η', I: 'Ι', K: 'Κ', M: 'Μ', N: 'Ν', O: 'Ο', P: 'Ρ', T: 'Τ', Y: 'Υ', X: 'Χ' };
+  function norm(s) { var u = String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[΄`´’']/g, "'").replace(/\s+/g, ' ').trim();
+    // λέξεις με ελληνικά που έχουν και λατινικά ίδιας μορφής (π.χ. «KATOIKIΑ» με λατινικά K, A, T, O, I) → ελληνικά
+    return /[Α-Ω]/.test(u) ? u.replace(/[A-ZΑ-Ω]+/g, function (w) { return /[Α-Ω]/.test(w) && /[A-Z]/.test(w) ? w.replace(/[ABEZHIKMNOPTYX]/g, function (c) { return LAT2GR[c]; }) : w; }) : u; }
   function cleanMtext(s) {
     return String(s || '').replace(/\\P/g, ' ').replace(/\\[A-Za-z][^;\\{}]*;/g, '').replace(/\\[A-Za-z]/g, '').replace(/[{}]/g, '').replace(/\s+/g, ' ').trim();
   }
@@ -58,6 +61,43 @@
 
   /* ---------------- προετοιμασία DXF ---------------- */
   // parsed: έξοδος Dxf2000.parse → { ents:[{id,layer,pts,closed,bb,area}], texts:[{id,x,y,h,text,n,rot}] }
+  // περιγράμματα σχεδιασμένα από ανοιχτά κομμάτια (γραμμές / πολυγραμμές στο ίδιο layer — π.χ. διακεκομμένο περίγραμμα
+  // υπόσκαφου) ενώνονται σε ένα κλειστό, όταν τα άκρα τους συμπίπτουν (ανοχή 2 εκ.)· μόνο σε layers περιγραμμάτων
+  var JOINL = /ΠΕΡΙΓ|PERIG|OUTLINE|ΚΤ[ΙΗ]Ρ|KT[IH]R|BUILD|ΠΙΣΙΝ|PISIN|POOL|ΚΟΛΥΜΒ|KOLYMB|^ΟΡΙΟ|^ORIO|ΟΙΚΟΠ|OIKOP|ΓΗΠΕΔ|GHPED|ΙΔΙΟΚΤ|IDIOKT|ΚΑΛΥΨ|KALYPS|^KAL_|TOPO_PROP|BOUND|ΥΠΟΣΚΑΦ|YPOSKAF|ΚΑΤΟΙΚ|KATOIK|ΗΜΙΥΠ|ΕΞΩΣΤ|ΚΛΙΜΑΚ|ΦΩΤΑΓ|ΠΕΡΓΚΟΛ|PERGOL/;
+  function joinOutlines(ents) {
+    var TOL = 0.02, byL = {};
+    ents.forEach(function (e) { if (!e.closed && JOINL.test(e.L)) (byL[e.L] = byL[e.L] || []).push(e); });
+    var drop = {}, add = [];
+    Object.keys(byL).forEach(function (L) {
+      var P = byL[L]; if (P.length > 3000) return;
+      var used = new Array(P.length).fill(false);
+      var near = function (a, b) { return Math.abs(a[0] - b[0]) <= TOL && Math.abs(a[1] - b[1]) <= TOL; };
+      for (var s0 = 0; s0 < P.length; s0++) {
+        if (used[s0]) continue;
+        var chain = P[s0].pts.slice(), parts = [s0], grew = true;
+        while (grew && !(chain.length > 2 && near(chain[0], chain[chain.length - 1]))) {
+          grew = false;
+          for (var j = 0; j < P.length; j++) {
+            if (used[j] || parts.indexOf(j) >= 0) continue;
+            var q = P[j].pts, end = chain[chain.length - 1];
+            if (near(end, q[0])) { chain = chain.concat(q.slice(1)); }
+            else if (near(end, q[q.length - 1])) { chain = chain.concat(q.slice(0, -1).reverse()); }
+            else continue;
+            parts.push(j); grew = true; break;
+          }
+        }
+        if (chain.length > 3 && near(chain[0], chain[chain.length - 1])) {
+          chain = chain.slice(0, -1);
+          var A = area(chain);
+          if (A > 0.2) { parts.forEach(function (k) { used[k] = true; drop[P[k].id] = 1; }); var f = P[s0]; add.push({ layer: f.layer, L: f.L, pts: chain, closed: true, bb: bbox(chain), area: A, joined: parts.length }); }
+        }
+      }
+    });
+    if (!add.length) return ents;
+    var out = ents.filter(function (e) { return !drop[e.id]; }).concat(add);
+    out.forEach(function (e, i) { e.id = i; });
+    return out;
+  }
   function prepare(parsed) {
     var ents = [], texts = [];
     (parsed.polys || []).forEach(function (p) {
@@ -69,10 +109,15 @@
       e.area = e.closed ? area(pts) : 0;
       ents.push(e);
     });
+    ents = joinOutlines(ents);
     (parsed.texts || []).forEach(function (t) {
       if (!isFinite(t.x) || !isFinite(t.y)) return;
       var tx = cleanMtext(t.text); if (!tx) return;
-      texts.push({ id: texts.length, x: t.x, y: t.y, h: t.h || 0.25, rot: t.rot || 0, text: tx, n: norm(tx), layer: t.layer || '0' });
+      var nn = norm(tx);
+      // «σχεδιάγραμμα ισογείου» = κάτοψη ισογείου· «ΣΧΕΔΙΑΓΡΑΜΜΑΤΑ ΚΑΤΟΨΕΩΝ» / «ΚΑΤΟΨΕΙΣ» χωρίς όροφο = επικεφαλίδα θυρίδας, όχι τίτλος
+      if (/^ΣΧΕΔΙΑΓΡΑΜΜΑ\s+(ΙΣΟΓΕΙ|ΥΠΟΓΕΙ|ΗΜΙΥΠΟΓ|ΠΑΤΑΡ|ΣΟΦΙΤ|ΔΩΜΑ|ΣΤΕΓ|ΥΠΟΣΚΑΦ|[Α-Ζ]'?\s*ΟΡΟΦ|\d)/.test(nn)) nn = nn.replace(/^ΣΧΕΔΙΑΓΡΑΜΜΑ/, 'ΚΑΤΟΨΗ');
+      var hd = /ΚΑΤΟΨΕ(ΩΝ|ΙΣ)/.test(nn) && !/ΙΣΟΓΕΙ|ΥΠΟΓΕΙ|ΟΡΟΦ|ΥΠΟΣΚΑΦ|ΠΑΤΑΡ|ΣΟΦΙΤ|ΔΩΜΑ|ΣΤΕΓ|ΚΤΙΡΙ|ΚΑΤΟΙΚΙ/.test(nn);
+      texts.push({ id: texts.length, x: t.x, y: t.y, h: t.h || 0.25, rot: t.rot || 0, text: tx, n: nn, layer: t.layer || '0', mark: hd || undefined });
     });
     return { ents: ents, texts: texts };
   }
@@ -85,7 +130,29 @@
     function f(x) { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; }
     function u(a, b) { a = f(a); b = f(b); if (a !== b) par[b] = a; }
     var cell = Math.max(2, gap * 2), grid = new Map();
+    var TT = D.texts.filter(function (t) { return TITLE.test(t.n) && t.n.length < 60; }), keep = dropMarks(TT);
+    TT.forEach(function (t) { if (keep.indexOf(t) < 0) t.mark = true; });
+    // πλαίσια θυρίδων φύλλου (ορθογώνια που περιέχουν σχέδια): όταν είναι ≥3, δεν ενώνουν τα σχέδια μεταξύ τους
+    var isRect = function (e) { var p = e.pts; if (!e.closed || p.length < 4 || p.length > 5) return false; return p.every(function (q, i) { var r = p[(i + 1) % p.length]; return Math.abs(q[0] - r[0]) < 0.05 || Math.abs(q[1] - r[1]) < 0.05; }); };
+    var FR = D.ents.filter(function (e) { var b = e.bb; return b[2] - b[0] > 8 && b[3] - b[1] > 5 && isRect(e) && !LAY.plot.test(e.L); });
+    if (FR.length >= 3) {
+      var cnt = FR.map(function () { return 0; });
+      D.ents.forEach(function (o) { var cx = (o.bb[0] + o.bb[2]) / 2, cy = (o.bb[1] + o.bb[3]) / 2; FR.forEach(function (e, k) { if (o !== e && cx > e.bb[0] && cx < e.bb[2] && cy > e.bb[1] && cy < e.bb[3]) cnt[k]++; }); });
+      var fr = FR.filter(function (e, k) { return cnt[k] >= 10; });
+      // διαχωριστικές γραμμές θυρίδων: ευθείες οριζόντιες/κατακόρυφες ≥30 με τα δύο άκρα πάνω σε πλαίσιο (ή σε άλλη τέτοια γραμμή)
+      var onB = function (q, b) { var inX = q[0] > b[0] - 1 && q[0] < b[2] + 1, inY = q[1] > b[1] - 1 && q[1] < b[3] + 1; return inX && inY && (Math.abs(q[0] - b[0]) < 1 || Math.abs(q[0] - b[2]) < 1 || Math.abs(q[1] - b[1]) < 1 || Math.abs(q[1] - b[3]) < 1); };
+      var segs = D.ents.filter(function (e) { if (e.closed || e.pts.length !== 2 || LAY.plot.test(e.L)) return false; var b = e.bb, w = b[2] - b[0], h = b[3] - b[1]; return (w < 0.02 && h >= 30) || (h < 0.02 && w >= 30); });
+      var sep = []; for (var it = 0; it < 3; it++) segs.forEach(function (e) { if (sep.indexOf(e) >= 0) return; var bs = fr.map(function (f) { return f.bb; }).concat(sep.map(function (g) { return g.bb; }));
+        if (bs.length && onB(e.pts[0], bs.find(function (b) { return onB(e.pts[0], b); }) || [1e9, 1e9, 1e9, 1e9]) && bs.some(function (b) { return onB(e.pts[1], b); })) sep.push(e); });
+      sep.forEach(function (e) { e.frame = true; });
+      if (fr.length >= 3 || (fr.length && sep.length)) {
+        fr.forEach(function (e) { e.frame = true; });
+        // γειτονικές θυρίδες (και σχεδόν άδειες) με πλευρά σε απόσταση ≤2 από βρεμένο πλαίσιο
+        FR.forEach(function (e) { if (e.frame) return; var b = e.bb; if (fr.some(function (f) { var o = f.bb, nx = b[0] < o[2] + 2 && b[2] > o[0] - 2, ny = b[1] < o[3] + 2 && b[3] > o[1] - 2; return nx && ny && (Math.abs(b[0] - o[2]) < 2 || Math.abs(b[2] - o[0]) < 2 || Math.abs(b[1] - o[3]) < 2 || Math.abs(b[3] - o[1]) < 2 || Math.abs(b[0] - o[0]) < 2 || Math.abs(b[2] - o[2]) < 2); })) e.frame = true; });
+      }
+    }
     D.ents.forEach(function (e) {
+      if (e.frame) { e.huge = true; return; }
       var b = e.bb, w = b[2] - b[0], h = b[3] - b[1];
       if (w > 400 || h > 400) { e.huge = true; return; } // πλαίσια / γραμμές-σκουπίδια δεν ενώνουν σχέδια
       var x0 = Math.floor((b[0] - gap) / cell), x1 = Math.floor((b[2] + gap) / cell), y0 = Math.floor((b[1] - gap) / cell), y1 = Math.floor((b[3] + gap) / cell);
@@ -117,10 +184,45 @@
     return cls;
   }
 
+  // αναγωγή σχεδίου σε πραγματικά μέτρα: k = πόσες φορές είναι μεγεθυμένο στο αρχείο
+  function rescale(D, c, k, why) {
+    if (!(k > 0.05 && k < 50) || Math.abs(k - 1) < 0.03) return false;
+    var o = [c.bb[0], c.bb[1]], f = function (p) { return [o[0] + (p[0] - o[0]) / k, o[1] + (p[1] - o[1]) / k]; };
+    c.ents.forEach(function (i) { var e = D.ents[i]; e.pts = e.pts.map(f); e.bb = bbox(e.pts); if (e.closed) e.area = area(e.pts); });
+    c.texts.forEach(function (i) { var t = D.texts[i], q = f([t.x, t.y]); t.x = q[0]; t.y = q[1]; t.h = t.h / k; });
+    c.bb = [o[0], o[1], o[0] + (c.bb[2] - o[0]) / k, o[1] + (c.bb[3] - o[1]) / k];
+    c.scaleK = (c.scaleK || 1) * k; c.scaleWhy = why || ''; return true;
+  }
   /* ---------------- αναγνώριση είδους & ορόφου από τον τίτλο ---------------- */
   var ORD = { 'Α': 1, 'Β': 2, 'Γ': 3, 'Δ': 4, 'Ε': 5, 'ΣΤ': 6, 'Ζ': 7 };
+  // συγκρότημα: «ΥΠΟΣΚΑΦΟ 1 / 2 / Α», «ΚΤΙΡΙΟ Α / Β / 1», «ΚΑΤΟΙΚΙΑ 3» → ετικέτα κτιρίου
+  var TAGEND = "(?=$|[\\s'.,)\\-–_:/])";
+  var SEP = "(?:\\s*(?:ΑΡ\\.?|NO\\.?|ΝΟ\\.?|#|-|–|\\()\\s*|\\s+\\(?\\s*)";
+  var RX_YP = new RegExp('ΥΠΟΣΚΑΦ[Α-Ω]*(?:\\s+(?:ΚΑΤΟΙΚΙ|ΚΤΙΡΙ|ΚΤΗΡΙ|ΚΤΙΣΜ|ΣΠΙΤΙ)[Α-Ω]*)?' + SEP + '([Α-Ω]|\\d{1,2})' + TAGEND);
+  var RX_YP2 = /(\d{1,2})\s*(?:ΟΥ|ΟΣ|Ο)?\s*ΥΠΟΣΚΑΦ/;
+  var RX_BLD = new RegExp('(?:ΚΤΙΡΙ|ΚΤΗΡΙ|ΚΤΙΣΜ|ΣΩΜΑ|ΜΟΝΟΚΑΤΟΙΚΙ|ΚΑΤΟΙΚΙ|ΚΑΤΑΛΥΜ|ΜΟΝΑΔ)[Α-Ω]*' + SEP + '([Α-Ω]|\\d{1,2})' + TAGEND);
+  function bldTag(n) { var m = RX_YP.exec(n) || RX_YP2.exec(n) || RX_BLD.exec(n); return m ? m[1] : ''; }
+  // «ΤΥΠΙΚΗ ΚΑΤΟΨΗ ΥΠΟΣΚΑΦΩΝ 1, 2, 3, 4» / «ΚΤΙΡΙΩΝ 1-4» / «Α, Β, Γ» → η κάτοψη ισχύει για όλα αυτά τα κτίρια
+  function bldList(n) {
+    var m = /(?:ΥΠΟΣΚΑΦ|ΚΤΙΡΙ|ΚΤΗΡΙ|ΚΑΤΟΙΚΙ|ΚΤΙΣΜ)[Α-Ω]*\s+((?:(?:[Α-Ω]|\d{1,2})'?\s*(?:,|&|ΚΑΙ|-|–|ΕΩΣ|\s)\s*)+(?:[Α-Ω]|\d{1,2}))'?(?=$|[\s.,)])/.exec(n);
+    if (!m) return null;
+    var out = [], parts = m[1].replace(/ΚΑΙ|&/g, ',').replace(/\s*(?:-|–|ΕΩΣ)\s*/g, '-').split(/[,\s]+/).filter(Boolean);
+    parts.forEach(function (t) { var r = /^(\d{1,2})-(\d{1,2})$/.exec(t); if (r) { for (var k = +r[1]; k <= +r[2] && out.length < 60; k++) out.push(String(k)); } else if (/^(\d{1,2}|[Α-Ω])$/.test(t)) out.push(t); });
+    return out.length >= 2 ? out : null;
+  }
   function levelFromText(n) {
-    if (/ΥΠΟΣΚΑΦ/.test(n)) return { name: 'Υπόσκαφο', typ: 4, use: 1, ord: -0.5 };
+    var L = levelFromText0(n); if (!L) return L;
+    var LS = bldList(n);
+    if (LS) { L.list = LS; L.name = (L.typ === 4 ? 'Υπόσκαφα ' : L.name + ' · Κτίρια ') + LS.join(', ') + ' (τυπική)'; L.bld = ''; return L; }
+    var tg = bldTag(n); if (!tg) return L;
+    var k = /\d/.test(tg) ? +tg : (' ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ'.indexOf(tg) || 0);
+    if (L.typ === 4) { L.name = 'Υπόσκαφο ' + tg + (/ΑΝΩ ΕΠΙΠΕΔ|ΟΡΟΦ/.test(n) ? ' · άνω επίπεδο' : ''); L.bld = 'Υ' + tg; }
+    else if (/ΥΠΟΣΚΑΦ/.test(n)) { L.name = L.name + ' · Υπόσκαφο ' + tg; L.bld = 'Υ' + tg; }
+    else { L.name = L.name + ' · Κτίριο ' + tg; L.bld = 'Κ' + tg; }
+    L.ord = L.ord + k * 0.001; return L;
+  }
+  function levelFromText0(n) {
+    if (/ΥΠΟΣΚΑΦ/.test(n) && !/ΥΠΟΓΕΙ/.test(n)) return { name: 'Υπόσκαφο', typ: 4, use: 1, ord: -0.5 };
     if (/ΥΠΟΓΕΙ/.test(n)) { var m0 = /(Β|2)'?\s*ΥΠΟΓΕΙ/.test(n); return { name: m0 ? "Β' Υπόγειο" : 'Υπόγειο', typ: 2, use: 1, ord: m0 ? -2 : -1 }; }
     if (/ΗΜΙΩΡΟΦ|ΠΑΤΑΡ|ΕΣΩΤΕΡΙΚΟΣ ΕΞΩΣΤ/.test(n)) return { name: 'Πατάρι', typ: 5, use: 0, ord: 0.5 };
     if (/ΙΣΟΓΕΙ/.test(n)) return { name: 'Ισόγειο', typ: 1, use: 0, ord: 0 };
@@ -139,27 +241,39 @@
   }
   // τίτλος σχεδίου; (κάτοψη ορόφου / τομή / όψη / τοπογραφικό)
   var TITLE = /ΚΑΤΟΨ|(^|\s)ΤΟΜΗ|(^|\s)ΟΨΗ|ΤΟΠΟΓΡΑΦ|ΔΙΑΓΡΑΜΜΑ ΔΙΑΜΟΡΦ/;
-  function isTitle(t) { return TITLE.test(t.n) && t.n.length < 60; }
+  function isTitle(t) { return !t.mark && TITLE.test(t.n) && t.n.length < 60; }
+  // «ΟΨΗ Α», «ΤΟΜΗ Β-Β» που εμφανίζονται ≥3 φορές με μικρά γράμματα: σημάδια μέσα στις κατόψεις, όχι τίτλοι σχεδίων
+  function markKey(t) { return t.n.replace(/[ABEZHIKMNOPTYX]/g, function (c) { return LAT2GR[c]; }).replace(/[^Α-Ω0-9]/g, ''); }
+  function dropMarks(T) {
+    var cnt = {}; T.forEach(function (t) { var k = markKey(t); cnt[k] = (cnt[k] || 0) + 1; });
+    var hmax = 0; T.forEach(function (t) { if (/ΚΑΤΟΨ/.test(t.n)) hmax = Math.max(hmax, t.h); });
+    return T.filter(function (t) { return !(/^(ΟΨΗ|ΤΟΜΗ)/.test(t.n) && t.n.length < 14 && cnt[markKey(t)] >= 3 && (!hmax || t.h < hmax)); });
+  }
   // όταν πολλά σχέδια ενώθηκαν (π.χ. αντίγραφα του γεωτεμαχίου που εφάπτονται), χωρίζονται ανά τίτλο
   function split(D, cls) {
     var out = [];
     cls.forEach(function (c) {
       var T = c.texts.map(function (i) { return D.texts[i]; }).filter(isTitle);
       var seen = {}; T = T.filter(function (t) { var k = t.n + '@' + Math.round(t.x) + ',' + Math.round(t.y); if (seen[k]) return false; seen[k] = 1; return true; });
+      T = dropMarks(T);
       if (T.length < 2) { out.push(c); return; }
       var anc = T.map(function (t) { var w = t.text.length * t.h * 0.6; return [t.al === 'center' ? t.x : t.x + w / 2, t.y]; });
       var ents = c.ents.map(function (i) { return D.ents[i]; });
+      // τίτλοι πάνω από τα σχέδια; (οι περισσότεροι τίτλοι στο πάνω 20% του κομματιού και τα σχέδια από κάτω)
+      var H = c.bb[3] - c.bb[1], up = T.filter(function (t) { return t.y > c.bb[3] - 0.2 * H; }).length > T.length / 2 && H > 3;
+      if (up) anc = anc.map(function (a) { return [a[0], 2 * c.bb[1] - a[1]]; });
+      var cy = function (e) { return up ? [2 * c.bb[1] - e.bb[3], 2 * c.bb[1] - e.bb[1]] : [e.bb[1], e.bb[3]]; };
       // α) «πλαίσιο» κάθε τίτλου: το μεγαλύτερο κλειστό πολύγωνο ακριβώς πάνω από τον τίτλο
       var box = T.map(function (t, k) {
         var a = anc[k], best = null;
-        ents.forEach(function (e) { if (!e.closed || e.area < 4) return; var b = e.bb; if (a[0] < b[0] || a[0] > b[2]) return; var dy = b[1] - a[1]; if (dy < -1.5 || dy > 4) return; if (!best || e.area > best.area) best = e; });
+        ents.forEach(function (e) { if (!e.closed || e.area < 4) return; var b = e.bb; if (a[0] < b[0] || a[0] > b[2]) return; var dy = cy(e)[0] - a[1]; if (dy < -1.5 || dy > 4) return; if (!best || e.area > best.area) best = e; });
         return best;
       });
       var grp = T.map(function () { return []; });
       ents.forEach(function (e) {
         var cc = [(e.bb[0] + e.bb[2]) / 2, (e.bb[1] + e.bb[3]) / 2], k = -1;
         for (var j = 0; j < T.length && k < 0; j++) if (box[j] && (box[j] === e || pip(cc, box[j].pts))) k = j;
-        if (k < 0) { var bs = 1e30; anc.forEach(function (a, j) { var b = e.bb, dx = Math.max(0, b[0] - a[0], a[0] - b[2]), dy = b[1] - a[1], sc = 2 * dx + (dy >= -0.5 ? dy : 10 + 3 * Math.abs(dy)); if (sc < bs) { bs = sc; k = j; } }); }
+        if (k < 0) { var bs = 1e30; anc.forEach(function (a, j) { var b = e.bb, yy = cy(e), dx = Math.max(0, b[0] - a[0], a[0] - b[2]), dy = yy[0] - a[1], sc = 2 * dx + (dy >= -0.5 ? dy : 10 + 3 * Math.abs(dy)); if (sc < bs) { bs = sc; k = j; } }); }
         grp[k].push(e.id);
       });
       var made = [];
@@ -183,24 +297,67 @@
       var kind = null, label = '', lev = null;
       // τοπογραφικό: TOPO_PROP / όρια / ΕΓΣΑ87
       var hasProp = c.ents.some(function (i) { return /^(TOPO_PROP|BOUND_)/.test(D.ents[i].L); });
+      if (c.ents.length > 50 && EGSA(c.bb) && c.ents.some(function (i) { var e = D.ents[i]; return e.closed && e.area > 80 && LAY.plot.test(e.L) && !/ΖΩΝΗ|ZONE/.test(e.L); })) { c.kind = 'topo'; c.label = 'Τοπογραφικό'; c.level = null; return; }
       for (var k = 0; k < tx.length && !kind; k++) {
+        if (tx[k].mark) continue;
         var n = tx[k].n;
         if (/ΤΟΠΟΓΡΑΦ|ΔΙΑΜΟΡΦΩΣΗ ΠΕΡΙΒΑΛ|ΔΙΑΓΡΑΜΜΑ ΔΙΑΜΟΡΦ/.test(n)) { kind = 'topo'; label = tx[k].text; break; }
-        if (/(^|\s)ΤΟΜΗ/.test(n)) { kind = 'section'; label = tx[k].text; break; }
+        if (/(^|\s)(ΤΟΜΗ|ΤΟΜΕΣ|ΜΗΚΟΤΟΜΗ|ΤΟΜΩΝ)/.test(n)) { kind = /ΚΟΛΥΜΒ|ΠΙΣΙΝ|ΔΕΞΑΜΕΝ|ΜΗΧΑΝΟΣΤΑΣ/.test(n) ? 'other' : 'section'; label = tx[k].text; break; }
         if (/(^|\s)ΟΨΗ|ΟΨΕΙΣ/.test(n)) { kind = 'elev'; label = tx[k].text; break; }
         var L = levelFromText(n);
-        if (L && (/ΚΑΤΟΨ/.test(n) || tx[k].h >= 0.3 || n.length < 30)) { kind = L.typ === 9 ? 'roof' : 'plan'; lev = L; label = tx[k].text; break; }
+        // υπόσκαφο / κτίριο με αριθμό («ΚΤΙΡΙΟ 3 (νέα υπόσκαφη κατοικία)», πινακίδα, κείμενα υπολογισμών): τίτλος κάτοψης ΜΟΝΟ με «ΚΑΤΟΨΗ»
+        var needK = L && (L.typ === 4 || L.bld || n.length >= 30);
+        if (L && (/ΚΑΤΟΨ/.test(n) || (!needK && (tx[k].h >= 0.3 || n.length < 30)))) { kind = L.typ === 9 ? 'roof' : 'plan'; lev = L; label = tx[k].text; break; }
       }
       if (!kind && (hasProp || EGSA(c.bb))) kind = 'topo';
       if (!kind) kind = c.small ? 'ignore' : 'other';
       if (kind === 'topo' && !label) label = 'Τοπογραφικό';
+      // τίτλος χωρίς αριθμό κτιρίου («σχεδιάγραμμα ΙΣΟΓΕΙΟΥ»): ο αριθμός από ετικέτα μέσα στο σχέδιο («ΥΠΟΣΚΑΦΗ ΚΑΤΟΙΚΙΑ (1)»)
+      if (lev && !lev.bld && !lev.list && lev.typ !== 9) {
+        var tags = {}, ypo = false;
+        c.texts.forEach(function (i) { var t = D.texts[i]; if (!/ΥΠΟΣΚΑΦ|ΚΑΤΟΙΚΙ|ΚΤΙΡΙ|ΚΤΗΡΙ/.test(t.n) || /ΚΟΛΥΜΒ|ΠΙΣΙΝ|ΔΕΞΑΜΕΝ/.test(t.n)) return; var g = bldTag(t.n); if (!g) return; tags[g] = (tags[g] || 0) + 1; if (/ΥΠΟΣΚΑΦ/.test(t.n)) ypo = true; });
+        var tk = Object.keys(tags);
+        if (tk.length === 1) { var nl = levelFromText(norm(label) + ' ' + (ypo ? 'ΥΠΟΣΚΑΦΟΥ ' : 'ΚΤΙΡΙΟΥ ') + tk[0]); if (nl) lev = nl; }
+      }
       c.kind = kind; c.label = label || ''; c.level = lev;
       if (lev) c.level.h = lev.typ === 3 ? 2.0 : 3.2;
     });
+    // κομμάτι μέσα στο πλαίσιο άλλης κάτοψης (π.χ. φωταγωγός που δεν ακουμπά τους τοίχους) ανήκει σε αυτήν
+    var pl1 = cls.filter(function (c) { return c.kind === 'plan' || c.kind === 'roof'; });
+    pl1.forEach(function (a) { pl1.forEach(function (b) { if (a === b || a.kind === 'ignore' || b.kind === 'ignore') return;
+      var A = a.bb, B = b.bb; if (A[0] >= B[0] - 0.01 && A[2] <= B[2] + 0.01 && A[1] >= B[1] - 0.01 && A[3] <= B[3] + 0.01 && (A[2] - A[0]) * (A[3] - A[1]) < (B[2] - B[0]) * (B[3] - B[1])) {
+        a.ents.forEach(function (i) { D.ents[i].cl = b.id; b.ents.push(i); }); a.texts.forEach(function (i) { D.texts[i].cl = b.id; b.texts.push(i); }); a.ents = []; a.texts = []; a.kind = 'ignore'; a.level = null; } }); });
+    // κομμάτια χωρίς τίτλο (έπιπλα, διαστάσεις, τμήματα τοίχων που δεν ακουμπούν) πάνε στην κάτοψη της ίδιας στήλης, αν είναι ακριβώς δίπλα
+    var pl2 = cls.filter(function (c) { return (c.kind === 'plan' || c.kind === 'roof') && c.ents.length; });
+    if (pl2.length) cls.forEach(function (a) {
+      if (a.kind !== 'other' || !a.ents.length || a.label) return;
+      var A = a.bb, w = Math.max(A[2] - A[0], 0.01), best = null, bo = 0;
+      pl2.forEach(function (b) { var B = b.bb, ox = Math.min(A[2], B[2]) - Math.max(A[0], B[0]), gy = Math.max(B[1] - A[3], A[1] - B[3], 0);
+        if (ox / w > 0.5 && gy < 2 && ox > bo) { bo = ox; best = b; } });
+      if (!best) return;
+      a.ents.forEach(function (i) { D.ents[i].cl = best.id; best.ents.push(i); }); a.texts.forEach(function (i) { D.texts[i].cl = best.id; best.texts.push(i); });
+      best.bb = bbUnion(best.bb, a.bb); a.ents = []; a.texts = []; a.kind = 'ignore';
+    });
+    // ίδια κάτοψη σε δύο κομμάτια με τίτλο ίδιου ορόφου στην ίδια στήλη → ένα
+    pl2.forEach(function (a) { pl2.forEach(function (b) { if (a === b || !a.ents.length || !b.ents.length || !a.level || !b.level || a.level.name !== b.level.name) return;
+      var A = a.bb, B = b.bb, ox = Math.min(A[2], B[2]) - Math.max(A[0], B[0]), gy = Math.max(B[1] - A[3], A[1] - B[3], 0);
+      if (ox > 0.5 * Math.min(A[2] - A[0], B[2] - B[0]) && gy < 2 && a.ents.length <= b.ents.length) {
+        a.ents.forEach(function (i) { D.ents[i].cl = b.id; b.ents.push(i); }); a.texts.forEach(function (i) { D.texts[i].cl = b.id; b.texts.push(i); }); b.bb = bbUnion(b.bb, a.bb); a.ents = []; a.texts = []; a.kind = 'ignore'; a.level = null; } }); });
+    // κλίμακα κάθε σχεδίου: σχέδιο σε 1:100 μέσα σε φύλλο 1:250 είναι μεγεθυμένο ×2,5 — ανάγεται σε πραγματικά μέτρα
+    var sheetDen = 0, cnt = {};
+    D.texts.forEach(function (t) { var m = /^1\s*:\s*(\d{2,4})$/.exec(String(t.text).trim()) || /ΚΛΙΜΑΚΑ\s*(?:ΣΧΕΔΙΟΥ\s*)?:?\s*1\s*:\s*(\d{2,4})\s*$/.exec(t.n); if (m) cnt[m[1]] = (cnt[m[1]] || 0) + 1; });
+    Object.keys(cnt).forEach(function (k) { if (!sheetDen || cnt[k] > cnt[sheetDen]) sheetDen = +k; });
+    D.sheetDen = sheetDen;
+    if (sheetDen) cls.forEach(function (c) { if (['plan', 'roof', 'section', 'elev'].indexOf(c.kind) < 0) return;
+      var den = 0; c.texts.forEach(function (i) { var m = /(?:ΚΛ\.?|ΚΛΙΜΑΚΑ|SCALE)\s*:?\s*1\s*[:\/]\s*(\d{2,4})/.exec(D.texts[i].n); if (m) den = +m[1]; });
+      if (den && den !== sheetDen) rescale(D, c, sheetDen / den, '1:' + den + ' σε φύλλο 1:' + sheetDen); });
     // ένα τοπογραφικό: το μεγαλύτερο
     var topos = cls.filter(function (c) { return c.kind === 'topo'; });
     if (topos.length > 1) {
-      topos.sort(function (a, b) { return b.ents.length - a.ents.length; });
+      // προτίμηση: σχέδιο με όριο οικοπέδου (layer ορίου / μεγάλο κλειστό πολύγωνο), μετά το μεγαλύτερο
+      var tscore = function (c) { var pl = 0, big = 0; c.ents.forEach(function (i) { var e = D.ents[i]; if (!e.closed) return; if (LAY.plot.test(e.L)) pl = 1; if (e.area > 200) big = 1; }); return pl * 2 + big; };
+      topos.forEach(function (c) { c._ts = tscore(c); });
+      topos.sort(function (a, b) { return (b._ts - a._ts) || (b.ents.length - a.ents.length); });
       topos.slice(1).forEach(function (c) { c.kind = 'other'; });
     }
     return cls;
@@ -209,7 +366,7 @@
   /* ---------------- αναγνώριση στο τοπογραφικό ---------------- */
   function rx(s) { return new RegExp(s); }
   var LAY = {
-    plot: /^(TOPO_PROP|BOUND_IMPL|BOUND_UNIMPL|KAL_OIKOPEDO|KAEK_MAIN)$|OIKOP|GHPED|ΟΙΚΟΠ|ΓΗΠΕΔ|PLOT/,
+    plot: /^(TOPO_PROP|BOUND_IMPL|BOUND_UNIMPL|KAL_OIKOPEDO|KAEK_MAIN)$|OIKOP|GHPED|ΟΙΚΟΠ|ΓΗΠΕΔ|PLOT|^ORIO($|_|\s)|^ΟΡΙΟ($|_|\s)|^ΟΡΙΑ($|_|\s)|^ORIA($|_|\s)|ΟΡΙΑ ΙΔΙΟΚΤ|ΟΡΙΟ ΙΔΙΟΚΤ|^ΙΔΙΟΚΤΗΣΙΑ$|^IDIOKTHSIA$/,
     build: /KTIR|KTHR|BUILD|WALL|TOIX|KATOP|PERIG|ΚΤΙΡ|ΚΤΗΡ|ΤΟΙΧ|ΚΑΤΟΨ|ΠΕΡΙΓ|KALYPS|ΚΑΛΥΨ/,
     fyt: /FYT|PRASIN|GREEN|KHP|ΦΥΤ|ΠΡΑΣΙΝ|ΚΗΠ|PLANT/,
     pras: /PRASIA|ΠΡΑΣΙΑ/,
@@ -238,21 +395,30 @@
     res.plot = pl.id;
     var inn = cs.filter(function (e) { return e.id !== pl.id && e.area < pl.area * 0.95 && inside(e.pts, pl.pts); });
     function pick(lay, txt) { return inn.filter(function (e) { return lay.test(e.L) || textIn(D, c, txt, e); }); }
-    res.pool = pick(LAY.pool, TXT.pool).map(function (e) { return e.id; });
+    // πισίνα: μόνο το εξωτερικό περίγραμμα (όχι η στέψη / το νερό μέσα του)
+    var pl0 = pick(LAY.pool, TXT.pool).sort(function (x, y) { return y.area - x.area; }), plk = [];
+    var mostIn = function (e, k) { var n = 0; e.pts.forEach(function (q) { if (pip(q, k.pts)) n++; }); return n >= e.pts.length * 0.5; };
+    pl0.forEach(function (e) { var cc = cent(e.pts); if (!plk.some(function (k) { return pip(cc, k.pts) || mostIn(e, k); })) plk.push(e); });
+    res.pool = plk.map(function (e) { return e.id; });
     res.pras = pick(LAY.pras, TXT.pras).map(function (e) { return e.id; });
     res.fyt = pick(LAY.fyt, TXT.fyt).filter(function (e) { return res.pras.indexOf(e.id) < 0; }).map(function (e) { return e.id; });
     var used = {}; res.pool.concat(res.pras, res.fyt).forEach(function (i) { used[i] = 1; });
-    var b = inn.filter(function (e) { return !used[e.id] && e.area >= 4 && (LAY.build.test(e.L) || textIn(D, c, TXT.build, e)); });
+    var NOTB = /ZONE|ΖΩΝΗ|ΟΙΚΟΔΟΜΗΣΙΜ|ΔΥΝΑΤ|ΠΕΡΙΒΑΛ|ENVELOP|SETBACK|ΑΠΟΣΤΑΣ|ΠΕΡΓΚΟΛ|PERGOL|ΠΙΣΙΝ|PISIN|POOL|ΚΟΛΥΜΒ/;
+    var b = inn.filter(function (e) { return !used[e.id] && e.area >= 4 && !NOTB.test(e.L) && (LAY.build.test(e.L) || textIn(D, c, TXT.build, e)); });
     if (!b.length) b = inn.filter(function (e) { return !used[e.id] && e.area >= 15; });
     // μόνο τα εξωτερικά
     b.sort(function (x, y) { return y.area - x.area; });
     var keep = [];
     b.forEach(function (e) { var cc = cent(e.pts); if (!keep.some(function (k) { return pip(cc, k.pts); })) keep.push(e); });
+    // πολύ μικρά κλειστά στο layer κτιρίων (φεγγίτες, καμινάδες, εξαρτήματα) δεν είναι χωριστά κτίρια όταν υπάρχουν μεγαλύτερα
+    var big0 = keep.length ? keep[0].area : 0;
+    keep = keep.filter(function (e) { return e.area >= Math.max(10, 0.1 * big0) || textIn(D, c, TXT.build, e); });
     res.cov = keep.map(function (e) { return e.id; });
     return res;
   }
 
   /* ---------------- αναγνώριση σε κάτοψη ---------------- */
+  var UNITRX = /ΔΙΑΜΕΡΙΣΜ|ΚΑΤΑΣΤΗΜ|ΓΡΑΦΕΙ|ΙΔΙΟΚΤΗΣΙΑ [Α-Ω0-9]|ΜΟΝΑΔΑ|ΚΑΤΟΙΚΙΑ [Α-Ω0-9]/;
   var SP = [
     ['L', /ΑΝΕΛΚΥΣΤ|ΑΣΑΝΣΕΡ/],
     ['A', /ΑΝΟΙΚΤ.{0,4}ΚΛΙΜ|ΕΞΩΤΕΡ.{0,6}ΚΛΙΜ|ΑΝΟΙΧΤ.{0,4}ΚΛΙΜ/],
@@ -301,10 +467,26 @@
     var cand = cs.filter(function (e) { return !frame.test(e.L); });
     var out = cand[0];
     if (!out) return res;
+    // ένα κουτάκι (έπιπλο, φρεάτιο) σε κάτοψη χωρίς κλειστό περίγραμμα δεν είναι περίγραμμα ορόφου
+    if (out.area < 0.06 * cw * chh && out.area < 25) return res;
     // κι άλλα κομμάτια του ίδιου ορόφου (π.χ. δύο πτέρυγες) που δεν περιέχονται
     var outs = [out];
     cand.slice(1).forEach(function (e) { if (e.area > out.area * 0.25 && !outs.some(function (o) { return pip(cent(e.pts), o.pts); }) && !textIn(D, c, /./, e)) outs.push(e); });
+    // κομμάτια που εφάπτονται (π.χ. διαμέρισμα Ι1 + διαμέρισμα Ι2 + κλιμακοστάσιο σχεδιασμένα χωριστά) = ένα περίγραμμα
+    var spRe = new RegExp(SP.map(function (x) { return x[1].source; }).join('|'));
+    for (var pass = 0, added = true; added && pass < 6; pass++) { added = false;
+      cand.forEach(function (e) { if (outs.indexOf(e) >= 0 || e.area < Math.max(2, out.area * 0.03)) return;
+        if (outs.some(function (o) { return inside(e.pts, o.pts) || inside(o.pts, e.pts); })) return;
+        if (textIn(D, c, spRe, e)) return;
+        // μόνο αυτοτελείς μονάδες (διαμέρισμα, κατάστημα…) ή χώρος ανάμεσα σε δύο μονάδες (κλιμακοστάσιο)· όχι προστεγάσματα, αυλές, πισίνες
+        var unit = textIn(D, c, UNITRX, e), nb = outs.filter(function (o) { return o.area > 30 && touch(e.pts, o.pts, 0.05); }).length;
+        if ((unit && nb >= 1) || (!textIn(D, c, /[Α-ΩA-Z]{3,}/, e) && nb >= 2 && e.area <= 30)) { outs.push(e); added = true; } }); }
     res.outline = outs.map(function (e) { return e.id; });
+    // μικρός χώρος ανάμεσα σε δύο ή περισσότερα διαμερίσματα, χωρίς ένδειξη: πρόταση «κοινόχρηστο κλιμακοστάσιο»
+    var units = outs.filter(function (o) { return o.area > 30; });
+    if (units.length >= 2) outs.forEach(function (e) { if (e.area < 6 || e.area > 30 || textIn(D, c, /./, e)) return;
+      var nt = outs.filter(function (o) { return o !== e && o.area > 30 && touch(e.pts, o.pts, 0.05); }).length;
+      if (nt >= 2) res.spaces.push({ id: e.id, code: 'K', lbl: false, guess: true }); });
     var excl = {}; outs.forEach(function (o) { excl[o.id] = 1; });
     var seen = {}; lsp.forEach(function (sp) { seen[sp.id] = 1; });
     c.texts.forEach(function (ti) {
@@ -527,10 +709,14 @@
     R.allow = allow; R.allowTxt = allowTxt;
     // κάλυψη
     var WR = wallRule(A.wall); R.wall = WR;
-    var Sk = 0; A.cov.forEach(function (p) { Sk += area(p); });
-    // κάλυψη: αφαιρείται η λωρίδα τοιχοποιίας/θερμομόνωσης του μεγαλύτερου υπέργειου ορόφου (207 παρ. 4γ)
-    var Skx = 0; if (WR.typ !== 'none' && Sk > 0) A.levels.forEach(function (L) { if (L.typ !== 1) return; var w = 0; L.outlines.forEach(function (p) { w += WR.f(p, L.cols); }); Skx = Math.max(Skx, w); });
-    Skx = Math.min(Skx, Sk); R.Sk0 = Sk; R.Skx = Skx; Sk -= Skx;
+    // κάλυψη ανά κτίριο· υπόσκαφο: αφαιρείται η εξαιρούμενη τοιχοποιία και δεν μετρά το 50% (κατοικία) / 20% (άλλη χρήση) — 207 παρ. 4στ
+    var CM = A.covMeta || [], Sk0 = 0, SkN = 0, SkY = 0, WY = 0, covList = [];
+    A.cov.forEach(function (p, i) { var m = CM[i] || {}, a = area(p); Sk0 += a;
+      if (m.ypo) { var w = WR.typ !== 'none' ? Math.min(a, WR.f(p, null)) : 0, f = m.use === 2 ? 0.8 : 0.5, c = (a - w) * f; WY += w; SkY += c; covList.push({ name: m.name || '', a: a, wx: w, f: f, ypo: true, c: c }); }
+      else { SkN += a; covList.push({ name: m.name || '', a: a, wx: 0, f: 1, ypo: false, c: a }); } });
+    // υπέργεια κτίρια: αφαιρείται η λωρίδα τοιχοποιίας/θερμομόνωσης του μεγαλύτερου υπέργειου ορόφου (207 παρ. 4γ)
+    var Skx = 0; if (WR.typ !== 'none' && SkN > 0) A.levels.forEach(function (L) { if (L.typ !== 1) return; var w = 0; L.outlines.forEach(function (p) { w += WR.f(p, L.cols); }); Skx = Math.max(Skx, w); });
+    Skx = Math.min(Skx, SkN); var Sk = SkN - Skx + SkY; R.Sk0 = Sk0; R.Skx = Skx; R.SkY = SkY; R.WY = WY; R.covList = covList;
     var kp = A.kp; if (mode === 3 && R.oikKp) kp = Math.max(kp, R.oikKp); if (mode === 2) kp = Math.min(kp || 10, 10);
     var kpe = kp; if (mode === 1 && kp > 0 && kp * E / 100 < 120) kpe = Math.max(kp, 100 * Math.min(120, 0.7 * E) / E);
     var Ka = kpe > 0 ? E * kpe / 100 : null; if (mode === 2 && Ka != null && allow != null) Ka = Math.min(Ka, allow);
@@ -546,7 +732,8 @@
     var Hu = A.H > 0 ? A.H : (sx.Hmax || 0);
     // χωρίς τομές: εκτίμηση από τα ύψη των υπέργειων επιπέδων (άθροισμα), σημειώνεται ως εκτίμηση
     R.Hest = false;
-    if (!(Hu > 0)) { var hs = 0; A.levels.forEach(function (L) { if (L.typ === 1) hs += (L.h || 0); }); if (hs > 0) { Hu = hs; R.Hest = true; } }
+    // εκτίμηση ύψους: άθροισμα ορόφων ΑΝΑ ΚΤΙΡΙΟ (σε συγκρότημα δεν προστίθενται όροφοι διαφορετικών κτιρίων) — το ψηλότερο
+    if (!(Hu > 0)) { var hb = {}; A.levels.forEach(function (L) { if (L.typ === 1) hb[L.bld || ''] = (hb[L.bld || ''] || 0) + (L.h || 0); }); var hs = 0; for (var kb in hb) hs = Math.max(hs, hb[kb]); if (hs > 0) { Hu = hs; R.Hest = true; } }
     R.Hu = Hu;
     var baseLim = mode === 2 ? 0.80 : 1.20; R.baseLim = baseLim;
     var baseBad = sx.baseRoof != null && sx.baseRoof > baseLim + 0.005; R.baseBad = baseBad;
@@ -561,7 +748,7 @@
       var stG = groups(stL), gOf = {}, gRem = {}, gCode = {}; stIdx.forEach(function (i, k) { gOf[i] = stG[k]; gCode[stG[k]] = gCode[stG[k]] || L.spaces[i].code; });
       L._stg = {};
       L.spaces.forEach(function (s, si) {
-        var a = area(s.pts), inn = L.outlines.some(function (o) { return pip(cent(s.pts), o); }), x = 0, nt = '';
+        var a = area(s.pts), inn = L.outlines.some(function (o) { return pip(cent(s.pts), o) || inside(s.pts, o); }), x = 0, nt = '';
         if (!inn) tot += a;
         if (s.code === 'H' || s.code === 'X') { hx += a; if (s.code === 'H') h += a; nt = 'όριο 40% / 20% στο σύνολο (206 παρ. 6α)'; }
         else if (s.code === 'K' || s.code === 'I') { var gk = gOf[si], lim = s.code === 'K' ? (j === entr ? 40 : 30) : 25; if (gRem[gk] == null) gRem[gk] = lim; x = Math.min(a, gRem[gk]); gRem[gk] -= x;
@@ -576,7 +763,7 @@
         if (s.code !== 'H' && s.code !== 'X') ex += x;
         sp.push({ code: s.code, a: a, x: x, nt: nt, inn: inn });
       });
-      var wx = (L.typ === 1 && WR.typ !== 'none') ? L.outlines.reduce(function (s0, p) { return s0 + WR.f(p, L.cols); }, 0) : 0;
+      var wx = ((L.typ === 1 || L.typ === 4) && WR.typ !== 'none') ? L.outlines.reduce(function (s0, p) { return s0 + WR.f(p, L.cols); }, 0) : 0;
       var cvr = null; if (L.typ === 1 && WR.typ === 'thermo') { cvr = { len: 0, per: 0, n: (L.cols || []).length }; L.outlines.forEach(function (p) { var c0 = colCover(p, L.cols || [], WR.d); cvr.len += c0.len; cvr.per += c0.per; }); }
       var Lc = tot - ex - hx - wx, cnt = Lc, nt = '';
       if (L.typ === 2 && baseBad) { cnt = Lc; nt = 'ΔΕΝ είναι υπόγειο: η οροφή του βγαίνει ' + gr(sx.baseRoof) + ' μ. πάνω από το έδαφος (> ' + gr(baseLim) + ' μ., ' + (mode === 2 ? '251 παρ. 8' : mode === 3 ? '239 Γ2' : '197 παρ. 87') + ') — μετρά όλο ως όροφος'; }
@@ -881,6 +1068,8 @@
     h1('ΓΕΝΙΚΑ ΣΤΟΙΧΕΙΑ ' + Gh + ' - ΚΤΙΡΙΟΥ');
     h2('(που υπόκεινται σε έλεγχο της αρμόδιας Υ.ΔΟΜ)');
     n('ΕΠΙΤΡΕΠΟΜΕΝΗ ΚΑΛΥΨΗ: Ε=Ε' + oik + ' x Σ.Κ.= ' + gr(A.E) + ' x ' + grz(R.kpe) + '% = ' + gr(R.Ka) + ' Μ²' + (ekt && R.allow != null && R.Ka <= R.allow + 0.005 && A.E * R.kpe / 100 > R.allow ? ' (≤ μέγιστη δόμηση)' : ''));
+    if (R.covList && (R.covList.length > 1 || R.covList.some(function (c) { return c.ypo; }))) R.covList.forEach(function (c, i) {
+      n(norm(c.name || 'ΚΤΙΡΙΟ ' + (i + 1)) + ': ' + (c.ypo ? 'υπόσκαφο ' + gr(c.a) + (c.wx > 0.005 ? ' − τοιχοποιία ' + gr(c.wx) : '') + ' Μ² × ' + gr(c.f * 100, 0) + '% = ' + gr(c.c) + ' Μ² (207 παρ. 4στ)' : gr(c.a) + ' Μ²')); });
     if (R.Skx > 0.005) n('Κάλυψη περιγράμματος ' + gr(R.Sk0) + ' Μ² − τοιχοποιία/θερμομόνωση ' + gr(R.Skx) + ' Μ² (' + R.wall.txt + ' · άρθ. ' + R.wall.art + ', 207 παρ. 4γ ν.5306/26)');
     n('ΠΡΑΓΜΑΤΟΠΟΙΟΥΜΕΝΗ ΚΑΛΥΨΗ: Ε= ' + gr(R.Sk) + ' Μ² (' + gr(R.pk) + '%) <= επιτρεπ. κάλυψη ' + gr(R.Ka) + ' Μ²' + (R.Ka != null && A.E > 0 ? ' (' + gr(R.Ka / A.E * 100) + '%)' : '') + fl(R.Ka == null || R.Sk <= R.Ka + 0.005));
     if (ekt) {
@@ -963,7 +1152,7 @@
 
   var api = {
     area: area, cent: cent, bbox: bbox, bbUnion: bbUnion, bbGrow: bbGrow, pip: pip, ptseg: ptseg, dist: dist, inside: inside, edgeMin: edgeMin,
-    norm: norm, prepare: prepare, cluster: cluster, recognize: recognize, levelFromText: levelFromText, topoDetect: topoDetect, planDetect: planDetect,
+    norm: norm, prepare: prepare, cluster: cluster, recognize: recognize, levelFromText: levelFromText, rescale: rescale, bldTag: bldTag, bldList: bldList, topoDetect: topoDetect, planDetect: planDetect,
     compute: compute, checks: checks, suggest: suggest, yTemplate: yTemplate, levelBlock: levelBlock,
     sectionAnalyze: sectionAnalyze, verdict: verdict, wallRule: wallRule, findCols: findCols, isColLayer: isColLayer, colCover: colCover, strip: strip, inset: inset, WALLT: WALLT, split: split, layerCode: layerCode, PLOTL: /KAEK|ΚΑΕΚ|TOPO_PROP|BOUND|OIKOPED|ΟΙΚΟΠΕΔ|PLOT|GEOTEM|ΓΕΩΤΕΜ/, oikMax: oikMax, ektMax: ektMax, hmax210: hmax210, gr: gr, grz: grz, CODE: CODE, typText: typText, EGSA: EGSA
   };
