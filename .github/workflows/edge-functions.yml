@@ -108,6 +108,12 @@ jobs:
           # χωρίς διευθύνσεις στα logs: παραλήπτης 1 = brb.develop, 2 = miltos.birbas
           msg=$(echo "$r" | jq -r '[.to // {} | to_entries | to_entries[] | "παραλήπτης \(.key+1): \(.value.value | gsub("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+";"<email>"))"] | join(" · ")' 2>/dev/null)
           echo "::notice title=signup-notify::${msg:-$r}"
+      - name: Δοκιμή BoQ (κλειδί άδειας + boq-ai)
+        run: |
+          K="sb_publishable_AjcKB0okxSvA9SUBazKEHQ_-HR0FMHP"
+          a=$(curl -sS -X POST "https://$REF.supabase.co/rest/v1/rpc/boq_activate" -H "apikey: $K" -H "Content-Type: application/json" -d '{"p_key":"BOQ-XXXX-XXXX-XXXX","p_device":"ci-test-boq","p_email":"ci@example.com"}'); echo "λάθος κλειδί: $a"
+          b=$(curl -sS -X POST "https://$REF.supabase.co/functions/v1/boq-ai" -H "apikey: $K" -H "Content-Type: application/json" -d '{"key":"BOQ-XXXX-XXXX-XXXX","device":"ci-test-boq","prompt":"{}"}'); echo "AI χωρίς άδεια: $b"
+          echo "$a" | grep -q '"invalid"' && echo "$b" | grep -q '"licence"' || { echo "::error::BoQ: η άδεια ή το boq-ai δεν απαντούν σωστά"; exit 1; }
       - name: Δοκιμή pad-lic
         run: |
           U="https://$REF.supabase.co/functions/v1/pad-lic"; K="sb_publishable_AjcKB0okxSvA9SUBazKEHQ_-HR0FMHP"
