@@ -47,3 +47,21 @@ begin
 end $$;
 revoke all on function public.admin_interior_reports(), public.admin_interior_report_set(bigint,text) from public, anon;
 grant execute on function public.admin_interior_reports(), public.admin_interior_report_set(bigint,text) to authenticated;
+
+-- Γενική SOS αναφορά για όλες τις εφαρμογές του hub (π.χ. BoQ) · ίδιος πίνακας, στήλη app
+create or replace function public.hexis_app_report(p_app text, p_text text, p_ctx jsonb, p_shot text)
+returns json language plpgsql security definer set search_path = public as $$
+declare u uuid := auth.uid(); n int; em text; a text;
+begin
+  if u is null then raise exception 'login'; end if;
+  a := case when p_app in ('interior','mapping','boq') then p_app else 'other' end;
+  select count(*) into n from interior_reports where user_id = u and created_at > now() - interval '1 hour';
+  if n >= 15 then return json_build_object('ok', false, 'msg', 'Πολλές αναφορές · δοκίμασε σε λίγο.'); end if;
+  select email into em from auth.users where id = u;
+  insert into interior_reports(user_id, email, text, ctx, shot, app)
+  values (u, em, left(coalesce(p_text,''), 3000), p_ctx,
+          case when p_shot like 'data:image/%' and length(p_shot) < 800000 then p_shot else null end, a);
+  return json_build_object('ok', true);
+end $$;
+revoke all on function public.hexis_app_report(text,text,jsonb,text) from public, anon;
+grant execute on function public.hexis_app_report(text,text,jsonb,text) to authenticated;

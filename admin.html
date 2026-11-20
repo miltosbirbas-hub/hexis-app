@@ -221,7 +221,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
     <button data-go="boq"><span>BoQ · κλειδιά</span><b id="nBoq"></b></button>
     <button data-go="payments"><span>Πληρωμές</span><b id="nPay"></b></button>
     <button data-go="requests"><span>Αιτήματα</span><b id="nReq"></b></button>
-    <button data-go="sos" class="sosnav" data-app="interior" title="Αναφορές προβλημάτων από το HEXIS INTERIOR"><span>🆘 SOS Interior</span><b id="nSos"></b></button><button data-go="sosmap" class="sosnav" data-app="mapping" title="Αναφορές προβλημάτων από το HEXIS MAPPING"><span>🆘 SOS Mapping</span><b id="nSosMap"></b></button>
+    <button data-go="sos" class="sosnav" data-app="interior" title="Αναφορές προβλημάτων από το HEXIS INTERIOR"><span>🆘 SOS Interior</span><b id="nSos"></b></button><button data-go="sosmap" class="sosnav" data-app="mapping" title="Αναφορές προβλημάτων από το HEXIS MAPPING"><span>🆘 SOS Mapping</span><b id="nSosMap"></b></button><button data-go="sosboq" class="sosnav" data-app="boq" title="Αναφορές προβλημάτων από το HEXIS-APP BoQ"><span>🆘 SOS BoQ</span><b id="nSosBoq"></b></button>
   </nav>
 
   <div class="card" id="geoCard" data-sec="geo">
@@ -347,7 +347,7 @@ body{background:#F6F8FB;color:var(--text);font-family:var(--font-b);font-size:14
     </div>
     <div class="sub" data-sub="rep">
     <div class="ixsub">Αναφορές προβλημάτων <span class="hint" style="margin:0">· από το κόκκινο κουμπί SOS μέσα στην εφαρμογή · στιγμιότυπο, συσκευή και τα τελευταία κουμπιά · χρειάζεται μία φορά το interior-reports.sql</span></div>
-    <div id="repSeg" style="display:flex;gap:6px;margin:0 0 8px"><button class="btn" data-rapp="interior">🆘 SOS Interior <b id="repNi"></b></button><button class="btn" data-rapp="mapping">🆘 SOS Mapping <b id="repNm"></b></button></div><div class="ixtw scrl" id="ixRep" style="max-height:calc(100vh - 300px)"><div class="empty">Φόρτωση...</div></div>
+    <div id="repSeg" style="display:flex;gap:6px;margin:0 0 8px"><button class="btn" data-rapp="interior">🆘 SOS Interior <b id="repNi"></b></button><button class="btn" data-rapp="mapping">🆘 SOS Mapping <b id="repNm"></b></button><button class="btn" data-rapp="boq">🆘 SOS BoQ <b id="repNb"></b></button></div><div class="ixtw scrl" id="ixRep" style="max-height:calc(100vh - 300px)"><div class="empty">Φόρτωση...</div></div>
     </div>
     <div class="sub" data-sub="sec">
     <div class="ixsub">Συσκευές <span class="hint" style="margin:0">· κάθε λογαριασμός ανοίγει σε μία συσκευή κάθε φορά · έως 5 αλλαγές / 30 ημέρες</span></div>
@@ -830,12 +830,12 @@ const IXMAIL=(r,key)=>{const sig='\n\nΜίλτος Μπίρμπας\nΠολιτ�
   return `Καλησπέρα${r.name?' '+r.name:''},\n\nσου στέλνω πρόσβαση δοκιμής 48 ωρών στο HEXIS Interior.\n\nΚλειδί: ${key}\n\n1. Άνοιξε το https://hexis-app.gr/interior.html\n2. Μπες με το email σου (${r.email}) · έρχεται κωδικός στο email.\n3. Γράψε το κλειδί στο «Κλειδί πρόσβασης».\n\nΟι 48 ώρες μετράνε από τη στιγμή που θα γράψεις το κλειδί. Οδηγίες χρήσης: https://hexis-app.gr/interior-help.html`+sig};
 window.REPAPP=window.REPAPP||'interior';
 async function ixRepLoad(){const el=document.getElementById('ixRep');if(!el)return;const {data,error}=await sb.rpc('admin_interior_reports');if(error){el.innerHTML='<div class="empty">'+ixe(error.message)+' · τρέξε μία φορά το interior-reports.sql στο Supabase</div>';return}
-  const ALL=data||[];const appOf=r=>r.app||(r.ctx&&r.ctx.app)||'interior';const nNew=a=>ALL.filter(r=>r.status==='new'&&appOf(r)===a).length;const ni=nNew('interior'),nm=nNew('mapping');
-  const R=ALL.filter(r=>appOf(r)===window.REPAPP);const nn=ni+nm;const n=document.getElementById('ixRepN');if(n)n.textContent=nn?' '+nn:'';
-  const set=(id,v)=>{const x=document.getElementById(id);if(x)x.textContent=v?String(v):''};set('nSos',ni);set('nSosMap',nm);set('repNi',ni);set('repNm',nm);
-  document.querySelectorAll('.sosnav').forEach(b=>b.classList.toggle('alert',(b.dataset.app==='mapping'?nm:ni)>0));
+  const ALL=data||[];const appOf=r=>(r.ctx&&r.ctx.app)||r.app||'interior';const nNew=a=>ALL.filter(r=>r.status==='new'&&appOf(r)===a).length;const ni=nNew('interior'),nm=nNew('mapping'),nb=nNew('boq');
+  const R=ALL.filter(r=>appOf(r)===window.REPAPP);const nn=ni+nm+nb;const n=document.getElementById('ixRepN');if(n)n.textContent=nn?' '+nn:'';
+  const set=(id,v)=>{const x=document.getElementById(id);if(x)x.textContent=v?String(v):''};set('nSos',ni);set('nSosMap',nm);set('nSosBoq',nb);set('repNi',ni);set('repNm',nm);set('repNb',nb);
+  document.querySelectorAll('.sosnav').forEach(b=>b.classList.toggle('alert',(b.dataset.app==='mapping'?nm:b.dataset.app==='boq'?nb:ni)>0));
   document.querySelectorAll('#repSeg [data-rapp]').forEach(b=>{b.classList.toggle('btn-ok',b.dataset.rapp===window.REPAPP);b.onclick=()=>{window.REPAPP=b.dataset.rapp;ixRepLoad()}});
-  if(nn&&!window.__sosToast){window.__sosToast=1;toast('🆘 '+[ni?ni+' Interior':'',nm?nm+' Mapping':''].filter(Boolean).join(' · ')+(nn===1?' · νέα αναφορά SOS':' · νέες αναφορές SOS'))}const t=v=>v?new Date(v).toLocaleString('el-GR',{dateStyle:'short',timeStyle:'short'}):'—';
+  if(nn&&!window.__sosToast){window.__sosToast=1;toast('🆘 '+[ni?ni+' Interior':'',nm?nm+' Mapping':'',nb?nb+' BoQ':''].filter(Boolean).join(' · ')+(nn===1?' · νέα αναφορά SOS':' · νέες αναφορές SOS'))}const t=v=>v?new Date(v).toLocaleString('el-GR',{dateStyle:'short',timeStyle:'short'}):'—';
   el.innerHTML=R.length?R.map(r=>{const c=r.ctx||{};return `<div style="display:flex;gap:12px;padding:10px;border-bottom:1px solid rgba(0,0,0,.08);${r.status==='new'?'background:rgba(224,90,18,.07)':'opacity:.75'}">
     ${r.shot?`<a href="${r.shot}" target="_blank" rel="noopener"><img src="${r.shot}" style="width:220px;max-height:150px;object-fit:contain;border:1px solid rgba(0,0,0,.12);border-radius:6px;background:#fff"></a>`:''}
     <div style="flex:1;min-width:0"><div><b>${ixe(r.email||'')}</b> · ${t(r.created_at)} · <span class="ixtag">${r.status==='new'?'νέο':r.status==='fixed'?'διορθώθηκε':'είδα'}</span></div>
@@ -1130,7 +1130,7 @@ document.getElementById('boqNew').onclick=async()=>{const em0=document.getElemen
 document.querySelectorAll('#uTabs [data-st]').forEach(b=>b.onclick=()=>{USTAB=b.dataset.st;renderUsers()});
 // ===== Καρτέλες: μία ενότητα τη φορά, χωρίς κύλιση όλης της σελίδας =====
 (function(){const C=document.querySelector('.adc'),T=['users','interior','mapping','pad','geo','trv','boq','payments','requests'];
-  function go(g){if(g==='sosmap'){window.REPAPP='mapping';g='sos'}else if(g==='sos'){window.REPAPP='interior'}if(g==='sos'){g='interior';try{ixRepLoad()}catch(e){}setTimeout(()=>{const b=document.querySelector('[data-grp="ix"] [data-sub="rep"]');if(b)b.click()},50)}if(!T.includes(g))g='users';document.querySelectorAll('#adNav [data-go]').forEach(x=>x.classList.toggle('on',x.dataset.go===g));
+  function go(g){if(g==='sosmap'){window.REPAPP='mapping';g='sos'}else if(g==='sosboq'){window.REPAPP='boq';g='sos'}else if(g==='sos'){window.REPAPP='interior'}if(g==='sos'){g='interior';try{ixRepLoad()}catch(e){}setTimeout(()=>{const b=document.querySelector('[data-grp="ix"] [data-sub="rep"]');if(b)b.click()},50)}if(!T.includes(g))g='users';document.querySelectorAll('#adNav [data-go]').forEach(x=>x.classList.toggle('on',x.dataset.go===g));
     C.querySelectorAll('.card[data-sec]').forEach(c=>c.classList.toggle('show',c.dataset.sec===g));
     try{localStorage.setItem('hxAdmTab',g)}catch(e){}if(location.hash!=='#'+g)history.replaceState(null,'','#'+g);
     if(g==='mapping')setTimeout(()=>{if(typeof mpOpen==='function')mpOpen()},0);if(g==='pad')setTimeout(()=>{if(typeof padLoad==='function')padLoad()},0);if(g==='geo')setTimeout(()=>{if(typeof geoLoad==='function')geoLoad()},0);if(g==='trv')setTimeout(()=>{if(typeof trvLoad==='function')trvLoad()},0);window.scrollTo({top:0})}
